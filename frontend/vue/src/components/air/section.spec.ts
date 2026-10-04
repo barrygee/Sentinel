@@ -9,7 +9,13 @@ vi.mock('@/shell/sidebarRegistry', () => ({ registerSidebarFilterSubTabs }))
 // view's own behaviour, which AirView.spec.ts already covers).
 vi.mock('./AirView.vue', () => ({ default: { name: 'AirView' } }))
 const registerNotificationTarget = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/notificationRegistry', () => ({ registerNotificationTarget }))
+const registerNotificationSubscriptionSource = vi.hoisted(() => vi.fn())
+vi.mock('@/shell/notificationRegistry', () => ({
+  registerNotificationTarget,
+  registerNotificationSubscriptionSource,
+}))
+const registerSettingsHydrator = vi.hoisted(() => vi.fn())
+vi.mock('@/shell/settingsHydration', () => ({ registerSettingsHydrator }))
 const registerBackgroundService = vi.hoisted(() => vi.fn())
 vi.mock('@/shell/backgroundServices', () => ({ registerBackgroundService }))
 const startAirAlerts = vi.hoisted(() => vi.fn())
@@ -26,6 +32,7 @@ describe('components/air/section', () => {
       id: 'air',
       label: 'AIR',
       navOrder: 10,
+      enabledByDefault: true,
       route: { path: '/air/', component: AirView },
     })
   })
@@ -61,5 +68,23 @@ describe('components/air/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('air')
     expect(getSettingItems().some((item) => item.section === 'air')).toBe(true)
+  })
+
+  it('lists its landing/departure bells and overhead alerts in Settings › Alerts', async () => {
+    const { aircraftBellSubscriptions, overheadAlertSubscriptions } =
+      await import('./airNotificationSubscriptions')
+    await import('./section')
+
+    expect(registerNotificationSubscriptionSource.mock.calls).toEqual([
+      [aircraftBellSubscriptions],
+      [overheadAlertSubscriptions],
+    ])
+  })
+
+  it('hydrates its stores from the boot settings', async () => {
+    const { hydrateAirFromSettings } = await import('./airSettingsHydration')
+    await import('./section')
+
+    expect(registerSettingsHydrator).toHaveBeenCalledExactlyOnceWith('air', hydrateAirFromSettings)
   })
 })

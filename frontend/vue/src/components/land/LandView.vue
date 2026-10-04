@@ -55,7 +55,7 @@ import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
 import { useSentrySitesStore } from '@/stores/sentrySites'
 import { useSettingsStore } from '@/stores/settings'
-import { useSdrStore } from '@/stores/sdr'
+import { useRadio } from '@/shell/useRadio'
 import { AprsStationsControl } from '@/components/land/controls/aprs/AprsStationsControl'
 import { RepeatersControl } from '@/components/land/controls/repeaters/RepeatersControl'
 import { LandRangeRingsControl } from '@/components/shared/controls/range-rings/LandRangeRingsControl'
@@ -75,7 +75,8 @@ const repeatersStore = useRepeatersStore()
 const basemapStore = useBasemapStore()
 const sentrySitesStore = useSentrySitesStore()
 const settingsStore = useSettingsStore()
-const sdrStore = useSdrStore()
+// Whether anything decodes APRS comes from the radio platform (F10).
+const { radio } = useRadio()
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 const { ready: searchPaneReady } = useSidebarPaneTarget('search')
 
@@ -125,7 +126,9 @@ const offlineTierRefresh = useOfflineTierRefresh(
 // panel's APRS button drives). Without one nothing is decoding, so the layer is
 // forced off whatever the Settings switch says, rather than offering a layer
 // that could only ever be empty.
-const aprsSourceConfigured = computed(() => sdrStore.aprsRadioId !== null)
+const aprsSourceConfigured = computed(
+  () => (radio.value?.decoders.activeRadioId('aprs') ?? null) !== null,
+)
 // Reactive toggle state backing the rail's range-rings button.
 const rangeRingsActive = ref(false)
 const locationActive = computed(() => userLocation.value !== null)
@@ -219,7 +222,7 @@ onMounted(() => {
   // The backend resumes the persisted APRS radio on startup, so the database is
   // the truth about whether anything is decoding — the store's localStorage
   // cache can be stale on a browser that never opened the SDR panel.
-  void sdrStore.hydrateAprsFromDb()
+  void radio.value?.decoders.refresh('aprs')
 
   // Load the default-layers config, then apply it to the APRS layer (and keep it
   // in sync if the config changes, or if the APRS radio is chosen/cleared).

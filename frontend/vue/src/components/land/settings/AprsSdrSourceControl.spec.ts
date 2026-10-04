@@ -1,11 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 
 import AprsSdrSourceControl from './AprsSdrSourceControl.vue'
-import * as sdrRadiosApi from '@/services/sdrRadiosApi'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
+import type { RadioSummary } from '@/shell/radioCapability'
 
 /**
  * Tests for choosing which radio decodes APRS.
@@ -18,31 +17,16 @@ import { useSdrStore } from '@/stores/sdr'
  * always being able to tell why a list is empty.
  */
 
-function radio(overrides: Partial<sdrRadiosApi.SdrRadioRecord> = {}): sdrRadiosApi.SdrRadioRecord {
-  return {
-    id: 1,
-    name: 'Attic Dongle',
-    host: '192.168.5.67',
-    port: 1234,
-    description: '',
-    enabled: true,
-    bandwidth: null,
-    rf_gain: null,
-    agc: null,
-    sentry_host_id: null,
-    sentry_device_id: null,
-    notes: '',
-    antenna: '',
-    visibility: 'public',
-    device_available: true,
-    unavailable_reason: '',
-    ...overrides,
-  }
+// Radios and decoders come from the `radio` capability (F10) — a fake here.
+function radio(overrides: Partial<RadioSummary> = {}): RadioSummary {
+  return { id: 1, name: 'Attic Dongle', enabled: true, available: true, ...overrides }
 }
 
+let fakeRadio: ReturnType<typeof provideFakeRadio>
+
 /** Mount with the radio list the backend would return, and let it settle. */
-async function mountControl(radios: sdrRadiosApi.SdrRadioRecord[]) {
-  vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue(radios)
+async function mountControl(radios: RadioSummary[]) {
+  fakeRadio.listRadios.mockResolvedValue(radios)
   const wrapper = mount(AprsSdrSourceControl)
   await flushPromises()
   return wrapper
@@ -61,13 +45,9 @@ async function applyStaged(wrapper: ReturnType<typeof mount>) {
   return apply()
 }
 
-/** Make `/api/settings/sdr` report which radio the backend has APRS decode on. */
+/** Have the radio platform report which radio APRS decode runs on. */
 function persistAprsRadio(radioId: number | null) {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify(radioId === null ? {} : { aprs_radio_id: radioId }), {
-      status: 200,
-    }),
-  )
+  fakeRadio.state.activeDecoders.aprs = radioId
 }
 
 function optionLabels(wrapper: ReturnType<typeof mount>) {
@@ -75,15 +55,12 @@ function optionLabels(wrapper: ReturnType<typeof mount>) {
 }
 
 beforeEach(() => {
-  setActivePinia(createPinia())
-  localStorage.clear()
-  // The control hydrates from the settings API on mount — the DB, not the
-  // store's localStorage cache, decides what is decoding. Nothing persisted
-  // unless a test calls persistAprsRadio().
-  persistAprsRadio(null)
+  // Nothing decoding unless a test calls persistAprsRadio().
+  fakeRadio = provideFakeRadio()
 })
 
 afterEach(() => {
+  fakeRadio.withdraw()
   vi.restoreAllMocks()
 })
 
@@ -114,14 +91,14 @@ describe('AprsSdrSourceControl', () => {
   it('omits a radio whose Sentry device is unavailable', async () => {
     const wrapper = await mountControl([
       radio({ id: 1, name: 'Present' }),
-      radio({ id: 2, name: 'Unplugged', device_available: false }),
+      radio({ id: 2, name: 'Unplugged', available: false }),
     ])
 
     expect(optionLabels(wrapper)).toEqual(['Present'])
   })
 
   it('survives a radio list that cannot be fetched', async () => {
-    vi.spyOn(sdrRadiosApi, 'listRadios').mockRejectedValue(new Error('offline'))
+    fakeRadio.listRadios.mockRejectedValue(new Error('offline'))
     const wrapper = mount(AprsSdrSourceControl)
     await flushPromises()
 
@@ -130,10 +107,9 @@ describe('AprsSdrSourceControl', () => {
   })
 
   describe('the chosen radio', () => {
-    it('pre-selects the radio the backend says is decoding', async () => {
+    it('pre-selects the radio the backend says is decoding, after re-reading it', async () => {
       const wrapper = await mountControl([radio({ id: 2, name: 'Shed Dongle' })])
-      // hydrateAprsFromDb resolved before mount finished; drive it via the store
-      // the same way a reload would.
+      expect(fakeRadio.decoders.refresh).toHaveBeenCalledWith('aprs')
       expect(wrapper.find('[role="option"][aria-selected="true"]').exists()).toBe(false)
 
       persistAprsRadio(2)
@@ -152,9 +128,7 @@ describe('AprsSdrSourceControl', () => {
 
     it('keeps a withdrawn radio listed, labelled, and explains it', async () => {
       persistAprsRadio(1)
-      const wrapper = await mountControl([
-        radio({ id: 1, name: 'Unplugged', device_available: false }),
-      ])
+      const wrapper = await mountControl([radio({ id: 1, name: 'Unplugged', available: false })])
 
       expect(optionLabels(wrapper)).toContain('Unplugged (unavailable)')
       expect(wrapper.text()).toContain('no longer available')
@@ -176,21 +150,17 @@ describe('AprsSdrSourceControl', () => {
   describe('applying a choice', () => {
     it('starts decode on APPLY CHANGES, not on the pick itself', async () => {
       const wrapper = await mountControl([radio({ id: 3, name: 'Shed Dongle' })])
-      const store = useSdrStore()
-      const startSpy = vi.spyOn(store, 'startAprs').mockResolvedValue(true)
 
       await pick(wrapper, '3')
-      expect(startSpy).not.toHaveBeenCalled()
+      expect(fakeRadio.decoders.start).not.toHaveBeenCalled()
 
       await applyStaged(wrapper)
-      expect(startSpy).toHaveBeenCalledWith(3)
-      expect(store.aprsEnabled).toBe(true)
+      expect(fakeRadio.decoders.start).toHaveBeenCalledWith('aprs', 3)
     })
 
     it('reports a refusal so the panel does not claim it saved', async () => {
       const wrapper = await mountControl([radio({ id: 3 })])
-      const store = useSdrStore()
-      vi.spyOn(store, 'startAprs').mockResolvedValue(false)
+      fakeRadio.decoders.start.mockResolvedValue(false)
 
       await pick(wrapper, '3')
       await expect(applyStaged(wrapper)).rejects.toThrow('could not be started')
@@ -199,54 +169,60 @@ describe('AprsSdrSourceControl', () => {
     it('stops decode when the choice is cleared', async () => {
       persistAprsRadio(1)
       const wrapper = await mountControl([radio({ id: 1 })])
-      const store = useSdrStore()
-      const stopSpy = vi.spyOn(store, 'stopAprs').mockResolvedValue(true)
 
       await pick(wrapper, '')
       await applyStaged(wrapper)
 
-      expect(stopSpy).toHaveBeenCalledWith(1)
-      expect(store.aprsEnabled).toBe(false)
+      expect(fakeRadio.decoders.stop).toHaveBeenCalledWith('aprs', 1)
     })
 
-    it('reports a refusal to stop, but still drops the local flag', async () => {
+    it('reports a refusal to stop', async () => {
       persistAprsRadio(1)
       const wrapper = await mountControl([radio({ id: 1 })])
-      const store = useSdrStore()
-      vi.spyOn(store, 'stopAprs').mockResolvedValue(false)
+      fakeRadio.decoders.stop.mockResolvedValue(false)
 
       await pick(wrapper, '')
       await expect(applyStaged(wrapper)).rejects.toThrow('could not be stopped')
-      expect(store.aprsEnabled).toBe(false)
     })
 
     it('does nothing to stop decode that was never running', async () => {
       // Reachable by picking a radio and then the "off" row before applying.
       const wrapper = await mountControl([radio({ id: 1 })])
-      const store = useSdrStore()
-      vi.spyOn(store, 'startAprs').mockResolvedValue(true)
-      const stopSpy = vi.spyOn(store, 'stopAprs').mockResolvedValue(true)
 
       await pick(wrapper, '1')
       await pick(wrapper, '')
       await applyStaged(wrapper)
 
-      expect(stopSpy).not.toHaveBeenCalled()
+      expect(fakeRadio.decoders.stop).not.toHaveBeenCalled()
     })
 
     it('hands decode over without stopping the previous radio first', async () => {
       // The backend runs a single bridge, so starting elsewhere is the handover.
       persistAprsRadio(1)
       const wrapper = await mountControl([radio({ id: 1 }), radio({ id: 2, name: 'Shed' })])
-      const store = useSdrStore()
-      const startSpy = vi.spyOn(store, 'startAprs').mockResolvedValue(true)
-      const stopSpy = vi.spyOn(store, 'stopAprs').mockResolvedValue(true)
 
       await pick(wrapper, '2')
       await applyStaged(wrapper)
 
-      expect(startSpy).toHaveBeenCalledWith(2)
-      expect(stopSpy).not.toHaveBeenCalled()
+      expect(fakeRadio.decoders.start).toHaveBeenCalledWith('aprs', 2)
+      expect(fakeRadio.decoders.stop).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('with no section providing a radio', () => {
+    it('shows nothing chosen, and refuses to apply a choice', async () => {
+      const wrapper = await mountControl([radio({ id: 3 })])
+      await pick(wrapper, '3')
+      fakeRadio.withdraw()
+
+      await expect(applyStaged(wrapper)).rejects.toThrow('No radio platform')
+    })
+
+    it('mounts without a radio platform at all', async () => {
+      fakeRadio.withdraw()
+      const wrapper = mount(AprsSdrSourceControl)
+      await flushPromises()
+      expect(wrapper.find('[role="option"][aria-selected="true"]').exists()).toBe(false)
     })
   })
 
@@ -276,7 +252,7 @@ describe('AprsSdrSourceControl', () => {
   describe('keeping the list fresh', () => {
     it('re-reads the radios on a timer', async () => {
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
       mount(AprsSdrSourceControl)
       await vi.runOnlyPendingTimersAsync()
       listSpy.mockClear()
@@ -288,7 +264,7 @@ describe('AprsSdrSourceControl', () => {
 
     it('stops refreshing once unmounted', async () => {
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
       const wrapper = mount(AprsSdrSourceControl)
       await vi.runOnlyPendingTimersAsync()
       wrapper.unmount()
@@ -303,7 +279,7 @@ describe('AprsSdrSourceControl', () => {
       // onMounted awaits two requests; unmounting inside that window runs the
       // teardown first, leaving nothing to clear a timer created afterwards.
       vi.useFakeTimers()
-      const listSpy = vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([radio()])
+      const listSpy = fakeRadio.listRadios.mockResolvedValue([radio()])
       const wrapper = mount(AprsSdrSourceControl)
       wrapper.unmount()
       await vi.runOnlyPendingTimersAsync()

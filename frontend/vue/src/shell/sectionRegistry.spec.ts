@@ -29,6 +29,7 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: airView },
       })
 
@@ -44,6 +45,7 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
       })
 
@@ -52,6 +54,7 @@ describe('shell/sectionRegistry', () => {
           id: 'air',
           label: 'AIR AGAIN',
           navOrder: 99,
+          enabledByDefault: true,
           route: { path: '/air2/', component: view },
         }),
       ).toThrow('Section "air" is already registered')
@@ -65,12 +68,14 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: airView },
       })
       registerSection({
         id: 'sea',
         label: 'SEA',
         navOrder: 30,
+        enabledByDefault: true,
         route: { path: '/sea/', component: seaView },
       })
 
@@ -88,18 +93,21 @@ describe('shell/sectionRegistry', () => {
         id: 'sdr',
         label: 'SDR',
         navOrder: 50,
+        enabledByDefault: true,
         route: { path: '/sdr/', component: view },
       })
       registerSection({
         id: 'sea',
         label: 'SEA',
         navOrder: 30,
+        enabledByDefault: true,
         route: { path: '/sea/', component: view },
       })
       registerSection({
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
       })
 
@@ -116,12 +124,14 @@ describe('shell/sectionRegistry', () => {
         id: 'sea',
         label: 'SEA',
         navOrder: 30,
+        enabledByDefault: true,
         route: { path: '/sea/', component: seaView },
       })
       registerSection({
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: airView },
       })
 
@@ -145,12 +155,14 @@ describe('shell/sectionRegistry', () => {
         id: 'sdr',
         label: 'SDR',
         navOrder: 50,
+        enabledByDefault: true,
         route: { path: '/sdr/', component: view },
       })
       registerSection({
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
       })
 
@@ -169,6 +181,7 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
       })
 
@@ -185,12 +198,14 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
       })
       registerSection({
         id: 'sdr',
         label: 'SDR',
         navOrder: 50,
+        enabledByDefault: true,
         route: { path: '/sdr/', component: view },
         persistentRadioPane: pane,
       })
@@ -210,6 +225,7 @@ describe('shell/sectionRegistry', () => {
         id: 'sdr',
         label: 'SDR',
         navOrder: 50,
+        enabledByDefault: true,
         route: { path: '/sdr/', component: view },
         persistentRadioPane: secondPane,
       })
@@ -217,11 +233,57 @@ describe('shell/sectionRegistry', () => {
         id: 'air',
         label: 'AIR',
         navOrder: 10,
+        enabledByDefault: true,
         route: { path: '/air/', component: view },
         persistentRadioPane: firstPane,
       })
 
       expect(getPersistentRadioPane()).toBe(firstPane)
+    })
+  })
+
+  describe('getEnabledSectionIds', () => {
+    async function registryWithSections() {
+      const registry = await freshRegistry()
+      const view = stubComponent('View')
+      registry.registerSection({
+        id: 'sea',
+        label: 'SEA',
+        navOrder: 30,
+        enabledByDefault: false,
+        route: { path: '/sea/', component: view },
+      })
+      registry.registerSection({
+        id: 'air',
+        label: 'AIR',
+        navOrder: 10,
+        enabledByDefault: true,
+        route: { path: '/air/', component: view },
+      })
+      return registry
+    }
+
+    it("uses each section's own default when the settings say nothing", async () => {
+      const { getEnabledSectionIds } = await registryWithSections()
+      expect(getEnabledSectionIds({})).toEqual(['air'])
+    })
+
+    it('lets a stored enabled flag win over the default, either way, in nav order', async () => {
+      const { getEnabledSectionIds } = await registryWithSections()
+      expect(getEnabledSectionIds({ air: { enabled: false }, sea: { enabled: true } })).toEqual([
+        'sea',
+      ])
+      expect(getEnabledSectionIds({ sea: { enabled: true } })).toEqual(['air', 'sea'])
+    })
+
+    it('ignores a stored flag that is not a boolean', async () => {
+      const { getEnabledSectionIds } = await registryWithSections()
+      expect(getEnabledSectionIds({ air: { enabled: 'no' }, sea: { enabled: 1 } })).toEqual(['air'])
+    })
+
+    it('only knows registered sections', async () => {
+      const { getEnabledSectionIds } = await registryWithSections()
+      expect(getEnabledSectionIds({ land: { enabled: true } })).toEqual(['air'])
     })
   })
 })

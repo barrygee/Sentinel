@@ -31,6 +31,11 @@ export interface SectionDefinition {
   label: string
   /** Sort order for nav links and the default ("/") redirect target. Lower sorts first. */
   navOrder: number
+  /**
+   * Whether the section is on when the settings hold no `<id>.enabled` key
+   * (a fresh install). Air, Space and SDR are; Sea and Land must be switched on.
+   */
+  enabledByDefault: boolean
   route: SectionRouteDefinition
   /**
    * The persistent radio pane rendered in `MapSidebar`'s `#radio` slot. Only
@@ -92,4 +97,17 @@ export function getPersistentRadioPane(): Component | undefined {
   return sectionsByNavOrder()
     .map((section) => section.persistentRadioPane)
     .find((pane): pane is Component => pane !== undefined)
+}
+
+/**
+ * Which registered sections are enabled, given the boot settings payload: a
+ * stored `<id>.enabled` boolean wins, otherwise the section's own default.
+ */
+export function getEnabledSectionIds(settings: Record<string, Record<string, unknown>>): string[] {
+  return sectionsByNavOrder()
+    .filter((section) => {
+      const stored = settings[section.id]?.enabled
+      return typeof stored === 'boolean' ? stored : section.enabledByDefault
+    })
+    .map((section) => section.id)
 }

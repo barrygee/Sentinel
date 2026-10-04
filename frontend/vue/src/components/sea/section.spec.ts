@@ -18,6 +18,7 @@ describe('components/sea/section', () => {
       id: 'sea',
       label: 'SEA',
       navOrder: 30,
+      enabledByDefault: false,
       route: { path: '/sea/', component: SeaView },
     })
   })

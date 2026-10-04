@@ -2,6 +2,16 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { computed } from 'vue'
 import { useNotificationSubscriptions } from './useNotificationSubscriptions'
+import {
+  registerNotificationSubscriptionSource,
+  resetNotificationRegistryForTests,
+} from '@/shell/notificationRegistry'
+import {
+  aircraftBellSubscriptions,
+  overheadAlertSubscriptions,
+  resetAirNotificationSubscriptionsForTests,
+} from '@/components/air/airNotificationSubscriptions'
+import { satellitePassSubscriptions } from '@/components/space/satelliteNotificationSubscriptions'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useAirStore, sentryAlertLocationId, USER_ALERT_LOCATION_ID } from '@/stores/air'
 import {
@@ -37,9 +47,22 @@ function labels(subscriptions: { label: string }[]): string[] {
   return subscriptions.map((subscription) => subscription.label)
 }
 
+// The Alerts card lists whatever the sections registered. These cases register
+// the real Air and Space sources, as each section.ts does, so they exercise
+// the whole list end to end; the stand-in cases below pin the aggregation.
+function registerRealSources(): void {
+  registerNotificationSubscriptionSource(aircraftBellSubscriptions)
+  registerNotificationSubscriptionSource(overheadAlertSubscriptions)
+  registerNotificationSubscriptionSource(satellitePassSubscriptions)
+}
+
 describe('useNotificationSubscriptions', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.clear()
+    resetNotificationRegistryForTests()
+    resetAirNotificationSubscriptionsForTests()
+    registerRealSources()
     vi.mocked(settingsApi.put).mockReset().mockResolvedValue(undefined)
     vi.mocked(settingsApi.getNamespace).mockReset().mockResolvedValue(null)
     useZonesFromStore()
@@ -94,9 +117,9 @@ describe('useNotificationSubscriptions', () => {
   it('refresh() re-reads satellite bells switched on elsewhere and reloads overhead alerts', async () => {
     const { subscriptions, refresh } = useNotificationSubscriptions()
     expect(subscriptions.value).toEqual([])
+    // The pass store is not reactive: refresh() is what guarantees the list
+    // catches up with a bell switched on elsewhere.
     setPassNotifEnabled('25544', true, 'ISS (ZARYA)')
-    // The pass store is not reactive, so the list only catches up on refresh.
-    expect(subscriptions.value).toEqual([])
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({
       overheadAlerts: { user: { civil: false, mil: true, radiusNm: 5 } },
     })
@@ -150,5 +173,75 @@ describe('useNotificationSubscriptions', () => {
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(true)
       expect(settingsApi.put).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('useNotificationSubscriptions — aggregation', () => {
+  beforeEach(() => {
+    resetNotificationRegistryForTests()
+  })
+
+  it('lists nothing when no section registered a source', () => {
+    const { subscriptions } = useNotificationSubscriptions()
+    expect(subscriptions.value).toEqual([])
+  })
+
+  it('keys each entry by its source kind, in source order', () => {
+    registerNotificationSubscriptionSource({
+      kind: 'second',
+      order: 20,
+      list: () => [{ id: 'b', label: 'B' }],
+      turnOff: () => undefined,
+    })
+    registerNotificationSubscriptionSource({
+      kind: 'first',
+      order: 10,
+      list: () => [{ id: 'a:1', label: 'A' }],
+      turnOff: () => undefined,
+    })
+
+    const { subscriptions } = useNotificationSubscriptions()
+
+    expect(subscriptions.value).toEqual([
+      { key: 'first:a:1', label: 'A' },
+      { key: 'second:b', label: 'B' },
+    ])
+  })
+
+  it('hands each source only its own ids, with colons kept, then refreshes every source', async () => {
+    const calls: string[] = []
+    registerNotificationSubscriptionSource({
+      kind: 'alpha',
+      order: 10,
+      list: () => [],
+      refresh: () => void calls.push('alpha.refresh'),
+      turnOff: async (ids) => void calls.push(`alpha.off ${ids.join(',')}`),
+    })
+    registerNotificationSubscriptionSource({
+      kind: 'beta',
+      order: 20,
+      list: () => [],
+      turnOff: (ids) => void calls.push(`beta.off ${ids.join(',')}`),
+    })
+    const { turnOff } = useNotificationSubscriptions()
+
+    await turnOff(['beta:x', 'alpha:1:civil', 'alpha:2', 'gamma:unknown'])
+
+    expect(calls).toEqual(['alpha.off 1:civil,2', 'beta.off x', 'alpha.refresh'])
+  })
+
+  it('does not call a source none of whose entries are turned off', async () => {
+    const turnOffSpy = vi.fn()
+    registerNotificationSubscriptionSource({
+      kind: 'idle',
+      order: 10,
+      list: () => [],
+      turnOff: turnOffSpy,
+    })
+    const { turnOff } = useNotificationSubscriptions()
+
+    await turnOff(['other:1'])
+
+    expect(turnOffSpy).not.toHaveBeenCalled()
   })
 })

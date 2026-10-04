@@ -120,7 +120,7 @@
 
   <AppFooter
     :sidebar-open="sidebarOpen"
-    :sdr-section-active="isSdrRoute"
+    :active-section-id="activeSectionId"
     :has-right-menu="hasRightSideMenu"
     @toggle-sidebar="sidebarRef?.toggle()"
   />
@@ -263,6 +263,9 @@ watch(
 )
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
+// The section on screen (each section route carries its id as `meta.domain`),
+// for the footer's registered items.
+const activeSectionId = computed(() => (route.meta.domain as string | undefined) ?? '')
 
 // Air, Space and Sea render a right-edge controls rail (#side-menu /
 // #space-side-menu / #sea-side-menu); the footer's side-menu toggle keys off this.

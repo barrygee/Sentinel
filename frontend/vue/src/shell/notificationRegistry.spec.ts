@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { NotificationItem } from '@/stores/notifications'
 import {
   findNotificationTarget,
+  getNotificationSubscriptionSources,
+  registerNotificationSubscriptionSource,
   registerNotificationDismissHook,
   registerNotificationTarget,
   resetNotificationRegistryForTests,
@@ -68,5 +70,40 @@ describe('notification dismiss hooks', () => {
     runNotificationDismissHooks(alert({ id: 'a1', type: 'autotune' }))
 
     expect(calls).toEqual(['first a1', 'second a1'])
+  })
+})
+
+describe('notification subscription sources', () => {
+  function source(kind: string, order: number) {
+    return { kind, order, list: () => [], turnOff: () => undefined }
+  }
+
+  it('has none until a section registers one', () => {
+    expect(getNotificationSubscriptionSources()).toEqual([])
+  })
+
+  it('lists sources in order, whatever order they registered in', () => {
+    registerNotificationSubscriptionSource(source('overhead', 30))
+    registerNotificationSubscriptionSource(source('aircraft', 10))
+    registerNotificationSubscriptionSource(source('satellite', 20))
+
+    expect(getNotificationSubscriptionSources().map((entry) => entry.kind)).toEqual([
+      'aircraft',
+      'satellite',
+      'overhead',
+    ])
+  })
+
+  it('refuses a second source of the same kind', () => {
+    registerNotificationSubscriptionSource(source('aircraft', 10))
+    expect(() => registerNotificationSubscriptionSource(source('aircraft', 11))).toThrow(
+      'Notification subscription kind "aircraft" is already registered',
+    )
+  })
+
+  it('forgets sources on reset', () => {
+    registerNotificationSubscriptionSource(source('aircraft', 10))
+    resetNotificationRegistryForTests()
+    expect(getNotificationSubscriptionSources()).toEqual([])
   })
 })

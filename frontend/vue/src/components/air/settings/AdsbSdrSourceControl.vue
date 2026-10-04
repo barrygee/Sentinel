@@ -36,7 +36,7 @@ import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSo
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@/components/shared/settings/SettingsDropdown.vue'
-import { getSentryHostDevices, listSentryHosts, type SentryHost } from '@/services/sentryApi'
+import { getCapability } from '@/shell/capabilities'
 import { useSettingsStore } from '@/stores/settings'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -106,50 +106,38 @@ const hint = computed(() => {
   return 'Your Sentry hosts are reachable but publish no SDRs. Check each device is enabled.'
 })
 
-/** Build the option list from every enabled host's devices. */
+/**
+ * Build the option list from every enabled host's devices, read through the
+ * radio platform's `radioSites` capability (Air never sees the Sentry admin
+ * API). With no radio platform registered there is nothing to offer.
+ */
 async function loadDevices(): Promise<void> {
   withdrawn.value = false
-  let hosts: SentryHost[]
-  try {
-    hosts = await listSentryHosts()
-  } catch {
-    // Sentinel itself being unreachable is the caller's problem to show; here
-    // it just means there is nothing to offer.
-    hosts = []
-  }
-  hostCount.value = hosts.length
+  const fleet = (await getCapability('radioSites')?.listDevices()) ?? { hostCount: 0, hosts: [] }
+  hostCount.value = fleet.hostCount
 
   const options: SettingsDropdownOption[] = []
-  for (const host of hosts) {
-    if (!host.enabled) continue
-    try {
-      const snapshot = await getSentryHostDevices(host.id)
-      for (const device of snapshot.status?.sdrs ?? []) {
-        // Private and disabled devices are not offered as sources. Both are the
-        // operator saying on the Sentry side that this dongle is not for
-        // sharing or not in service, and picking one here would claim and tune
-        // hardware they have withdrawn.
-        //
-        // The one already *selected* is kept in the list even when withdrawn,
-        // and labelled as such. Dropping it would silently empty the control
-        // and leave the operator with no clue which dongle AIR was pointed at.
-        const value = `${host.id}:${device.device_id}`
-        const isOffered = device.enabled && device.visibility === 'public'
-        if (!isOffered && value !== selected.value) continue
-        if (!isOffered) withdrawn.value = true
-        const hostLabel = host.name || host.address
-        options.push({
-          value,
-          // Names the host as well as the device: two Pis can each have a
-          // dongle called "ADSB", and picking the wrong one would tune a
-          // receiver in another room.
-          label:
-            `${hostLabel} — ${device.name || device.device_id}` +
-            (isOffered ? '' : ' (no longer published)'),
-        })
-      }
-    } catch {
-      /* an unreachable host contributes nothing rather than failing the list */
+  for (const host of fleet.hosts) {
+    for (const device of host.devices) {
+      // Private and disabled devices are not offered as sources. Both are the
+      // operator saying on the Sentry side that this dongle is not for
+      // sharing or not in service, and picking one here would claim and tune
+      // hardware they have withdrawn.
+      //
+      // The one already *selected* is kept in the list even when withdrawn,
+      // and labelled as such. Dropping it would silently empty the control
+      // and leave the operator with no clue which dongle AIR was pointed at.
+      const value = `${host.id}:${device.deviceId}`
+      const isOffered = device.enabled && device.public
+      if (!isOffered && value !== selected.value) continue
+      if (!isOffered) withdrawn.value = true
+      options.push({
+        value,
+        // Names the host as well as the device: two Pis can each have a
+        // dongle called "ADSB", and picking the wrong one would tune a
+        // receiver in another room.
+        label: `${host.label} — ${device.name}` + (isOffered ? '' : ' (no longer published)'),
+      })
     }
   }
   devices.value = options

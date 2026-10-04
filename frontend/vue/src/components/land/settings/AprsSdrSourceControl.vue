@@ -1,5 +1,5 @@
 <template>
-  <SdrRadioSelect
+  <RadioSelect
     v-model="selectedRadioValue"
     accessible-name="APRS decode SDR"
     off-label="Not set — APRS decode off"
@@ -17,11 +17,10 @@
  * this is set (see `LandView`/`LandSideMenu`).
  *
  * Radios come from the list already configured in Settings → SDR (the shared
- * `SdrRadioSelect`), so there is nothing to type. Choosing one starts
- * background APRS decode on it via the
- * store's start/stop endpoints — the same calls the SDR panel's APRS button
- * makes, and the same single backend bridge, so the two can never disagree
- * about which radio is decoding. The choice is *staged* like the panel's other
+ * `RadioSelect`), so there is nothing to type. Choosing one starts
+ * background APRS decode on it through the `radio` capability's decoders —
+ * the same single backend bridge the SDR panel's APRS button drives, so the
+ * two can never disagree about which radio is decoding. The choice is *staged* like the panel's other
  * settings and runs on APPLY CHANGES, so the button reports what the operator
  * just did instead of "NO CHANGES".
  *
@@ -31,10 +30,12 @@
  * so nothing needs retuning by hand here.
  */
 import { onMounted, ref, watch } from 'vue'
-import SdrRadioSelect from '@/components/sdr/settings/SdrRadioSelect.vue'
-import { useSdrStore } from '@/stores/sdr'
+import RadioSelect from '@/components/shared/settings/RadioSelect.vue'
+import { useRadio } from '@/shell/useRadio'
 
-const sdrStore = useSdrStore()
+// Decode is started/stopped through the radio platform's `radio.decoders`
+// (F10), the same single backend bridge the SDR panel's APRS button drives.
+const { radio } = useRadio()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const selectedRadioValue = ref('')
 /**
@@ -46,37 +47,37 @@ let isHydrating = false
 
 /** Mirror the backend's persisted APRS radio into the dropdown. */
 function readSelection(): void {
-  const radioId = sdrStore.aprsRadioId
+  const radioId = radio.value?.decoders.activeRadioId('aprs') ?? null
   isHydrating = true
   selectedRadioValue.value = radioId === null ? '' : String(radioId)
   isHydrating = false
 }
 
 /**
- * Stage the chosen receiver. Runs on APPLY CHANGES, which reloads the panel —
- * so the store's flags are set here as well, keeping the SDR panel's APRS
- * button honest in the moment between the call landing and the reload.
+ * Stage the chosen receiver. Runs on APPLY CHANGES, which reloads the panel.
+ * The radio platform keeps the SDR panel's APRS button in step as it
+ * starts/stops, so the button is honest between the call landing and the
+ * reload.
  *
  * Throws on a refusal so the panel reports ERROR rather than SAVED: a radio
  * that could not be started is not a saved setting.
  */
 function stageSelection(nextValue: string): void {
   emit('stage', async () => {
-    const previousRadioId = sdrStore.aprsRadioId
+    const decoders = radio.value?.decoders
+    if (!decoders) throw new Error('No radio platform to run APRS decode on')
+    const previousRadioId = decoders.activeRadioId('aprs')
     if (!nextValue) {
       // Clearing the choice stops decode. Nothing to stop if it was never set.
       if (previousRadioId === null) return
-      const stopped = await sdrStore.stopAprs(previousRadioId)
-      sdrStore.setAprsEnabled(false)
+      const stopped = await decoders.stop('aprs', previousRadioId)
       if (!stopped) throw new Error('APRS decode could not be stopped')
       return
     }
-    const radioId = Number(nextValue)
     // The backend runs a single APRS bridge, so starting on another radio hands
     // decode over rather than running two — no explicit stop of the old one.
-    const started = await sdrStore.startAprs(radioId)
+    const started = await decoders.start('aprs', Number(nextValue))
     if (!started) throw new Error('APRS decode could not be started')
-    sdrStore.setAprsEnabled(true)
   })
 }
 
@@ -97,7 +98,7 @@ watch(
 onMounted(async () => {
   // The backend resumes the persisted APRS radio on startup, so the database —
   // not the store's localStorage cache — is the truth about what is decoding.
-  await sdrStore.hydrateAprsFromDb()
+  await radio.value?.decoders.refresh('aprs')
   readSelection()
 })
 </script>

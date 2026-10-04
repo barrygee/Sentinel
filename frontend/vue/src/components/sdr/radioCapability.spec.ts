@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { computed } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSdrStore, type SdrStoredFrequency } from '@/stores/sdr'
+import * as sdrRadiosApi from '@/services/sdrRadiosApi'
 import {
   attachRadioEngine,
   createSdrRadioCapability,
@@ -13,6 +14,30 @@ function recordingEngine(log: string[], name = 'engine'): RadioEngine {
   return {
     tune: (request) => void log.push(`${name}.tune ${request.hz}`),
     restore: (request) => void log.push(`${name}.restore ${request.token}`),
+  }
+}
+
+function radioRecord(
+  overrides: Partial<sdrRadiosApi.SdrRadioRecord> = {},
+): sdrRadiosApi.SdrRadioRecord {
+  return {
+    id: 1,
+    name: 'Attic',
+    host: '10.0.0.5',
+    port: 1234,
+    description: '',
+    enabled: true,
+    bandwidth: null,
+    rf_gain: null,
+    agc: null,
+    sentry_host_id: null,
+    sentry_device_id: null,
+    notes: '',
+    antenna: '',
+    visibility: 'public',
+    device_available: true,
+    unavailable_reason: '',
+    ...overrides,
   }
 }
 
@@ -184,5 +209,106 @@ describe('sdr radio capability — frequencies', () => {
     expect(remove).toHaveBeenCalledWith(145_650_000)
     expect(ensureGroup).toHaveBeenCalledWith('Repeaters')
     expect(groupId).toBe(9)
+  })
+})
+
+describe('sdr radio capability — background decoders', () => {
+  it('reports the radio each decoder runs on from the store', () => {
+    const store = useSdrStore()
+    store.setAprsRadioId(3)
+    store.setAisRadioId(5)
+    const { decoders } = createSdrRadioCapability()
+
+    expect(decoders.activeRadioId('aprs')).toBe(3)
+    expect(decoders.activeRadioId('ais')).toBe(5)
+  })
+
+  it('re-reads each decoder from the backend', async () => {
+    const store = useSdrStore()
+    const aprs = vi.spyOn(store, 'hydrateAprsFromDb').mockResolvedValue()
+    const ais = vi.spyOn(store, 'hydrateAisFromDb').mockResolvedValue()
+    const { decoders } = createSdrRadioCapability()
+
+    await decoders.refresh('aprs')
+    expect(aprs).toHaveBeenCalledOnce()
+    expect(ais).not.toHaveBeenCalled()
+
+    await decoders.refresh('ais')
+    expect(ais).toHaveBeenCalledOnce()
+  })
+
+  it('starts APRS and lights the SDR panel’s APRS flag only once it runs', async () => {
+    const store = useSdrStore()
+    const start = vi.spyOn(store, 'startAprs').mockResolvedValue(true)
+    const { decoders } = createSdrRadioCapability()
+
+    await expect(decoders.start('aprs', 4)).resolves.toBe(true)
+
+    expect(start).toHaveBeenCalledWith(4)
+    expect(store.aprsEnabled).toBe(true)
+  })
+
+  it('leaves the APRS flag alone when the start is refused', async () => {
+    const store = useSdrStore()
+    store.setAprsEnabled(false)
+    vi.spyOn(store, 'startAprs').mockResolvedValue(false)
+    const { decoders } = createSdrRadioCapability()
+
+    await expect(decoders.start('aprs', 4)).resolves.toBe(false)
+
+    expect(store.aprsEnabled).toBe(false)
+  })
+
+  it('stops APRS and drops the flag even when the stop is refused', async () => {
+    const store = useSdrStore()
+    store.setAprsEnabled(true)
+    const stop = vi.spyOn(store, 'stopAprs').mockResolvedValue(false)
+    const { decoders } = createSdrRadioCapability()
+
+    await expect(decoders.stop('aprs', 4)).resolves.toBe(false)
+
+    expect(stop).toHaveBeenCalledWith(4)
+    expect(store.aprsEnabled).toBe(false)
+  })
+
+  it('starts and stops AIS through the store, with no APRS flag involved', async () => {
+    const store = useSdrStore()
+    store.setAprsEnabled(true)
+    const start = vi.spyOn(store, 'startAis').mockResolvedValue(true)
+    const stop = vi.spyOn(store, 'stopAis').mockResolvedValue(false)
+    const { decoders } = createSdrRadioCapability()
+
+    await expect(decoders.start('ais', 6)).resolves.toBe(true)
+    await expect(decoders.stop('ais', 6)).resolves.toBe(false)
+
+    expect(start).toHaveBeenCalledWith(6)
+    expect(stop).toHaveBeenCalledWith(6)
+    expect(store.aprsEnabled).toBe(true)
+  })
+})
+
+describe('sdr radio capability — radio list', () => {
+  it('summarises every configured radio', async () => {
+    vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([
+      radioRecord({ id: 1, name: 'Attic', enabled: true, device_available: true }),
+      radioRecord({ id: 2, name: 'Shed', enabled: false, device_available: false }),
+    ])
+
+    await expect(createSdrRadioCapability().listRadios()).resolves.toEqual([
+      { id: 1, name: 'Attic', enabled: true, available: true },
+      { id: 2, name: 'Shed', enabled: false, available: false },
+    ])
+  })
+
+  it('treats a radio with no availability field as available', async () => {
+    // A manually-entered radio has no Sentry device behind it, so the backend
+    // may omit the flag entirely — that must not hide the radio.
+    const handEntered = radioRecord({ id: 4, name: 'Hand Entered' })
+    delete handEntered.device_available
+    vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([handEntered])
+
+    const [summary] = await createSdrRadioCapability().listRadios()
+
+    expect(summary!.available).toBe(true)
   })
 })

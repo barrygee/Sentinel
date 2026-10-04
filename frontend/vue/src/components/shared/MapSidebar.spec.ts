@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, onTestFinished } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
@@ -8,7 +8,7 @@ import { useAirStore } from '@/stores/air'
 import { useSpaceStore } from '@/stores/space'
 import { useSeaStore } from '@/stores/sea'
 import { useLandStore } from '@/stores/land'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
 import * as settingsApi from '@/services/settingsApi'
 import { registerSidebarFilterSubTabs, registerSidebarSectionTab } from '@/shell/sidebarRegistry'
 import { airSidebarFilter } from '@/components/air/airSidebarFilter'
@@ -553,7 +553,8 @@ describe('MapSidebar', () => {
       })
 
       it('enables APRS once a radio has been named as the APRS receiver', async () => {
-        useSdrStore().aprsRadioId = 4
+        const fakeRadio = provideFakeRadio({ activeDecoders: { aprs: 4 } })
+        onTestFinished(() => fakeRadio.withdraw())
         const wrapper = await openLandFilter()
         const aprsTab = wrapper.find('.msb-rail-subbtn[data-filter-cat="aprs"]')
         expect(aprsTab.attributes('disabled')).toBeUndefined()
@@ -563,7 +564,8 @@ describe('MapSidebar', () => {
       it('makes the clicked tab the one layer the map draws, and saves it at once', async () => {
         const putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
         // APRS is only selectable once a radio decodes it.
-        useSdrStore().aprsRadioId = 4
+        const fakeRadio = provideFakeRadio({ activeDecoders: { aprs: 4 } })
+        onTestFinished(() => fakeRadio.withdraw())
         const wrapper = await openLandFilter()
         const landStore = useLandStore()
 

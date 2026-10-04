@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
-import { getAdsbSource } from '@/services/adsbSourceApi'
-import { notifySettingsChanged } from '@/services/settingsApi'
+import { getNamespace, notifySettingsChanged } from '@/services/settingsApi'
 
 export interface SdrRadio {
   id: number
@@ -689,12 +688,25 @@ export const useSdrStore = defineStore('sdr', () => {
   // its mirror fields (ADR-0009).
   const adsbSourceKey = ref<string | null>(null)
 
-  /** Read which Sentry device AIR uses as its ADS-B receiver, if any. */
+  /**
+   * Read which Sentry device AIR uses as its ADS-B receiver, if any.
+   *
+   * Read from the central `air.offgridSdrSource` setting rather than AIR's own
+   * API, so the radio platform never depends on the Air section. Validated as
+   * the backend validates it (`services/adsb_source.get_source`): anything but
+   * an integer host id and a non-empty device id means "not set".
+   */
   async function hydrateAdsbSourceFromDb(): Promise<void> {
-    const source = await getAdsbSource()
+    const air = await getNamespace('air')
+    const source = air?.offgridSdrSource as
+      | { sentry_host_id?: unknown; sentry_device_id?: unknown }
+      | null
+      | undefined
+    const hostId = source?.sentry_host_id
+    const deviceId = source?.sentry_device_id
     adsbSourceKey.value =
-      source?.configured && source.sentry_host_id !== null && source.sentry_device_id
-        ? `${source.sentry_host_id}:${source.sentry_device_id}`
+      Number.isInteger(hostId) && typeof deviceId === 'string' && deviceId
+        ? `${hostId}:${deviceId}`
         : null
   }
 

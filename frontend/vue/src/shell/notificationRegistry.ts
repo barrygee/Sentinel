@@ -10,6 +10,9 @@ import type { NotificationItem } from '@/stores/notifications'
  * register those behaviours here, so the panel holds no section knowledge and
  * an absent section's alerts simply stay inert (no click target, plain dismiss).
  *
+ * Sections also register the alerts they let the operator switch on
+ * (subscription sources), which Settings › Alerts lists and cancels.
+ *
  * Type labels are not here: the notification types are a vocabulary several
  * sections share (`autotune` comes from both SDR and Space, `tracking` from
  * both Air and Space), so they stay with the core store.
@@ -34,7 +37,34 @@ export interface NotificationTarget {
 /** Runs when an alert of a type is closed, before it is dismissed. */
 export type NotificationDismissHook = (item: NotificationItem) => void
 
+/** One thing a source is set to notify the operator about. */
+export interface NotificationSubscriptionEntry {
+  /** Stable within its kind, e.g. an aircraft hex or a NORAD id. */
+  id: string
+  /** What the operator reads, e.g. "BAW123 — landing & departure". */
+  label: string
+}
+
+/**
+ * One kind of switched-on alert a section offers in Settings › Alerts (e.g.
+ * Air's landing/departure bells, Space's pass alerts), so the Alerts card can
+ * list and cancel them without importing the section.
+ */
+export interface NotificationSubscriptionSource {
+  /** Key prefix, unique per source: entries are keyed `<kind>:<id>`. */
+  kind: string
+  /** List position; lower first. */
+  order: number
+  /** What is switched on now. Read inside a computed, so reactive reads are tracked. */
+  list(): NotificationSubscriptionEntry[]
+  /** Re-read state that is not reactive or lives on the backend. Optional. */
+  refresh?(): void
+  /** Switch off these entries (ids without the kind prefix). */
+  turnOff(ids: string[]): Promise<void> | void
+}
+
 const targets: NotificationTarget[] = []
+const subscriptionSources: NotificationSubscriptionSource[] = []
 const dismissHooks = new Map<string, NotificationDismissHook[]>()
 
 /** Adds a click target. One target per section — a second is a programming error. */
@@ -61,8 +91,25 @@ export function runNotificationDismissHooks(item: NotificationItem): void {
   for (const hook of dismissHooks.get(item.type) ?? []) hook(item)
 }
 
-/** Test seam: forget every registered target and hook. */
+/** Adds a subscription source. Each kind once. */
+export function registerNotificationSubscriptionSource(
+  source: NotificationSubscriptionSource,
+): void {
+  if (subscriptionSources.some((existing) => existing.kind === source.kind)) {
+    throw new Error(`Notification subscription kind "${source.kind}" is already registered`)
+  }
+  subscriptionSources.push(source)
+  subscriptionSources.sort((first, second) => first.order - second.order)
+}
+
+/** Every registered subscription source, in list order. */
+export function getNotificationSubscriptionSources(): readonly NotificationSubscriptionSource[] {
+  return subscriptionSources
+}
+
+/** Test seam: forget every registered target, hook and subscription source. */
 export function resetNotificationRegistryForTests(): void {
   targets.length = 0
   dismissHooks.clear()
+  subscriptionSources.length = 0
 }

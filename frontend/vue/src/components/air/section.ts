@@ -1,13 +1,22 @@
 import { registerBackgroundService } from '@/shell/backgroundServices'
-import { registerNotificationTarget } from '@/shell/notificationRegistry'
+import {
+  registerNotificationSubscriptionSource,
+  registerNotificationTarget,
+} from '@/shell/notificationRegistry'
 import { registerSection } from '@/shell/sectionRegistry'
+import { registerSettingsHydrator } from '@/shell/settingsHydration'
 import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
 import AirView from './AirView.vue'
 import { airSidebarFilter } from './airSidebarFilter'
 import { useAirAlertsService } from '@/composables/useAirAlertsService'
 import { aircraftNotificationTarget } from './aircraftNotificationTarget'
+import {
+  aircraftBellSubscriptions,
+  overheadAlertSubscriptions,
+} from './airNotificationSubscriptions'
 // Registers this section's Settings nav entry and items (F3).
 import './settings'
+import { hydrateAirFromSettings } from './airSettingsHydration'
 
 /**
  * Registers the AIR section with the shell: route + nav entry, the click
@@ -23,10 +32,17 @@ registerSection({
   id: 'air',
   label: 'AIR',
   navOrder: 10,
+  enabledByDefault: true,
   route: { path: '/air/', component: AirView },
 })
 
 // FILTER rail sub-tabs (F2).
 registerSidebarFilterSubTabs('air', airSidebarFilter)
 registerNotificationTarget(aircraftNotificationTarget)
+// Its switched-on alerts, listed and cancelled in Settings › Alerts.
+registerNotificationSubscriptionSource(aircraftBellSubscriptions)
+registerNotificationSubscriptionSource(overheadAlertSubscriptions)
 registerBackgroundService({ id: 'air-alerts', start: () => useAirAlertsService().start() })
+
+// Applies its stored settings to its stores at boot, before the first render (F1).
+registerSettingsHydrator('air', hydrateAirFromSettings)

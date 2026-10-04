@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { listSentrySites, type SentrySite } from '@/services/sentryApi'
+import { getCapability } from '@/shell/capabilities'
+import type { RadioSite } from '@/shell/radioSitesCapability'
 
 /**
  * How often the site list is refreshed while a map is open, in ms.
@@ -23,7 +24,7 @@ const SENTRY_SITE_POLL_INTERVAL_MS = 15_000
  */
 export const useSentrySitesStore = defineStore('sentrySites', () => {
   /** Every enabled Sentry host with a known position, newest snapshot wins. */
-  const sites = ref<SentrySite[]>([])
+  const sites = ref<RadioSite[]>([])
   /**
    * True once a list has been fetched successfully at least once.
    *
@@ -37,11 +38,15 @@ export const useSentrySitesStore = defineStore('sentrySites', () => {
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let pollers = 0
 
-  /** Refresh the site list. Silent on transient/offline failures — the
-   *  last-known list simply persists, which is the truthful thing to draw. */
+  /** Refresh the site list from the radio platform's `radioSites` capability.
+   *  Silent on transient/offline failures — the last-known list simply
+   *  persists, which is the truthful thing to draw. With no radio platform
+   *  registered there are no sites, and the list never counts as loaded. */
   async function fetchSites(): Promise<void> {
+    const radioSites = getCapability('radioSites')
+    if (!radioSites) return
     try {
-      sites.value = await listSentrySites()
+      sites.value = await radioSites.listSites()
       loaded.value = true
     } catch {
       /* offline / transient — keep the current list */

@@ -19,6 +19,7 @@ describe('components/sdr/section', () => {
       id: 'sdr',
       label: 'SDR',
       navOrder: 50,
+      enabledByDefault: true,
       route: { path: '/sdr/', component: SdrView },
       persistentRadioPane: SdrTabPanel,
     })
@@ -42,5 +43,24 @@ describe('components/sdr/section — radio capability', () => {
     expect(radio).toBeDefined()
     expect(typeof radio!.tune).toBe('function')
     expect(typeof radio!.frequencies.save).toBe('function')
+  })
+
+  it('provides the Sentry fleet as the radioSites capability', async () => {
+    await import('./section')
+    const { getCapability } = await import('@/shell/capabilities')
+
+    const radioSites = getCapability('radioSites')
+    expect(typeof radioSites?.listSites).toBe('function')
+    expect(typeof radioSites?.listDevices).toBe('function')
+  })
+
+  it('registers its tuned-frequency footer readout', async () => {
+    const { default: SdrFooterIndicator } = await import('./SdrFooterIndicator.vue')
+    await import('./section')
+    const { getFooterItems } = await import('@/shell/footerRegistry')
+
+    expect(getFooterItems()).toEqual([
+      { id: 'sdr-frequency', order: 10, component: SdrFooterIndicator },
+    ])
   })
 })

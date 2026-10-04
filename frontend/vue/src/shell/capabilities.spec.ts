@@ -15,6 +15,13 @@ function fakeRadio(): RadioCapability {
       remove: async () => undefined,
       ensureGroup: async () => 1,
     },
+    decoders: {
+      activeRadioId: () => null,
+      refresh: async () => undefined,
+      start: async () => true,
+      stop: async () => true,
+    },
+    listRadios: async () => [],
   }
 }
 
@@ -67,5 +74,16 @@ describe('shell/capabilities', () => {
 
     withdraw()
     expect(available.value).toBe(false)
+  })
+
+  it('keeps each capability separate: radioSites is provided on its own', () => {
+    const radioSites = {
+      listSites: async () => [],
+      listDevices: async () => ({ hostCount: 0, hosts: [] }),
+    }
+    withdrawals.push(provideCapability('radioSites', radioSites))
+
+    expect(getCapability('radioSites')).toBe(radioSites)
+    expect(getCapability('radio')).toBeUndefined()
   })
 })

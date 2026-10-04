@@ -60,10 +60,42 @@ export interface RadioFrequencies {
   ensureGroup(name: string): Promise<number>
 }
 
+/** A background decoder another section runs on a radio: Land's APRS, Sea's AIS. */
+export type RadioDecoderKind = 'aprs' | 'ais'
+
+/**
+ * The background decoders (F10). The radio platform runs one bridge per kind,
+ * so starting a kind on another radio hands decode over rather than running
+ * two.
+ */
+export interface RadioDecoders {
+  /** The radio decoding `kind` right now, or null. Reactive. */
+  activeRadioId(kind: RadioDecoderKind): number | null
+  /** Re-read which radio decodes `kind` from the backend (it resumes decode on startup). */
+  refresh(kind: RadioDecoderKind): Promise<void>
+  /** Start `kind` on a radio. False when the radio platform refused. */
+  start(kind: RadioDecoderKind, radioId: number): Promise<boolean>
+  /** Stop `kind` on a radio. False when the radio platform refused. */
+  stop(kind: RadioDecoderKind, radioId: number): Promise<boolean>
+}
+
+/** A configured radio, as a picker in another section shows it. */
+export interface RadioSummary {
+  id: number
+  /** The operator's name for it; empty when unnamed. */
+  name: string
+  enabled: boolean
+  /** False when its device has gone away (e.g. an unplugged Sentry dongle). */
+  available: boolean
+}
+
 export interface RadioCapability {
   /** True while an SDR is connected. Reactive. */
   readonly connected: boolean
   tune(request: RadioTuneRequest): void
   restore(request: RadioRestoreRequest): void
   frequencies: RadioFrequencies
+  decoders: RadioDecoders
+  /** Every configured radio. Rejects when the list cannot be read. */
+  listRadios(): Promise<RadioSummary[]>
 }

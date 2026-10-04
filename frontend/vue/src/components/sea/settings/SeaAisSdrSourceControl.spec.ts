@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
-import * as sdrRadiosApi from '@/services/sdrRadiosApi'
 import * as settingsApi from '@/services/settingsApi'
-import { useSdrStore } from '@/stores/sdr'
+import { provideFakeRadio } from '@/test/fakeRadio'
+import type { RadioSummary } from '@/shell/radioCapability'
 
 /**
  * Settings › SEA › AIS › Off Grid AIS SDR. The control records which radio is the
@@ -16,37 +15,19 @@ import { useSdrStore } from '@/stores/sdr'
  * the shape of what is finally written for a pick and for a clear.
  */
 
-function radio(overrides: Partial<sdrRadiosApi.SdrRadioRecord> = {}): sdrRadiosApi.SdrRadioRecord {
-  return {
-    id: 1,
-    name: 'Mast Dongle',
-    host: '192.168.5.67',
-    port: 1234,
-    description: '',
-    enabled: true,
-    bandwidth: null,
-    rf_gain: null,
-    agc: null,
-    sentry_host_id: null,
-    sentry_device_id: null,
-    notes: '',
-    antenna: '',
-    visibility: 'public',
-    device_available: true,
-    unavailable_reason: '',
-    ...overrides,
-  }
+// Radios and the AIS decoder come from the `radio` capability (F10) — a fake here.
+function radio(overrides: Partial<RadioSummary> = {}): RadioSummary {
+  return { id: 1, name: 'Mast Dongle', enabled: true, available: true, ...overrides }
 }
+
+let fakeRadio: ReturnType<typeof provideFakeRadio>
 
 /**
  * Mount with the radios the backend offers and whatever `sea.aisSdrRadioId`
  * holds, then let both requests settle.
  */
-async function mountControl(
-  radios: sdrRadiosApi.SdrRadioRecord[],
-  stored: Record<string, unknown> | null = null,
-) {
-  vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue(radios)
+async function mountControl(radios: RadioSummary[], stored: Record<string, unknown> | null = null) {
+  fakeRadio.listRadios.mockResolvedValue(radios)
   vi.spyOn(settingsApi, 'getNamespace').mockResolvedValue(stored)
   const wrapper = mount(SeaAisSdrSourceControl)
   await flushPromises()
@@ -68,19 +49,12 @@ async function applyStaged(wrapper: ReturnType<typeof mount>) {
 }
 
 beforeEach(() => {
-  // The control reaches for the SDR store to stop decode when the receiver is
-  // cleared, so it needs a live Pinia.
-  setActivePinia(createPinia())
+  fakeRadio = provideFakeRadio()
   vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
-  // hydrateAisFromDb runs on mount; without a stub it hits the real fetch.
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) } as unknown as Response),
-  )
 })
 
 afterEach(() => {
-  vi.unstubAllGlobals()
+  fakeRadio.withdraw()
   vi.restoreAllMocks()
 })
 
@@ -192,40 +166,24 @@ describe('SeaAisSdrSourceControl — releasing the radio', () => {
    * back — leaving it decoding would keep the dongle locked out of the SDR
    * panel for a Sea map nobody is watching.
    */
-  beforeEach(() => {
-    setActivePinia(createPinia())
-    vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) } as unknown as Response),
-    )
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.restoreAllMocks()
-  })
-
   it('stops decode when the receiver is cleared while decoding', async () => {
+    fakeRadio.state.activeDecoders.ais = 1
     const wrapper = await mountControl([radio()], { aisSdrRadioId: 1 })
-    const sdrStore = useSdrStore()
-    sdrStore.setAisRadioId(1)
-    const stopSpy = vi.spyOn(sdrStore, 'stopAis').mockResolvedValue(true)
 
     await pick(wrapper, '')
     await applyStaged(wrapper)
 
-    expect(stopSpy).toHaveBeenCalledWith(1)
+    expect(fakeRadio.decoders.refresh).toHaveBeenCalledWith('ais')
+    expect(fakeRadio.decoders.stop).toHaveBeenCalledWith('ais', 1)
     expect(settingsApi.put).toHaveBeenCalledWith('sea', 'aisSdrRadioId', null)
   })
 
   it('reports an error when decode could not be stopped', async () => {
     // A radio that could not be released is not a saved setting, so the panel
     // must say ERROR rather than SAVED.
+    fakeRadio.state.activeDecoders.ais = 1
     const wrapper = await mountControl([radio()], { aisSdrRadioId: 1 })
-    const sdrStore = useSdrStore()
-    sdrStore.setAisRadioId(1)
-    vi.spyOn(sdrStore, 'stopAis').mockResolvedValue(false)
+    fakeRadio.decoders.stop.mockResolvedValue(false)
 
     await pick(wrapper, '')
     await expect(applyStaged(wrapper)).rejects.toThrow('could not be stopped')
@@ -233,27 +191,32 @@ describe('SeaAisSdrSourceControl — releasing the radio', () => {
 
   it('does not stop decode when nothing was decoding', async () => {
     const wrapper = await mountControl([radio()], { aisSdrRadioId: 1 })
-    const sdrStore = useSdrStore()
-    sdrStore.setAisRadioId(null)
-    const stopSpy = vi.spyOn(sdrStore, 'stopAis').mockResolvedValue(true)
 
     await pick(wrapper, '')
     await applyStaged(wrapper)
 
-    expect(stopSpy).not.toHaveBeenCalled()
+    expect(fakeRadio.decoders.stop).not.toHaveBeenCalled()
+  })
+
+  it('still clears the setting when no section provides a radio', async () => {
+    const wrapper = await mountControl([radio()], { aisSdrRadioId: 1 })
+    await pick(wrapper, '')
+    fakeRadio.withdraw()
+
+    await applyStaged(wrapper)
+
+    expect(settingsApi.put).toHaveBeenCalledWith('sea', 'aisSdrRadioId', null)
   })
 
   it('does not start decode when a receiver is chosen', async () => {
     // Decode begins when SEA is opened off grid, not here — naming a receiver
     // while online would tie up a dongle to duplicate the AISStream feed.
     const wrapper = await mountControl([radio()])
-    const sdrStore = useSdrStore()
-    const startSpy = vi.spyOn(sdrStore, 'startAis').mockResolvedValue(true)
 
     await pick(wrapper, '1')
     await applyStaged(wrapper)
 
-    expect(startSpy).not.toHaveBeenCalled()
+    expect(fakeRadio.decoders.start).not.toHaveBeenCalled()
     expect(settingsApi.put).toHaveBeenCalledWith('sea', 'aisSdrRadioId', 1)
   })
 })
