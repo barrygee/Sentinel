@@ -278,14 +278,16 @@ class TestPrune:
         store.ingest_envelope(position(), ais_store.now_ms())
         assert store.prune() == 0
 
-    def test_clear_forgets_everything(self):
+    def test_clear_forgets_the_live_picture_but_keeps_static_data(self):
         store = AisVesselStore()
         store.ingest_envelope(position(), T0)
         store.ingest_envelope(static(), T0)
         store.clear()
         assert len(store) == 0 and store.newest_position_ms is None
+        assert store.track("232012345") == []
         store.ingest_envelope(position(), T0)
-        assert store.get("232012345")["typeLabel"] == ""  # static data gone too
+        # A source switch clears the store; the ship's type is still known.
+        assert store.get("232012345")["typeLabel"] == "PASSENGER"
 
 
 # ── queries ───────────────────────────────────────────────────────────────────
