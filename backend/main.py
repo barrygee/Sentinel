@@ -10,6 +10,7 @@ from backend.error_handlers import request_validation_error_handler
 from backend.modules import MODULES
 from backend.platform.lifecycle import run_lifecycles
 from backend.radio_hub.routers import decode as hub_decode_router
+from backend.radio_hub.routers import decoders as hub_decoders_router
 from backend.radio_hub.routers import radio_control as hub_radio_control_router
 from backend.radio_hub.routers import radios as hub_radios_router
 from backend.radio_hub.routers import sentry as sentry_router
@@ -65,6 +66,7 @@ app.include_router(hub_radios_router.router)
 app.include_router(sdr_router.router)
 app.include_router(hub_radio_control_router.router)
 app.include_router(hub_decode_router.router)
+app.include_router(hub_decoders_router.router)
 app.include_router(sentry_router.router)
 app.include_router(adsb_source_router.router)
 app.include_router(offline_map.router)
