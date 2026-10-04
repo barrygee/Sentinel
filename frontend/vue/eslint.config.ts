@@ -6,6 +6,7 @@ import eslint from '@eslint/js'
 import configPrettier from 'eslint-config-prettier'
 import pluginVue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
+import sectionBoundaries from './eslint-rules/sectionBoundaries'
 
 export default tseslint.config(
   // Never lint build output, deps, or static assets.
@@ -60,6 +61,15 @@ export default tseslint.config(
         },
       ],
     },
+  },
+
+  // Section boundaries (section-containers plan, P2): no section imports another,
+  // and core imports no section — cross-section needs go through the shell's
+  // registries and capabilities. Ownership lives in eslint-rules/sectionOwnership.ts.
+  {
+    files: ['src/**/*.{ts,vue}'],
+    plugins: { sentinel: { rules: { 'section-boundaries': sectionBoundaries } } },
+    rules: { 'sentinel/section-boundaries': 'error' },
   },
 
   // Prettier compatibility — must come last to win over earlier stylistic rules.
