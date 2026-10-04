@@ -2,6 +2,7 @@
 
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.radio_hub.routers import decode as decode_router
+from backend.radio_hub.services import manifest_decode
 from backend.radio_hub.services import sdr as sdr_service
 from backend.radio_hub.services import sdr_decode as sdr_decode_service
 from backend.radio_hub.services.sentry_fleet import fleet_poller
@@ -25,6 +26,7 @@ async def _stop() -> None:
     # otherwise block shutdown indefinitely.
     await fleet_poller.stop_all()
     await sdr_decode_service.shutdown_all_decoders()
+    await manifest_decode.shutdown_all()
     await sdr_service.shutdown_all()
 
 
@@ -33,6 +35,7 @@ def _wake() -> None:
     # stream loops exit the instant the signal arrives.
     sdr_service.wake_all_subscribers()
     sdr_decode_service.wake_all_decoders()
+    manifest_decode.wake_all()
 
 
 lifecycle = ModuleLifecycle(name="radio-hub", start=_start, stop=_stop, wake=_wake)

@@ -18,8 +18,8 @@ from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.aprs_channel import read_aprs_channel_hz
 from backend.platform.bus import bus
 from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.services import manifest_decode, sdr_decode
 from backend.radio_hub.services import sdr as sdr_svc
-from backend.radio_hub.services import sdr_decode
 from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
@@ -571,9 +571,10 @@ async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_de
 
     The bridge is created asynchronously — a voice bridge by the control socket's
     `digital_decode` command (which may race the opening of this socket), an APRS
-    bridge by `/api/sdr/aprs/start`, or an AIS bridge by `/api/sdr/ais/start`. A
-    radio runs at most one kind at a time, so whichever registry has it is the
-    right bridge to stream.
+    bridge by `/api/sdr/aprs/start`, an AIS bridge by `/api/sdr/ais/start`, or a
+    manifest-declared kind by `/api/sdr/decoders/{kind}/start`. A radio runs at
+    most one kind at a time, so whichever registry has it is the right bridge to
+    stream.
     """
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
@@ -582,6 +583,7 @@ async def _wait_for_bridge(host: str, port: int, timeout: float = 3.0) -> sdr_de
             sdr_decode.get_bridge(host, port)
             or sdr_decode.get_aprs_bridge(host, port)
             or sdr_decode.get_ais_bridge(host, port)
+            or manifest_decode.find_bridge(host, port)
         )
         if bridge is not None:
             return bridge
