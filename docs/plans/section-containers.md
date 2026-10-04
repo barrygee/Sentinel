@@ -294,8 +294,9 @@ Shared packages (host-provided singletons under federation, npm workspace packag
 ### 3.7 Browser storage ownership
 The shell keeps `app`/`theme`/`basemap`/notifications/tracking keys and `sessionStorage.sdrPlaying` (read by the shell's
 `index.html` early-AudioContext script). Section keys (`air.*`, `space.*`, `sea.*`, `land.*`, `sdr.*` persisted state)
-move into their remote's stores under the **same key names**, so no user state is lost. The P2 PR includes the full
-key-by-key table from `_persist.ts` and `utils/removedStorageKeys.ts`.
+move into their remote's stores under the **same key names**, so no user state is lost. The full key-by-key table,
+with owners and the cross-owner reads that must survive the split, is
+[section-storage-keys.md](section-storage-keys.md).
 
 ---
 
