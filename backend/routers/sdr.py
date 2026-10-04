@@ -21,7 +21,6 @@ hub (`backend/radio_hub/`); this router keeps what belongs to the SDR section.
 
 from __future__ import annotations
 
-import asyncio
 import datetime
 import logging
 from pathlib import Path
@@ -31,8 +30,7 @@ from backend.config import settings
 from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.db_helpers import get_setting
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
-from backend.radio_hub import radios as radio_registry
-from backend.radio_hub.services import sdr as sdr_svc
+from backend.platform.bus import bus
 from backend.services.sdr_data import write_sdr_frequencies_file
 from backend.services.sdr_frequencies import reconcile_sdr_frequencies
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -241,10 +239,6 @@ def _recording_to_dict(r: SdrRecording) -> dict:
 
 def _recordings_dir() -> Path:
     return Path(settings.db_path).parent / "recordings"
-
-
-# In-memory map of active IQ recording queues: recording_id → asyncio.Queue
-_active_iq_recordings: dict[int, asyncio.Queue] = {}
 
 
 # ── Group CRUD ────────────────────────────────────────────────────────────────
@@ -594,22 +588,17 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
     record_iq = await get_setting(db, "sdr", "recordRawIq", default=False) is True
 
     if record_iq and body.radio_id is not None:
-        # Look up the radio's host/port so we can find its broadcaster
-        radios = await radio_registry.get_radios(db)
-        radio = radio_registry.get_radio_by_id(radios, body.radio_id)
-        if radio:
-            try:
-                broadcaster = sdr_svc.get_broadcaster(radio["host"], radio["port"])
-                if broadcaster:
-                    rdir = _recordings_dir()
-                    rdir.mkdir(parents=True, exist_ok=True)
-                    iq_path = str(rdir / f"{rec.id}.u8")
-                    q = await broadcaster.start_iq_recording(iq_path)
-                    _active_iq_recordings[rec.id] = q
-                    rec.has_iq_file = True
-                    await db.commit()
-            except Exception as exc:
-                logger.warning("Could not start IQ recording for rec %d: %s", rec.id, exc)
+        # The radio hub taps the radio's IQ and writes <rec.id>.u8 into the
+        # recordings folder (B12); it declines when no broadcaster is running.
+        try:
+            reply = await bus.request(
+                "hub.iq-capture.start", {"capture_id": rec.id, "radio_id": body.radio_id, "db": db}
+            )
+            if reply.get("ok"):
+                rec.has_iq_file = True
+                await db.commit()
+        except Exception as exc:
+            logger.warning("Could not start IQ recording for rec %d: %s", rec.id, exc)
 
     return JSONResponse({"id": rec.id}, status_code=201)
 
@@ -628,18 +617,10 @@ async def stop_recording(
     if not row:
         raise HTTPException(404, "Recording not found")
 
-    # Stop IQ recording if active
-    if recording_id in _active_iq_recordings:
-        q = _active_iq_recordings.pop(recording_id)
-        # Find the broadcaster to call stop properly
+    # Stop IQ capture if one was started (the hub flushes the file before replying)
+    if row.has_iq_file:
         try:
-            radios_cache = await radio_registry.get_radios(db)
-            radio = radio_registry.get_radio_by_id(radios_cache, row.radio_id)
-            if radio:
-                broadcaster = sdr_svc.get_broadcaster(radio["host"], radio["port"])
-                if broadcaster:
-                    broadcaster.stop_iq_recording(q)
-                    await asyncio.sleep(0.2)  # let drain task finish flushing
+            await bus.request("hub.iq-capture.stop", {"capture_id": recording_id})
         except Exception as exc:
             logger.warning("Error stopping IQ recording %d: %s", recording_id, exc)
 

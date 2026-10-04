@@ -195,12 +195,6 @@ forbidden_modules = [
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
-ignore_imports = [
-    # Recording start/stop drives IQ capture on the hub's broadcaster directly. Goes with the
-    # hub.iq-capture.{start,stop} bus API (plan B12, P3).
-    "backend.routers.sdr -> backend.radio_hub.services.sdr",
-    "backend.routers.sdr -> backend.radio_hub.radios",
-]
 
 [[tool.importlinter.contracts]]
 name = "Radio hub imports no section"

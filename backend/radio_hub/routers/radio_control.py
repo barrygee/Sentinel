@@ -18,8 +18,11 @@ import logging
 
 from backend.database import get_db
 from backend.radio_hub import radios as radio_registry
+from backend.radio_hub.services import (
+    iq_capture,  # noqa: F401 — registers the hub.iq-capture.* responders (B12)
+    sdr_decode,
+)
 from backend.radio_hub.services import sdr as sdr_svc
-from backend.radio_hub.services import sdr_decode
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
