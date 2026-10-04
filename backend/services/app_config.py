@@ -205,6 +205,15 @@ async def _resolve_retired_auto_modes(db: AsyncSession, config: dict) -> None:
             block["sourceOverride"] = app_mode
 
 
+# Settings a config upload announces on the bus when it changes them (the
+# Settings PUT announces every write; apply_config writes rows directly).
+_ANNOUNCED_SETTINGS: tuple[tuple[str, str], ...] = (
+    ("sea", "aisSdrRadioId"),
+    ("sea", "sourceOverride"),
+    ("app", "connectivityMode"),
+)
+
+
 async def apply_config(db: AsyncSession, config: Any) -> None:
     """Upsert every setting in a config document into user_settings.
 
@@ -233,6 +242,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     # the edit takes effect exactly as picking the radio in Settings would.
     previous_aprs_radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
     previous_ais_radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
+    previous_announced = {item: await get_setting(db, *item, default=None) for item in _ANNOUNCED_SETTINGS}
 
     from backend.database import is_removed_setting  # avoid import cycle at module load
 
@@ -305,3 +315,13 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
             {"decoder": "ais", "db": db, "previous": previous_ais_radio_id, "next": next_ais_radio_id},
             raise_errors=True,
         )
+
+    # A document can change which radio Sea decodes AIS on, or whether Sea is
+    # off grid. Announce those like a Settings save would, so whoever reacts to
+    # them (Sea's AIS receiver) does whichever path wrote them.
+    changed_keys: dict[str, list[str]] = {}
+    for (namespace, key), previous in previous_announced.items():
+        if await get_setting(db, namespace, key, default=None) != previous:
+            changed_keys.setdefault(namespace, []).append(key)
+    for namespace, keys in changed_keys.items():
+        await bus.publish(f"settings.changed.{namespace}", {"keys": keys, "db": db})

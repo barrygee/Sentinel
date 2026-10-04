@@ -360,43 +360,91 @@ async def ais_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_
     enabled radio is persisted so it resumes on restart (see
     :func:`resume_persisted_ais`).
     """
-    radios = await radio_registry.get_radios(db)
-    radio = radio_registry.get_radio_by_id(radios, body.radio_id)
-    if not radio:
-        raise HTTPException(404, "Radio not found")
-    # Checked before dialling: a mirrored radio whose device has been unplugged
-    # or replugged elsewhere would otherwise fail as a bare connection refusal,
-    # which tells the operator nothing about what to do.
-    available, reason = radio_registry.device_availability(radio)
-    if not available:
-        raise HTTPException(
-            503,
-            f"{radio.get('name') or 'This radio'} is unavailable. {reason}",
-        )
-    try:
-        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
-    except ConnectionError as exc:
-        raise HTTPException(502, f"radio connect failed: {exc}") from exc
-    bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
-    # Recorded for the ingest endpoint's bus publish (decode.ais.<radio_id>)
-    # below — the bridge has no other way to know which business radio id it
-    # was started for (it is keyed internally by host:port).
-    bridge.radio_id = body.radio_id
-    await bridge.start(bw_hz=body.bw_hz or None)
-    await upsert_setting(db, "sdr", "ais_radio_id", body.radio_id)
+    reply = await start_ais_on_radio(db, body.radio_id, bw_hz=body.bw_hz)
+    if not reply["ok"]:
+        raise HTTPException(_AIS_REPLY_STATUS[reply["reason"]], reply["message"])
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
 
 
 @router.post("/api/sdr/ais/stop")
 async def ais_stop(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_db)):
     """Stop background off-grid AIS decode on a radio and clear the persisted choice."""
+    reply = await stop_ais_on_radio(db, body.radio_id)
+    if not reply["ok"]:
+        raise HTTPException(_AIS_REPLY_STATUS[reply["reason"]], reply["message"])
+    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": False})
+
+
+# How each failure reason in an AIS start/stop reply reads over HTTP.
+_AIS_REPLY_STATUS = {"unknown_radio": 404, "unavailable": 503, "connect_failed": 502}
+
+
+async def start_ais_on_radio(db: AsyncSession, radio_id: int, *, bw_hz: int = 0) -> dict:
+    """Start (or hand over) off-grid AIS decode on ``radio_id`` and persist it.
+
+    Shared by ``POST /api/sdr/ais/start`` and the ``hub.decode.ais.start`` bus
+    request, so both behave identically. Replies with a plain dict:
+    ``{"ok": True}`` or ``{"ok": False, "reason", "message"}`` with ``reason``
+    one of ``unknown_radio``, ``unavailable`` or ``connect_failed``.
+    """
     radios = await radio_registry.get_radios(db)
-    radio = radio_registry.get_radio_by_id(radios, body.radio_id)
+    radio = radio_registry.get_radio_by_id(radios, radio_id)
     if not radio:
-        raise HTTPException(404, "Radio not found")
+        return {"ok": False, "reason": "unknown_radio", "message": "Radio not found"}
+    # Checked before dialling: a mirrored radio whose device has been unplugged
+    # or replugged elsewhere would otherwise fail as a bare connection refusal,
+    # which tells the operator nothing about what to do.
+    available, reason = radio_registry.device_availability(radio)
+    if not available:
+        return {
+            "ok": False,
+            "reason": "unavailable",
+            "message": f"{radio.get('name') or 'This radio'} is unavailable. {reason}",
+        }
+    try:
+        broadcaster = await sdr_svc.get_or_create_broadcaster(radio["host"], radio["port"])
+    except ConnectionError as exc:
+        return {"ok": False, "reason": "connect_failed", "message": f"radio connect failed: {exc}"}
+    bridge = await sdr_decode.get_or_create_ais_bridge(radio["host"], radio["port"], broadcaster)
+    # Recorded for the ingest endpoint's bus publish (decode.ais.<radio_id>)
+    # below — the bridge has no other way to know which business radio id it
+    # was started for (it is keyed internally by host:port).
+    bridge.radio_id = radio_id
+    await bridge.start(bw_hz=bw_hz or None)
+    await upsert_setting(db, "sdr", "ais_radio_id", radio_id)
+    return {"ok": True}
+
+
+async def stop_ais_on_radio(db: AsyncSession, radio_id: int) -> dict:
+    """Stop off-grid AIS decode on ``radio_id`` and clear the persisted choice.
+
+    Shared by ``POST /api/sdr/ais/stop`` and the ``hub.decode.ais.stop`` bus
+    request. Replies ``{"ok": True}`` or ``{"ok": False, "reason":
+    "unknown_radio", "message"}``.
+    """
+    radios = await radio_registry.get_radios(db)
+    radio = radio_registry.get_radio_by_id(radios, radio_id)
+    if not radio:
+        return {"ok": False, "reason": "unknown_radio", "message": "Radio not found"}
     await sdr_decode.stop_ais_bridge(radio["host"], radio["port"])
     await upsert_setting(db, "sdr", "ais_radio_id", None)
-    return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": False})
+    return {"ok": True}
+
+
+async def _on_ais_start_request(payload: dict) -> dict:
+    """``hub.decode.ais.start`` {radio_id, db, bw_hz?} — Sea asks for its AIS receiver."""
+    return await start_ais_on_radio(payload["db"], payload["radio_id"], bw_hz=payload.get("bw_hz", 0))
+
+
+async def _on_ais_stop_request(payload: dict) -> dict:
+    """``hub.decode.ais.stop`` {radio_id, db} — Sea releases its AIS receiver."""
+    return await stop_ais_on_radio(payload["db"], payload["radio_id"])
+
+
+# Registered at import time (not in the app lifespan) so tests — which skip
+# lifespan — still get a responder; see backend/platform/bus.py's docstring.
+bus.reply("hub.decode.ais.start", _on_ais_start_request)
+bus.reply("hub.decode.ais.stop", _on_ais_stop_request)
 
 
 @router.get("/api/sdr/ais/status/{radio_id}")
