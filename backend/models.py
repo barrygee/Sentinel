@@ -243,7 +243,7 @@ class SentryHost(Base):
     this row holds only what is genuinely Sentinel's own — how to reach one
     Sentry host and its bearer token — plus a small amount of poll telemetry.
     Device state itself is never persisted here; it is cached in memory by
-    ``backend.services.sentry_fleet`` and always read live through the client.
+    ``backend.radio_hub.services.sentry_fleet`` and always read live through the client.
     """
 
     __tablename__ = "sentry_hosts"

@@ -15,10 +15,10 @@
  * This control only *designates* the receiver (`sea.aisSdrRadioId`, staged into
  * APPLY CHANGES like the rest of the panel). It deliberately does not start
  * decoding, which is where it differs from `AprsSdrSourceControl`: APRS runs
- * unattended from the moment a radio is picked, whereas AIS starts when the
- * operator opens the Sea section off grid (see `useOffgridAisDecode`). Naming a
- * receiver while online would otherwise tie up a dongle to duplicate a feed
- * already arriving from AISStream.
+ * unattended from the moment a radio is picked, whereas AIS decodes only while
+ * Sea is off grid (the backend's `sea_ais_receiver` starts it then, browser or
+ * not). Naming a receiver while online would otherwise tie up a dongle to
+ * duplicate a feed already arriving from AISStream.
  *
  * Clearing the selection *does* act immediately, because the operator is
  * asking for the radio back: whatever is decoding is stopped here rather than

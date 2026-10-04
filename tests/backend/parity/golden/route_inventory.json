@@ -740,6 +740,62 @@
     "methods": null
   },
   {
+    "path": "/api/sdr/decoders",
+    "type": "Route",
+    "name": "list_decoders",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/register",
+    "type": "Route",
+    "name": "register_decoder",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/{kind}/start",
+    "type": "Route",
+    "name": "start_decoder",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/{kind}/stop",
+    "type": "Route",
+    "name": "stop_decoder",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/{kind}/status/{radio_id}",
+    "type": "Route",
+    "name": "decoder_status",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/{kind}/ingest",
+    "type": "Route",
+    "name": "ingest_decoder_event",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr/decoders/{kind}/config",
+    "type": "Route",
+    "name": "decoder_config",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/api/sdr/sentry-hosts",
     "type": "Route",
     "name": "list_hosts",

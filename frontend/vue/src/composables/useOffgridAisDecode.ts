@@ -20,6 +20,12 @@ import { useSettingsStore } from '@/stores/settings'
  * wants it in order to duplicate a feed already arriving over the internet.
  * Switching Sea back online therefore releases the radio.
  *
+ * **The backend is the authority now.** Sea's AIS receiver
+ * (`backend/services/sea_ais_receiver.py`) starts and stops decode itself at
+ * startup and on every change to these settings, so decoding no longer waits
+ * for this page. This composable remains as a prompt on entering Sea; starting
+ * the radio already decoding is a no-op server-side.
+ *
  * **Starts on entering Sea, but does not stop on leaving it.** Unlike the AIR
  * ADS-B claim, which hands the dongle back as soon as you navigate away, AIS
  * decode is left running in the background once started. A vessel picture is

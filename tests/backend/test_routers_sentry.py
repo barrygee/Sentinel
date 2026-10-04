@@ -21,7 +21,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from backend.routers import sentry as sentry_router
+from backend.radio_hub.routers import sentry as sentry_router
 
 
 def _install_mock_transport(monkeypatch, handler) -> None:
@@ -373,7 +373,7 @@ class TestListHostLocations:
         reachable: bool = True,
         name: str | None = "sentry-roof",
     ):
-        from backend.services.sentry_fleet import HostSnapshot
+        from backend.radio_hub.services.sentry_fleet import HostSnapshot
 
         location: dict | None = None
         if latitude is not None or longitude is not None:
@@ -478,7 +478,7 @@ class TestListHostLocations:
         assert client.get("/api/sdr/sentry-hosts/locations").json() == []
 
     def test_omits_a_host_whose_export_has_no_source_block(self, client, monkeypatch):
-        from backend.services.sentry_fleet import HostSnapshot
+        from backend.radio_hub.services.sentry_fleet import HostSnapshot
 
         created = _create_host(client)
         self._patch_snapshots(
@@ -615,7 +615,7 @@ class TestGetHostDevices:
         }
 
     def test_returns_the_pollers_cached_snapshot_verbatim(self, client, monkeypatch):
-        from backend.services.sentry_fleet import HostSnapshot
+        from backend.radio_hub.services.sentry_fleet import HostSnapshot
 
         created = _create_host(client)
         snapshot = HostSnapshot(
@@ -855,7 +855,7 @@ class TestHostInfo:
     def test_poller_telemetry_is_included_when_a_snapshot_exists(
         self, client, monkeypatch
     ):
-        from backend.services.sentry_fleet import HostSnapshot
+        from backend.radio_hub.services.sentry_fleet import HostSnapshot
 
         created = _create_host(client)
         monkeypatch.setattr(
@@ -879,7 +879,7 @@ class TestHostInfo:
     def test_snapshot_api_version_is_used_when_the_probe_reports_none(
         self, client, monkeypatch
     ):
-        from backend.services.sentry_fleet import HostSnapshot
+        from backend.radio_hub.services.sentry_fleet import HostSnapshot
 
         created = _create_host(client)
         monkeypatch.setattr(

@@ -28,6 +28,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 from backend.config import settings
+from backend.radio_hub.services import device_claims
 
 logger = logging.getLogger(__name__)
 
@@ -405,7 +406,8 @@ class RtlTcpConnection:
                 # ownership). With control available the relay drives the dongle, so
                 # we must NOT also push commands over the IQ socket.
                 await self._ensure_control()
-                if not self.control_available:
+                # A dongle claimed for ADS-B keeps the claim's tuning (device_claims).
+                if not self.control_available and not device_claims.is_claimed(self.host, self.port):
                     # Legacy / raw rtl_tcp path. Configure the device immediately:
                     # rtl_tcp otherwise streams at its own default rate (which this
                     # Pi can't sustain → ~3 fps, jumpy) until a sample_rate command
@@ -435,7 +437,13 @@ class RtlTcpConnection:
             # demoted follower keep driving a tuner it no longer owns. Re-claim to get
             # the relay's authoritative answer: we keep the token if it is still ours
             # or free, and drop to a read-only follower if another instance took it.
-            became_owner = await self.control.claim()
+            # A dongle claimed for ADS-B is never ours to tune: hand the token back.
+            if device_claims.is_claimed(self.host, self.port):
+                if self.control.is_owner:
+                    await self.control.release()
+                became_owner = False
+            else:
+                became_owner = await self.control.claim()
             self.is_owner = became_owner
             if not became_owner:
                 self._adopt_control_state(self.control)
@@ -450,7 +458,9 @@ class RtlTcpConnection:
             return
         self.control = control
         self.control_available = True
-        became_owner = await control.claim()
+        # Claimed for ADS-B: follow the claim's tuning rather than asserting our
+        # defaults over it (our 2.048 MS/s is exactly what broke ADS-B decode).
+        became_owner = False if device_claims.is_claimed(self.host, self.port) else await control.claim()
         self.is_owner = became_owner
         if became_owner:
             await control.set(sample_rate=self.sample_rate, center_hz=self.center_hz)
@@ -520,11 +530,21 @@ class RtlTcpConnection:
         when another instance holds it so nothing touches the shared hardware.
         """
         assert self.control is not None  # control_available implies control is set
+        self._refuse_if_claimed()
         if not self.control.is_owner:
             await self.control.claim()
         if not self.control.is_owner:
             raise ReadOnlyTuningError(f"another instance owns the tuner at {self.host}:{self.port}")
         self.is_owner = True
+
+    def _refuse_if_claimed(self) -> None:
+        """Raise ``ReadOnlyTuningError`` while this dongle is claimed for ADS-B.
+
+        The same error a follower gets when another instance owns the tuner, so the
+        WebSocket layer and the UI already know to show the radio as read-only.
+        """
+        if device_claims.is_claimed(self.host, self.port):
+            raise ReadOnlyTuningError(f"the tuner at {self.host}:{self.port} is claimed for ADS-B")
 
     async def _send_command(self, cmd: int, value: int) -> None:
         if not self.connected or not self.writer:
@@ -539,6 +559,7 @@ class RtlTcpConnection:
             await self.control.set(center_hz=freq_hz)
             self.center_hz = freq_hz
             return
+        self._refuse_if_claimed()
         await self._send_command(0x01, freq_hz)
         self.center_hz = freq_hz
 
@@ -622,6 +643,7 @@ class RtlTcpConnection:
             await self.control.set(sample_rate=rate_hz)
             self.sample_rate = rate_hz
             return
+        self._refuse_if_claimed()
         await self._send_command(0x02, rate_hz)
         self.sample_rate = rate_hz
 
@@ -631,6 +653,7 @@ class RtlTcpConnection:
             await self.control.set(gain_auto=True)
             self.gain_auto = True
             return
+        self._refuse_if_claimed()
         await self._send_command(0x03, 0)  # gain mode = auto
         await self._send_command(0x08, 1)  # AGC on
         self.gain_auto = True
@@ -642,6 +665,7 @@ class RtlTcpConnection:
             self.gain_db = gain_db
             self.gain_auto = False
             return
+        self._refuse_if_claimed()
         await self._send_command(0x03, 1)  # gain mode = manual
         await self._send_command(0x08, 0)  # AGC off
         tenths = max(0, int(round(gain_db * 10)))
@@ -1021,6 +1045,21 @@ def compute_fft_frame(
 
 def get_connection(host: str, port: int) -> RtlTcpConnection | None:
     return _connections.get(f"{host}:{port}")
+
+
+async def yield_to_claim(host: str, port: int) -> None:
+    """Hand back the relay tuning token for a dongle that has just been claimed.
+
+    Called by the reservation proxy before it sends the claim's retune to Sentry,
+    so the claim's tuning is the only change the relay sees. Followers are told
+    at once, so the SDR panel turns read-only without waiting for a retune.
+    """
+    connection = _connections.get(f"{host}:{port}")
+    if connection is None:
+        return
+    await connection.release_ownership()
+    if connection.state_change_callback is not None:
+        connection.state_change_callback()
 
 
 async def get_or_create_connection(host: str, port: int) -> RtlTcpConnection:

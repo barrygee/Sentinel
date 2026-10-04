@@ -282,7 +282,7 @@ interface FastApiValidationError {
 
 /**
  * Parse `{"detail": ...}` into `{code, message, context}`. Mirrors the
- * backend's own `_parse_error_envelope` (`backend/services/sentry_client.py`)
+ * backend's own `_parse_error_envelope` (`backend/radio_hub/services/sentry_client.py`)
  * so the same three shapes are handled here: Sentry's own `{code, message}`
  * envelope (proxied verbatim), FastAPI's list-shaped 422 (raised by this
  * router's own Pydantic validation, before ever reaching Sentry), and a bare

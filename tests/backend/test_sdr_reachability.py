@@ -1,4 +1,4 @@
-"""Tests for backend.services.sdr.reachability_status.
+"""Tests for backend.radio_hub.services.sdr.reachability_status.
 
 The probe backs the Settings device dot and the SDR panel's radio dropdown. It is
 a direct TCP connection to the configured host:port (so it works for LAN/localhost
@@ -9,7 +9,7 @@ declaring a radio reachable — a bare open port must NOT read as online.
 import asyncio
 import socket
 
-from backend.services import sdr as sdr_svc
+from backend.radio_hub.services import sdr as sdr_svc
 
 
 async def _serve_once(payload: bytes) -> tuple[asyncio.AbstractServer, int]:

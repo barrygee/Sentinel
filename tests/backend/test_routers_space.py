@@ -7,7 +7,6 @@ SGP4 propagation; their error paths are still exercised here.
 
 from __future__ import annotations
 
-
 # ── /api/space/daynight ──────────────────────────────────────────────────────
 
 
@@ -184,8 +183,8 @@ class TestDomainUrlsReachFetchTle:
     def test_multi_satellite_passes_endpoint_passes_both_urls(
         self, client, monkeypatch
     ):
-        from backend.models import SatelliteCatalogue
         from backend.database import get_db
+        from backend.models import SatelliteCatalogue
 
         captured = self._capture_fetch_tle_urls(monkeypatch)
 

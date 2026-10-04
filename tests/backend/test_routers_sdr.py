@@ -7,8 +7,6 @@ during Phase 2C when the router is split.
 
 from __future__ import annotations
 
-
-
 # ── Radios CRUD (stored as a settings.sdr.radios JSON blob) ──────────────────
 
 

@@ -8,8 +8,8 @@ gate, but now publish the decoded event on `decode.aprs.<radio_id>` /
 
     backend/services/aprs_store.py `_on_decode_event`  — decode.aprs.* subscriber
     backend/services/ais_decode.py `_on_decode_event`   — decode.ais.* subscriber
-    backend/routers/sdr.py ingest_aprs_event/ingest_ais_event — gate + publish
-    backend/services/sdr_decode.py `_on_ais_status_request`  — hub.decode.ais.status
+    backend/radio_hub/routers/decode.py ingest_aprs_event/ingest_ais_event — gate + publish
+    backend/radio_hub/services/sdr_decode.py `_on_ais_status_request`  — hub.decode.ais.status
         responder Sea's off-grid status reads instead of importing sdr_decode
 
 Sea's `/api/sea/ais/status` HTTP surface (no-source/live/down/stale shapes) is
@@ -29,8 +29,9 @@ from backend.config import settings
 from backend.database import Base
 from backend.models import AprsStation  # noqa: F401 — register ORM model with Base
 from backend.platform.bus import bus
-from backend.services import ais_decode, ais_store, aprs_store, sdr_decode
-from backend.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
+from backend.radio_hub.services import sdr_decode
+from backend.radio_hub.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
+from backend.services import ais_decode, ais_store, aprs_store
 
 
 class _FakeBroadcaster:
@@ -194,7 +195,7 @@ class TestAisDecodeEventSubscriber:
         assert ais_store.store.get("351759000") is not None
 
 
-# ── ingest endpoints: gate + publish (routers/sdr.py) ─────────────────────────
+# ── ingest endpoints: gate + publish (radio_hub/routers/decode.py) ────────────
 
 
 class TestAprsIngestPublishesOnTheBus:

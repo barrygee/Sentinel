@@ -5,12 +5,11 @@ through an ``httpx.MockTransport``."""
 
 from __future__ import annotations
 
-
 import httpx
 import pytest
+from pmtiles.tile import Compression, TileType, serialize_header
 
 from backend.services.offline_map import source_probe
-from pmtiles.tile import Compression, TileType, serialize_header
 
 
 def _valid_header_bytes(

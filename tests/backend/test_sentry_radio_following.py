@@ -21,8 +21,8 @@ from typing import Any
 
 import pytest
 
-from backend.routers.sdr import _device_availability
-from backend.services.sentry_fleet import HostSnapshot, fleet_poller
+from backend.radio_hub.radios import device_availability
+from backend.radio_hub.services.sentry_fleet import HostSnapshot, fleet_poller
 
 HOST_ID = 1
 DEVICE_ID = "serial:97710286"
@@ -72,7 +72,7 @@ class TestReportingAvailability:
     def test_a_live_device_is_available(self, snapshot_with: Any) -> None:
         snapshot_with(device())
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is True
         assert reason == ""
@@ -80,7 +80,7 @@ class TestReportingAvailability:
     def test_an_unplugged_dongle_says_so(self, snapshot_with: Any) -> None:
         snapshot_with(device(present=False))
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is False
         assert "unplugged" in reason
@@ -88,7 +88,7 @@ class TestReportingAvailability:
     def test_a_disabled_device_says_so(self, snapshot_with: Any) -> None:
         snapshot_with(device(enabled=False))
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is False
         assert "disabled" in reason
@@ -97,7 +97,7 @@ class TestReportingAvailability:
         # Detected but not yet configured: there is nothing to connect to.
         snapshot_with(device(output=None))
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is False
         assert "output port" in reason
@@ -107,7 +107,7 @@ class TestReportingAvailability:
         # so it now has a different identity and the mirror's device is gone.
         snapshot_with(device(device_id="usb:1-1.4"))
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is False
         assert "Device not found" in reason
@@ -119,7 +119,7 @@ class TestReportingAvailability:
         # need different actions from the operator.
         snapshot_with(device(), reachable=False)
 
-        available, reason = _device_availability(mirrored_radio())
+        available, reason = device_availability(mirrored_radio())
 
         assert available is False
         assert "not reachable" in reason
@@ -129,7 +129,7 @@ class TestReportingAvailability:
         # operator did when they typed the address.
         snapshot_with()
 
-        available, reason = _device_availability(
+        available, reason = device_availability(
             {"id": 2, "name": "Manual", "host": "10.0.0.9", "port": 1234}
         )
 
@@ -141,6 +141,6 @@ class TestReportingAvailability:
     ) -> None:
         monkeypatch.setattr(fleet_poller, "get_snapshot", lambda host_id: None)
 
-        available, _ = _device_availability(mirrored_radio())
+        available, _ = device_availability(mirrored_radio())
 
         assert available is False

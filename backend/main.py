@@ -9,10 +9,14 @@ from backend.core import notifications as notifications_router
 from backend.error_handlers import request_validation_error_handler
 from backend.modules import MODULES
 from backend.platform.lifecycle import run_lifecycles
+from backend.radio_hub.routers import decode as hub_decode_router
+from backend.radio_hub.routers import decoders as hub_decoders_router
+from backend.radio_hub.routers import radio_control as hub_radio_control_router
+from backend.radio_hub.routers import radios as hub_radios_router
+from backend.radio_hub.routers import sentry as sentry_router
 from backend.routers import adsb_source as adsb_source_router
 from backend.routers import air, land, offline_map, sea, space
 from backend.routers import sdr as sdr_router
-from backend.routers import sentry as sentry_router
 from backend.routers import settings as settings_router
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -55,7 +59,14 @@ app.include_router(space.router)
 app.include_router(land.router)
 app.include_router(sea.router)
 app.include_router(settings_router.router)
+# The radio hub (backend/radio_hub/) and the SDR section share the /api/sdr/
+# prefix. They are included interleaved so the routes keep exactly the order the
+# single SDR router registered them in (the parity route-inventory golden pins it).
+app.include_router(hub_radios_router.router)
 app.include_router(sdr_router.router)
+app.include_router(hub_radio_control_router.router)
+app.include_router(hub_decode_router.router)
+app.include_router(hub_decoders_router.router)
 app.include_router(sentry_router.router)
 app.include_router(adsb_source_router.router)
 app.include_router(offline_map.router)

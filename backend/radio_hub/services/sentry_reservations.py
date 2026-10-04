@@ -34,12 +34,16 @@ differently to an operator. The caller turns all of that into its own wording.
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from backend.core.instance_identity import get_instance_id
 from backend.models import SentryHost
 from backend.platform.bus import EventPayload, bus
-from backend.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
+from backend.radio_hub.services import device_claims
+from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services.sentry_client import SentryApiError, SentryClient, SentryUnreachableError
+from backend.radio_hub.services.sentry_fleet import fleet_poller
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
@@ -96,6 +100,16 @@ async def _on_acquire(payload: EventPayload) -> dict[str, Any]:
         )
     except (SentryUnreachableError, SentryApiError) as error:
         return {**_failure_from(error), "stage": "acquire"}
+    # The claim wins the dongle (device_claims): record it, and take Sentinel's
+    # own connection off the tuning token before the retune goes out, so the
+    # claim's tuning is the only change the relay sees.
+    address = _stream_address(payload["host_id"], payload["device_id"])
+    if address is not None:
+        expires_at_ms = (reservation.data or {}).get("expires_at")
+        if not isinstance(expires_at_ms, int):
+            expires_at_ms = int(time.time() * 1000) + payload["ttl_seconds"] * 1000
+        device_claims.mark_claimed(*address, expires_at_ms)
+        await sdr_svc.yield_to_claim(*address)
     changes = payload.get("patch")
     if changes:
         try:
@@ -105,8 +119,24 @@ async def _on_acquire(payload: EventPayload) -> dict[str, Any]:
     return {"ok": True, "reservation": reservation.data}
 
 
+def _stream_address(host_id: int, device_id: str) -> tuple[str, int] | None:
+    """A device's rtl_tcp ``(host, port)`` from the fleet poller's last snapshot, if known."""
+    snapshot = fleet_poller.get_snapshot(host_id)
+    for device in (snapshot.status_payload or {}).get("sdrs", []) if snapshot else []:
+        if device.get("device_id") != device_id:
+            continue
+        output = device.get("output") or {}
+        if output.get("host") and isinstance(output.get("iq_port"), int):
+            return output["host"], output["iq_port"]
+    return None
+
+
 async def _on_release(payload: EventPayload) -> dict[str, Any]:
     db: AsyncSession = payload["db"]
+    # Forgotten even if Sentry can't be reached: the claim is over on our side.
+    address = _stream_address(payload["host_id"], payload["device_id"])
+    if address is not None:
+        device_claims.mark_released(*address)
     holder = await get_instance_id(db)
     try:
         client = await _client_for_host(db, payload["host_id"], require_enabled=True)

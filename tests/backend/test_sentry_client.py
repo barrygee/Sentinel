@@ -1,4 +1,4 @@
-"""Tests for backend.services.sentry_client — the typed async HTTP client for
+"""Tests for backend.radio_hub.services.sentry_client — the typed async HTTP client for
 one Sentry host's `/api` surface (ADR-0009).
 
 No network is used anywhere here: every request is routed through an
@@ -14,7 +14,7 @@ import json
 import httpx
 import pytest
 
-from backend.services.sentry_client import (
+from backend.radio_hub.services.sentry_client import (
     SentryApiError,
     SentryClient,
     SentryUnreachableError,

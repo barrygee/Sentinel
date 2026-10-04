@@ -154,6 +154,31 @@ services:
     networks:
       - sentinel
 
+  # Stub decoder. OPT-IN: only builds/starts with `--profile decoder-stub` (and is
+  # deliberately not in `all` — it decodes nothing). A stand-in decoder container
+  # that follows the decoder contract for manifest-declared kinds — register,
+  # poll config, read PCM, ingest — so the hub's side can be tested end to end
+  # without mbelib or a real signal. See decoder/stub/README.md.
+  stub-decoder:
+    build:
+      context: ./decoder/stub
+      dockerfile: Dockerfile
+    container_name: sentinel-stub-decoder
+    profiles: ["decoder-stub"]
+    depends_on:
+      - app
+    environment:
+      - HUB_URL=http://app:8000
+      - PCM_HOST=app
+      - PCM_PORT=7370
+      - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
+      - INGEST_SECRET_FILE=/run/decoder/secret
+    volumes:
+      - decoder_secret:/run/decoder:ro
+    restart: unless-stopped
+    networks:
+      - sentinel
+
   # ADS-B decoder (readsb). OPT-IN: only builds/starts with `--profile adsb`.
   # Decodes 1090 MHz from a *remote* Sentry dongle: it reads the raw I/Q stream
   # from Sentry's rtl_tcp port and publishes `aircraft.json` for the air
