@@ -147,8 +147,8 @@
  * searchable, and passes the already-matching `items`.
  */
 import { computed, nextTick, ref, watch, type ComponentPublicInstance } from 'vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 
 /** One row in the list. */
 export interface FilterPanelItem {

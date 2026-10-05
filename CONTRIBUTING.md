@@ -24,8 +24,8 @@ You do **not** need a global Python or pytest install — always invoke Python
 tooling through `uv run --project backend …` so it resolves the backend venv (see
 [Two npm — and one uv — contexts](#two-npm--and-one-uv--contexts)).
 
-**Match the CI Node version.** Both npm contexts pin Node 24–25 / npm 11 via
-`engines` + an `engine-strict` `.npmrc`, and CI reads the version from `.nvmrc`.
+**Match the CI Node version.** The repo pins Node 24–25 / npm 11 via `engines` +
+an `engine-strict` root `.npmrc`, and CI reads the version from `.nvmrc`.
 Run `nvm use` (or `nvm install`) before `npm install` so your locally generated
 `package-lock.json` matches what CI's `npm ci` expects — installing under an
 out-of-range Node/npm (e.g. Node 22/npm 10, or npm 12) is rejected with
@@ -33,8 +33,16 @@ out-of-range Node/npm (e.g. Node 22/npm 10, or npm 12) is rejected with
 
 The range spans two Node majors on purpose: both 24 and 25 ship **npm 11**, and
 it is the npm major — not the Node major — that decides how a lockfile is
-resolved. Widen it only to versions carrying the same npm major, and re-sync both
-lockfiles in the same commit when the pin moves.
+resolved. Widen it only to versions carrying the same npm major, and re-sync the
+lockfile in the same commit when the pin moves.
+
+**One install, one lockfile.** The repo root is an **npm workspaces** root: the
+Vue SPA (`frontend/vue`) and the shared web packages (`platform/web/*`) are
+members, there is a single `package-lock.json` at the root, and dependencies are
+hoisted to the root `node_modules`. Always run `npm install` / `npm ci` from the
+repo root (add a dependency to the SPA with `npm install <pkg> -w frontend/vue`).
+Never resolve a package by a path like `frontend/vue/node_modules/<pkg>` — it may
+be hoisted; use Node's resolver (see `maplibre-contour` in `vite.config.ts`).
 
 ---
 
@@ -48,8 +56,7 @@ cd Sentinel
 uv sync --project backend
 
 # Frontend SPA deps + git hooks (root `prepare` installs husky)
-npm install                       # root context — also runs `husky` to install hooks
-npm install --prefix frontend/vue # the Vue SPA context
+npm install   # every npm context (workspaces) — also runs `husky` to install hooks
 ```
 
 Installing the root dependencies runs the `prepare` script, which installs the

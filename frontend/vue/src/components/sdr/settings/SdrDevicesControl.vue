@@ -112,7 +112,7 @@
  * listen for.
  */
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrSentryDeviceRow from './SdrSentryDeviceRow.vue'

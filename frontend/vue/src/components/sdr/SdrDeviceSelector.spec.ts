@@ -5,7 +5,7 @@ import { axe } from 'jest-axe'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrRadio } from '@/stores/sdr'
-import { MENU_OPEN_SETTLE_MS } from '@/composables/useTeleportedMenu'
+import { MENU_OPEN_SETTLE_MS } from '@sentinel/ui/composables/useTeleportedMenu'
 
 enableAutoUnmount(afterEach)
 

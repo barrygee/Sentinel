@@ -8,9 +8,10 @@ import configPrettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-    // The Vue app and backend have their own tooling; only lint root-level helpers.
+    // The Vue app, the web packages it lints (platform/web) and the backend have
+    // their own tooling; only lint root-level helpers.
     {
-        ignores: ['node_modules/**', 'frontend/**', 'backend/**', 'coverage/**'],
+        ignores: ['node_modules/**', 'frontend/**', 'platform/**', 'backend/**', 'coverage/**'],
     },
 
     eslint.configs.recommended,

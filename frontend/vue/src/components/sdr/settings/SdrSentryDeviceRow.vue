@@ -30,7 +30,7 @@
  * connect to).
  */
 import { computed } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import type { SentryDeviceStatus } from '@/services/sentryApi'
 

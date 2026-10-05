@@ -35,7 +35,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 // Generic JSON-textarea editor that loads from `getUrl` and saves to `postUrl`
 // (POSTing the raw JSON body). Mirrors ConfigCurrentControl's UX — EDIT/HIDE,

@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { basemapStyleUrl, setMapStyle } from '@/utils/mapStyle'
 import { useAppStore } from '@/stores/app'

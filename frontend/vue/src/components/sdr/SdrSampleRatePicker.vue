@@ -47,7 +47,7 @@
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
-import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
+import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 const sampleRateHz = defineModel<number>({ required: true })

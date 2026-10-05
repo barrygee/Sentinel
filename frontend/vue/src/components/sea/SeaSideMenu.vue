@@ -139,11 +139,11 @@
 <script setup lang="ts">
 import { useAppStore } from '@/stores/app'
 import { useBasemapStore } from '@/stores/basemap'
-import TerrainIcon from '@/components/shared/TerrainIcon.vue'
-import MyLocationIcon from '@/components/shared/MyLocationIcon.vue'
-import BaseIconButton from '@/components/base/BaseIconButton.vue'
-import IconRail from '@/components/base/IconRail.vue'
-import IconRailAccordion from '@/components/base/IconRailAccordion.vue'
+import TerrainIcon from '@sentinel/ui/icons/TerrainIcon.vue'
+import MyLocationIcon from '@sentinel/ui/icons/MyLocationIcon.vue'
+import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
+import IconRail from '@sentinel/ui/base/IconRail.vue'
+import IconRailAccordion from '@sentinel/ui/base/IconRailAccordion.vue'
 
 defineProps<{
   zoomIn: () => void

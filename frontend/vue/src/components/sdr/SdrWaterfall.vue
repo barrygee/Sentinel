@@ -180,7 +180,7 @@ mx.text = function (
 }
 import { useSdrStore, type SdrMode } from '@/stores/sdr'
 import { useSettingsStore } from '@/stores/settings'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { findSignalEdges, findTimeExtent } from '@/composables/useSdrSignalMarker'
 
 const store = useSdrStore()

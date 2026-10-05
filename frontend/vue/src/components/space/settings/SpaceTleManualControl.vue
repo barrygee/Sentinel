@@ -64,7 +64,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },

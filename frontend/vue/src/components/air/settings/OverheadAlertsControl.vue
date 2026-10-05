@@ -81,7 +81,7 @@ import {
   type OverheadAlertLocation,
 } from '@/composables/useOverheadAlertZones'
 import { formatLatitude, formatLongitude } from '@/utils/locationUtils'
-import BaseToggleSwitch from '@/components/base/BaseToggleSwitch.vue'
+import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 
 const airStore = useAirStore()
 const { locations } = useOverheadAlertZones()

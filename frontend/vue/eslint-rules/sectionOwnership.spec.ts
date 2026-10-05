@@ -29,7 +29,7 @@ describe('ownerOf', () => {
 
   it.each([
     'components/shared/AppFooter',
-    'components/base/BaseIconButton',
+    'components/base/BaseToggleSetting',
     'shell/sections',
     'stores/notifications',
     'stores/sentrySites',

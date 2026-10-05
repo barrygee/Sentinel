@@ -1,5 +1,5 @@
 import { ref, onMounted, type Ref } from 'vue'
-import { useDocumentEvent } from './useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import * as settingsApi from '@/services/settingsApi'
 
 /**

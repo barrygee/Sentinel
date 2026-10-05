@@ -62,8 +62,8 @@
  * `.sdr-freq-row-edit` siblings, which another component renders.
  */
 import { ref, computed, nextTick } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrFrequencyGroup } from '@/stores/sdr'
 

@@ -52,9 +52,9 @@
  * another.
  */
 import { ref, computed, onMounted, useId } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import * as seaApi from '@/services/seaApi'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 
 const emit = defineEmits<{
   stage: [fn: () => Promise<unknown> | void]

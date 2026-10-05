@@ -185,10 +185,10 @@
  * holds a conflicting port when Sentry says so.
  */
 import { ref, computed, onMounted } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
-import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
+import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import {
   createRadio,
   updateRadio,

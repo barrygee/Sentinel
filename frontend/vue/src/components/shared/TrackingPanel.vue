@@ -42,9 +42,9 @@
 
 <script setup lang="ts">
 import { useTrackingStore, type TrackingField } from '@/stores/tracking'
-import BaseList from '@/components/base/BaseList.vue'
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
+import BaseList from '@sentinel/ui/base/BaseList.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 
 const store = useTrackingStore()
 

@@ -42,7 +42,7 @@ import LabelFieldsTable, {
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTimestampIntervalControl from './SdrTimestampIntervalControl.vue'
 import { useSdrStore } from '@/stores/sdr'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import * as settingsApi from '@/services/settingsApi'
 
 /** One SDR option: where it persists, and how it reads/writes the sdr store. */

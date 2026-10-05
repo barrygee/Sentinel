@@ -43,7 +43,7 @@
 <script setup lang="ts">
 // Registered with the shell's sidebar registry as Land's sub-tab icon
 // (components/land/landSidebarFilter.ts).
-import UnknownCategoryGlyph from '@/components/shared/UnknownCategoryGlyph.vue'
+import UnknownCategoryGlyph from '@sentinel/ui/icons/UnknownCategoryGlyph.vue'
 
 defineProps<{ category: string }>()
 </script>

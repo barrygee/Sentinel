@@ -1,6 +1,6 @@
 # Pre-commit gate — mirror of CI, on staged files only. Blocks the commit if
 # formatting/lint fails. Two lint-staged passes because the repo has two npm
-# contexts with separate ESLint/Prettier config and node_modules.
+# contexts with separate ESLint/Prettier config (one npm workspaces install at the root).
 set -e
 
 # Vue SPA — run from the app dir so lint-staged uses the app's ESLint/Prettier

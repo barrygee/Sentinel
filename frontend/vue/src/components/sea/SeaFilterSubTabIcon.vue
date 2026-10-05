@@ -9,7 +9,7 @@
 <script setup lang="ts">
 // Registered with the shell's sidebar registry as Sea's sub-tab icon
 // (components/sea/seaSidebarFilter.ts).
-import UnknownCategoryGlyph from '@/components/shared/UnknownCategoryGlyph.vue'
+import UnknownCategoryGlyph from '@sentinel/ui/icons/UnknownCategoryGlyph.vue'
 import SeaFamilyGlyph from './SeaFamilyGlyph.vue'
 import { isSeaFilterCategory } from '@/utils/aisShipType'
 

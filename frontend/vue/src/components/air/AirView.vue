@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, markRaw } from 'vue'
 import AirMap from './AirMap.vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'

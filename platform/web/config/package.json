@@ -1,0 +1,28 @@
+{
+  "name": "@sentinel/web-config",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shared TypeScript, ESLint, Prettier and Vitest settings for the Sentinel web packages and the SPA.",
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint.ts",
+    "./vitest": "./vitest.ts",
+    "./test-setup": "./test-setup.ts",
+    "./prettier": "./prettier.json",
+    "./tsconfig.base.json": "./tsconfig.base.json"
+  },
+  "peerDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-vue": "^10.9.2",
+    "jest-axe": "^10.0.0",
+    "typescript-eslint": "^8.61.0",
+    "vitest": "^4.1.11"
+  },
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "tsc --noEmit"
+  },
+  "prettier": "./prettier.json"
+}

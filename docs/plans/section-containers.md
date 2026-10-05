@@ -273,7 +273,12 @@ The **`radioSites` capability** comes from the `radio` remote and feeds the `Sen
 zones and range-ring origin. The last-known sites are cached, so zones don't flap while the hub restarts.
 
 Shared packages (host-provided singletons under federation, npm workspace packages in the repo):
-- **`@sentinel/ui`:** `components/base/*`, icons and overlays.
+- **`@sentinel/ui`** (`platform/web/ui`, done in P4.1): the `Base*` primitives, `IconRail`/`IconRailAccordion`, the
+  generic icons and the DOM composables (`useDisclosure`, `useDocumentEvent`, `useWindowEvent`, `useTeleportedMenu`,
+  `useRadioGroupKeyboard`). The settings-bound `BaseToggleSetting`/`BaseNumberSetting` stay with the settings code
+  (they persist through the settings API), and overlays go with `shell-api`.
+- **`@sentinel/web-config`** (`platform/web/config`): the shared tsconfig base, ESLint, Prettier, Vitest config and
+  test setup, used by the SPA and every package.
 - **`@sentinel/map-kit`:**
   - `MapLibreMap` and `SentinelControlBase`
   - the shared controls: names, roads, terrain, sentry-sites, range-rings (incl. `LandRangeRingsControl`) and zoom

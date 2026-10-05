@@ -83,9 +83,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import BellIcon from './BellIcon.vue'
-import ScrollHintChevronIcon from './ScrollHintChevronIcon.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
+import ScrollHintChevronIcon from '@sentinel/ui/icons/ScrollHintChevronIcon.vue'
 import { useNotificationsStore, type NotificationItem } from '@/stores/notifications'
 import { findNotificationTarget, runNotificationDismissHooks } from '@/shell/notificationRegistry'
 

@@ -63,8 +63,8 @@
  * spans are slot content into BaseDataCell, whose `:slotted()` rule applies
  * regardless of which parent provides them.
  */
-import BaseDataCell from '../base/BaseDataCell.vue'
-import BaseDataGrid from '../base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import SatRadioLinesAccordion from './SatRadioLinesAccordion.vue'
 import { formatHz, formatStatus, hasRadioInfo, splitNotes, type SatRadioInfo } from './satRadioInfo'
 

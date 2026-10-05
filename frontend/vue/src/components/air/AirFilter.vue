@@ -181,14 +181,14 @@
  * an expanded row offers.
  */
 import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import LocationPinIcon from '@/components/shared/LocationPinIcon.vue'
-import CentreOnMapIcon from '@/components/shared/CentreOnMapIcon.vue'
-import BellIcon from '@/components/shared/BellIcon.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
+import CentreOnMapIcon from '@sentinel/ui/icons/CentreOnMapIcon.vue'
+import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
 import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
 import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'

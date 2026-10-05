@@ -28,8 +28,8 @@
  * AIS reports carried, laid out in the shared data-grid sections the Land and
  * Space panes use, so a vessel reads like a station or a satellite.
  */
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import type { SeaVessel } from '@/stores/sea'
 import { vesselFamilyLabel } from '@/utils/aisShipType'
 import { formatDegrees, formatFixTime, formatKnots, navStatusLabel } from './seaFormat'

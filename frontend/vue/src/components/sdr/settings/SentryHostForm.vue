@@ -118,7 +118,7 @@
  * (its ADR-0010), and the client exchanges this for a session cookie.
  */
 import { ref, onMounted } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import SentryHostDetails from './SentryHostDetails.vue'
 import {

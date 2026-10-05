@@ -89,8 +89,8 @@
  * are tune buttons with a save bookmark (`LandRepeaterFrequencyCell`); the
  * parent does the tuning and saving, as the Sea pane does for port channels.
  */
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import LandRepeaterFrequencyCell from './LandRepeaterFrequencyCell.vue'
 import {
   formatRepeaterAccess,

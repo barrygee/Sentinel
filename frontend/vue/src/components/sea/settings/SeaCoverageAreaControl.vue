@@ -42,7 +42,7 @@
  * setting itself allows several, for a config uploaded by hand.
  */
 import { ref, computed, onMounted, reactive, useId } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import * as settingsApi from '@/services/settingsApi'
 import { useSeaStore } from '@/stores/sea'
 

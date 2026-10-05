@@ -28,7 +28,7 @@
  * (`sfr-acc` / `spp-acc`) so the open list looks exactly as it did before.
  */
 import { ref, useId } from 'vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 
 defineProps<{
   /** The caption text, e.g. `NOTES`. */

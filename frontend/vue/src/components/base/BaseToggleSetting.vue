@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseToggleSwitch from './BaseToggleSwitch.vue'
+import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import { useStagedSetting } from '@/composables/useStagedSetting'
 
 /**

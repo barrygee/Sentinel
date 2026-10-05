@@ -48,8 +48,8 @@
 import { computed, onMounted, ref } from 'vue'
 import * as settingsApi from '@/services/settingsApi'
 import { useAppStore } from '@/stores/app'
-import BaseSegmentedSetting from '@/components/base/BaseSegmentedSetting.vue'
-import BaseWarningNotice from '@/components/base/BaseWarningNotice.vue'
+import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
+import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 import {
   APP_MODE_STORAGE_KEY,
   SOURCE_MODE_LABELS,

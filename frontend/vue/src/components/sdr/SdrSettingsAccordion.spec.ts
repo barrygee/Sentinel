@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
-import { MENU_OPEN_SETTLE_MS } from '@/composables/useTeleportedMenu'
+import { MENU_OPEN_SETTLE_MS } from '@sentinel/ui/composables/useTeleportedMenu'
 
 enableAutoUnmount(afterEach)
 

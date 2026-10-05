@@ -122,9 +122,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import AprsSymbol from '@/components/shared/AprsSymbol.vue'
 import LandRepeaterFilters from '@/components/land/LandRepeaterFilters.vue'
 import LandRepeaterDetails from '@/components/land/LandRepeaterDetails.vue'
@@ -153,7 +153,7 @@ import type { RepeaterFrequencySide } from '@/components/land/LandRepeaterDetail
 import { REPEATER_LOCATE_EVENT } from '@/components/land/controls/repeaters/RepeatersControl'
 import type { RepeaterChannel } from '@/types/repeaters'
 import { aprsSymbolIcon } from '@/utils/aprsSymbols'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import {
   formatAltitude,
   formatCourse,

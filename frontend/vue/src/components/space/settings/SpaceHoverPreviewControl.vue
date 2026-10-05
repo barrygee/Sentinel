@@ -25,8 +25,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
-import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import * as settingsApi from '@/services/settingsApi'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
