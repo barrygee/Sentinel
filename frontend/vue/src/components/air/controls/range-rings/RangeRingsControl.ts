@@ -1,6 +1,6 @@
-import { RangeRingsControlBase } from '@/components/shared/controls/range-rings/RangeRingsControlBase'
+import { RangeRingsControlBase } from '@sentinel/map-kit/controls/range-rings/RangeRingsControlBase'
 import type { AirStore } from '../types'
-import type { ResolvedRingOrigin } from '@/composables/useRangeRingOrigin'
+import type { ResolvedRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 
 /**
  * Range rings on the Air map. Everything about the rings themselves lives in

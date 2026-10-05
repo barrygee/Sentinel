@@ -19,7 +19,8 @@ shared base — never inline logic in the map view component. (Project rule from
 
 ## The base class
 
-`components/shared/map-kit/sentinel-control-base/SentinelControlBase.ts`
+`platform/web/map-kit/src/sentinel-control-base/SentinelControlBase.ts` — import it
+as `@sentinel/map-kit/sentinel-control-base/SentinelControlBase`
 (`abstract class SentinelControlBase implements maplibregl.IControl`) owns the
 chrome so features only implement behavior:
 
@@ -38,6 +39,13 @@ chrome so features only implement behavior:
   military-bracket lesson).
 
 ## Adding a new control (checklist)
+
+A control used by one section lives in that section's folder (below). A control
+shared by several maps (names, roads, terrain, range rings, sentry sites, zoom)
+lives in `@sentinel/map-kit` under `platform/web/map-kit/src/controls/<feature>/`,
+imports only `@sentinel/shell-api` / `@sentinel/ui` / relative paths (never the
+SPA's `@/`), and is tested by that package at 100% coverage.
+
 
 1. Create `components/<domain>/controls/<feature>/` containing
    `<Feature>Control.ts` extending `SentinelControlBase` (its `.spec.ts` is

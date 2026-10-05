@@ -1,5 +1,5 @@
 import * as maplibregl from 'maplibre-gl'
-import { buildCirclePolygon } from '../../../../utils/distanceUtils'
+import { buildCirclePolygon } from '@sentinel/map-kit/utils/distanceUtils'
 
 const SOURCE_ID = 'overhead-zone'
 const FILL_ID = 'overhead-zone-fill'

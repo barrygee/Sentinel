@@ -66,7 +66,7 @@
  */
 import { ref, computed, onMounted, onUnmounted, useId } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
-import { isValidLatLon } from '@/utils/locationUtils'
+import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
 import {
   parseCoordinate,
   validateCoordinatePair,

@@ -1,5 +1,5 @@
-import { COUNT_MARKER_SIZE_PX } from '@/components/shared/map-cluster/mapCluster'
-import { isLeftFacing, MAP_LABEL_SIZE_PX } from '@/components/shared/map-label/mapLabelParts'
+import { COUNT_MARKER_SIZE_PX } from '@sentinel/map-kit/map-cluster/mapCluster'
+import { isLeftFacing, MAP_LABEL_SIZE_PX } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { FLAG_WIDTH_PX } from './vesselFlagBadge'
 import type { SeaLabelFieldMap, SeaVessel } from '@/stores/sea'
 

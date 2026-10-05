@@ -4,7 +4,7 @@ import * as maplibregl from 'maplibre-gl'
 import { RangeRingsControl } from './RangeRingsControl'
 import { useAirStore } from '@/stores/air'
 import type { AirStore } from '../types'
-import type { ResolvedRingOrigin } from '@/composables/useRangeRingOrigin'
+import type { ResolvedRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 
 const LAYER_ID = 'range-rings-lines'
 const ORIGIN_LAYER = `${LAYER_ID}-origin`

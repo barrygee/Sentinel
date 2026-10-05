@@ -1,5 +1,5 @@
 import type * as maplibregl from 'maplibre-gl'
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { useSeaStore } from '@/stores/sea'
 
 type SeaStore = ReturnType<typeof useSeaStore>

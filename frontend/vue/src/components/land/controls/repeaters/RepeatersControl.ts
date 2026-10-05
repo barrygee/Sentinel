@@ -1,6 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import { APRS_BADGE_BACKGROUND, APRS_COUNT_FILL, REPEATER_COUNT_RING } from '@/constants/aprs'
 import {
   formatMhz,
@@ -17,7 +17,7 @@ import {
   buildCountMarker,
   groupByGridCell,
   COUNT_MARKER_SIZE_PX,
-} from '@/components/shared/map-cluster/mapCluster'
+} from '@sentinel/map-kit/map-cluster/mapCluster'
 import {
   appendMirrored,
   createAccentBadge,
@@ -28,8 +28,8 @@ import {
   createLabelPill,
   createNameSegment,
   MAP_LABEL_SIZE_PX,
-} from '@/components/shared/map-label/mapLabelParts'
-import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
+} from '@sentinel/map-kit/map-label/mapLabelParts'
+import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
 import { escapeHtml } from '@/utils/escapeHtml'
 import type { useLandStore } from '@/stores/land'
 import type { useRepeatersStore } from '@/stores/repeaters'

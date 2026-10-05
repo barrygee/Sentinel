@@ -11,7 +11,7 @@ const { locationRef, overheadInstance, detectorInstance } = vi.hoisted(() => ({
   detectorInstance: { process: vi.fn() },
 }))
 
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 vi.mock('@/components/air/controls/overhead-zone/OverheadAlertsTracker', () => ({

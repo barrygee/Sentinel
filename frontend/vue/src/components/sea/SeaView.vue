@@ -30,7 +30,7 @@ import SeaSourceNotice from './SeaSourceNotice.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
 import { sidebarPaneSelector } from '@sentinel/shell-api/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
-import { useUserLocation } from '@/composables/useUserLocation'
+import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useOffgridAisDecode } from '@/composables/useOffgridAisDecode'
 import { useSeaStore } from '@/stores/sea'
 

@@ -1,8 +1,8 @@
 import { computed, type ComputedRef } from 'vue'
 import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '@/stores/air'
 import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
-import { useUserLocation } from '@/composables/useUserLocation'
-import { siteLabel } from '@/utils/sentrySiteLabel'
+import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
 import type { OverheadAlertZone } from '@/components/air/controls/overhead-zone/OverheadAlertsTracker'
 
 /**

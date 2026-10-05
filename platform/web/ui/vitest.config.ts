@@ -1,3 +1,3 @@
 import { sentinelPackageVitestConfig } from '@sentinel/web-config/vitest'
 
-export default sentinelPackageVitestConfig()
+export default sentinelPackageVitestConfig(import.meta.url)

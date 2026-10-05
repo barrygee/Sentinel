@@ -4,7 +4,7 @@ import { nextTick, ref } from 'vue'
 import type { SentrySite } from '@/services/sentryApi'
 
 const locationRef = ref<{ lat: number; lon: number; accuracy: number } | null>(null)
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 

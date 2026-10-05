@@ -25,7 +25,7 @@
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import type { BasemapLayerGroup } from '@/utils/basemapLayers'
+import type { BasemapLayerGroup } from '@sentinel/map-kit/utils/basemapLayers'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
 
 // One unlabelled column: every row is a plain on/off.

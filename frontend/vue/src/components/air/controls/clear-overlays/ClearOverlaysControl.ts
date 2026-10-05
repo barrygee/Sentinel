@@ -1,8 +1,8 @@
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { AdsbLiveControl } from '../adsb/AdsbLiveControl'
 import type { AdsbLabelsToggleControl } from '../adsb-labels/AdsbLabelsToggleControl'
-import type { RoadsToggleControl } from '@/components/shared/controls/roads/RoadsToggleControl'
-import type { NamesToggleControl } from '@/components/shared/controls/names/NamesToggleControl'
+import type { RoadsToggleControl } from '@sentinel/map-kit/controls/roads/RoadsToggleControl'
+import type { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
 import type { RangeRingsControl } from '../range-rings/RangeRingsControl'
 
 interface OverlaySibling {

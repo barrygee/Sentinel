@@ -18,7 +18,7 @@ vi.mock('vue-router', () => ({
   useRoute: () => reactive({ path: '/air/', meta: { domain: 'air' } }),
 }))
 
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({
     locationUnavailable: { value: false },
     start: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('@/composables/useUserLocation', () => ({
   }),
 }))
 
-vi.mock('@/composables/useRangeRingOrigin', () => ({
+vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({ hydrateFromConfig: vi.fn().mockResolvedValue(undefined) }),
 }))
 

@@ -15,7 +15,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const locationRef = ref<{ lat: number; lon: number; accuracy: number } | null>(null)
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 

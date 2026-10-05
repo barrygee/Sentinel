@@ -19,7 +19,7 @@
  */
 import { onMounted } from 'vue'
 import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
-import RingOriginPicker from '@/components/shared/controls/range-rings/RingOriginPicker.vue'
+import RingOriginPicker from '@sentinel/map-kit/controls/range-rings/RingOriginPicker.vue'
 
 const sentrySitesStore = useSentrySitesStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()

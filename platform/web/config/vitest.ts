@@ -6,13 +6,20 @@
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
+import { maplibreContourAlias } from './vite.ts'
 
 const sharedTestSetup = fileURLToPath(new URL('./test-setup.ts', import.meta.url))
 
-/** Builds a package's Vitest config; tests and sources live under `src/`. */
-export function sentinelPackageVitestConfig() {
+/**
+ * Builds a package's Vitest config; tests and sources live under `src/`.
+ *
+ * @param packageUrl `import.meta.url` of the package's vitest.config.ts, so
+ *   dependency aliases resolve from that package.
+ */
+export function sentinelPackageVitestConfig(packageUrl: string) {
   return defineConfig({
     plugins: [vue()],
+    resolve: { alias: maplibreContourAlias(packageUrl) },
     test: {
       environment: 'jsdom',
       globals: true,

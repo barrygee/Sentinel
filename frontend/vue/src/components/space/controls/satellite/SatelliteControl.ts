@@ -1,12 +1,12 @@
 import * as maplibregl from 'maplibre-gl'
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { useSpaceStore } from '@/stores/space'
 import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import type { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from './satelliteSprites'
 import { SatellitePassNotifier } from './SatellitePassNotifier'
 import { updatePassNotifName } from './passNotifStore'
-import { overlayAccentColor } from '@/utils/mapTheme'
+import { overlayAccentColor } from '@sentinel/map-kit/utils/mapTheme'
 
 // Persists the satellite the user is following so the follow survives a section
 // change (the Space map unmounts on navigation, destroying the control). On

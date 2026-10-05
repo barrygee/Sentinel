@@ -33,7 +33,7 @@ vi.mock('vue-router', () => ({
   },
 }))
 
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   const locationUnavailable = vueRef(false)
   shared.locationUnavailable = locationUnavailable as unknown as { value: boolean }
@@ -51,7 +51,7 @@ vi.mock('@/composables/useUserLocation', async () => {
 })
 
 const hydrateRingOrigin = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
-vi.mock('@/composables/useRangeRingOrigin', () => ({
+vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({ hydrateFromConfig: hydrateRingOrigin }),
 }))
 

@@ -11,7 +11,7 @@ import { axe } from 'jest-axe'
 const locationState = vi.hoisted(() => ({
   location: null as null | { value: { lat: number; lon: number } | null },
 }))
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   locationState.location = vueRef(null)
   return { useUserLocation: () => ({ location: locationState.location, start: vi.fn() }) }

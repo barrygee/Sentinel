@@ -81,7 +81,7 @@ const basemapLayerSync = vi.hoisted(() => ({
   groups: null as null | readonly string[],
   getMap: null as null | (() => unknown),
 }))
-vi.mock('@/composables/useBasemapLayerSync', () => ({
+vi.mock('@sentinel/map-kit/composables/useBasemapLayerSync', () => ({
   useBasemapLayerSync: (getMap: () => unknown, groups: readonly string[]) => {
     basemapLayerSync.getMap = getMap
     basemapLayerSync.groups = groups
@@ -89,16 +89,16 @@ vi.mock('@/composables/useBasemapLayerSync', () => ({
   },
 }))
 
-vi.mock('@/components/shared/controls/names/NamesToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/names/NamesToggleControl', () => ({
   NamesToggleControl: controlMocks.make('names'),
 }))
-vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/roads/RoadsToggleControl', () => ({
   RoadsToggleControl: controlMocks.make('roads'),
 }))
-vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/terrain/TerrainToggleControl', () => ({
   TerrainToggleControl: controlMocks.make('terrain'),
 }))
-vi.mock('@/components/shared/controls/sentry-sites/SentrySitesControl', () => ({
+vi.mock('@sentinel/map-kit/controls/sentry-sites/SentrySitesControl', () => ({
   SentrySitesControl: controlMocks.make('sentrySites'),
 }))
 vi.mock('./controls/range-rings/RangeRingsControl', () => ({
@@ -125,7 +125,7 @@ vi.mock('./controls/adsb/AdsbLiveControl', () => ({
   AdsbLiveControl: controlMocks.make('adsb'),
 }))
 
-vi.mock('@/components/shared/UserLocationMarker', () => ({
+vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
   UserLocationMarker: class {
     addTo = vi.fn()
     remove = vi.fn()
@@ -142,7 +142,7 @@ vi.mock('@/composables/useConnectivity', () => ({
   },
 }))
 
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref } = await import('vue')
   const location = ref<{ lon: number; lat: number } | null>(null)
   shared.locationRef = location as unknown as { value: { lon: number; lat: number } | null }
@@ -155,7 +155,7 @@ vi.mock('@/composables/useUserLocation', async () => {
   return { useUserLocation: () => ({ location, start }) }
 })
 
-vi.mock('@/composables/useMapContextMenu', () => ({
+vi.mock('@sentinel/map-kit/composables/useMapContextMenu', () => ({
   useMapContextMenu: () => {
     const ctx = { attach: vi.fn(), detach: vi.fn(), remove: vi.fn(), show: vi.fn() }
     shared.ctx = ctx
@@ -181,7 +181,7 @@ const MapLibreMapStub = defineComponent({
 })
 
 import AirMap from './AirMap.vue'
-import { absoluteSpriteTransform } from '@/utils/mapStyle'
+import { absoluteSpriteTransform } from '@sentinel/map-kit/utils/mapStyle'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useAirStore } from '@/stores/air'

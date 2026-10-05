@@ -279,7 +279,8 @@ Shared packages (host-provided singletons under federation, npm workspace packag
   (they persist through the settings API), and overlays go with `shell-api`.
 - **`@sentinel/web-config`** (`platform/web/config`): the shared tsconfig base, ESLint, Prettier, Vitest config and
   test setup, used by the SPA and every package.
-- **`@sentinel/map-kit`:**
+- **`@sentinel/map-kit`** (`platform/web/map-kit`, done in P4.3; also holds `UserLocationMarker`, `map-cluster`,
+  `map-label`, `useRangeRingOrigin` and `useUserLocation`):
   - `MapLibreMap` and `SentinelControlBase`
   - the shared controls: names, roads, terrain, sentry-sites, range-rings (incl. `LandRangeRingsControl`) and zoom
   - `adsbSprites`

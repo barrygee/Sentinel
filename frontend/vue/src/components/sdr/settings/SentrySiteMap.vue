@@ -33,9 +33,13 @@
  */
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
-import { basemapStyleUrl, ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
+import {
+  basemapStyleUrl,
+  ignoreOfflineTileErrors,
+  setMapStyle,
+} from '@sentinel/map-kit/utils/mapStyle'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
+import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 

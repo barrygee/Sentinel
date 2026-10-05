@@ -1,4 +1,4 @@
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { AirStore } from '../types'
 import type { AdsbLiveControl } from '../adsb/AdsbLiveControl'
 

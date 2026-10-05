@@ -66,7 +66,7 @@ vi.mock('maplibre-gl', () => {
 })
 
 import SentrySiteMap from './SentrySiteMap.vue'
-import { absoluteSpriteTransform } from '@/utils/mapStyle'
+import { absoluteSpriteTransform } from '@sentinel/map-kit/utils/mapStyle'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 
