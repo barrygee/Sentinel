@@ -22,8 +22,9 @@ from backend.config import settings
 from backend.database import get_db
 from backend.models import AdsbCache, AirTracking
 from backend.services import adsb as adsb_service
+from backend.services import adsb_source
 from backend.services.upstream_rate_limit import UpstreamThrottledError
-from backend.utils import resolve_domain_urls
+from backend.utils import resolve_domain_urls, resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -103,6 +104,16 @@ async def get_aircraft_near_point(
                 recent row (the point tracks the map centre, so pans miss the cache)
       - 503:    upstream failed and no usable cached entry
     """
+    # Off grid the aircraft come from the operator's own receiver, which only
+    # hears what is around it, so the area is centred on that receiver rather
+    # than on wherever the map is panned (the browser always sends the map
+    # centre). Online, the map centre is the area being looked at. With no known
+    # receiver position, the map centre stands in.
+    if await resolve_effective_mode("air", db) == "offgrid":
+        receiver = await adsb_source.receiver_location(db)
+        if receiver is not None:
+            lat, lon = receiver
+
     # Build a deterministic cache key from the query parameters
     cache_key = f"{lat:.4f}_{lon:.4f}_{radius}"
 

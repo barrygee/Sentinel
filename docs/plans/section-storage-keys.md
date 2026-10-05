@@ -63,7 +63,6 @@ These are named after a section, but core's generic controls write them on the s
 | `sentinel_air_filterCategory` | local | `stores/air.ts` | — |
 | `sentinel_air_filterExpandedPlane` | local | `stores/air.ts` | — |
 | `sentinel_air_mapIsolatedHex` | local | `stores/air.ts` | — |
-| `userLocation` | local | *nothing* | `air/controls/adsb/AdsbLiveControl.ts` reads it, but **no code writes it**: the location lives under `sentinel_user_location`. See *Findings* |
 
 ## Space
 
@@ -156,9 +155,8 @@ longer exist, so they have no owner. Core runs the cleanup.
 
 ## Findings
 
-- **`userLocation` is read but never written.** `AdsbLiveControl._fetch()` checks
-  `localStorage.getItem('userLocation')` for a cached position fresher than 10 minutes. No code writes that key; the
-  user location is stored under `sentinel_user_location`. So the cached-position branch never runs, and the ADS-B poll
-  always centres its 250 nm query on the **map centre**, never the operator's location. That may be the behaviour
-  people now expect, so it is not changed here (this document changes no behaviour). Either read
-  `sentinel_user_location` through `useUserLocation()`, or delete the dead branch, depending on which centre is intended.
+- **`userLocation` (resolved 2026-10-05).** `AdsbLiveControl._fetch()` used to read a `userLocation` key that no
+  code wrote, so its dead branch was removed. The owner's rule for the ADS-B query centre: **online, the map centre**
+  (the browser always sends it); **off grid, the selected receiver's location** — `routers/air.py` swaps in the
+  position of the Sentry host behind the Settings › AIR source (`adsb_source.receiver_location()` →
+  `hub.sentry.host.location`), falling back to the map centre when none is known.

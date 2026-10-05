@@ -9,6 +9,7 @@ bus and the hub makes the Sentry calls on its behalf:
                                    optionally retune it under that lease
   hub.sentry.reservation.release   give a device back
   hub.sentry.device.address        where a device's rtl_tcp stream answers
+  hub.sentry.host.location         where a host (and its receivers) is
 
 The optional retune rides on the acquire request rather than being its own
 subject: the claim and the tune share one `SentryClient`, and with it the
@@ -49,6 +50,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
 RELEASE_SUBJECT = "hub.sentry.reservation.release"
 DEVICE_ADDRESS_SUBJECT = "hub.sentry.device.address"
+HOST_LOCATION_SUBJECT = "hub.sentry.host.location"
 
 
 class _HostUnavailable(Exception):
@@ -168,6 +170,25 @@ async def _on_device_address(payload: EventPayload) -> dict[str, Any]:
     return {"ok": True, "found": False}
 
 
+async def _on_host_location(payload: EventPayload) -> dict[str, Any]:
+    """Where a Sentry host (and so every receiver on it) is, from the fleet poller's last snapshot.
+
+    Air centres its off-grid ADS-B area on the receiver it decodes from: the
+    receiver only hears aircraft around itself. Answered from memory, so it
+    costs no Sentry round trip; ``found`` is False until the host has been
+    polled or when it reports no usable position.
+    """
+    snapshot = fleet_poller.get_snapshot(payload["host_id"])
+    location = ((snapshot.status_payload or {}).get("location") if snapshot else None) or {}
+    latitude, longitude = location.get("latitude"), location.get("longitude")
+    if not all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in (latitude, longitude)):
+        return {"ok": True, "found": False}
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return {"ok": True, "found": False}
+    return {"ok": True, "found": True, "latitude": float(latitude), "longitude": float(longitude)}
+
+
 bus.reply(ACQUIRE_SUBJECT, _on_acquire)
 bus.reply(RELEASE_SUBJECT, _on_release)
 bus.reply(DEVICE_ADDRESS_SUBJECT, _on_device_address)
+bus.reply(HOST_LOCATION_SUBJECT, _on_host_location)
