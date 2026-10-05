@@ -449,6 +449,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Switching radios keeps each radio's own frequency
 - Follow a source change in Sentinel while the decoder is streaming
 - Re-lock AIR's ADS-B receiver when it changes mid-session
+- Poll ADS-B off grid instead of clearing the map
 
 ### Chores
 
@@ -1381,6 +1382,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #413 from barrygee/feat/map-light-is-osm-style
 - Merge pull request #416 from barrygee/fix/adsb-decoder-follow-source-change
 - Merge pull request #417 from barrygee/fix/sdr-panel-relocks-new-adsb-source
+- Merge pull request #418 from barrygee/fix/air-offgrid-adsb-polls
 
 ### Refactoring
 
