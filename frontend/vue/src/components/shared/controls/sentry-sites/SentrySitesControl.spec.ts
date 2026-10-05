@@ -227,15 +227,17 @@ describe('SentrySitesControl', () => {
   })
 
   describe('plotting sites', () => {
-    it('draws each site with the ⊙ mark, its centre dot in the settings off-white', () => {
+    it('draws each site with the ⊙ mark, its centre dot in the map palette’s Sentry dot colour', () => {
       sitesStore.sites = [site()]
       addControl()
       const mark = siteMarkers()[0]!.element
       expect(mark.tagName).toBe('BUTTON')
-      expect(mark.innerHTML).toContain('r="5.2" fill="#f6f6f4"') // the settings-panel off-white
-      expect(mark.innerHTML).toContain('#ffffff') // the shared white ring
-      // Never the operator's own accent dot — that is what tells the two apart.
-      expect(mark.innerHTML).not.toContain('#c8ff00')
+      // --map-sentry-dot: the settings off-white on the dark map, black on the light one.
+      expect(mark.innerHTML).toContain('r="5.2" style="fill: var(--map-sentry-dot)"')
+      // The shared ring, in the map's overlay ink.
+      expect(mark.innerHTML).toContain('stroke: var(--map-overlay-ink)')
+      // Never the operator's own location dot — that is what tells the two apart.
+      expect(mark.innerHTML).not.toContain('--map-location-dot')
     })
 
     it('names each marker for assistive tech, after MapLibre overwrites it', () => {

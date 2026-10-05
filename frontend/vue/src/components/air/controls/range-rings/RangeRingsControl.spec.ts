@@ -10,6 +10,7 @@ const LAYER_ID = 'range-rings-lines'
 const ORIGIN_LAYER = `${LAYER_ID}-origin`
 const ORIGIN_DOT_LAYER = `${LAYER_ID}-origin-dot`
 const LABEL_LAYER = `${LAYER_ID}-label`
+const DISTANCE_LAYER = `${LAYER_ID}-distances`
 
 interface FakeMap {
   map: maplibregl.Map
@@ -135,7 +136,7 @@ describe('RangeRingsControl (Air specifics)', () => {
 })
 
 describe('RangeRingsControlBase.onInit', () => {
-  it('builds the rings, the origin crosshair and the label layer when the style is loaded', () => {
+  it('builds the rings, the origin crosshair, the label and the ring distances when the style is loaded', () => {
     const control = new RangeRingsControl(airStore, origin())
     const map = fakeMap({ styleLoaded: true })
     control.onAdd(map.map)
@@ -148,7 +149,13 @@ describe('RangeRingsControlBase.onInit', () => {
       ORIGIN_LAYER,
       expect.objectContaining({ type: 'geojson' }),
     )
-    expect([...map.layers]).toEqual([LAYER_ID, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER])
+    expect([...map.layers]).toEqual([
+      LAYER_ID,
+      ORIGIN_LAYER,
+      ORIGIN_DOT_LAYER,
+      LABEL_LAYER,
+      DISTANCE_LAYER,
+    ])
   })
 
   it('draws five concentric closed rings', () => {
@@ -324,7 +331,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
 
     control.setOrigin(SENTRY)
 
-    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · 250 NM')
+    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD')
   })
 
   it('flags a stale position in the label rather than moving the rings', () => {
@@ -334,7 +341,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
 
     control.setOrigin({ ...SENTRY, degraded: true })
 
-    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · OFFLINE · 250 NM')
+    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · OFFLINE')
   })
 
   it('empties the label when there is no origin', () => {

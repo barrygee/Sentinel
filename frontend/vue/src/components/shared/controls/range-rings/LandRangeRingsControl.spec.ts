@@ -68,6 +68,7 @@ describe('LandRangeRingsControl', () => {
         `${LAYER}-origin`,
         `${LAYER}-origin-dot`,
         `${LAYER}-label`,
+        `${LAYER}-distances`,
       ])
     })
   })
@@ -161,7 +162,7 @@ describe('LandRangeRingsControl', () => {
 
       control.setOrigin(origin({ kind: 'sentry', label: 'GATESHEAD' }))
 
-      expect(map._state.textField[`${LAYER}-label`]).toBe('GATESHEAD · 250 NM')
+      expect(map._state.textField[`${LAYER}-label`]).toBe('GATESHEAD')
     })
 
     it('defers the build until the style loads', () => {
