@@ -205,6 +205,16 @@ async def _resolve_retired_auto_modes(db: AsyncSession, config: dict) -> None:
             block["sourceOverride"] = app_mode
 
 
+def _resolve_retired_map_theme(config: dict) -> None:
+    """Replace the retired COLOUR map palette (from an older export, or the live
+    config file written before the rename) with LIGHT, which is the same map
+    renamed. Without this the config-file sync re-imports "colour" right after
+    the startup migration has rewritten it (seed_default_settings)."""
+    app_block = config.get("app")
+    if isinstance(app_block, dict) and app_block.get("mapTheme") == "colour":
+        app_block["mapTheme"] = "light"
+
+
 # Settings a config upload announces on the bus when it changes them (the
 # Settings PUT announces every write; apply_config writes rows directly).
 _ANNOUNCED_SETTINGS: tuple[tuple[str, str], ...] = (
@@ -230,6 +240,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
 
     _assign_missing_radio_ids(config)
     await _resolve_retired_auto_modes(db, config)
+    _resolve_retired_map_theme(config)
 
     # Validate app.location up front so a bad coordinate rejects the whole
     # document rather than being persisted.
