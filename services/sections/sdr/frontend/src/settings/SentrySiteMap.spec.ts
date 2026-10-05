@@ -166,8 +166,10 @@ describe('SentrySiteMap', () => {
     const marker = markerRegistry.instances[0]!
     expect(marker.lngLat).toEqual([-1.532995, 54.951186])
     expect(marker.element.className).toBe('sentry-site-marker')
-    // The logo mark itself: white ring, accent-green dot.
-    expect(marker.element.innerHTML).toContain('#c8ff00')
+    // The logo mark itself: a ring in the map's overlay ink, the location dot
+    // token (lime on the dark map, green on the light one).
+    expect(marker.element.innerHTML).toContain('stroke: var(--map-overlay-ink)')
+    expect(marker.element.innerHTML).toContain('fill: var(--map-location-dot)')
   })
 
   // The accordion that owns the map is hidden until the moment it mounts, so

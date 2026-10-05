@@ -23,6 +23,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
   /** Stroke of the rings and origin crosshair on the dark basemap. */
   private static readonly DARK_STROKE = 'rgba(255,255,255,0.40)'
 
+  /** Ring distance labels: light on the dark map, dark on the light one (template.css --map-overlay-ink). */
+  private static readonly DARK_MAP_DISTANCE_INK = '#ffffff'
+  private static readonly LIGHT_MAP_DISTANCE_INK = '#1b1d22'
+
   /** Whether the operator has the rings switched on for this map. */
   ringsVisible: boolean
 
@@ -53,6 +57,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
   }
   private get labelLayerId(): string {
     return `${this.layerId}-label`
+  }
+  /** Each ring's distance, along its line (drawn from the rings' own source). */
+  private get distanceLayerId(): string {
+    return `${this.layerId}-distances`
   }
 
   get buttonLabel(): string {
@@ -107,7 +115,13 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     // because a palette change reloads the style and re-runs this method.
     const brightBasemap = isBrightBasemap()
     const stroke = brightBasemap ? overlayAccentColor() : RangeRingsControlBase.DARK_STROKE
-    for (const id of [this.labelLayerId, this.originDotLayerId, this.originLayerId, this.layerId]) {
+    for (const id of [
+      this.distanceLayerId,
+      this.labelLayerId,
+      this.originDotLayerId,
+      this.originLayerId,
+      this.layerId,
+    ]) {
       if (this.map.getLayer(id)) this.map.removeLayer(id)
     }
     for (const id of [this.originLayerId, this.layerId]) {
@@ -150,8 +164,8 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       paint: { 'circle-radius': 1.6, 'circle-color': stroke },
     })
 
-    // One label per ring would repeat the same fact five times, so only the
-    // outermost ring carries it. `symbol-spacing` is screen distance between
+    // The origin's name rides the outermost ring only — on every ring it would
+    // repeat the same fact five times. `symbol-spacing` is screen distance between
     // placements along that ring, and it has to stay well under the ring's
     // on-screen circumference or the single placement lands off-view and the
     // label is invisible — which is exactly what a large spacing did here.
@@ -175,6 +189,40 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
         'text-color': brightBasemap ? '#000000' : 'rgba(255,255,255,0.65)',
         'text-halo-color': brightBasemap ? '#ffffff' : '#000000',
         'text-halo-width': 1,
+      },
+    })
+
+    // Each ring's distance ("50 NM") along its own line, repeated round the
+    // ring so a stretch of ring in view carries it whatever the zoom: the
+    // larger rings run off-screen, so one label per ring would usually be out
+    // of sight. Line labels stay upright, so the upward offset keeps the text
+    // just above the dashes with a clear gap all the way round. Light ink on
+    // the dark map, dark on the light one. Bold is a halo in the text's own
+    // colour: only Noto Sans Regular glyphs are bundled for offline use, so a
+    // bold font stack would render nothing off grid.
+    const distanceInk = brightBasemap
+      ? RangeRingsControlBase.LIGHT_MAP_DISTANCE_INK
+      : RangeRingsControlBase.DARK_MAP_DISTANCE_INK
+    this.map.addLayer({
+      id: this.distanceLayerId,
+      type: 'symbol',
+      source: this.layerId,
+      layout: {
+        visibility: 'none',
+        'symbol-placement': 'line',
+        'symbol-spacing': 320,
+        'text-field': ['concat', ['to-string', ['get', 'dist']], ' NM'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': 11,
+        'text-letter-spacing': 0.08,
+        'text-max-angle': 30,
+        'text-keep-upright': true,
+        'text-offset': [0, -0.9],
+      },
+      paint: {
+        'text-color': distanceInk,
+        'text-halo-color': distanceInk,
+        'text-halo-width': 0.6,
       },
     })
 
@@ -213,15 +261,14 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     }
   }
 
-  /** Name the origin along the outer ring, flagging a position that has gone stale. */
+  /**
+   * Name the origin along the outer ring, flagging a position that has gone
+   * stale. The distance is not repeated here: every ring carries its own.
+   */
   private _applyLabel(): void {
     if (!this.map?.getLayer(this.labelLayerId)) return
     const origin = this.origin
-    const text = origin
-      ? `${origin.label}${origin.degraded ? ' · OFFLINE' : ''} · ${
-          RING_DISTANCES_NM[RING_DISTANCES_NM.length - 1]
-        } NM`
-      : ''
+    const text = origin ? `${origin.label}${origin.degraded ? ' · OFFLINE' : ''}` : ''
     this.map.setLayoutProperty(this.labelLayerId, 'text-field', text)
   }
 
@@ -230,6 +277,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     if (!this.map?.getLayer(this.layerId)) return
     const ringsOn = this.ringsVisible && this.origin !== null
     this.map.setLayoutProperty(this.layerId, 'visibility', ringsOn ? 'visible' : 'none')
+    // Distances go with the rings themselves, your own position included.
+    if (this.map.getLayer(this.distanceLayerId)) {
+      this.map.setLayoutProperty(this.distanceLayerId, 'visibility', ringsOn ? 'visible' : 'none')
+    }
     // The ⊙ marker already marks your own position, so the crosshair and the
     // label are for the cases where the centre is somewhere else — showing them
     // on top of ⊙ would be noise, and its own name written twice.

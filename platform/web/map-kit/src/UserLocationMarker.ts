@@ -1,11 +1,19 @@
 import * as maplibregl from 'maplibre-gl'
 
-/** The dot colour of the operator's own position — the app accent. */
-export const LOCATION_MARKER_DOT_COLOR = '#c8ff00'
+/**
+ * The dot colour of the operator's own position: the map palette's
+ * `--map-location-dot` (lime on the dark map, green on the light one).
+ */
+export const LOCATION_MARKER_DOT_COLOR = 'var(--map-location-dot)'
 
 /**
  * The SENTINEL ⊙ logo mark as SVG markup (same ring/dot proportions as
- * `frontend/assets/logo.svg`): white ring, filled dot.
+ * `frontend/assets/logo.svg`): a ring in the map's overlay ink (white on
+ * the dark map, near-black on the light one) and a filled dot.
+ *
+ * Colours are CSS custom properties set per map palette in template.css
+ * (`:root[data-map-theme]`), so a marker already on the map follows a
+ * palette switch without being rebuilt.
  *
  * The dasharray/dashoffset equal the ring's circumference (2π·13.1) so the
  * draw-in animation traces one full turn. The dot is deliberately static — no
@@ -14,17 +22,18 @@ export const LOCATION_MARKER_DOT_COLOR = '#c8ff00'
  * Exported because the mark is not only the user's own position any more: the
  * Sentry sites plotted on every domain map (`SentrySitesControl`) are the same
  * mark, built here rather than copied so the two cannot drift apart. They differ
- * only in the dot's colour, which is what `dotColor` is for — the shape says
+ * only in the dot's colour (a CSS colour, typically a `var(--map-…)` token),
+ * which is what `dotColor` is for — the shape says
  * "a place Sentinel knows"; the colour says whose place it is.
  */
 export function buildLocationMarkerSvg(dotColor: string = LOCATION_MARKER_DOT_COLOR): string {
   return `
         <svg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" overflow="visible">
             <circle cx="30" cy="30" r="13.1"
-                fill="none" stroke="#ffffff" stroke-width="2.2"
+                fill="none" stroke-width="2.2"
                 stroke-dasharray="82.31" stroke-dashoffset="82.31"
-                style="animation: marker-circle-draw 0.6s ease forwards" />
-            <circle cx="30" cy="30" r="5.2" fill="${dotColor}" />
+                style="stroke: var(--map-overlay-ink); animation: marker-circle-draw 0.6s ease forwards" />
+            <circle cx="30" cy="30" r="5.2" style="fill: ${dotColor}" />
         </svg>`
 }
 
