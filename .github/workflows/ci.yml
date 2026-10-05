@@ -222,6 +222,33 @@ jobs:
           path: frontend/vue/playwright-report/
           retention-days: 7
 
+  web-packages:
+    name: web-packages (eslint + typecheck + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # The shared @sentinel/* packages under platform/web (P4 of the
+      # section-containers plan). `-w platform/web` runs the script in every
+      # workspace below that folder; --if-present skips packages without it
+      # (web-config has no tests). Each package gates its own coverage at 100%.
+      - name: Lint (ESLint + Prettier)
+        run: npm run lint -w platform/web --if-present
+
+      - name: Typecheck
+        run: npm run typecheck -w platform/web --if-present
+
+      - name: Tests + coverage (vitest)
+        run: npm run test:coverage -w platform/web --if-present
+
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)
     runs-on: ubuntu-latest

@@ -34,7 +34,7 @@
  *
  * Emits only; the owning map component does the zooming.
  */
-import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 
 const emit = defineEmits<{ 'zoom-in': []; 'zoom-out': [] }>()
 </script>

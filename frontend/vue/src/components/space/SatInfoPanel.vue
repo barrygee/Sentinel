@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { useDocumentEvent } from '../../composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 
 defineProps<{ satelliteControl: SatelliteControl | null }>()
 

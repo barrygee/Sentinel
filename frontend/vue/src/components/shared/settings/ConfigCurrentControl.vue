@@ -35,9 +35,9 @@
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { SETTINGS_CHANGED_EVENT } from '@/services/settingsApi'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { isValidLatLon } from '@/utils/locationUtils'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 // Same key useUserLocation seeds sharedLocation from on reload. Clearing it
 // here when the config location is emptied keeps the post-reload seed correct

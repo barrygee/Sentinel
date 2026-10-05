@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useDisclosure } from '@/composables/useDisclosure'
+import { useDisclosure } from '../composables/useDisclosure'
 
 /**
  * `IconRailAccordion` — the click-to-expand sub-panel mechanic shared by the

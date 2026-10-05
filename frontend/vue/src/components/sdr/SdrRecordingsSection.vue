@@ -335,10 +335,10 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import ScrollHintChevronIcon from '@/components/shared/ScrollHintChevronIcon.vue'
-import BaseButton from '@/components/base/BaseButton.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import BaseList from '@/components/base/BaseList.vue'
+import ScrollHintChevronIcon from '@sentinel/ui/icons/ScrollHintChevronIcon.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BaseList from '@sentinel/ui/base/BaseList.vue'
 
 interface SdrRecording {
   id: number

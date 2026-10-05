@@ -72,7 +72,7 @@
  * `.sdr-ef-setting …`) are higher-specificity and order-immune.
  */
 import { ref, watch } from 'vue'
-import { useTeleportedMenu } from '@/composables/useTeleportedMenu'
+import { useTeleportedMenu } from '../composables/useTeleportedMenu'
 
 // Multi-root (trigger + Teleport): attrs are bound explicitly on the trigger.
 defineOptions({ inheritAttrs: false })

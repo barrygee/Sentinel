@@ -197,7 +197,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import AprsSymbol from '@/components/shared/AprsSymbol.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { DecodeEvent } from '@/stores/sdr'

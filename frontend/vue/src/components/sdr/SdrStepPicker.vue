@@ -46,7 +46,7 @@
  * the other extracted panel sections.
  */
 import { ref, computed } from 'vue'
-import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
+import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
 
 const stepKhz = defineModel<string>({ required: true })
 

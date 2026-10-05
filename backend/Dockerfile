@@ -5,6 +5,9 @@ FROM node:24-alpine AS spa-builder
 WORKDIR /repo
 COPY package.json package-lock.json .npmrc ./
 COPY frontend/vue/package.json ./frontend/vue/
+# The shared @sentinel/* web packages are workspace members the SPA imports from
+# source, so they are needed for both the install and the build.
+COPY platform/web/ ./platform/web/
 RUN npm ci
 WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./

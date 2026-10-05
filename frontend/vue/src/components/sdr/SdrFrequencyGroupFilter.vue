@@ -53,8 +53,8 @@
  * `sdr-favourites-groups-section`.
  */
 import type { SdrFrequencyGroup } from '@/stores/sdr'
-import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 
 defineProps<{
   /** Groups offered as filter chips (typically the store's `groupsWithFreqs`). */

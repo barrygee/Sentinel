@@ -43,7 +43,7 @@
  * shared glyph, so there is no name collision or accidental restyle risk.
  */
 import { computed, ref } from 'vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 
 const props = defineProps<{
   /** Current favourite state — solid star when true, outline when false. */

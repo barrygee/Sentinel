@@ -48,7 +48,7 @@
  * the bell cards, which would otherwise only control subscriptions now off.
  */
 import { computed, onMounted, ref, watch } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
 import { useNotificationSubscriptions } from '@/composables/useNotificationSubscriptions'
 import { useNotificationsStore } from '@/stores/notifications'

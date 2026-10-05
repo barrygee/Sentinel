@@ -89,7 +89,7 @@ describe('IconRailAccordion', () => {
   it('paints the sub-button panel with the shared rail-surface token', () => {
     // (path from cwd, not import.meta.url — under jsdom that URL is http-scheme)
     const componentSource = readFileSync(
-      resolve(process.cwd(), 'src/components/base/IconRailAccordion.vue'),
+      resolve(process.cwd(), 'src/base/IconRailAccordion.vue'),
       'utf8',
     )
     expect(componentSource).toMatch(

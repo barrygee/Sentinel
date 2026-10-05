@@ -141,7 +141,7 @@
  * with BaseSelectMenu.
  */
 import { ref, computed } from 'vue'
-import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
+import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrRadio } from '@/stores/sdr'
 

@@ -116,7 +116,7 @@
  * the change without polling this control's own state.
  */
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { useSettingsStore } from '@/stores/settings'
 import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import SentryHostForm from './SentryHostForm.vue'

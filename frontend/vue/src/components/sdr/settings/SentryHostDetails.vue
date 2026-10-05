@@ -99,11 +99,11 @@
  * `UNSET_TEXT` so the view degrades to "what Sentinel has on record".
  */
 import { computed, ref, watch } from 'vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import SentrySiteMap from './SentrySiteMap.vue'
 import { useAppStore } from '@/stores/app'
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import { getSentryHostInfo, type SentryHost, type SentryHostInfo } from '@/services/sentryApi'
 
 /** Shown wherever a value is genuinely absent, so no cell renders blank. */

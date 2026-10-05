@@ -112,7 +112,7 @@
 <script setup lang="ts">
 // Registered with the shell's sidebar registry as Air's sub-tab icon
 // (components/air/airSidebarFilter.ts).
-import UnknownCategoryGlyph from '@/components/shared/UnknownCategoryGlyph.vue'
+import UnknownCategoryGlyph from '@sentinel/ui/icons/UnknownCategoryGlyph.vue'
 
 defineProps<{ category: string }>()
 </script>

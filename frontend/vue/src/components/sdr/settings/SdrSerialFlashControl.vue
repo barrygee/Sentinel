@@ -66,7 +66,7 @@
  * itself and a stronger written warning given the higher stakes.
  */
 import { ref } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { flashSentryDeviceSerial, SentryApiRequestError } from '@/services/sentryApi'
 
 const GHOST_BUTTON_STYLE =

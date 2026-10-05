@@ -55,7 +55,7 @@ import { useSeaStore, type SeaVessel } from '@/stores/sea'
 import { useRadio } from '@/shell/useRadio'
 import { useNotificationsStore } from '@/stores/notifications'
 import { familyMatchesCategory, vesselFamilyLabel } from '@/utils/aisShipType'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import {
   findPort,
   PORTS_DATA,

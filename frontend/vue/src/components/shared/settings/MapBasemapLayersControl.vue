@@ -24,7 +24,7 @@
  */
 import { useBasemapStore } from '@/stores/basemap'
 import * as settingsApi from '@/services/settingsApi'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import type { BasemapLayerGroup } from '@/utils/basemapLayers'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'
 

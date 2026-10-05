@@ -22,7 +22,7 @@
  * app-level mode.
  */
 import { computed, onMounted, ref } from 'vue'
-import BaseSegmentedSetting from '@/components/base/BaseSegmentedSetting.vue'
+import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
 import * as settingsApi from '@/services/settingsApi'
 import { useAppStore } from '@/stores/app'
 import {

@@ -238,10 +238,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import RadioIcon from '@/components/shared/RadioIcon.vue'
+import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { storeToRefs } from 'pinia'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import {
@@ -252,13 +252,13 @@ import {
   setRecordOnPassEnabled,
 } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
-import { useDocumentEvent } from '../../composables/useDocumentEvent'
-import ChevronIcon from '../shared/ChevronIcon.vue'
-import LocationPinIcon from '../shared/LocationPinIcon.vue'
-import BellIcon from '../shared/BellIcon.vue'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
+import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
+import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
-import BaseDataGrid from '../base/BaseDataGrid.vue'
-import BaseDataCell from '../base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
 import {
   SATELLITE_CATEGORY_ORDER,

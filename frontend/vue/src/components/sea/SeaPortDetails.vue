@@ -24,8 +24,8 @@
  * airport accordion in the Air pane over the shared data-grid sections.
  */
 import { computed } from 'vue'
-import BaseDataGrid from '@/components/base/BaseDataGrid.vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SeaPortChannelButton from './SeaPortChannelButton.vue'
 import type { PortChannel, PortProperties } from './controls/ports/portsData'
 import { marineVhfChannelHz } from '@/utils/marineVhf'

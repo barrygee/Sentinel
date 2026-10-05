@@ -149,9 +149,9 @@
 import { ref, computed, watch, type Component } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
 import TrackingPanel from './TrackingPanel.vue'
-import FilterFunnelIcon from './FilterFunnelIcon.vue'
-import BaseIconButton from '@/components/base/BaseIconButton.vue'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import FilterFunnelIcon from '@sentinel/ui/icons/FilterFunnelIcon.vue'
+import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { useNotificationsStore } from '@/stores/notifications'
 import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
 import {

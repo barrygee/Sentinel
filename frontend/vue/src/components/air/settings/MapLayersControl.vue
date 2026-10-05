@@ -31,7 +31,7 @@
 import { useAirStore, type OverlayStates } from '@/stores/air'
 import { useBasemapStore } from '@/stores/basemap'
 import * as settingsApi from '@/services/settingsApi'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'

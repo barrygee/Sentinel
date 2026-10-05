@@ -36,7 +36,7 @@
  * is single-select — all sites, on air, or off air.
  */
 import { computed, ref } from 'vue'
-import ChevronIcon from '@/components/shared/ChevronIcon.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import LandFilterChipRow, { type FilterChipOption } from './LandFilterChipRow.vue'
 import { useRepeatersStore } from '@/stores/repeaters'
 import {

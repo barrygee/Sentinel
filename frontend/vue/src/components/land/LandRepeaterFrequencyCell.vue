@@ -51,8 +51,8 @@
  * frequency is stored, and clicking it then removes the frequency again.
  */
 import { computed } from 'vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { formatMhz } from '@/constants/repeaters'
 
 const props = withDefaults(

@@ -193,12 +193,12 @@
  * arming an expanded row offers.
  */
 import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
-import RadioIcon from '@/components/shared/RadioIcon.vue'
+import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { storeToRefs } from 'pinia'
 import BaseFilterPanel, {
   type FilterPanelItem,
 } from '@/components/shared/filter/BaseFilterPanel.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import {
@@ -210,12 +210,12 @@ import {
   getAllPassNotifs,
 } from './controls/satellite/passNotifStore'
 import { useNotificationsStore } from '../../stores/notifications'
-import { useDocumentEvent } from '../../composables/useDocumentEvent'
-import LocationPinIcon from '../shared/LocationPinIcon.vue'
-import BellIcon from '../shared/BellIcon.vue'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
+import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
-import BaseDataGrid from '../base/BaseDataGrid.vue'
-import BaseDataCell from '../base/BaseDataCell.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,

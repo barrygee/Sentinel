@@ -27,7 +27,7 @@
  * screen reader hears which set a chip belongs to. Styled to match the Space
  * pane's pass-category chips.
  */
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 
 export interface FilterChipOption {
   key: string

@@ -68,7 +68,7 @@
  */
 import { computed, nextTick, ref } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import SdrFavouriteStar from './SdrFavouriteStar.vue'
 import SdrFrequencyRowSummary from './SdrFrequencyRowSummary.vue'
 import { useSdrStore } from '@/stores/sdr'

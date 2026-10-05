@@ -19,7 +19,7 @@
  * the airport frequency cells in the Air pane.
  */
 import { computed } from 'vue'
-import BaseDataCell from '@/components/base/BaseDataCell.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import { formatMarineVhfMhz, MARINE_VHF_MODE } from '@/utils/marineVhf'
 
 const props = defineProps<{

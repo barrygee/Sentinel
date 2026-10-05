@@ -26,7 +26,7 @@
 <script setup lang="ts">
 import { ref, shallowRef, markRaw, watch, onBeforeUnmount } from 'vue'
 import { useUserLocation } from '@/composables/useUserLocation'
-import { useDocumentEvent } from '@/composables/useDocumentEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import SpaceMap from './SpaceMap.vue'
 import SpaceSideMenu from './SpaceSideMenu.vue'
 import SpaceFilter from './SpaceFilter.vue'

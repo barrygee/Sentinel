@@ -137,10 +137,10 @@
  * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
-import BaseAccordionSection from '@/components/base/BaseAccordionSection.vue'
-import BaseCheckbox from '@/components/base/BaseCheckbox.vue'
-import BaseSelectMenu from '@/components/base/BaseSelectMenu.vue'
-import BaseSliderRow from '@/components/base/BaseSliderRow.vue'
+import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
+import BaseCheckbox from '@sentinel/ui/base/BaseCheckbox.vue'
+import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
+import BaseSliderRow from '@sentinel/ui/base/BaseSliderRow.vue'
 import { formatBwHz, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 defineProps<{

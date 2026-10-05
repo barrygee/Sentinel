@@ -317,10 +317,10 @@
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import BasePillToggle from '@/components/base/BasePillToggle.vue'
-import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import SdrStepPicker from './SdrStepPicker.vue'
 import type { SdrSearchRange } from '@/services/sdrSearchApi'
 import {

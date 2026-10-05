@@ -22,7 +22,7 @@
 
 <script setup lang="ts" generic="TValue extends string">
 import BasePillToggle from './BasePillToggle.vue'
-import { useRadioGroupKeyboard } from '@/composables/useRadioGroupKeyboard'
+import { useRadioGroupKeyboard } from '../composables/useRadioGroupKeyboard'
 
 /**
  * `BaseSegmentedSetting` — a single-select segmented control for the Settings
