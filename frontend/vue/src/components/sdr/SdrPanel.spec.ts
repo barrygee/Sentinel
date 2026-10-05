@@ -1587,6 +1587,73 @@ describe('SdrPanel — device dropdown menu', () => {
     await flushPromises()
   }
 
+  describe('a mid-session change of AIR’s ADS-B receiver', () => {
+    // Reported live: AIR was moved to a second dongle while the panel was
+    // already mounted. The panel still locked the old one, so the new ADS-B
+    // dongle could be opened here and was retuned to airband — no aircraft.
+    let airSource: { sentry_host_id: number; sentry_device_id: string } | null
+
+    async function mountOnSecondRadio(): Promise<VueWrapper> {
+      airSource = null
+      fetchState.radios = [
+        makeRadio({ sentry_host_id: 1, sentry_device_id: 'usb:1-1.1' }),
+        makeRadio({ id: 2, name: 'rtl1', sentry_host_id: 1, sentry_device_id: 'serial:ADSB' }),
+      ]
+      fetchOverride = (url) =>
+        url === '/api/settings/air'
+          ? Promise.resolve({
+              ok: true,
+              status: 200,
+              json: () => Promise.resolve({ offgridSdrSource: airSource }),
+            })
+          : null
+      const wrapper = await mountReady()
+      await selectMenuRadio(wrapper, 2)
+      lastSocket().open()
+      await flushPromises()
+      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).toBe('rtl1')
+      return wrapper
+    }
+
+    function moveAdsbSourceToSecondRadio(): void {
+      airSource = { sentry_host_id: 1, sentry_device_id: 'serial:ADSB' }
+    }
+
+    it('locks the new receiver and lets go of it once Settings closes', async () => {
+      const wrapper = await mountOnSecondRadio()
+      moveAdsbSourceToSecondRadio()
+
+      document.dispatchEvent(new CustomEvent('settings-panel-closed'))
+      await flushPromises()
+
+      expect(useSdrStore().radioReservation(2)).toBe('ADS-B')
+      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).not.toBe('rtl1')
+    })
+
+    it('re-reads the receiver after a config upload too', async () => {
+      await mountOnSecondRadio()
+      moveAdsbSourceToSecondRadio()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(useSdrStore().radioReservation(2)).toBe('ADS-B')
+    })
+
+    it('keeps a radio that is still free', async () => {
+      const wrapper = await mountOnSecondRadio()
+      // AIR moved to the *first* dongle: the one this panel is on stays usable.
+      airSource = { sentry_host_id: 1, sentry_device_id: 'usb:1-1.1' }
+
+      document.dispatchEvent(new CustomEvent('settings-panel-closed'))
+      await flushPromises()
+
+      expect(useSdrStore().radioReservation(2)).toBeNull()
+      expect(useSdrStore().radioReservation(1)).toBe('ADS-B')
+      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).toBe('rtl1')
+    })
+  })
+
   it('keeps controls enabled after switching to the second radio (superseded close ignored)', async () => {
     const wrapper = await mountTwoRadios()
     await selectMenuRadio(wrapper, 1) // first radio

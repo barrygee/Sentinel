@@ -726,6 +726,17 @@ useDocumentEvent('sentinel:config-uploaded', () => {
   void _sdrStore().hydrateAutoCenterFromDb()
   void _sdrStore().hydrateResumeDelaySecFromDb()
   void _sdrStore().hydrateMuteAudioWhileDecodingFromDb()
+  void _sdrStore().hydrateAdsbSourceFromDb()
+})
+
+// Settings › AIR can move the ADS-B receiver to a different dongle, but this
+// panel only read the source on mount and stays mounted for the whole session.
+// It kept locking the old dongle and let the new one be selected and retuned to
+// whatever the panel was on — pulling AIR's receiver off 1090 MHz. Re-read it
+// whenever Settings closes (a staged change is applied by then); the reservation
+// watcher below then drops the selection if this panel was on the new source.
+useDocumentEvent('settings-panel-closed', () => {
+  void _sdrStore().hydrateAdsbSourceFromDb()
 })
 
 const recordingsSectionRef = ref<InstanceType<typeof SdrRecordingsSection> | null>(null)
