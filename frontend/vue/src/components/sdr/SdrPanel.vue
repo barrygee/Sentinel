@@ -1219,11 +1219,20 @@ watch(
   },
 )
 
+// The panel keeps one tuned frequency for the session, not one per radio. On a
+// switch, the frequency it holds belongs to the radio just left — e.g. 1090 MHz
+// read from a dongle AIR has claimed for ADS-B — so it must not count as the
+// operator's choice for the new radio, or the next tune would push it onto that
+// radio. Set here, consumed by applyStatus once the new radio reports its tuning.
+let adoptNextRadioCentre = false
+
 // Choosing a different radio clears any previous unavailability message: it
 // described the radio that was selected before, and leaving it up would blame
-// the new one for the old one's problem.
-watch(selectedRadioId, () => {
+// the new one for the old one's problem. It also hands the frequency back to the
+// new radio (see adoptNextRadioCentre).
+watch(selectedRadioId, (nextRadioId, previousRadioId) => {
   radioUnavailableReason.value = ''
+  if (previousRadioId != null && nextRadioId !== previousRadioId) adoptNextRadioCentre = true
 })
 
 // Publish this instance's within-band demod state (NCO offset, mode, audio
@@ -1682,11 +1691,15 @@ function applyStatus(msg: {
   // still reporting connected=false (the initial status sent right after a page
   // refresh). Without this the input stays blank until the user manually tunes,
   // which looked like "the selected SDR can't be tuned again after a refresh".
-  const hadUserFreq = currentFreqHz.value && currentFreqHz.value !== msg.center_hz
+  // A frequency carried over from the previously selected radio is not a user
+  // frequency for this one: adopt this radio's own tuning instead.
+  const hadUserFreq =
+    !adoptNextRadioCentre && currentFreqHz.value && currentFreqHz.value !== msg.center_hz
   if (!hadUserFreq && msg.center_hz > 0) {
     currentFreqHz.value = msg.center_hz
     freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
     activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'
+    adoptNextRadioCentre = false
   }
   // The remaining fields reflect live hardware state — only trust them once the
   // device is actually connected and streaming.

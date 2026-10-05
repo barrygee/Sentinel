@@ -33,6 +33,15 @@ export interface FakeSdrRecorder {
   iqFramesSent: number
   /** Every JSON command the panel sent over the control socket, in order. */
   controlCommands: Array<Record<string, unknown>>
+  /** The same commands, split by the radio id whose control socket carried them. */
+  controlCommandsByRadio: Record<number, Array<Record<string, unknown>>>
+}
+
+/** One radio the fake backend serves, tuned to its own centre frequency. */
+export interface FakeSdrRadio {
+  id: number
+  name: string
+  centerHz: number
 }
 
 export interface FakeSdrOptions {
@@ -44,6 +53,12 @@ export interface FakeSdrOptions {
   centerHz?: number
   /** How often an IQ frame is pushed, in ms. Defaults to 40ms (~25fps, matching the real backend). */
   iqIntervalMs?: number
+  /**
+   * Several radios, each reporting its own centre frequency (and listed by
+   * `/api/sdr/radios`). Overrides `radioId`/`centerHz`; omit for the single
+   * default radio.
+   */
+  radios?: FakeSdrRadio[]
 }
 
 /**
@@ -78,6 +93,11 @@ export async function installFakeSdr(
   const sampleRate = options.sampleRate ?? 2_048_000
   const centerHz = options.centerHz ?? 145_800_000
   const iqIntervalMs = options.iqIntervalMs ?? 40
+  const radios: FakeSdrRadio[] = options.radios ?? [{ id: radioId, name: 'RTL-SDR v3', centerHz }]
+  const centreOf = (url: string): number => {
+    const id = Number(/\/ws\/sdr\/(\d+)/.exec(url)?.[1])
+    return radios.find((radio) => radio.id === id)?.centerHz ?? centerHz
+  }
 
   const recorder: FakeSdrRecorder = {
     controlOpens: 0,
@@ -86,15 +106,18 @@ export async function installFakeSdr(
     iqCloses: 0,
     iqFramesSent: 0,
     controlCommands: [],
+    controlCommandsByRadio: {},
   }
 
   await page.routeWebSocket(/\/ws\/sdr\/\d+(\/iq)?$/, (webSocket: WebSocketRoute) => {
     const isIqSocket = webSocket.url().endsWith('/iq')
+    const socketCentreHz = centreOf(webSocket.url())
+    const socketRadioId = Number(/\/ws\/sdr\/(\d+)/.exec(webSocket.url())?.[1])
 
     if (isIqSocket) {
       recorder.iqOpens++
       const timer = setInterval(() => {
-        webSocket.send(buildIqFrame(sampleRate, centerHz, 1024))
+        webSocket.send(buildIqFrame(sampleRate, socketCentreHz, 1024))
         recorder.iqFramesSent++
       }, iqIntervalMs)
       webSocket.onClose(() => {
@@ -113,7 +136,7 @@ export async function installFakeSdr(
       JSON.stringify({
         type: 'status',
         connected: false,
-        center_hz: centerHz,
+        center_hz: socketCentreHz,
         mode: 'AM',
         gain_db: 30,
         gain_auto: true,
@@ -129,9 +152,10 @@ export async function installFakeSdr(
         return
       }
       recorder.controlCommands.push(parsed)
+      ;(recorder.controlCommandsByRadio[socketRadioId] ??= []).push(parsed)
 
       if (parsed.cmd === 'tune') {
-        const frequencyHz = Number(parsed.frequency_hz) || centerHz
+        const frequencyHz = Number(parsed.frequency_hz) || socketCentreHz
         webSocket.send(
           JSON.stringify({
             type: 'status',
@@ -168,16 +192,16 @@ export async function installFakeSdr(
   await page.route('/api/sdr/radios', (route) => {
     void route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify([
-        {
-          id: radioId,
-          name: 'RTL-SDR v3',
+      body: JSON.stringify(
+        radios.map((radio, index) => ({
+          id: radio.id,
+          name: radio.name,
           host: '192.168.1.100',
-          port: 1234,
+          port: 1234 + index,
           enabled: true,
-          description: 'Primary receiver',
-        },
-      ]),
+          description: index === 0 ? 'Primary receiver' : 'Receiver',
+        })),
+      ),
     })
   })
 
