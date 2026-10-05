@@ -191,6 +191,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Decode off-grid AIS from the backend, browser or not
 - Remember vessel names so position-only reports are named
 - Centre off-grid ADS-B on the selected receiver
+- LIGHT is OpenStreetMap's default style; the old light map is gone
 
 ### Bug Fixes
 
@@ -1374,6 +1375,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #411 from barrygee/feat/adsb-centre-on-user-location
 - Merge remote-tracking branch 'origin/main' into fix/sdr-radio-switch-keeps-own-frequency
 - Merge pull request #412 from barrygee/fix/sdr-radio-switch-keeps-own-frequency
+- Merge remote-tracking branch 'origin/main' into feat/map-light-is-osm-style
+- Merge pull request #413 from barrygee/feat/map-light-is-osm-style
 
 ### Refactoring
 
