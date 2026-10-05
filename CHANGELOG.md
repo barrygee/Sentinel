@@ -447,6 +447,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - The ADS-B claim wins a shared dongle
 - Reconnect when the rtl_tcp stream goes silent
 - Switching radios keeps each radio's own frequency
+- Follow a source change in Sentinel while the decoder is streaming
+- Re-lock AIR's ADS-B receiver when it changes mid-session
 
 ### Chores
 
@@ -1377,6 +1379,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #412 from barrygee/fix/sdr-radio-switch-keeps-own-frequency
 - Merge remote-tracking branch 'origin/main' into feat/map-light-is-osm-style
 - Merge pull request #413 from barrygee/feat/map-light-is-osm-style
+- Merge pull request #416 from barrygee/fix/adsb-decoder-follow-source-change
+- Merge pull request #417 from barrygee/fix/sdr-panel-relocks-new-adsb-source
 
 ### Refactoring
 
@@ -1525,6 +1529,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the job-runner tests on a file-backed database (#372)
 - Add P0 parity baseline for the section-containers split
 - Lock aircraft alert navigation after leaving Air
+- Let SIGKILLed pipeline stages be reaped before checking the group
 
 ### Build System
 
