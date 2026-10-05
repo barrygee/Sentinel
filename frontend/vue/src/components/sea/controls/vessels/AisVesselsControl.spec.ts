@@ -50,7 +50,7 @@ vi.mock('./vesselSprites', () => ({
   createVesselArrow: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
   createVesselDot: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
 }))
-vi.mock('@/components/shared/map-kit/sprites/adsbSprites', () => ({
+vi.mock('@sentinel/map-kit/sprites/adsbSprites', () => ({
   createBracket: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
 }))
 

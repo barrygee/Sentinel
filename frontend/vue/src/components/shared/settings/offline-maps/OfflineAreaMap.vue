@@ -44,13 +44,17 @@
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as maplibregl from 'maplibre-gl'
 import type { Map as MapLibreGlMap, GeoJSONSource } from 'maplibre-gl'
-import { basemapStyleUrl, ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
-import { overlayAccentColor, isBrightBasemap } from '@/utils/mapTheme'
+import {
+  basemapStyleUrl,
+  ignoreOfflineTileErrors,
+  setMapStyle,
+} from '@sentinel/map-kit/utils/mapStyle'
+import { overlayAccentColor, isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { RectangleDrawHandler, type LngLatBounds } from './rectangleDrawHandler'
 import { RectangleResizeHandler } from './rectangleResizeHandler'
-import MapZoomButtons from '@/components/shared/controls/map-zoom/MapZoomButtons.vue'
+import MapZoomButtons from '@sentinel/map-kit/controls/map-zoom/MapZoomButtons.vue'
 
 /** A downloaded area to outline, with the name it was given. */
 export interface OfflineRegionOutline extends LngLatBounds {

@@ -12,7 +12,7 @@ const shared = vi.hoisted(() => ({
   satControl: null as { value: unknown } | null,
 }))
 
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   const location = vueRef<{ lon: number; lat: number } | null>(null)
   shared.locationRef = location as unknown as { value: { lon: number; lat: number } | null }

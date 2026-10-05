@@ -22,7 +22,7 @@ const basemapLayerSync = vi.hoisted(() => ({
   groups: null as null | readonly string[],
   getMap: null as null | (() => unknown),
 }))
-vi.mock('@/composables/useBasemapLayerSync', () => ({
+vi.mock('@sentinel/map-kit/composables/useBasemapLayerSync', () => ({
   useBasemapLayerSync: (getMap: () => unknown, groups: readonly string[]) => {
     basemapLayerSync.getMap = getMap
     basemapLayerSync.groups = groups
@@ -43,14 +43,16 @@ const ctxMenuSpies = vi.hoisted(() => ({
   remove: vi.fn(),
   show: vi.fn(),
 }))
-vi.mock('@/composables/useMapContextMenu', () => ({ useMapContextMenu: () => ctxMenuSpies }))
+vi.mock('@sentinel/map-kit/composables/useMapContextMenu', () => ({
+  useMapContextMenu: () => ctxMenuSpies,
+}))
 
 // User location: a controllable ref + `start` spy.
 const locationState = vi.hoisted(() => ({
   location: null as null | { value: { lat: number; lon: number; accuracy: number } | null },
   start: vi.fn(),
 }))
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   locationState.location = vueRef(null)
   return {
@@ -65,7 +67,7 @@ const markerSpies = vi.hoisted(() => ({
   remove: vi.fn(),
   setHidden: vi.fn(),
 }))
-vi.mock('@/components/shared/UserLocationMarker', () => ({
+vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
   UserLocationMarker: class {
     addTo = markerSpies.addTo
     update = markerSpies.update
@@ -88,7 +90,7 @@ const ringsSpies = vi.hoisted(() => ({
   initRings: vi.fn(),
   visible: false,
 }))
-vi.mock('@/components/shared/controls/range-rings/LandRangeRingsControl', () => ({
+vi.mock('@sentinel/map-kit/controls/range-rings/LandRangeRingsControl', () => ({
   LandRangeRingsControl: class {
     onAdd = ringsSpies.onAdd
     onRemove = ringsSpies.onRemove
@@ -176,7 +178,7 @@ const namesSpies = vi.hoisted(() => ({
   handleClickPublic: vi.fn(),
   applyVisibility: vi.fn(),
 }))
-vi.mock('@/components/shared/controls/names/NamesToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/names/NamesToggleControl', () => ({
   NamesToggleControl: class {
     private _store: {
       setLayer: (key: string, visible: boolean) => void
@@ -205,7 +207,7 @@ const roadsSpies = vi.hoisted(() => ({
   applyVisibility: vi.fn(),
   setVisible: vi.fn(),
 }))
-vi.mock('@/components/shared/controls/roads/RoadsToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/roads/RoadsToggleControl', () => ({
   RoadsToggleControl: class {
     private _store: {
       setLayer: (key: string, visible: boolean) => void
@@ -236,7 +238,7 @@ const terrainSpies = vi.hoisted(() => ({
   setVisible: vi.fn(),
   refreshTiles: vi.fn(),
 }))
-vi.mock('@/components/shared/controls/terrain/TerrainToggleControl', () => ({
+vi.mock('@sentinel/map-kit/controls/terrain/TerrainToggleControl', () => ({
   TerrainToggleControl: class {
     onAdd = terrainSpies.onAdd
     onRemove = terrainSpies.onRemove
@@ -286,7 +288,7 @@ const LandSideMenuStub = defineComponent({
 })
 
 import LandView from './LandView.vue'
-import { absoluteSpriteTransform } from '@/utils/mapStyle'
+import { absoluteSpriteTransform } from '@sentinel/map-kit/utils/mapStyle'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useLandStore } from '@/stores/land'

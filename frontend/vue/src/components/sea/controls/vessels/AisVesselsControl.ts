@@ -1,7 +1,7 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
-import { createBracket } from '@/components/shared/map-kit/sprites/adsbSprites'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { createBracket } from '@sentinel/map-kit/sprites/adsbSprites'
 import { createVesselArrow, createVesselDot } from './vesselSprites'
 import { createFlagBadge } from './vesselFlagBadge'
 import {
@@ -14,9 +14,9 @@ import {
   createGlyphWell,
   createLabelPill,
   createNameSegment,
-} from '@/components/shared/map-label/mapLabelParts'
-import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
-import { buildCountMarker } from '@/components/shared/map-cluster/mapCluster'
+} from '@sentinel/map-kit/map-label/mapLabelParts'
+import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
+import { buildCountMarker } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { planVesselLabels, vesselFacesLeft, type VesselCount } from './vesselLabelPlan'
 import {
   SEA_COUNT_FILL,

@@ -1,6 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import { aprsSymbolIcon, aprsSymbolSvg } from '@/utils/aprsSymbols'
 import { escapeHtml } from '@/utils/escapeHtml'
 import {
@@ -21,15 +21,15 @@ import {
   isLeftFacing,
   MAP_LABEL_GLYPH_SIZE_PX,
   MAP_LABEL_SIZE_PX,
-} from '@/components/shared/map-label/mapLabelParts'
+} from '@sentinel/map-kit/map-label/mapLabelParts'
 import {
   buildCountMarker,
   COUNT_MARKER_SIZE_PX,
   formatCount as formatClusterCount,
   groupByProximity,
   type ScreenPosition,
-} from '@/components/shared/map-cluster/mapCluster'
-import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
+} from '@sentinel/map-kit/map-cluster/mapCluster'
+import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
 import type { AprsStation, useLandStore } from '@/stores/land'
 
 type LandStore = ReturnType<typeof useLandStore>

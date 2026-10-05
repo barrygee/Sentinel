@@ -1,0 +1,31 @@
+{
+  "name": "@sentinel/map-kit",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Sentinel's shared MapLibre layer: the map component, the control base class, the shared map controls, sprites and map helpers every section map is built from.",
+  "type": "module",
+  "exports": {
+    "./*.vue": "./src/*.vue",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "prettier": "@sentinel/web-config/prettier",
+  "dependencies": {
+    "@sentinel/shell-api": "*",
+    "@sentinel/ui": "*",
+    "maplibre-contour": "^0.1.0"
+  },
+  "peerDependencies": {
+    "maplibre-gl": "^6.10.0",
+    "pinia": "^2.2.0",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@sentinel/web-config": "*"
+  }
+}

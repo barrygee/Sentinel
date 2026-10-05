@@ -12,7 +12,7 @@ import {
   createTowerBlip,
   createGroundVehicleBlip,
   createUAVBlip,
-} from '@/components/shared/map-kit/sprites/adsbSprites'
+} from '@sentinel/map-kit/sprites/adsbSprites'
 import {
   appendMirrored,
   createAccentBadge,
@@ -25,7 +25,7 @@ import {
   createLabelPill,
   createNameSegment,
   isLeftFacing,
-} from '@/components/shared/map-label/mapLabelParts'
+} from '@sentinel/map-kit/map-label/mapLabelParts'
 
 // ---- Internal types ----
 

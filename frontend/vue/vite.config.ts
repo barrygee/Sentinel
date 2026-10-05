@@ -1,12 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { createRequire } from 'node:module'
-import { dirname, resolve } from 'path'
-
-// npm workspaces hoist dependencies to the repo-root node_modules, so locate
-// packages through Node's resolver instead of a path relative to this app.
-const requireFromApp = createRequire(import.meta.url)
-const maplibreContourDist = dirname(requireFromApp.resolve('maplibre-contour'))
+import { resolve } from 'path'
+import { maplibreContourAlias } from '@sentinel/web-config/vite'
 
 export default defineConfig({
   plugins: [
@@ -27,10 +22,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      // maplibre-contour's `exports` map only lists "module"/"require"/"browser"
-      // (no "import"/"default"), so Node-condition resolution (vitest) rejects
-      // it. An absolute alias bypasses the exports map for both build and test.
-      'maplibre-contour': resolve(maplibreContourDist, 'index.mjs'),
+      // See maplibreContourAlias for why maplibre-contour needs an alias.
+      ...maplibreContourAlias(import.meta.url),
     },
   },
   server: {

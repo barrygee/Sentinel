@@ -10,7 +10,7 @@ const { locationRef, schedulerInstance, passNotifs, flags } = vi.hoisted(() => (
   flags: { bell: new Set<string>(), autoTune: new Set<string>(), record: new Set<string>() },
 }))
 
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 vi.mock('@/components/space/controls/satellite/SatellitePassScheduler', () => ({
