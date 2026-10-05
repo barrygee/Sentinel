@@ -492,6 +492,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the vessel row's Centre on map action
 - Rebuild bundle
 - Enforce section boundaries with a local ESLint rule
+- Make the repo root an npm workspaces root
 
 ### Other
 
@@ -1383,6 +1384,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #416 from barrygee/fix/adsb-decoder-follow-source-change
 - Merge pull request #417 from barrygee/fix/sdr-panel-relocks-new-adsb-source
 - Merge pull request #418 from barrygee/fix/air-offgrid-adsb-polls
+- Merge pull request #419 from barrygee/chore/p4-1-npm-workspaces
+- Merge pull request #420 from barrygee/refactor/p4-2-shell-api
+- Merge pull request #421 from barrygee/refactor/p4-3-map-kit
+- Merge pull request #422 from barrygee/refactor/p4-4-section-packages
+- Merge pull request #423 from barrygee/refactor/p4-5-section-packages
 
 ### Refactoring
 
@@ -1466,6 +1472,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Capabilities and registries remove the last cross-section imports
 - Carve the radio hub into backend/radio_hub (P3.1)
 - IQ capture as a hub bus API (P3.2, plan B12)
+- Extract @sentinel/ui and @sentinel/web-config packages
+- Extract @sentinel/shell-api package
+- Extract @sentinel/map-kit package
+- Move the remaining shared UI sections use into packages
+- Make each section its own workspace package
 
 ### Documentation
 

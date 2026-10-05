@@ -1,0 +1,455 @@
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+
+// The Air search/filter categories, surfaced as single-select rail sub-tabs
+// beneath the FILTER tab. Exactly one is shown in the panel at a time.
+export type AirFilterCategory = 'aircraft' | 'airports' | 'mil'
+
+/** Which aircraft the ADS-B layer plots: everything, civil only, or military only. */
+export type AdsbTypeFilter = 'all' | 'civil' | 'mil'
+
+/** localStorage key the ADS-B control also reads at construction (`_loadFilterState`). */
+const ADSB_FILTER_STORAGE_KEY = 'adsbFilter'
+
+function isAdsbTypeFilter(value: unknown): value is AdsbTypeFilter {
+  return value === 'all' || value === 'civil' || value === 'mil'
+}
+
+/** The persisted type filter, so the store starts in step with the control. */
+function readStoredAdsbTypeFilter(): AdsbTypeFilter {
+  try {
+    const raw = localStorage.getItem(ADSB_FILTER_STORAGE_KEY)
+    if (!raw) return 'all'
+    const parsed = JSON.parse(raw) as { typeFilter?: unknown }
+    return isAdsbTypeFilter(parsed?.typeFilter) ? parsed.typeFilter : 'all'
+  } catch {
+    return 'all'
+  }
+}
+const AIR_FILTER_CATEGORIES: readonly AirFilterCategory[] = ['aircraft', 'airports', 'mil']
+function isAirFilterCategory(value: unknown): value is AirFilterCategory {
+  return typeof value === 'string' && (AIR_FILTER_CATEGORIES as readonly string[]).includes(value)
+}
+
+/** Air-specific overlays. Base-map layers that every domain shares (place
+ *  names, roads) live on the `basemap` store instead. */
+export interface OverlayStates {
+  adsb: boolean
+  adsbLabels: boolean
+  airports: boolean
+  militaryBases: boolean
+  rangeRings: boolean
+  aara: boolean
+  awacs: boolean
+  /** Ground vehicles in the ADS-B feed (tugs, fire, ops) — shown by default. */
+  groundVehicles: boolean
+  /** Fixed ADS-B ground stations ("towers") — shown by default. */
+  towers: boolean
+}
+
+// Last-known search-result entry for an expanded aircraft, persisted so the
+// selection survives navigating away from Air and back. Structurally matches
+// AirFilter's PlaneResult, kept here (not imported from the .vue) so the store
+// has no component dependency.
+export interface SearchExpandedPlaneSnapshot {
+  kind: 'plane'
+  hex: string
+  callsign: string
+  reg: string
+  squawk: string
+  emergency: boolean
+  coords: [number, number]
+}
+
+// The expanded aircraft in the Air search list: its hex (empty when none) plus a
+// snapshot so the row can render even before the live feed repopulates on restore.
+export interface SearchExpandedPlane {
+  hex: string
+  snapshot: SearchExpandedPlaneSnapshot | null
+}
+
+export interface AdsbTagFields {
+  civil: AdsbTagFieldMap
+  mil: AdsbTagFieldMap
+}
+
+export interface AdsbTagFieldMap {
+  callsign: boolean
+  altitude: boolean
+  speed: boolean
+  heading: boolean
+  aircraftType: boolean
+  registration: boolean
+  squawk: boolean
+  category: boolean
+}
+
+const LS_KEY = 'overlayStates'
+
+/**
+ * The overlays an operator configures (Settings > AIR > Map Layers, and the
+ * rail shortcuts). `adsb` and `adsbLabels` are deliberately absent: the ADS-B
+ * layer is the map's reason to exist and its labels are permanently on.
+ */
+export const MAP_LAYER_KEYS = [
+  'rangeRings',
+  'aara',
+  'awacs',
+  'groundVehicles',
+  'towers',
+  'airports',
+  'militaryBases',
+] as const
+export type MapLayerKey = (typeof MAP_LAYER_KEYS)[number]
+/** The persisted shape of `air.mapLayers` in the app config. */
+export type MapLayerStates = Record<MapLayerKey, boolean>
+const LS_TAG_FIELDS_KEY = 'adsbTagFields_v3'
+const LS_OVERHEAD_RADIUS_KEY = 'overheadAlertRadiusNm'
+const LS_OVERHEAD_ALERTS_KEY = 'overheadAlerts'
+
+export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
+
+/**
+ * Overhead-alert settings for one place aircraft can be overhead *of*.
+ *
+ * Each Sentry watches its own patch of sky, so "is anything overhead?" is a
+ * question per receiver, not one global one — the civil/military choice and the
+ * radius belong to the location, not to the app.
+ */
+export interface OverheadAlertConfig {
+  civil: boolean
+  mil: boolean
+  radiusNm: number
+}
+
+/** The operator's own position, which is always the first alert location. */
+export const USER_ALERT_LOCATION_ID = 'user'
+
+/** The alert-location key for one Sentry host. */
+export function sentryAlertLocationId(hostId: number): string {
+  return `sentry:${hostId}`
+}
+
+/**
+ * Parse `air.overheadAlerts` as the config database holds it, accepting the
+ * pre-split single configuration (`{civil, mil, radiusNm}`) and mapping it onto
+ * the operator's own location. Null when there is nothing usable.
+ */
+export function parseStoredOverheadAlerts(
+  stored: unknown,
+): Record<string, OverheadAlertConfig> | null {
+  if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return null
+  const record = stored as Record<string, unknown>
+  if (typeof record.civil === 'boolean' || typeof record.mil === 'boolean') {
+    return {
+      [USER_ALERT_LOCATION_ID]: {
+        civil: record.civil === true,
+        mil: record.mil === true,
+        radiusNm: typeof record.radiusNm === 'number' ? record.radiusNm : 10,
+      },
+    }
+  }
+  return record as Record<string, OverheadAlertConfig>
+}
+
+const DEFAULT_OVERHEAD_ALERT: OverheadAlertConfig = {
+  civil: false,
+  mil: false,
+  radiusNm: DEFAULT_OVERHEAD_ALERT_RADIUS_NM,
+}
+
+/**
+ * Read the per-location alert settings, carrying the pre-split single
+ * configuration onto the operator's own location so an existing setup keeps
+ * alerting on exactly what it alerted on before.
+ */
+function readPersistedOverheadAlerts(): Record<string, OverheadAlertConfig> {
+  let stored: Record<string, OverheadAlertConfig> | null = null
+  try {
+    const raw = localStorage.getItem(LS_OVERHEAD_ALERTS_KEY)
+    if (raw) stored = JSON.parse(raw) as Record<string, OverheadAlertConfig>
+  } catch {
+    stored = null
+  }
+  if (stored && typeof stored === 'object') return stored
+
+  try {
+    const legacyOverlays = JSON.parse(localStorage.getItem(LS_KEY) ?? '{}') as {
+      overheadAlerts?: boolean
+      overheadAlertsCivil?: boolean
+      overheadAlertsMil?: boolean
+    }
+    const civil = legacyOverlays.overheadAlertsCivil ?? legacyOverlays.overheadAlerts ?? false
+    const mil = legacyOverlays.overheadAlertsMil ?? legacyOverlays.overheadAlerts ?? false
+    return {
+      [USER_ALERT_LOCATION_ID]: { civil, mil, radiusNm: readPersistedRadius() },
+    }
+  } catch {
+    return {}
+  }
+}
+
+const DEFAULT_TAG_FIELDS: AdsbTagFields = {
+  civil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: false,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
+  mil: {
+    callsign: true,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: true,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
+}
+
+const DEFAULTS: OverlayStates = {
+  adsb: true,
+  adsbLabels: true,
+  airports: true,
+  militaryBases: true,
+  rangeRings: false,
+  aara: true,
+  awacs: true,
+  groundVehicles: true,
+  towers: true,
+}
+
+function migrateOverlays(parsed: unknown): Partial<OverlayStates> {
+  const obj = parsed as Partial<OverlayStates> & {
+    overheadAlerts?: boolean
+    overheadAlertsCivil?: boolean
+    overheadAlertsMil?: boolean
+  }
+  // Overhead alerts are configured per location now (see `overheadAlerts`), so
+  // their old overlay flags are read there and dropped from this object.
+  delete obj.overheadAlerts
+  delete obj.overheadAlertsCivil
+  delete obj.overheadAlertsMil
+  return obj
+}
+
+function isTagFieldMap(v: unknown): v is AdsbTagFieldMap {
+  return typeof v === 'object' && v !== null && !Array.isArray(v)
+}
+
+function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
+  const obj = parsed as Partial<AdsbTagFields>
+  return {
+    civil: isTagFieldMap(obj.civil)
+      ? { ...DEFAULT_TAG_FIELDS.civil, ...obj.civil }
+      : { ...DEFAULT_TAG_FIELDS.civil },
+    mil: isTagFieldMap(obj.mil)
+      ? { ...DEFAULT_TAG_FIELDS.mil, ...obj.mil }
+      : { ...DEFAULT_TAG_FIELDS.mil },
+  }
+}
+
+/** The pre-split app-wide radius. Read only to migrate it onto the operator's
+ *  own alert location — nothing else uses it now. */
+function readPersistedRadius(): number {
+  try {
+    const raw = localStorage.getItem(LS_OVERHEAD_RADIUS_KEY)
+    if (!raw) return DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+  } catch {
+    return DEFAULT_OVERHEAD_ALERT_RADIUS_NM
+  }
+}
+
+export const useAirStore = defineStore('air', () => {
+  const overlayStates = usePersistedObject<OverlayStates>(LS_KEY, DEFAULTS, migrateOverlays)
+  const adsbTagFields = usePersistedObject<AdsbTagFields>(
+    LS_TAG_FIELDS_KEY,
+    DEFAULT_TAG_FIELDS,
+    migrateTagFields,
+  )
+  /** Overhead-alert settings per location — see `OverheadAlertConfig`. */
+  const overheadAlerts = ref<Record<string, OverheadAlertConfig>>(readPersistedOverheadAlerts())
+  const filterQuery = ref('')
+  const filterOpen = ref(false)
+  // The active FILTER category (aircraft / airports / military bases), driven by
+  // the rail sub-tabs. Single-select — the panel shows only this category's list.
+  // Persisted so the choice is restored when returning to Air.
+  const airFilterCategory = usePersistedRef<AirFilterCategory>(
+    'sentinel_air_filterCategory',
+    'aircraft',
+    isAirFilterCategory,
+  )
+  // The aircraft whose detail accordion is open in the search list, persisted so
+  // the selection is restored when returning to Air from another section.
+  const searchExpandedPlane = usePersistedObject<SearchExpandedPlane>(
+    'sentinel_air_filterExpandedPlane',
+    { hex: '', snapshot: null },
+  )
+  // Hex of the aircraft isolated on the map (map-click "show only this one"), or
+  // empty when none. Persisted so the isolation is restored when returning to Air
+  // — but only when it was actually active, since it is empty otherwise.
+  const mapIsolatedHex = usePersistedRef<string>('sentinel_air_mapIsolatedHex', '')
+  const mapCenter = ref<[number, number] | null>(null)
+  const mapZoom = ref<number | null>(null)
+  const pitch = ref(0)
+
+  function setOverlay(key: keyof OverlayStates, visible: boolean) {
+    overlayStates.value[key] = visible
+    // The Settings > Map Layers switches and the map rails are both views of
+    // this state, and the app-config JSON is a third: mirror every change of a
+    // configurable layer to `air.mapLayers` so the JSON follows the UI.
+    if (MAP_LAYER_KEYS.includes(key as MapLayerKey)) void persistMapLayers()
+  }
+
+  /** The `air.mapLayers` config value: every operator-configurable overlay. */
+  function mapLayersConfig(): MapLayerStates {
+    const layers = {} as MapLayerStates
+    for (const layerKey of MAP_LAYER_KEYS) layers[layerKey] = overlayStates.value[layerKey]
+    return layers
+  }
+
+  /** Write the configurable overlays to the config database (`air.mapLayers`). */
+  function persistMapLayers(): Promise<void> {
+    return settingsApi.put('air', 'mapLayers', mapLayersConfig())
+  }
+
+  /**
+   * Adopt `air.mapLayers` from the config database (startup, or after the
+   * app-config JSON is uploaded). Unknown keys are ignored; only boolean values
+   * are applied so a hand-edited config cannot poison the overlay state.
+   */
+  function hydrateMapLayers(remote: unknown): void {
+    if (!remote || typeof remote !== 'object' || Array.isArray(remote)) return
+    const candidate = remote as Partial<Record<MapLayerKey, unknown>>
+    for (const layerKey of MAP_LAYER_KEYS) {
+      const value = candidate[layerKey]
+      if (typeof value === 'boolean') overlayStates.value[layerKey] = value
+    }
+  }
+
+  function setAdsbTagFields(fields: AdsbTagFields) {
+    adsbTagFields.value = fields
+  }
+
+  /** The settings for one location, falling back to "off, default radius". */
+  function overheadAlertFor(locationId: string): OverheadAlertConfig {
+    return overheadAlerts.value[locationId] ?? { ...DEFAULT_OVERHEAD_ALERT }
+  }
+
+  function _persistOverheadAlerts(): void {
+    try {
+      localStorage.setItem(LS_OVERHEAD_ALERTS_KEY, JSON.stringify(overheadAlerts.value))
+    } catch {
+      /* private-mode storage failure — the in-memory settings still stand */
+    }
+  }
+
+  /** Change part of one location's alert settings, leaving the rest alone. */
+  function setOverheadAlert(locationId: string, patch: Partial<OverheadAlertConfig>): void {
+    const next = { ...overheadAlertFor(locationId), ...patch }
+    if (!Number.isFinite(next.radiusNm) || next.radiusNm <= 0) return
+    overheadAlerts.value = { ...overheadAlerts.value, [locationId]: next }
+    _persistOverheadAlerts()
+  }
+
+  /**
+   * Adopt a whole set of per-location settings, as read back from the config
+   * database. Used on mount so the choice follows the operator to another
+   * browser, the way `app/location` does.
+   */
+  function hydrateOverheadAlerts(stored: Record<string, OverheadAlertConfig>): void {
+    overheadAlerts.value = { ...stored }
+    _persistOverheadAlerts()
+  }
+
+  /**
+   * Adopt `air.overheadAlerts` from the config database, so this browser alerts
+   * on (and lists) what was chosen on any device. No-op when nothing is stored.
+   */
+  async function loadOverheadAlertsFromConfig(): Promise<void> {
+    const air = await settingsApi.getNamespace('air')
+    const stored = parseStoredOverheadAlerts(air?.overheadAlerts)
+    if (stored) hydrateOverheadAlerts(stored)
+  }
+
+  /** Forget a location's settings — for a Sentry that has left the fleet. */
+  function forgetOverheadAlert(locationId: string): void {
+    if (!(locationId in overheadAlerts.value)) return
+    const next = { ...overheadAlerts.value }
+    delete next[locationId]
+    overheadAlerts.value = next
+    _persistOverheadAlerts()
+  }
+
+  function setFilter(query: string) {
+    filterQuery.value = query
+  }
+
+  function setAirFilterCategory(category: AirFilterCategory) {
+    airFilterCategory.value = category
+  }
+
+  // The ADS-B civil/military/all filter, chosen from the sidebar's sub-tabs.
+  // Mirrored here (the control's own field is not reactive) so the tabs can
+  // light the active mode; AirMap pushes changes onto the control. Persisted
+  // under the key the control restores from, so the first poll already
+  // renders under the right filter.
+  const adsbTypeFilter = ref<AdsbTypeFilter>(readStoredAdsbTypeFilter())
+  function setAdsbTypeFilter(mode: AdsbTypeFilter) {
+    adsbTypeFilter.value = mode
+    try {
+      localStorage.setItem(
+        ADSB_FILTER_STORAGE_KEY,
+        JSON.stringify({ typeFilter: mode, allHidden: false }),
+      )
+    } catch {}
+  }
+
+  function toggleFilter() {
+    filterOpen.value = !filterOpen.value
+  }
+
+  function saveMapState(center: [number, number], zoom: number, currentPitch: number) {
+    mapCenter.value = center
+    mapZoom.value = zoom
+    pitch.value = currentPitch
+  }
+
+  return {
+    overlayStates,
+    adsbTagFields,
+    overheadAlerts,
+    overheadAlertFor,
+    setOverheadAlert,
+    hydrateOverheadAlerts,
+    loadOverheadAlertsFromConfig,
+    forgetOverheadAlert,
+    filterQuery,
+    filterOpen,
+    airFilterCategory,
+    searchExpandedPlane,
+    mapIsolatedHex,
+    mapCenter,
+    mapZoom,
+    pitch,
+    setOverlay,
+    persistMapLayers,
+    hydrateMapLayers,
+    setAdsbTagFields,
+    setFilter,
+    setAirFilterCategory,
+    adsbTypeFilter,
+    setAdsbTypeFilter,
+    toggleFilter,
+    saveMapState,
+  }
+})

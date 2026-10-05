@@ -287,21 +287,21 @@
 
 <script setup lang="ts">
 import './SettingsPanel.css'
-import RadioIcon from '@/components/shared/RadioIcon.vue'
+import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { ref, computed, watch } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useDialog } from '@/composables/useDialog'
-import type { SettingItem } from '@/types/settings'
+import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import SettingRow from './settings/SettingRow.vue'
 import './settings/appSettings'
-import { getSettingItems, getSettingsSections } from '@/shell/settingsRegistry'
-import BaseButton from '@/components/base/BaseButton.vue'
-import BaseIconAction from '@/components/base/BaseIconAction.vue'
-import BaseIconButton from '@/components/base/BaseIconButton.vue'
+import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer
-// importing from '@/types/settings' directly in new code.
+// importing from '@sentinel/shell-api/types/settings' directly in new code.
 export type { SettingItem }
 
 const store = useSettingsStore()

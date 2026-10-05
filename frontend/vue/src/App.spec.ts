@@ -33,7 +33,7 @@ vi.mock('vue-router', () => ({
   },
 }))
 
-vi.mock('@/composables/useUserLocation', async () => {
+vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   const locationUnavailable = vueRef(false)
   shared.locationUnavailable = locationUnavailable as unknown as { value: boolean }
@@ -51,18 +51,18 @@ vi.mock('@/composables/useUserLocation', async () => {
 })
 
 const hydrateRingOrigin = vi.hoisted(() => vi.fn().mockResolvedValue(undefined))
-vi.mock('@/composables/useRangeRingOrigin', () => ({
+vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({ hydrateFromConfig: hydrateRingOrigin }),
 }))
 
-vi.mock('@/composables/useAirAlertsService', () => ({
+vi.mock('@sentinel/section-air/composables/useAirAlertsService', () => ({
   useAirAlertsService: () => {
     shared.airStart = vi.fn()
     return { start: shared.airStart }
   },
 }))
 
-vi.mock('@/composables/useSpaceAlertsService', () => ({
+vi.mock('@sentinel/section-space/composables/useSpaceAlertsService', () => ({
   useSpaceAlertsService: () => {
     shared.spaceStart = vi.fn()
     return { start: shared.spaceStart }
@@ -162,16 +162,16 @@ const offlineMapsApiMock = vi.hoisted(() => ({
   getOfflineMapStatus: vi.fn(),
   listOfflineRegions: vi.fn(),
 }))
-vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+vi.mock('@sentinel/shell-api/services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentinel/shell-api/services/offlineMapsApi')>()),
   getOfflineMapStatus: offlineMapsApiMock.getOfflineMapStatus,
   listOfflineRegions: offlineMapsApiMock.listOfflineRegions,
 }))
 
 import App from './App.vue'
-import { useAppStore } from '@/stores/app'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 
 function mountApp(options: { attach?: boolean } = {}) {
   return mount(App, {
@@ -335,7 +335,7 @@ describe('App', () => {
     })
 
     it('opens the settings panel and closes the overlay when the settings button is clicked', async () => {
-      const { useSettingsStore } = await import('@/stores/settings')
+      const { useSettingsStore } = await import('@sentinel/shell-api/stores/settings')
       const settings = useSettingsStore()
       const openSpy = vi.spyOn(settings, 'openPanel')
 

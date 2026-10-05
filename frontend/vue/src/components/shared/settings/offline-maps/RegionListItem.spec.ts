@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import RegionListItem from './RegionListItem.vue'
-import type { OfflineRegion } from '@/services/offlineMapsApi'
+import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const BASE_REGION: OfflineRegion = {
   id: 'r1',

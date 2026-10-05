@@ -74,9 +74,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Lint (ESLint + Prettier)
         run: npm run lint
@@ -97,9 +99,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Tests + coverage (vitest)
         # Coverage thresholds (vitest.config.ts) gate this — a ratchet raised to
@@ -120,9 +124,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Build (Vite)
         run: npm run build
@@ -177,9 +183,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       # Restore the bundle built by frontend-vue-build; `vite preview` serves it.
       - name: Download SPA bundle
@@ -196,7 +204,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/vue/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
@@ -213,6 +221,33 @@ jobs:
           name: playwright-report
           path: frontend/vue/playwright-report/
           retention-days: 7
+
+  web-packages:
+    name: web-packages (eslint + typecheck + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      # The shared @sentinel/* packages under platform/web and the section
+      # packages under services/sections/*/frontend (P4 of the
+      # section-containers plan); scripts/web-packages.sh runs the script in
+      # each. Every package gates its own coverage at 100%.
+      - name: Lint (ESLint + Prettier)
+        run: npm run web-packages -- lint
+
+      - name: Typecheck
+        run: npm run web-packages -- typecheck
+
+      - name: Tests + coverage (vitest)
+        run: npm run web-packages -- test:coverage
 
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)

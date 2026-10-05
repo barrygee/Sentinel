@@ -52,7 +52,8 @@ docker compose up                                      # Docker, backend code vo
 #   uv run --project backend uvicorn backend.main:app --reload --port 8080
 
 # Terminal 2 — Vite dev server with HMR
-cd frontend/vue && npm install && npm run dev          # http://localhost:5173
+npm install                          # once, from the repo root (npm workspaces)
+cd frontend/vue && npm run dev       # http://localhost:5173
 ```
 
 ### Build the SPA for deployment
@@ -204,7 +205,9 @@ Browser ──┬─► /api/**            → routers: air · space · sea · l
 
 ```
 backend/          FastAPI app — main.py · config.py · models.py · routers/ · services/ · data/
-frontend/vue/     Vue 3 + Vite SPA — src/components/<domain>/ · stores/ · router/ · services/
+frontend/vue/     Vue 3 + Vite SPA (the shell) — App · router · sidebar/settings chrome · shell/sections.ts
+services/sections/<id>/frontend/   One package per section (air, space, sea, land, sdr)
+platform/web/     Shared web packages — @sentinel/ui · shell-api · map-kit · web-config
 frontend/assets/  Map tiles, PMTiles, sprites, fonts
 frontend/spa-dist Built SPA bundle (committed; served by the backend)
 decoder/          Opt-in sidecars — dsd-fme · aprs/ (Direwolf) · adsb/ (readsb)

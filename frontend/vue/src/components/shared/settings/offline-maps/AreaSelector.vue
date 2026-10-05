@@ -51,7 +51,7 @@
  * crossing, since v1 rejects rather than splitting it, per the BUILD CONTRACT).
  */
 import { computed, ref, useId } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 
 const props = defineProps<{

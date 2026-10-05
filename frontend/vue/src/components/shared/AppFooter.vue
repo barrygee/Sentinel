@@ -99,9 +99,9 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-import { getFooterItems } from '@/shell/footerRegistry'
-import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { getFooterItems } from '@sentinel/shell-api/shell/footerRegistry'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 const props = defineProps<{
   sidebarOpen?: boolean

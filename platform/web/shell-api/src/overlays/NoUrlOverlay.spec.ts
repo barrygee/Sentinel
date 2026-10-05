@@ -1,0 +1,533 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { setActivePinia, createPinia } from 'pinia'
+import { axe } from 'jest-axe'
+import NoUrlOverlay from './NoUrlOverlay.vue'
+import { useAppStore } from '../stores/app'
+import { useSettingsStore } from '../stores/settings'
+
+type FetchHandler = (url: string) => { ok: boolean; json?: () => Promise<unknown> }
+
+function stubFetch(handler: FetchHandler): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn((url: string) => Promise.resolve(handler(url)))
+  vi.stubGlobal('fetch', fetchMock)
+  return fetchMock
+}
+
+function jsonResponse(body: unknown): { ok: boolean; json: () => Promise<unknown> } {
+  return { ok: true, json: () => Promise.resolve(body) }
+}
+
+async function mountOverlay(domain: string) {
+  const wrapper = mount(NoUrlOverlay, { props: { domain } })
+  await flushPromises()
+  return wrapper
+}
+
+// The overlay registers a window listener on mount; auto-unmount each wrapper so
+// those listeners don't leak across tests and fire on later dispatched events.
+enableAutoUnmount(afterEach)
+
+describe('NoUrlOverlay', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+    // The overlay flags the shared document.body; clear it so the attribute can't
+    // leak into a later test that asserts on its absence.
+    delete document.body.dataset.noData
+  })
+
+  describe('checkWithBackend — non-space domains', () => {
+    it('hides the overlay and caches the URL when the backend has an online source', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'https://feed.example' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      expect(localStorage.getItem('sentinel_air_onlineDataSourceURL')).toBe('https://feed.example')
+    })
+
+    it('hides the overlay and caches the offgrid source object in offgrid mode', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      const offgrid = { url: 'wss://local.box/ais' }
+      stubFetch(() => jsonResponse({ offgridSource: offgrid }))
+
+      const wrapper = await mountOverlay('sea')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      expect(localStorage.getItem('sentinel_sea_offgridSource')).toBe(JSON.stringify(offgrid))
+    })
+
+    it('shows the online message when no online URL is configured', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // A bare scheme is treated as a placeholder, not a real URL.
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+      expect(wrapper.find('.no-url-overlay-title-main').text()).toBe('No data source configured.')
+      const message = wrapper.find('.no-url-overlay-msg').text()
+      expect(message).toContain('Online mode is active')
+      expect(message).toContain('Online Data Source')
+      expect(message).toContain('AIR')
+    })
+
+    it('shows the overlay when the online response omits the URL field', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // No onlineDataSourceURL key at all → backendUrl coalesces to ''.
+      stubFetch(() => jsonResponse({}))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+
+    it('shows the off grid message when SEA has no offgrid source', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      stubFetch(() => jsonResponse({}))
+
+      const wrapper = await mountOverlay('sea')
+      const message = wrapper.find('.no-url-overlay-msg').text()
+      expect(message).toContain('Off Grid mode is active')
+      expect(message).toContain('Off Grid Data Source')
+    })
+
+    it('swallows a failed localStorage write on the success path', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'https://feed.example' }))
+      // localStorage is a MemoryStorage instance (test setup), so spy the instance
+      // method, not Storage.prototype, to actually trigger the catch.
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+
+      const wrapper = await mountOverlay('air')
+      // The throw is caught — the overlay still hides because hasUrl was set first.
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+  })
+
+  describe('checkWithBackend — falls back to the localStorage check', () => {
+    it('uses a valid online URL from localStorage when the backend responds non-ok', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      localStorage.setItem('sentinel_air_onlineDataSourceURL', 'https://cached.example')
+      stubFetch(() => ({ ok: false }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('uses a valid offgrid source from localStorage when the backend request throws', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      localStorage.setItem(
+        'sentinel_sea_offgridSource',
+        JSON.stringify({ url: 'wss://local.box/ais' }),
+      )
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+
+      const wrapper = await mountOverlay('sea')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('shows the overlay when offgrid mode has no stored source', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      stubFetch(() => ({ ok: false }))
+
+      const wrapper = await mountOverlay('sea')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+
+    it('shows the overlay when the stored offgrid source is malformed JSON', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      localStorage.setItem('sentinel_sea_offgridSource', 'not-json{')
+      stubFetch(() => ({ ok: false }))
+
+      const wrapper = await mountOverlay('sea')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+
+    it('shows the overlay when the stored offgrid source URL is a placeholder', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      localStorage.setItem('sentinel_sea_offgridSource', JSON.stringify({ url: 'http://' }))
+      stubFetch(() => ({ ok: false }))
+
+      const wrapper = await mountOverlay('sea')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+
+    it('treats a localhost-only URL as a placeholder in online mode', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      localStorage.setItem('sentinel_air_onlineDataSourceURL', 'http://localhost/')
+      stubFetch(() => ({ ok: false }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+  })
+
+  describe('AIR off grid — reads the bundled decoder, so needs no URL', () => {
+    it('shows the map with no off-grid URL, without asking the backend', async () => {
+      useAppStore().setConnectivityMode('offgrid')
+      const fetchMock = stubFetch(() => jsonResponse({}))
+
+      const wrapper = await mountOverlay('air')
+
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      expect(document.body.dataset.noData).toBeUndefined()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('shows the map when only the source override puts AIR off grid', async () => {
+      useAppStore().setConnectivityMode('online')
+      localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: '' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('still blocks AIR online when it has no online URL', async () => {
+      useAppStore().setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ offgridDataSourceURL: { url: 'http://local.box:8080' } }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+      expect(wrapper.find('.no-url-overlay-msg').text()).toContain('Online mode is active')
+    })
+
+    it('hides the overlay when switching AIR from online (no URL) to off grid', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({}))
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+
+      appStore.setConnectivityMode('offgrid')
+      await flushPromises()
+
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+  })
+
+  describe('space domain', () => {
+    it('hides the overlay when the TLE database holds satellites', async () => {
+      stubFetch((url) => {
+        expect(url).toBe('/api/space/tle/status')
+        return jsonResponse({ total: 42 })
+      })
+      const wrapper = await mountOverlay('space')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('shows the satellite-specific message when the database is empty', async () => {
+      stubFetch(() => jsonResponse({ total: 0 }))
+      const wrapper = await mountOverlay('space')
+      expect(wrapper.find('.no-url-overlay-title-main').text()).toBe('No satellite data available.')
+      expect(wrapper.find('.no-url-overlay-msg').text()).toContain('No satellite TLE data')
+    })
+
+    it('treats a status payload with no total field as an empty database', async () => {
+      stubFetch(() => jsonResponse({}))
+      const wrapper = await mountOverlay('space')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+
+    it('does not block the section when the status endpoint responds non-ok', async () => {
+      stubFetch(() => ({ ok: false }))
+      const wrapper = await mountOverlay('space')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('does not block the section when the status request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const wrapper = await mountOverlay('space')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+  })
+
+  describe('land domain', () => {
+    it('never shows the overlay — data comes from the local APRS decoder', async () => {
+      // No feed URL exists for land; the base map must always show.
+      const fetchMock = stubFetch(() => ({ ok: false }))
+      const wrapper = await mountOverlay('land')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      // The URL gate is skipped entirely — no settings/status fetch is made.
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+
+    it('stays visible regardless of connectivity mode', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('offgrid')
+      stubFetch(() => ({ ok: false }))
+      const wrapper = await mountOverlay('land')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+  })
+
+  describe('source override', () => {
+    it('lets a per-domain offgrid override win over an online app mode', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      localStorage.setItem('sentinel_sea_sourceOverride', 'offgrid')
+      stubFetch(() => jsonResponse({}))
+
+      const wrapper = await mountOverlay('sea')
+      // Effective mode is offgrid (override), so the offgrid message renders.
+      expect(wrapper.find('.no-url-overlay-msg').text()).toContain('Off Grid mode is active')
+    })
+
+    it('falls back to auto and an empty check when localStorage reads throw', async () => {
+      // Spy the MemoryStorage instance so reads throw in both _readSourceOverride
+      // (→ 'auto') and the _lsGet helper used by the localStorage fallback check.
+      vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // Non-ok response forces the localStorage check() path, where _lsGet throws.
+      stubFetch(() => ({ ok: false }))
+
+      // Should not throw despite the storage failures; with no readable URL the
+      // overlay is shown.
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+    })
+  })
+
+  describe('events and reactivity', () => {
+    it('opens the settings panel for its domain when OPEN SETTINGS is clicked', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      const settingsStore = useSettingsStore()
+      const openSpy = vi.spyOn(settingsStore, 'openPanel')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      await wrapper.find('.no-url-overlay-btn').trigger('click')
+      expect(openSpy).toHaveBeenCalledWith('air')
+    })
+
+    it('re-checks when the connectivity mode changes', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // Online has no URL (overlay visible); offgrid does (overlay hidden).
+      stubFetch(() =>
+        jsonResponse({
+          onlineDataSourceURL: 'http://',
+          offgridDataSourceURL: { url: 'http://local.box:8080' },
+        }),
+      )
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+
+      appStore.setConnectivityMode('offgrid')
+      await flushPromises()
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('re-checks when a source-override change event fires', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      const fetchMock = stubFetch(() =>
+        jsonResponse({ onlineDataSourceURL: 'https://feed.example' }),
+      )
+      // The override changes in localStorage, then the app announces it.
+      localStorage.setItem('sentinel_air_sourceOverride', 'online')
+      window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalled()
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('re-checks when the settings panel closes', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      const fetchMock = stubFetch(() =>
+        jsonResponse({ onlineDataSourceURL: 'https://feed.example' }),
+      )
+      document.dispatchEvent(new CustomEvent('settings-panel-closed'))
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalled()
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+    })
+
+    it('stops responding to override events after unmount', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'https://feed.example' }))
+
+      const wrapper = await mountOverlay('air')
+      wrapper.unmount()
+      const fetchMock = stubFetch(() => jsonResponse({}))
+      window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+      await flushPromises()
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('no-data chrome flag on document.body', () => {
+    it('sets data-no-data on the body while the overlay is visible', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+      expect(document.body.dataset.noData).toBe('true')
+    })
+
+    it('leaves the body unflagged when the section has a valid source', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'https://feed.example' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+      expect(document.body.dataset.noData).toBeUndefined()
+    })
+
+    it('clears the flag when a source is supplied and the overlay hides', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      // Online has no URL (overlay visible, flag set); offgrid does (overlay hides).
+      stubFetch(() =>
+        jsonResponse({
+          onlineDataSourceURL: 'http://',
+          offgridDataSourceURL: { url: 'http://local.box:8080' },
+        }),
+      )
+
+      await mountOverlay('air')
+      expect(document.body.dataset.noData).toBe('true')
+
+      appStore.setConnectivityMode('offgrid')
+      await flushPromises()
+      expect(document.body.dataset.noData).toBeUndefined()
+    })
+
+    it('clears the flag on unmount even while the overlay is still visible', async () => {
+      const appStore = useAppStore()
+      appStore.setConnectivityMode('online')
+      stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+
+      const wrapper = await mountOverlay('air')
+      expect(document.body.dataset.noData).toBe('true')
+
+      wrapper.unmount()
+      expect(document.body.dataset.noData).toBeUndefined()
+    })
+  })
+
+  it('has no accessibility violations when visible', async () => {
+    const appStore = useAppStore()
+    appStore.setConnectivityMode('online')
+    stubFetch(() => jsonResponse({ onlineDataSourceURL: 'http://' }))
+    const wrapper = await mountOverlay('air')
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})
+
+describe('NoUrlOverlay — SEA off grid', () => {
+  /**
+   * SEA is URL-less in one direction only, which is why it cannot be exempted
+   * outright the way LAND is. Online it reads AISStream over a configured
+   * wss:// URL; off grid it has two possible sources — such a URL, or the SDR
+   * AIS decoder, which has no URL at all.
+   *
+   * Gating the off-grid case on a URL blanked the whole section for exactly the
+   * setup the off-grid decoder exists to serve, which is the bug these pin.
+   */
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete document.body.dataset.noData
+  })
+
+  it('shows the map when a receiver is designated and no URL is set', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 3, offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+  })
+
+  it('still shows the map when an off-grid URL is set and no receiver is', async () => {
+    // The pre-existing off-grid source must keep working unchanged.
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: 'wss://local.box/ais' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(false)
+  })
+
+  it('blocks the section when neither a receiver nor a URL is configured', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('offers both remedies in the message, not just a URL', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    const text = wrapper.text()
+    expect(text).toContain('AIS receiver')
+    expect(text).toContain('Off Grid Data Source')
+  })
+
+  it('ignores a non-numeric receiver id', async () => {
+    // A hand-edited config JSON must not satisfy the gate with a string.
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 'three', offgridSource: { url: '' } }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('does not accept a receiver as an ONLINE source', async () => {
+    // Online, SEA genuinely needs its AISStream URL; a designated radio is
+    // irrelevant and must not wave the gate through.
+    useAppStore().setConnectivityMode('online')
+    stubFetch(() => jsonResponse({ aisSdrRadioId: 3, onlineUrl: '' }))
+
+    const wrapper = await mountOverlay('sea')
+    expect(wrapper.find('.no-url-overlay').exists()).toBe(true)
+  })
+
+  it('has no accessibility violations in the SEA off-grid message', async () => {
+    useAppStore().setConnectivityMode('offgrid')
+    stubFetch(() => jsonResponse({ offgridSource: { url: '' } }))
+
+    const wrapper = mount(NoUrlOverlay, { props: { domain: 'sea' }, attachTo: document.body })
+    await flushPromises()
+    expect(await axe(wrapper.element)).toHaveNoViolations()
+    wrapper.unmount()
+  })
+})

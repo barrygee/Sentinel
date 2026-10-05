@@ -13,4 +13,6 @@ __pycache__
 backend/.venv
 .venv
 node_modules
+**/node_modules
+**/coverage
 frontend/assets/tiles/

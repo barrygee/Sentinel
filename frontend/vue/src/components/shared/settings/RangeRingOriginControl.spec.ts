@@ -4,7 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { ref } from 'vue'
 import { axe } from 'jest-axe'
 
-vi.mock('@/composables/useRangeRingOrigin', () => ({
+vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({
     setting: ref({ kind: 'user', sentryHostId: null, latitude: null, longitude: null }),
     notice: ref(null),
@@ -15,11 +15,11 @@ vi.mock('@/composables/useRangeRingOrigin', () => ({
   }),
 }))
 
-vi.mock('@/composables/useUserLocation', () => ({
+vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: ref({ lat: 51.5, lon: -0.12, accuracy: 0 }) }),
 }))
 
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 
 enableAutoUnmount(afterEach)

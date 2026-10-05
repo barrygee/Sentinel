@@ -3,7 +3,7 @@ name: maplibre-control
 description: >-
   Sentinel's pattern for adding a map feature as a MapLibre IControl — the
   SentinelControlBase abstract class, per-feature control folders under
-  components/<domain>/controls/<feature>/, wiring into the map view, active-state
+  services/sections/<id>/frontend/src/controls/<feature>/, wiring into the map view, active-state
   styling, persistence, and the accessibility requirements. Use when adding,
   editing, or reviewing a map control/feature/button/overlay on any Sentinel map
   (air, space, sea, land), or when tempted to put map-feature logic inline in a
@@ -13,13 +13,15 @@ description: >-
 # Sentinel MapLibre controls
 
 Map features are **class-based MapLibre `IControl`s**, one folder per feature
-under `frontend/vue/src/components/<domain>/controls/<feature>/`, extending the
+under `services/sections/<id>/frontend/src/controls/<feature>/` (the section's
+package), extending the
 shared base — never inline logic in the map view component. (Project rule from
 `CLAUDE.md`: "add features as controls, not inline in the view".)
 
 ## The base class
 
-`components/shared/map-kit/sentinel-control-base/SentinelControlBase.ts`
+`platform/web/map-kit/src/sentinel-control-base/SentinelControlBase.ts` — import it
+as `@sentinel/map-kit/sentinel-control-base/SentinelControlBase`
 (`abstract class SentinelControlBase implements maplibregl.IControl`) owns the
 chrome so features only implement behavior:
 
@@ -39,7 +41,14 @@ chrome so features only implement behavior:
 
 ## Adding a new control (checklist)
 
-1. Create `components/<domain>/controls/<feature>/` containing
+A control used by one section lives in that section's folder (below). A control
+shared by several maps (names, roads, terrain, range rings, sentry sites, zoom)
+lives in `@sentinel/map-kit` under `platform/web/map-kit/src/controls/<feature>/`,
+imports only `@sentinel/shell-api` / `@sentinel/ui` / relative paths (never the
+SPA's `@/`), and is tested by that package at 100% coverage.
+
+
+1. Create `services/sections/<id>/frontend/src/controls/<feature>/` containing
    `<Feature>Control.ts` extending `SentinelControlBase` (its `.spec.ts` is
    written at commit/push time on confirmation, per the global testing rule —
    Sentinel's coverage gate is 100%, so tests land with the merge).

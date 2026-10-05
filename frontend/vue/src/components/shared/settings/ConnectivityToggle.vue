@@ -46,10 +46,10 @@
  * differently are listed so that reset is never a surprise.
  */
 import { computed, onMounted, ref } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
-import { useAppStore } from '@/stores/app'
-import BaseSegmentedSetting from '@/components/base/BaseSegmentedSetting.vue'
-import BaseWarningNotice from '@/components/base/BaseWarningNotice.vue'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
+import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 import {
   APP_MODE_STORAGE_KEY,
   SOURCE_MODE_LABELS,
@@ -58,7 +58,7 @@ import {
   asSourceMode,
   sectionModeStorageKey,
   type SourceMode,
-} from '@/utils/sourceMode'
+} from '@sentinel/shell-api/utils/sourceMode'
 
 const appStore = useAppStore()
 
