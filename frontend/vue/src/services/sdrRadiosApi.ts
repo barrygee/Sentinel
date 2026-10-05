@@ -10,7 +10,7 @@
  * `sentry_device_id` (ADR-0009); a manually-entered radio leaves both null and
  * behaves exactly as it always has.
  */
-import { notifySettingsChanged } from '@/services/settingsApi'
+import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 
 export interface SdrRadioRecord {
   id: number

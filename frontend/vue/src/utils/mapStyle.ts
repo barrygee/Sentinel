@@ -1,5 +1,5 @@
 import type { Map, StyleSpecification, TransformStyleFunction } from 'maplibre-gl'
-import type { MapTheme } from '@/stores/theme'
+import type { MapTheme } from '@sentinel/shell-api/stores/theme'
 
 /**
  * Make a style's `sprite` URL absolute against the page origin.

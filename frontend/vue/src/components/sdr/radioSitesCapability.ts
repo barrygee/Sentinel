@@ -4,7 +4,10 @@ import {
   listSentrySites,
   type SentryHost,
 } from '@/services/sentryApi'
-import type { RadioSiteDevices, RadioSitesCapability } from '@/shell/radioSitesCapability'
+import type {
+  RadioSiteDevices,
+  RadioSitesCapability,
+} from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
  * The sdr section's `radioSites` capability: the Sentry fleet, read through

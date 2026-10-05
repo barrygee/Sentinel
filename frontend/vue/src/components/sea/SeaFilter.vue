@@ -52,8 +52,8 @@ import BaseFilterPanel, {
 import SeaVesselDetails from './SeaVesselDetails.vue'
 import SeaPortDetails from './SeaPortDetails.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
-import { useRadio } from '@/shell/useRadio'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useRadio } from '@sentinel/shell-api/shell/useRadio'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { familyMatchesCategory, vesselFamilyLabel } from '@/utils/aisShipType'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import {

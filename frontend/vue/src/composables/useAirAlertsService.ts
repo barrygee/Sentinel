@@ -1,5 +1,5 @@
 import { watch } from 'vue'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { getAircraftClickHandler } from '@/components/air/aircraftNotificationTarget'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useUserLocation } from '@/composables/useUserLocation'

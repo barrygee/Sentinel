@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { OverheadAlertsTracker } from './OverheadAlertsTracker'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 
-vi.mock('@/composables/useNotificationSound', () => ({
+vi.mock('@sentinel/shell-api/composables/useNotificationSound', () => ({
   playNotificationSound: vi.fn(),
 }))
 

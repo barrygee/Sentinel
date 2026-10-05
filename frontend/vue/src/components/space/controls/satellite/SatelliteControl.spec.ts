@@ -60,8 +60,8 @@ vi.mock('./satelliteSprites', () => {
 
 import { SatelliteControl } from './SatelliteControl'
 import { useSpaceStore } from '@/stores/space'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useTrackingStore } from '@/stores/tracking'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 
 // ---- API payload factory ----
 interface IssPosition {

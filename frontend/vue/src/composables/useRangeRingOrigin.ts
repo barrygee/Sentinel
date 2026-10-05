@@ -1,9 +1,9 @@
 import { computed, effectScope, ref, watch, type ComputedRef, type Ref } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@/utils/locationUtils'
 import { siteLabel } from '@/utils/sentrySiteLabel'
 import { useUserLocation } from '@/composables/useUserLocation'
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 
 /**
  * The **ring origin** — the point range rings are drawn around.

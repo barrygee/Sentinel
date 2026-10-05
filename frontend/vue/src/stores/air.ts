@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject, usePersistedRef } from './_persist'
-import * as settingsApi from '@/services/settingsApi'
+import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 // The Air search/filter categories, surfaced as single-select rail sub-tabs
 // beneath the FILTER tab. Exactly one is shown in the panel at a time.

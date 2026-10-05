@@ -51,8 +51,8 @@ vi.mock('@/components/shared/map-kit/sprites/adsbSprites', () => {
 
 import { AdsbLiveControl } from './AdsbLiveControl'
 import { useAirStore } from '@/stores/air'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useTrackingStore } from '@/stores/tracking'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { useAirNotifStore } from '@/stores/airNotif'
 import type { AirStore, NotificationsStore, TrackingStore, AirNotifStore } from '../types'
 

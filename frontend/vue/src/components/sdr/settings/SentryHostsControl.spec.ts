@@ -5,7 +5,7 @@ import { axe } from 'jest-axe'
 import SentryHostsControl from './SentryHostsControl.vue'
 import SentryHostForm from './SentryHostForm.vue'
 import { SENTRY_HOSTS_CHANGED_EVENT } from '@/composables/sdrDeviceEvents'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SentryHost } from '@/services/sentryApi'
 
 vi.mock('@/services/sentryApi', async (importOriginal) => {

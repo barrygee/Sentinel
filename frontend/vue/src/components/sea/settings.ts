@@ -1,4 +1,7 @@
-import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
+import {
+  registerSettingItems,
+  registerSettingsSection,
+} from '@sentinel/shell-api/shell/settingsRegistry'
 import OnlineSourceControl from '@/components/shared/settings/OnlineSourceControl.vue'
 import SeaAisKeyControl from '@/components/sea/settings/SeaAisKeyControl.vue'
 import SeaAisSdrSourceControl from '@/components/sea/settings/SeaAisSdrSourceControl.vue'

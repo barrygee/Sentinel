@@ -33,8 +33,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
-import { SETTINGS_CHANGED_EVENT } from '@/services/settingsApi'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { SETTINGS_CHANGED_EVENT } from '@sentinel/shell-api/services/settingsApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { isValidLatLon } from '@/utils/locationUtils'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'

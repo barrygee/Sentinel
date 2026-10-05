@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { AircraftEventDetector } from './AircraftEventDetector'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
 import type { ParsedAircraft } from './adsbParse'
 
-vi.mock('@/composables/useNotificationSound', () => ({
+vi.mock('@sentinel/shell-api/composables/useNotificationSound', () => ({
   playNotificationSound: vi.fn(),
 }))
 
@@ -173,7 +173,9 @@ describe('AircraftEventDetector with no airports data', () => {
     vi.doMock('../airports/AirportsControl', () => ({
       AIRPORTS_DATA: { type: 'FeatureCollection', features: [] },
     }))
-    vi.doMock('@/composables/useNotificationSound', () => ({ playNotificationSound: vi.fn() }))
+    vi.doMock('@sentinel/shell-api/composables/useNotificationSound', () => ({
+      playNotificationSound: vi.fn(),
+    }))
 
     const { AircraftEventDetector: FreshDetector } = await import('./AircraftEventDetector')
     const detector = new FreshDetector(notifications, airNotif)
@@ -192,7 +194,9 @@ describe('AircraftEventDetector with no airports data', () => {
     vi.doMock('../airports/AirportsControl', () => ({
       AIRPORTS_DATA: { type: 'FeatureCollection', features: [] },
     }))
-    vi.doMock('@/composables/useNotificationSound', () => ({ playNotificationSound: vi.fn() }))
+    vi.doMock('@sentinel/shell-api/composables/useNotificationSound', () => ({
+      playNotificationSound: vi.fn(),
+    }))
 
     const { AircraftEventDetector: FreshDetector } = await import('./AircraftEventDetector')
     const detector = new FreshDetector(notifications, airNotif)

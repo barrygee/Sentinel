@@ -7,7 +7,7 @@ import {
   parseStoredOverheadAlerts,
   sentryAlertLocationId,
 } from './air'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const LS_OVERLAYS = 'overlayStates'
 const LS_TAGS = 'adsbTagFields_v3'
@@ -329,7 +329,7 @@ describe('air store — map layers config mirroring', () => {
   beforeEach(async () => {
     localStorage.clear()
     setActivePinia(createPinia())
-    const settingsApi = await import('@/services/settingsApi')
+    const settingsApi = await import('@sentinel/shell-api/services/settingsApi')
     putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
   })
 

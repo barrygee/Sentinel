@@ -1,4 +1,4 @@
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { SatellitePassScheduler } from '@/components/space/controls/satellite/SatellitePassScheduler'
 import {

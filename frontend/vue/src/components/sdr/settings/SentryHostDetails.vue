@@ -101,7 +101,7 @@
 import { computed, ref, watch } from 'vue'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import SentrySiteMap from './SentrySiteMap.vue'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import { getSentryHostInfo, type SentryHost, type SentryHostInfo } from '@/services/sentryApi'

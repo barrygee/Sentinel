@@ -1,5 +1,5 @@
-import type { useNotificationsStore } from '@/stores/notifications'
-import type { useTrackingStore } from '@/stores/tracking'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import type { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import type { useAirStore } from '@/stores/air'
 import type { useAirNotifStore } from '@/stores/airNotif'
 

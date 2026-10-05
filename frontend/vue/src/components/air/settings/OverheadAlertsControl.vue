@@ -75,7 +75,7 @@
  */
 import { onMounted, ref } from 'vue'
 import { useAirStore } from '@/stores/air'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import {
   useOverheadAlertZones,
   type OverheadAlertLocation,

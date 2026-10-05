@@ -182,10 +182,10 @@ const MapLibreMapStub = defineComponent({
 
 import AirMap from './AirMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
-import { useAppStore } from '@/stores/app'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useAirStore } from '@/stores/air'
-import { useBasemapStore } from '@/stores/basemap'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { getAircraftClickHandler } from './aircraftNotificationTarget'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */

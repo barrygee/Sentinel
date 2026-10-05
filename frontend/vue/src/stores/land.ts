@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { usePersistedObject, usePersistedRef } from './_persist'
-import * as settingsApi from '@/services/settingsApi'
+import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /** One APRS station's latest fix, as returned by GET /api/land/aprs/stations. */
 export interface AprsStation {

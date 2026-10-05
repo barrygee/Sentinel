@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import JsonDataControl from './JsonDataControl.vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 function stubFetch(payload: unknown, ok = true): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn().mockResolvedValue({

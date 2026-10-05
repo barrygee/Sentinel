@@ -31,7 +31,7 @@ describe('sentinel/section-boundaries', () => {
       },
       {
         filename: file('components/land/LandView.ts'),
-        code: "import { useRadio } from '@/shell/useRadio'",
+        code: "import { useRadio } from '@sentinel/shell-api/shell/useRadio'",
       },
       {
         filename: file('components/land/LandView.ts'),
@@ -41,7 +41,7 @@ describe('sentinel/section-boundaries', () => {
       // Core importing core.
       {
         filename: file('components/shared/AppFooter.ts'),
-        code: "import { getFooterItems } from '@/shell/footerRegistry'",
+        code: "import { getFooterItems } from '@sentinel/shell-api/shell/footerRegistry'",
       },
       // The composition root may import every section.
       { filename: file('shell/sections.ts'), code: "import '@/components/air/section'" },

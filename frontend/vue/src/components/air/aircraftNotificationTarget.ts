@@ -1,4 +1,4 @@
-import type { NotificationTarget } from '@/shell/notificationRegistry'
+import type { NotificationTarget } from '@sentinel/shell-api/shell/notificationRegistry'
 
 /**
  * Air's notification click target: an alert carrying an aircraft `hex` focuses

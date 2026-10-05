@@ -31,7 +31,7 @@
  */
 import { onMounted, ref, watch } from 'vue'
 import RadioSelect from '@/components/shared/settings/RadioSelect.vue'
-import { useRadio } from '@/shell/useRadio'
+import { useRadio } from '@sentinel/shell-api/shell/useRadio'
 
 // Decode is started/stopped through the radio platform's `radio.decoders`
 // (F10), the same single backend bridge the SDR panel's APRS button drives.

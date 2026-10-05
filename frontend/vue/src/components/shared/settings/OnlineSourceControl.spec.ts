@@ -4,13 +4,13 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import OnlineSourceControl from './OnlineSourceControl.vue'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 // ns 'space' → onlineKey() falls back to 'onlineUrl'.
 const NS = 'space'

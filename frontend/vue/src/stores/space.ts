@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject, usePersistedRef, usePersistedStringSet } from './_persist'
+import {
+  usePersistedObject,
+  usePersistedRef,
+  usePersistedStringSet,
+} from '@sentinel/shell-api/stores/_persist'
 
 const LS_OVERLAYS = 'sentinel_space_overlayStates'
 

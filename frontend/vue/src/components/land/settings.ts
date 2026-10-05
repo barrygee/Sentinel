@@ -1,4 +1,7 @@
-import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
+import {
+  registerSettingItems,
+  registerSettingsSection,
+} from '@sentinel/shell-api/shell/settingsRegistry'
 import AprsLabelFieldsControl from '@/components/land/settings/AprsLabelFieldsControl.vue'
 import AprsSdrSourceControl from '@/components/land/settings/AprsSdrSourceControl.vue'
 import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'

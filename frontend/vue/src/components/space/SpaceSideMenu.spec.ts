@@ -17,8 +17,8 @@ vi.mock('@/composables/useUserLocation', async () => {
 
 import SpaceSideMenu from './SpaceSideMenu.vue'
 import { useSpaceStore } from '@/stores/space'
-import { useBasemapStore } from '@/stores/basemap'
-import { useAppStore } from '@/stores/app'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 // Map-control stubs the menu delegates to.
 function makeControls() {

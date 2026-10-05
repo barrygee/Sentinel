@@ -12,8 +12,8 @@ import {
   type OfflineAreaEstimate,
   type OfflineMapStatus,
   type OfflineRegion,
-} from '@/services/offlineMapsApi'
-import { estimateOfflineArea, type OfflineAreaEstimateResult } from '@/utils/offlineMapEstimate'
+} from '../services/offlineMapsApi'
+import { estimateOfflineArea, type OfflineAreaEstimateResult } from '../utils/offlineMapEstimate'
 
 /** How often outstanding (queued/running) regions are polled, in ms — see D5:
  *  one-directional and low-frequency, so polling was chosen over SSE/WebSocket. */

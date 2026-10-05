@@ -22,8 +22,8 @@
  * also stages a re-save for APPLY CHANGES so the footer does not report
  * "NO CHANGES" straight after a change.
  */
-import { useBasemapStore } from '@/stores/basemap'
-import * as settingsApi from '@/services/settingsApi'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import type { BasemapLayerGroup } from '@/utils/basemapLayers'
 import LabelFieldsTable, { type LabelFieldRow } from './LabelFieldsTable.vue'

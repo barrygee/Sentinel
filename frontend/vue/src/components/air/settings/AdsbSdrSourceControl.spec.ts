@@ -5,10 +5,13 @@ import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
 import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import * as adsbSourceApi from '@/services/adsbSourceApi'
-import { provideFakeRadioSites } from '@/test/fakeRadio'
-import type { RadioSiteDevice, RadioSiteDevices } from '@/shell/radioSitesCapability'
+import { provideFakeRadioSites } from '@sentinel/shell-api/testing/fakeRadio'
+import type {
+  RadioSiteDevice,
+  RadioSiteDevices,
+} from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
  * Tests for choosing which Sentry SDR receives ADS-B.

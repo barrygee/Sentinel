@@ -23,14 +23,14 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
-import * as settingsApi from '@/services/settingsApi'
-import { useAppStore } from '@/stores/app'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import {
   SOURCE_MODE_OPTIONS,
   asSourceMode,
   sectionModeStorageKey,
   type SourceMode,
-} from '@/utils/sourceMode'
+} from '@sentinel/shell-api/utils/sourceMode'
 
 const props = defineProps<{ ns: string }>()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()

@@ -5,8 +5,8 @@ import { nextTick } from 'vue'
 import { axe } from 'jest-axe'
 import SeaFilter from './SeaFilter.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'
-import { provideFakeRadio } from '@/test/fakeRadio'
-import { useNotificationsStore } from '@/stores/notifications'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { PORTS_DATA } from './controls/ports/portsData'
 
 function vessel(overrides: Partial<SeaVessel> = {}): SeaVessel {

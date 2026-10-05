@@ -26,6 +26,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@sentinel/shell-api": "*",
     "@sentinel/ui": "*",
     "maplibre-contour": "^0.1.0",
     "maplibre-gl": "^6.10.0",

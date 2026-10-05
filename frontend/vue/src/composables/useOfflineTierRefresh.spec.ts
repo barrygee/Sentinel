@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { nextTick } from 'vue'
 import type { Map as MapLibreGlMap, VectorTileSource } from 'maplibre-gl'
 import { useOfflineTierRefresh } from './useOfflineTierRefresh'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import type { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 
 function fakeVectorSource(): VectorTileSource & { setTiles: ReturnType<typeof vi.fn> } {

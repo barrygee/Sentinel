@@ -24,7 +24,7 @@ import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useAirStore, type AdsbTagFields, type AdsbTagFieldMap } from '@/stores/air'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const airStore = useAirStore()
 const emit = defineEmits<{ stage: [fn: () => void] }>()

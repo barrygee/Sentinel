@@ -24,7 +24,8 @@ describe('shell/sections', () => {
   it('registers every domain section with the shared registry', async () => {
     vi.resetModules()
     await import('./sections')
-    const { getRegisteredSections, getPersistentRadioPane } = await import('./sectionRegistry')
+    const { getRegisteredSections, getPersistentRadioPane } =
+      await import('@sentinel/shell-api/shell/sectionRegistry')
     const { default: SdrTabPanel } = await import('@/components/sdr/SdrTabPanel.vue')
 
     const sections = getRegisteredSections()

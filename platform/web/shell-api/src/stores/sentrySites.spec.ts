@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSentrySitesStore } from './sentrySites'
-import type { RadioSite } from '@/shell/radioSitesCapability'
-import { provideFakeRadioSites } from '@/test/fakeRadio'
+import type { RadioSite } from '../shell/radioSitesCapability'
+import { provideFakeRadioSites } from '../testing/fakeRadio'
 
 const SITE: RadioSite = {
   id: 1,

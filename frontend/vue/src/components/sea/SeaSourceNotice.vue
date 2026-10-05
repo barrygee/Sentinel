@@ -28,7 +28,7 @@
  * there is something to say; a live feed needs no announcement.
  */
 import { computed } from 'vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SeaFeedInfo } from '@/stores/sea'
 import NoDataOverlay from '@/components/shared/NoDataOverlay.vue'
 import MapNoticeBanner from '@/components/shared/MapNoticeBanner.vue'

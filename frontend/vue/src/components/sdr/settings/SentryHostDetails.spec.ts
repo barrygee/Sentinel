@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import type { SentryHost, SentryHostInfo } from '@/services/sentryApi'
 
 vi.mock('@/services/sentryApi', async (importOriginal) => {

@@ -27,7 +27,7 @@
  * sit on the map beside any vessel family.
  */
 import { useSeaStore, type SeaOverlayStates } from '@/stores/sea'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'

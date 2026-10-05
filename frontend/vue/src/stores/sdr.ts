@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
-import { getNamespace, notifySettingsChanged } from '@/services/settingsApi'
+import { getNamespace, notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 
 export interface SdrRadio {
   id: number

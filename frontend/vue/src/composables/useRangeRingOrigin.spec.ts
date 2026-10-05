@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { nextTick } from 'vue'
 import type { SentrySite } from '@/services/sentryApi'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(() => Promise.resolve()),
   getNamespace: vi.fn(() => Promise.resolve(null)),
   del: vi.fn(),
@@ -69,14 +69,14 @@ async function setup(options: SetupOptions = {}) {
   const { setActivePinia, createPinia } = await import('pinia')
   setActivePinia(createPinia())
 
-  const { useSentrySitesStore } = await import('@/stores/sentrySites')
+  const { useSentrySitesStore } = await import('@sentinel/shell-api/stores/sentrySites')
   const sentrySitesStore = useSentrySitesStore()
   sentrySitesStore.sites = options.sites ?? []
   sentrySitesStore.loaded = options.sitesLoaded ?? false
 
   // Re-imported per graph: vi.mock's factory re-runs on reset, so the spies the
   // composable calls are not the ones this file imported at the top.
-  const settingsApi = await import('@/services/settingsApi')
+  const settingsApi = await import('@sentinel/shell-api/services/settingsApi')
   const composable = await import('./useRangeRingOrigin')
   return { ...composable, api: composable.useRangeRingOrigin(), sentrySitesStore, settingsApi }
 }

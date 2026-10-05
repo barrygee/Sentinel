@@ -3,8 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 
 import AprsSdrSourceControl from './AprsSdrSourceControl.vue'
-import { provideFakeRadio } from '@/test/fakeRadio'
-import type { RadioSummary } from '@/shell/radioCapability'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * Tests for choosing which radio decodes APRS.

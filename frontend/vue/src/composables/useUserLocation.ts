@@ -1,6 +1,6 @@
 import { ref } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
-import { notifySettingsChanged } from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@/utils/locationUtils'
 
 export interface UserLocation {

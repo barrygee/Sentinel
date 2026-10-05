@@ -5,13 +5,13 @@ import { axe } from 'jest-axe'
 import SeaLabelFieldsControl from './SeaLabelFieldsControl.vue'
 import { useSeaStore } from '@/stores/sea'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const ROW = { name: 0, type: 1, mmsi: 2, flag: 3, destination: 4, speed: 5, course: 6 } as const
 

@@ -122,8 +122,8 @@ const MapLibreMapStub = defineComponent({
 
 import SpaceMap from './SpaceMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
-import { useAppStore } from '@/stores/app'
-import { useThemeStore } from '@/stores/theme'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { useSpaceStore } from '@/stores/space'
 import { getSatelliteClickHandler } from './satelliteNotificationTarget'
 

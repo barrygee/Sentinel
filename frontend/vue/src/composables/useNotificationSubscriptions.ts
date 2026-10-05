@@ -1,5 +1,5 @@
 import { computed, ref, type ComputedRef } from 'vue'
-import { getNotificationSubscriptionSources } from '@/shell/notificationRegistry'
+import { getNotificationSubscriptionSources } from '@sentinel/shell-api/shell/notificationRegistry'
 
 /** One thing the app is currently set to notify the operator about. */
 export interface NotificationSubscription {

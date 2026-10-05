@@ -1,11 +1,11 @@
-import { registerBackgroundService } from '@/shell/backgroundServices'
+import { registerBackgroundService } from '@sentinel/shell-api/shell/backgroundServices'
 import {
   registerNotificationSubscriptionSource,
   registerNotificationTarget,
-} from '@/shell/notificationRegistry'
-import { registerSection } from '@/shell/sectionRegistry'
-import { registerSettingsHydrator } from '@/shell/settingsHydration'
-import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+} from '@sentinel/shell-api/shell/notificationRegistry'
+import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydration'
+import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import AirView from './AirView.vue'
 import { airSidebarFilter } from './airSidebarFilter'
 import { useAirAlertsService } from '@/composables/useAirAlertsService'

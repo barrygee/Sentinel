@@ -18,7 +18,7 @@
  * "NO CHANGES".
  */
 import { onMounted } from 'vue'
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import RingOriginPicker from '@/components/shared/controls/range-rings/RingOriginPicker.vue'
 
 const sentrySitesStore = useSentrySitesStore()

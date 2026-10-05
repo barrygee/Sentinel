@@ -1,8 +1,8 @@
-import { resolveSectionMode } from '@/utils/sourceMode'
+import { resolveSectionMode } from '@sentinel/shell-api/utils/sourceMode'
 import { computed, watch } from 'vue'
-import { useAppStore } from '@/stores/app'
-import { useRadio } from '@/shell/useRadio'
-import { useSettingsStore } from '@/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useRadio } from '@sentinel/shell-api/shell/useRadio'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 /**
  * Runs off-grid AIS decode for the Sea domain: tunes the designated SDR to the

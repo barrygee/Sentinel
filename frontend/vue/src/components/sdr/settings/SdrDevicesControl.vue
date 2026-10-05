@@ -117,7 +117,7 @@ import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrSentryDeviceRow from './SdrSentryDeviceRow.vue'
 import SdrHostGroupHeader from './SdrHostGroupHeader.vue'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import {
   listRadios,
   createRadio,

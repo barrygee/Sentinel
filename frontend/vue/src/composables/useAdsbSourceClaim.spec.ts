@@ -5,8 +5,8 @@ import { createPinia, setActivePinia } from 'pinia'
 
 import { useAdsbSourceClaim } from './useAdsbSourceClaim'
 import * as adsbSourceApi from '@/services/adsbSourceApi'
-import { useAppStore } from '@/stores/app'
-import { useSettingsStore } from '@/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 /**
  * Tests for holding the Sentry dongle while AIR watches off grid.

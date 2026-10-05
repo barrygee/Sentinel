@@ -179,7 +179,7 @@ mx.text = function (
   return _origMxText.call(this, Mx, x, y, lbl, color)
 }
 import { useSdrStore, type SdrMode } from '@/stores/sdr'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { findSignalEdges, findTimeExtent } from '@/composables/useSdrSignalMarker'
 

@@ -51,8 +51,8 @@ const created = mocks.created
 vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 
 import { SentrySitesControl, siteLabel } from './SentrySitesControl'
-import { useSentrySitesStore } from '@/stores/sentrySites'
-import { useSettingsStore } from '@/stores/settings'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SentrySite } from '@/services/sentryApi'
 
 function site(overrides: Partial<SentrySite> = {}): SentrySite {

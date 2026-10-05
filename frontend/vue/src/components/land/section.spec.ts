@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 
 const registerSection = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/sectionRegistry', () => ({ registerSection }))
+vi.mock('@sentinel/shell-api/shell/sectionRegistry', () => ({ registerSection }))
 const registerSettingsHydrator = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/settingsHydration', () => ({ registerSettingsHydrator }))
+vi.mock('@sentinel/shell-api/shell/settingsHydration', () => ({ registerSettingsHydrator }))
 const registerSidebarFilterSubTabs = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/sidebarRegistry', () => ({ registerSidebarFilterSubTabs }))
+vi.mock('@sentinel/shell-api/shell/sidebarRegistry', () => ({ registerSidebarFilterSubTabs }))
 // LandView.vue's real module graph pulls in a full MapLibre map — heavy, and
 // irrelevant to what this test asserts (the registration wiring, not the
 // view's own behaviour, which LandView.spec.ts already covers).
@@ -34,7 +34,8 @@ describe('components/land/section', () => {
 
   it('registers its Settings section and items', async () => {
     await import('./section')
-    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+    const { getSettingItems, getSettingsSections } =
+      await import('@sentinel/shell-api/shell/settingsRegistry')
 
     expect(getSettingsSections().map((section) => section.key)).toContain('land')
     expect(getSettingItems().some((item) => item.section === 'land')).toBe(true)

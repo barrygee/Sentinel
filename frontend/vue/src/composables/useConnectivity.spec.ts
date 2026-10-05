@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
 import { useConnectivity } from './useConnectivity'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 function mountConnectivity(onModeChange?: (online: boolean) => void) {
   const Harness = defineComponent({

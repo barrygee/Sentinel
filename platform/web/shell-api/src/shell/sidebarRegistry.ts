@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { SidebarPaneId } from '@/constants/sidebarPanes'
+import type { SidebarPaneId } from '../constants/sidebarPanes'
 
 /**
  * Sidebar registry (docs/plans/section-containers.md §3.6, F2).

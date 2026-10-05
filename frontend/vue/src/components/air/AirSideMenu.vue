@@ -208,8 +208,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useAirStore } from '@/stores/air'
-import { useAppStore } from '@/stores/app'
-import { useBasemapStore } from '@/stores/basemap'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import TerrainIcon from '@sentinel/ui/icons/TerrainIcon.vue'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MyLocationIcon from '@sentinel/ui/icons/MyLocationIcon.vue'

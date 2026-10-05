@@ -1,9 +1,9 @@
 import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
-import type { BasemapStore } from '@/stores/basemap'
-import type { OfflineMapsStore } from '@/stores/offlineMaps'
-import type { MapTheme } from '@/stores/theme'
+import type { BasemapStore } from '@sentinel/shell-api/stores/basemap'
+import type { OfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import type { MapTheme } from '@sentinel/shell-api/stores/theme'
 import { currentMapTheme } from '@/utils/mapTheme'
-import { getOfflineMapStatus } from '@/services/offlineMapsApi'
+import { getOfflineMapStatus } from '@sentinel/shell-api/services/offlineMapsApi'
 import { CONTOUR_MAX_ZOOM, CONTOUR_MIN_ZOOM, loadTerrainDem, type TerrainDem } from './terrainDem'
 
 export const CONTOUR_SOURCE = 'terrain-contours'

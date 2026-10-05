@@ -148,7 +148,7 @@ describe('useAirAlertsService', () => {
     // A Sentry can be watched with no operator fix at all, so polling is on
     // while the point the feed is fetched around does not exist.
     locationRef.value = null
-    const { useSentrySitesStore } = await import('@/stores/sentrySites')
+    const { useSentrySitesStore } = await import('@sentinel/shell-api/stores/sentrySites')
     useSentrySitesStore().sites = [
       {
         id: 1,

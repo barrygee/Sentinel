@@ -1,4 +1,4 @@
-import type { useNotificationsStore } from '../../../../stores/notifications'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { haversineNm } from '../../../../utils/distanceUtils'
 
 type NotificationsStore = ReturnType<typeof useNotificationsStore>

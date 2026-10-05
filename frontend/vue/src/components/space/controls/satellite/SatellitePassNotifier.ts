@@ -1,4 +1,4 @@
-import type { useNotificationsStore } from '@/stores/notifications'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { isPassNotifEnabled, setPassNotifEnabled } from './passNotifStore'
 
 /** The detail line of the "pass alerts on" card, which is also how it is found again to dismiss. */

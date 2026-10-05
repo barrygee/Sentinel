@@ -67,8 +67,8 @@ vi.mock('maplibre-gl', () => {
 
 import SentrySiteMap from './SentrySiteMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
-import { useAppStore } from '@/stores/app'
-import { useThemeStore } from '@/stores/theme'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 
 const GATESHEAD = { latitude: 54.951186, longitude: -1.532995, label: 'Gateshead' }
 

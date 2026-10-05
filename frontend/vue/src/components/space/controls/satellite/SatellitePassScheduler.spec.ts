@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { SatellitePassScheduler, type SatellitePassSchedulerCtx } from './SatellitePassScheduler'
-import { useNotificationsStore } from '@/stores/notifications'
-import { provideFakeRadio } from '@/test/fakeRadio'
-import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
+import type {
+  RadioRestoreRequest,
+  RadioTuneRequest,
+} from '@sentinel/shell-api/shell/radioCapability'
 
 const HEADS_UP_LEAD_MS = 5 * 60 * 1000
 const REFRESH_MS = 5 * 60 * 1000

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
 import { useStagedSetting } from '@/composables/useStagedSetting'
-import { useThemeStore, type MapTheme } from '@/stores/theme'
+import { useThemeStore, type MapTheme } from '@sentinel/shell-api/stores/theme'
 
 /**
  * Settings row for the BASEMAP palette, separate from the interface (which is

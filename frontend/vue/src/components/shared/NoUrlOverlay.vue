@@ -11,11 +11,15 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import { useAppStore } from '@/stores/app'
-import { useSettingsStore } from '@/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { onlineKey, offgridKey } from '@/utils/domainKeys'
 import NoDataOverlay from './NoDataOverlay.vue'
-import { resolveSectionMode, sectionModeStorageKey, type SourceMode } from '@/utils/sourceMode'
+import {
+  resolveSectionMode,
+  sectionModeStorageKey,
+  type SourceMode,
+} from '@sentinel/shell-api/utils/sourceMode'
 
 const props = defineProps<{ domain: string }>()
 

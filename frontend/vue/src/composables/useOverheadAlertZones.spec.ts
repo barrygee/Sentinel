@@ -9,7 +9,7 @@ vi.mock('@/composables/useUserLocation', () => ({
 }))
 
 import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '@/stores/air'
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import { useOverheadAlertZones } from './useOverheadAlertZones'
 
 function site(overrides: Partial<SentrySite> = {}): SentrySite {

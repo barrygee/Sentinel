@@ -4,9 +4,9 @@ import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 import { useOffgridAisDecode } from './useOffgridAisDecode'
-import { useAppStore } from '@/stores/app'
-import { provideFakeRadio } from '@/test/fakeRadio'
-import { useSettingsStore } from '@/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 /**
  * Tests for running off-grid AIS decode while SEA is watching.

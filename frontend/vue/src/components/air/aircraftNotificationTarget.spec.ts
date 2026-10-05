@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { Router } from 'vue-router'
-import type { NotificationItem } from '@/stores/notifications'
+import type { NotificationItem } from '@sentinel/shell-api/stores/notifications'
 import {
   aircraftNotificationTarget,
   clearAircraftClickHandler,

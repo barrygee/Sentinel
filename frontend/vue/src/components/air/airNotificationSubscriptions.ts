@@ -1,8 +1,8 @@
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useAirStore } from '@/stores/air'
 import { useOverheadAlertZones } from '@/composables/useOverheadAlertZones'
-import * as settingsApi from '@/services/settingsApi'
-import type { NotificationSubscriptionSource } from '@/shell/notificationRegistry'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import type { NotificationSubscriptionSource } from '@sentinel/shell-api/shell/notificationRegistry'
 
 /**
  * Air's switched-on alerts for Settings › Alerts (moved out of the core

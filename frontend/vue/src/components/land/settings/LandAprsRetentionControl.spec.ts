@@ -5,13 +5,13 @@ import { axe } from 'jest-axe'
 import LandAprsRetentionControl from './LandAprsRetentionControl.vue'
 import { useLandStore } from '@/stores/land'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 describe('LandAprsRetentionControl', () => {
   beforeEach(() => {

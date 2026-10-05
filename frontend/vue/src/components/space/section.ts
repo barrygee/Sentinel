@@ -1,11 +1,14 @@
-import { registerBackgroundService } from '@/shell/backgroundServices'
+import { registerBackgroundService } from '@sentinel/shell-api/shell/backgroundServices'
 import {
   registerNotificationDismissHook,
   registerNotificationSubscriptionSource,
   registerNotificationTarget,
-} from '@/shell/notificationRegistry'
-import { registerSection } from '@/shell/sectionRegistry'
-import { registerSidebarFilterSubTabs, registerSidebarSectionTab } from '@/shell/sidebarRegistry'
+} from '@sentinel/shell-api/shell/notificationRegistry'
+import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import {
+  registerSidebarFilterSubTabs,
+  registerSidebarSectionTab,
+} from '@sentinel/shell-api/shell/sidebarRegistry'
 import SpaceView from './SpaceView.vue'
 import { spaceSidebarFilter } from './spaceSidebarFilter'
 import SpacePassesTabIcon from './SpacePassesTabIcon.vue'

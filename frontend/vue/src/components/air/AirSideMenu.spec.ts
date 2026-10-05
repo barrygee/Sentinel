@@ -3,8 +3,8 @@ import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
-import { useAppStore } from '@/stores/app'
-import { useBasemapStore } from '@/stores/basemap'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 // Controllable user-location ref for the locActive computed + goToLocation.
 const shared = vi.hoisted(() => ({

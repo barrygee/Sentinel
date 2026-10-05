@@ -225,8 +225,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSpaceStore } from '@/stores/space'
-import { useAppStore } from '@/stores/app'
-import { useBasemapStore } from '@/stores/basemap'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useUserLocation } from '@/composables/useUserLocation'
 import MyLocationIcon from '@sentinel/ui/icons/MyLocationIcon.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'

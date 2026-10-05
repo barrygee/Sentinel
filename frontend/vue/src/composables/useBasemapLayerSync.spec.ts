@@ -2,11 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { effectScope, nextTick } from 'vue'
 import type { Map } from 'maplibre-gl'
-import { useBasemapStore } from '@/stores/basemap'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { BASEMAP_LAYER_GROUPS, type BasemapLayerGroup } from '@/utils/basemapLayers'
 import { useBasemapLayerSync } from './useBasemapLayerSync'
 
-vi.mock('@/services/settingsApi', () => ({ put: vi.fn().mockResolvedValue(undefined) }))
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
+  put: vi.fn().mockResolvedValue(undefined),
+}))
 
 /** A fake map whose style holds every layer of every group. */
 function fakeMap() {

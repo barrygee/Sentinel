@@ -195,9 +195,9 @@ import type { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import type { AirportsToggleControl } from './controls/airports/AirportsControl'
 import type { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBasesControl'
 import { storeToRefs } from 'pinia'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useAirNotifStore } from '@/stores/airNotif'
-import { useRadio } from '@/shell/useRadio'
+import { useRadio } from '@sentinel/shell-api/shell/useRadio'
 import { useAirStore } from '@/stores/air'
 
 interface PlaneResult {

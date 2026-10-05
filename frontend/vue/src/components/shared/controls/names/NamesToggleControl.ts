@@ -1,5 +1,5 @@
 import { SentinelControlBase } from '@/components/shared/map-kit/sentinel-control-base/SentinelControlBase'
-import type { BasemapStore } from '@/stores/basemap'
+import type { BasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { applyBasemapLayerVisibility } from '@/utils/basemapLayers'
 
 /**
