@@ -1,6 +1,10 @@
 {
     "name": "sentinel",
     "private": true,
+    "workspaces": [
+        "frontend/vue",
+        "platform/web/*"
+    ],
     "engines": {
         "node": ">=24.0.0 <26.0.0",
         "npm": ">=11.0.0 <12.0.0"
@@ -27,5 +31,12 @@
         "prettier": "^3.8.3",
         "typescript": "^5.4.0",
         "typescript-eslint": "^8.61.0"
+    },
+    "overrides": {
+        "undici": "^7.29.0",
+        "sigplot": {
+            "budo": "npm:empty-npm-package@1.0.0",
+            "travis": "npm:empty-npm-package@1.0.0"
+        }
     }
 }

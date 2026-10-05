@@ -52,7 +52,8 @@ docker compose up                                      # Docker, backend code vo
 #   uv run --project backend uvicorn backend.main:app --reload --port 8080
 
 # Terminal 2 — Vite dev server with HMR
-cd frontend/vue && npm install && npm run dev          # http://localhost:5173
+npm install                          # once, from the repo root (npm workspaces)
+cd frontend/vue && npm run dev       # http://localhost:5173
 ```
 
 ### Build the SPA for deployment

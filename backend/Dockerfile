@@ -1,8 +1,12 @@
 # ── Stage 1: Build Vue SPA ────────────────────────────────────────────────────
 FROM node:24-alpine AS spa-builder
-WORKDIR /repo/frontend/vue
-COPY frontend/vue/package.json frontend/vue/package-lock.json ./
+# npm workspaces: the lockfile and the install live at the repo root, with the SPA
+# (frontend/vue) as a member. Manifests are copied before sources for layer caching.
+WORKDIR /repo
+COPY package.json package-lock.json .npmrc ./
+COPY frontend/vue/package.json ./frontend/vue/
 RUN npm ci
+WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./
 # template.css is imported via ../../../../frontend/assets/template.css
 COPY frontend/assets/ /repo/frontend/assets/

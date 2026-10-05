@@ -74,9 +74,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Lint (ESLint + Prettier)
         run: npm run lint
@@ -97,9 +99,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Tests + coverage (vitest)
         # Coverage thresholds (vitest.config.ts) gate this — a ratchet raised to
@@ -120,9 +124,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       - name: Build (Vite)
         run: npm run build
@@ -177,9 +183,11 @@ jobs:
         with:
           node-version-file: frontend/vue/.nvmrc
           cache: npm
-          cache-dependency-path: frontend/vue/package-lock.json
+          cache-dependency-path: package-lock.json
 
+      # One npm workspaces install at the repo root (frontend/vue is a member).
       - run: npm ci
+        working-directory: .
 
       # Restore the bundle built by frontend-vue-build; `vite preview` serves it.
       - name: Download SPA bundle
@@ -196,7 +204,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/vue/package-lock.json') }}
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             playwright-${{ runner.os }}-
 
