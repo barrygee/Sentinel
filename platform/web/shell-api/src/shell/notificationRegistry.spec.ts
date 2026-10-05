@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { NotificationItem } from '@/stores/notifications'
+import type { NotificationItem } from '../stores/notifications'
 import {
   findNotificationTarget,
   getNotificationSubscriptionSources,

@@ -3,8 +3,8 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { CONFIG_FILE_POLL_INTERVAL_MS, useConfigFileSync } from './useConfigFileSync'
 
-vi.mock('@/services/settingsApi', () => ({ getConfigFileStatus: vi.fn() }))
-import { getConfigFileStatus } from '@/services/settingsApi'
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ getConfigFileStatus: vi.fn() }))
+import { getConfigFileStatus } from '@sentinel/shell-api/services/settingsApi'
 
 function status(externalEditAt: number) {
   return {

@@ -3,7 +3,7 @@ import { mount, enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/t
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSdrStore } from '@/stores/sdr'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 
 // ── useSdrAudio mock (the audio pipeline is its own 100%-covered unit) ──────────
 const audioMock = vi.hoisted(() => ({
@@ -68,7 +68,10 @@ vi.mock('@/services/sdrSearchApi', () => ({
 
 import SdrPanel from './SdrPanel.vue'
 import { createSdrRadioCapability, resetRadioEngineForTests } from './radioCapability'
-import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
+import type {
+  RadioRestoreRequest,
+  RadioTuneRequest,
+} from '@sentinel/shell-api/shell/radioCapability'
 
 // Other sections tune the SDR through the sdr section's `radio` capability;
 // the mounted panel attaches itself as its engine. Fields are typed loosely

@@ -284,7 +284,8 @@ Shared packages (host-provided singletons under federation, npm workspace packag
   - the shared controls: names, roads, terrain, sentry-sites, range-rings (incl. `LandRangeRingsControl`) and zoom
   - `adsbSprites`
   - `useOfflineTierRefresh`, `useBasemapLayerSync`, `useMapContextMenu` and the style utils
-- **`@sentinel/shell-api`:**
+- **`@sentinel/shell-api`** (`platform/web/shell-api`, done in P4.2 — `shell/sections.ts`, the composition root, stays
+  in the SPA):
   - the registries
   - the core stores: `app`, `settings`, `theme`, `basemap`, `notifications`, `offlineMaps`, `sentrySites`, `tracking`
 

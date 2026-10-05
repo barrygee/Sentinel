@@ -26,7 +26,8 @@ export function sentinelPackageVitestConfig() {
         provider: 'v8',
         reporter: ['text-summary', 'text', 'html', 'lcov'],
         include: ['src/**/*.{ts,vue}'],
-        exclude: ['src/**/*.d.ts', 'src/**/*.{test,spec}.{ts,vue}'],
+        // src/testing holds test doubles other packages' specs import, not product code.
+        exclude: ['src/**/*.d.ts', 'src/**/*.{test,spec}.{ts,vue}', 'src/testing/**'],
         thresholds: {
           lines: 100,
           functions: 100,

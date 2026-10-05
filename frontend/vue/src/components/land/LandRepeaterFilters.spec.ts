@@ -7,7 +7,7 @@ import { useRepeatersStore } from '@/stores/repeaters'
 import { REPEATER_BAND_ORDER, REPEATER_MODE_CODES } from '@/constants/repeaters'
 import type { RepeaterChannel, RepeaterStation } from '@/types/repeaters'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn().mockResolvedValue(null),
   del: vi.fn(),

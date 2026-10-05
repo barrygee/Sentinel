@@ -13,7 +13,7 @@ vi.mock('./terrainDem', async (importOriginal) => ({
 const statusMock = vi.hoisted(() => ({
   getOfflineMapStatus: vi.fn(),
 }))
-vi.mock('@/services/offlineMapsApi', () => ({
+vi.mock('@sentinel/shell-api/services/offlineMapsApi', () => ({
   getOfflineMapStatus: statusMock.getOfflineMapStatus,
 }))
 
@@ -25,8 +25,8 @@ import {
   CONTOUR_LABEL_LAYER,
   CONTOUR_PALETTES,
 } from './TerrainToggleControl'
-import { useBasemapStore } from '@/stores/basemap'
-import type { OfflineMapsStore } from '@/stores/offlineMaps'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import type { OfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 
 /** A minimal stand-in for the offline-maps store — this control only ever reads
  *  `tiersVersion` off it. */
@@ -98,7 +98,7 @@ const flush = () => new Promise((r) => setTimeout(r, 0))
 let store: ReturnType<typeof useBasemapStore>
 let offlineMapsStore: OfflineMapsStore
 
-vi.mock('@/services/settingsApi', () => ({ put: vi.fn(() => Promise.resolve()) }))
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ put: vi.fn(() => Promise.resolve()) }))
 
 beforeEach(() => {
   setActivePinia(createPinia())

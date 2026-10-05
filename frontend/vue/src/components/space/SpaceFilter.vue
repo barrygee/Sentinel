@@ -209,7 +209,7 @@ import {
   setRecordOnPassEnabled,
   getAllPassNotifs,
 } from './controls/satellite/passNotifStore'
-import { useNotificationsStore } from '../../stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
 import BellIcon from '@sentinel/ui/icons/BellIcon.vue'

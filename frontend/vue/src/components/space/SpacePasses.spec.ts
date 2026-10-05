@@ -17,12 +17,12 @@ vi.mock('./controls/satellite/passNotifStore', () => ({
 
 // The notifications store calls playNotificationSound() on add(); stub it so the
 // audio path doesn't run under jsdom.
-vi.mock('@/composables/useNotificationSound', () => ({
+vi.mock('@sentinel/shell-api/composables/useNotificationSound', () => ({
   playNotificationSound: vi.fn(),
 }))
 
 import SpacePasses from './SpacePasses.vue'
-import { useNotificationsStore } from '../../stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import {
   isPassNotifEnabled,
   isAutoTuneEnabled,

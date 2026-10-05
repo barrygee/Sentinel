@@ -1,5 +1,5 @@
 import { useLandStore, type AprsLabelFieldMap } from '@/stores/land'
-import type { AllSettings } from '@/shell/settingsHydration'
+import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 
 /**
  * Land's boot hydration (moved out of `main.ts`, F1): the APRS station label

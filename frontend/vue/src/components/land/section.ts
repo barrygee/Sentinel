@@ -1,6 +1,6 @@
-import { registerSection } from '@/shell/sectionRegistry'
-import { registerSettingsHydrator } from '@/shell/settingsHydration'
-import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydration'
+import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import LandView from './LandView.vue'
 import { landSidebarFilter } from './landSidebarFilter'
 // Registers this section's Settings nav entry and items (F3).

@@ -5,7 +5,7 @@ import { useNotificationSubscriptions } from './useNotificationSubscriptions'
 import {
   registerNotificationSubscriptionSource,
   resetNotificationRegistryForTests,
-} from '@/shell/notificationRegistry'
+} from '@sentinel/shell-api/shell/notificationRegistry'
 import {
   aircraftBellSubscriptions,
   overheadAlertSubscriptions,
@@ -20,8 +20,8 @@ import {
   setAutoTuneEnabled,
 } from '@/components/space/controls/satellite/passNotifStore'
 
-vi.mock('@/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
-import * as settingsApi from '@/services/settingsApi'
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 // The real zones need geolocation and the Sentry poll; stand in with the same
 // shape, derived from the air store so switching an alert off shows through.

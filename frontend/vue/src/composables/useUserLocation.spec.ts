@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
-vi.mock('@/services/settingsApi', () => ({ getNamespace: vi.fn(), notifySettingsChanged: vi.fn() }))
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
+  getNamespace: vi.fn(),
+  notifySettingsChanged: vi.fn(),
+}))
 
 interface GeoCallbacks {
   success?: PositionCallback
@@ -27,7 +30,7 @@ function installGeolocation(present: boolean): GeoCallbacks {
 
 async function load() {
   const mod = await import('./useUserLocation')
-  const api = await import('@/services/settingsApi')
+  const api = await import('@sentinel/shell-api/services/settingsApi')
   return { mod, getNamespace: vi.mocked(api.getNamespace) }
 }
 

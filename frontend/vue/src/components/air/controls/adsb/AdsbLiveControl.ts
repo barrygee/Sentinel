@@ -1,10 +1,10 @@
-import { readCachedSectionMode, type SourceMode } from '@/utils/sourceMode'
+import { readCachedSectionMode, type SourceMode } from '@sentinel/shell-api/utils/sourceMode'
 import * as maplibregl from 'maplibre-gl'
 import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
 import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '@/stores/airNotif'
 import { parseAlt, isMilitary, type AdsbApiEntry } from './adsbParse'
 import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '@/constants/adsb'
-import type { TrackingField } from '@/stores/tracking'
+import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
 import {
   createRadarBlip,
   createBracket,

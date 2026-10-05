@@ -1,4 +1,7 @@
-import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
+import {
+  registerSettingItems,
+  registerSettingsSection,
+} from '@sentinel/shell-api/shell/settingsRegistry'
 import AdsbSdrSourceControl from '@/components/air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@/components/air/settings/AdsbTagFieldsControl.vue'
 import MapLayersControl from '@/components/air/settings/MapLayersControl.vue'

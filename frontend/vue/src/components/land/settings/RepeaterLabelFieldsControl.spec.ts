@@ -5,14 +5,14 @@ import { axe } from 'jest-axe'
 import RepeaterLabelFieldsControl from './RepeaterLabelFieldsControl.vue'
 import { useRepeatersStore, DEFAULT_REPEATER_LABEL_FIELDS } from '@/stores/repeaters'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
   notifySettingsChanged: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /**
  * Settings › LAND › Repeaters › label fields. The control has two jobs worth

@@ -5,13 +5,13 @@ import { axe } from 'jest-axe'
 import AprsLabelFieldsControl from './AprsLabelFieldsControl.vue'
 import { useLandStore } from '@/stores/land'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /** Index of a field's checkbox, matching the control's row order. */
 const ROW = {

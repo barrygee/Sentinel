@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
 vi.mock('@/services/repeatersApi', () => ({ fetchRepeaterDirectory: vi.fn() }))
-vi.mock('@/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
 
 import { DEFAULT_REPEATER_LABEL_FIELDS, useRepeatersStore } from './repeaters'
 import * as repeatersApi from '@/services/repeatersApi'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import type {
   RepeaterChannel,
   RepeaterDirectory,

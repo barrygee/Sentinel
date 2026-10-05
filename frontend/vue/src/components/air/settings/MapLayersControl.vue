@@ -29,8 +29,8 @@
  * pending and reports "NO CHANGES" straight after the operator changed a layer.
  */
 import { useAirStore, type OverlayStates } from '@/stores/air'
-import { useBasemapStore } from '@/stores/basemap'
-import * as settingsApi from '@/services/settingsApi'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import LabelFieldsTable, {
   type LabelFieldRow,

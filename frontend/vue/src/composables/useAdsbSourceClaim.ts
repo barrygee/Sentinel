@@ -1,7 +1,7 @@
-import { resolveSectionMode } from '@/utils/sourceMode'
+import { resolveSectionMode } from '@sentinel/shell-api/utils/sourceMode'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useAppStore } from '@/stores/app'
-import { useSettingsStore } from '@/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import {
   claimAdsbSource,
   releaseAdsbSource,

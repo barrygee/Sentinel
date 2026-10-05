@@ -40,8 +40,8 @@ import { AIRPORTS_DATA } from './controls/airports/AirportsControl'
 import { MILITARY_BASES_DATA } from './controls/military-bases/MilitaryBasesControl'
 import { useAirNotifStore } from '@/stores/airNotif'
 import { useAirStore } from '@/stores/air'
-import { useNotificationsStore } from '@/stores/notifications'
-import { provideFakeRadio } from '@/test/fakeRadio'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
 
 interface PlaneProps {
   hex: string

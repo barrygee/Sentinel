@@ -1,8 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { usePersistedObject } from './_persist'
+import { usePersistedObject } from '@sentinel/shell-api/stores/_persist'
 import { fetchRepeaterDirectory } from '@/services/repeatersApi'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { REPEATER_MODE_CODES, stationOffAir } from '@/constants/repeaters'
 import type {
   RepeaterDataSource,

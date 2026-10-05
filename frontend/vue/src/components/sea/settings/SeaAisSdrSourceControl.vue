@@ -26,8 +26,8 @@
  */
 import { onMounted, ref, watch } from 'vue'
 import RadioSelect from '@/components/shared/settings/RadioSelect.vue'
-import { useRadio } from '@/shell/useRadio'
-import * as settingsApi from '@/services/settingsApi'
+import { useRadio } from '@sentinel/shell-api/shell/useRadio'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 // The decoder is released through the radio platform's `radio.decoders` (F10).
 const { radio } = useRadio()

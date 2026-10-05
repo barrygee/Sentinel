@@ -65,7 +65,7 @@
  * field applies at once); saving is what moves the marker on the maps.
  */
 import { ref, computed, onMounted, onUnmounted, useId } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@/utils/locationUtils'
 import {
   parseCoordinate,

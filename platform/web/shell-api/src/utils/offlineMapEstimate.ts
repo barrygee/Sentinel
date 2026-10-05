@@ -1,4 +1,4 @@
-import type { AvgTileBytesTable } from '@/services/offlineMapsApi'
+import type { AvgTileBytesTable } from '../services/offlineMapsApi'
 
 /**
  * Client-side mirror of the backend's tile-count/byte-size estimate

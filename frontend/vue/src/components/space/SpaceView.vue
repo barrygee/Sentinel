@@ -33,7 +33,7 @@ import SpaceFilter from './SpaceFilter.vue'
 import SpacePasses from './SpacePasses.vue'
 import SatInfoPanel from './SatInfoPanel.vue'
 import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
-import { sidebarPaneSelector } from '@/constants/sidebarPanes'
+import { sidebarPaneSelector } from '@sentinel/shell-api/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 

@@ -3,9 +3,12 @@ import { ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { useSdrAutoTune, type UseSdrAutoTuneOptions } from './useSdrAutoTune'
 import { defaultBwHz } from '@/components/sdr/sdrPanelUtils'
-import type { useNotificationsStore } from '@/stores/notifications'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import type { SdrRadio } from '@/stores/sdr'
-import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
+import type {
+  RadioRestoreRequest,
+  RadioTuneRequest,
+} from '@sentinel/shell-api/shell/radioCapability'
 
 function makeRadio(overrides: Partial<SdrRadio> = {}): SdrRadio {
   return {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { getCapability } from '@/shell/capabilities'
-import type { RadioSite } from '@/shell/radioSitesCapability'
+import { getCapability } from '../shell/capabilities'
+import type { RadioSite } from '../shell/radioSitesCapability'
 
 /**
  * How often the site list is refreshed while a map is open, in ms.

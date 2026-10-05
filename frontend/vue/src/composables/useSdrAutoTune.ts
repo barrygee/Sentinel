@@ -1,8 +1,11 @@
 import type { Ref } from 'vue'
-import type { useNotificationsStore } from '@/stores/notifications'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import type { SdrMode, SdrRadio } from '@/stores/sdr'
 import { defaultBwHz } from '@/components/sdr/sdrPanelUtils'
-import type { RadioRestoreRequest, RadioTuneRequest } from '@/shell/radioCapability'
+import type {
+  RadioRestoreRequest,
+  RadioTuneRequest,
+} from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * Satellite auto-tune reconciliation (extracted from SdrPanel.vue's engine

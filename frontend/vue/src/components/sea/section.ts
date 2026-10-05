@@ -1,5 +1,5 @@
-import { registerSection } from '@/shell/sectionRegistry'
-import { registerSidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import SeaView from './SeaView.vue'
 import { seaSidebarFilter } from './seaSidebarFilter'
 // Registers this section's Settings nav entry and items (F3).

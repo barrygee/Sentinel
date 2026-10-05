@@ -1,5 +1,5 @@
 import { useAirStore, type AdsbTagFields } from '@/stores/air'
-import type { AllSettings } from '@/shell/settingsHydration'
+import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 
 /** The aircraft label fields a fresh install starts with. */
 const DEFAULT_LABEL_DATA_POINTS = {

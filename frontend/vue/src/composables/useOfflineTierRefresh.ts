@@ -1,6 +1,6 @@
 import { watch } from 'vue'
 import type { Map as MapLibreGlMap, VectorTileSource } from 'maplibre-gl'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { withTierVersion } from '@/utils/offlineTileVersion'
 import type { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 

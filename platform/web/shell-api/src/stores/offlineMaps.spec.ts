@@ -10,8 +10,8 @@ const apiMock = vi.hoisted(() => ({
   estimateOfflineArea: vi.fn(),
 }))
 
-vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+vi.mock('../services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../services/offlineMapsApi')>()),
   getOfflineMapStatus: apiMock.getOfflineMapStatus,
   listOfflineRegions: apiMock.listOfflineRegions,
   getOfflineRegion: apiMock.getOfflineRegion,
@@ -21,7 +21,7 @@ vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
 }))
 
 import { useOfflineMapsStore, OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM } from './offlineMaps'
-import { OfflineMapsApiError, type OfflineRegion } from '@/services/offlineMapsApi'
+import { OfflineMapsApiError, type OfflineRegion } from '../services/offlineMapsApi'
 
 const STATUS = {
   basemap_available: true,

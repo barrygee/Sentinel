@@ -152,13 +152,13 @@ import TrackingPanel from './TrackingPanel.vue'
 import FilterFunnelIcon from '@sentinel/ui/icons/FilterFunnelIcon.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import { useNotificationsStore } from '@/stores/notifications'
-import { SIDEBAR_PANE_IDS } from '@/constants/sidebarPanes'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { SIDEBAR_PANE_IDS } from '@sentinel/shell-api/constants/sidebarPanes'
 import {
   getSidebarFilterSubTabs,
   getSidebarSectionTabs,
   type SidebarFilterSubTab,
-} from '@/shell/sidebarRegistry'
+} from '@sentinel/shell-api/shell/sidebarRegistry'
 
 const notifStore = useNotificationsStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)

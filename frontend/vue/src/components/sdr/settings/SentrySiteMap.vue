@@ -36,8 +36,8 @@ import * as maplibregl from 'maplibre-gl'
 import { basemapStyleUrl, ignoreOfflineTileErrors, setMapStyle } from '@/utils/mapStyle'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { UserLocationMarker } from '@/components/shared/UserLocationMarker'
-import { useAppStore } from '@/stores/app'
-import { useThemeStore } from '@/stores/theme'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 
 /** The same basemap the Air/Land domain maps load: the online or offline build
  *  (whichever the app is using right now), in the current theme. A Sentry on

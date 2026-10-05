@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 
 const registerSection = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/sectionRegistry', () => ({ registerSection }))
+vi.mock('@sentinel/shell-api/shell/sectionRegistry', () => ({ registerSection }))
 const registerSidebarFilterSubTabs = vi.hoisted(() => vi.fn())
 const registerSidebarSectionTab = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/sidebarRegistry', () => ({
+vi.mock('@sentinel/shell-api/shell/sidebarRegistry', () => ({
   registerSidebarFilterSubTabs,
   registerSidebarSectionTab,
 }))
@@ -15,13 +15,13 @@ vi.mock('./SpaceView.vue', () => ({ default: { name: 'SpaceView' } }))
 const registerNotificationTarget = vi.hoisted(() => vi.fn())
 const registerNotificationDismissHook = vi.hoisted(() => vi.fn())
 const registerNotificationSubscriptionSource = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/notificationRegistry', () => ({
+vi.mock('@sentinel/shell-api/shell/notificationRegistry', () => ({
   registerNotificationTarget,
   registerNotificationDismissHook,
   registerNotificationSubscriptionSource,
 }))
 const registerBackgroundService = vi.hoisted(() => vi.fn())
-vi.mock('@/shell/backgroundServices', () => ({ registerBackgroundService }))
+vi.mock('@sentinel/shell-api/shell/backgroundServices', () => ({ registerBackgroundService }))
 const startSpaceAlerts = vi.hoisted(() => vi.fn())
 vi.mock('@/composables/useSpaceAlertsService', () => ({
   useSpaceAlertsService: () => ({ start: startSpaceAlerts, stop: vi.fn() }),
@@ -88,7 +88,8 @@ describe('components/space/section', () => {
 
   it('registers its Settings section and items', async () => {
     await import('./section')
-    const { getSettingItems, getSettingsSections } = await import('@/shell/settingsRegistry')
+    const { getSettingItems, getSettingsSections } =
+      await import('@sentinel/shell-api/shell/settingsRegistry')
 
     expect(getSettingsSections().map((section) => section.key)).toContain('space')
     expect(getSettingItems().some((item) => item.section === 'space')).toBe(true)

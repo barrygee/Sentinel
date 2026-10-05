@@ -11,7 +11,7 @@
  * converting between the MHz the operator types and the Hz the backend stores.
  */
 import { useLandStore } from '@/stores/land'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import BaseNumberSetting from '@/components/base/BaseNumberSetting.vue'
 
 const landStore = useLandStore()

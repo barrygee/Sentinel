@@ -38,8 +38,8 @@
  */
 import { nextTick, ref, watch } from 'vue'
 import RegionListItem from './RegionListItem.vue'
-import { formatByteSize } from '@/utils/offlineMapEstimate'
-import type { OfflineRegion } from '@/services/offlineMapsApi'
+import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
+import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const props = defineProps<{
   regions: OfflineRegion[]

@@ -21,7 +21,7 @@ import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useSeaStore, type SeaLabelFieldMap } from '@/stores/sea'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const seaStore = useSeaStore()
 const emit = defineEmits<{ stage: [fn: () => void] }>()

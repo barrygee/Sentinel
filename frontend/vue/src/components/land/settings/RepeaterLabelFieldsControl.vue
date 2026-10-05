@@ -15,7 +15,7 @@ import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useRepeatersStore } from '@/stores/repeaters'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import type { RepeaterLabelFieldMap } from '@/types/repeaters'
 
 const repeatersStore = useRepeatersStore()

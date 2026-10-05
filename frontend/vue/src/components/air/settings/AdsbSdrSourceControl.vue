@@ -36,8 +36,8 @@ import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSo
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@/components/shared/settings/SettingsDropdown.vue'
-import { getCapability } from '@/shell/capabilities'
-import { useSettingsStore } from '@/stores/settings'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

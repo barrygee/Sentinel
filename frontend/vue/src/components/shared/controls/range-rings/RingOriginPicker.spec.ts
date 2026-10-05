@@ -29,7 +29,7 @@ vi.mock('@/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: userLocation }),
 }))
 
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import RingOriginPicker from './RingOriginPicker.vue'
 
 enableAutoUnmount(afterEach)

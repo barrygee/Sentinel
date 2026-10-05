@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
-import { provideFakeRadio } from '@/test/fakeRadio'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
 import { defineComponent, h, nextTick } from 'vue'
 import { axe } from 'jest-axe'
 
@@ -287,11 +287,11 @@ const LandSideMenuStub = defineComponent({
 
 import LandView from './LandView.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
-import { useAppStore } from '@/stores/app'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useLandStore } from '@/stores/land'
 import { useRepeatersStore } from '@/stores/repeaters'
-import { useBasemapStore } from '@/stores/basemap'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
 const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }

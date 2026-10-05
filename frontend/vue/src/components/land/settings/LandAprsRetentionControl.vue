@@ -8,7 +8,7 @@
  * A thin wrapper around BaseNumberSetting supplying the land-store bindings.
  */
 import { useLandStore } from '@/stores/land'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import BaseNumberSetting from '@/components/base/BaseNumberSetting.vue'
 
 const landStore = useLandStore()

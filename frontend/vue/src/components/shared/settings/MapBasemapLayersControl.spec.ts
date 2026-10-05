@@ -2,11 +2,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
-import { useBasemapStore } from '@/stores/basemap'
-import * as settingsApi from '@/services/settingsApi'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
 
-vi.mock('@/services/settingsApi', () => ({ getNamespace: vi.fn(), put: vi.fn() }))
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ getNamespace: vi.fn(), put: vi.fn() }))
 
 enableAutoUnmount(afterEach)
 

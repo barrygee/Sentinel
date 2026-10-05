@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { useRadio } from './useRadio'
-import { provideFakeRadio } from '@/test/fakeRadio'
+import { provideFakeRadio } from '../testing/fakeRadio'
 
 let withdraw: (() => void) | null = null
 afterEach(() => {

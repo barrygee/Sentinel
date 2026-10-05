@@ -1,5 +1,5 @@
 import { watch } from 'vue'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 /**
  * Calls `onModeChange` whenever the app switches between ONLINE and OFF GRID,

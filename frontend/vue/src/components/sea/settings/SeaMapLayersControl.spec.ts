@@ -3,10 +3,10 @@ import { enableAutoUnmount, mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSeaStore } from '@/stores/sea'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
 }))
 

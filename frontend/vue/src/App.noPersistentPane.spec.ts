@@ -38,8 +38,8 @@ vi.mock('@/composables/useSpaceAlertsService', () => ({
   useSpaceAlertsService: () => ({ start: vi.fn() }),
 }))
 
-vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+vi.mock('@sentinel/shell-api/services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentinel/shell-api/services/offlineMapsApi')>()),
   getOfflineMapStatus: vi.fn().mockResolvedValue({
     basemap_available: true,
     terrain_available: true,
@@ -59,8 +59,8 @@ vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
 // radio pane. Real registrations (getNavEntries, getSectionRoutes, etc.) are
 // left untouched so the rest of the shell mounts exactly as it does in
 // production — only the pane lookup is forced to the "none registered" case.
-vi.mock('@/shell/sectionRegistry', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/shell/sectionRegistry')>()
+vi.mock('@sentinel/shell-api/shell/sectionRegistry', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@sentinel/shell-api/shell/sectionRegistry')>()
   return { ...actual, getPersistentRadioPane: () => undefined }
 })
 

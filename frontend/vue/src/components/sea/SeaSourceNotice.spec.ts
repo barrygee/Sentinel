@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SeaSourceNotice from './SeaSourceNotice.vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SeaFeedInfo, SeaFeedStatus } from '@/stores/sea'
 
 function offgridFeed(status: SeaFeedStatus, overrides: Partial<SeaFeedInfo> = {}): SeaFeedInfo {

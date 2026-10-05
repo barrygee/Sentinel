@@ -606,7 +606,7 @@ import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import { useSdrStore } from '@/stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from '@/stores/sdr'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 
 // SdrRadio / SdrFrequencyGroup / SdrStoredFrequency now come from the SDR
 // store (see stores/sdr.ts) — it owns loading radios/groups/frequencies, so

@@ -34,8 +34,11 @@
  */
 import { computed } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import { formatByteSize } from '@/utils/offlineMapEstimate'
-import type { OfflineRegionPhase, OfflineRegionStatus } from '@/services/offlineMapsApi'
+import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
+import type {
+  OfflineRegionPhase,
+  OfflineRegionStatus,
+} from '@sentinel/shell-api/services/offlineMapsApi'
 
 const props = defineProps<{
   status: OfflineRegionStatus

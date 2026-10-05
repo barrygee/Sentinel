@@ -43,7 +43,7 @@
  */
 import { ref, computed, onMounted, reactive, useId } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useSeaStore } from '@/stores/sea'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()

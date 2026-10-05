@@ -5,13 +5,13 @@ import { axe } from 'jest-axe'
 import SdrOptionsControl from './SdrOptionsControl.vue'
 import { useSdrStore } from '@/stores/sdr'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /** Index of an option's switch, matching the control's row order. */
 const ROW = {

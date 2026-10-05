@@ -3,7 +3,7 @@ import { mount, enableAutoUnmount, flushPromises, type VueWrapper } from '@vue/t
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSdrStore, type SdrSpectrumFrame } from '@/stores/sdr'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 // ── Shared mock registries (hoisted so the vi.mock factories can fill them) ─────
 const registry = vi.hoisted(() => {

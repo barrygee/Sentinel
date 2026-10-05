@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
-import * as settingsApi from '@/services/settingsApi'
-import { provideFakeRadio } from '@/test/fakeRadio'
-import type { RadioSummary } from '@/shell/radioCapability'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * Settings › SEA › AIS › Off Grid AIS SDR. The control records which radio is the

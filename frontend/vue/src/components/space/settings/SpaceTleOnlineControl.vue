@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 const TLE_CATEGORIES = [

@@ -198,7 +198,7 @@ describe('basemap store config mirroring', () => {
   let putSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(async () => {
-    const settingsApi = await import('@/services/settingsApi')
+    const settingsApi = await import('../services/settingsApi')
     putSpy = vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
   })
 

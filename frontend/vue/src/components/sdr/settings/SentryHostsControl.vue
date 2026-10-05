@@ -117,7 +117,7 @@
  */
 import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import SentryHostForm from './SentryHostForm.vue'
 import { listSentryHosts, deleteSentryHost, type SentryHost } from '@/services/sentryApi'

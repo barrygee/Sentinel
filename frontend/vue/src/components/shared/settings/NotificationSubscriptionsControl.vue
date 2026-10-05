@@ -51,8 +51,8 @@ import { computed, onMounted, ref, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
 import { useNotificationSubscriptions } from '@/composables/useNotificationSubscriptions'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useSettingsStore } from '@/stores/settings'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

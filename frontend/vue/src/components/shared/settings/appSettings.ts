@@ -1,4 +1,7 @@
-import { registerSettingItems, registerSettingsSection } from '@/shell/settingsRegistry'
+import {
+  registerSettingItems,
+  registerSettingsSection,
+} from '@sentinel/shell-api/shell/settingsRegistry'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'

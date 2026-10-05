@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import * as maplibregl from 'maplibre-gl'
 import { RoadsToggleControl } from './RoadsToggleControl'
-import { useBasemapStore, type BasemapStore } from '@/stores/basemap'
+import { useBasemapStore, type BasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 interface FakeMap {
   map: maplibregl.Map

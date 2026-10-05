@@ -12,7 +12,7 @@
  * in the console instead of a message in the UI. The claim's failure *is* the
  * information the operator needs, so it is data.
  */
-import { notifySettingsChanged } from '@/services/settingsApi'
+import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 
 /** Which Sentry device feeds AIR, as the backend reports it. */
 export interface AdsbSourceConfig {

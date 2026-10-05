@@ -4,9 +4,12 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import AppFooter from './AppFooter.vue'
-import { useSettingsStore } from '@/stores/settings'
-import { registerFooterItem, resetFooterRegistryForTests } from '@/shell/footerRegistry'
-import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import {
+  registerFooterItem,
+  resetFooterRegistryForTests,
+} from '@sentinel/shell-api/shell/footerRegistry'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 describe('AppFooter', () => {
   beforeEach(() => {

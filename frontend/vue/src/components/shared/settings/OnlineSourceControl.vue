@@ -18,7 +18,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { onlineKey } from '@/utils/domainKeys'
 
 const props = defineProps<{ ns: string; defaultUrl: string }>()

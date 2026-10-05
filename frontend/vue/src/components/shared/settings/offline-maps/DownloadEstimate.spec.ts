@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import DownloadEstimate from './DownloadEstimate.vue'
-import type { OfflineAreaEstimateResult } from '@/utils/offlineMapEstimate'
+import type { OfflineAreaEstimateResult } from '@sentinel/shell-api/utils/offlineMapEstimate'
 
 const ESTIMATE: OfflineAreaEstimateResult = {
   basemapTiles: 100,

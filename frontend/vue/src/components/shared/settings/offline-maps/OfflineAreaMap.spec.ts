@@ -108,8 +108,8 @@ vi.mock('maplibre-gl', () => {
 
 import OfflineAreaMap from './OfflineAreaMap.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
-import { useAppStore } from '@/stores/app'
-import { useThemeStore } from '@/stores/theme'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 
 function currentMap(): FakeMap {
   return mapRegistry.instances[mapRegistry.instances.length - 1]!

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h, type PropType } from 'vue'
 import { useSidebarPaneTarget } from './useSidebarPaneTarget'
-import { SIDEBAR_PANE_IDS, type SidebarPaneId } from '@/constants/sidebarPanes'
+import { SIDEBAR_PANE_IDS, type SidebarPaneId } from '@sentinel/shell-api/constants/sidebarPanes'
 
 // Single reusable harness (keeps eslint's vue/one-component-per-file happy):
 // exposes `ready` so each test can assert on it.

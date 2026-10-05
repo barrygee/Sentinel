@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject, usePersistedRef } from './_persist'
+import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
 import { SEA_MAX_RENDER_ROWS, SEA_POLL_INTERVAL_MS, SEA_REFETCH_GUARD_MS } from '@/constants/sea'
 import { isSeaFilterCategory, type SeaFilterCategory, type VesselFamily } from '@/utils/aisShipType'
 

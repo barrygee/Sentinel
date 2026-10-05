@@ -4,13 +4,13 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SpaceHoverPreviewControl from './SpaceHoverPreviewControl.vue'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const LS_KEY = 'sentinel_space_filterHoverPreview'
 

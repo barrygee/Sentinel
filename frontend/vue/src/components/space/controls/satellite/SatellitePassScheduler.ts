@@ -1,5 +1,5 @@
-import { getCapability } from '@/shell/capabilities'
-import type { useNotificationsStore } from '@/stores/notifications'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import type { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
 

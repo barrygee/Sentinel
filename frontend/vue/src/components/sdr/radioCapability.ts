@@ -6,7 +6,7 @@ import type {
   RadioCapability,
   RadioRestoreRequest,
   RadioTuneRequest,
-} from '@/shell/radioCapability'
+} from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * The sdr section's `radio` capability (docs/plans/section-containers.md §3.6,

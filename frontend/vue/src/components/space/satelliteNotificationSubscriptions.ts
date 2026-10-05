@@ -3,7 +3,7 @@ import {
   isPassNotifEnabled,
   setPassNotifEnabled,
 } from './controls/satellite/passNotifStore'
-import type { NotificationSubscriptionSource } from '@/shell/notificationRegistry'
+import type { NotificationSubscriptionSource } from '@sentinel/shell-api/shell/notificationRegistry'
 
 /**
  * Space's switched-on alerts for Settings › Alerts (moved out of the core

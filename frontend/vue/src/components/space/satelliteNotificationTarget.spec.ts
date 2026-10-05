@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import type { Router } from 'vue-router'
-import type { NotificationItem } from '@/stores/notifications'
+import type { NotificationItem } from '@sentinel/shell-api/stores/notifications'
 import { isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
 import {
   cancelAutoTuneOnDismiss,

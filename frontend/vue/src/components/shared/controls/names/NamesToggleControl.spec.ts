@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import * as maplibregl from 'maplibre-gl'
 import { NamesToggleControl } from './NamesToggleControl'
-import { useBasemapStore, type BasemapStore } from '@/stores/basemap'
+import { useBasemapStore, type BasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 const NAME_LAYERS = [
   'poi',

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { SatellitePassNotifier, type SatellitePassNotifierContext } from './SatellitePassNotifier'
-import { useNotificationsStore } from '@/stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { isPassNotifEnabled, setPassNotifEnabled } from './passNotifStore'
 
 const NORAD = '25544'

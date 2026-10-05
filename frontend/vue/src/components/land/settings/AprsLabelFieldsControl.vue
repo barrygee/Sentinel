@@ -16,7 +16,7 @@ import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@/components/shared/settings/LabelFieldsTable.vue'
 import { useLandStore, type AprsLabelFieldMap } from '@/stores/land'
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const landStore = useLandStore()
 const emit = defineEmits<{ stage: [fn: () => void] }>()

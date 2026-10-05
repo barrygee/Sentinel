@@ -6,13 +6,13 @@ import { ref } from 'vue'
 import { axe } from 'jest-axe'
 import type { SentrySite } from '@/services/sentryApi'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   getNamespace: vi.fn(() => Promise.resolve(null)),
   put: vi.fn(() => Promise.resolve()),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const locationRef = ref<{ lat: number; lon: number; accuracy: number } | null>(null)
 vi.mock('@/composables/useUserLocation', () => ({
@@ -20,7 +20,7 @@ vi.mock('@/composables/useUserLocation', () => ({
 }))
 
 import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '@/stores/air'
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 
 enableAutoUnmount(afterEach)

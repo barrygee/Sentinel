@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { defineComponent } from 'vue'
-import type { SettingItem } from '@/types/settings'
+import type { SettingItem } from '../types/settings'
 import {
   getSettingItems,
   getSettingsSections,

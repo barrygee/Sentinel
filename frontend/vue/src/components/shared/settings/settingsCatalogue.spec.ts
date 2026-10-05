@@ -8,8 +8,8 @@ vi.mock('./offline-maps/OfflineMapsSettings.vue', () => ({
   default: { name: 'OfflineMapsSettings' },
 }))
 
-import type { SettingControl } from '@/types/settings'
-import { getSettingItems, getSettingsSections } from '@/shell/settingsRegistry'
+import type { SettingControl } from '@sentinel/shell-api/types/settings'
+import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import './appSettings'
 import '@/components/air/settings'
 import '@/components/space/settings'

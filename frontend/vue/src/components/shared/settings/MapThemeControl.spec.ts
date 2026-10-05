@@ -3,15 +3,15 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import MapThemeControl from './MapThemeControl.vue'
-import { useThemeStore } from '@/stores/theme'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /** Stub the fetch the theme store's hydrateMapThemeFromDb uses. */
 function stubFetch(payload: unknown, ok = true): void {

@@ -251,7 +251,7 @@ import {
   isRecordOnPassEnabled,
   setRecordOnPassEnabled,
 } from './controls/satellite/passNotifStore'
-import { useNotificationsStore } from '../../stores/notifications'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'

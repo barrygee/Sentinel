@@ -4,8 +4,8 @@ import { setActivePinia, createPinia } from 'pinia'
 import { computed, nextTick, ref } from 'vue'
 import { axe } from 'jest-axe'
 import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
-import { useNotificationsStore } from '@/stores/notifications'
-import { useSettingsStore } from '@/stores/settings'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { NotificationSubscription } from '@/composables/useNotificationSubscriptions'
 
 const subscriptionList = ref<NotificationSubscription[]>([])

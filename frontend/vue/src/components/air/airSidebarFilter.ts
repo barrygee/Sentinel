@@ -1,5 +1,8 @@
 import { useAirStore, type AdsbTypeFilter, type AirFilterCategory } from '@/stores/air'
-import type { SidebarFilterSubTab, SidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+import type {
+  SidebarFilterSubTab,
+  SidebarFilterSubTabs,
+} from '@sentinel/shell-api/shell/sidebarRegistry'
 import AirFilterSubTabIcon from './AirFilterSubTabIcon.vue'
 
 /**

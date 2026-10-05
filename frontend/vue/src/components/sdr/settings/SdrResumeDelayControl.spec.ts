@@ -5,13 +5,13 @@ import { axe } from 'jest-axe'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import { useSdrStore } from '@/stores/sdr'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /** Stub the global fetch the sdr store's hydrateResumeDelaySecFromDb uses. */
 function stubFetch(payload: unknown, ok = true): void {

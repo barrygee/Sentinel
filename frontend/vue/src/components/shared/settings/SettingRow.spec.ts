@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
-import type { SettingControl, SettingItem } from '@/types/settings'
+import type { SettingControl, SettingItem } from '@sentinel/shell-api/types/settings'
 
 // SettingRow renders whatever control the owning section registered (F3), so
 // these specs use stand-in controls; which real control each setting gets is

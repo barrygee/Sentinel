@@ -1,5 +1,5 @@
-import type { NotificationItem } from '@/stores/notifications'
-import type { NotificationTarget } from '@/shell/notificationRegistry'
+import type { NotificationItem } from '@sentinel/shell-api/stores/notifications'
+import type { NotificationTarget } from '@sentinel/shell-api/shell/notificationRegistry'
 import { isAutoTuneEnabled, setAutoTuneEnabled } from './controls/satellite/passNotifStore'
 
 /**

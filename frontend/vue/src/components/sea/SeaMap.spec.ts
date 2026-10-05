@@ -141,10 +141,10 @@ const MapLibreMapStub = defineComponent({
 
 import SeaMap from './SeaMap.vue'
 import { absoluteSpriteTransform } from '@/utils/mapStyle'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSeaStore } from '@/stores/sea'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
-import { useBasemapStore } from '@/stores/basemap'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
 const STYLE_OPTIONS = { transformStyle: absoluteSpriteTransform }

@@ -1,4 +1,4 @@
-import type { MapTheme } from '@/stores/theme'
+import type { MapTheme } from '@sentinel/shell-api/stores/theme'
 
 /**
  * Theme lookups for map overlays.

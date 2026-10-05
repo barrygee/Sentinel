@@ -1,6 +1,6 @@
 import { useLandStore, type LandLayer } from '@/stores/land'
-import { getCapability } from '@/shell/capabilities'
-import type { SidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import type { SidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import LandFilterSubTabIcon from './LandFilterSubTabIcon.vue'
 
 /**

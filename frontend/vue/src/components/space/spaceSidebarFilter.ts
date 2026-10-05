@@ -1,6 +1,6 @@
 import { useSpaceStore } from '@/stores/space'
 import { SATELLITE_CATEGORY_SECTION_LABELS } from '@/utils/satelliteUtils'
-import type { SidebarFilterSubTabs } from '@/shell/sidebarRegistry'
+import type { SidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import SpaceFilterSubTabIcon from './SpaceFilterSubTabIcon.vue'
 
 /**

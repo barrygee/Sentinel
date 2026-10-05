@@ -19,7 +19,7 @@ vi.mock('@/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: ref({ lat: 51.5, lon: -0.12, accuracy: 0 }) }),
 }))
 
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 
 enableAutoUnmount(afterEach)

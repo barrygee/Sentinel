@@ -9,10 +9,10 @@ import {
 } from '@/components/shared/map-cluster/mapCluster'
 import { setMarkerAccessibleName } from '@/components/shared/map-label/mapMarkerAria'
 import { formatLatitude, formatLongitude } from '@/utils/locationUtils'
-import type { RadioSite } from '@/shell/radioSitesCapability'
+import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 import { siteLabel } from '@/utils/sentrySiteLabel'
-import type { useSentrySitesStore } from '@/stores/sentrySites'
-import type { useSettingsStore } from '@/stores/settings'
+import type { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import type { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 type SentrySitesStore = ReturnType<typeof useSentrySitesStore>
 type SettingsStore = ReturnType<typeof useSettingsStore>

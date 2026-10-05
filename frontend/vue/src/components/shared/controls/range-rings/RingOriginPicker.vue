@@ -38,7 +38,7 @@
  * heading and the resolved-coordinates line.
  */
 import { computed, ref, watch } from 'vue'
-import { useSentrySitesStore } from '@/stores/sentrySites'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import { useUserLocation } from '@/composables/useUserLocation'
 import { useRangeRingOrigin } from '@/composables/useRangeRingOrigin'
 import { haversineNm } from '@/utils/distanceUtils'

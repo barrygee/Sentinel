@@ -8,13 +8,16 @@ const routerPush = vi.hoisted(() => vi.fn())
 vi.mock('vue-router', () => ({ useRouter: () => ({ push: routerPush }) }))
 
 import NotificationsPanel from './NotificationsPanel.vue'
-import { useNotificationsStore, type NotificationItem } from '@/stores/notifications'
+import {
+  useNotificationsStore,
+  type NotificationItem,
+} from '@sentinel/shell-api/stores/notifications'
 import {
   registerNotificationDismissHook,
   registerNotificationTarget,
   resetNotificationRegistryForTests,
   type NotificationTarget,
-} from '@/shell/notificationRegistry'
+} from '@sentinel/shell-api/shell/notificationRegistry'
 
 // The panel holds no section knowledge: sections register click targets and
 // dismiss hooks with the shell. These specs register stand-ins and check the

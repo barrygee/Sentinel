@@ -3,8 +3,8 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SeaSideMenu from './SeaSideMenu.vue'
-import { useAppStore } from '@/stores/app'
-import { useBasemapStore } from '@/stores/basemap'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
 function makeProps(overrides: Record<string, unknown> = {}) {
   return {

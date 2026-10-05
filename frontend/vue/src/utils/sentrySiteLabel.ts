@@ -1,4 +1,4 @@
-import type { RadioSite } from '@/shell/radioSitesCapability'
+import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
  * What to call a Sentry site: its name if it has one, otherwise where it
