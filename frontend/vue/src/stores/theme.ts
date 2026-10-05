@@ -10,11 +10,13 @@ import { usePersistedRef } from './_persist'
 export type AppTheme = 'dark' | 'light'
 
 /**
- * The basemap's palette. Unlike the interface it has three settings: the dark
- * and light pairs, plus a full-colour cartographic one for when the map is
- * being read as a map rather than used as ground for the overlays.
+ * The basemap's palette: dark, or light in OpenStreetMap's default colours.
+ * (A third, COLOUR, was folded into LIGHT; see `migrateRetiredMapTheme`.)
  */
-export type MapTheme = 'dark' | 'light' | 'colour'
+export type MapTheme = 'dark' | 'light'
+
+/** The palette that replaced the retired COLOUR map. */
+const RETIRED_COLOUR_THEME: MapTheme = 'light'
 
 const MAP_LS_KEY = 'sentinel_map_theme'
 
@@ -32,7 +34,26 @@ function isAppTheme(candidate: unknown): candidate is AppTheme {
 }
 
 function isMapTheme(candidate: unknown): candidate is MapTheme {
-  return isAppTheme(candidate) || candidate === 'colour'
+  return isAppTheme(candidate)
+}
+
+/**
+ * COLOUR was renamed LIGHT (and the old light map removed), so a stored or
+ * configured "colour" means today's LIGHT — not an unknown value that would
+ * drop the operator back to the dark map.
+ */
+function normaliseMapTheme(candidate: unknown): unknown {
+  return candidate === 'colour' ? RETIRED_COLOUR_THEME : candidate
+}
+
+/** Rewrite a persisted "colour" choice before the store reads it. */
+function migrateRetiredMapTheme(): void {
+  try {
+    const raw = localStorage.getItem(MAP_LS_KEY)
+    if (raw !== null && JSON.parse(raw) === 'colour') {
+      localStorage.setItem(MAP_LS_KEY, JSON.stringify(RETIRED_COLOUR_THEME))
+    }
+  } catch {}
 }
 
 /**
@@ -67,6 +88,7 @@ function applyMapThemeAttribute(theme: MapTheme): void {
  */
 export const useThemeStore = defineStore('theme', () => {
   const theme = ref<AppTheme>(INTERFACE_THEME)
+  migrateRetiredMapTheme()
   const mapTheme = usePersistedRef<MapTheme>(MAP_LS_KEY, INTERFACE_THEME, isMapTheme)
 
   // The pre-paint script in index.html has normally set these already;
@@ -84,8 +106,8 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   /**
-   * Boolean face of `setMapTheme`, kept for the pre-`colour` config flag
-   * (`app.lightMapTheme`) that older installs still have.
+   * Boolean face of `setMapTheme`, kept for the older config flag
+   * (`app.lightMapTheme`) that some installs still have.
    */
   function setLightMapTheme(light: boolean): void {
     setMapTheme(light ? 'light' : 'dark')
@@ -102,14 +124,16 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   /**
-   * Adopt `app.mapTheme`, the three-way value the control writes now. Falls
-   * back to the older boolean `app.lightMapTheme` so a config written before
-   * COLOUR existed still restores the palette it recorded; anything else
-   * (including a missing key) leaves the local value alone.
+   * Adopt `app.mapTheme`, the value the control writes now (a retired
+   * "colour" reads as LIGHT). Falls back to the older boolean
+   * `app.lightMapTheme` so an old config still restores the palette it
+   * recorded; anything else (including a missing key) leaves the local value
+   * alone.
    */
   function hydrateMapTheme(remote: unknown, legacyLightFlag?: unknown): void {
-    if (isMapTheme(remote)) {
-      setMapTheme(remote)
+    const normalised = normaliseMapTheme(remote)
+    if (isMapTheme(normalised)) {
+      setMapTheme(normalised)
       return
     }
     hydrateLightMapTheme(legacyLightFlag)

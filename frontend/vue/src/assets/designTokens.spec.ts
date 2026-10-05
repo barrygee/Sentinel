@@ -53,43 +53,77 @@ describe('design tokens', () => {
  * silently otherwise. These are the invariants the chrome retrofit rests on.
  */
 /**
- * The three basemap palettes are one map with three paints: same sources, same
- * layers in the same order, same ids. That is what makes a palette change a
- * repaint rather than a different map, and what lets every layer-id-driven
- * control (`RoadsToggleControl`, `NamesToggleControl`, the terrain contours)
- * work across all three. The colour pair is generated from the light one by
- * `frontend/scripts/build_colour_basemap.py`; this is what fails when someone
+ * The two basemap palettes are one map with two paints: same sources, same
+ * layers in the same order, same ids, same filters. That is what makes a
+ * palette change a repaint rather than a different map, and what lets every
+ * layer-id-driven control (`RoadsToggleControl`, `NamesToggleControl`, the
+ * terrain contours) work on both. The light pair is generated from the dark one
+ * by `frontend/scripts/build_light_basemap.py`; this is what fails when someone
  * hand-edits the output instead of re-running the script.
  */
+interface StyleLayer {
+  id: string
+  type?: string
+  filter?: unknown
+  layout?: { visibility?: string } & Record<string, unknown>
+  paint?: Record<string, unknown>
+}
+
+interface Style {
+  sources: Record<string, unknown>
+  layers: StyleLayer[]
+  metadata?: Record<string, string>
+}
+
+function readStyle(styleName: string): Style {
+  return JSON.parse(
+    readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
+  ) as Style
+}
+
+function layerById(styleName: string, layerId: string): StyleLayer | undefined {
+  return readStyle(styleName).layers.find((layer) => layer.id === layerId)
+}
+
+const STYLE_PAIRS = [
+  ['offline', 'fiord', 'osm-light'],
+  ['online', 'fiord-online', 'osm-light-online'],
+] as const
+
 describe('basemap palettes', () => {
-  function layerIds(styleName: string): string[] {
-    const style = JSON.parse(
-      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
-    )
-    return style.layers.map((layer: { id: string }) => layer.id)
-  }
+  it.each(STYLE_PAIRS)(
+    'keeps the %s light build on the dark build’s geometry',
+    (_kind, dark, light) => {
+      const darkStyle = readStyle(dark)
+      const lightStyle = readStyle(light)
+      expect(lightStyle.sources).toEqual(darkStyle.sources)
+      expect(lightStyle.layers.map((layer) => layer.id)).toEqual(
+        darkStyle.layers.map((layer) => layer.id),
+      )
+      // Everything but paint matches — except the one layer the light map hides.
+      const withoutPaint = ({ paint: _paint, ...rest }: StyleLayer) => rest
+      lightStyle.layers.forEach((layer, index) => {
+        const darkLayer = darkStyle.layers[index] as StyleLayer
+        if (layer.id === 'park') {
+          expect(layer.filter).toEqual(darkLayer.filter)
+          return
+        }
+        expect(withoutPaint(layer), layer.id).toEqual(withoutPaint(darkLayer))
+      })
+    },
+  )
 
-  it.each([
-    ['offline', 'positron', 'cartographic'],
-    ['online', 'positron-online', 'cartographic-online'],
-  ])('keeps the %s colour build on the light build’s geometry', (_kind, light, colour) => {
-    expect(layerIds(colour)).toEqual(layerIds(light))
-  })
-
-  it('recolours the colour build rather than copying the light one', () => {
-    const colour = readFileSync(
-      resolve(process.cwd(), '../../frontend/assets/cartographic.json'),
-      'utf8',
-    )
-    const light = readFileSync(
-      resolve(process.cwd(), '../../frontend/assets/positron.json'),
-      'utf8',
-    )
-    expect(colour).not.toBe(light)
-    // The generator stamps where the file came from; a hand-written style
-    // would not carry it.
-    expect(JSON.parse(colour).metadata['sentinel:provenance']).toContain('build_colour_basemap.py')
-  })
+  it.each(STYLE_PAIRS)(
+    'recolours the %s light build rather than copying the dark one',
+    (_kind, dark, light) => {
+      expect(JSON.stringify(readStyle(light).layers)).not.toBe(
+        JSON.stringify(readStyle(dark).layers),
+      )
+      // The generator stamps where the file came from; a hand-written style
+      // would not carry it.
+      expect(readStyle(light).metadata?.['sentinel:provenance']).toContain('build_light_basemap.py')
+    },
+  )
 })
 
 /**
@@ -100,68 +134,47 @@ describe('basemap palettes', () => {
 describe('basemap park layers beneath water', () => {
   const PARK_LAYER_IDS = ['park', 'park_outline', 'national_park', 'national_park_outline']
 
-  function layerIds(styleName: string): string[] {
-    const style = JSON.parse(
-      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
-    ) as { layers: { id: string }[] }
-    return style.layers.map((layer) => layer.id)
-  }
+  it.each(['fiord', 'fiord-online', 'osm-light', 'osm-light-online'])(
+    'draws every %s park layer before water',
+    (styleName) => {
+      const ids = readStyle(styleName).layers.map((layer) => layer.id)
+      const waterIndex = ids.indexOf('water')
+      const presentParkIds = PARK_LAYER_IDS.filter((layerId) => ids.includes(layerId))
 
-  it.each([
-    'fiord',
-    'fiord-online',
-    'positron',
-    'positron-online',
-    'cartographic',
-    'cartographic-online',
-  ])('draws every %s park layer before water', (styleName) => {
-    const ids = layerIds(styleName)
-    const waterIndex = ids.indexOf('water')
-    const presentParkIds = PARK_LAYER_IDS.filter((layerId) => ids.includes(layerId))
-
-    expect(waterIndex).toBeGreaterThan(-1)
-    // Online builds have no national park source; they still carry `park`.
-    expect(presentParkIds).toContain('park')
-    for (const layerId of presentParkIds) {
-      expect(ids.indexOf(layerId), layerId).toBeLessThan(waterIndex)
-    }
-  })
+      expect(waterIndex).toBeGreaterThan(-1)
+      // Online builds have no national park source; they still carry `park`.
+      expect(presentParkIds).toContain('park')
+      for (const layerId of presentParkIds) {
+        expect(ids.indexOf(layerId), layerId).toBeLessThan(waterIndex)
+      }
+    },
+  )
 })
 
 /**
- * The colour map draws no green area fills. Woodland, parks and national
- * parks were the only green on it, and protected areas painted legal
- * boundaries (Northeast Greenland's ice cap, Saharan reserves) as parkland —
- * so the generator hides the fills and keeps only the dashed outline. The
- * light and dark palettes are untouched.
+ * The light map hides only the park fill: the park layer is every OSM park AND
+ * every protected area, so a fill would paint legal boundaries (Northeast
+ * Greenland's ice cap, offshore conservation zones) as parkland. Woodland and
+ * the national parks stay green, as on the OpenStreetMap map. The dark palette
+ * is untouched.
  */
-describe('colour basemap green areas', () => {
-  interface StyleLayer {
-    id: string
-    layout?: { visibility?: string }
-    paint?: Record<string, unknown>
-  }
-
-  function layerById(styleName: string, layerId: string): StyleLayer | undefined {
-    const style = JSON.parse(
-      readFileSync(resolve(process.cwd(), `../../frontend/assets/${styleName}.json`), 'utf8'),
-    ) as { layers: StyleLayer[] }
-    return style.layers.find((layer) => layer.id === layerId)
-  }
-
-  it.each([
-    ['cartographic', 'landcover_wood'],
-    ['cartographic', 'park'],
-    ['cartographic', 'national_park'],
-    ['cartographic-online', 'landcover_wood'],
-    ['cartographic-online', 'park'],
-  ])('hides the %s %s fill', (styleName, layerId) => {
-    const layer = layerById(styleName, layerId)
-    expect(layer).toBeDefined()
-    expect(layer?.layout?.visibility).toBe('none')
+describe('light basemap green areas', () => {
+  it.each(['osm-light', 'osm-light-online'])('hides the %s park fill', (styleName) => {
+    expect(layerById(styleName, 'park')?.layout?.visibility).toBe('none')
   })
 
-  it.each(['cartographic', 'cartographic-online'])(
+  it.each([
+    ['osm-light', 'landcover_wood'],
+    ['osm-light-online', 'landcover_wood'],
+    ['osm-light', 'national_park'],
+    ['osm-light', 'national_park_outline'],
+  ])('draws the %s %s layer', (styleName, layerId) => {
+    const layer = layerById(styleName, layerId)
+    expect(layer).toBeDefined()
+    expect(layer?.layout?.visibility).not.toBe('none')
+  })
+
+  it.each(['osm-light', 'osm-light-online'])(
     'keeps the %s park outline, faded in from z6 to z8',
     (styleName) => {
       const outline = layerById(styleName, 'park_outline')
@@ -178,22 +191,59 @@ describe('colour basemap green areas', () => {
     },
   )
 
-  it('keeps the offline national park outline visible', () => {
-    expect(layerById('cartographic', 'national_park_outline')?.layout?.visibility).not.toBe('none')
-  })
-
   it.each([
-    ['positron', 'landcover_wood'],
-    ['positron', 'park'],
-    ['positron', 'national_park'],
     ['fiord', 'landcover_wood'],
     ['fiord', 'park'],
     ['fiord', 'national_park'],
-  ])('leaves the %s %s fill drawn', (styleName, layerId) => {
-    const layer = layerById(styleName, layerId)
-    expect(layer).toBeDefined()
-    expect(layer?.layout?.visibility).not.toBe('none')
+  ])('leaves the dark %s %s fill drawn', (styleName, layerId) => {
+    expect(layerById(styleName, layerId)?.layout?.visibility).not.toBe('none')
   })
+})
+
+/**
+ * LIGHT is OpenStreetMap's default style (openstreetmap-carto) in colour:
+ * cream land, pale blue water, green woodland, and roads coloured by class.
+ */
+describe('light basemap palette', () => {
+  it.each([
+    ['osm-light', 'earth', 'fill-color', '#f2efe9'],
+    ['osm-light-online', 'background', 'background-color', '#f2efe9'],
+    ['osm-light', 'water', 'fill-color', '#aad3df'],
+    ['osm-light-online', 'water', 'fill-color', '#aad3df'],
+    ['osm-light', 'landcover_wood', 'fill-color', '#add19e'],
+    ['osm-light', 'highway_motorway_inner', 'line-color', '#e892a2'],
+    ['osm-light', 'highway_minor', 'line-color', '#ffffff'],
+    ['osm-light', 'boundary_country_z5-', 'line-color', '#8d618b'],
+  ])('paints %s %s %s as %s', (styleName, layerId, paintKey, colour) => {
+    expect(layerById(styleName, layerId)?.paint?.[paintKey]).toBe(colour)
+  })
+
+  it('keeps the offline background as water, hiding the seam at 180°', () => {
+    expect(layerById('osm-light', 'background')?.paint?.['background-color']).toBe('#aad3df')
+  })
+
+  it.each(['osm-light', 'osm-light-online'])(
+    'colours %s major roads by class on either tile schema',
+    (styleName) => {
+      const fill = layerById(styleName, 'highway_major_inner')?.paint?.['line-color'] as unknown[]
+      // Protomaps tiles carry `kind_detail`, OpenMapTiles ones `class`.
+      expect(fill.slice(0, 2)).toEqual([
+        'match',
+        ['coalesce', ['get', 'kind_detail'], ['get', 'class']],
+      ])
+      expect(fill.slice(2)).toEqual([
+        'trunk',
+        '#f9b29c',
+        'primary',
+        '#fcd6a4',
+        'secondary',
+        '#f7fabf',
+        'tertiary',
+        '#ffffff',
+        '#fcd6a4',
+      ])
+    },
+  )
 })
 
 describe('semantic theme tokens', () => {
@@ -378,5 +428,50 @@ describe('semantic theme tokens', () => {
       .match(/#[0-9a-f]{3,8}\b|rgba?\(\s*[0-9]/gi)
 
     expect(literals ?? []).toEqual([])
+  })
+})
+
+/**
+ * Overlay text drawn straight onto the basemap (airport and military-base
+ * labels) takes its ink from these tokens, so it can follow the BASEMAP
+ * palette: white on the dimmed dark map, near-black with a white halo on the
+ * undimmed light (OpenStreetMap-coloured) one, where white would vanish.
+ */
+describe('map overlay ink tokens', () => {
+  const templateCss = readFileSync(
+    resolve(process.cwd(), '../../frontend/assets/template.css'),
+    'utf8',
+  )
+
+  /** The `--map-overlay-*` declarations across every rule with exactly this selector. */
+  function overlayTokens(selector: string): Record<string, string> {
+    const escaped = selector.replace(/[[\]()'.*+?^$|]/g, '\\$&')
+    const rules = [...templateCss.matchAll(new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`, 'g'))]
+    expect(rules.length, `no "${selector}" rule`).toBeGreaterThan(0)
+    const tokens: Record<string, string> = {}
+    for (const rule of rules) {
+      for (const [, name, value] of rule[1]!.matchAll(/(--map-overlay-[\w-]+)\s*:\s*([^;]+);/g)) {
+        tokens[name!] = value!.trim()
+      }
+    }
+    return tokens
+  }
+
+  it('keeps the dark map exactly as it was: white ink, no halo, lime accent', () => {
+    expect(overlayTokens(':root')).toEqual({
+      '--map-overlay-ink': '#ffffff',
+      '--map-overlay-halo': 'none',
+      '--map-overlay-accent': '#c8ff00',
+    })
+  })
+
+  it('re-inks every overlay token for the light map', () => {
+    const light = overlayTokens(":root[data-map-theme='light']")
+    const dark = overlayTokens(':root')
+    expect(Object.keys(light).sort()).toEqual(Object.keys(dark).sort())
+    for (const name of Object.keys(dark)) {
+      expect(light[name], name).not.toBe(dark[name])
+    }
+    expect(light['--map-overlay-halo']).toContain('#ffffff')
   })
 })

@@ -47,16 +47,6 @@ describe('MapThemeControl', () => {
     vi.unstubAllGlobals()
   })
 
-  it('offers all three basemap palettes', async () => {
-    const wrapper = mount(MapThemeControl)
-    await flushPromises()
-    expect(wrapper.findAll('[role="radio"]').map((pill) => pill.text().trim())).toEqual([
-      'DARK',
-      'LIGHT',
-      'COLOUR',
-    ])
-  })
-
   it('starts on DARK, reflecting the default', async () => {
     const wrapper = mount(MapThemeControl)
     await flushPromises()
@@ -75,26 +65,35 @@ describe('MapThemeControl', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
+  it('offers exactly DARK and LIGHT — the old light and colour maps are one now', async () => {
+    const wrapper = mount(MapThemeControl)
+    await flushPromises()
+    expect(wrapper.findAll('[role="radio"]').map((option) => option.text())).toEqual([
+      'DARK',
+      'LIGHT',
+    ])
+  })
+
   it('repaints the map at once and stages the DB write', async () => {
     const wrapper = mount(MapThemeControl)
     await flushPromises()
-    await segment(wrapper, 'COLOUR').trigger('click')
+    await segment(wrapper, 'LIGHT').trigger('click')
 
     // Mirrored immediately — the maps reload the style while the panel is open.
-    expect(useThemeStore().mapTheme).toBe('colour')
-    expect(document.documentElement.dataset.mapTheme).toBe('colour')
-    expect(checkedLabel(wrapper)).toBe('COLOUR')
+    expect(useThemeStore().mapTheme).toBe('light')
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
+    expect(checkedLabel(wrapper)).toBe('LIGHT')
 
     // ...but nothing is persisted until APPLY CHANGES runs the staged writer.
     expect(settingsApi.put).not.toHaveBeenCalled()
     const staged = wrapper.emitted('stage')
     expect(staged).toHaveLength(1)
     await (staged![0]![0] as () => unknown)()
-    expect(settingsApi.put).toHaveBeenCalledWith('app', 'mapTheme', 'colour')
+    expect(settingsApi.put).toHaveBeenCalledWith('app', 'mapTheme', 'light')
   })
 
   it('switches back to dark and stages that too', async () => {
-    stubFetch({ mapTheme: 'colour' })
+    stubFetch({ mapTheme: 'light' })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     await segment(wrapper, 'DARK').trigger('click')
@@ -113,14 +112,21 @@ describe('MapThemeControl', () => {
   })
 
   it('hydrates the selection from the DB on mount', async () => {
+    stubFetch({ mapTheme: 'light' })
+    const wrapper = mount(MapThemeControl)
+    await flushPromises()
+    expect(useThemeStore().mapTheme).toBe('light')
+    expect(checkedLabel(wrapper)).toBe('LIGHT')
+  })
+
+  it('shows a retired "colour" from the DB as LIGHT', async () => {
     stubFetch({ mapTheme: 'colour' })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
-    expect(useThemeStore().mapTheme).toBe('colour')
-    expect(checkedLabel(wrapper)).toBe('COLOUR')
+    expect(checkedLabel(wrapper)).toBe('LIGHT')
   })
 
-  it('hydrates from the pre-colour boolean when that is all the config has', async () => {
+  it('hydrates from the older boolean when that is all the config has', async () => {
     stubFetch({ lightMapTheme: true })
     const wrapper = mount(MapThemeControl)
     await flushPromises()

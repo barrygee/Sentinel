@@ -109,7 +109,7 @@ describe('SentrySiteMap', () => {
     useThemeStore().setMapTheme('light')
     mountMap()
     expect(mapRegistry.instances[0]!.setStyle).toHaveBeenCalledWith(
-      '/assets/positron-online.json',
+      '/assets/osm-light-online.json',
       { transformStyle: absoluteSpriteTransform },
     )
   })
@@ -119,7 +119,7 @@ describe('SentrySiteMap', () => {
     const created = mapRegistry.instances[0]!
     useThemeStore().setMapTheme('light')
     await nextTick()
-    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/positron-online.json', {
+    expect(created.setStyle).toHaveBeenLastCalledWith('/assets/osm-light-online.json', {
       transformStyle: absoluteSpriteTransform,
     })
     useThemeStore().setMapTheme('dark')

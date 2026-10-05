@@ -5,7 +5,7 @@ import { withTierVersion } from '@/utils/offlineTileVersion'
 import type { TerrainToggleControl } from '@/components/shared/controls/terrain/TerrainToggleControl'
 
 /** The `openmaptiles` source id and tile template every offline basemap style shares
- *  (`fiord.json`/`positron.json`/`cartographic.json` — see the BUILD CONTRACT). */
+ *  (`fiord.json`/`osm-light.json` — see the BUILD CONTRACT). */
 const OFFLINE_BASEMAP_SOURCE_ID = 'openmaptiles'
 const OFFLINE_BASEMAP_TILE_URL_TEMPLATE = '/api/offline-map/basemap/{z}/{x}/{y}'
 

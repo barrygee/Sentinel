@@ -6,7 +6,7 @@ beforeEach(() => {
 })
 
 describe('currentMapTheme', () => {
-  it.each(['dark', 'light', 'colour'])('reports the published %s palette', (theme) => {
+  it.each(['dark', 'light'])('reports the published %s palette', (theme) => {
     document.documentElement.dataset.mapTheme = theme
     expect(currentMapTheme()).toBe(theme)
   })
@@ -15,8 +15,9 @@ describe('currentMapTheme', () => {
     expect(currentMapTheme()).toBe('dark')
   })
 
-  it('falls back to dark for an unrecognised value', () => {
-    document.documentElement.dataset.mapTheme = 'sepia'
+  it.each(['sepia', 'colour'])('falls back to dark for an unrecognised value (%s)', (value) => {
+    // "colour" is retired: the store migrates it to light before publishing.
+    document.documentElement.dataset.mapTheme = value
     expect(currentMapTheme()).toBe('dark')
   })
 })
@@ -24,11 +25,6 @@ describe('currentMapTheme', () => {
 describe('isBrightBasemap', () => {
   it('is true for the light basemap', () => {
     document.documentElement.dataset.mapTheme = 'light'
-    expect(isBrightBasemap()).toBe(true)
-  })
-
-  it('is true for the colour basemap — cream land and blue sea are bright too', () => {
-    document.documentElement.dataset.mapTheme = 'colour'
     expect(isBrightBasemap()).toBe(true)
   })
 
@@ -43,13 +39,10 @@ describe('isBrightBasemap', () => {
 })
 
 describe('overlayAccentColor', () => {
-  it.each(['light', 'colour'])(
-    'is black on the %s basemap, where lime would disappear',
-    (theme) => {
-      document.documentElement.dataset.mapTheme = theme
-      expect(overlayAccentColor()).toBe('#000000')
-    },
-  )
+  it('is black on the light basemap, where lime would disappear', () => {
+    document.documentElement.dataset.mapTheme = 'light'
+    expect(overlayAccentColor()).toBe('#000000')
+  })
 
   it('is the brand lime on the dark basemap', () => {
     document.documentElement.dataset.mapTheme = 'dark'

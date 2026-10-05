@@ -199,9 +199,9 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
 
         const label = document.createElement('div')
         label.style.cssText =
-          "color:#fff;font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none"
+          "color:var(--map-overlay-ink, #fff);text-shadow:var(--map-overlay-halo, none);font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none"
         label.innerHTML = baseProperties.icao
-          ? `<span style="color:#c8ff00">${baseProperties.icao}</span><br><span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
+          ? `<span style="color:var(--map-overlay-accent, #c8ff00)">${baseProperties.icao}</span><br><span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
           : `<span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
         el.appendChild(label)
 

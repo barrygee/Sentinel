@@ -62,8 +62,7 @@ registerSettingItems([
     id: 'map-theme',
     label: 'Map Style',
     desc: '',
-    searchTerms:
-      'theme light dark colour color mode palette appearance basemap map style cartographic',
+    searchTerms: 'theme light dark mode palette appearance basemap map style openstreetmap osm',
     control: { component: MapThemeControl, emits: ['stage'] },
     groupLabel: 'MAP',
   },
@@ -104,8 +103,7 @@ registerSettingItems([
     id: 'offline-maps',
     label: 'Offline Maps',
     desc: 'Download basemap and terrain tiles for an area so it works with no internet connection',
-    searchTerms:
-      'offline download area region pmtiles terrain basemap dark light colour cartographic',
+    searchTerms: 'offline download area region pmtiles terrain basemap dark light openstreetmap',
     control: { component: OfflineMapsSettings, layout: 'full', naturalHeight: true },
     groupLabel: 'MAP',
   },

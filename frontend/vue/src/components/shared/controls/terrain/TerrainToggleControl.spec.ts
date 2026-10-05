@@ -554,7 +554,7 @@ describe('a fetch/DEM-configuration error is transient, not a verdict (M1)', () 
 })
 
 describe('contour palette per basemap', () => {
-  it.each(['dark', 'light', 'colour'] as const)(
+  it.each(['dark', 'light'] as const)(
     'paints lines and labels with the %s palette',
     async (theme) => {
       document.documentElement.dataset.mapTheme = theme
@@ -599,20 +599,20 @@ describe('contour palette per basemap', () => {
 
     // A palette change reloads the style, dropping the overlay's layers and
     // sources; the map then re-runs initLayers.
-    document.documentElement.dataset.mapTheme = 'colour'
+    document.documentElement.dataset.mapTheme = 'light'
     map.sources.clear()
     map.layers.splice(0, map.layers.length, 'waterway', 'highway_path', 'water_name')
     control.initLayers()
     await flush()
 
-    expect(paintOf(map, CONTOUR_INDEX_LAYER)['line-color']).toBe(CONTOUR_PALETTES.colour.indexColor)
-    expect(paintOf(map, CONTOUR_LABEL_LAYER)['text-color']).toBe(CONTOUR_PALETTES.colour.labelColor)
+    expect(paintOf(map, CONTOUR_INDEX_LAYER)['line-color']).toBe(CONTOUR_PALETTES.light.indexColor)
+    expect(paintOf(map, CONTOUR_LABEL_LAYER)['text-color']).toBe(CONTOUR_PALETTES.light.labelColor)
   })
 
   it('gives each basemap its own ink rather than one shared colour', () => {
     const indexColors = new Set(
       Object.values(CONTOUR_PALETTES).map((palette) => palette.indexColor),
     )
-    expect(indexColors.size).toBe(3)
+    expect(indexColors.size).toBe(2)
   })
 })

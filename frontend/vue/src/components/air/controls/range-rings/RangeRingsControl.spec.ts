@@ -430,7 +430,7 @@ describe('RangeRingsControlBase palette', () => {
     return (calls.at(-1)![0] as PaintedLayer).paint
   }
 
-  it.each(['light', 'colour'])(
+  it.each(['light'])(
     'draws the rings, crosshair and label in black on the %s basemap, like the sat track',
     (theme) => {
       document.documentElement.dataset.mapTheme = theme
@@ -469,7 +469,7 @@ describe('RangeRingsControlBase palette', () => {
     const map = fakeMap()
     control.onAdd(map.map)
 
-    document.documentElement.dataset.mapTheme = 'colour'
+    document.documentElement.dataset.mapTheme = 'light'
     control._initRings()
     expect(paintOf(map, LAYER_ID)['line-color']).toBe('#000000')
   })

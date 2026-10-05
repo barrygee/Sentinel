@@ -172,16 +172,48 @@ class TestLegacyMapThemeMigration:
     ):
         await _add(
             session_factory,
-            [("app", "lightMapTheme", "true"), ("app", "mapTheme", '"colour"')],
+            [("app", "lightMapTheme", "true"), ("app", "mapTheme", '"dark"')],
         )
         await db.seed_default_settings()
         stored = await _stored(session_factory)
-        assert stored[("app", "mapTheme")][0] == '"colour"'
+        assert stored[("app", "mapTheme")][0] == '"dark"'
         assert ("app", "lightMapTheme") not in stored
 
     async def test_a_fresh_install_seeds_the_dark_map_theme(self, session_factory):
         await db.seed_default_settings()
         assert (await _stored(session_factory))[("app", "mapTheme")][0] == '"dark"'
+
+
+class TestRetiredColourMapThemeMigration:
+    """COLOUR was renamed LIGHT (the old light map removed): a saved "colour"
+    is today's LIGHT map, and must not fall back to dark."""
+
+    async def test_colour_becomes_light(self, session_factory):
+        await _add(session_factory, [("app", "mapTheme", '"colour"')])
+        await db.seed_default_settings()
+        assert (await _stored(session_factory))[("app", "mapTheme")][0] == '"light"'
+
+    @pytest.mark.parametrize("value", ['"light"', '"dark"'])
+    async def test_other_choices_are_left_alone(self, session_factory, value):
+        await _add(session_factory, [("app", "mapTheme", value)])
+        await db.seed_default_settings()
+        assert (await _stored(session_factory))[("app", "mapTheme")][0] == value
+
+    async def test_only_the_app_map_theme_is_rewritten(self, session_factory):
+        await _add(
+            session_factory,
+            [("space", "mapTheme", '"colour"'), ("app", "mapTheme", '"dark"')],
+        )
+        await db.seed_default_settings()
+        stored = await _stored(session_factory)
+        assert stored[("space", "mapTheme")][0] == '"colour"'
+        assert stored[("app", "mapTheme")][0] == '"dark"'
+
+    async def test_it_is_idempotent(self, session_factory):
+        await _add(session_factory, [("app", "mapTheme", '"colour"')])
+        await db.seed_default_settings()
+        await db.seed_default_settings()
+        assert (await _stored(session_factory))[("app", "mapTheme")][0] == '"light"'
 
 
 class TestSeededDefaults:

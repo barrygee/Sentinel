@@ -149,6 +149,20 @@ describe('AirportsToggleControl.onInit', () => {
     expect(element.querySelector('.apt-icao')!.textContent).toBe('EGLL')
     expect(element.querySelector('.apt-name')!.textContent).toBe('HEATHROW')
   })
+
+  it('inks the label from the basemap tokens, so it reads on the light map too', () => {
+    // White on the dark map, near-black with a white halo on the undimmed light
+    // one (frontend/assets/template.css) — a hard-coded white vanished there.
+    const control = new AirportsToggleControl(airStore)
+    control.onAdd(fakeMap().map)
+    const element = markerRegistry.instances[0]!.options.element
+    const label = element.firstElementChild as HTMLElement
+    expect(label.getAttribute('style')).toContain('color: var(--map-overlay-ink, #fff)')
+    expect(label.getAttribute('style')).toContain('text-shadow: var(--map-overlay-halo, none)')
+    expect((element.querySelector('.apt-icao') as HTMLElement).getAttribute('style')).toBe(
+      'color:var(--map-overlay-ink, #fff)',
+    )
+  })
 })
 
 describe('AirportsToggleControl marker click', () => {

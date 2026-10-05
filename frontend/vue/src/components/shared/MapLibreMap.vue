@@ -127,16 +127,12 @@ defineExpose({ getMap })
   background-color: #2d3548;
 }
 
-/* The same seam filler for the other basemaps — each one's water colour as
-   the canvas filter above renders it, not as the style declares it. Keyed on
-   `data-map-theme`: the basemap has its own palette, independent of the
-   interface, which is always dark. */
+/* The same seam filler for the light basemap — its water colour (it is drawn
+   undimmed, so as the style declares it). Keyed on `data-map-theme`: the
+   basemap has its own palette, independent of the interface, which is always
+   dark. */
 :root[data-map-theme='light'] .map-container {
-  background-color: rgb(127, 131, 132);
-}
-
-:root[data-map-theme='colour'] .map-container {
-  background-color: rgb(97, 135, 161);
+  background-color: #aad3df;
 }
 
 #map {
@@ -146,19 +142,18 @@ defineExpose({ getMap })
   width: 100%;
 }
 
-/* Settles the basemap beneath the overlays, in both themes: the aircraft,
-   vessels and rings are the subject, the map is the ground. Deliberately not
-   lifted for the light theme — undimmed positron is bright enough to compete
-   with the marks on top of it. */
+/* Settles the dark basemap beneath the overlays: the aircraft, vessels and
+   rings are the subject, the map is the ground. */
 .maplibregl-canvas {
   filter: brightness(0.65) saturate(0.85);
 }
 
-/* The colour map exists to be colourful, and the shared dimming above greys it
-   into a muddy khaki. It is still settled beneath the overlays, just less, and
-   it gives up less saturation. */
-:root[data-map-theme='colour'] .maplibregl-canvas {
-  filter: brightness(0.7) saturate(0.95);
+/* The light basemap is OpenStreetMap's default palette and is shown as it is:
+   any dimming turns its cream land and pale blue sea into a muddy khaki and
+   slate, which is not the map the operator chose. Overlays switch to black ink
+   on it (`overlayAccentColor`) to stay the subject. */
+:root[data-map-theme='light'] .maplibregl-canvas {
+  filter: none;
 }
 
 .maplibregl-ctrl-group {

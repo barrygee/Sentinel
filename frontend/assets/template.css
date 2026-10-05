@@ -1014,3 +1014,23 @@ body[data-no-data] .maplibregl-control-container {
         display: none !important;
     }
 }
+
+/* ── Map overlay ink ─────────────────────────────────────────────────────────
+   Text the map overlays draw straight onto the basemap (airport and military
+   base labels) answers to the BASEMAP palette, not the interface's: white on
+   the dimmed dark map; near-black with a white halo on the undimmed light
+   (OpenStreetMap-coloured) one, where white vanishes into the cream land. The
+   accent is the military-base ICAO code: lime on dark, a dark olive on light
+   that keeps the hue at readable contrast. Overlays drawn as MapLibre layers
+   use utils/mapTheme.ts instead — a layer paint cannot read a CSS variable. */
+:root {
+    --map-overlay-ink: #ffffff;
+    --map-overlay-halo: none;
+    --map-overlay-accent: #c8ff00;
+}
+
+:root[data-map-theme='light'] {
+    --map-overlay-ink: #1b1d22;
+    --map-overlay-halo: 0 0 2px #ffffff, 0 0 3px #ffffff;
+    --map-overlay-accent: #4d6600;
+}

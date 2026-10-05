@@ -307,7 +307,7 @@ describe('SpaceMap', () => {
       bringUp(map)
       useThemeStore().setMapTheme('light')
       await nextTick()
-      expect(map.setStyle).toHaveBeenCalledWith('/assets/positron-online.json', STYLE_OPTIONS)
+      expect(map.setStyle).toHaveBeenCalledWith('/assets/osm-light-online.json', STYLE_OPTIONS)
       map.onceHandlers['style.load']!()
       expect(last('daynight').initLayers).toHaveBeenCalled()
       expect(last('names').applyVisibility).toHaveBeenCalled()

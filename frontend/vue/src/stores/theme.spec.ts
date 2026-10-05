@@ -65,9 +65,9 @@ describe('theme store map theme', () => {
 
   it('restores its own persisted value, ignoring the retired interface key', () => {
     localStorage.setItem(LS_KEY, JSON.stringify('light'))
-    localStorage.setItem(MAP_LS_KEY, JSON.stringify('colour'))
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify('light'))
     const store = useThemeStore()
-    expect(store.mapTheme).toBe('colour')
+    expect(store.mapTheme).toBe('light')
     expect(store.theme).toBe('dark')
   })
 
@@ -131,29 +131,43 @@ describe('theme store map theme', () => {
   })
 })
 
-describe('theme store map theme — the colour palette', () => {
-  it('accepts colour as a persisted value', () => {
+describe('theme store map theme — the retired COLOUR palette', () => {
+  // COLOUR was renamed LIGHT (and the old light map removed), so a saved
+  // "colour" must come back as LIGHT, never fall back to the dark map.
+  it('loads a persisted "colour" as light and rewrites the stored value', () => {
     localStorage.setItem(MAP_LS_KEY, JSON.stringify('colour'))
-    expect(useThemeStore().mapTheme).toBe('colour')
-    expect(document.documentElement.dataset.mapTheme).toBe('colour')
-  })
-
-  it('is not "light" — colour is its own palette, not a shade of the light one', () => {
-    // `isMapLight` answers "is the LIGHT build selected", which is what the
-    // control needs. Overlays ask a different question — "is the ground
-    // bright?" — and that lives in `utils/mapTheme.ts`, where colour counts.
     const store = useThemeStore()
-    store.setMapTheme('colour')
-    expect(store.isMapLight).toBe(false)
+    expect(store.mapTheme).toBe('light')
+    expect(store.isMapLight).toBe(true)
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
+    expect(localStorage.getItem(MAP_LS_KEY)).toBe(JSON.stringify('light'))
   })
 
-  it('adopts the three-way value from the config database', () => {
+  it.each(['light', 'dark'])('leaves a persisted "%s" as it is', (stored) => {
+    localStorage.setItem(MAP_LS_KEY, JSON.stringify(stored))
+    expect(useThemeStore().mapTheme).toBe(stored)
+    expect(localStorage.getItem(MAP_LS_KEY)).toBe(JSON.stringify(stored))
+  })
+
+  it('survives an unreadable stored value, starting dark', () => {
+    localStorage.setItem(MAP_LS_KEY, '{not json')
+    expect(useThemeStore().mapTheme).toBe('dark')
+  })
+
+  it('adopts a configured "colour" as light', () => {
     const store = useThemeStore()
     store.hydrateMapTheme('colour')
-    expect(store.mapTheme).toBe('colour')
+    expect(store.mapTheme).toBe('light')
   })
 
-  it('falls back to the pre-colour boolean when that is all the config has', () => {
+  it('reads "colour" from the settings endpoint as light', async () => {
+    stubFetch({ mapTheme: 'colour' })
+    const store = useThemeStore()
+    await store.hydrateMapThemeFromDb()
+    expect(store.mapTheme).toBe('light')
+  })
+
+  it('falls back to the older boolean when that is all the config has', () => {
     const store = useThemeStore()
     store.hydrateMapTheme(undefined, true)
     expect(store.mapTheme).toBe('light')
@@ -161,16 +175,16 @@ describe('theme store map theme — the colour palette', () => {
 
   it('ignores an unknown value rather than guessing', () => {
     const store = useThemeStore()
-    store.setMapTheme('colour')
+    store.setMapTheme('light')
     store.hydrateMapTheme('sepia')
-    expect(store.mapTheme).toBe('colour')
+    expect(store.mapTheme).toBe('light')
   })
 
-  it('prefers the three-way value over the legacy flag', async () => {
-    stubFetch({ mapTheme: 'colour', lightMapTheme: true })
+  it('prefers app.mapTheme over the legacy flag', async () => {
+    stubFetch({ mapTheme: 'dark', lightMapTheme: true })
     const store = useThemeStore()
     await store.hydrateMapThemeFromDb()
-    expect(store.mapTheme).toBe('colour')
+    expect(store.mapTheme).toBe('dark')
   })
 
   it('reads the legacy flag from the endpoint when the new key is absent', async () => {

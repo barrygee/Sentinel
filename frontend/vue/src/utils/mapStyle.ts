@@ -30,21 +30,17 @@ export function setMapStyle(map: Map, styleUrl: string): void {
 }
 
 /**
- * The six bundled basemaps: a dark (`fiord`), a light (`positron`) and a
- * full-colour (`cartographic`) pair, each with an online build (planet vector
- * tiles) and an offline one (the local PMTiles archives). All six are the same
- * map — same sources, same layers in the same order, same layer ids — with
- * only their paint colours differing, so a palette change is a repaint and
- * every layer-id-driven control keeps working. The colour pair is generated
- * from the light one by `frontend/scripts/build_colour_basemap.py`.
+ * The four bundled basemaps: a dark (`fiord`) and a light (`osm-light`, in
+ * OpenStreetMap's default colours) pair, each with an online build (planet
+ * vector tiles) and an offline one (the local PMTiles archives). All four are
+ * the same map — same sources, same layers in the same order, same layer ids —
+ * with only their paint differing, so a palette change is a repaint and every
+ * layer-id-driven control keeps working. The light pair is generated from the
+ * dark one by `frontend/scripts/build_light_basemap.py`.
  */
 const BASEMAP_STYLES: Record<MapTheme, { online: string; offline: string }> = {
   dark: { online: '/assets/fiord-online.json', offline: '/assets/fiord.json' },
-  light: { online: '/assets/positron-online.json', offline: '/assets/positron.json' },
-  colour: {
-    online: '/assets/cartographic-online.json',
-    offline: '/assets/cartographic.json',
-  },
+  light: { online: '/assets/osm-light-online.json', offline: '/assets/osm-light.json' },
 }
 
 /** The basemap style a map should be showing for the given connectivity and theme. */
