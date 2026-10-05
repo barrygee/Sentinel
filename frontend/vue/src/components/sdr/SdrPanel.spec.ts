@@ -1601,6 +1601,104 @@ describe('SdrPanel — device dropdown menu', () => {
     expect(wrapper.find('.sdr-freq-input-large').attributes('disabled')).toBeUndefined()
   })
 
+  function statusAt(centerHz: number) {
+    return {
+      type: 'status',
+      connected: true,
+      center_hz: centerHz,
+      mode: 'NFM',
+      gain_db: 20,
+      gain_auto: false,
+      sample_rate: 2_400_000,
+    }
+  }
+
+  const frequencyField = (wrapper: VueWrapper) =>
+    (wrapper.find('.sdr-freq-input-large').element as HTMLInputElement).value
+
+  it("adopts the new radio's own tuning after a switch, not the previous radio's", async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    const socketA = lastSocket()
+    socketA.open()
+    await flushPromises()
+    // The first radio (e.g. the dongle AIR has claimed for ADS-B) sits on 1090 MHz.
+    socketA.message(statusAt(1_090_000_000))
+    await flushPromises()
+    expect(frequencyField(wrapper)).toBe('1090.0000')
+
+    await selectMenuRadio(wrapper, 2)
+    const socketB = lastSocket()
+    socketB.open()
+    await flushPromises()
+    socketB.message(statusAt(145_500_000))
+    await flushPromises()
+
+    // The second radio keeps its own 145.5 MHz: 1090 MHz is not carried over…
+    expect(frequencyField(wrapper)).toBe('145.5000')
+    expect(useSdrStore().currentFreqHz).toBe(145_500_000)
+    // …and nothing tells it to tune there.
+    const tunes = socketB.sent.map((frame) => JSON.parse(frame)).filter((cmd) => cmd.cmd === 'tune')
+    expect(tunes).toEqual([])
+  })
+
+  it('keeps a frequency the operator sets on the new radio after the switch', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    lastSocket().open()
+    await flushPromises()
+    lastSocket().message(statusAt(1_090_000_000))
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2)
+    const socketB = lastSocket()
+    socketB.open()
+    await flushPromises()
+    socketB.message(statusAt(145_500_000))
+    await flushPromises()
+
+    // Once the new radio's tuning is adopted, a user choice wins again on later status frames.
+    await wrapper.find('.sdr-freq-input-large').setValue('433.920')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    socketB.message(statusAt(145_500_000))
+    await flushPromises()
+    expect(frequencyField(wrapper)).toBe('433.9200')
+  })
+
+  it('waits for a real centre before adopting (a centre of 0 is not a tuning)', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    lastSocket().open()
+    await flushPromises()
+    lastSocket().message(statusAt(1_090_000_000))
+    await flushPromises()
+    await selectMenuRadio(wrapper, 2)
+    const socketB = lastSocket()
+    socketB.open()
+    await flushPromises()
+    socketB.message(statusAt(0)) // the radio has not reported a centre yet
+    await flushPromises()
+    socketB.message(statusAt(145_500_000))
+    await flushPromises()
+    expect(frequencyField(wrapper)).toBe('145.5000')
+  })
+
+  it('reselecting the same radio is not a switch', async () => {
+    const wrapper = await mountTwoRadios()
+    await selectMenuRadio(wrapper, 1)
+    lastSocket().open()
+    await flushPromises()
+    lastSocket().message(statusAt(100_000_000))
+    await flushPromises()
+    await wrapper.find('.sdr-freq-input-large').setValue('145.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    await selectMenuRadio(wrapper, 1)
+    lastSocket().message(statusAt(100_000_000))
+    await flushPromises()
+    expect(frequencyField(wrapper)).toBe('145.0000')
+  })
+
   it('ignores an error from a superseded radio socket', async () => {
     const wrapper = await mountTwoRadios()
     await selectMenuRadio(wrapper, 1)

@@ -2000,25 +2000,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._isFetching = true
     this._fetchAbort = new AbortController()
 
-    let lat: number | undefined, lon: number | undefined
-    const cached = localStorage.getItem('userLocation')
-    if (cached) {
-      try {
-        const loc = JSON.parse(cached)
-        if (Date.now() - (loc.ts || 0) < 10 * 60 * 1000) {
-          lat = loc.latitude
-          lon = loc.longitude
-        }
-      } catch (e) {}
-    }
-    if (lat === undefined) {
-      const mapCenter = this.map.getCenter()
-      lat = mapCenter.lat
-      lon = mapCenter.lng
-    }
+    // Always the map centre. Online, that is the area the operator is looking
+    // at; off grid the backend swaps in the selected receiver's location, since
+    // the receiver only hears aircraft around itself.
+    const { lat, lng: lon } = this.map.getCenter()
 
     try {
-      const url = `${origin}/api/air/adsb/point/${lat!.toFixed(4)}/${lon!.toFixed(4)}/250`
+      const url = `${origin}/api/air/adsb/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`
       const resp = await fetch(url, { signal: this._fetchAbort.signal })
       if (!this.map) return
       if (!resp.ok) {

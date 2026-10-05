@@ -190,6 +190,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Python stub decoder for CI-testing the decoder contract (P3.4)
 - Decode off-grid AIS from the backend, browser or not
 - Remember vessel names so position-only reports are named
+- Centre off-grid ADS-B on the selected receiver
 
 ### Bug Fixes
 
@@ -1369,6 +1370,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #407 from barrygee/feat/sea-vessel-static-cache
 - Merge branch 'main' into fix/adsb-decoder-stall-watchdog
 - Merge pull request #410 from barrygee/fix/adsb-decoder-stall-watchdog
+- Merge pull request #411 from barrygee/feat/adsb-centre-on-user-location
 
 ### Refactoring
 
