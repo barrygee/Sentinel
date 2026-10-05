@@ -226,16 +226,19 @@ function makeControl(onSync: ((visible: boolean) => void) | null = null): AdsbLi
 
 /**
  * Build + add a control onto a fresh fake map with the style already loaded.
- * Auto-polling is suppressed during mount (via an offgrid override) so the
+ * Auto-polling is suppressed during mount (by stubbing `_startPolling`) so the
  * mount-time `_fetch()` doesn't race the test body; tests that exercise
- * fetching call `_fetch()` explicitly.
+ * fetching call `_fetch()` explicitly. (Both modes poll, so a mode can't be
+ * used to suppress it.)
  */
 function mounted(options: { zoom?: number; onSync?: ((v: boolean) => void) | null } = {}) {
   const control = makeControl(options.onSync ?? null)
   const map = fakeMap({ styleLoaded: true, zoom: options.zoom })
-  localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+  const startPolling = vi
+    .spyOn(control as unknown as { _startPolling: () => void }, '_startPolling')
+    .mockImplementation(() => {})
   control.onAdd(map.map)
-  localStorage.removeItem('sentinel_air_sourceOverride')
+  startPolling.mockRestore()
   return { control, map }
 }
 
@@ -601,18 +604,74 @@ describe('AdsbLiveControl polling', () => {
     expect(map.sourceData['adsb-live']).toEqual({ type: 'FeatureCollection', features: [] })
   })
 
-  it('handleConnectivityChange clears aircraft in offgrid mode', () => {
-    const { control } = mounted()
-    localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
-    const spy = vi.spyOn(control, 'clearAircraft')
-    control.handleConnectivityChange()
-    expect(spy).toHaveBeenCalled()
-  })
+  describe('handleConnectivityChange', () => {
+    // Off grid used to clear the aircraft and stop polling, so the map stayed
+    // empty while the off-grid decoder was serving aircraft through the same
+    // endpoint. Both modes now poll; only a real feed switch clears.
+    function startPollingSpy(control: AdsbLiveControl) {
+      return vi
+        .spyOn(control as unknown as { _startPolling: () => void }, '_startPolling')
+        .mockImplementation(() => {})
+    }
 
-  it('handleConnectivityChange restarts polling when visible and online', () => {
-    const { control } = mounted()
-    localStorage.setItem('sentinel_air_sourceOverride', 'online')
-    expect(() => control.handleConnectivityChange()).not.toThrow()
+    it('polls off grid', () => {
+      localStorage.setItem('sentinel_air_sourceOverride', 'online')
+      const { control } = mounted()
+      localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+      const startPolling = startPollingSpy(control)
+
+      control.handleConnectivityChange()
+
+      expect(startPolling).toHaveBeenCalled()
+    })
+
+    it('clears the old feed’s aircraft on a switch', () => {
+      localStorage.setItem('sentinel_air_sourceOverride', 'online')
+      const { control } = mounted()
+      seedFeature(control)
+      localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+      startPollingSpy(control)
+
+      control.handleConnectivityChange()
+
+      expect(control._geojson.features).toHaveLength(0)
+    })
+
+    it('keeps the aircraft through a style reload in the same mode', () => {
+      localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+      const { control } = mounted()
+      seedFeature(control)
+      const startPolling = startPollingSpy(control)
+
+      control.handleConnectivityChange()
+
+      expect(control._geojson.features).toHaveLength(1)
+      expect(startPolling).toHaveBeenCalled()
+    })
+
+    it('does not start a second poll loop when one is already running', () => {
+      const { control } = mounted()
+      ;(control as unknown as { _pollInterval: unknown })._pollInterval = setInterval(() => {}, 1e6)
+      const startPolling = startPollingSpy(control)
+
+      control.handleConnectivityChange()
+
+      expect(startPolling).not.toHaveBeenCalled()
+      clearInterval((control as unknown as { _pollInterval: number })._pollInterval)
+    })
+
+    it('stays idle while the layer is hidden', () => {
+      localStorage.setItem('sentinel_air_sourceOverride', 'online')
+      const { control } = mounted()
+      control.visible = false
+      const startPolling = startPollingSpy(control)
+
+      control.handleConnectivityChange()
+      localStorage.setItem('sentinel_air_sourceOverride', 'offgrid')
+      control.handleConnectivityChange()
+
+      expect(startPolling).not.toHaveBeenCalled()
+    })
   })
 })
 
