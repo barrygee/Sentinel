@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseToggleSetting from '@/components/base/BaseToggleSetting.vue'
+import BaseToggleSetting from '@sentinel/shell-api/settings/BaseToggleSetting.vue'
 import { computed } from 'vue'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 

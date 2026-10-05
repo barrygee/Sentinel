@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useStagedSetting } from '@/composables/useStagedSetting'
+import { useStagedSetting } from './useStagedSetting'
 
 /**
  * `BaseNumberSetting` — a Settings-panel digit-filtered number input with an

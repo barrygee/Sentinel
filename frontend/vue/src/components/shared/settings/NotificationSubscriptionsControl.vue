@@ -49,7 +49,10 @@
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import LabelFieldsTable, { type LabelFieldColumn, type LabelFieldRow } from './LabelFieldsTable.vue'
+import LabelFieldsTable, {
+  type LabelFieldColumn,
+  type LabelFieldRow,
+} from '@sentinel/ui/base/LabelFieldsTable.vue'
 import { useNotificationSubscriptions } from '@/composables/useNotificationSubscriptions'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'

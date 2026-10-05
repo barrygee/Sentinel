@@ -7,7 +7,9 @@
   "exports": {
     "./base/*": "./src/base/*",
     "./icons/*": "./src/icons/*",
-    "./composables/*": "./src/composables/*.ts"
+    "./overlays/*": "./src/overlays/*",
+    "./composables/*": "./src/composables/*.ts",
+    "./utils/*": "./src/utils/*.ts"
   },
   "scripts": {
     "lint": "eslint . && prettier --check .",

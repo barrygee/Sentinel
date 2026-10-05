@@ -4,7 +4,7 @@ import {
 } from '@sentinel/shell-api/shell/settingsRegistry'
 import AprsLabelFieldsControl from '@/components/land/settings/AprsLabelFieldsControl.vue'
 import AprsSdrSourceControl from '@/components/land/settings/AprsSdrSourceControl.vue'
-import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
+import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
 import LandAprsChannelControl from '@/components/land/settings/LandAprsChannelControl.vue'
 import LandAprsRetentionControl from '@/components/land/settings/LandAprsRetentionControl.vue'
 import RepeaterLabelFieldsControl from '@/components/land/settings/RepeaterLabelFieldsControl.vue'

@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import RadioSelect from './RadioSelect.vue'
-import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
-import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
+import { provideFakeRadio } from '../testing/fakeRadio'
+import type { RadioSummary } from '../shell/radioCapability'
 
 /**
  * `RadioSelect` is the shared "which SDR radio" dropdown behind LAND's APRS

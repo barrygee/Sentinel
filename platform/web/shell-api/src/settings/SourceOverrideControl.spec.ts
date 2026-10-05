@@ -3,15 +3,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SourceOverrideControl from './SourceOverrideControl.vue'
-import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useAppStore } from '../stores/app'
 
-vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
+vi.mock('../services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import * as settingsApi from '../services/settingsApi'
 
 const NS = 'air'
 const LS_KEY = `sentinel_${NS}_sourceOverride`

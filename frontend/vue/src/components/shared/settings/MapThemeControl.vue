@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
-import { useStagedSetting } from '@/composables/useStagedSetting'
+import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
 import { useThemeStore, type MapTheme } from '@sentinel/shell-api/stores/theme'
 
 /**

@@ -5,9 +5,9 @@ import {
 import AdsbSdrSourceControl from '@/components/air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@/components/air/settings/AdsbTagFieldsControl.vue'
 import MapLayersControl from '@/components/air/settings/MapLayersControl.vue'
-import OnlineSourceControl from '@/components/shared/settings/OnlineSourceControl.vue'
+import OnlineSourceControl from '@sentinel/shell-api/settings/OnlineSourceControl.vue'
 import OverheadAlertsControl from '@/components/air/settings/OverheadAlertsControl.vue'
-import SourceOverrideControl from '@/components/shared/settings/SourceOverrideControl.vue'
+import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
 
 /**
  * AIR's Settings section (F3): data sources, map layers, overhead alerts and aircraft labels.

@@ -21,7 +21,7 @@
  * there is no way to reach "both off" rather than a validation message after
  * the fact.
  */
-import LabelFieldsTable, { type LabelFieldRow } from '../LabelFieldsTable.vue'
+import LabelFieldsTable, { type LabelFieldRow } from '@sentinel/ui/base/LabelFieldsTable.vue'
 
 type ContentKey = 'basemap' | 'terrain'
 

@@ -14,7 +14,7 @@ import { ref, onMounted } from 'vue'
 import LabelFieldsTable, {
   type LabelFieldColumn,
   type LabelFieldRow,
-} from '@/components/shared/settings/LabelFieldsTable.vue'
+} from '@sentinel/ui/base/LabelFieldsTable.vue'
 import { useLandStore, type AprsLabelFieldMap } from '@/stores/land'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 

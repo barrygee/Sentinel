@@ -25,7 +25,7 @@
  * left holding the dongle until the next visit to Sea.
  */
 import { onMounted, ref, watch } from 'vue'
-import RadioSelect from '@/components/shared/settings/RadioSelect.vue'
+import RadioSelect from '@sentinel/shell-api/settings/RadioSelect.vue'
 import { useRadio } from '@sentinel/shell-api/shell/useRadio'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 

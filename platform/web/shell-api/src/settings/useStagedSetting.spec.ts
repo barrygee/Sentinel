@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { useStagedSetting, type UseStagedSetting } from './useStagedSetting'
-import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import * as settingsApi from '../services/settingsApi'
 
 // Mount the composable inside a minimal host component, matching the pattern
 // used by other composable specs in this project (e.g. useConnectivity.spec.ts).

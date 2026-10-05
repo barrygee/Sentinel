@@ -100,7 +100,7 @@ vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
   },
 }))
 
-vi.mock('@/composables/useConnectivity', () => ({
+vi.mock('@sentinel/shell-api/composables/useConnectivity', () => ({
   useConnectivity: (cb: (online: boolean) => void) => {
     shared.connectivityCb = cb
   },

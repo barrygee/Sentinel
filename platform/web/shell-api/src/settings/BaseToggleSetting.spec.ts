@@ -3,13 +3,13 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import BaseToggleSetting from './BaseToggleSetting.vue'
 
-vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
+vi.mock('../services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import * as settingsApi from '../services/settingsApi'
 
 /** Builds a fake store: a boxed boolean plus read/mirror/hydrate callbacks. */
 function makeFakeStore(initialValue: boolean) {

@@ -46,9 +46,7 @@
  * for the plotted ports too, whose markers are otherwise opaque to AT.
  */
 import { computed, ref, watch } from 'vue'
-import BaseFilterPanel, {
-  type FilterPanelItem,
-} from '@/components/shared/filter/BaseFilterPanel.vue'
+import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
 import SeaVesselDetails from './SeaVesselDetails.vue'
 import SeaPortDetails from './SeaPortDetails.vue'
 import { useSeaStore, type SeaVessel } from '@/stores/sea'

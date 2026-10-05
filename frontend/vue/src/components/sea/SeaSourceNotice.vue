@@ -30,8 +30,8 @@
 import { computed } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SeaFeedInfo } from '@/stores/sea'
-import NoDataOverlay from '@/components/shared/NoDataOverlay.vue'
-import MapNoticeBanner from '@/components/shared/MapNoticeBanner.vue'
+import NoDataOverlay from '@sentinel/ui/overlays/NoDataOverlay.vue'
+import MapNoticeBanner from '@sentinel/ui/overlays/MapNoticeBanner.vue'
 
 const props = defineProps<{ feed: SeaFeedInfo }>()
 const settingsStore = useSettingsStore()

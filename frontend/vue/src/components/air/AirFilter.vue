@@ -182,9 +182,7 @@
  */
 import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import BaseFilterPanel, {
-  type FilterPanelItem,
-} from '@/components/shared/filter/BaseFilterPanel.vue'
+import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
 import CentreOnMapIcon from '@sentinel/ui/icons/CentreOnMapIcon.vue'

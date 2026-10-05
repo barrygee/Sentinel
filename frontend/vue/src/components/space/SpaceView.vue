@@ -32,9 +32,9 @@ import SpaceSideMenu from './SpaceSideMenu.vue'
 import SpaceFilter from './SpaceFilter.vue'
 import SpacePasses from './SpacePasses.vue'
 import SatInfoPanel from './SatInfoPanel.vue'
-import NoUrlOverlay from '@/components/shared/NoUrlOverlay.vue'
+import NoUrlOverlay from '@sentinel/shell-api/overlays/NoUrlOverlay.vue'
 import { sidebarPaneSelector } from '@sentinel/shell-api/constants/sidebarPanes'
-import { useSidebarPaneTarget } from '@/composables/useSidebarPaneTarget'
+import { useSidebarPaneTarget } from '@sentinel/shell-api/composables/useSidebarPaneTarget'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 
 const spaceMapRef = ref<InstanceType<typeof SpaceMap> | null>(null)
