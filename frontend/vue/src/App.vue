@@ -11,8 +11,10 @@
         :key="domain"
         :to="`/${domain}/`"
         class="nav-link"
+        :class="{ 'nav-link--unavailable': isSectionUnavailable(domain) }"
         active-class="nav-link--active"
         :data-domain="domain"
+        :data-unavailable="isSectionUnavailable(domain) || undefined"
         >{{ label }}</RouterLink
       >
     </nav>
@@ -96,8 +98,10 @@
       :key="domain"
       :to="`/${domain}/`"
       class="nav-overlay-link"
+      :class="{ 'nav-link--unavailable': isSectionUnavailable(domain) }"
       active-class="nav-overlay-link--active"
       :data-domain="domain"
+      :data-unavailable="isSectionUnavailable(domain) || undefined"
       @click="menuOpen = false"
       >{{ label }}</RouterLink
     >
@@ -140,8 +144,11 @@ import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
-import '@/shell/sections'
-import { getNavEntries, getPersistentRadioPane } from '@sentinel/shell-api/shell/sectionRegistry'
+import {
+  getNavEntries,
+  getPersistentRadioPane,
+  isSectionUnavailable,
+} from '@sentinel/shell-api/shell/sectionRegistry'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
@@ -289,8 +296,8 @@ const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
 const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 
 // Nav entries and the persistent radio pane come from the section registry
-// (populated by the `shell/sections` import above) rather than being
-// hard-coded here — see docs/plans/section-containers.md §1.3 (F1, F11).
+// (populated by main.ts loading the sections before the app mounts) rather
+// than being hard-coded here — see docs/plans/section-containers.md §1.3 (F1, F11).
 const ALL_NAV_DOMAINS = getNavEntries()
 const persistentRadioPane = getPersistentRadioPane()
 
@@ -323,3 +330,11 @@ watch(
   { immediate: true },
 )
 </script>
+
+<style scoped>
+/* A section whose code could not be loaded (plan §3.5). Struck through rather
+   than dimmed, so the label keeps its contrast; its route explains why. */
+.nav-link--unavailable {
+  text-decoration: line-through;
+}
+</style>

@@ -39,12 +39,12 @@
  */
 import { computed, ref, watch } from 'vue'
 import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
-import { useUserLocation } from '../../composables/useUserLocation'
-import { useRangeRingOrigin } from '../../composables/useRangeRingOrigin'
-import { haversineNm } from '../../utils/distanceUtils'
-import { formatLatitude, formatLongitude } from '../../utils/locationUtils'
-import { siteLabel } from '../../utils/sentrySiteLabel'
-import RingOriginOption from './RingOriginOption.vue'
+import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
+import { haversineNm } from '@sentinel/map-kit/utils/distanceUtils'
+import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
+import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
+import RingOriginOption from '@sentinel/map-kit/controls/range-rings/RingOriginOption.vue'
 
 /** One place the rings can be centred on, as the group lists it. */
 interface OriginOption {

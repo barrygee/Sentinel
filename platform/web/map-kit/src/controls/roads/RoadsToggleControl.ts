@@ -1,6 +1,6 @@
-import { SentinelControlBase } from '../../sentinel-control-base/SentinelControlBase'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { BasemapStore } from '@sentinel/shell-api/stores/basemap'
-import { applyBasemapLayerVisibility } from '../../utils/basemapLayers'
+import { applyBasemapLayerVisibility } from '@sentinel/map-kit/utils/basemapLayers'
 
 /**
  * Toggles the base map's road lines and labels. Shared by every domain map —

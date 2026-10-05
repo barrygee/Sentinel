@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { usePersistedObject } from './_persist'
-import * as settingsApi from '../services/settingsApi'
+import { usePersistedObject } from '@sentinel/shell-api/stores/_persist'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /**
  * Base-map layer toggles that are shared by every domain map (Air, Land,

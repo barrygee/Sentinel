@@ -1,6 +1,6 @@
 import { ref, onMounted, type Ref } from 'vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import * as settingsApi from '../services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 /**
  * Dependencies a `useStagedSetting` caller supplies to bridge the composable's

@@ -14,8 +14,7 @@ import {
   aircraftBellSubscriptions,
   overheadAlertSubscriptions,
 } from './airNotificationSubscriptions'
-// Registers this section's Settings nav entry and items (F3).
-import './settings'
+import { registerAirSettings } from './settings'
 import { hydrateAirFromSettings } from './airSettingsHydration'
 
 /**
@@ -23,26 +22,30 @@ import { hydrateAirFromSettings } from './airSettingsHydration'
  * target for aircraft alerts, and the aircraft/overhead alert service that
  * runs whichever section is showing.
  *
- * This is the in-monolith stand-in for the `register(shell)` entry a future
- * `air` Module Federation remote will export (docs/plans/section-containers.md
- * §3.6) — importing it (via `shell/sections.ts`) has the same effect as
- * calling `register()` would.
+ * The section's `./register` entry: the shell calls it once at boot, statically
+ * in dev and tests and through Module Federation in the built app
+ * (docs/plans/section-containers.md §3.6).
  */
-registerSection({
-  id: 'air',
-  label: 'AIR',
-  navOrder: 10,
-  enabledByDefault: true,
-  route: { path: '/air/', component: AirView },
-})
+export default function register(): void {
+  // Its Settings nav entry and items (F3).
+  registerAirSettings()
 
-// FILTER rail sub-tabs (F2).
-registerSidebarFilterSubTabs('air', airSidebarFilter)
-registerNotificationTarget(aircraftNotificationTarget)
-// Its switched-on alerts, listed and cancelled in Settings › Alerts.
-registerNotificationSubscriptionSource(aircraftBellSubscriptions)
-registerNotificationSubscriptionSource(overheadAlertSubscriptions)
-registerBackgroundService({ id: 'air-alerts', start: () => useAirAlertsService().start() })
+  registerSection({
+    id: 'air',
+    label: 'AIR',
+    navOrder: 10,
+    enabledByDefault: true,
+    route: { path: '/air/', component: AirView },
+  })
 
-// Applies its stored settings to its stores at boot, before the first render (F1).
-registerSettingsHydrator('air', hydrateAirFromSettings)
+  // FILTER rail sub-tabs (F2).
+  registerSidebarFilterSubTabs('air', airSidebarFilter)
+  registerNotificationTarget(aircraftNotificationTarget)
+  // Its switched-on alerts, listed and cancelled in Settings › Alerts.
+  registerNotificationSubscriptionSource(aircraftBellSubscriptions)
+  registerNotificationSubscriptionSource(overheadAlertSubscriptions)
+  registerBackgroundService({ id: 'air-alerts', start: () => useAirAlertsService().start() })
+
+  // Applies its stored settings to its stores at boot, before the first render (F1).
+  registerSettingsHydrator('air', hydrateAirFromSettings)
+}

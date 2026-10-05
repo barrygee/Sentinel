@@ -1,7 +1,10 @@
 import { watch } from 'vue'
 import type { Map } from 'maplibre-gl'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
-import { applyBasemapLayerVisibility, type BasemapLayerGroup } from '../utils/basemapLayers'
+import {
+  applyBasemapLayerVisibility,
+  type BasemapLayerGroup,
+} from '@sentinel/map-kit/utils/basemapLayers'
 
 /**
  * Keep a map's base-style layer groups in step with the shared basemap store,

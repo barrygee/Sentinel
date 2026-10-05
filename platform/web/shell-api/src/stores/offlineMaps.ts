@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { usePersistedObject, usePersistedRef } from './_persist'
+import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
 import {
   createOfflineRegion,
   deleteOfflineRegion,
@@ -12,8 +12,11 @@ import {
   type OfflineAreaEstimate,
   type OfflineMapStatus,
   type OfflineRegion,
-} from '../services/offlineMapsApi'
-import { estimateOfflineArea, type OfflineAreaEstimateResult } from '../utils/offlineMapEstimate'
+} from '@sentinel/shell-api/services/offlineMapsApi'
+import {
+  estimateOfflineArea,
+  type OfflineAreaEstimateResult,
+} from '@sentinel/shell-api/utils/offlineMapEstimate'
 
 /** How often outstanding (queued/running) regions are polled, in ms — see D5:
  *  one-directional and low-frequency, so polling was chosen over SSE/WebSocket. */

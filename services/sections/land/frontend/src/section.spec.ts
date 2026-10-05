@@ -11,10 +11,20 @@ vi.mock('@sentinel/shell-api/shell/sidebarRegistry', () => ({ registerSidebarFil
 // view's own behaviour, which LandView.spec.ts already covers).
 vi.mock('./LandView.vue', () => ({ default: { name: 'LandView' } }))
 
+// `register()` runs once per file, as the module's side effects used to: each
+// case asserts on the same single registration.
+let registered = false
+async function registerOnce(): Promise<void> {
+  if (registered) return
+  registered = true
+  const { default: register } = await import('./section')
+  register()
+}
+
 describe('components/land/section', () => {
   it('registers the LAND section with its id, label, navOrder, and routed view', async () => {
     const { default: LandView } = await import('./LandView.vue')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSection).toHaveBeenCalledExactlyOnceWith({
       id: 'land',
@@ -27,13 +37,13 @@ describe('components/land/section', () => {
 
   it('registers its FILTER rail sub-tabs', async () => {
     const { landSidebarFilter } = await import('./landSidebarFilter')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('land', landSidebarFilter)
   })
 
   it('registers its Settings section and items', async () => {
-    await import('./section')
+    await registerOnce()
     const { getSettingItems, getSettingsSections } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
 
@@ -43,7 +53,7 @@ describe('components/land/section', () => {
 
   it('hydrates its stores from the boot settings', async () => {
     const { hydrateLandFromSettings } = await import('./landSettingsHydration')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSettingsHydrator).toHaveBeenCalledExactlyOnceWith(
       'land',

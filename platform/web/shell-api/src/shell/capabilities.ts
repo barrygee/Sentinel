@@ -1,6 +1,6 @@
 import { shallowReactive } from 'vue'
-import type { RadioCapability } from './radioCapability'
-import type { RadioSitesCapability } from './radioSitesCapability'
+import type { RadioCapability } from '@sentinel/shell-api/shell/radioCapability'
+import type { RadioSitesCapability } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
  * Shell capability registry (docs/plans/section-containers.md §3.6).

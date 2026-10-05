@@ -34,7 +34,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useSettingsStore } from '../stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 // Generic JSON-textarea editor that loads from `getUrl` and saves to `postUrl`

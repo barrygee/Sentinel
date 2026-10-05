@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { notifySettingsChanged } from '../services/settingsApi'
+import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 
 export const useSettingsStore = defineStore('settings', () => {
   const open = ref(false)

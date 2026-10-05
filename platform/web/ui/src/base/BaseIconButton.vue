@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BaseButton, { type BaseButtonVariant } from './BaseButton.vue'
+import BaseButton, { type BaseButtonVariant } from '@sentinel/ui/base/BaseButton.vue'
 
 /**
  * `BaseIconButton` — composes `BaseButton` for the icon-plus-hover-tooltip

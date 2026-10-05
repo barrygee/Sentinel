@@ -62,6 +62,12 @@ export const sentinelEslintBase = tseslint.config(
   },
 )
 
+const NO_SECTION_IMPORTS = {
+  group: ['@sentinel/section-*'],
+  message:
+    'Sections are federation remotes: reach another section through the shell registries and capabilities (@sentinel/shell-api), never by import.',
+}
+
 /**
  * No package imports a section (section-containers plan): sections are
  * federation remotes the shell discovers at runtime, so another package
@@ -72,20 +78,44 @@ export const sentinelEslintBase = tseslint.config(
 export const noSectionImports = {
   files: ['**/*.{ts,vue}'],
   rules: {
-    'no-restricted-imports': [
-      'error',
-      {
-        patterns: [
-          {
-            group: ['@sentinel/section-*'],
-            message:
-              'Sections are federation remotes: reach another section through the shell registries and capabilities (@sentinel/shell-api), never by import.',
-          },
-        ],
-      },
-    ],
+    'no-restricted-imports': ['error', { patterns: [NO_SECTION_IMPORTS] }],
   },
 }
+
+/**
+ * For the shared packages (@sentinel/ui, shell-api, map-kit): besides never
+ * importing a section, a module imports its own package's other modules by
+ * package name (`@sentinel/shell-api/shell/capabilities`), never by relative
+ * path.
+ *
+ * Under Module Federation every `@sentinel/<pkg>/…` module is shared app-wide,
+ * and a section remote carries a fallback copy of the ones it uses. A relative
+ * import inside such a copy bypasses the share and loads a private second
+ * instance — a second capabilities registry or store that the rest of the app
+ * never sees. Specs may import relatively: they are never federated.
+ */
+export const sharedPackageImports = [
+  noSectionImports,
+  {
+    files: ['src/**/*.{ts,vue}'],
+    ignores: ['src/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            NO_SECTION_IMPORTS,
+            {
+              group: ['./*', '../*'],
+              message:
+                "Import this package's own modules by package name (@sentinel/<pkg>/…): a relative import escapes federation sharing and duplicates the module in section remotes.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+]
 
 /** Prettier compatibility — must come last to win over earlier stylistic rules. */
 export const eslintConfigPrettier = configPrettier

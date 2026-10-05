@@ -9,11 +9,21 @@ vi.mock('@sentinel/shell-api/shell/sectionRegistry', () => ({ registerSection })
 vi.mock('./SdrView.vue', () => ({ default: { name: 'SdrView' } }))
 vi.mock('./SdrTabPanel.vue', () => ({ default: { name: 'SdrTabPanel' } }))
 
+// `register()` runs once per file, as the module's side effects used to: each
+// case asserts on the same single registration.
+let registered = false
+async function registerOnce(): Promise<void> {
+  if (registered) return
+  registered = true
+  const { default: register } = await import('./section')
+  register()
+}
+
 describe('components/sdr/section', () => {
   it('registers the SDR section with its id, label, navOrder, routed view, and persistent radio pane', async () => {
     const { default: SdrView } = await import('./SdrView.vue')
     const { default: SdrTabPanel } = await import('./SdrTabPanel.vue')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSection).toHaveBeenCalledExactlyOnceWith({
       id: 'sdr',
@@ -26,7 +36,7 @@ describe('components/sdr/section', () => {
   })
 
   it('registers its Settings section and items', async () => {
-    await import('./section')
+    await registerOnce()
     const { getSettingItems, getSettingsSections } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
 
@@ -37,7 +47,7 @@ describe('components/sdr/section', () => {
 
 describe('components/sdr/section — radio capability', () => {
   it('provides the radio capability at registration, before anything mounts', async () => {
-    await import('./section')
+    await registerOnce()
     const { getCapability } = await import('@sentinel/shell-api/shell/capabilities')
 
     const radio = getCapability('radio')
@@ -47,7 +57,7 @@ describe('components/sdr/section — radio capability', () => {
   })
 
   it('provides the Sentry fleet as the radioSites capability', async () => {
-    await import('./section')
+    await registerOnce()
     const { getCapability } = await import('@sentinel/shell-api/shell/capabilities')
 
     const radioSites = getCapability('radioSites')
@@ -57,7 +67,7 @@ describe('components/sdr/section — radio capability', () => {
 
   it('registers its tuned-frequency footer readout', async () => {
     const { default: SdrFooterIndicator } = await import('./SdrFooterIndicator.vue')
-    await import('./section')
+    await registerOnce()
     const { getFooterItems } = await import('@sentinel/shell-api/shell/footerRegistry')
 
     expect(getFooterItems()).toEqual([

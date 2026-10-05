@@ -44,6 +44,12 @@ export interface SectionDefinition {
    * other section (docs/plans/section-containers.md §1.4).
    */
   persistentRadioPane?: Component
+  /**
+   * Set by the shell, never by a section: the section was expected (it is in
+   * the deployment's section list) but its code could not be loaded, so the
+   * shell registered a stand-in whose route explains that (plan §3.5).
+   */
+  unavailable?: boolean
 }
 
 const registeredSections = new Map<string, SectionDefinition>()
@@ -86,6 +92,11 @@ export function getSectionRoutes(): Array<{
 /** `[domain, label]` pairs for every registered section, in nav order — drives the AIR/SPACE/... nav links. */
 export function getNavEntries(): Array<[string, string]> {
   return sectionsByNavOrder().map((section) => [section.id, section.label])
+}
+
+/** Whether a registered section is only the shell's stand-in for one that failed to load. */
+export function isSectionUnavailable(sectionId: string): boolean {
+  return registeredSections.get(sectionId)?.unavailable === true
 }
 
 /**

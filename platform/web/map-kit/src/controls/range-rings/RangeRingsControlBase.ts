@@ -1,8 +1,8 @@
 import * as maplibregl from 'maplibre-gl'
-import { SentinelControlBase } from '../../sentinel-control-base/SentinelControlBase'
-import { buildRingsGeoJSON, RING_DISTANCES_NM } from '../../utils/rangeRings'
-import type { ResolvedRingOrigin } from '../../composables/useRangeRingOrigin'
-import { isBrightBasemap, overlayAccentColor } from '../../utils/mapTheme'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { buildRingsGeoJSON, RING_DISTANCES_NM } from '@sentinel/map-kit/utils/rangeRings'
+import type { ResolvedRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
+import { isBrightBasemap, overlayAccentColor } from '@sentinel/map-kit/utils/mapTheme'
 
 /**
  * The shared behaviour of every domain's range-rings control: concentric

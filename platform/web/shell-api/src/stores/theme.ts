@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { usePersistedRef } from './_persist'
+import { usePersistedRef } from '@sentinel/shell-api/stores/_persist'
 
 /**
  * Which palette the app and its basemaps render in. Dark is the operational

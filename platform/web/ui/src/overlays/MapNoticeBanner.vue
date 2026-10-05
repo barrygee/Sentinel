@@ -30,7 +30,7 @@
  * rail never costs the operator a control; only the optional action slot takes
  * pointer events back.
  */
-import BaseWarningNotice from '../base/BaseWarningNotice.vue'
+import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 
 defineProps<{
   /** The warning to show. The caller renders nothing when there is none. */

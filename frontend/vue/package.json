@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc && vite build",
+    "build": "vue-tsc && vite build && npm run build:sections",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
@@ -23,9 +23,11 @@
     "lint": "eslint . && prettier --check .",
     "lint:fix": "eslint . --fix && prettier --write .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "build:sections": "bash ../../scripts/web-packages.sh build"
   },
   "dependencies": {
+    "@module-federation/runtime": "2.9.2",
     "@sentinel/map-kit": "*",
     "@sentinel/section-air": "*",
     "@sentinel/section-land": "*",
@@ -44,6 +46,7 @@
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
+    "@module-federation/vite": "1.23.2",
     "@playwright/test": "^1.60.0",
     "@sentinel/web-config": "*",
     "@types/jest-axe": "^3.5.9",

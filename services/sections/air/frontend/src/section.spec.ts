@@ -23,10 +23,20 @@ vi.mock('./composables/useAirAlertsService', () => ({
   useAirAlertsService: () => ({ start: startAirAlerts, stop: vi.fn() }),
 }))
 
+// `register()` runs once per file, as the module's side effects used to: each
+// case asserts on the same single registration.
+let registered = false
+async function registerOnce(): Promise<void> {
+  if (registered) return
+  registered = true
+  const { default: register } = await import('./section')
+  register()
+}
+
 describe('components/air/section', () => {
   it('registers the AIR section with its id, label, navOrder, and routed view', async () => {
     const { default: AirView } = await import('./AirView.vue')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSection).toHaveBeenCalledExactlyOnceWith({
       id: 'air',
@@ -39,20 +49,20 @@ describe('components/air/section', () => {
 
   it('registers its FILTER rail sub-tabs', async () => {
     const { airSidebarFilter } = await import('./airSidebarFilter')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('air', airSidebarFilter)
   })
 
   it('registers the aircraft alert click target', async () => {
     const { aircraftNotificationTarget } = await import('./aircraftNotificationTarget')
-    await import('./section')
+    await registerOnce()
 
     expect(registerNotificationTarget).toHaveBeenCalledExactlyOnceWith(aircraftNotificationTarget)
   })
 
   it('registers the air alerts service, which starts the aircraft/overhead alerts', async () => {
-    await import('./section')
+    await registerOnce()
 
     expect(registerBackgroundService).toHaveBeenCalledOnce()
     const service = registerBackgroundService.mock.calls[0]![0]
@@ -63,7 +73,7 @@ describe('components/air/section', () => {
   })
 
   it('registers its Settings section and items', async () => {
-    await import('./section')
+    await registerOnce()
     const { getSettingItems, getSettingsSections } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
 
@@ -74,7 +84,7 @@ describe('components/air/section', () => {
   it('lists its landing/departure bells and overhead alerts in Settings › Alerts', async () => {
     const { aircraftBellSubscriptions, overheadAlertSubscriptions } =
       await import('./airNotificationSubscriptions')
-    await import('./section')
+    await registerOnce()
 
     expect(registerNotificationSubscriptionSource.mock.calls).toEqual([
       [aircraftBellSubscriptions],
@@ -84,7 +94,7 @@ describe('components/air/section', () => {
 
   it('hydrates its stores from the boot settings', async () => {
     const { hydrateAirFromSettings } = await import('./airSettingsHydration')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSettingsHydrator).toHaveBeenCalledExactlyOnceWith('air', hydrateAirFromSettings)
   })

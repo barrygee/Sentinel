@@ -1,8 +1,8 @@
 import { computed, effectScope, ref, watch, type ComputedRef, type Ref } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
-import { isValidLatLon } from '../utils/locationUtils'
-import { siteLabel } from '../utils/sentrySiteLabel'
-import { useUserLocation } from './useUserLocation'
+import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
+import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
+import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 
 /**

@@ -27,10 +27,20 @@ vi.mock('./composables/useSpaceAlertsService', () => ({
   useSpaceAlertsService: () => ({ start: startSpaceAlerts, stop: vi.fn() }),
 }))
 
+// `register()` runs once per file, as the module's side effects used to: each
+// case asserts on the same single registration.
+let registered = false
+async function registerOnce(): Promise<void> {
+  if (registered) return
+  registered = true
+  const { default: register } = await import('./section')
+  register()
+}
+
 describe('components/space/section', () => {
   it('registers the SPACE section with its id, label, navOrder, and routed view', async () => {
     const { default: SpaceView } = await import('./SpaceView.vue')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSection).toHaveBeenCalledExactlyOnceWith({
       id: 'space',
@@ -43,7 +53,7 @@ describe('components/space/section', () => {
 
   it('registers its FILTER rail sub-tabs', async () => {
     const { spaceSidebarFilter } = await import('./spaceSidebarFilter')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith(
       'space',
@@ -53,7 +63,7 @@ describe('components/space/section', () => {
 
   it('registers the PASSES rail tab, shown on Space only', async () => {
     const { default: SpacePassesTabIcon } = await import('./SpacePassesTabIcon.vue')
-    await import('./section')
+    await registerOnce()
 
     expect(registerSidebarSectionTab).toHaveBeenCalledExactlyOnceWith({
       id: 'passes',
@@ -66,7 +76,7 @@ describe('components/space/section', () => {
   it('registers the satellite alert click target and cancels auto-tune when its card is closed', async () => {
     const { satelliteNotificationTarget, cancelAutoTuneOnDismiss } =
       await import('./satelliteNotificationTarget')
-    await import('./section')
+    await registerOnce()
 
     expect(registerNotificationTarget).toHaveBeenCalledExactlyOnceWith(satelliteNotificationTarget)
     expect(registerNotificationDismissHook).toHaveBeenCalledExactlyOnceWith(
@@ -76,7 +86,7 @@ describe('components/space/section', () => {
   })
 
   it('registers the space alerts service, which starts the satellite pass alerts', async () => {
-    await import('./section')
+    await registerOnce()
 
     expect(registerBackgroundService).toHaveBeenCalledOnce()
     const service = registerBackgroundService.mock.calls[0]![0]
@@ -87,7 +97,7 @@ describe('components/space/section', () => {
   })
 
   it('registers its Settings section and items', async () => {
-    await import('./section')
+    await registerOnce()
     const { getSettingItems, getSettingsSections } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
 
@@ -97,7 +107,7 @@ describe('components/space/section', () => {
 
   it('lists its pass bells in Settings › Alerts', async () => {
     const { satellitePassSubscriptions } = await import('./satelliteNotificationSubscriptions')
-    await import('./section')
+    await registerOnce()
 
     expect(registerNotificationSubscriptionSource).toHaveBeenCalledExactlyOnceWith(
       satellitePassSubscriptions,

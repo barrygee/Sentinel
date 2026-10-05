@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { playNotificationSound } from '../composables/useNotificationSound'
-import { useAppStore } from './app'
+import { playNotificationSound } from '@sentinel/shell-api/composables/useNotificationSound'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 export type NotificationType =
   | 'flight'

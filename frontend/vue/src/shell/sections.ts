@@ -1,17 +1,22 @@
+import type { SectionSource } from './sectionLoader'
+
 /**
- * The single place that imports every section's registration module.
+ * Every section, imported from its workspace package — how the shell finds
+ * its sections in the Vite dev server and in tests (`shell/sections`).
  *
- * Each import below runs its section's `registerSection(...)` call as a
- * side effect (see e.g. `components/sea/section.ts`). This file is the one
- * the router and `main.ts` import to populate the registry before it's read
- * — and the one file P4 (Module Federation) replaces with a runtime loader
- * that fetches each remote's `./register` entry instead of statically
- * importing it. Every other shell module only ever reads from
- * `shell/sectionRegistry.ts`, so that swap is the only file federation needs
- * to touch.
+ * The production build swaps this module for `sections.federated.ts` (see
+ * vite.config.ts), which loads each section as a Module Federation remote
+ * instead, so sections ship and deploy separately from the shell. Both expose
+ * the same `sectionSources()`, and `loadSections` treats them identically.
+ *
+ * The order is nav order: AIR, SPACE, SEA, LAND, SDR.
  */
-import '@sentinel/section-air/section'
-import '@sentinel/section-space/section'
-import '@sentinel/section-sea/section'
-import '@sentinel/section-land/section'
-import '@sentinel/section-sdr/section'
+export async function sectionSources(): Promise<SectionSource[]> {
+  return [
+    { id: 'air', load: () => import('@sentinel/section-air/section') },
+    { id: 'space', load: () => import('@sentinel/section-space/section') },
+    { id: 'sea', load: () => import('@sentinel/section-sea/section') },
+    { id: 'land', load: () => import('@sentinel/section-land/section') },
+    { id: 'sdr', load: () => import('@sentinel/section-sdr/section') },
+  ]
+}

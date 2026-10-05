@@ -69,8 +69,8 @@
  * own the field list, the checked state, and what a toggle means.
  */
 import { computed } from 'vue'
-import BaseCheckbox from './BaseCheckbox.vue'
-import BaseToggleSwitch from './BaseToggleSwitch.vue'
+import BaseCheckbox from '@sentinel/ui/base/BaseCheckbox.vue'
+import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 
 /** One checkbox column — a group the field set can differ between. */
 export interface LabelFieldColumn {

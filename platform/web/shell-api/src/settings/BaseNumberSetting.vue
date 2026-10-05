@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import { useStagedSetting } from './useStagedSetting'
+import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
 
 /**
  * `BaseNumberSetting` — a Settings-panel digit-filtered number input with an
