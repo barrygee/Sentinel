@@ -445,6 +445,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make CANCEL ALL ALERTS actually turn alerts off
 - The ADS-B claim wins a shared dongle
 - Reconnect when the rtl_tcp stream goes silent
+- Switching radios keeps each radio's own frequency
 
 ### Chores
 
@@ -1371,6 +1372,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge branch 'main' into fix/adsb-decoder-stall-watchdog
 - Merge pull request #410 from barrygee/fix/adsb-decoder-stall-watchdog
 - Merge pull request #411 from barrygee/feat/adsb-centre-on-user-location
+- Merge remote-tracking branch 'origin/main' into fix/sdr-radio-switch-keeps-own-frequency
+- Merge pull request #412 from barrygee/fix/sdr-radio-switch-keeps-own-frequency
 
 ### Refactoring
 
