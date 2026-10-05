@@ -236,18 +236,18 @@ jobs:
 
       - run: npm ci
 
-      # The shared @sentinel/* packages under platform/web (P4 of the
-      # section-containers plan). `-w platform/web` runs the script in every
-      # workspace below that folder; --if-present skips packages without it
-      # (web-config has no tests). Each package gates its own coverage at 100%.
+      # The shared @sentinel/* packages under platform/web and the section
+      # packages under services/sections/*/frontend (P4 of the
+      # section-containers plan); scripts/web-packages.sh runs the script in
+      # each. Every package gates its own coverage at 100%.
       - name: Lint (ESLint + Prettier)
-        run: npm run lint -w platform/web --if-present
+        run: npm run web-packages -- lint
 
       - name: Typecheck
-        run: npm run typecheck -w platform/web --if-present
+        run: npm run web-packages -- typecheck
 
       - name: Tests + coverage (vitest)
-        run: npm run test:coverage -w platform/web --if-present
+        run: npm run web-packages -- test:coverage
 
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)

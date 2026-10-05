@@ -1,3 +1,7 @@
-import { eslintConfigPrettier, sentinelEslintBase } from '@sentinel/web-config/eslint'
+import {
+  eslintConfigPrettier,
+  noSectionImports,
+  sentinelEslintBase,
+} from '@sentinel/web-config/eslint'
 
-export default [...sentinelEslintBase, eslintConfigPrettier]
+export default [...sentinelEslintBase, noSectionImports, eslintConfigPrettier]

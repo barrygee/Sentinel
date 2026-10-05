@@ -30,11 +30,11 @@ vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({ hydrateFromConfig: vi.fn().mockResolvedValue(undefined) }),
 }))
 
-vi.mock('@/composables/useAirAlertsService', () => ({
+vi.mock('@sentinel/section-air/composables/useAirAlertsService', () => ({
   useAirAlertsService: () => ({ start: vi.fn() }),
 }))
 
-vi.mock('@/composables/useSpaceAlertsService', () => ({
+vi.mock('@sentinel/section-space/composables/useSpaceAlertsService', () => ({
   useSpaceAlertsService: () => ({ start: vi.fn() }),
 }))
 

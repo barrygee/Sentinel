@@ -62,5 +62,30 @@ export const sentinelEslintBase = tseslint.config(
   },
 )
 
+/**
+ * No package imports a section (section-containers plan): sections are
+ * federation remotes the shell discovers at runtime, so another package
+ * importing one would bundle it twice and couple their releases. A section
+ * reaches another only through the shell's registries and capabilities.
+ * The SPA's composition root opts out explicitly.
+ */
+export const noSectionImports = {
+  files: ['**/*.{ts,vue}'],
+  rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        patterns: [
+          {
+            group: ['@sentinel/section-*'],
+            message:
+              'Sections are federation remotes: reach another section through the shell registries and capabilities (@sentinel/shell-api), never by import.',
+          },
+        ],
+      },
+    ],
+  },
+}
+
 /** Prettier compatibility — must come last to win over earlier stylistic rules. */
 export const eslintConfigPrettier = configPrettier
