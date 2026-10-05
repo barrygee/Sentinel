@@ -128,12 +128,23 @@ class TestPipelineProcessGroup:
         assert options == {"start_new_session": True}
 
 
-def _group_is_alive(group_id: int) -> bool:
-    try:
-        os.killpg(group_id, 0)
-    except ProcessLookupError:
-        return False
-    return True
+def _group_is_alive(group_id: int, settle_seconds: float = 3.0) -> bool:
+    """Whether any process in the group survives, allowing killed ones to be reaped.
+
+    A SIGKILLed child becomes a zombie that init reaps on its own schedule, and
+    `killpg(pgid, 0)` still finds it until then — on a busy CI runner that can
+    take a moment. Only a group that is still there after the settle time
+    counts as alive.
+    """
+    deadline = time.monotonic() + settle_seconds
+    while True:
+        try:
+            os.killpg(group_id, 0)
+        except ProcessLookupError:
+            return False
+        if time.monotonic() >= deadline:
+            return True
+        time.sleep(0.05)
 
 
 class TestStopPipeline:
