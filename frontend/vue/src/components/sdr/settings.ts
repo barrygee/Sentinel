@@ -2,7 +2,7 @@ import {
   registerSettingItems,
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
-import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
+import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
 import SdrDevicesControl from '@/components/sdr/settings/SdrDevicesControl.vue'
 import SdrOptionsControl from '@/components/sdr/settings/SdrOptionsControl.vue'
 import SentryHostsControl from '@/components/sdr/settings/SentryHostsControl.vue'

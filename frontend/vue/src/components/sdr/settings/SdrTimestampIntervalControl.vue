@@ -6,7 +6,7 @@
  * component for the shared input/staging plumbing.
  */
 import { useSdrStore } from '@/stores/sdr'
-import BaseNumberSetting from '@/components/base/BaseNumberSetting.vue'
+import BaseNumberSetting from '@sentinel/shell-api/settings/BaseNumberSetting.vue'
 
 const sdr = useSdrStore()
 const emit = defineEmits<{

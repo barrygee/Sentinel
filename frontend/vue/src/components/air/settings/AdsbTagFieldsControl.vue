@@ -22,7 +22,7 @@ import { ref, onMounted } from 'vue'
 import LabelFieldsTable, {
   type LabelFieldColumn,
   type LabelFieldRow,
-} from '@/components/shared/settings/LabelFieldsTable.vue'
+} from '@sentinel/ui/base/LabelFieldsTable.vue'
 import { useAirStore, type AdsbTagFields, type AdsbTagFieldMap } from '@/stores/air'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 

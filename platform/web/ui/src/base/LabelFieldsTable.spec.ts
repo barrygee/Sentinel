@@ -37,6 +37,24 @@ describe('LabelFieldsTable', () => {
     expect(wrapper.find('.lft-header-field').text()).toBe('Field')
   })
 
+  it('hands a custom-control row to the row-control slot instead of a checkbox', () => {
+    const wrapper = mount(LabelFieldsTable, {
+      props: {
+        columns: ONE_COLUMN,
+        rows: [...ROWS, { key: 'range', label: 'Range', control: 'custom' }],
+        isChecked: () => false,
+      },
+      slots: {
+        'row-control': `<template #row-control="{ row }"><input class="custom-control" :aria-label="row.label" /></template>`,
+      },
+    })
+    // Two on/off rows keep their checkbox; the custom row renders only the slot.
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(2)
+    const custom = wrapper.findAll('.custom-control')
+    expect(custom).toHaveLength(1)
+    expect(custom[0]!.attributes('aria-label')).toBe('Range')
+  })
+
   it('accepts a custom field-header caption', () => {
     expect(mountTable({ fieldHeader: 'Data point' }).find('.lft-header-field').text()).toBe(
       'Data point',

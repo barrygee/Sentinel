@@ -2,7 +2,7 @@ import {
   registerSettingItems,
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
-import JsonDataControl from '@/components/shared/settings/JsonDataControl.vue'
+import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
 import SpaceHoverPreviewControl from '@/components/space/settings/SpaceHoverPreviewControl.vue'
 import SpaceTleDatabaseControl from '@/components/space/settings/SpaceTleDatabaseControl.vue'
 import SpaceTleManualControl from '@/components/space/settings/SpaceTleManualControl.vue'

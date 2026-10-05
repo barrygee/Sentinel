@@ -9,7 +9,7 @@
  */
 import { useLandStore } from '@/stores/land'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
-import BaseNumberSetting from '@/components/base/BaseNumberSetting.vue'
+import BaseNumberSetting from '@sentinel/shell-api/settings/BaseNumberSetting.vue'
 
 const landStore = useLandStore()
 const emit = defineEmits<{

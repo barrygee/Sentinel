@@ -195,9 +195,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { storeToRefs } from 'pinia'
-import BaseFilterPanel, {
-  type FilterPanelItem,
-} from '@/components/shared/filter/BaseFilterPanel.vue'
+import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSpaceStore } from '@/stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'

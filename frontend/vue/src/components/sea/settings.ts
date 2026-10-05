@@ -2,13 +2,13 @@ import {
   registerSettingItems,
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
-import OnlineSourceControl from '@/components/shared/settings/OnlineSourceControl.vue'
+import OnlineSourceControl from '@sentinel/shell-api/settings/OnlineSourceControl.vue'
 import SeaAisKeyControl from '@/components/sea/settings/SeaAisKeyControl.vue'
 import SeaAisSdrSourceControl from '@/components/sea/settings/SeaAisSdrSourceControl.vue'
 import SeaCoverageAreaControl from '@/components/sea/settings/SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from '@/components/sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@/components/sea/settings/SeaMapLayersControl.vue'
-import SourceOverrideControl from '@/components/shared/settings/SourceOverrideControl.vue'
+import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
 
 /**
  * SEA's Settings section (F3): AIS sources (AISStream or an SDR), the AISStream key and coverage area, map layers and vessel labels.

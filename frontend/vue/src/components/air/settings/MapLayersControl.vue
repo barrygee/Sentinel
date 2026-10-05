@@ -32,9 +32,7 @@ import { useAirStore, type OverlayStates } from '@/stores/air'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import LabelFieldsTable, {
-  type LabelFieldRow,
-} from '@/components/shared/settings/LabelFieldsTable.vue'
+import LabelFieldsTable, { type LabelFieldRow } from '@sentinel/ui/base/LabelFieldsTable.vue'
 
 /** An Air overlay flag, or the shared terrain base-map layer. */
 type MapLayerKey = keyof OverlayStates | 'terrain'

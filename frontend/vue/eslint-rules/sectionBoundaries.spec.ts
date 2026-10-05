@@ -35,7 +35,7 @@ describe('sentinel/section-boundaries', () => {
       },
       {
         filename: file('components/land/LandView.ts'),
-        code: "import AprsSymbol from '@/components/shared/AprsSymbol.vue'",
+        code: "import MapSidebar from '@/components/shared/MapSidebar.vue'",
       },
       { filename: file('components/land/LandView.ts'), code: "import { ref } from 'vue'" },
       // Core importing core.

@@ -3,8 +3,8 @@ import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import NoUrlOverlay from './NoUrlOverlay.vue'
-import { useAppStore } from '@sentinel/shell-api/stores/app'
-import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '../stores/app'
+import { useSettingsStore } from '../stores/settings'
 
 type FetchHandler = (url: string) => { ok: boolean; json?: () => Promise<unknown> }
 

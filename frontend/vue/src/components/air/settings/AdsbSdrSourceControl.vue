@@ -35,7 +35,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { clearAdsbSource, getAdsbSource, setAdsbSource } from '@/services/adsbSourceApi'
 import SettingsDropdown, {
   type SettingsDropdownOption,
-} from '@/components/shared/settings/SettingsDropdown.vue'
+} from '@sentinel/ui/base/SettingsDropdown.vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 

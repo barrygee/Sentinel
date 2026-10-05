@@ -3,13 +3,13 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import BaseNumberSetting from './BaseNumberSetting.vue'
 
-vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
+vi.mock('../services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import * as settingsApi from '../services/settingsApi'
 
 /** Builds a fake store: a boxed number plus read/mirror/hydrate callbacks. */
 function makeFakeStore(initialValue: number) {
@@ -55,6 +55,22 @@ describe('BaseNumberSetting', () => {
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('10')
     expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
     expect(wrapper.text()).toContain('NM')
+  })
+
+  it('renders no unit suffix when none is given', async () => {
+    const store = makeFakeStore(10)
+    const wrapper = mount(BaseNumberSetting, {
+      props: {
+        accessibleName: 'Example number setting',
+        namespace: 'sdr',
+        settingKey: 'exampleSetting',
+        hydrateFromDb: store.hydrateFromDb,
+        readFromStore: store.readFromStore,
+        mirrorToStore: store.mirrorToStore,
+      },
+    })
+    await flushPromises()
+    expect(wrapper.find('.number-setting-unit').exists()).toBe(false)
   })
 
   it('calls hydrateFromDb on mount and re-reads the store', async () => {

@@ -4,14 +4,17 @@ Sentinel's shared UI primitives — the layer every section and the shell build 
 Depends on nothing but Vue, so it can be shared as a federation singleton (P4 of
 [`docs/plans/section-containers.md`](../../../docs/plans/section-containers.md)).
 
-| Entry                        | Contents                                                                                                         |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `@sentinel/ui/base/*.vue`    | `Base*` components, `IconRail`, `IconRailAccordion`                                                              |
-| `@sentinel/ui/icons/*.vue`   | Generic glyphs (bell, chevron, radio, terrain, …)                                                                |
-| `@sentinel/ui/composables/*` | DOM helpers: `useDisclosure`, `useDocumentEvent`, `useWindowEvent`, `useTeleportedMenu`, `useRadioGroupKeyboard` |
+| Entry                         | Contents                                                                                                         |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@sentinel/ui/base/*.vue`     | `Base*` components, `IconRail`, `IconRailAccordion`                                                              |
+| `@sentinel/ui/icons/*.vue`    | Generic glyphs (bell, chevron, radio, terrain, …)                                                                |
+| `@sentinel/ui/overlays/*.vue` | `NoDataOverlay`, `MapNoticeBanner`                                                                               |
+| `@sentinel/ui/utils/*`        | `aprsSymbols` (the APRS symbol table `AprsSymbol` draws)                                                         |
+| `@sentinel/ui/composables/*`  | DOM helpers: `useDisclosure`, `useDocumentEvent`, `useWindowEvent`, `useTeleportedMenu`, `useRadioGroupKeyboard` |
 
-Settings-bound controls (`BaseToggleSetting`, `BaseNumberSetting`) stay in the SPA:
-they persist through the settings API, which is shell territory.
+Settings-bound controls (`BaseToggleSetting`, `BaseNumberSetting`, …) live in
+`@sentinel/shell-api/settings/*`: they persist through the settings API, which is
+shell territory.
 
 Source-only package (no build step): consumers compile it with their own Vite.
 

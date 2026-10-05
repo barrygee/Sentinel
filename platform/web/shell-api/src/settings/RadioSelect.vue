@@ -35,11 +35,11 @@
  * platform registered the list is simply empty.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getCapability } from '@sentinel/shell-api/shell/capabilities'
-import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
+import { getCapability } from '../shell/capabilities'
+import type { RadioSummary } from '../shell/radioCapability'
 import SettingsDropdown, {
   type SettingsDropdownOption,
-} from '@/components/shared/settings/SettingsDropdown.vue'
+} from '@sentinel/ui/base/SettingsDropdown.vue'
 
 /** How often the list re-reads the configured radios. */
 const REFRESH_INTERVAL_MS = 5000

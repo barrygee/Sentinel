@@ -31,7 +31,7 @@
  * over hardware should be a decision, not a side effect of a timer.
  */
 import type { AdsbClaimError } from '@/services/adsbSourceApi'
-import MapNoticeBanner from '@/components/shared/MapNoticeBanner.vue'
+import MapNoticeBanner from '@sentinel/ui/overlays/MapNoticeBanner.vue'
 
 defineProps<{
   error: AdsbClaimError | null

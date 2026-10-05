@@ -30,7 +30,7 @@
  * so nothing needs retuning by hand here.
  */
 import { onMounted, ref, watch } from 'vue'
-import RadioSelect from '@/components/shared/settings/RadioSelect.vue'
+import RadioSelect from '@sentinel/shell-api/settings/RadioSelect.vue'
 import { useRadio } from '@sentinel/shell-api/shell/useRadio'
 
 // Decode is started/stopped through the radio platform's `radio.decoders`

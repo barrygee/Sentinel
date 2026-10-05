@@ -13,7 +13,7 @@ import { ref, onMounted } from 'vue'
 import LabelFieldsTable, {
   type LabelFieldColumn,
   type LabelFieldRow,
-} from '@/components/shared/settings/LabelFieldsTable.vue'
+} from '@sentinel/ui/base/LabelFieldsTable.vue'
 import { useRepeatersStore } from '@/stores/repeaters'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import type { RepeaterLabelFieldMap } from '@/types/repeaters'

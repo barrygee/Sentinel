@@ -1,7 +1,7 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
-import { aprsSymbolIcon, aprsSymbolSvg } from '@/utils/aprsSymbols'
+import { aprsSymbolIcon, aprsSymbolSvg } from '@sentinel/ui/utils/aprsSymbols'
 import { escapeHtml } from '@/utils/escapeHtml'
 import {
   APRS_ACCENT_COLOR,
