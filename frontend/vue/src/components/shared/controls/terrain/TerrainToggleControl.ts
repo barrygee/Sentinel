@@ -29,8 +29,8 @@ interface ContourPalette {
 }
 
 /**
- * Contour ink per basemap: pale blue on the dark map, and a dark survey brown
- * on the light and colour maps (where the old pale blue all but vanished).
+ * Contour ink per basemap: pale blue on the dark map, and a survey brown on the
+ * light (OpenStreetMap-coloured) map, where pale blue all but vanished.
  */
 export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
   dark: {
@@ -48,14 +48,6 @@ export const CONTOUR_PALETTES: Record<MapTheme, ContourPalette> = {
     indexOpacity: 0.85,
     labelColor: 'hsl(25, 40%, 20%)',
     labelHaloColor: 'hsla(0, 0%, 100%, 0.85)',
-  },
-  colour: {
-    minorColor: 'hsl(25, 45%, 24%)',
-    minorOpacity: 0.6,
-    indexColor: 'hsl(25, 55%, 16%)',
-    indexOpacity: 0.9,
-    labelColor: 'hsl(25, 55%, 14%)',
-    labelHaloColor: 'hsla(45, 45%, 90%, 0.85)',
   },
 }
 

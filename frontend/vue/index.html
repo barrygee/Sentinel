@@ -32,12 +32,11 @@
       try {
         document.documentElement.dataset.theme = 'dark'
         var _map = localStorage.getItem('sentinel_map_theme')
+        // A retired "colour" choice is today's LIGHT map (COLOUR was renamed).
         var _mapTheme =
-          _map === '"light"' || _map === 'light'
+          _map === '"light"' || _map === 'light' || _map === '"colour"' || _map === 'colour'
             ? 'light'
-            : _map === '"colour"' || _map === 'colour'
-              ? 'colour'
-              : 'dark'
+            : 'dark'
         document.documentElement.dataset.mapTheme = _mapTheme
       } catch (e) {}
     </script>

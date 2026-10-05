@@ -4,14 +4,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { Map } from 'maplibre-gl'
 import { BASEMAP_LAYER_GROUPS, applyBasemapLayerVisibility } from './basemapLayers'
 
-const STYLE_NAMES = [
-  'fiord',
-  'fiord-online',
-  'positron',
-  'positron-online',
-  'cartographic',
-  'cartographic-online',
-]
+const STYLE_NAMES = ['fiord', 'fiord-online', 'osm-light', 'osm-light-online']
 
 interface StyleLayer {
   id: string

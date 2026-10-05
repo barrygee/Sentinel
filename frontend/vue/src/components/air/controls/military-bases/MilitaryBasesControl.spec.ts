@@ -165,8 +165,24 @@ describe('MilitaryBasesToggleControl marker labels', () => {
     control.onAdd(fakeMap().map)
     const noIcaoIndex = MILITARY_BASES_DATA.features.findIndex((f) => f.properties.icao === '')
     const element = markerRegistry.instances[noIcaoIndex]!.options.element
-    // Only the name span — no #c8ff00 ICAO highlight.
-    expect(element.innerHTML).not.toContain('#c8ff00')
+    // Only the name span — no accent-coloured ICAO highlight.
+    expect(element.innerHTML).not.toContain('--map-overlay-accent')
+    expect(element.innerHTML).toContain('RAF')
+  })
+
+  it('inks the label and accents the ICAO from the basemap tokens', () => {
+    // Lime/white on the dark map; dark olive/near-black with a white halo on
+    // the undimmed light one (frontend/assets/template.css).
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    control.onAdd(fakeMap().map)
+    const bensonIndex = MILITARY_BASES_DATA.features.findIndex((f) => f.properties.icao === 'EGUB')
+    const element = markerRegistry.instances[bensonIndex]!.options.element
+    const label = element.firstElementChild as HTMLElement
+    expect(label.getAttribute('style')).toContain('color: var(--map-overlay-ink, #fff)')
+    expect(label.getAttribute('style')).toContain('text-shadow: var(--map-overlay-halo, none)')
+    expect(label.innerHTML).toContain(
+      '<span style="color:var(--map-overlay-accent, #c8ff00)">EGUB</span>',
+    )
   })
 })
 

@@ -320,7 +320,6 @@ describe('SatelliteControl bracket ink per basemap', () => {
   it.each([
     ['dark', '#c8ff00'],
     ['light', '#000000'],
-    ['colour', '#000000'],
   ])('draws the bracket sprite for the %s basemap in %s', async (mapTheme, expectedColour) => {
     document.documentElement.dataset.mapTheme = mapTheme
     const { control } = await mounted()

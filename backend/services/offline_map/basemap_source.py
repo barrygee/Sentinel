@@ -34,7 +34,7 @@ from backend.services.offline_map import source_probe
 
 logger = logging.getLogger(__name__)
 
-# Our offline styles (fiord/positron/cartographic.json) target the Protomaps
+# Our offline styles (fiord/osm-light.json) target the Protomaps
 # Basemap v4 layer schema. A v5 build could rename layers and render blank.
 _SUPPORTED_SCHEMA_MAJOR_VERSION = 4
 _BUILD_KEY_PATTERN = re.compile(r"^\d{8}\.pmtiles$")

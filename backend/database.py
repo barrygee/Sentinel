@@ -606,8 +606,8 @@ async def seed_default_settings() -> None:
                 await session.delete(old_row)
         await session.commit()
 
-    # The map palette was once a boolean `app.lightMapTheme`; it is now the
-    # three-way `app.mapTheme`. Carry an old choice across before the default
+    # The map palette was once a boolean `app.lightMapTheme`; it is now
+    # `app.mapTheme`. Carry an old choice across before the default
     # ("dark") is seeded below, which would otherwise flip a light-map install.
     async with AsyncSessionLocal() as session:
         legacy_row = (
@@ -630,6 +630,24 @@ async def seed_default_settings() -> None:
                 legacy_row.value = json.dumps("light" if was_light else "dark")
             else:
                 await session.delete(legacy_row)
+            await session.commit()
+
+    # The map palette lost its third option: the old LIGHT map was removed and
+    # COLOUR became LIGHT (restyled in OpenStreetMap's default colours). An
+    # install still on "colour" moves to "light" — the same map, renamed —
+    # rather than falling back to dark.
+    async with AsyncSessionLocal() as session:
+        colour_row = (
+            await session.execute(
+                select(UserSettings).where(
+                    UserSettings.namespace == "app",
+                    UserSettings.key == "mapTheme",
+                    UserSettings.value == json.dumps("colour"),
+                )
+            )
+        ).scalar_one_or_none()
+        if colour_row is not None:
+            colour_row.value = json.dumps("light")
             await session.commit()
 
     # Remove stale rows seeded by earlier versions.

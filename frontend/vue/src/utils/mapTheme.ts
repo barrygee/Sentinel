@@ -21,32 +21,25 @@ import type { MapTheme } from '@/stores/theme'
  * the default palette.
  */
 export function currentMapTheme(): MapTheme {
-  const mapTheme = document.documentElement.dataset.mapTheme
-  return mapTheme === 'light' || mapTheme === 'colour' ? mapTheme : 'dark'
+  return document.documentElement.dataset.mapTheme === 'light' ? 'light' : 'dark'
 }
 
 /**
- * Whether the basemap currently loaded is a BRIGHT one — the light palette or
- * the full-colour cartographic build.
- *
- * Overlays only care about this much: dark ground or bright ground. Colour is
- * bright ground (cream land, blue sea), so it takes the same overlay ink the
- * light basemap does even though it is a different map.
+ * Whether the basemap currently loaded is the bright one (LIGHT: cream land,
+ * blue sea). Overlays only care about this much: dark ground or bright ground.
  */
 export function isBrightBasemap(): boolean {
-  const mapTheme = document.documentElement.dataset.mapTheme
-  return mapTheme === 'light' || mapTheme === 'colour'
+  return currentMapTheme() === 'light'
 }
 
 /**
  * Ink for overlay geometry drawn in the brand lime on the dark basemap.
  *
  * Lime reads as a highlight against near-black, but it is one of the weakest
- * colours against anything pale — on the light and colour basemaps the same
- * lines all but disappear, and on the colour one they also compete with the
- * map's own greens and golds. Black is the bright basemaps' equivalent
- * highlight, and keeps the geometry the subject of the map rather than the
- * basemap beneath it.
+ * colours against anything pale — on the light basemap the same lines all but
+ * disappear among the map's own greens and yellows. Black is the bright
+ * basemap's equivalent highlight, and keeps the geometry the subject of the
+ * map rather than the basemap beneath it.
  */
 export function overlayAccentColor(): string {
   return isBrightBasemap() ? '#000000' : '#c8ff00'

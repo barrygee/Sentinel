@@ -4,9 +4,8 @@ import { useStagedSetting } from '@/composables/useStagedSetting'
 import { useThemeStore, type MapTheme } from '@/stores/theme'
 
 /**
- * Settings row for the BASEMAP palette, separate from the interface one
- * (`ThemeControl`). COLOUR is the cartographic build — for when the map is
- * being read as a map rather than used as ground for the overlays.
+ * Settings row for the BASEMAP palette, separate from the interface (which is
+ * always dark): DARK, or LIGHT in OpenStreetMap's default colours.
  *
  * The maps repaint as the choice moves (MapLibre reloads the style) while the
  * persisted write waits for APPLY CHANGES like every other staged setting.
@@ -19,7 +18,6 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const OPTIONS: ReadonlyArray<{ value: MapTheme; label: string }> = [
   { value: 'dark', label: 'DARK' },
   { value: 'light', label: 'LIGHT' },
-  { value: 'colour', label: 'COLOUR' },
 ]
 
 const { value, applyChange } = useStagedSetting<MapTheme>({

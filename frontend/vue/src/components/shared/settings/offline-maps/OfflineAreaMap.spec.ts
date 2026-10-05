@@ -189,7 +189,7 @@ describe('OfflineAreaMap', () => {
     useThemeStore().setMapTheme('light')
     await wrapper.vm.$nextTick()
     expect(currentMap().setStyle).toHaveBeenLastCalledWith(
-      '/assets/positron-online.json',
+      '/assets/osm-light-online.json',
       expect.anything(),
     )
   })
@@ -712,7 +712,7 @@ describe('OfflineAreaMap', () => {
   })
 
   it('makes the region fill more transparent on the dark basemap than on a bright one', async () => {
-    const fillOpacity = async (theme: 'dark' | 'colour') => {
+    const fillOpacity = async (theme: 'dark' | 'light') => {
       useThemeStore().setMapTheme(theme)
       mountMap({ regions: [REGION_A] })
       await loadStyle()
@@ -721,7 +721,7 @@ describe('OfflineAreaMap', () => {
       )![0] as { paint: { 'fill-opacity': number } }
       return fill.paint['fill-opacity']
     }
-    expect(await fillOpacity('colour')).toBe(0.25)
+    expect(await fillOpacity('light')).toBe(0.25)
     expect(await fillOpacity('dark')).toBe(0.15)
   })
 
