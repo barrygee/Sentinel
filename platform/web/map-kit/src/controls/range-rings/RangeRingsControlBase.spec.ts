@@ -7,6 +7,7 @@ const LAYER = 'test-rings'
 const ORIGIN_LAYER = `${LAYER}-origin`
 const ORIGIN_DOT_LAYER = `${LAYER}-origin-dot`
 const LABEL_LAYER = `${LAYER}-label`
+const DISTANCE_LAYER = `${LAYER}-distances`
 
 /** The smallest concrete control: a fixed layer id and a recorded toggle. */
 class TestRangeRingsControl extends RangeRingsControlBase {
@@ -120,10 +121,10 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.sources.get(ORIGIN_LAYER)!.setData).toHaveBeenCalledTimes(1)
     })
 
-    it('flags a stale position in the ring label', () => {
+    it('flags a stale position in the origin label, which no longer carries a distance', () => {
       const { control, map } = addedControl()
       control.setOrigin(origin({ degraded: true }))
-      expect(map._state.textField[LABEL_LAYER]).toMatch(/^SENTRY ONE · OFFLINE · \d+ NM$/)
+      expect(map._state.textField[LABEL_LAYER]).toBe('SENTRY ONE · OFFLINE')
     })
   })
 
@@ -135,6 +136,7 @@ describe('RangeRingsControlBase', () => {
         'rgba(255,255,255,0.65)',
       )
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#000000')
+      expect(map._state.layers.get(DISTANCE_LAYER)!.paint!['text-color']).toBe('#ffffff')
     })
 
     it('switches to black with a white halo on the bright basemap', () => {
@@ -144,6 +146,7 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.layers.get(ORIGIN_LAYER)!.paint!['circle-stroke-color']).toBe('#000000')
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-color']).toBe('#000000')
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#ffffff')
+      expect(map._state.layers.get(DISTANCE_LAYER)!.paint!['text-color']).toBe('#1b1d22')
     })
   })
 
@@ -152,10 +155,10 @@ describe('RangeRingsControlBase', () => {
       const { control, map } = addedControl()
       control._initRings()
       expect(map._state.removedLayers.sort()).toEqual(
-        [LAYER, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER].sort(),
+        [LAYER, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER, DISTANCE_LAYER].sort(),
       )
       expect(map._state.removedSources.sort()).toEqual([LAYER, ORIGIN_LAYER].sort())
-      expect([...map._state.layers.keys()]).toHaveLength(4)
+      expect([...map._state.layers.keys()]).toHaveLength(5)
     })
   })
 
