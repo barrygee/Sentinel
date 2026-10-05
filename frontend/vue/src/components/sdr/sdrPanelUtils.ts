@@ -18,12 +18,30 @@ export function formatBwHz(hz: number): string {
   return `${hz} Hz`
 }
 
+/**
+ * The frequencies any supported tuner can reach — the backend enforces the same
+ * range (`MIN_TUNE_HZ`/`MAX_TUNE_HZ` in radio_hub/services/sdr.py): 500 kHz (HF
+ * on an RTL-SDR Blog V4) to 2.2 GHz (the E4000's ceiling). A 7.812 GHz tune from
+ * an accidental digit-wheel scroll once wedged a dongle.
+ */
+export const SDR_MIN_TUNE_HZ = 500_000
+export const SDR_MAX_TUNE_HZ = 2_200_000_000
+
+/** Whether `hz` is a whole number of Hz a tuner can be sent to. */
+export function isTunableHz(hz: unknown): hz is number {
+  return (
+    Number.isInteger(hz) && (hz as number) >= SDR_MIN_TUNE_HZ && (hz as number) <= SDR_MAX_TUNE_HZ
+  )
+}
+
 // Parse a user-entered frequency. Strings under 30000 are assumed to be MHz
-// (e.g. "100.5" → 100_500_000); larger values are taken as raw Hz.
+// (e.g. "100.5" → 100_500_000); larger values are taken as raw Hz. Anything a
+// tuner cannot reach parses as null, so it is never sent.
 export function parseFreqMhz(raw: string): number | null {
   const v = parseFloat(raw.replace(/[^\d.]/g, ''))
   if (isNaN(v) || v <= 0) return null
-  return v > 30000 ? v : Math.round(v * 1e6)
+  const hz = v > 30000 ? v : Math.round(v * 1e6)
+  return isTunableHz(hz) ? hz : null
 }
 
 export function defaultBwHz(mode: string): number {

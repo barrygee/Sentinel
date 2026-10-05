@@ -1,4 +1,5 @@
 import type { useSdrStore } from '@/stores/sdr'
+import { isTunableHz } from '@/components/sdr/sdrPanelUtils'
 
 /**
  * The SDR control-socket transport + command layer, extracted from
@@ -110,6 +111,11 @@ export function useSdrControlSocket(options: UseSdrControlSocketOptions) {
     // a tune here is allowed and claims ownership. This is the single chokepoint
     // every retune path funnels through (typed, marker click, wheel, scan, search).
     const sdrCommand = (obj as { cmd?: string }).cmd
+    // Never send a tune a tuner cannot reach: the relay would hold it, and the
+    // backend refuses it anyway (it once wedged a dongle at 7.812 GHz).
+    if (sdrCommand === 'tune' && !isTunableHz((obj as { frequency_hz?: unknown }).frequency_hz)) {
+      return
+    }
     if (
       _sdrStore().readOnly &&
       (sdrCommand === 'tune' || sdrCommand === 'gain' || sdrCommand === 'sample_rate')

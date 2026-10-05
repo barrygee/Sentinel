@@ -1017,7 +1017,7 @@ const {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-import { parseFreqMhz, defaultBwHz, MODES, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
+import { parseFreqMhz, defaultBwHz, isTunableHz, MODES, SAMPLE_RATE_OPTIONS } from './sdrPanelUtils'
 
 function saveSettings() {
   try {
@@ -1695,7 +1695,8 @@ function applyStatus(msg: {
   // frequency for this one: adopt this radio's own tuning instead.
   const hadUserFreq =
     !adoptNextRadioCentre && currentFreqHz.value && currentFreqHz.value !== msg.center_hz
-  if (!hadUserFreq && msg.center_hz > 0) {
+  // A centre no tuner can reach (a relay wedged by a bad tune) is never adopted.
+  if (!hadUserFreq && isTunableHz(msg.center_hz)) {
     currentFreqHz.value = msg.center_hz
     freqInputVal.value = (msg.center_hz / 1e6).toFixed(4)
     activeFreqDisplay.value = (msg.center_hz / 1e6).toFixed(3) + ' MHz'

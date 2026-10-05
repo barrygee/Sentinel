@@ -117,6 +117,28 @@ afterEach(() => {
 })
 
 describe('useSdrControlSocket — sendCmd', () => {
+  it('never sends a tune no tuner can reach', async () => {
+    const { socket } = createHarness()
+    await openAndConnect(socket)
+    FakeWebSocket.latest().sent.length = 0
+    for (const frequency_hz of [
+      7_812_000_000,
+      2_200_000_001,
+      499_999,
+      0,
+      145.5e3 + 0.5,
+      undefined,
+    ]) {
+      socket.sendCmd({ cmd: 'tune', frequency_hz })
+    }
+    expect(FakeWebSocket.latest().sent).toHaveLength(0)
+    socket.sendCmd({ cmd: 'tune', frequency_hz: 2_200_000_000 })
+    socket.sendCmd({ cmd: 'tune', frequency_hz: 500_000 })
+    expect(FakeWebSocket.latest().sent.map((raw) => JSON.parse(raw).frequency_hz)).toEqual([
+      2_200_000_000, 500_000,
+    ])
+  })
+
   it('sends JSON over an open socket', async () => {
     const { socket } = createHarness()
     await openAndConnect(socket)

@@ -25,7 +25,7 @@ from backend.radio_hub.services import (
 from backend.radio_hub.services import sdr as sdr_svc
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -64,6 +64,13 @@ class ConnectIn(BaseModel):
     gain_auto: bool | None = None  # None = preserve current AGC state
     squelch_dbfs: float = -60.0
     sample_rate: int | None = None  # None = preserve current sample rate
+
+    @field_validator("frequency_hz")
+    @classmethod
+    def _tunable_frequency(cls, frequency_hz: int | None) -> int | None:
+        if frequency_hz is not None and not sdr_svc.is_tunable(frequency_hz):
+            raise ValueError(f"frequency_hz must be between {sdr_svc.MIN_TUNE_HZ} and {sdr_svc.MAX_TUNE_HZ} Hz")
+        return frequency_hz
 
 
 class DisconnectIn(BaseModel):
