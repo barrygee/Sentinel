@@ -680,8 +680,13 @@ describe('AdsbLiveControl._fetch', () => {
     expect(true).toBe(true)
   })
 
-  it('uses the cached user location when fresh', async () => {
-    const { control } = mounted()
+  it('queries the map centre, never a stored location (the backend picks the off-grid centre)', async () => {
+    const { control, map } = mounted()
+    vi.mocked(map.map.getCenter).mockReturnValue({
+      lat: 54.9512,
+      lng: -1.533,
+    } as unknown as maplibregl.LngLat)
+    // The key this control once read (and nothing ever wrote) must not steer the query.
     localStorage.setItem(
       'userLocation',
       JSON.stringify({ latitude: 40, longitude: -70, ts: Date.now() }),
@@ -693,9 +698,10 @@ describe('AdsbLiveControl._fetch', () => {
     } as Response)
     await (control as unknown as { _fetch: () => Promise<void> })._fetch()
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('40.0000/-70.0000'),
+      expect.stringContaining('/api/air/adsb/point/54.9512/-1.5330/250'),
       expect.anything(),
     )
+    localStorage.removeItem('userLocation')
   })
 })
 
