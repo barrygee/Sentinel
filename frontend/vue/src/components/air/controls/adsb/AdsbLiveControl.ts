@@ -103,6 +103,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _onAdsbLabelsSync: ((visible: boolean) => void) | null
 
   private _pollInterval: ReturnType<typeof setInterval> | null = null
+  // The mode the shown aircraft came from, so a style reload in the same mode
+  // doesn't wipe them — only a real feed switch does.
+  private _lastFeedMode: SourceMode = this._effectiveMode()
   private _interpolateInterval: ReturnType<typeof setInterval> | null = null
 
   _geojson: { type: 'FeatureCollection'; features: AircraftGeoFeature[] }
@@ -742,8 +745,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._raiseLayers()
     this._applyTypeFilter()
     if (this._geojson.features.length) this._interpolate()
-    if (this.visible && !this._pollInterval && this._effectiveMode() !== 'offgrid')
-      this._startPolling()
+    if (this.visible && !this._pollInterval) this._startPolling()
   }
 
   // ---- ADS-B category label ----
@@ -2554,14 +2556,24 @@ export class AdsbLiveControl implements maplibregl.IControl {
     } catch (e) {}
   }
 
+  /**
+   * Switch the feed after the connectivity mode changes (or the style reloads).
+   *
+   * Both modes poll the same `/api/air/adsb/point` endpoint: the backend picks
+   * the internet feed or the off-grid receiver from the effective mode. Off grid
+   * used to clear the aircraft and stop polling outright, so the map stayed
+   * empty while the decoder was serving aircraft. The aircraft from the old
+   * feed are cleared either way, so none linger from the source just left.
+   */
   handleConnectivityChange(): void {
     const mode = this._effectiveMode()
-    if (mode === 'offgrid') {
-      this.clearAircraft()
-    } else if (this.visible) {
-      this._stopPolling()
-      this._startPolling()
+    if (mode === this._lastFeedMode) {
+      if (this.visible && !this._pollInterval) this._startPolling()
+      return
     }
+    this._lastFeedMode = mode
+    this.clearAircraft()
+    if (this.visible) this._startPolling()
   }
 
   // ---- Visibility toggle ----
