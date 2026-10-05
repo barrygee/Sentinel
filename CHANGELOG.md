@@ -192,6 +192,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remember vessel names so position-only reports are named
 - Centre off-grid ADS-B on the selected receiver
 - LIGHT is OpenStreetMap's default style; the old light map is gone
+- Dark location marks on the light map; distance on every range ring
 
 ### Bug Fixes
 
@@ -1389,6 +1390,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #421 from barrygee/refactor/p4-3-map-kit
 - Merge pull request #422 from barrygee/refactor/p4-4-section-packages
 - Merge pull request #423 from barrygee/refactor/p4-5-section-packages
+- Merge origin/main into feat/map-light-icons-ring-distances
+- Merge pull request #424 from barrygee/feat/map-light-icons-ring-distances
 
 ### Refactoring
 
@@ -1543,6 +1546,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add P0 parity baseline for the section-containers split
 - Lock aircraft alert navigation after leaving Air
 - Let SIGKILLed pipeline stages be reaped before checking the group
+- Expect per-ring distance labels in the range-ring base spec
 
 ### Build System
 
