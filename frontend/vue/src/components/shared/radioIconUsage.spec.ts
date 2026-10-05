@@ -12,9 +12,9 @@ describe('RadioIcon usage', () => {
     // drift, so no call site may re-declare the body rect's geometry.
     const sources = [
       'src/components/shared/SettingsPanel.vue',
-      'src/components/sdr/SdrPanel.vue',
-      'src/components/space/SpacePasses.vue',
-      'src/components/space/SpaceFilter.vue',
+      '../../services/sections/sdr/frontend/src/SdrPanel.vue',
+      '../../services/sections/space/frontend/src/SpacePasses.vue',
+      '../../services/sections/space/frontend/src/SpaceFilter.vue',
     ]
 
     for (const source of sources) {

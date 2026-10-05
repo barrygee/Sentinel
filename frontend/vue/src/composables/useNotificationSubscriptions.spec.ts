@@ -10,23 +10,29 @@ import {
   aircraftBellSubscriptions,
   overheadAlertSubscriptions,
   resetAirNotificationSubscriptionsForTests,
-} from '@/components/air/airNotificationSubscriptions'
-import { satellitePassSubscriptions } from '@/components/space/satelliteNotificationSubscriptions'
-import { useAirNotifStore } from '@/stores/airNotif'
-import { useAirStore, sentryAlertLocationId, USER_ALERT_LOCATION_ID } from '@/stores/air'
+} from '@sentinel/section-air/airNotificationSubscriptions'
+import { satellitePassSubscriptions } from '@sentinel/section-space/satelliteNotificationSubscriptions'
+import { useAirNotifStore } from '@sentinel/section-air/stores/airNotif'
+import {
+  useAirStore,
+  sentryAlertLocationId,
+  USER_ALERT_LOCATION_ID,
+} from '@sentinel/section-air/stores/air'
 import {
   isPassNotifEnabled,
   setPassNotifEnabled,
   setAutoTuneEnabled,
-} from '@/components/space/controls/satellite/passNotifStore'
+} from '@sentinel/section-space/controls/satellite/passNotifStore'
 
 vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 // The real zones need geolocation and the Sentry poll; stand in with the same
 // shape, derived from the air store so switching an alert off shows through.
-vi.mock('@/composables/useOverheadAlertZones', () => ({ useOverheadAlertZones: vi.fn() }))
-import { useOverheadAlertZones } from '@/composables/useOverheadAlertZones'
+vi.mock('@sentinel/section-air/composables/useOverheadAlertZones', () => ({
+  useOverheadAlertZones: vi.fn(),
+}))
+import { useOverheadAlertZones } from '@sentinel/section-air/composables/useOverheadAlertZones'
 
 const SENTRY_ID = sentryAlertLocationId(3)
 

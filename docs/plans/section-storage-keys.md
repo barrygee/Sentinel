@@ -6,8 +6,8 @@ Companion to [section-containers.md §3.7](section-containers.md#37-browser-stor
 When a section becomes its own Module Federation remote (P4), it **keeps these exact key names**. Every remote runs
 on the same origin as the shell, so a browser's saved state carries over with no migration.
 
-- **Owner** is the module that writes the key. It uses the ownership map the `sentinel/section-boundaries` lint rule
-  enforces (`frontend/vue/eslint-rules/sectionOwnership.ts`).
+- **Owner** is the module that writes the key: since P4.5 each section's code lives in its own package
+  (`services/sections/<id>/frontend`), and core in the SPA and `@sentinel/shell-api`.
 - **Also read by** lists any other owner that reads the key. Each of these is an implicit contract that must survive
   the split.
 

@@ -13,7 +13,9 @@
     "src/**/*.d.ts",
     "src/**/*.tsx",
     "src/**/*.vue",
-    "eslint-rules/**/*.ts"
+    // The shell type-checks the sections it composes, so it needs their ambient
+    // declarations too (e.g. the SDR section's hand-written sigplot types).
+    "../../services/sections/*/frontend/src/types/*.d.ts"
   ],
   "references": [
     {
