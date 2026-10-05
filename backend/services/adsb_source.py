@@ -65,6 +65,7 @@ SOURCE_SETTING_KEY = "offgridSdrSource"
 ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
 RELEASE_SUBJECT = "hub.sentry.reservation.release"
 DEVICE_ADDRESS_SUBJECT = "hub.sentry.device.address"
+HOST_LOCATION_SUBJECT = "hub.sentry.host.location"
 HUB_REQUEST_TIMEOUT: float | None = None
 """No bus-level limit: the hub's Sentry client already bounds every call with
 its connect/read timeouts, and one claim may be several Sentry round trips."""
@@ -267,3 +268,19 @@ async def get_decoder_config(db: AsyncSession) -> dict[str, Any]:
         "rtl_tcp": {"host": reply["host"], "port": reply["port"]},
         "sentry_device_id": source.device_id,
     }
+
+
+async def receiver_location(db: AsyncSession) -> tuple[float, float] | None:
+    """``(lat, lon)`` of the receiver the off-grid ADS-B source decodes from, if known.
+
+    The receiver is the Sentry device picked in Settings › AIR; its position is
+    its Sentry host's. None when no source is picked, or the hub has no
+    position for that host yet.
+    """
+    source = await get_source(db)
+    if source is None:
+        return None
+    reply = await bus.request(HOST_LOCATION_SUBJECT, {"db": db, "host_id": source.host_id}, timeout=HUB_REQUEST_TIMEOUT)
+    if not reply.get("found"):
+        return None
+    return reply["latitude"], reply["longitude"]
