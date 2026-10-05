@@ -66,6 +66,12 @@ RESTART_DELAY_SECONDS = 5
 STALL_TIMEOUT_SECONDS = 30
 """Pause before relaunching the pipeline, so a hard-down Sentry is not hammered."""
 
+SOURCE_RECHECK_SECONDS = 10
+"""How often a running pipeline asks Sentinel whether the source has moved."""
+
+STOP_GRACE_SECONDS = 10
+"""How long a stopping pipeline gets to exit on SIGTERM before it is killed."""
+
 
 def log(message: str) -> None:
     """Timestamped line on stdout, which is where compose collects logs."""
@@ -185,7 +191,22 @@ def build_pipeline(host: str, port: int, json_dir: str) -> subprocess.Popen[byte
         f"| {' '.join(shlex.quote(argument) for argument in readsb_arguments)}"
     )
     log(f"starting pipeline from {host}:{port}")
-    return subprocess.Popen(["/bin/bash", "-o", "pipefail", "-c", pipeline])
+    # Own process group, so stop_pipeline can end socat and readsb along with the
+    # shell: SIGTERM to bash alone leaves them running, still holding the old
+    # source's socket.
+    return subprocess.Popen(["/bin/bash", "-o", "pipefail", "-c", pipeline], start_new_session=True)
+
+
+def stop_pipeline(process: subprocess.Popen[bytes]) -> None:
+    """End every stage of a running pipeline, escalating to SIGKILL if it lingers."""
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+        process.wait(timeout=STOP_GRACE_SECONDS)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+    except ProcessLookupError:
+        pass  # already gone
 
 
 def serve_json(json_dir: str, http_port: int) -> ThreadingHTTPServer:
@@ -216,7 +237,10 @@ def serve_json(json_dir: str, http_port: int) -> ThreadingHTTPServer:
 
 
 def main() -> int:
-    fallback = (os.environ.get("RTL_TCP_HOST", ""), _environment_int("RTL_TCP_PORT", 2345))
+    fallback = (
+        os.environ.get("RTL_TCP_HOST", ""),
+        _environment_int("RTL_TCP_PORT", 2345),
+    )
     config_url = os.environ.get("CONFIG_URL", "")
     json_dir = os.environ.get("JSON_DIR", "/run/adsb/data")
     http_port = _environment_int("HTTP_PORT", 8080)
@@ -262,15 +286,28 @@ def main() -> int:
             reported_for_port = port
 
         process = build_pipeline(host, port, json_dir)
+        next_source_check = time.monotonic() + SOURCE_RECHECK_SECONDS
+        source_moved = False
         while not stopping.is_set() and process.poll() is None:
             time.sleep(0.5)
+            if time.monotonic() < next_source_check:
+                continue
+            next_source_check = time.monotonic() + SOURCE_RECHECK_SECONDS
+            # A pipeline that is still streaming never exits on its own, so
+            # without this a source changed in Sentinel (a different dongle)
+            # would be ignored until the old one dropped. An unreachable
+            # Sentinel (None) is not a change — keep decoding what we have.
+            current = resolve_source(config_url, fallback)
+            if current is not None and current != (host, port):
+                log(f"source changed to {current[0]}:{current[1]}; switching")
+                source_moved = True
+                break
         if stopping.is_set():
-            process.terminate()
-            try:
-                process.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                process.kill()
+            stop_pipeline(process)
             break
+        if source_moved:
+            stop_pipeline(process)
+            continue
         log(f"pipeline exited ({process.returncode}); retrying in {RESTART_DELAY_SECONDS}s")
         stopping.wait(RESTART_DELAY_SECONDS)
 
