@@ -56,7 +56,18 @@ class TestAirMessages:
             json={"msg_id": "m1", "type": "flight", "title": "X", "ts": 1},
         )
         msg = client.get("/api/air/messages").json()[0]
-        assert set(msg.keys()) == {"msg_id", "type", "title", "detail", "ts"}
+        assert set(msg.keys()) == {"msg_id", "type", "title", "detail", "ts", "hex"}
+
+    def test_create_stores_the_subject_aircraft(self, client):
+        client.post(
+            "/api/air/messages",
+            json={"msg_id": "m1", "type": "emergency", "title": "X", "ts": 1, "hex": "4ca123"},
+        )
+        assert client.get("/api/air/messages").json()[0]["hex"] == "4ca123"
+
+    def test_hex_defaults_to_null(self, client):
+        client.post("/api/air/messages", json={"msg_id": "m1", "type": "flight", "title": "X", "ts": 1})
+        assert client.get("/api/air/messages").json()[0]["hex"] is None
 
     def test_dismiss_unknown_is_idempotent(self, client):
         # The endpoint is intentionally idempotent: dismissing a missing
@@ -502,3 +513,49 @@ def test_offgrid_url_is_overridable_from_the_environment(monkeypatch):
 
     monkeypatch.setenv("ADSB_OFFGRID_URL", "http://elsewhere:8090/data/aircraft.json")
     assert Settings().adsb_offgrid_url == "http://elsewhere:8090/data/aircraft.json"
+
+
+# ── /api/air/adsb/point — feeding the server-side squawk alerts ──────────────
+
+
+class TestAdsbFeedsSquawkAlerts:
+    """Every fresh snapshot the map fetches goes through the squawk tracker, so
+    an emergency squawk raises a stored alert whichever path fetched it."""
+
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+
+    def test_a_fresh_snapshot_with_an_emergency_squawk_raises_an_alert(self, client, monkeypatch):
+        from backend.services.adsb_squawk import tracker
+
+        monkeypatch.setattr(tracker, "_squawks", {})
+        snapshot = {"ac": [{"hex": "4ca123", "flight": "EIN123", "squawk": "7700", "alt_baro": 9000, "gs": 300}]}
+
+        async def fake_fetch(lat, lon, radius, base_url):
+            return snapshot
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        resp = client.get(self.POINT)
+        assert resp.headers["X-Cache"] == "MISS"
+        alerts = client.get("/api/air/messages").json()
+        assert [(alert["type"], alert["title"], alert["hex"]) for alert in alerts] == [
+            ("emergency", "EIN123", "4ca123")
+        ]
+
+    def test_a_cache_hit_is_not_fed_again(self, client, monkeypatch):
+        from backend.services.adsb_squawk import tracker
+
+        monkeypatch.setattr(tracker, "_squawks", {})
+        observed: list[dict] = []
+
+        async def fake_fetch(lat, lon, radius, base_url):
+            return {"ac": []}
+
+        async def record(snapshot, db):
+            observed.append(snapshot)
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        monkeypatch.setattr(tracker, "observe", record)
+        client.get(self.POINT)
+        resp = client.get(self.POINT)
+        assert resp.headers["X-Cache"] == "HIT"
+        assert len(observed) == 1

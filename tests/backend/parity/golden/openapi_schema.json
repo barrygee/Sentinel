@@ -711,6 +711,17 @@
             "title": "Detail",
             "type": "string"
           },
+          "hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hex"
+          },
           "msg_id": {
             "title": "Msg Id",
             "type": "string"
@@ -2146,6 +2157,26 @@
           }
         },
         "summary": "Create Air Message",
+        "tags": [
+          "air"
+        ]
+      }
+    },
+    "/api/air/messages/stream": {
+      "get": {
+        "description": "Push alerts raised server-side (`notifications.raise`) as Server-Sent Events.\n\nBrowser-created alerts are not echoed here: the browser that made one\nalready has it, and the others see it on their next load.",
+        "operationId": "stream_air_messages_api_air_messages_stream_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stream Air Messages",
         "tags": [
           "air"
         ]

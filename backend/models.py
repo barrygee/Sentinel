@@ -90,6 +90,9 @@ class AirMessage(Base):
     detail = Column(Text, nullable=False, default="")  # optional secondary text
     ts = Column(Integer, nullable=False)  # Unix ms timestamp of the event
     dismissed = Column(Boolean, nullable=False, default=False)  # soft-delete flag
+    # ICAO hex of the aircraft an alert is about, so clicking a server-raised
+    # alert can still fly the map to it. Null for alerts about anything else.
+    hex = Column(Text, nullable=True)
 
 
 class AirTracking(Base):

@@ -705,7 +705,9 @@ describe('AdsbLiveControl._fetch', () => {
     expect(control._geojson.features.find((f) => f.properties.hex === 'no-pos')).toBeUndefined()
   })
 
-  it('emits an emergency notification on a new emergency squawk', async () => {
+  it('highlights an emergency squawk but leaves the alert to the server', async () => {
+    // Squawk alerts are raised server-side (docs/plans/adsb-server-alerts.md),
+    // so they exist with no Air page open; the map only marks the aircraft.
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -713,7 +715,10 @@ describe('AdsbLiveControl._fetch', () => {
       json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
     } as Response)
     await (control as unknown as { _fetch: () => Promise<void> })._fetch()
-    expect(notificationsStore.items.some((i) => i.type === 'emergency')).toBe(true)
+    expect(control._geojson.features[0]!.properties.squawkEmerg).toBe(1)
+    expect(
+      notificationsStore.items.some((i) => i.type === 'emergency' || i.type === 'squawk-clr'),
+    ).toBe(false)
   })
 
   it('clears data after three consecutive failures', async () => {
@@ -1504,23 +1509,6 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     expect(priv(control)._lastPositions['abc123']).toBeDefined()
   })
 
-  it('emits a squawk-cleared notification when an emergency clears', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '1200' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    expect(notificationsStore.items.some((i) => i.type === 'squawk-clr')).toBe(true)
-  })
-
   it('schedules a parked-removal timer for an opted-in aircraft that lands', async () => {
     vi.useFakeTimers()
     const { control } = mounted()
@@ -2091,19 +2079,6 @@ describe('AdsbLiveControl interpolate + raise branches', () => {
 })
 
 describe('AdsbLiveControl fetch extra branches', () => {
-  it('invokes the emergency notification click action', async () => {
-    const { control, map } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const emerg = notificationsStore.items.find((i) => i.type === 'emergency')!
-    emerg.clickAction!()
-    expect(map.flyTo).toHaveBeenCalled()
-  })
-
   it('clears a parked timer when an opted-in aircraft climbs again', async () => {
     vi.useFakeTimers()
     const { control } = mounted()
@@ -2734,11 +2709,22 @@ describe('AdsbLiveControl residual gaps', () => {
     expect(priv(control)._callsignMarkers['abc123']).toBeUndefined()
   })
 
+  it('keeps an aircraft without a hex out of trail and position bookkeeping', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ hex: '', squawk: '7700' })] }),
+    } as Response)
+    await priv(control)._fetch()
+    expect(priv(control)._trails).toEqual({})
+    expect(priv(control)._lastPositions).toEqual({})
+  })
+
   it('prunes stale bookkeeping for aircraft no longer seen', async () => {
     const { control } = mounted()
     priv(control)._prevAlt['ghostA'] = 100
     priv(control)._hasDeparted['ghostB'] = true
-    priv(control)._prevSquawk['ghostC'] = '7700'
     fetchMock.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -2747,18 +2733,6 @@ describe('AdsbLiveControl residual gaps', () => {
     await priv(control)._fetch()
     expect(priv(control)._prevAlt['ghostA']).toBeUndefined()
     expect(priv(control)._hasDeparted['ghostB']).toBeUndefined()
-    expect(priv(control)._prevSquawk['ghostC']).toBeUndefined()
-  })
-
-  it('skips a blank-hex aircraft in the squawk-change scan', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ hex: '', squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    expect(true).toBe(true)
   })
 
   it('restarts polling after a network-failure backoff window', async () => {
@@ -3502,50 +3476,6 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     expect(priv(control)._lastPositions['abc123']).toBeDefined()
   })
 
-  it('reports an emergency on the ground with no ground speed', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7600', alt_baro: 0, gs: 0 })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const emerg = notificationsStore.items.find((i) => i.type === 'emergency')!
-    expect(emerg.detail).toContain('ON GROUND')
-  })
-
-  it('does not fly to an emergency when the map is gone', async () => {
-    const { control, map } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const emerg = notificationsStore.items.find((i) => i.type === 'emergency')!
-    ;(control as any).map = undefined
-    emerg.clickAction!()
-    expect(map.flyTo).not.toHaveBeenCalled()
-  })
-
-  it('reports a squawk-cleared change to a blank squawk', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ squawk: '' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const cleared = notificationsStore.items.find((i) => i.type === 'squawk-clr')!
-    expect(cleared.detail).toContain('(none)')
-  })
-
   it('prunes hasDeparted bookkeeping for unseen aircraft', async () => {
     const { control } = mounted()
     priv(control)._hasDeparted['old'] = true
@@ -3856,39 +3786,6 @@ describe('AdsbLiveControl branch completion II', () => {
     await priv(control)._fetch()
     const feature = control._geojson.features.find((f) => f.properties.hex === 'nocat')!
     expect(feature.properties.category).toBe('')
-  })
-
-  it('reports an emergency for an aircraft identified only by hex', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({ ac: [apiEntry({ hex: 'EMG1', flight: '', r: '', squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const emerg = notificationsStore.items.find((i) => i.type === 'emergency')!
-    expect(emerg.title).toBe('EMG1')
-  })
-
-  it('reports a squawk-clear for an aircraft identified only by hex', async () => {
-    const { control } = mounted()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({ ac: [apiEntry({ hex: 'CLR1', flight: '', r: '', squawk: '7700' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve({ ac: [apiEntry({ hex: 'CLR1', flight: '', r: '', squawk: '1200' })] }),
-    } as Response)
-    await priv(control)._fetch()
-    const cleared = notificationsStore.items.find((i) => i.type === 'squawk-clr')!
-    expect(cleared.title).toBe('CLR1')
   })
 
   it('toggle-off inspects a tower marker whose type code is blank', () => {
