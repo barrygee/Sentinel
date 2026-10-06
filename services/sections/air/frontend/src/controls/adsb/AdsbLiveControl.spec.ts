@@ -295,6 +295,9 @@ function seedFeature(
   return feature
 }
 
+/** The bits of an interpolated feature these tests read. */
+type AircraftFeatureLike = { properties: { hex: string; stale: 0 | 1 } }
+
 // Cast helper for reaching the control's private members from tests.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Priv = Record<string, any>
@@ -1467,9 +1470,11 @@ describe('AdsbLiveControl interpolation', () => {
     expect(feature).toBeTruthy()
   })
 
-  it('removes aircraft older than the removal window', () => {
+  it('removes an aircraft the feed has gone a minute without', () => {
     const { control } = mounted()
     seedFeature(control, { hex: 'old1' })
+    // The feed is current (a snapshot just arrived) and has not had it for 61 s.
+    priv(control)._feedObservedAt = Date.now()
     priv(control)._lastPositions['old1'] = {
       lon: -0.1,
       lat: 51.5,
@@ -1606,7 +1611,7 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(1)
   })
 
-  it('never shows an aircraft first seen in a snapshot over a minute old', async () => {
+  it('shows an aircraft from a snapshot over a minute old dimmed, since the feed has nothing newer', async () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
@@ -1615,8 +1620,83 @@ describe('AdsbLiveControl._fetch deep paths', () => {
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
     await priv(control)._fetch()
+    expect(
+      priv(control)._interpolatedFeatures.map((f: AircraftFeatureLike) => f.properties.stale),
+    ).toEqual([1])
+  })
+
+  it('keeps every aircraft through an upstream hang, dimmed, instead of emptying the map', async () => {
+    // The regression: adsb.lol hung twice in a row, each poll was answered
+    // from the same cached snapshot, and every aircraft (all observed in it)
+    // passed 60 s together and vanished at once.
+    vi.useFakeTimers()
+    const { control } = mounted()
+    const snapshot = { ac: [apiEntry({ hex: 'aaa111' }), apiEntry({ hex: 'bbb222', lon: 0.2 })] }
+    const respond = (ageMs: number) =>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'X-Snapshot-Age-Ms': String(ageMs) }),
+        status: 200,
+        json: () => Promise.resolve(snapshot),
+      } as Response)
+    respond(0)
+    await priv(control)._fetch()
+    for (const ageMs of [30_000, 70_000, 110_000]) {
+      vi.setSystemTime(Date.now() + 40_000)
+      respond(ageMs)
+      await priv(control)._fetch()
+    }
+
+    const hexes = priv(control)._interpolatedFeatures.map(
+      (f: AircraftFeatureLike) => f.properties.hex,
+    )
+    expect(hexes).toEqual(['aaa111', 'bbb222'])
+    expect(
+      priv(control)._interpolatedFeatures.every(
+        (f: AircraftFeatureLike) => f.properties.stale === 1,
+      ),
+    ).toBe(true)
+  })
+
+  it('removes an aircraft once fresh snapshots have left it out for a minute, and not before', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    const respond = (ac: ApiEntry[]) =>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'X-Snapshot-Age-Ms': '0' }),
+        status: 200,
+        json: () => Promise.resolve({ ac }),
+      } as Response)
+    respond([apiEntry({ hex: 'stays' }), apiEntry({ hex: 'leaves', lon: 0.2 })])
+    await priv(control)._fetch()
+    const live = () =>
+      priv(control)._interpolatedFeatures.map((f: AircraftFeatureLike) => f.properties.hex)
+
+    vi.setSystemTime(Date.now() + 59_000)
+    respond([apiEntry({ hex: 'stays' })])
+    await priv(control)._fetch()
+    expect(live()).toEqual(['stays', 'leaves'])
+
+    vi.setSystemTime(Date.now() + 1_000)
+    respond([apiEntry({ hex: 'stays' })])
+    await priv(control)._fetch()
+    expect(live()).toEqual(['stays'])
+  })
+
+  it('removes aircraft after five minutes of a silent feed', () => {
+    const { control } = mounted()
+    seedFeature(control, { hex: 'ghost' })
+    priv(control)._feedObservedAt = Date.now() - 5 * 60_000
+    priv(control)._lastPositions['ghost'] = {
+      lon: -0.1,
+      lat: 51.5,
+      gs: 0,
+      track: null,
+      lastSeen: Date.now() - 5 * 60_000,
+    }
+    priv(control)._interpolate()
     expect(control._geojson.features).toEqual([])
-    expect(priv(control)._lastPositions['abc123']).toBeUndefined()
   })
 
   it('schedules a parked-removal timer for an opted-in aircraft that lands', async () => {
@@ -2504,6 +2584,7 @@ describe('AdsbLiveControl final branch sweep', () => {
     enableAllFields(control)
     seedFeature(control, { hex: 'agedmk' })
     priv(control)._updateCallsignMarkers()
+    priv(control)._feedObservedAt = Date.now()
     priv(control)._lastPositions['agedmk'] = {
       lon: -0.1,
       lat: 51.5,
