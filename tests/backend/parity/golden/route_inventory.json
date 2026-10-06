@@ -1084,6 +1084,14 @@
     ]
   },
   {
+    "path": "/internal/registry/register",
+    "type": "Route",
+    "name": "register_service",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
     "path": "/health",
     "type": "Route",
     "name": "health_check",

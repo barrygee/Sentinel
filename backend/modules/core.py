@@ -1,5 +1,6 @@
-"""Core lifecycle: database schema and settings, the live config file, offline maps."""
+"""Core lifecycle: database schema and settings, the live config file, offline maps, the service registry."""
 
+from backend.core.service_registry import registry
 from backend.database import (
     create_tables,
     migrate_sdr_radios_to_settings,
@@ -30,9 +31,12 @@ async def _start() -> None:
     # stale queued/running rows failed, drop orphan .part files), rebuild the
     # tile-tier registry, and start the one-job-at-a-time worker.
     await offline_map_job_runner.start()
+    # Health-probe the services that registered from other processes.
+    registry.start()
 
 
 async def _stop() -> None:
+    await registry.stop()
     await offline_map_job_runner.stop()
     await app_config_file.sync.stop()
 

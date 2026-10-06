@@ -96,7 +96,7 @@ export function sharedPackageModulesPlugin(options: { federated: boolean }): Plu
  * before federation. Registries that keep insertion order (settings sections,
  * footer items…) depend on it, so the section list is always sent in this
  * order; a section not named here sorts after these, alphabetically. The
- * backend's `GET /api/app/sections` uses the same order (backend/core/app_sections.py).
+ * backend's `GET /api/app/sections` uses the same order (each section's `navOrder` in backend/modules/).
  */
 export const SECTION_REGISTRATION_ORDER = ['air', 'space', 'sea', 'land', 'sdr'] as const
 

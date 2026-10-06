@@ -282,6 +282,10 @@
       "DeployedSection": {
         "description": "One section the shell should load.",
         "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -293,7 +297,8 @@
         },
         "required": [
           "id",
-          "remoteEntry"
+          "remoteEntry",
+          "available"
         ],
         "title": "DeployedSection",
         "type": "object"

@@ -251,6 +251,19 @@ class Settings(BaseSettings):
     # update a running region's bytes_done for polling clients.
     offline_progress_sample_s: float = 1.0
 
+    # ── Service registry (section-containers plan §3.2) ──────────────────────
+    # Shared secret a service presents to POST /internal/registry/register. Set
+    # it in `.env` (never committed). Empty disables registration over HTTP: the
+    # monolith's own sections register in-process and need no token.
+    sentinel_join_token: str = ""
+    # Where core reaches this process's own sections. The monolith registers
+    # every section in-process with this URL; the gateway (P5.3) routes to it.
+    core_internal_url: str = "http://app:8000"
+    # Seconds between health probes of each registered service, and how many
+    # failed probes in a row mark it unavailable (3 x 10 s, as the plan sets).
+    registry_probe_interval_s: float = 10.0
+    registry_probe_failures: int = 3
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

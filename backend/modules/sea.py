@@ -1,5 +1,6 @@
 """Sea section lifecycle: the AISStream reader, its warm-start snapshot, and the off-grid AIS receiver."""
 
+from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.services import sea_ais_receiver
 from backend.services.ais_stream import reader as ais_reader
@@ -15,3 +16,5 @@ async def _start() -> None:
 
 
 lifecycle = ModuleLifecycle(name="sea", start=_start, stop=ais_reader.stop, wake=ais_reader.wake)
+
+manifest = section_manifest("sea", display_name="SEA", nav_order=30, routes=["/api/sea/"])
