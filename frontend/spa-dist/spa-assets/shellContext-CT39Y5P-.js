@@ -1,0 +1,1 @@
+function e(e,t,n){if(t!==e.pinia)throw Error(`Section "${n}" is not using the shell's Pinia — its remote must share pinia with the host`)}export{e as assertHostPinia};
