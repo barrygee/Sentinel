@@ -23,8 +23,8 @@ import { test, expect, type Page } from '@playwright/test';
  *      DELETE /api/sdr/radios/{id}, reload, gone.
  *   6. SDR frequency group CRUD — POST /api/sdr/groups, reload, still there,
  *      DELETE /api/sdr/groups/{id}, reload, gone.
- *   7. Seeded SDR frequency data — startup seeder wrote at least one frequency
- *      from backend/data/sdr_frequencies.json into the real DB.
+ *   7. Seeded SDR band plan — startup seeder wrote the band plan from
+ *      backend/data/sdr_bandplan.json into the real DB.
  *   8. Manual TLE entry — POST /api/space/tle/manual, then /api/space/tle/list
  *      confirms the satellite is stored (no internet required).
  */
@@ -229,41 +229,33 @@ test('SDR frequency group can be created, persists across a GET, and is deleted 
 });
 
 // ---------------------------------------------------------------------------
-// Test 7 — Seeded SDR frequency data present after startup
+// Test 7 — Seeded SDR band plan present after startup
 // ---------------------------------------------------------------------------
 
-test('startup seeder populates SDR frequency data from backend/data/sdr_frequencies.json', async ({
+test('startup seeder populates the SDR band plan from backend/data/sdr_bandplan.json', async ({
     request,
 }) => {
-    // The lifespan in main.py calls seed_sdr_data_from_files() which reads
-    // backend/data/sdr_frequencies.json and reconciles groups + frequencies into
-    // the real DB on a fresh install. This test proves the seeder ran.
-    //
-    // The file currently contains at least one group and one frequency (EGNT Tower
-    // at 119.7 MHz AM). If the seeder is broken, this endpoint returns empty arrays.
-    const response = await request.get('/api/sdr/data/frequencies');
+    // The SDR module's prepare step seeds UserSettings(sdr.bandPlan) from the
+    // tracked backend/data/sdr_bandplan.json on a fresh install. (The frequency
+    // catalogue is NOT seeded: since #146 sdr_frequencies.json is runtime-owned
+    // and git-ignored, so a fresh install starts with no frequencies.) If the
+    // seeder is broken, this endpoint returns an empty band plan.
+    const response = await request.get('/api/sdr/data/bandplan');
     expect(response.status()).toBe(200);
 
-    const body = await response.json();
-    expect(Array.isArray(body.groups)).toBe(true);
-    expect(Array.isArray(body.frequencies)).toBe(true);
-
-    // At least one group and one frequency must be seeded — otherwise either the
-    // file is empty or seed_sdr_data_from_files() silently failed.
-    expect(body.groups.length).toBeGreaterThan(0);
-    expect(body.frequencies.length).toBeGreaterThan(0);
-
-    // Verify the seed data has the expected shape.
-    const firstFrequency = body.frequencies[0] as {
-        label: string;
-        frequency_hz: number;
-        mode: string;
+    const body = (await response.json()) as {
+        bandPlan: { name: string; startHz: number; endHz: number }[];
     };
-    expect(typeof firstFrequency.label).toBe('string');
-    expect(firstFrequency.label.length).toBeGreaterThan(0);
-    expect(typeof firstFrequency.frequency_hz).toBe('number');
-    expect(firstFrequency.frequency_hz).toBeGreaterThan(0);
-    expect(typeof firstFrequency.mode).toBe('string');
+    expect(Array.isArray(body.bandPlan)).toBe(true);
+    expect(body.bandPlan.length).toBeGreaterThan(0);
+
+    // The first band in the seed file is Longwave; check the shape and that
+    // every band is a real, ordered range.
+    expect(body.bandPlan[0]?.name).toBe('Longwave');
+    for (const band of body.bandPlan) {
+        expect(typeof band.name).toBe('string');
+        expect(band.endHz).toBeGreaterThan(band.startHz);
+    }
 });
 
 // ---------------------------------------------------------------------------
