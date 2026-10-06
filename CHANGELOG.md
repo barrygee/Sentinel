@@ -195,6 +195,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Dark location marks on the light map; distance on every range ring
 - One upright distance label at the top of each range ring
 - Load sections as Module Federation remotes (#426)
+- Late-mount the SDR engine and check sections share the host Pinia
 
 ### Bug Fixes
 
@@ -498,6 +499,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Enforce section boundaries with a local ESLint rule
 - Make the repo root an npm workspaces root
+- Rebuild SPA bundle
 - Rebuild SPA bundle
 
 ### Other
@@ -1403,6 +1405,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #414 from barrygee/fix/map-theme-colour-from-config
 - Merge remote-tracking branch 'origin/main' into feat/range-ring-distance-at-top
 - Merge pull request #425 from barrygee/feat/range-ring-distance-at-top
+- Merge pull request #427 from barrygee/feat/p4-7-engine-late-mount
 
 ### Refactoring
 
@@ -1512,6 +1515,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the offline map downloads plan (#371)
 - Add section-containers architecture plan
 - Browser storage keys by owner
+- Record the as-built P4.7 engine, Pinia and CSS-order checks
 
 ### Tests
 
@@ -1558,6 +1562,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lock aircraft alert navigation after leaving Air
 - Let SIGKILLed pipeline stages be reaped before checking the group
 - Expect per-ring distance labels in the range-ring base spec
+- Snapshot the SDR panel's resolved cascade to guard remote CSS order
 
 ### Build System
 
