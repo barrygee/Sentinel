@@ -1,4 +1,5 @@
 import type { Ref } from 'vue'
+import { isTunableHz } from '../sdrPanelUtils'
 
 /**
  * Per-digit scroll-to-tune for the SDR frequency input (extracted from
@@ -150,7 +151,9 @@ export function useSdrFreqDigitWheel(options: UseSdrFreqDigitWheelOptions) {
     if (placeHz == null) return
     const dir = e.deltaY < 0 ? 1 : -1 // scroll up → higher freq
     const newHz = Math.round(currentFreqHz.value + dir * placeHz)
-    if (newHz <= 0) return
+    // Stop at the tuner's range rather than scrolling into frequencies no
+    // dongle can reach (one notch on the thousands digit is +1000 MHz).
+    if (!isTunableHz(newHz)) return
     // Update the display live every notch.
     currentFreqHz.value = newHz
     activeFreqDisplay.value = (newHz / 1e6).toFixed(3) + ' MHz'
