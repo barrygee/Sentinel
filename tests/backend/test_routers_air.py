@@ -6,6 +6,7 @@ from __future__ import annotations
 import logging
 
 import httpx
+import pytest
 
 from backend.config import settings
 from backend.routers import air as air_router
@@ -718,3 +719,140 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
 
         assert client.get(self.POINT).status_code == 503
         assert tracker.last_browser_poll_ms > 0
+
+
+# ── /api/air/adsb/point — snapshot age, and how old a stand-in may be ────────
+
+
+class TestSnapshotAge:
+    """Every answer says how old its snapshot is (X-Snapshot-Age-Ms), so the map
+    ages aircraft by when they were observed; and no stand-in older than the
+    stale window is served, whatever the reason the fetch failed."""
+
+    ONLINE = "https://online.example/v2"
+    OFFGRID = "http://offgrid.example/data/aircraft.json"
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+    SNAPSHOT = {"ac": [{"hex": "abc123"}], "total": 1}
+
+    @pytest.fixture
+    def clock(self, monkeypatch) -> list[int]:
+        """One controllable clock for the router and the cache helpers."""
+        from backend import cache
+
+        current = [1_800_000_000_000]
+        monkeypatch.setattr(cache, "now_ms", lambda: current[0])
+        monkeypatch.setattr(air_router, "now_ms", lambda: current[0])
+        return current
+
+    def _configure_sources(self, client):
+        client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
+        client.put("/api/settings/air/offgridDataSourceURL", json={"value": {"url": self.OFFGRID}})
+
+    @staticmethod
+    def _every_fetch(monkeypatch, outcome):
+        async def fake_fetch(lat, lon, radius, base_url):
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+
+    @staticmethod
+    def _rate_limited() -> httpx.HTTPStatusError:
+        request = httpx.Request("GET", "https://online.example/v2/point")
+        return httpx.HTTPStatusError("slow down", request=request, response=httpx.Response(429, request=request))
+
+    def _prime(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._every_fetch(monkeypatch, self.SNAPSHOT)
+        response = client.get(self.POINT)
+        assert response.headers["X-Cache"] == "MISS"
+        return response
+
+    def test_a_fresh_fetch_is_age_zero(self, client, monkeypatch, clock):
+        assert self._prime(client, monkeypatch).headers["X-Snapshot-Age-Ms"] == "0"
+
+    def test_a_cache_hit_reports_how_long_ago_it_was_fetched(self, client, monkeypatch, clock):
+        self._prime(client, monkeypatch)
+        clock[0] += 3_089
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == "HIT"
+        assert response.headers["X-Snapshot-Age-Ms"] == "3089"
+
+    def test_a_borrowed_nearby_row_reports_its_own_age(self, client, monkeypatch, clock):
+        self._prime(client, monkeypatch)
+        clock[0] += 12_000
+        self._every_fetch(monkeypatch, UpstreamThrottledError())
+
+        response = client.get("/api/air/adsb/point/54.1/-1.5/100")
+
+        assert response.headers["X-Cache"] == "NEARBY"
+        assert response.headers["X-Snapshot-Age-Ms"] == "12000"
+
+    @pytest.mark.parametrize(
+        ("failure", "cache_state"),
+        [
+            ("rate_limited", "RATED"),
+            ("throttled", "THROTTLED"),
+            ("unreachable", "STALE"),
+        ],
+    )
+    def test_a_stand_in_inside_the_stale_window_is_served_with_its_age(
+        self, client, monkeypatch, clock, failure, cache_state
+    ):
+        self._prime(client, monkeypatch)
+        clock[0] += settings.adsb_stale_ms - 1
+        error = {
+            "rate_limited": self._rate_limited(),
+            "throttled": UpstreamThrottledError(),
+            "unreachable": httpx.ConnectError("down"),
+        }[failure]
+        self._every_fetch(monkeypatch, error)
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == cache_state
+        assert response.headers["X-Snapshot-Age-Ms"] == str(settings.adsb_stale_ms - 1)
+        assert response.json() == self.SNAPSHOT
+
+    @pytest.mark.parametrize(
+        "failure",
+        ["rate_limited", "throttled", "unreachable"],
+    )
+    def test_no_stand_in_past_the_stale_window_whatever_the_failure(self, client, monkeypatch, clock, failure):
+        # Before: a rate-limited or throttled fetch served the row regardless of
+        # age, so panning back to an area seen long ago showed old aircraft as live.
+        self._prime(client, monkeypatch)
+        clock[0] += settings.adsb_stale_ms + 1
+        error = {
+            "rate_limited": self._rate_limited(),
+            "throttled": UpstreamThrottledError(),
+            "unreachable": httpx.ConnectError("down"),
+        }[failure]
+        self._every_fetch(monkeypatch, error)
+
+        assert client.get(self.POINT).status_code == 503
+
+    def test_an_empty_fallback_answer_is_age_zero(self, client, monkeypatch, clock):
+        self._configure_sources(client)
+
+        async def primary_fails(lat, lon, radius, base_url):
+            if base_url == self.ONLINE:
+                raise httpx.ConnectError("down")
+            return {"ac": []}
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", primary_fails)
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == "FALLBACK"
+        assert response.headers["X-Snapshot-Age-Ms"] == "0"
+
+    def test_a_row_stamped_in_the_future_reports_age_zero_not_negative(self, client, monkeypatch, clock):
+        self._prime(client, monkeypatch)
+        clock[0] -= 5_000  # the host clock stepped back after the fetch
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Snapshot-Age-Ms"] == "0"

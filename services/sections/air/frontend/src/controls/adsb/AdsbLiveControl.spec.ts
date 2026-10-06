@@ -50,6 +50,7 @@ vi.mock('@sentinel/map-kit/sprites/adsbSprites', () => {
 })
 
 import { AdsbLiveControl } from './AdsbLiveControl'
+import { CORRECTION_MS, deadReckon } from './aircraftPosition'
 import { useAirStore } from '../../stores/air'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
@@ -311,6 +312,7 @@ beforeEach(() => {
   fetchMock = vi.fn(() =>
     Promise.resolve({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response),
@@ -570,7 +572,9 @@ describe('AdsbLiveControl._interpolatedCoords', () => {
     const { control } = mounted()
     seedFeature(control)
     priv(control)._interpolatedFeatures = null
-    expect(control._interpolatedCoords('abc123')).toEqual([-0.1, 51.5])
+    const [heldLon, heldLat] = control._interpolatedCoords('abc123')!
+    expect(heldLon).toBeCloseTo(-0.1, 9)
+    expect(heldLat).toBeCloseTo(51.5, 9)
   })
 
   it('returns null for an unknown hex', () => {
@@ -680,6 +684,7 @@ describe('AdsbLiveControl._fetch', () => {
     const { control, map } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
@@ -692,6 +697,7 @@ describe('AdsbLiveControl._fetch', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () =>
         Promise.resolve({
@@ -711,6 +717,7 @@ describe('AdsbLiveControl._fetch', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ squawk: '7700' })] }),
     } as Response)
@@ -757,6 +764,7 @@ describe('AdsbLiveControl._fetch', () => {
     )
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -915,7 +923,12 @@ describe('AdsbLiveControl map event handlers', () => {
 
 describe('AdsbLiveControl map isolation persistence + restore', () => {
   const okJson = (ac: ApiEntry[]) =>
-    ({ ok: true, status: 200, json: () => Promise.resolve({ ac }) }) as Response
+    ({
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: () => Promise.resolve({ ac }),
+    }) as Response
 
   it('persists the isolated hex when an aircraft is isolated, and clears it on deselect', () => {
     const { control } = mounted()
@@ -1325,11 +1338,6 @@ describe('AdsbLiveControl trail line head', () => {
       gs: 400,
       track: 90,
       lastSeen,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: lastSeen - 2000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
   }
 
@@ -1453,11 +1461,6 @@ describe('AdsbLiveControl interpolation', () => {
       gs: 400,
       track: 90,
       lastSeen: Date.now() - 2000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 4000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._interpolate()
     expect(control._interpolatedCoords('abc123')![0]).not.toBe(-0.1)
@@ -1473,11 +1476,6 @@ describe('AdsbLiveControl interpolation', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 61000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 62000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._interpolate()
     expect(control._geojson.features.find((f) => f.properties.hex === 'old1')).toBeUndefined()
@@ -1497,16 +1495,128 @@ describe('AdsbLiveControl interpolation', () => {
 })
 
 describe('AdsbLiveControl._fetch deep paths', () => {
-  it('updates an existing position with dead reckoning on a second poll', async () => {
+  it('re-anchors an aircraft on a newer report, gliding into place rather than jumping', async () => {
+    vi.useFakeTimers()
     const { control } = mounted()
-    fetchMock.mockResolvedValue({
+    const respond = (entry: ApiEntry) =>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        status: 200,
+        json: () => Promise.resolve({ ac: [entry] }),
+      } as Response)
+    respond(apiEntry({ lon: -0.1, lat: 51.5, gs: 400, track: 90 }))
+    await priv(control)._fetch()
+
+    // Ten seconds on, the report puts it further east than dead reckoning did.
+    vi.setSystemTime(Date.now() + 10_000)
+    priv(control)._interpolate()
+    const drawnBefore = control._interpolatedCoords('abc123')!
+    respond(apiEntry({ lon: 0, lat: 51.5, gs: 400, track: 90 }))
+    await priv(control)._fetch()
+
+    // No jump: straight after the poll it is still drawn where it was.
+    const drawnAfter = control._interpolatedCoords('abc123')!
+    expect(drawnAfter[0]).toBeCloseTo(drawnBefore[0], 9)
+    expect(drawnAfter[1]).toBeCloseTo(drawnBefore[1], 9)
+
+    // Once the glide has run, it is on the reported track (now 2 s further on).
+    vi.setSystemTime(Date.now() + CORRECTION_MS)
+    priv(control)._interpolate()
+    const [settledLon] = control._interpolatedCoords('abc123')!
+    expect(settledLon).toBeCloseTo(deadReckon(0, 51.5, 90, 400, CORRECTION_MS / 1000)[0], 9)
+  })
+
+  it('dates a report by the snapshot age header and seen_pos, not by its arrival', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '5000' }),
       status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ track: 90, gs: 400 })] }),
+      json: () => Promise.resolve({ ac: [apiEntry({ seen_pos: 1.5 })] }),
     } as Response)
     await priv(control)._fetch()
+    expect(priv(control)._lastPositions['abc123']!.lastSeen).toBe(Date.now() - 6_500)
+  })
+
+  it('does not refresh an aircraft from the same snapshot served again from cache', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '0' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 30000 })] }),
+    } as Response)
     await priv(control)._fetch()
-    expect(priv(control)._lastPositions['abc123']).toBeDefined()
+    const observed = priv(control)._lastPositions['abc123']!.lastSeen
+
+    // Ten seconds later the server can only offer that snapshot, now 10 s old.
+    vi.setSystemTime(Date.now() + 10_000)
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '10000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 30000 })] }),
+    } as Response)
+    await priv(control)._fetch()
+
+    expect(priv(control)._lastPositions['abc123']!.lastSeen).toBe(observed)
+    expect(control._geojson.features.map((feature) => feature.properties.hex)).toEqual(['abc123'])
+  })
+
+  it('keeps the newer details of an aircraft when an older cached snapshot is served', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '0' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 30000, lon: -0.1 })] }),
+    } as Response)
+    await priv(control)._fetch()
+
+    // A nearby row fetched 20 s before that one: older altitude and position.
+    vi.setSystemTime(Date.now() + 10_000)
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '30000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 20000, lon: -0.5 })] }),
+    } as Response)
+    await priv(control)._fetch()
+
+    const [aircraft] = control._geojson.features
+    expect(aircraft!.properties.alt_baro).toBe(30000)
+    expect(priv(control)._trails['abc123'].map((point: { lon: number }) => point.lon)).toEqual([
+      -0.1,
+    ])
+  })
+
+  it('dims an aircraft first seen in a snapshot already 45 s old', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '46000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry()] }),
+    } as Response)
+    await priv(control)._fetch()
+    expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(1)
+  })
+
+  it('never shows an aircraft first seen in a snapshot over a minute old', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '61000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry()] }),
+    } as Response)
+    await priv(control)._fetch()
+    expect(control._geojson.features).toEqual([])
+    expect(priv(control)._lastPositions['abc123']).toBeUndefined()
   })
 
   it('schedules a parked-removal timer for an opted-in aircraft that lands', async () => {
@@ -1515,12 +1625,16 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     airNotifStore.enable('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
@@ -1538,6 +1652,7 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     control._tagHex = 'abc123'
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
@@ -1553,6 +1668,7 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     control._tagHex = 'abc123'
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ hex: 'someoneelse' })] }),
     } as Response)
@@ -1588,6 +1704,7 @@ describe('AdsbLiveControl tracking persistence', () => {
     localStorage.setItem('adsbTracking', JSON.stringify({ hex: 'abc123' }))
     fetchMock.mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve([{ hex: 'abc123', follow: true }]),
     } as Response)
@@ -1611,6 +1728,7 @@ describe('AdsbLiveControl tracking persistence', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve([]),
     } as Response)
@@ -1930,11 +2048,6 @@ describe('AdsbLiveControl callsign marker in-place updates', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['d1']).toBeDefined()
@@ -2052,11 +2165,6 @@ describe('AdsbLiveControl interpolate + raise branches', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 1000,
-      prevLon: -0.5,
-      prevLat: 52,
-      prevSeen: Date.now() - 2000,
-      interpLon: -0.5,
-      interpLat: 52,
     }
     priv(control)._interpolate()
     expect(control._interpolatedCoords('noTrack')).toEqual([-0.5, 52])
@@ -2085,19 +2193,26 @@ describe('AdsbLiveControl fetch extra branches', () => {
     airNotifStore.enable('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     expect(Object.keys(priv(control)._parkedTimers)).toContain('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 6000 })] }),
     } as Response)
@@ -2111,14 +2226,18 @@ describe('AdsbLiveControl fetch extra branches', () => {
     airNotifStore.enable('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     control._selectedHex = 'abc123'
     control._isolatedHex = 'abc123'
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
@@ -2162,6 +2281,7 @@ describe('AdsbLiveControl tracking restore deep', () => {
     seedFeature(control)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve([{ hex: 'abc123', follow: true }]),
     } as Response)
@@ -2368,11 +2488,6 @@ describe('AdsbLiveControl final branch sweep', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['dimnew']).toBeDefined()
@@ -2395,11 +2510,6 @@ describe('AdsbLiveControl final branch sweep', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 61000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 62000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._interpolate()
     expect(priv(control)._callsignMarkers['agedmk']).toBeUndefined()
@@ -2418,11 +2528,6 @@ describe('AdsbLiveControl final branch sweep', () => {
       gs: 400,
       track: 90,
       lastSeen: Date.now() - 1000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 2000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     map.easeTo.mockClear()
     priv(control)._interpolate()
@@ -2435,6 +2540,7 @@ describe('AdsbLiveControl final branch sweep', () => {
     for (let i = 0; i < 4; i++) {
       fetchMock.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         status: 200,
         json: () => Promise.resolve({ ac: [apiEntry({ lon: -0.1 - i * 0.01 })] }),
       } as Response)
@@ -2450,23 +2556,32 @@ describe('AdsbLiveControl final branch sweep', () => {
     const land = () => {
       fetchMock.mockResolvedValueOnce({
         ok: true,
+        headers: new Headers(),
         status: 200,
         json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
       } as Response)
     }
     land()
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     // climb then land again to reset the timer
     land()
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
@@ -2478,12 +2593,14 @@ describe('AdsbLiveControl final branch sweep', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
     await priv(control)._fetch()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -2497,6 +2614,7 @@ describe('AdsbLiveControl final branch sweep', () => {
       ;(control as any).map = undefined
       return Promise.resolve({
         ok: true,
+        headers: new Headers(),
         status: 200,
         json: () => Promise.resolve({ ac: [] }),
       } as Response)
@@ -2618,11 +2736,6 @@ describe('AdsbLiveControl residual gaps', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     feature.properties.track = 270
     priv(control)._updateCallsignMarkers()
@@ -2649,6 +2762,7 @@ describe('AdsbLiveControl residual gaps', () => {
     await priv(control)._fetch()
     fetchMock.mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -2660,6 +2774,7 @@ describe('AdsbLiveControl residual gaps', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => {
         ;(control as any).map = undefined
@@ -2679,6 +2794,7 @@ describe('AdsbLiveControl residual gaps', () => {
     priv(control)._parkedTimers['abc123'] = stale
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
@@ -2694,13 +2810,17 @@ describe('AdsbLiveControl residual gaps', () => {
     airNotifStore.enable('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The next poll is a newer report — the clock moves on as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     priv(control)._updateCallsignMarkers()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
@@ -2713,6 +2833,7 @@ describe('AdsbLiveControl residual gaps', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ hex: '', squawk: '7700' })] }),
     } as Response)
@@ -2727,6 +2848,7 @@ describe('AdsbLiveControl residual gaps', () => {
     priv(control)._hasDeparted['ghostB'] = true
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -2744,6 +2866,7 @@ describe('AdsbLiveControl residual gaps', () => {
     await priv(control)._fetch()
     fetchMock.mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -2769,6 +2892,7 @@ describe('AdsbLiveControl residual gaps', () => {
     seedFeature(control)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve([{ hex: 'abc123', follow: true }]),
     } as Response)
@@ -2783,6 +2907,7 @@ describe('AdsbLiveControl residual gaps', () => {
     localStorage.setItem('adsbTracking', JSON.stringify({ hex: 'missing' }))
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve([]),
     } as Response)
@@ -3031,6 +3156,7 @@ describe('AdsbLiveControl fetch field fallbacks', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () =>
         Promise.resolve({
@@ -3055,6 +3181,7 @@ describe('AdsbLiveControl fetch field fallbacks', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () =>
         Promise.resolve({
@@ -3341,11 +3468,6 @@ describe('AdsbLiveControl branch completion: interpolation + polling', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 51000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._interpolate()
     expect(
@@ -3422,6 +3544,7 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     localStorage.setItem('userLocation', JSON.stringify({ latitude: 1, longitude: 2 }))
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -3436,6 +3559,7 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({}),
     } as Response)
@@ -3452,6 +3576,7 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     } as any)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
@@ -3459,21 +3584,37 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     expect(control._geojson.features.some((f) => f.properties.hex === 'abc123')).toBe(true)
   })
 
-  it('holds an existing untracked position when the update has no track', async () => {
+  it('moves an untracked aircraft onto its new report once the glide has run', async () => {
+    vi.useFakeTimers()
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ track: undefined, gs: undefined })] }),
     } as Response)
     await priv(control)._fetch()
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
-      json: () => Promise.resolve({ ac: [apiEntry({ track: undefined, gs: undefined })] }),
+      json: () =>
+        Promise.resolve({
+          ac: [apiEntry({ lon: -0.2, lat: 51.6, track: undefined, gs: undefined })],
+        }),
     } as Response)
     await priv(control)._fetch()
-    expect(priv(control)._lastPositions['abc123']).toBeDefined()
+
+    // Held still (no track to fly), then settled exactly on the report.
+    const [heldLon, heldLat] = control._interpolatedCoords('abc123')!
+    expect(heldLon).toBeCloseTo(-0.1, 9)
+    expect(heldLat).toBeCloseTo(51.5, 9)
+    vi.setSystemTime(Date.now() + CORRECTION_MS)
+    priv(control)._interpolate()
+    const [lon, lat] = control._interpolatedCoords('abc123')!
+    expect(lon).toBeCloseTo(-0.2, 9)
+    expect(lat).toBeCloseTo(51.6, 9)
   })
 
   it('prunes hasDeparted bookkeeping for unseen aircraft', async () => {
@@ -3481,6 +3622,7 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     priv(control)._hasDeparted['old'] = true
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [] }),
     } as Response)
@@ -3494,19 +3636,26 @@ describe('AdsbLiveControl branch completion: fetch internals', () => {
     airNotifStore.enable('abc123')
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 5000 })] }),
     } as Response)
     await priv(control)._fetch()
+    // The landing report is newer than the airborne one, as between real polls.
+    vi.setSystemTime(Date.now() + 10_000)
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry({ alt_baro: 0 })] }),
     } as Response)
     await priv(control)._fetch()
+    expect(Object.keys(priv(control)._parkedTimers)).toContain('abc123')
     priv(control)._interpolatedFeatures = null
     ;(control as any).map = undefined
     expect(() => vi.advanceTimersByTime(60000)).not.toThrow()
+    expect(priv(control)._lastPositions['abc123']).toBeUndefined()
+    expect(control._geojson.features).toEqual([])
   })
 })
 
@@ -3688,11 +3837,6 @@ describe('AdsbLiveControl branch completion II', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     feature.properties.track = 90 // right → left
     priv(control)._updateCallsignMarkers()
@@ -3721,11 +3865,6 @@ describe('AdsbLiveControl branch completion II', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['mn']).toBeDefined()
@@ -3752,11 +3891,6 @@ describe('AdsbLiveControl branch completion II', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['dn']).toBeDefined()
@@ -3780,6 +3914,7 @@ describe('AdsbLiveControl branch completion II', () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [{ hex: 'nocat', lat: 51, lon: -1 }] }),
     } as Response)
@@ -3890,11 +4025,6 @@ describe('AdsbLiveControl branch completion III', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['dnc']).toBeDefined()
@@ -3912,11 +4042,6 @@ describe('AdsbLiveControl branch completion III', () => {
       gs: 0,
       track: null,
       lastSeen: Date.now() - 50000,
-      prevLon: -0.1,
-      prevLat: 51.5,
-      prevSeen: Date.now() - 60000,
-      interpLon: -0.1,
-      interpLat: 51.5,
     }
     feature.properties.track = null as any // left → right, exercises track ?? 0
     priv(control)._updateCallsignMarkers()
@@ -3928,6 +4053,7 @@ describe('AdsbLiveControl branch completion III', () => {
     priv(control)._hasDeparted['abc123'] = true
     fetchMock.mockResolvedValueOnce({
       ok: true,
+      headers: new Headers(),
       status: 200,
       json: () => Promise.resolve({ ac: [apiEntry()] }),
     } as Response)
