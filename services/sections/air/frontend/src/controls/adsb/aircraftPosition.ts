@@ -14,10 +14,26 @@
  *   dead-reckoned along its track. A new report re-anchors it on the reported
  *   position; the gap between where it was drawn and where it really is
  *   shrinks to nothing over `CORRECTION_MS`, so it glides into place.
+ * - **Gone means the feed moved on without it.** An aircraft not heard from
+ *   for `DIM_AFTER_MS` is drawn dimmed, but it is removed only once the feed
+ *   has delivered `GONE_AFTER_MS` of newer snapshots that leave it out. While
+ *   the feed itself is silent (an upstream hanging or rate-limiting) nothing is
+ *   removed — every aircraft came from the same last snapshot, so removing by
+ *   age alone empties the whole map at once. `FEED_SILENCE_LIMIT_MS` bounds
+ *   how long a silent feed keeps them up.
  */
 
 /** How long a re-anchored aircraft takes to glide from where it was drawn onto its reported track. */
 export const CORRECTION_MS = 2000
+
+/** Not heard from for this long: drawn dimmed. */
+export const DIM_AFTER_MS = 45_000
+
+/** Left out of this much newer feed: removed. */
+export const GONE_AFTER_MS = 60_000
+
+/** Not heard from for this long, feed or no feed: removed. */
+export const FEED_SILENCE_LIMIT_MS = 5 * 60_000
 
 /** The part of an ADS-B report that places an aircraft. */
 export interface PositionReport {
@@ -143,4 +159,26 @@ export function reanchor(
     startedAt: nowMs,
   }
   return next
+}
+
+/** Whether the aircraft has gone unheard long enough to be drawn dimmed. */
+export function isStale(position: TrackedPosition, nowMs: number): boolean {
+  return nowMs - position.lastSeen >= DIM_AFTER_MS
+}
+
+/**
+ * Whether the aircraft should leave the map.
+ *
+ * `feedObservedAtMs` is the observation time of the newest snapshot received,
+ * so `feedObservedAtMs - lastSeen` is how much newer feed has left it out.
+ */
+export function isGone(
+  position: TrackedPosition,
+  feedObservedAtMs: number,
+  nowMs: number,
+): boolean {
+  return (
+    feedObservedAtMs - position.lastSeen >= GONE_AFTER_MS ||
+    nowMs - position.lastSeen >= FEED_SILENCE_LIMIT_MS
+  )
 }

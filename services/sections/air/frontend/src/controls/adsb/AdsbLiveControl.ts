@@ -5,6 +5,8 @@ import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '../../store
 import { parseAlt, isMilitary, type AdsbApiEntry } from './adsbParse'
 import {
   displayedPosition,
+  isGone,
+  isStale,
   observedAt,
   reanchor,
   snapshotAgeMs,
@@ -114,6 +116,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
   _trailHex: string | null = null
   private _MAX_TRAIL = 100
   private _lastPositions: Record<string, TrackedPosition> = {}
+  // Observation time of the newest snapshot received: how far the feed has got.
+  // Aircraft are removed by how much newer feed has left them out, not by age.
+  private _feedObservedAt = 0
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
   _selectedHex: string | null = null
@@ -1488,7 +1493,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates
       /* v8 ignore stop */
       const pos2 = this._lastPositions[hex]
-      const isDim = pos2 ? (Date.now() - pos2.lastSeen) / 1000 >= 45 : false
+      const isDim = pos2 ? isStale(pos2, Date.now()) : false
       if (this._callsignMarkers[hex]) {
         this._callsignMarkers[hex].setLngLat(lngLat)
         const labelEl = this._callsignMarkers[hex].getElement()
@@ -1872,14 +1877,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (!this.map) return
     if (!this._geojson.features.length) return
     const now = Date.now()
-    const DIM_SEC = 45,
-      REMOVE_SEC = 60
 
     this._geojson.features = this._geojson.features.filter((f) => {
       const pos = this._lastPositions[f.properties.hex]
       if (!pos) return true
-      const ageSec = (now - pos.lastSeen) / 1000
-      if (ageSec >= REMOVE_SEC) {
+      if (isGone(pos, this._feedObservedAt, now)) {
         const hex = f.properties.hex
         if (hex && this._callsignMarkers[hex]) {
           this._callsignMarkers[hex].remove()
@@ -1894,10 +1896,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._interpolatedFeatures = this._geojson.features.map((f) => {
       const hex = f.properties.hex
       const pos = this._lastPositions[hex]
-      const ageSec = pos ? (now - pos.lastSeen) / 1000 : 0
       const coords = pos ? displayedPosition(pos, now) : f.geometry.coordinates
-
-      const stale = ageSec >= DIM_SEC ? 1 : 0
+      const stale = pos && isStale(pos, now) ? 1 : 0
       return {
         ...f,
         geometry: { type: 'Point' as const, coordinates: coords },
@@ -1996,6 +1996,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       // report below is dated by when it was observed, not when it arrived.
       const receivedAt = Date.now()
       const snapshotAge = snapshotAgeMs(resp.headers.get('X-Snapshot-Age-Ms'))
+      this._feedObservedAt = Math.max(this._feedObservedAt, receivedAt - snapshotAge)
       const data = await resp.json()
       if (!this.map) return
       const aircraft = (data.ac || []) as AircraftApiEntry[]
