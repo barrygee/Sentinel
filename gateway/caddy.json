@@ -1,0 +1,61 @@
+{
+    "admin": {
+        "listen": "0.0.0.0:2019",
+        "origins": ["gateway:2019", "localhost:2019"],
+        "config": { "persist": false }
+    },
+    "apps": {
+        "http": {
+            "servers": {
+                "sentinel": {
+                    "listen": [":8080"],
+                    "automatic_https": { "disable": true },
+                    "routes": [
+                        {
+                            "match": [{ "path": ["/internal", "/internal/*"] }],
+                            "handle": [
+                                {
+                                    "handler": "static_response",
+                                    "status_code": 404,
+                                    "headers": { "Content-Type": ["application/json"] },
+                                    "body": "{\"detail\": \"Not Found\"}"
+                                }
+                            ],
+                            "terminal": true
+                        },
+                        {
+                            "handle": [
+                                { "@id": "registry_routes", "handler": "subroute", "routes": [] }
+                            ]
+                        },
+                        {
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [{ "dial": "app:8000" }]
+                                }
+                            ]
+                        }
+                    ],
+                    "errors": {
+                        "routes": [
+                            {
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 503,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Service unavailable\"}"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

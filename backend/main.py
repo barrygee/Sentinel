@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 from backend.core import app_sections as app_sections_router
 from backend.core import notifications as notifications_router
-from backend.core import registry_router
+from backend.core import registry_router, spa_csp
 from backend.core.service_registry import registry
 from backend.error_handlers import request_validation_error_handler
 from backend.modules import MANIFESTS, MODULES
@@ -136,7 +136,12 @@ async def serve_spa(full_path: str):
         return FileResponse(
             index,
             media_type="text/html",
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                # Pins where the shell (and every section remote it loads) may
+                # run scripts from; see backend/core/spa_csp.py.
+                "Content-Security-Policy": spa_csp.policy_for_index(index),
+            },
         )
     # SPA not built yet — return a helpful message during development
     return JSONResponse(
