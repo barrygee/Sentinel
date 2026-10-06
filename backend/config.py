@@ -271,6 +271,16 @@ class Settings(BaseSettings):
     registry_probe_interval_s: float = 10.0
     registry_probe_failures: int = 3
 
+    # ── Gateway (section-containers plan §4.4) ───────────────────────────────
+    # Caddy's admin API, e.g. `http://gateway:2019`, which core pushes the
+    # registry's routes into. Empty (the default) means no gateway fronts this
+    # process — the all-in-one app serves every path itself.
+    gateway_admin_url: str = ""
+    # Seconds between checks that the gateway still holds the registry's routes
+    # (a restarted gateway comes back with only its static config). Registry
+    # changes are pushed straight away, not on this interval.
+    gateway_sync_interval_s: float = 10.0
+
     # ── Event bus (section-containers plan §3.3) ─────────────────────────────
     # NATS server the event bus forwards to, e.g. `nats://nats:4222`. Empty keeps
     # the bus in-process only — the all-in-one app needs no broker.

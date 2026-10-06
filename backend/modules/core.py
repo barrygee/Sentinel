@@ -1,6 +1,7 @@
-"""Core lifecycle: database schema and settings, the live config file, offline maps, the service registry."""
+"""Core lifecycle: database schema and settings, the live config file, offline maps, the service registry, the gateway."""
 
 from backend.core import notifications
+from backend.core.gateway_sync import gateway_sync
 from backend.core.service_registry import registry
 from backend.database import (
     create_tables,
@@ -35,9 +36,12 @@ async def _start() -> None:
     await offline_map_job_runner.start()
     # Health-probe the services that registered from other processes.
     registry.start()
+    # Push the registry's routes into the gateway, and keep them there.
+    gateway_sync.start()
 
 
 async def _stop() -> None:
+    await gateway_sync.stop()
     await registry.stop()
     await offline_map_job_runner.stop()
     await app_config_file.sync.stop()

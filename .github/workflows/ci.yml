@@ -274,3 +274,61 @@ jobs:
       # nothing noticed — a real type error had accumulated in the e2e specs.
       - name: Typecheck (tsc)
         run: npm run typecheck
+
+  # The composed stack (section-containers plan P5 exit): Caddy gateway + app +
+  # NATS, built and started with docker compose exactly as deployed, then the
+  # full-stack smoke suite driven THROUGH the gateway — plus the gateway-only
+  # spec (/internal/ refused, CSP, unbuffered SSE, WebSocket upgrade).
+  gateway-smoke:
+    name: gateway-smoke (composed stack + Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build and start the composed stack
+        run: docker compose up -d --build --wait app gateway nats
+
+      # The app container runs `uv run`, which syncs the venv before uvicorn
+      # starts, so "running" is not "serving": wait for /health through the gateway.
+      - name: Wait for the app behind the gateway
+        run: |
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::the app never became healthy behind the gateway"
+          exit 1
+
+      - name: Full-stack smoke through the gateway
+        run: npm run test:e2e:gateway
+
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose logs app gateway nats
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: gateway-smoke-report
+          path: tests/e2e/playwright-report/
+          retention-days: 7

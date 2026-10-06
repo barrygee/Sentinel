@@ -62,7 +62,6 @@ manifest = ServiceManifest(
         "/api/sdr/ais/",
         "/api/sdr/decoders",
         "/api/sdr/sentry-hosts",
-        "/api/sdr/adsb",
         "/ws/sdr/",
     ],
 )

@@ -68,25 +68,28 @@ Outside the Vite dev server the backend serves the **pre-built** bundle, so rebu
 
 Settings are Pydantic (`backend/config.py`), overridable via environment variables or a git-ignored `.env` in the repo root — copy `.env.example`. Everything has a working default; no secrets are required to run.
 
-| Variable                                                   | Default                                 | Purpose                                                                                                                |
-| ---------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `DB_PATH`                                                  | `backend/sentinel.db`                   | SQLite file (Docker sets `/app/data/sentinel.db`)                                                                      |
-| `ADSB_TTL_MS` / `ADSB_STALE_MS`                            | `10000` / `60000`                       | ADS-B cache fresh window / stale window                                                                                |
-| `ADSB_UPSTREAM_BASE`                                       | `https://api.adsb.lol/v2`               | ADS-B upstream                                                                                                         |
-| `TLE_TTL_MS` / `TLE_STALE_MS`                              | 6 h / 12 h                              | TLE cache windows                                                                                                      |
-| `TLE_MANUAL_TTL_MS`                                        | 30 d                                    | TTL for manually uploaded TLEs                                                                                         |
-| `CELESTRAK_ISS_URL`                                        | Celestrak active-satellites feed        | Default TLE source                                                                                                     |
-| `AISSTREAM_API_KEY`                                        | _(empty)_                               | [AISStream.io](https://aisstream.io) key for SEA (Settings › SEA takes precedence)                                     |
-| `AISSTREAM_WS_URL`                                         | `wss://stream.aisstream.io/v0/stream`   | AISStream endpoint                                                                                                     |
-| `SEA_AIS_STALE_MS` / `SEA_AIS_CACHE_MAX`                   | 30 min / `50000`                        | Vessel retention / in-memory cap                                                                                       |
-| `SEA_VESSEL_STATIC_RETENTION_MS` / `SEA_VESSEL_STATIC_MAX` | 90 d / `250000`                         | How long vessel names/callsigns/types are remembered after last heard (so position-only reports are still named) / cap |
-| `REPEATERS_UPSTREAM_URL`                                   | `https://ukrepeater.net/csvcreate8.php` | UK repeater register; refreshed daily, stale copy served for 30 d                                                      |
-| `SENTINEL_DECODER_SECRET`                                  | _(auto-generated)_                      | Optional override for the sidecar ingest secret                                                                        |
-| `NATS_URL`                                                 | _(empty)_; Docker: `nats://nats:4222`   | Event-bus broker; empty = in-process only (see below)                                                                  |
+| Variable                                                   | Default                                  | Purpose                                                                                                                |
+| ---------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `DB_PATH`                                                  | `backend/sentinel.db`                    | SQLite file (Docker sets `/app/data/sentinel.db`)                                                                      |
+| `ADSB_TTL_MS` / `ADSB_STALE_MS`                            | `10000` / `60000`                        | ADS-B cache fresh window / stale window                                                                                |
+| `ADSB_UPSTREAM_BASE`                                       | `https://api.adsb.lol/v2`                | ADS-B upstream                                                                                                         |
+| `TLE_TTL_MS` / `TLE_STALE_MS`                              | 6 h / 12 h                               | TLE cache windows                                                                                                      |
+| `TLE_MANUAL_TTL_MS`                                        | 30 d                                     | TTL for manually uploaded TLEs                                                                                         |
+| `CELESTRAK_ISS_URL`                                        | Celestrak active-satellites feed         | Default TLE source                                                                                                     |
+| `AISSTREAM_API_KEY`                                        | _(empty)_                                | [AISStream.io](https://aisstream.io) key for SEA (Settings › SEA takes precedence)                                     |
+| `AISSTREAM_WS_URL`                                         | `wss://stream.aisstream.io/v0/stream`    | AISStream endpoint                                                                                                     |
+| `SEA_AIS_STALE_MS` / `SEA_AIS_CACHE_MAX`                   | 30 min / `50000`                         | Vessel retention / in-memory cap                                                                                       |
+| `SEA_VESSEL_STATIC_RETENTION_MS` / `SEA_VESSEL_STATIC_MAX` | 90 d / `250000`                          | How long vessel names/callsigns/types are remembered after last heard (so position-only reports are still named) / cap |
+| `REPEATERS_UPSTREAM_URL`                                   | `https://ukrepeater.net/csvcreate8.php`  | UK repeater register; refreshed daily, stale copy served for 30 d                                                      |
+| `SENTINEL_DECODER_SECRET`                                  | _(auto-generated)_                       | Optional override for the sidecar ingest secret                                                                        |
+| `NATS_URL`                                                 | _(empty)_; Docker: `nats://nats:4222`    | Event-bus broker; empty = in-process only (see below)                                                                  |
+| `GATEWAY_ADMIN_URL`                                        | _(empty)_; Docker: `http://gateway:2019` | Caddy admin API the service registry's routes are pushed into; empty = no gateway (see below)                          |
 
 Decoder (`DECODER_*`, `APRS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables are wired by `docker-compose.yml` and rarely need changing — see `backend/config.py`.
 
 `docker compose up` also starts `nats`, the event-bus broker. It carries low-rate control events (settings changes, decode events, radio-hub requests) between Sentinel's containers. The app always handles events in-process first, so it runs the same without a broker: set `NATS_URL=` (empty) in `.env` to opt out, and non-Docker dev (`uv run … uvicorn`) needs no broker at all. If the broker is down, the app starts anyway and connects when it comes up.
+
+It also starts `gateway` — [Caddy](https://caddyserver.com), the one address browsers use. **It is what publishes :8080**; the app itself is internal-only (`app:8000` on the compose network). The gateway's static config (`gateway/caddy.json`) refuses `/internal/`, sends everything else to the app, and turns an unreachable service into a JSON 503; the app pushes each registered service's path prefixes into it at runtime, so a section moved into its own container is routed there just by registering. Non-Docker dev has no gateway (`GATEWAY_ADMIN_URL` empty) — uvicorn serves every path itself.
 
 ---
 
@@ -244,6 +247,8 @@ A11Y_BASE_URL=http://localhost:8080 npm run test:e2e   # …or against a running
 
 # Root tooling
 npm run lint && npm run typecheck
+npm run test:e2e:fullstack    # full-stack smoke: boots uvicorn on :8099 against a temp DB
+npm run test:e2e:gateway      # same suite + gateway checks, through a running `docker compose up` stack on :8080
 ```
 
 The e2e suite is a **separate** gate from vitest — UI restructuring can break it while every unit test passes. See [CONTRIBUTING.md](CONTRIBUTING.md) for first-time setup, the tooling contexts, the coverage gate and commit/branch/PR conventions (branch off `main`, [Conventional Commits](https://www.conventionalcommits.org) — `CHANGELOG.md` is generated from them).

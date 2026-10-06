@@ -30,6 +30,16 @@ import path from 'path';
  *
  *   Or without the env var if chromium is already installed:
  *   npm run test:e2e:fullstack
+ *
+ * Composed stack (gateway + app + NATS, section-containers plan P5):
+ *   docker compose up -d
+ *   PLAYWRIGHT_CHANNEL=chrome npm run test:e2e:gateway
+ *
+ *   `test:e2e:gateway` sets SENTINEL_E2E_BASE_URL (default
+ *   http://localhost:8080): no server is started — the suite drives the stack
+ *   already running there, through the Caddy gateway — and the gateway-only
+ *   spec (gateway-smoke.spec.ts) runs too. That stack's database is the
+ *   deployment's own, not a temp file, so point it at a throwaway stack.
  */
 
 const TEST_PORT = 8099;
@@ -39,8 +49,14 @@ export const TEMP_DB_PATH = path.join(os.tmpdir(), `sentinel-e2e-smoke-${Date.no
 
 const channel = process.env.PLAYWRIGHT_CHANNEL;
 
+/** Set to drive an already-running stack (the composed one) instead of starting uvicorn. */
+const externalBaseUrl = process.env.SENTINEL_E2E_BASE_URL;
+
 export default defineConfig({
     testDir: './tests/e2e',
+    // The gateway spec asserts what only Caddy does (/internal/ refused, …);
+    // against bare uvicorn those paths behave differently by design.
+    testIgnore: externalBaseUrl ? [] : ['**/gateway-smoke.spec.ts'],
     fullyParallel: false, // sequential: tests share the one real server
     forbidOnly: Boolean(process.env.CI),
     retries: 0, // smoke suite must be deterministic — no flake budget
@@ -48,7 +64,7 @@ export default defineConfig({
     reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/e2e/playwright-report' }]],
     timeout: 30_000,
     use: {
-        baseURL: `http://localhost:${TEST_PORT}`,
+        baseURL: externalBaseUrl ?? `http://localhost:${TEST_PORT}`,
         trace: 'on-first-retry',
     },
     projects: [
@@ -61,25 +77,27 @@ export default defineConfig({
         },
     ],
     globalTeardown: './tests/e2e/globalTeardown.ts',
-    webServer: {
-        /**
-         * Start the real FastAPI backend on the test port.
-         *
-         * Key env vars forwarded to the server process:
-         *   DB_PATH — points uvicorn at the isolated temp SQLite file so the test
-         *             run never touches the developer's real backend/sentinel.db.
-         *
-         * `reuseExistingServer: false` forces a fresh server on every run so
-         * CI always starts from a clean state.
-         */
-        command: `DB_PATH=${TEMP_DB_PATH} uv run --project backend uvicorn backend.main:app --port ${TEST_PORT} --log-level warning`,
-        url: `http://localhost:${TEST_PORT}/health`,
-        reuseExistingServer: false,
-        timeout: 60_000,
-        stdout: 'pipe',
-        stderr: 'pipe',
-        env: {
-            DB_PATH: TEMP_DB_PATH,
-        },
-    },
+    webServer: externalBaseUrl
+        ? undefined
+        : {
+              /**
+               * Start the real FastAPI backend on the test port.
+               *
+               * Key env vars forwarded to the server process:
+               *   DB_PATH — points uvicorn at the isolated temp SQLite file so the test
+               *             run never touches the developer's real backend/sentinel.db.
+               *
+               * `reuseExistingServer: false` forces a fresh server on every run so
+               * CI always starts from a clean state.
+               */
+              command: `DB_PATH=${TEMP_DB_PATH} uv run --project backend uvicorn backend.main:app --port ${TEST_PORT} --log-level warning`,
+              url: `http://localhost:${TEST_PORT}/health`,
+              reuseExistingServer: false,
+              timeout: 60_000,
+              stdout: 'pipe',
+              stderr: 'pipe',
+              env: {
+                  DB_PATH: TEMP_DB_PATH,
+              },
+          },
 });

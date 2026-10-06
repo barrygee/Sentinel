@@ -4,8 +4,11 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: sentinel-app
-    ports:
-      - "8080:8000"
+    # Internal only: browsers reach the app through the `gateway` service below,
+    # which publishes :8080. Sentinel's own containers (decoders) still use
+    # http://app:8000 directly.
+    expose:
+      - "8000"
 
     # Lets this container address services listening on the DOCKER HOST as
     # `host.docker.internal`. Needed when Sentry runs on the same machine: it
@@ -53,9 +56,46 @@ services:
       # in-process first; NATS carries them to sections in other containers.
       # Set NATS_URL= (empty) in .env to run without a broker.
       - NATS_URL=${NATS_URL-nats://nats:4222}
+      # The gateway's admin API, which core pushes the service registry's routes
+      # into. Set GATEWAY_ADMIN_URL= (empty) in .env to run without a gateway.
+      - GATEWAY_ADMIN_URL=${GATEWAY_ADMIN_URL-http://gateway:2019}
     depends_on:
       - nats
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # The gateway (section-containers plan §4.4): Caddy, the one origin browsers
+  # use. Its static config (gateway/caddy.json) never routes /internal/, sends
+  # everything unmatched to the app, and turns an unreachable upstream into a
+  # JSON 503. Every section / radio-hub / remote prefix is pushed into it at
+  # runtime by the app from the service registry (backend/core/gateway_sync.py),
+  # so moving a section into its own container needs no gateway edit. The
+  # admin API (:2019) is reachable on the compose network only — never published.
+  gateway:
+    image: caddy:2.10-alpine
+    container_name: sentinel-gateway
+    command: ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./gateway/caddy.json:/etc/caddy/caddy.json:ro
+    # Nothing to persist: no TLS certificates (plain HTTP on the LAN) and the
+    # dynamic routes are re-pushed by the app, so run unprivileged on a
+    # read-only filesystem with scratch space for Caddy's data/config dirs.
+    user: "65534:65534"
+    read_only: true
+    tmpfs:
+      - /data
+      - /config
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:2019/config/"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    depends_on:
+      - app
     restart: unless-stopped
     networks:
       - sentinel

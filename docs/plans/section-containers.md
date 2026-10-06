@@ -386,6 +386,12 @@ Four rules make that safe:
 
 Unregistered or unavailable upstream: Caddy `handle_errors` returns the JSON 503 shape the SPA already handles.
 
+*As built (P5.3):* the static config is Caddy JSON (`gateway/caddy.json`) rather than a Caddyfile, because the
+registry's routes are replaced in place through the admin API by `@id` (`registry_routes`). Core owns the table
+(`backend/core/gateway_routes.py`) and a reconcile loop (`gateway_sync.py`) keeps the gateway's copy equal to it —
+woken by `registry.changed` and on an interval, which also re-pushes after a gateway restart. A service the registry
+has marked unavailable gets a static 503 without a dial. No per-id env templating was needed.
+
 **Rollback:** `dev-all` (or the monolith during P6) can re-register any section, so the extraction of a single section
 can be reverted by flipping its route back.
 
@@ -394,6 +400,10 @@ can be reverted by flipping its route back.
   each service its own NATS user with per-subject permissions.
 - **Manifest validation:** a service can't claim another section's prefixes or `/api/app`.
 - **Remote code:** UI code is served same-origin through the gateway, under CSP `script-src 'self'`.
+  *As built (P5.3):* core sets the CSP on the shell document with the inline boot scripts allowed by hash, but it
+  must also allow `blob:` and `'unsafe-eval'` for SDR audio (the demod worklet is a Blob URL; the plain-HTTP LAN
+  fallback evaluates it with `new Function`). Serving the worklet source as a same-origin file would remove both —
+  a follow-up.
 - **Internal surfaces:** the Caddy admin API is bound to the internal network. The shared `decoder_secret` volume is
   replaced by per-service credentials.
 - **Multi-host:** NATS TLS with a locally generated CA (`make certs`).

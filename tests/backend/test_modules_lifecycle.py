@@ -162,6 +162,23 @@ class TestCoreModule:
         await core.lifecycle.start()
         assert core.notifications.streams._closing is False
 
+    async def test_starts_the_gateway_sync_after_the_registry_and_stops_it_first(self, monkeypatch):
+        calls: list[str] = []
+        for name in ("start", "stop"):
+            monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
+            monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
+        monkeypatch.setattr(core.registry, "start", recorder(calls, "registry.start", is_async=False))
+        monkeypatch.setattr(core.registry, "stop", recorder(calls, "registry.stop"))
+        monkeypatch.setattr(core.gateway_sync, "start", recorder(calls, "gateway.start", is_async=False))
+        monkeypatch.setattr(core.gateway_sync, "stop", recorder(calls, "gateway.stop"))
+
+        await core.lifecycle.start()
+        await core.lifecycle.stop()
+
+        # The gateway's routes come from the registry, so it syncs only once
+        # the registry is up and stops before the registry does.
+        assert calls == ["registry.start", "gateway.start", "gateway.stop", "registry.stop"]
+
 
 class TestAirModule:
     async def test_start_starts_the_squawk_watcher_and_stop_stops_it(self, monkeypatch):
