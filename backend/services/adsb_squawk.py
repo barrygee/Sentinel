@@ -66,6 +66,14 @@ class SquawkTracker:
     def __init__(self) -> None:
         self._squawks: dict[str, tuple[str, int]] = {}
         self.last_observed_ms = 0
+        # When a browser last asked for aircraft, whatever the answer. A map
+        # served from cache, or whose fetch was throttled, is still a map that
+        # is open — and still spending the upstream's rate budget.
+        self.last_browser_poll_ms = 0
+
+    def browser_polled(self) -> None:
+        """Note that a browser asked for aircraft, which keeps the watcher idle."""
+        self.last_browser_poll_ms = _now_ms()
 
     async def observe(self, snapshot: dict[str, Any], db: AsyncSession) -> None:
         """Compare a snapshot (`{"ac": [...]}`) with what was seen before.
@@ -178,11 +186,16 @@ async def watch_area(db: AsyncSession) -> tuple[float, float] | None:
 
 
 async def watch_once(db: AsyncSession) -> bool:
-    """Fetch one snapshot for the tracker unless a browser fetched recently.
+    """Fetch one snapshot for the tracker unless a browser polled, or a snapshot arrived, recently.
 
     Returns whether a snapshot was observed.
     """
-    if _now_ms() - tracker.last_observed_ms < settings.adsb_watch_idle_s * 1000:
+    # Idle while a browser is polling, not just while its fetches succeed: when
+    # the upstream is slow or rate-limiting, the map's requests are answered
+    # from cache, and a watcher fetching then takes the rate budget the map's
+    # next fetch needed — which then falls back to an empty off-grid list.
+    last_activity_ms = max(tracker.last_observed_ms, tracker.last_browser_poll_ms)
+    if _now_ms() - last_activity_ms < settings.adsb_watch_idle_s * 1000:
         return False
     area = await watch_area(db)
     if area is None:
