@@ -3,7 +3,8 @@
 The order is load-bearing — see `backend/platform/lifecycle.py`:
   prepare: core (schema, migrations, settings seed) → sdr (frequency + band-plan
            seed) → space (satellite radio backfill)
-  start:   core (config file sync, offline maps) → radio hub (decode secret,
+  start:   bus (NATS, when configured — so every later module publishes onto a
+           connected bus) → core (config file sync, offline maps) → radio hub (decode secret,
            resumed APRS/AIS decode, Sentry poller) → land → sea
   stop:    the reverse.
 
@@ -14,6 +15,7 @@ service registry at import (`backend/main.py`, plan §3.2).
 """
 
 from backend.modules.air import manifest as air_manifest
+from backend.modules.bus import lifecycle as bus_lifecycle
 from backend.modules.core import lifecycle as core_lifecycle
 from backend.modules.land import lifecycle as land_lifecycle
 from backend.modules.land import manifest as land_manifest
@@ -29,6 +31,7 @@ from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
 MODULES: tuple[ModuleLifecycle, ...] = (
+    bus_lifecycle,
     core_lifecycle,
     sdr_lifecycle,
     space_lifecycle,

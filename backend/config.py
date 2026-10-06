@@ -264,6 +264,11 @@ class Settings(BaseSettings):
     registry_probe_interval_s: float = 10.0
     registry_probe_failures: int = 3
 
+    # ── Event bus (section-containers plan §3.3) ─────────────────────────────
+    # NATS server the event bus forwards to, e.g. `nats://nats:4222`. Empty keeps
+    # the bus in-process only — the all-in-one app needs no broker.
+    nats_url: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

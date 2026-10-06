@@ -49,7 +49,32 @@ services:
       # Air domain: where Off Grid AIR reads decoded aircraft. Unset keeps the
       # backend default (the adsb-decoder sidecar below).
       - ADSB_OFFGRID_URL=${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
+      # Event bus broker (the `nats` service below). Events are always delivered
+      # in-process first; NATS carries them to sections in other containers.
+      # Set NATS_URL= (empty) in .env to run without a broker.
+      - NATS_URL=${NATS_URL-nats://nats:4222}
+    depends_on:
+      - nats
     command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+    networks:
+      - sentinel
+
+  # Event bus broker (section-containers plan §3.3). NATS core only — no
+  # JetStream, nothing persisted: consumers reconcile on restart. Carries only
+  # low-rate control events (settings changes, decode events, hub requests);
+  # FFT/IQ/PCM never go through it. Not published on the host — only
+  # Sentinel's own containers talk to it.
+  nats:
+    image: nats:2.11-alpine
+    container_name: sentinel-nats
+    # -m: monitoring port for the healthcheck (inside the network only).
+    command: ["--name", "sentinel", "-m", "8222"]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     restart: unless-stopped
     networks:
       - sentinel
