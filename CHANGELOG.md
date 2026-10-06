@@ -194,6 +194,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - LIGHT is OpenStreetMap's default style; the old light map is gone
 - Dark location marks on the light map; distance on every range ring
 - One upright distance label at the top of each range ring
+- Load sections as Module Federation remotes (#426)
 
 ### Bug Fixes
 
