@@ -1,0 +1,25 @@
+div#sdr-page.theme-dark | font-family=Barlow, "Helvetica Neue", Arial, sans-serif
+  h1.sr-only | position=absolute; font-size=32px; font-weight=700; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+  div#sdr-waterfall.not-playing.panel-closed | display=flex; position=fixed; background-color=rgb(10, 13, 20); padding-top=9px; padding-right=56px; flex-direction=column; z-index=1; overflow-x=hidden; overflow-y=hidden
+    div.sdr-wf-controls | display=flex; position=absolute; padding-top=20px; padding-bottom=14px; flex-direction=column; align-items=center; gap=28px; pointer-events=none; z-index=3
+      div.sdr-wf-ctl | display=flex; flex-direction=column; align-items=center; gap=8px; pointer-events=auto
+        span.sdr-wf-ctl-label | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase
+        div.sdr-wf-slider-wrap | position=relative
+          input.sdr-wf-slider | display=block; position=absolute; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=not-allowed; overflow-x=visible; overflow-y=visible
+      div.sdr-wf-ctl | display=flex; flex-direction=column; align-items=center; gap=8px; pointer-events=auto
+        span.sdr-wf-ctl-label | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase
+        div.sdr-wf-slider-wrap | position=relative
+          input.sdr-wf-slider | display=block; position=absolute; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=not-allowed; overflow-x=visible; overflow-y=visible
+      div.sdr-wf-ctl | display=flex; flex-direction=column; align-items=center; gap=8px; pointer-events=auto
+        span.sdr-wf-ctl-label | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase
+        div.sdr-wf-slider-wrap | position=relative
+          input.sdr-wf-slider | display=block; position=absolute; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=not-allowed; overflow-x=visible; overflow-y=visible
+    div.sdr-wf-spectrum | position=relative; cursor=crosshair; pointer-events=none; z-index=2
+      div.sdr-wf-tick-gutter | position=absolute; z-index=9
+      div | position=relative
+        canvas | display=block; position=absolute
+        canvas | display=block; position=absolute; z-index=1
+    div.sdr-wf-raster | position=relative; cursor=crosshair; pointer-events=none
+      div | position=relative
+        canvas | display=block; position=absolute
+        canvas | display=block; position=absolute; z-index=1

@@ -1,0 +1,326 @@
+div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-family=Barlow, "Helvetica Neue", Arial, sans-serif; flex-direction=column; overflow-x=hidden; overflow-y=auto
+  div#sdr-panel-panes | display=flex; flex-direction=column; overflow-x=hidden; overflow-y=auto
+    div.sdr-tab-panes | display=flex; flex-direction=column; overflow-x=hidden; overflow-y=auto
+      div.sdr-tab-pane.sdr-tab-pane--radio.theme-dark | display=none; background-color=rgba(21, 23, 29, 0.92); flex-direction=column
+        div.sdr-radio-section.sdr-radio-section--device | padding-top=20px; padding-right=20px; padding-bottom=4px; padding-left=20px
+          div.sdr-device-dropdown | position=relative; background-color=rgba(255, 255, 255, 0.04); border-radius=2px; cursor=pointer; user-select=none
+            div.sdr-device-dropdown-selected | display=flex; padding-right=10px; padding-left=10px; justify-content=space-between; align-items=center; gap=8px; user-select=none
+              div.sdr-conn-dot.sdr-dot-off | background-color=rgba(255, 80, 80, 0.6); border-radius=50%; user-select=none
+              span.sdr-device-dropdown-text | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; letter-spacing=1px; text-transform=uppercase; white-space=nowrap; user-select=none; overflow-x=hidden; overflow-y=hidden
+              span.sdr-device-dropdown-arrow | display=block; background-color=rgba(255, 255, 255, 0.2); user-select=none
+        div.sdr-radio-section.sdr-radio-section--freq | padding-top=6px; padding-right=20px; padding-bottom=14px; padding-left=20px
+          div.sdr-freq-row | display=flex; justify-content=flex-start; align-items=baseline; gap=0px
+            input.sdr-freq-input-large | display=block; color=rgb(255, 255, 255); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family="Barlow Condensed", Barlow, sans-serif; font-size=36px; font-weight=300; letter-spacing=1.44px; text-align=left; cursor=not-allowed
+            span.sdr-freq-unit | display=block; color=rgba(255, 255, 255, 0.6); font-family="Barlow Condensed", Barlow, sans-serif; font-size=18px; font-weight=300; letter-spacing=0.72px
+          div.sdr-freq-actions-row | display=flex; align-items=center; gap=4px
+            button.sdr-mode-pill.sdr-tune-btn | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+              svg | display=block; overflow-x=hidden; overflow-y=hidden
+                polygon
+            button.sdr-mode-pill.sdr-stop-btn.sdr-tune-btn | display=flex; color=rgba(255, 80, 80, 0.75); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+              svg | display=block; overflow-x=hidden; overflow-y=hidden
+                rect
+            button.sdr-mode-pill.sdr-rec-btn.sdr-tune-btn | display=flex; color=rgba(255, 80, 80, 0.75); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+              svg | display=block; overflow-x=hidden; overflow-y=hidden
+                circle
+        div.sdr-radio-section | padding-top=14px; padding-right=20px; padding-bottom=14px; padding-left=20px
+          span.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase
+          div.sdr-signal-segments.sdr-signal-segments--muted | display=flex; gap=3px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+            div.sdr-signal-seg | background-color=rgba(255, 255, 255, 0.08); border-radius=1px
+        div.sdr-radio-section.sdr-scan-controls | display=flex; padding-right=20px; padding-bottom=16px; padding-left=20px; flex-direction=column
+          button.sdr-frequency-manager-accordion-toggle.sdr-frequency-manager-accordion-toggle-expanded.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+            label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+            span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgb(200, 255, 0); align-items=center; pointer-events=none
+              svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                path
+          div#sdr-mode-section | padding-right=7px; overflow-x=hidden; overflow-y=auto
+            div.sdr-radio-section | padding-bottom=10px
+              label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+              div.sdr-mode-pills | display=flex; gap=4px
+                button.active.sdr-mode-pill | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+                button.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+                button.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+                button.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+                button.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+                button.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+            div.sdr-radio-section | padding-top=10px; padding-bottom=10px
+              label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+              div.sdr-mode-pills | display=flex; gap=4px
+                button.sdr-digital-btn.sdr-mode-pill | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; white-space=nowrap; justify-content=center; align-items=center; cursor=not-allowed; pointer-events=none
+            div.sdr-radio-section.sdr-settings-controls | padding-top=10px; padding-bottom=10px
+              button.sdr-frequency-manager-accordion-toggle.sdr-frequency-manager-accordion-toggle-expanded.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+                label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgb(200, 255, 0); align-items=center; pointer-events=none
+                  svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                    path
+              div#sdr-settings-section
+                div.sdr-radio-section | padding-bottom=10px
+                  div.sdr-slider-header | display=flex; align-items=center; gap=10px
+                    label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                  input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
+                div.sdr-radio-section | padding-top=10px; padding-bottom=10px
+                  div.sdr-slider-header | display=flex; align-items=center; gap=10px
+                    label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                  input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
+                div.sdr-radio-section | padding-top=10px; padding-bottom=10px
+                  div.sdr-slider-header | display=flex; align-items=center; gap=10px
+                    label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                  input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
+                div.sdr-radio-section | padding-top=10px; padding-bottom=10px
+                  div.sdr-slider-header | display=flex; align-items=center; gap=10px
+                    label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                  input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
+                div.sdr-agc-row.sdr-radio-section | padding-top=10px; padding-bottom=10px
+                  label.sdr-checkbox-label | display=flex; align-items=center; gap=10px; cursor=pointer; user-select=none
+                    input.ba-checkbox-input.sdr-checkbox | display=block; position=absolute; color=rgb(84, 84, 84); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=13.3333px; white-space=nowrap; cursor=default; user-select=none; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-checkbox-custom | display=flex; background-color=rgba(255, 255, 255, 0.06); border-radius=2px; justify-content=center; align-items=center; user-select=none
+                    span.sdr-checkbox-text | display=block; color=rgba(255, 255, 255, 0.5); font-size=10px; letter-spacing=0.6px; user-select=none
+                div.sdr-radio-section | padding-top=10px; padding-bottom=10px
+                  div.sdr-slider-header | display=flex; align-items=center; gap=10px
+                    label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                  div.sdr-device-dropdown.sdr-device-dropdown--loading | position=relative; background-color=rgba(255, 255, 255, 0.04); border-radius=2px; cursor=default; pointer-events=none; user-select=none
+                    div.sdr-device-dropdown-selected | display=flex; padding-right=10px; padding-left=10px; justify-content=space-between; align-items=center; gap=8px; user-select=none
+                      span.sdr-device-dropdown-text.sdr-device-dropdown-text--chosen | display=block; color=rgba(255, 255, 255, 0.75); font-size=10px; letter-spacing=1px; text-transform=uppercase; white-space=nowrap; user-select=none; overflow-x=hidden; overflow-y=hidden
+                      span.sdr-device-dropdown-arrow | display=block; background-color=rgba(255, 255, 255, 0.2); user-select=none
+        div.sdr-radio-section.sdr-scan-controls | padding-right=20px; padding-left=20px
+          button.sdr-frequency-manager-accordion-toggle.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+            label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+            span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgba(255, 255, 255, 0.25); align-items=center; pointer-events=none
+              svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                path
+          div#sdr-favourites-section | display=none
+            div.sdr-favourites-body | display=flex; flex-direction=column
+              span.sr-only | display=block; position=absolute; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+              div.sdr-favourites-list | display=flex; flex-direction=column
+              div.sdr-panel-empty | color=rgba(255, 255, 255, 0.55); padding-top=28px; padding-bottom=28px; font-size=10px; letter-spacing=1px; text-transform=uppercase
+                br
+        div.sdr-radio-section.sdr-scan-controls | padding-right=20px; padding-left=20px
+          button.sdr-frequency-manager-accordion-toggle.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+            label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+            div.sdr-scan-state-row | display=none; align-items=center; gap=8px
+              span.sdr-scan-state-label | color=rgba(255, 255, 255, 0.7); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase
+              div.sdr-scan-indicator | background-color=rgba(255, 255, 255, 0.15); border-radius=50%
+            span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgba(255, 255, 255, 0.25); align-items=center; pointer-events=none
+              svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                path
+          div#sdr-scanner-section | display=none
+            div.sdr-scan-groups-row | display=flex; flex-wrap=wrap; gap=4px
+              button.sdr-scan-group-chip.sdr-scan-group-chip-active | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=not-allowed
+              button.sdr-scan-group-chip | display=flex; color=rgba(255, 255, 255, 0.7); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=not-allowed
+            div.sdr-scan-btns-row.sdr-scan-btns-row--left | display=flex; justify-content=flex-start; gap=8px
+              button.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
+                svg | display=block; overflow-x=hidden; overflow-y=hidden
+                  polygon
+        div.sdr-radio-section.sdr-scan-controls | padding-right=20px; padding-left=20px
+          button.sdr-frequency-manager-accordion-toggle.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+            label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+            div.sdr-scan-state-row | display=none; align-items=center; gap=8px
+              span.sdr-scan-state-label | color=rgba(255, 255, 255, 0.7); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase
+              div.sdr-scan-indicator | background-color=rgba(255, 255, 255, 0.15); border-radius=50%
+            span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgba(255, 255, 255, 0.25); align-items=center; pointer-events=none
+              svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                path
+          div#sdr-search-section | display=none
+            div.sdr-search-adhoc-row | display=flex; padding-top=4px; padding-bottom=14px; align-items=flex-end; gap=8px
+              div.sdr-search-adhoc-col | display=flex; flex-direction=column
+                label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                input.sdr-panel-input.sdr-search-adhoc-input | display=block; color=rgb(255, 255, 255); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-radius=2px; font-size=13px; letter-spacing=1.04px; cursor=not-allowed
+              div.sdr-search-adhoc-col | display=flex; flex-direction=column
+                label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                input.sdr-panel-input.sdr-search-adhoc-input | display=block; color=rgb(255, 255, 255); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-radius=2px; font-size=13px; letter-spacing=1.04px; cursor=not-allowed
+              div.sdr-search-adhoc-col | display=flex; flex-direction=column
+                label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                div.sdr-device-dropdown.sdr-device-dropdown--loading.sdr-step-dropdown | position=relative; background-color=rgba(255, 255, 255, 0.04); border-radius=2px; cursor=default; pointer-events=none; user-select=none
+                  div.sdr-device-dropdown-selected | display=flex; padding-right=10px; padding-left=10px; justify-content=space-between; align-items=center; gap=8px; user-select=none
+                    span.sdr-device-dropdown-text.sdr-device-dropdown-text--chosen | display=block; color=rgba(255, 255, 255, 0.75); font-size=10px; letter-spacing=1px; text-transform=uppercase; white-space=nowrap; user-select=none; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-device-dropdown-arrow | display=block; background-color=rgba(255, 255, 255, 0.2); user-select=none
+              div.sdr-search-adhoc-col.sdr-search-adhoc-col--play | display=flex; flex-direction=column
+                button.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
+                  svg | display=block; overflow-x=hidden; overflow-y=hidden
+                    polygon
+            div.sdr-search-saved-ranges
+              button.sdr-frequency-manager-accordion-toggle.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+                label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+                span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgba(255, 255, 255, 0.25); align-items=center; pointer-events=none
+                  svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                    path
+              div#sdr-saved-ranges-section | display=none
+                div.sdr-search-range-list | display=flex; flex-direction=column
+                  div.sdr-search-range-item.sdr-search-range-item-active | display=flex; color=rgba(255, 255, 255, 0.7); padding-right=20px; padding-left=20px; text-align=left; align-items=center; gap=8px
+                    button.sdr-search-range-item-body | display=flex; background-color=rgba(0, 0, 0, 0); padding-top=13px; padding-right=4px; padding-bottom=13px; padding-left=0px; font-size=13.3333px; flex-direction=column; align-items=flex-start; gap=1px; cursor=not-allowed
+                      span.sdr-search-range-primary | display=block; color=rgb(255, 255, 255); font-size=11px; font-weight=600; letter-spacing=1.54px; text-transform=uppercase
+                      span.sdr-search-range-secondary | display=block; color=rgba(255, 255, 255, 0.5); font-size=9px; letter-spacing=1.08px; text-transform=uppercase
+                    button.sdr-search-range-item-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=not-allowed
+                      svg | display=block; overflow-x=hidden; overflow-y=hidden
+                        polygon
+      div.sdr-tab-pane | display=none; flex-direction=column
+        span.sr-only | display=block; position=absolute; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+        div.sdr-frequency-manager-freqs-body | display=flex; flex-direction=column
+          div.sdr-frequency-manager-add-freq-row | display=flex; padding-top=18px; padding-right=24px; padding-bottom=8px; padding-left=24px; justify-content=flex-start
+            button#sdr-radio-add-freq.sdr-add-freq-btn | display=block; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=18px; padding-bottom=0px; padding-left=18px; border-radius=2px; font-size=11px; font-weight=600; letter-spacing=0.88px; text-align=center; cursor=pointer
+          div.sdr-frequency-manager-groups-filter | padding-top=6px; padding-right=24px; padding-bottom=4px; padding-left=24px
+            button.sdr-frequency-manager-accordion-toggle.sdr-frequency-manager-accordion-toggle-expanded.sdr-scanner-header-row | display=flex; position=relative; background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=44px; padding-bottom=0px; padding-left=20px; text-align=left; align-items=center; gap=10px; cursor=pointer
+              label.sdr-field-label.sdr-frequency-manager-scanner-title | display=block; color=rgb(255, 255, 255); font-size=9px; font-weight=700; letter-spacing=1.62px; text-transform=uppercase; cursor=default
+              span.sdr-frequency-manager-accordion-chevron | display=flex; position=absolute; color=rgb(200, 255, 0); align-items=center; pointer-events=none
+                svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
+                  path
+            div#sdr-freq-manager-groups-section
+              div.sdr-frequency-manager-groups-filter-row.sdr-scan-groups-row | display=flex; flex-wrap=wrap; gap=4px
+                button.sdr-scan-group-chip.sdr-scan-group-chip-active | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=pointer
+                button.sdr-scan-group-chip | display=flex; color=rgba(255, 255, 255, 0.7); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=pointer
+          div#sdr-freq-list | overflow-x=hidden; overflow-y=auto
+            div.sdr-freq-row-item | display=flex; flex-direction=column
+              div.sdr-freq-row-top | display=flex; padding-top=11px; padding-right=24px; padding-bottom=11px; padding-left=24px; align-items=flex-start; gap=12px
+                div.sdr-freq-row-body | display=flex; flex-direction=column; gap=4px
+                  div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
+                    span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-freq-row-hz | display=block
+                    span.sdr-freq-row-sep | display=block
+                    span.sdr-freq-row-mode | display=block
+                  div.sdr-freq-row-groups | display=flex; flex-wrap=wrap; gap=4px
+                    span.sdr-freq-row-group-chip | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-right=10px; padding-left=10px; border-radius=2px; font-size=9px; font-weight=600; letter-spacing=0.9px; text-transform=uppercase; align-items=center; gap=5px
+                div.sdr-freq-row-actions | display=flex; align-items=flex-start; gap=0px
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-fav | display=flex; position=relative; color=rgba(255, 255, 255, 0.45); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      polygon
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-play | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=not-allowed
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      polygon
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-edit | display=flex; position=relative; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      path
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-del | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+            div.sdr-freq-row-item | display=flex; flex-direction=column
+              div.sdr-freq-row-top | display=flex; padding-top=11px; padding-right=24px; padding-bottom=11px; padding-left=24px; align-items=flex-start; gap=12px
+                div.sdr-freq-row-body | display=flex; flex-direction=column; gap=4px
+                  div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
+                    span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-freq-row-hz | display=block
+                    span.sdr-freq-row-sep | display=block
+                    span.sdr-freq-row-mode | display=block
+                  div.sdr-freq-row-groups | display=flex; flex-wrap=wrap; gap=4px
+                    span.sdr-freq-row-group-chip | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-right=10px; padding-left=10px; border-radius=2px; font-size=9px; font-weight=600; letter-spacing=0.9px; text-transform=uppercase; align-items=center; gap=5px
+                div.sdr-freq-row-actions | display=flex; align-items=flex-start; gap=0px
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-fav | display=flex; position=relative; color=rgba(255, 255, 255, 0.45); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      polygon
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-play | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=not-allowed
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      polygon
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-edit | display=flex; position=relative; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      path
+                  button.ba-icon-action.ba-icon-action--tip-bottom.sdr-freq-row-del | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+          div#sdr-freq-empty.sdr-panel-empty | display=none; color=rgba(255, 255, 255, 0.55); padding-top=28px; padding-right=28px; padding-bottom=28px; padding-left=28px; font-size=10px; letter-spacing=1px; text-transform=uppercase
+            br
+      div.sdr-tab-pane | display=none; flex-direction=column
+        div.sdr-search-ranges-body | display=flex; flex-direction=column
+          div#sdr-search-range-list | overflow-x=hidden; overflow-y=auto
+            div.sdr-freq-row-item | display=flex; flex-direction=column
+              div.sdr-freq-row-top | display=flex; padding-top=11px; padding-right=24px; padding-bottom=11px; padding-left=24px; align-items=flex-start; gap=12px
+                div.sdr-freq-row-body.sdr-search-range-row-body | display=flex; flex-direction=column; gap=4px; cursor=pointer
+                  div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
+                    span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-freq-row-hz | display=block
+                span.sdr-freq-row-play-spacer | display=block
+                button.ba-icon-action.sdr-freq-row-edit | display=flex; position=relative; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                  svg | display=block; overflow-x=hidden; overflow-y=hidden
+                    path
+                button.ba-icon-action.sdr-freq-row-del | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+          div.sdr-frequency-manager-add-freq-row | display=flex; padding-top=18px; padding-right=24px; padding-bottom=18px; padding-left=24px; justify-content=flex-start
+            button.sdr-add-freq-btn | display=block; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=18px; padding-bottom=0px; padding-left=18px; border-radius=2px; font-size=11px; font-weight=600; letter-spacing=0.88px; text-align=center; cursor=pointer
+      div.active.sdr-tab-pane | display=flex; flex-direction=column
+        div#sdr-group-list
+          div.sdr-group-pills | display=flex; padding-top=20px; padding-right=24px; padding-bottom=10px; padding-left=24px; flex-wrap=wrap; gap=4px
+            div.sdr-group-pill | display=flex; background-color=rgba(255, 255, 255, 0.06); padding-right=6px; padding-left=14px; border-radius=2px; align-items=center; gap=6px; cursor=default
+              span.sdr-group-pill-name | display=block; color=rgba(255, 255, 255, 0.85); font-size=10px; letter-spacing=0.8px; text-transform=uppercase; white-space=nowrap
+              button.ba-icon-action.sdr-group-pill-edit | display=flex; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=5px; padding-bottom=0px; padding-left=5px; font-family=Arial; font-size=11px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+              button.ba-icon-action.sdr-group-pill-del | display=flex; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=5px; padding-bottom=0px; padding-left=5px; font-family=Arial; font-size=11px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+            div.sdr-group-pill | display=flex; background-color=rgba(255, 255, 255, 0.06); padding-right=6px; padding-left=14px; border-radius=2px; align-items=center; gap=6px; cursor=default
+              span.sdr-group-pill-name | display=block; color=rgba(255, 255, 255, 0.85); font-size=10px; letter-spacing=0.8px; text-transform=uppercase; white-space=nowrap
+              button.ba-icon-action.sdr-group-pill-edit | display=flex; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=5px; padding-bottom=0px; padding-left=5px; font-family=Arial; font-size=11px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+              button.ba-icon-action.sdr-group-pill-del | display=flex; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=5px; padding-bottom=0px; padding-left=5px; font-family=Arial; font-size=11px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+        div.sdr-frequency-manager-group-add-row.sdr-panel-add-row | display=flex; padding-top=10px; padding-right=20px; padding-bottom=18px; padding-left=24px; align-items=center; gap=8px
+          input.sdr-panel-input | display=block; color=rgb(255, 255, 255); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=10px; padding-bottom=0px; padding-left=10px; border-radius=2px; font-size=10px; letter-spacing=0.8px; cursor=text
+          button.ba-btn.ba-btn--ghost.sdr-panel-btn | display=flex; color=rgb(255, 255, 255); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=12px; padding-bottom=0px; padding-left=12px; font-size=9px; letter-spacing=0.72px; text-transform=uppercase; text-align=center; white-space=nowrap; align-items=center; cursor=pointer; user-select=none
+      div.sdr-tab-pane | display=none; flex-direction=column
+        div.sdr-recordings-search-wrap | display=flex; background-color=rgba(0, 0, 0, 0.32); padding-right=20px; padding-left=24px; align-items=center; gap=12px
+          input.sdr-recordings-search-input | display=block; color=rgb(255, 255, 255); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family="Barlow Condensed", Barlow, sans-serif; font-size=14px; letter-spacing=1.4px; text-transform=uppercase; cursor=text
+        div.sdr-recordings-body | display=flex; flex-direction=column
+          div#sdr-recordings-list-wrap.ba-list | display=flex; padding-top=14px; flex-direction=column; gap=2px; overflow-x=hidden; overflow-y=auto
+            div.sdr-recording-row | display=flex; flex-direction=column
+              div.sdr-recording-content | display=flex; padding-top=10px; padding-right=20px; padding-bottom=10px; padding-left=24px; flex-direction=column
+                div.sdr-recording-head | display=flex; align-items=center; gap=12px
+                  div.sdr-recording-freq | display=flex; align-items=baseline; gap=4px
+                    span.sdr-recording-freq-num | display=block; color=rgb(255, 255, 255); font-family="Barlow Condensed", Barlow, sans-serif; font-size=26px; font-weight=300; letter-spacing=1.04px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+                    span.sdr-recording-freq-unit | display=block; color=rgba(255, 255, 255, 0.6); font-family="Barlow Condensed", Barlow, sans-serif; font-size=14px; font-weight=300; letter-spacing=0.56px
+                    span.sdr-recording-freq-mode | display=block; color=rgba(255, 255, 255, 0.55); font-family="Barlow Condensed", Barlow, sans-serif; font-size=14px; letter-spacing=0.84px; text-transform=uppercase
+                  div.sdr-recording-actions | display=flex; align-items=center; gap=10px
+                    button.ba-icon-action.ba-icon-action--tip-bottom.sdr-recording-edit | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=2px; padding-bottom=0px; padding-left=2px; font-family=Arial; font-size=15px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    button.ba-icon-action.ba-icon-action--tip-bottom.sdr-recording-del | display=flex; position=relative; color=rgba(255, 255, 255, 0.35); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=2px; padding-bottom=0px; padding-left=2px; font-family=Arial; font-size=14px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                      svg | display=block; overflow-x=hidden; overflow-y=hidden
+                        path
+                        path
+                        path
+                        path
+                dl.sdr-recording-meta | display=flex; flex-direction=column; gap=4px
+                  div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
+                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dd | color=rgba(255, 255, 255, 0.6)
+                  div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
+                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dd | color=rgba(255, 255, 255, 0.6)
+                  div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
+                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dd | color=rgba(255, 255, 255, 0.6)
+                div.sdr-recording-controls | display=flex; align-items=center; gap=4px
+                  button.sdr-recording-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                    svg | display=block; overflow-x=hidden; overflow-y=hidden
+                      polygon
+                  button.sdr-recording-export | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; justify-content=center; align-items=center; cursor=pointer
+              audio
+          div#sdr-recordings-scroll-hint | display=none; visibility=hidden; color=rgba(255, 255, 255, 0.3); font-family="Barlow Condensed", Barlow, sans-serif; font-size=9px; font-weight=700; letter-spacing=1.26px; text-transform=uppercase; justify-content=center; align-items=center; gap=5px; pointer-events=none
+            svg#sdr-recordings-scroll-arrow | display=inline-block; overflow-x=hidden; overflow-y=hidden
+              polyline
