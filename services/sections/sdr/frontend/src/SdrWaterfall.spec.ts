@@ -893,7 +893,10 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(dot.exists()).toBe(true)
     expect(dot.attributes('aria-label')).toBe('ATIS')
     expect(dot.attributes('aria-expanded')).toBe('false')
-    expect(markers[0].find('svg.sdr-wf-known-marker-ring').exists()).toBe(true)
+    // A lone green dot — the outer ring of the ⊙ mark is gone.
+    const glyphCircles = markers[0].findAll('svg.sdr-wf-known-marker-glyph circle')
+    expect(glyphCircles).toHaveLength(1)
+    expect(glyphCircles[0].attributes('fill')).toBe('#c8ff00')
     expect(markers[0].find('.sdr-wf-known-marker-pop').exists()).toBe(false)
     expect(markers[0].text()).toBe('')
   })
@@ -1017,7 +1020,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(loneLines.map((line) => line.text())).toEqual(['LONE'])
   })
 
-  it('tags the marker the radio is tuned to with a flat borderless name + drop line', async () => {
+  it('tags the marker the radio is tuned to with a flat borderless name', async () => {
     const { wrapper, store } = mountWaterfall()
     store.frequencies = [
       { id: 1, group_id: null, label: 'TUNED-HERE', frequency_hz: 100_000_000, mode: 'AM' },
@@ -1031,17 +1034,145 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     const markers = wrapper.findAll('.sdr-wf-known-marker')
     expect(markers[0].classes()).toContain('sdr-wf-known-marker--tuned')
     expect(markers[0].find('.sdr-wf-known-marker-tag').text()).toBe('TUNED-HERE')
-    expect(markers[0].find('.sdr-wf-known-marker-line').exists()).toBe(true)
 
     // The untuned marker gets neither the tag nor the class.
     expect(markers[1].classes()).not.toContain('sdr-wf-known-marker--tuned')
     expect(markers[1].find('.sdr-wf-known-marker-tag').exists()).toBe(false)
-    expect(markers[1].find('.sdr-wf-known-marker-line').exists()).toBe(false)
 
     // Opening the tuned marker swaps the tag for the popover.
     await markers[0].find('.sdr-wf-known-marker-dot').trigger('click')
     expect(markers[0].find('.sdr-wf-known-marker-tag').exists()).toBe(false)
     expect(markers[0].find('.sdr-wf-known-marker-pop').text()).toBe('TUNED-HERE')
+  })
+
+  it('previews the name on mouse hover and hides it again on hover-out', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const dot = wrapper.find('.sdr-wf-known-marker-dot')
+
+    await dot.trigger('pointerenter', { pointerType: 'mouse' })
+    expect(wrapper.find('.sdr-wf-known-marker-pop').text()).toBe('TWR')
+    // A hover preview is not the clicked-open state.
+    expect(dot.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.sdr-wf-known-marker').classes()).not.toContain(
+      'sdr-wf-known-marker--open',
+    )
+
+    await dot.trigger('pointerleave')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+  })
+
+  it('ignores a touch pointerenter so a tap only toggles through its click', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+
+    await wrapper.find('.sdr-wf-known-marker-dot').trigger('pointerenter', { pointerType: 'touch' })
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+  })
+
+  it('keeps a clicked-open name after hover-out', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const dot = wrapper.find('.sdr-wf-known-marker-dot')
+
+    await dot.trigger('pointerenter', { pointerType: 'mouse' })
+    await dot.trigger('click')
+    await dot.trigger('pointerleave')
+    expect(wrapper.find('.sdr-wf-known-marker-pop').text()).toBe('TWR')
+    expect(dot.attributes('aria-expanded')).toBe('true')
+  })
+
+  it("leaving one marker doesn't hide the name another marker is previewing", async () => {
+    const { wrapper, store } = mountWaterfall()
+    specPlot()._Mx.l = 0
+    specPlot()._Mx.r = 2048
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'LEFT', frequency_hz: 100_000_000, mode: 'AM' },
+      { id: 2, group_id: null, label: 'RIGHT', frequency_hz: 100_600_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const markers = wrapper.findAll('.sdr-wf-known-marker')
+    expect(markers).toHaveLength(2)
+
+    // Pointer events can arrive out of order (enter the next dot before the
+    // previous dot's leave): the stale leave must not clear the new preview.
+    await markers[1].find('.sdr-wf-known-marker-dot').trigger('pointerenter', {
+      pointerType: 'mouse',
+    })
+    await markers[0].find('.sdr-wf-known-marker-dot').trigger('pointerleave')
+    expect(markers[1].find('.sdr-wf-known-marker-pop').text()).toBe('RIGHT')
+  })
+
+  it('drops a hover preview when a new frame moves the visible span', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-wf-known-marker-dot').trigger('pointerenter', { pointerType: 'mouse' })
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(true)
+
+    await playWithFrame(store, { center_hz: 100_500_000 })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+  })
+
+  it('hides the tuned tag while its name is previewed by hover, and restores it after', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'TUNED-HERE', frequency_hz: 100_000_000, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    store.currentFreqHz = 100_000_000
+    await wrapper.vm.$nextTick()
+    const marker = wrapper.find('.sdr-wf-known-marker')
+    const dot = marker.find('.sdr-wf-known-marker-dot')
+
+    await dot.trigger('pointerenter', { pointerType: 'mouse' })
+    expect(marker.find('.sdr-wf-known-marker-tag').exists()).toBe(false)
+    expect(marker.find('.sdr-wf-known-marker-pop').text()).toBe('TUNED-HERE')
+
+    await dot.trigger('pointerleave')
+    expect(marker.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
+    expect(marker.find('.sdr-wf-known-marker-tag').text()).toBe('TUNED-HERE')
+  })
+
+  it("centres the dot on sigplot's carrier-line pixel column (whole pixel + 0.5)", async () => {
+    const { wrapper, store } = mountWaterfall()
+    // 2048 px across the 2.048 MHz window: 1 px = 1 kHz, so 300 Hz past a whole
+    // kHz lands 0.3 px into a pixel — off sigplot's `Math.round(px) + 0.5` column.
+    specPlot()._Mx.l = 0
+    specPlot()._Mx.r = 2048
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_300, mode: 'AM' },
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const style = wrapper.find('.sdr-wf-known-marker').attributes('style') ?? ''
+    const leftPct = Number(/left:\s*([\d.]+)%/.exec(style)?.[1])
+    const leftPx = (leftPct / 100) * 2048
+    expect(leftPx % 1).toBeCloseTo(0.5, 6)
   })
 
   it('a mouse or touch press on a marker never tunes the radio', async () => {
