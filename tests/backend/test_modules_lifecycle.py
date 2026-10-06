@@ -17,7 +17,10 @@ from typing import Any
 import pytest
 
 from backend import modules
+from backend.database import AsyncSessionLocal
+from backend.modules import bus as bus_module
 from backend.modules import core, land, radio_hub, sdr, sea, space
+from backend.platform.bus import bus as process_bus
 from backend.services.ais_stream import reader as ais_reader
 
 
@@ -38,8 +41,10 @@ def recorder(calls: list[str], name: str, *, is_async: bool = True) -> Any:
 class TestModuleOrder:
     def test_modules_run_core_first_and_sections_after_the_radio_hub(self):
         # prepare: core's schema/settings before section seeders; start: the
-        # config file sync (core) before anything resumes radios.
+        # config file sync (core) before anything resumes radios; the bus
+        # connects before (and disconnects after) everything that publishes.
         assert [module.name for module in modules.MODULES] == [
+            "bus",
             "core",
             "sdr",
             "space",
@@ -47,6 +52,45 @@ class TestModuleOrder:
             "land",
             "sea",
         ]
+
+
+class TestBusModule:
+    @pytest.fixture(autouse=True)
+    def no_leftover_transport(self, monkeypatch):
+        monkeypatch.setattr(bus_module, "_transport", None)
+
+    async def test_without_a_nats_url_the_bus_stays_in_process(self, monkeypatch):
+        monkeypatch.setattr(bus_module.settings, "nats_url", "")
+
+        def unexpected(*args: Any, **kwargs: Any) -> None:
+            raise AssertionError("no transport should be built without NATS_URL")
+
+        monkeypatch.setattr(bus_module, "NatsTransport", unexpected)
+        await bus_module.lifecycle.start()
+        assert bus_module._transport is None
+        await bus_module.lifecycle.stop()  # nothing to stop: a no-op
+
+    async def test_with_a_nats_url_it_starts_then_stops_the_transport(self, monkeypatch):
+        calls: list[Any] = []
+
+        class FakeTransport:
+            def __init__(self, event_bus, url, *, client_name, open_session):
+                calls.append(("init", event_bus, url, client_name, open_session))
+
+            async def start(self):
+                calls.append("start")
+
+            async def stop(self):
+                calls.append("stop")
+
+        monkeypatch.setattr(bus_module.settings, "nats_url", "nats://nats:4222")
+        monkeypatch.setattr(bus_module, "NatsTransport", FakeTransport)
+        await bus_module.lifecycle.start()
+        assert calls == [("init", process_bus, "nats://nats:4222", "sentinel-app", AsyncSessionLocal), "start"]
+        assert isinstance(bus_module._transport, FakeTransport)
+        await bus_module.lifecycle.stop()
+        assert calls[-1] == "stop"
+        assert bus_module._transport is None
 
 
 class TestCoreModule:

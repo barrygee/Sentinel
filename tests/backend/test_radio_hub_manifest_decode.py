@@ -162,7 +162,7 @@ def broadcasters(monkeypatch) -> dict[str, _FakeBroadcaster]:
 
 
 def _responders(subject: str) -> int:
-    return sum(1 for pattern, _ in bus._subscriptions if pattern == subject)
+    return sum(1 for subscription in bus._subscriptions if subscription.pattern == subject)
 
 
 # ── registration ─────────────────────────────────────────────────────────────

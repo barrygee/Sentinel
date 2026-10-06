@@ -27,6 +27,15 @@ publisher can rely on a handler having finished before it proceeds, e.g.
 before returning an HTTP response). This is a deliberate trade-off for the
 in-process seam; a NATS-backed bus would normally be fire-and-forget, and
 `request()`/`reply()` exists for the one case that genuinely needs a reply.
+
+Out-of-process delivery (P5.2): when a `RemoteTransport` is attached (NATS,
+`backend/platform/nats_transport.py`, started by `backend/modules/bus.py`
+when `NATS_URL` is set), the bus keeps the synchronous local delivery above
+and ALSO forwards every publish to the transport, so handlers in other
+processes see it; it delivers messages from other processes to the local
+handlers; and a `request()` with no local responder goes over the wire.
+Local always wins, so the single-process app behaves byte-for-byte as it did
+before NATS existed, with or without a broker.
 """
 
 from __future__ import annotations
@@ -34,7 +43,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, NamedTuple, Protocol
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +83,32 @@ async def _invoke(handler: Handler, payload: EventPayload) -> Any:
     return result
 
 
+class Subscription(NamedTuple):
+    """One local registration: a handler, the pattern it listens on, and
+    whether it was registered with `reply()` (a responder) or `subscribe()`."""
+
+    pattern: str
+    handler: Handler
+    is_responder: bool
+
+
+class RemoteTransport(Protocol):
+    """What the bus needs from an out-of-process transport (NATS today)."""
+
+    def watch(self, subscription: Subscription) -> None:
+        """Start receiving remote messages for a local subscription."""
+
+    def unwatch(self, subscription: Subscription) -> None:
+        """Stop receiving remote messages for a local subscription."""
+
+    async def forward(self, subject: str, payload: EventPayload) -> None:
+        """Send a publish to the other processes; must never raise."""
+
+    async def request(self, subject: str, payload: EventPayload, timeout: float | None) -> Any:
+        """Ask a responder in another process; raises `LookupError` when none
+        answers `subject` and `asyncio.TimeoutError` when it answers too late."""
+
+
 class EventBus:
     """A minimal, in-process, NATS-shaped publish/subscribe/request bus.
 
@@ -82,10 +117,33 @@ class EventBus:
     """
 
     def __init__(self) -> None:
-        # Ordered so publish() can guarantee "subscription order" — a list of
-        # (pattern, handler); subscribing twice registers two independent
-        # entries (unsubscribe removes only the one returned).
-        self._subscriptions: list[tuple[str, Handler]] = []
+        # Ordered so publish() can guarantee "subscription order"; subscribing
+        # twice registers two independent entries (unsubscribe removes only
+        # the one returned).
+        self._subscriptions: list[Subscription] = []
+        self._remote: RemoteTransport | None = None
+
+    @property
+    def remote(self) -> RemoteTransport | None:
+        """The attached out-of-process transport, or None when in-process only."""
+        return self._remote
+
+    def attach_remote(self, remote: RemoteTransport) -> None:
+        """Start forwarding to (and receiving from) `remote`.
+
+        Every subscription made so far — most are made at module import, long
+        before the lifespan connects a transport — is watched at once.
+        """
+        self._remote = remote
+        for subscription in self._subscriptions:
+            remote.watch(subscription)
+
+    def detach_remote(self) -> None:
+        """Go back to in-process only (shutdown, or a test tearing down)."""
+        remote, self._remote = self._remote, None
+        if remote is not None:
+            for subscription in self._subscriptions:
+                remote.unwatch(subscription)
 
     def subscribe(self, pattern: str, handler: Handler) -> Callable[[], None]:
         """Register `handler` for every subject matching `pattern`.
@@ -95,11 +153,17 @@ class EventBus:
         (see `radio_hub/routers/decode.py`) so it also takes effect in tests, which skip
         the lifespan.
         """
-        entry = (pattern, handler)
+        return self._register(Subscription(pattern, handler, is_responder=False))
+
+    def _register(self, entry: Subscription) -> Callable[[], None]:
         self._subscriptions.append(entry)
+        if self._remote is not None:
+            self._remote.watch(entry)
 
         def unsubscribe() -> None:
             with_removed = [item for item in self._subscriptions if item is not entry]
+            if len(with_removed) != len(self._subscriptions) and self._remote is not None:
+                self._remote.unwatch(entry)
             self._subscriptions[:] = with_removed
 
         return unsubscribe
@@ -117,8 +181,13 @@ class EventBus:
         directly and an exception there was expected to surface as an HTTP
         error response (e.g. a 4xx/5xx) — that call site must keep failing
         the same way.
+
+        With a remote transport attached the event is then forwarded to the
+        other processes (after every local handler, and only if none raised
+        with `raise_errors=True`). Their handlers run on their own time — the
+        synchronous guarantee is local only.
         """
-        for pattern, handler in list(self._subscriptions):
+        for pattern, handler, _ in list(self._subscriptions):
             if not _pattern_matches(pattern, subject):
                 continue
             if raise_errors:
@@ -128,6 +197,20 @@ class EventBus:
                     await _invoke(handler, payload)
                 except Exception:
                     logger.exception("event bus handler for %r failed on subject %r", pattern, subject)
+        if self._remote is not None:
+            await self._remote.forward(subject, payload)
+
+    async def deliver_remote(self, subscription: Subscription, subject: str, payload: EventPayload) -> None:
+        """Run one local handler for a message another process published.
+
+        Called by the transport, once per watched subscription, so a handler
+        whose pattern overlaps another's still sees each message exactly once.
+        Errors are logged — there is no publisher here to fail.
+        """
+        try:
+            await _invoke(subscription.handler, payload)
+        except Exception:
+            logger.exception("event bus handler for %r failed on remote subject %r", subscription.pattern, subject)
 
     def reply(self, subject: str, handler: Handler) -> Callable[[], None]:
         """Register the (single) responder for `subject`, used with `request()`.
@@ -137,7 +220,7 @@ class EventBus:
         publish/subscribe, even though today's implementation is the same
         in-process dispatch either way.
         """
-        return self.subscribe(subject, handler)
+        return self._register(Subscription(subject, handler, is_responder=True))
 
     async def request(self, subject: str, payload: EventPayload, timeout: float | None = 5.0) -> Any:
         """Call the first responder registered for `subject` via `reply()` and
@@ -148,11 +231,33 @@ class EventBus:
         responder whose own I/O is already bounded (e.g. the hub's Sentry
         calls, which carry the client's connect/read timeouts), where a second,
         shorter limit here would only cut off a slow-but-working answer.
+
+        A responder in this process always answers; only when there is none
+        does the request go to the remote transport (if one is attached).
         """
-        for pattern, handler in list(self._subscriptions):
-            if _pattern_matches(pattern, subject):
-                return await asyncio.wait_for(_invoke(handler, payload), timeout=timeout)
+        handler = self._local_responder(subject)
+        if handler is not None:
+            return await asyncio.wait_for(_invoke(handler, payload), timeout=timeout)
+        if self._remote is not None:
+            return await self._remote.request(subject, payload, timeout)
         raise LookupError(f"no responder registered for subject {subject!r}")
+
+    async def answer_remote(self, subject: str, payload: EventPayload) -> Any:
+        """Answer a request another process sent, with this process's own
+        first responder; `LookupError` if it has none (it unsubscribed while
+        the request was in flight)."""
+        handler = self._local_responder(subject)
+        if handler is None:
+            raise LookupError(f"no responder registered for subject {subject!r}")
+        return await _invoke(handler, payload)
+
+    def _local_responder(self, subject: str) -> Handler | None:
+        # Every local subscription is eligible, as before NATS: reply() has
+        # always been a thin alias of subscribe() for in-process dispatch.
+        for pattern, handler, _ in self._subscriptions:
+            if _pattern_matches(pattern, subject):
+                return handler
+        return None
 
 
 # Process-wide singleton — every section imports this instance rather than

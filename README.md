@@ -82,8 +82,11 @@ Settings are Pydantic (`backend/config.py`), overridable via environment variabl
 | `SEA_VESSEL_STATIC_RETENTION_MS` / `SEA_VESSEL_STATIC_MAX` | 90 d / `250000`                         | How long vessel names/callsigns/types are remembered after last heard (so position-only reports are still named) / cap |
 | `REPEATERS_UPSTREAM_URL`                                   | `https://ukrepeater.net/csvcreate8.php` | UK repeater register; refreshed daily, stale copy served for 30 d                                                      |
 | `SENTINEL_DECODER_SECRET`                                  | _(auto-generated)_                      | Optional override for the sidecar ingest secret                                                                        |
+| `NATS_URL`                                                 | _(empty)_; Docker: `nats://nats:4222`   | Event-bus broker; empty = in-process only (see below)                                                                  |
 
 Decoder (`DECODER_*`, `APRS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables are wired by `docker-compose.yml` and rarely need changing — see `backend/config.py`.
+
+`docker compose up` also starts `nats`, the event-bus broker. It carries low-rate control events (settings changes, decode events, radio-hub requests) between Sentinel's containers. The app always handles events in-process first, so it runs the same without a broker: set `NATS_URL=` (empty) in `.env` to opt out, and non-Docker dev (`uv run … uvicorn`) needs no broker at all. If the broker is down, the app starts anyway and connects when it comes up.
 
 ---
 
