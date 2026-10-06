@@ -1223,7 +1223,7 @@ defineExpose({ reload })
 }
 
 .sdr-recording-live-dot--waiting {
-  background: #ffb300;
+  background: #ffd600;
   animation: sdr-rec-pulse 2s ease-in-out infinite;
 }
 </style>

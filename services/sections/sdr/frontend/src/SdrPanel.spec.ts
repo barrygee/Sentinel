@@ -2260,6 +2260,49 @@ describe('SdrPanel — settings persistence & signal meter', () => {
     audioMock._squelchCb!(true) // squelch opens → resume
     expect(audioMock.startRecording).toHaveBeenCalled()
   })
+
+  it('shows REC as waiting (yellow pulse, pause icon) while the squelch is closed', async () => {
+    const { wrapper } = await mountConnected()
+    await wrapper.find('.sdr-freq-input-large').setValue('100.000')
+    await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
+    await flushPromises()
+    const recButton = () => wrapper.find('.sdr-rec-btn')
+    const iconShapes = () =>
+      recButton()
+        .findAll('svg > *')
+        .map((shape) => shape.element.tagName.toLowerCase())
+
+    // Idle: the record dot, never waiting.
+    expect(recButton().classes()).not.toContain('sdr-rec-btn--waiting')
+    expect(iconShapes()).toEqual(['circle'])
+
+    await recButton().trigger('click') // start recording
+    await flushPromises()
+    audioMock._squelchCb!(false) // nothing to capture yet → waiting
+    await wrapper.vm.$nextTick()
+    expect(recButton().classes()).toContain('sdr-rec-btn--waiting')
+    expect(recButton().classes()).toContain('sdr-rec-btn--active')
+    expect(iconShapes()).toEqual(['rect', 'rect']) // pause bars
+    expect(recButton().attributes('title')).toBe('Stop recording (waiting for signal)')
+    // The accessible name stays the action, whatever the squelch is doing.
+    expect(recButton().attributes('aria-label')).toBe('Stop recording')
+
+    audioMock._squelchCb!(true) // signal → actually recording
+    await wrapper.vm.$nextTick()
+    expect(recButton().classes()).not.toContain('sdr-rec-btn--waiting')
+    expect(iconShapes()).toEqual(['rect']) // stop square
+    expect(recButton().attributes('title')).toBe('Stop recording')
+
+    audioMock._squelchCb!(false) // squelched again mid-session → waiting again
+    await wrapper.vm.$nextTick()
+    expect(recButton().classes()).toContain('sdr-rec-btn--waiting')
+
+    await recButton().trigger('click') // stop while waiting
+    await flushPromises()
+    expect(recButton().classes()).not.toContain('sdr-rec-btn--waiting')
+    expect(iconShapes()).toEqual(['circle'])
+    expect(recButton().attributes('title')).toBe('Record')
+  })
 })
 
 // =============================================================================

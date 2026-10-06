@@ -173,14 +173,27 @@
               class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
               :active="isRecording"
               active-class="sdr-rec-btn--active"
-              :title="isRecording ? 'Stop recording' : 'Record'"
+              :class="{ 'sdr-rec-btn--waiting': isRecording && !recSquelchOpen }"
+              :title="
+                isRecording
+                  ? recSquelchOpen
+                    ? 'Stop recording'
+                    : 'Stop recording (waiting for signal)'
+                  : 'Record'
+              "
               :aria-label="isRecording ? 'Stop recording' : 'Record'"
               :aria-pressed="isRecording"
               :disabled="!playing && !scanActive && !searchActive"
               @click="toggleRecording"
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <template v-if="isRecording">
+                <!-- Waiting on the squelch: nothing is being captured, so it
+                     reads as paused rather than as a stop button. -->
+                <template v-if="isRecording && !recSquelchOpen">
+                  <rect x="2" y="1.5" width="2.2" height="7" rx="0.6" fill="currentColor" />
+                  <rect x="5.8" y="1.5" width="2.2" height="7" rx="0.6" fill="currentColor" />
+                </template>
+                <template v-else-if="isRecording">
                   <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" />
                 </template>
                 <template v-else>
