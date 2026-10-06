@@ -463,6 +463,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Refuse frequencies no tuner can reach; break the 7.812 GHz loop
 - Imported configs map the retired "colour" theme to light
 - Give the SPA build stage bash and the web-packages script
+- Stop the squawk watcher and an empty fallback blanking the map
 
 ### Chores
 
@@ -1424,6 +1425,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #432 from barrygee/fix/docker-spa-build
 - Merge pull request #433 from barrygee/feat/adsb-bus-events
 - Merge pull request #434 from barrygee/feat/p5-3-caddy-gateway
+- Merge pull request #435 from barrygee/fix/adsb-watcher-idle
 
 ### Refactoring
 
@@ -1591,6 +1593,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the NATS bus transport and remote seam
 - Cover server-side squawk alerts and the alerts stream
 - Unit tests and a composed-stack smoke through the gateway
+- Cover the watcher idling on polls and the empty-fallback rules
 
 ### Build System
 
