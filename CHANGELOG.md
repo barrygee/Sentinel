@@ -193,6 +193,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centre off-grid ADS-B on the selected receiver
 - LIGHT is OpenStreetMap's default style; the old light map is gone
 - Dark location marks on the light map; distance on every range ring
+- One upright distance label at the top of each range ring
 
 ### Bug Fixes
 
@@ -448,10 +449,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - The ADS-B claim wins a shared dongle
 - Reconnect when the rtl_tcp stream goes silent
 - Switching radios keeps each radio's own frequency
-- Refuse frequencies no tuner can reach; break the 7.812 GHz loop
 - Follow a source change in Sentinel while the decoder is streaming
 - Re-lock AIR's ADS-B receiver when it changes mid-session
 - Poll ADS-B off grid instead of clearing the map
+- Refuse frequencies no tuner can reach; break the 7.812 GHz loop
 - Imported configs map the retired "colour" theme to light
 
 ### Chores
@@ -496,6 +497,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Enforce section boundaries with a local ESLint rule
 - Make the repo root an npm workspaces root
+- Rebuild SPA bundle
 
 ### Other
 
@@ -1398,6 +1400,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #415 from barrygee/fix/sdr-tuning-range
 - Merge remote-tracking branch 'origin/main' into fix/map-theme-colour-from-config
 - Merge pull request #414 from barrygee/fix/map-theme-colour-from-config
+- Merge remote-tracking branch 'origin/main' into feat/range-ring-distance-at-top
+- Merge pull request #425 from barrygee/feat/range-ring-distance-at-top
 
 ### Refactoring
 
