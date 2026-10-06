@@ -36,3 +36,23 @@ export function buildRingsGeoJSON(lng: number, lat: number): GeoJSON.FeatureColl
   }
   return { type: 'FeatureCollection', features }
 }
+
+/**
+ * One point per ring at its northernmost edge — where each ring's distance
+ * label sits. Due north of the centre along a great circle is simply the
+ * centre's latitude plus the ring's angular radius, at the same longitude.
+ */
+export function buildRingTopsGeoJSON(lng: number, lat: number): GeoJSON.FeatureCollection {
+  const EARTH_RADIUS_NM = 3440.065
+  return {
+    type: 'FeatureCollection',
+    features: RING_DISTANCES_NM.map((distanceNm) => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [lng, lat + ((distanceNm / EARTH_RADIUS_NM) * 180) / Math.PI],
+      },
+      properties: { dist: distanceNm },
+    })),
+  }
+}
