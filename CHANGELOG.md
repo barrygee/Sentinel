@@ -200,6 +200,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pulse REC yellow with a pause icon while waiting on squelch
 - Add the live service registry and section manifests
 - Forward event bus over NATS between processes
+- Raise emergency squawk alerts server-side
 
 ### Bug Fixes
 
@@ -508,6 +509,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
+- Rebuild SPA bundle for server-side squawk alerts
 
 ### Other
 
@@ -1419,6 +1421,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #430 from barrygee/feat/p5-1-section-registry
 - Merge pull request #431 from barrygee/feat/p5-2-nats-bus
 - Merge pull request #432 from barrygee/fix/docker-spa-build
+- Merge pull request #433 from barrygee/feat/adsb-bus-events
 
 ### Refactoring
 
@@ -1531,6 +1534,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record the as-built P4.7 engine, Pinia and CSS-order checks
 - Describe service registration in the serving model
 - Describe the NATS event bus and NATS_URL
+- Plan and describe server-side squawk alerts
 
 ### Tests
 
@@ -1582,6 +1586,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the REC button's waiting state
 - Cover the service registry, manifests and registration endpoint
 - Cover the NATS bus transport and remote seam
+- Cover server-side squawk alerts and the alerts stream
 
 ### Build System
 
