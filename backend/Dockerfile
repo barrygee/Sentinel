@@ -1,5 +1,9 @@
 # ── Stage 1: Build Vue SPA ────────────────────────────────────────────────────
 FROM node:24-alpine AS spa-builder
+# The SPA build ends with `build:sections`, which runs scripts/web-packages.sh
+# (a bash script) to build every section's Module Federation remote; alpine
+# ships only busybox sh.
+RUN apk add --no-cache bash
 # npm workspaces: the lockfile and the install live at the repo root, with the SPA
 # (frontend/vue) as a member. Manifests are copied before sources for layer caching.
 WORKDIR /repo
@@ -11,6 +15,7 @@ COPY frontend/vue/package.json ./frontend/vue/
 COPY platform/web/ ./platform/web/
 COPY services/sections/ ./services/sections/
 RUN npm ci
+COPY scripts/web-packages.sh ./scripts/
 WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./
 # template.css is imported via ../../../../frontend/assets/template.css
