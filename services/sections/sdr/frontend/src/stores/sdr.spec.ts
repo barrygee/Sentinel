@@ -537,6 +537,11 @@ describe('sdr store', () => {
 
   // ── session restore / persist ──────────────────────────────────────────────
   describe('session', () => {
+    it('drops a restored frequency no tuner can reach instead of re-sending it', () => {
+      sessionStorage.setItem('sdrLastFreqHz', '7812000000')
+      const store = useSdrStore()
+      expect(store.currentFreqHz).not.toBe(7_812_000_000)
+    })
     it('restores radio/freq/mode/playing from sessionStorage on init', () => {
       sessionStorage.setItem('sdrLastRadioId', '7')
       sessionStorage.setItem('sdrLastFreqHz', '88500000')

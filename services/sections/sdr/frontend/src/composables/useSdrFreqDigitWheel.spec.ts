@@ -74,6 +74,31 @@ afterEach(() => {
 })
 
 describe('useSdrFreqDigitWheel', () => {
+  it('will not scroll past the highest frequency a tuner can reach', () => {
+    // One notch on the thousands digit is +1000 MHz: from 2150 MHz that would be
+    // 3150 MHz — the kind of scroll that once wedged a dongle at 7812 MHz.
+    const harness = createHarness({
+      playing: ref(false),
+      currentFreqHz: ref(2_150_000_000),
+      freqInputVal: ref('2150.0000'),
+    })
+    harness.onFreqWheel(wheelAt(5)) // index 0 → the 1000-MHz digit
+    expect(harness.options.currentFreqHz.value).toBe(2_150_000_000)
+    expect(harness.options.freqInputVal.value).toBe('2150.0000')
+    harness.onFreqWheel(wheelAt(5, +100)) // ...but stepping down is fine
+    expect(harness.options.currentFreqHz.value).toBe(1_150_000_000)
+  })
+
+  it('will not scroll below the lowest frequency a tuner can reach', () => {
+    const harness = createHarness({
+      playing: ref(false),
+      currentFreqHz: ref(1_200_000),
+      freqInputVal: ref('1.2000'),
+    })
+    harness.onFreqWheel(wheelAt(5, +100)) // index 0 → the 1-MHz digit: 1.2 → 0.2 MHz
+    expect(harness.options.currentFreqHz.value).toBe(1_200_000)
+  })
+
   it('steps the frequency by the place value of the digit under the cursor', () => {
     // playing=false: display-only assertion, and no dangling 250ms commit timer
     // is scheduled to fire after jsdom teardown (a CI-only unhandled error).

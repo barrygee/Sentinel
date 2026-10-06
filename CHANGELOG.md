@@ -448,9 +448,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - The ADS-B claim wins a shared dongle
 - Reconnect when the rtl_tcp stream goes silent
 - Switching radios keeps each radio's own frequency
+- Refuse frequencies no tuner can reach; break the 7.812 GHz loop
 - Follow a source change in Sentinel while the decoder is streaming
 - Re-lock AIR's ADS-B receiver when it changes mid-session
 - Poll ADS-B off grid instead of clearing the map
+- Imported configs map the retired "colour" theme to light
 
 ### Chores
 
@@ -1392,6 +1394,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #423 from barrygee/refactor/p4-5-section-packages
 - Merge origin/main into feat/map-light-icons-ring-distances
 - Merge pull request #424 from barrygee/feat/map-light-icons-ring-distances
+- Merge origin/main into fix/sdr-tuning-range
+- Merge pull request #415 from barrygee/fix/sdr-tuning-range
+- Merge remote-tracking branch 'origin/main' into fix/map-theme-colour-from-config
+- Merge pull request #414 from barrygee/fix/map-theme-colour-from-config
 
 ### Refactoring
 
