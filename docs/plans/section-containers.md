@@ -240,6 +240,13 @@ Recordings on the Pi's SD card would also mean write wear.
   4. It starts the `./background` entries.
   5. It mounts the app.
   Capability calls made before the engine mounts are queued, as `drainPendingExternalTune` does today.
+- **As built (P4.7):** the engine is not a second federation expose. The sdr `./register` hands the shell a loader,
+  `loadPersistentRadioPane: () => import('./engine')` (and its view as `() => import('./SdrView.vue')`), so the
+  register chunk is ~70 KB instead of the whole 650 KB section, and the engine is a lazy chunk of the same remote —
+  sharing its module instances, so the `radio` capability's queue (`attachRadioEngine`) is the one the pane drains.
+  The shell's `shell/sectionEngines.ts` starts it right after registration, alongside settings hydration, waits
+  `ENGINE_BOOT_TIMEOUT_MS` (3 s), then mounts; a late engine fills a reactive pane ref and `App.vue` mounts it then.
+  The same code path runs in dev/tests (static sections) and the federated build.
 - **Unavailable at runtime:** the nav item greys out and routes render a "section unavailable" state that clears
   `body[data-no-data]`. A loaded remote is **never unloaded** in the session.
 
@@ -293,10 +300,16 @@ Shared packages (host-provided singletons under federation, npm workspace packag
 **Federation settings (`@module-federation/vite`):**
 - The host shares `vue`, `vue-router`, `pinia`, `maplibre-gl`, `pmtiles` and `@sentinel/*` as eager singletons.
 - Remotes declare those with `import: false`, so they never bundle a second copy.
-- `register()` asserts it is using the host's Pinia.
+- `register()` asserts it is using the host's Pinia: the shell passes `ShellContext { pinia }` and each section
+  calls `assertHostPinia(shell, getActivePinia(), id)` with its own `pinia` import, so a remote that bundled a second
+  Pinia throws and gets the "section unavailable" page instead of running with split state (P4.7).
 - `remoteEntry.js` is served `no-cache` (like `index.html`), and chunks are hashed.
 - Remote CSS injection order is covered by a visual-snapshot check. `SdrPanel.css` has cascade dependencies
-  (`SdrGroupsTab.vue:157`, `SdrRecordingsSection.vue:644`).
+  (`SdrGroupsTab.vue:157`, `SdrRecordingsSection.vue:644`). As built (P4.7): `frontend/vue/e2e/sdr-css-cascade.spec.ts`
+  snapshots the *resolved* cascade-decided styles (colours, padding, borders, typography, display — no layout-derived
+  sizes, no animated properties) of every element on the SDR page and each SDR rail tab, as text, so one baseline
+  holds on every OS where pixel screenshots would not. The baseline was recorded from the pre-split single-chunk
+  bundle; swapping the two `SdrGroupsTab` rules in the built CSS turns it red.
 
 ### 3.7 Browser storage ownership
 The shell keeps `app`/`theme`/`basemap`/notifications/tracking keys and `sessionStorage.sdrPlaying` (read by the shell's
