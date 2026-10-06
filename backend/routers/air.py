@@ -103,8 +103,13 @@ async def get_aircraft_near_point(
       - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data
       - NEARBY: no row for this exact point and no fresh fetch → serve the nearest
                 recent row (the point tracks the map centre, so pans miss the cache)
+      - FALLBACK: the primary failed and the fallback answered with no
+                aircraft, and nothing cached could stand in — served, not cached
       - 503:    upstream failed and no usable cached entry
     """
+    # Any poll, cache hit or not, means a map is open: the squawk watcher stays
+    # idle rather than compete with it for the upstream's rate budget.
+    squawk_tracker.browser_polled()
     # Off grid the aircraft come from the operator's own receiver, which only
     # hears what is around it, so the area is centred on that receiver rather
     # than on wherever the map is panned (the browser always sends the map
@@ -138,12 +143,19 @@ async def get_aircraft_near_point(
         raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
 
     data: dict | None = None
+    empty_fallback: dict | None = None
     rate_limited = False
     throttled = False
     for base_url in filter(None, [primary_url, fallback_url]):
         try:
             data = await adsb_service.fetch_aircraft(lat, lon, radius, base_url)
-            rate_limited = False
+            if base_url != primary_url and not data.get("ac"):
+                # The fallback is the other mode's source (online, the operator's
+                # own decoder), which often has nothing for this area. An empty
+                # list from it says nothing about the sky, so it must not
+                # replace aircraft already cached; it is the answer only if
+                # there is nothing else (below).
+                empty_fallback, data = data, None
             break
         except UpstreamThrottledError:
             # Our own limiter declined the call to stay inside the upstream's
@@ -241,6 +253,11 @@ async def get_aircraft_near_point(
     # All upstreams failed — serve stale data if still within the stale window
     if row and is_within_stale(row.fetched_at, settings.adsb_stale_ms):
         return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "STALE"})
+    # Nothing cached to prefer: the fallback's empty list is a truthful
+    # answer, better than an outage. Not cached, so the next poll tries the
+    # primary again rather than serving it as a fresh HIT.
+    if empty_fallback is not None:
+        return JSONResponse(content=empty_fallback, headers={"X-Cache": "FALLBACK"})
     raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
 
 
