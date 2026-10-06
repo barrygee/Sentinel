@@ -1,9 +1,11 @@
+import { getActivePinia } from 'pinia'
 import { registerBackgroundService } from '@sentinel/shell-api/shell/backgroundServices'
 import {
   registerNotificationSubscriptionSource,
   registerNotificationTarget,
 } from '@sentinel/shell-api/shell/notificationRegistry'
 import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydration'
 import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import AirView from './AirView.vue'
@@ -26,7 +28,9 @@ import { hydrateAirFromSettings } from './airSettingsHydration'
  * in dev and tests and through Module Federation in the built app
  * (docs/plans/section-containers.md §3.6).
  */
-export default function register(): void {
+export default function register(shell: ShellContext): void {
+  assertHostPinia(shell, getActivePinia(), 'air')
+
   // Its Settings nav entry and items (F3).
   registerAirSettings()
 

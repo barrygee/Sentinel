@@ -144,11 +144,8 @@ import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
-import {
-  getNavEntries,
-  getPersistentRadioPane,
-  isSectionUnavailable,
-} from '@sentinel/shell-api/shell/sectionRegistry'
+import { getNavEntries, isSectionUnavailable } from '@sentinel/shell-api/shell/sectionRegistry'
+import { usePersistentRadioPane } from '@/shell/sectionEngines'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
@@ -295,11 +292,13 @@ const sidebarRef = ref<InstanceType<typeof MapSidebar> | null>(null)
 
 const sidebarOpen = computed(() => sidebarRef.value?.open ?? false)
 
-// Nav entries and the persistent radio pane come from the section registry
-// (populated by main.ts loading the sections before the app mounts) rather
-// than being hard-coded here — see docs/plans/section-containers.md §1.3 (F1, F11).
+// Nav entries come from the section registry (populated by main.ts loading
+// the sections before the app mounts) rather than being hard-coded here — see
+// docs/plans/section-containers.md §1.3 (F1, F11). The persistent radio pane
+// is the SDR engine: usually loaded before mount, but it may arrive later, so
+// it is a ref and the slot fills in when it does (§3.5).
 const ALL_NAV_DOMAINS = getNavEntries()
-const persistentRadioPane = getPersistentRadioPane()
+const persistentRadioPane = usePersistentRadioPane()
 
 const navDomains = computed(() =>
   ALL_NAV_DOMAINS.filter(([d]) => appStore.enabledDomains.includes(d)),

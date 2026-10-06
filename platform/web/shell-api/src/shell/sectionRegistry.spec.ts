@@ -16,6 +16,12 @@ function stubComponent(name: string): Component {
   return defineComponent({ name, setup: () => () => h('div', name) })
 }
 
+/** A pane loader resolving to a stub component, as a section's `() => import('./engine')`. */
+function paneLoader(name: string): () => Promise<{ default: Component }> {
+  const pane = stubComponent(name)
+  return async () => ({ default: pane })
+}
+
 describe('shell/sectionRegistry', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -199,9 +205,9 @@ describe('shell/sectionRegistry', () => {
     })
   })
 
-  describe('getPersistentRadioPane', () => {
+  describe('getPersistentRadioPaneLoader', () => {
     it('returns undefined when no registered section provides a pane', async () => {
-      const { registerSection, getPersistentRadioPane } = await freshRegistry()
+      const { registerSection, getPersistentRadioPaneLoader } = await freshRegistry()
       const view = stubComponent('AirView')
       registerSection({
         id: 'air',
@@ -211,13 +217,13 @@ describe('shell/sectionRegistry', () => {
         route: { path: '/air/', component: view },
       })
 
-      expect(getPersistentRadioPane()).toBeUndefined()
+      expect(getPersistentRadioPaneLoader()).toBeUndefined()
     })
 
-    it('returns the pane component of the section that registers one, skipping earlier sections without one', async () => {
-      const { registerSection, getPersistentRadioPane } = await freshRegistry()
+    it('returns the pane loader of the section that registers one, skipping earlier sections without one', async () => {
+      const { registerSection, getPersistentRadioPaneLoader } = await freshRegistry()
       const view = stubComponent('View')
-      const pane = stubComponent('SdrTabPanel')
+      const pane = paneLoader('SdrTabPanel')
       // 'air' sorts first (navOrder 10) and has no pane — the lookup must
       // scan past it to find 'sdr's pane, not just read index [0].
       registerSection({
@@ -233,17 +239,17 @@ describe('shell/sectionRegistry', () => {
         navOrder: 50,
         enabledByDefault: true,
         route: { path: '/sdr/', component: view },
-        persistentRadioPane: pane,
+        loadPersistentRadioPane: pane,
       })
 
-      expect(getPersistentRadioPane()).toBe(pane)
+      expect(getPersistentRadioPaneLoader()).toBe(pane)
     })
 
     it('returns the first pane in nav order when more than one section registers one', async () => {
-      const { registerSection, getPersistentRadioPane } = await freshRegistry()
+      const { registerSection, getPersistentRadioPaneLoader } = await freshRegistry()
       const view = stubComponent('View')
-      const firstPane = stubComponent('FirstPane')
-      const secondPane = stubComponent('SecondPane')
+      const firstPane = paneLoader('FirstPane')
+      const secondPane = paneLoader('SecondPane')
       // Registered out of nav order on purpose: the later navOrder (sdr=50)
       // registers first, so this also proves the lookup sorts before finding,
       // rather than returning whichever pane happened to register first.
@@ -253,7 +259,7 @@ describe('shell/sectionRegistry', () => {
         navOrder: 50,
         enabledByDefault: true,
         route: { path: '/sdr/', component: view },
-        persistentRadioPane: secondPane,
+        loadPersistentRadioPane: secondPane,
       })
       registerSection({
         id: 'air',
@@ -261,10 +267,10 @@ describe('shell/sectionRegistry', () => {
         navOrder: 10,
         enabledByDefault: true,
         route: { path: '/air/', component: view },
-        persistentRadioPane: firstPane,
+        loadPersistentRadioPane: firstPane,
       })
 
-      expect(getPersistentRadioPane()).toBe(firstPane)
+      expect(getPersistentRadioPaneLoader()).toBe(firstPane)
     })
   })
 

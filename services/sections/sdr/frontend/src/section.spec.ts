@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 
 const registerSection = vi.hoisted(() => vi.fn())
 vi.mock('@sentinel/shell-api/shell/sectionRegistry', () => ({ registerSection }))
@@ -16,7 +17,10 @@ async function registerOnce(): Promise<void> {
   if (registered) return
   registered = true
   const { default: register } = await import('./section')
-  register()
+  // register() refuses to run unless it is on the shell's (here: the active) Pinia.
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  register({ pinia })
 }
 
 describe('components/sdr/section', () => {
@@ -30,9 +34,13 @@ describe('components/sdr/section', () => {
       label: 'SDR',
       navOrder: 50,
       enabledByDefault: true,
-      route: { path: '/sdr/', component: SdrView },
-      persistentRadioPane: SdrTabPanel,
+      route: { path: '/sdr/', component: expect.any(Function) },
+      loadPersistentRadioPane: expect.any(Function),
     })
+    // Both are loaders, so the ./register entry carries neither component.
+    const [definition] = registerSection.mock.calls[0]!
+    expect((await definition.route.component()).default).toBe(SdrView)
+    expect((await definition.loadPersistentRadioPane()).default).toBe(SdrTabPanel)
   })
 
   it('registers its Settings section and items', async () => {
