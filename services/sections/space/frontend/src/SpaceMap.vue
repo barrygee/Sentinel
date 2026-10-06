@@ -1,0 +1,275 @@
+<template>
+  <MapLibreMap
+    ref="mapRef"
+    :style-url="styleUrl"
+    region-label="Space domain map — satellites"
+    region-description="Interactive map of satellites and their ground tracks. Satellites are listed in the Search panel, and upcoming overhead passes in the Passes panel, of the map sidebar — both keyboard and screen-reader accessible."
+    :center="spaceStore.mapCenter ?? [0, 30]"
+    :zoom="spaceStore.mapZoom ?? 2"
+    @map-created="onMapCreated"
+    @style-loaded="onStyleLoaded"
+  />
+</template>
+
+<script setup lang="ts">
+import { ref, shallowRef, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import type { Map as MapLibreGlMap } from 'maplibre-gl'
+import { basemapStyleUrl, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useSpaceStore } from './stores/space'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import {
+  registerSatelliteClickHandler,
+  clearSatelliteClickHandler,
+} from './satelliteNotificationTarget'
+import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
+import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
+import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { useMapContextMenu } from '@sentinel/map-kit/composables/useMapContextMenu'
+import { useOfflineTierRefresh } from '@sentinel/map-kit/composables/useOfflineTierRefresh'
+import { useBasemapLayerSync } from '@sentinel/map-kit/composables/useBasemapLayerSync'
+import MapLibreMap from '@sentinel/map-kit/MapLibreMap.vue'
+import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
+import { SatelliteControl } from './controls/satellite/SatelliteControl'
+import { DaynightControl } from './controls/daynight/DaynightControl'
+import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
+import { SentrySitesControl } from '@sentinel/map-kit/controls/sentry-sites/SentrySitesControl'
+
+const appStore = useAppStore()
+const spaceStore = useSpaceStore()
+const basemapStore = useBasemapStore()
+const sentrySitesStore = useSentrySitesStore()
+const settingsStore = useSettingsStore()
+const notificationsStore = useNotificationsStore()
+const trackingStore = useTrackingStore()
+const themeStore = useThemeStore()
+const { location: userLocation, start: startLocation } = useUserLocation()
+
+const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
+
+const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
+
+// Cached map instance — plain variable, never reactive
+let _map: MapLibreGlMap | null = null
+
+// Roads and borders have no button on this map's rail: Settings › Map is
+// their only switch, and this map follows it through the shared basemap store.
+const basemapLayerSync = useBasemapLayerSync(() => _map, ['roads', 'borders'])
+
+// Reload the offline basemap tiles when a download job completes while this
+// map is showing the offline style — see the composable's doc. Space has no
+// terrain overlay, so no terrain control is passed.
+const offlineTierRefresh = useOfflineTierRefresh(
+  () => _map,
+  () => !appStore.isOnline,
+)
+
+const satelliteControlRef = shallowRef<SatelliteControl | null>(null)
+let satelliteControl: SatelliteControl | null = null
+let daynightControl: DaynightControl | null = null
+let namesControl: NamesToggleControl | null = null
+// Sentry sites are plotted on every domain map, this one included — see
+// SentrySitesControl. Added without a button: the sites are always shown.
+let sentrySitesControl: SentrySitesControl | null = null
+const _locationMarker = new UserLocationMarker('space-user-location-marker')
+const ctxMenu = useMapContextMenu()
+
+function getUserLocation(): [number, number] | null {
+  const loc = userLocation.value
+  return loc ? [loc.lon, loc.lat] : null
+}
+
+/**
+ * Re-add the overlays this map owns. `setStyle` discards every source and
+ * layer the controls added, so this runs after each basemap reload — from a
+ * connectivity change or a theme change alike.
+ */
+function reinitAfterStyleLoad(): void {
+  daynightControl?.initLayers()
+  namesControl?.applyVisibility()
+  basemapLayerSync.apply()
+  satelliteControl?.initLayers()
+  offlineTierRefresh.applyCurrentVersion()
+}
+
+function loadStyle(m: MapLibreGlMap, url: string): void {
+  setMapStyle(m, url)
+  m.once('style.load', reinitAfterStyleLoad)
+}
+
+useConnectivity(() => {
+  const m = _map
+  if (!m) return
+  loadStyle(m, styleUrl.value)
+})
+
+watch(
+  () => themeStore.mapTheme,
+  () => {
+    const m = _map
+    if (!m) return
+    loadStyle(m, styleUrl.value)
+  },
+)
+
+let _initialStyleUrl: string | null = null
+
+function onMapCreated(m: MapLibreGlMap) {
+  _map = m
+  _initialStyleUrl = styleUrl.value
+  startLocation()
+  _locationMarker.addTo(m)
+  ctxMenu.attach(m)
+}
+
+// Bound both to the watcher (null transition) and sentinel:userLocationCleared
+// so a config-clear drops the marker even if the watcher already ran with a
+// stale localStorage seed on reload (ordering-independent).
+function _clearLocationMarker(): void {
+  _locationMarker.remove()
+}
+
+onMounted(() => {
+  window.addEventListener('sentinel:userLocationCleared', _clearLocationMarker)
+  watch(
+    userLocation,
+    (loc) => {
+      // Drop the marker when the location is cleared (config emptied) so a
+      // stale pin doesn't linger until GPS provides a new fix.
+      if (loc) _locationMarker.update(loc.lon, loc.lat)
+      else _clearLocationMarker()
+    },
+    { immediate: true },
+  )
+})
+
+function onGoToLocation(): void {
+  const m = _map
+  const loc = userLocation.value
+  if (!m || !loc) return
+  m.flyTo({ center: [loc.lon, loc.lat], zoom: Math.max(m.getZoom(), 5) })
+}
+
+useDocumentEvent('space-go-to-location', onGoToLocation)
+
+function onStyleLoaded(m: MapLibreGlMap) {
+  basemapLayerSync.apply()
+  if (satelliteControl) return
+
+  satelliteControl = new SatelliteControl(
+    spaceStore,
+    notificationsStore,
+    trackingStore,
+    getUserLocation,
+    null,
+  )
+  void nextTick(() => {
+    satelliteControlRef.value = satelliteControl
+  })
+  daynightControl = new DaynightControl(spaceStore)
+  namesControl = new NamesToggleControl(basemapStore)
+
+  sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
+    // The operator's own position joins the grouping pass, so a Sentry sitting
+    // on top of it collapses into a count instead of two marks smearing
+    // together; the marker is handed over so the count can stand in for it.
+    getUserLocation,
+    userMarker: _locationMarker,
+  })
+  sentrySitesControl.onAdd(m)
+
+  m.addControl(satelliteControl, 'top-right')
+  m.addControl(daynightControl, 'top-right')
+  m.addControl(namesControl, 'top-right')
+
+  // Clicking a satellite alert centres it in the viewport here (no follow).
+  // Registering drains any pending target stashed when the alert was clicked
+  // from another section.
+  registerSatelliteClickHandler((noradId, name) => {
+    satelliteControl?.focusSatellite(noradId, name)
+  })
+
+  // Hide the MapLibre native top-right control container — space side menu replaces it
+  const ctrlEl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
+  if (ctrlEl) ctrlEl.style.display = 'none'
+
+  // If connectivity mode or theme changed between map creation and style load,
+  // apply the correct style now.
+  const desiredStyle = styleUrl.value
+  if (_initialStyleUrl !== null && _initialStyleUrl !== desiredStyle) {
+    loadStyle(m, desiredStyle)
+  } else {
+    offlineTierRefresh.applyCurrentVersion()
+  }
+  _initialStyleUrl = null
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('sentinel:userLocationCleared', _clearLocationMarker)
+  const m = _map
+  ctxMenu.detach(m)
+  if (m) {
+    const center = m.getCenter()
+    spaceStore.saveMapState([center.lng, center.lat], m.getZoom())
+  }
+  _map = null
+  sentrySitesControl?.onRemove()
+  sentrySitesControl = null
+  satelliteControl = null
+  daynightControl = null
+  namesControl = null
+  satelliteControlRef.value = null
+  clearSatelliteClickHandler()
+})
+
+defineExpose({
+  getSatelliteControl: () => satelliteControl,
+  get satelliteControlReactive() {
+    return satelliteControlRef.value
+  },
+  getDaynightControl: () => daynightControl,
+  getNamesControl: () => namesControl,
+  getMap: () => _map,
+})
+</script>
+
+<style>
+.iss-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(var(--shadow-rgb), 0.5);
+  color: var(--overlay-ink);
+  font-family: 'Barlow Condensed', 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.iss-label.iss-label--tracking {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.iss-tracking-badge {
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  transition: color 0.2s;
+}
+
+.iss-tracking-badge.iss-tracking-badge--hidden {
+  display: none;
+}
+</style>

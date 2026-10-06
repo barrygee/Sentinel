@@ -13,19 +13,20 @@ import { describe, it, expect, vi } from 'vitest'
  * five real views — full MapLibre maps and all — is unnecessarily heavy for
  * what this test asserts.
  */
-vi.mock('@/components/air/AirView.vue', () => ({ default: { name: 'AirView' } }))
-vi.mock('@/components/space/SpaceView.vue', () => ({ default: { name: 'SpaceView' } }))
-vi.mock('@/components/sea/SeaView.vue', () => ({ default: { name: 'SeaView' } }))
-vi.mock('@/components/land/LandView.vue', () => ({ default: { name: 'LandView' } }))
-vi.mock('@/components/sdr/SdrView.vue', () => ({ default: { name: 'SdrView' } }))
-vi.mock('@/components/sdr/SdrTabPanel.vue', () => ({ default: { name: 'SdrTabPanel' } }))
+vi.mock('@sentinel/section-air/AirView.vue', () => ({ default: { name: 'AirView' } }))
+vi.mock('@sentinel/section-space/SpaceView.vue', () => ({ default: { name: 'SpaceView' } }))
+vi.mock('@sentinel/section-sea/SeaView.vue', () => ({ default: { name: 'SeaView' } }))
+vi.mock('@sentinel/section-land/LandView.vue', () => ({ default: { name: 'LandView' } }))
+vi.mock('@sentinel/section-sdr/SdrView.vue', () => ({ default: { name: 'SdrView' } }))
+vi.mock('@sentinel/section-sdr/SdrTabPanel.vue', () => ({ default: { name: 'SdrTabPanel' } }))
 
 describe('shell/sections', () => {
   it('registers every domain section with the shared registry', async () => {
     vi.resetModules()
     await import('./sections')
-    const { getRegisteredSections, getPersistentRadioPane } = await import('./sectionRegistry')
-    const { default: SdrTabPanel } = await import('@/components/sdr/SdrTabPanel.vue')
+    const { getRegisteredSections, getPersistentRadioPane } =
+      await import('@sentinel/shell-api/shell/sectionRegistry')
+    const { default: SdrTabPanel } = await import('@sentinel/section-sdr/SdrTabPanel.vue')
 
     const sections = getRegisteredSections()
     expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])

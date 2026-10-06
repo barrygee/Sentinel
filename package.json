@@ -1,6 +1,11 @@
 {
     "name": "sentinel",
     "private": true,
+    "workspaces": [
+        "frontend/vue",
+        "platform/web/*",
+        "services/sections/*/frontend"
+    ],
     "engines": {
         "node": ">=24.0.0 <26.0.0",
         "npm": ">=11.0.0 <12.0.0"
@@ -13,7 +18,8 @@
         "lint:fix": "eslint . --fix && prettier --write \"tests/**/*.ts\" \"*.{js,ts}\"",
         "format": "prettier --write \"tests/**/*.ts\" \"*.{js,ts}\"",
         "format:check": "prettier --check \"tests/**/*.ts\" \"*.{js,ts}\"",
-        "prepare": "husky"
+        "prepare": "husky",
+        "web-packages": "bash scripts/web-packages.sh"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
@@ -27,5 +33,12 @@
         "prettier": "^3.8.3",
         "typescript": "^5.4.0",
         "typescript-eslint": "^8.61.0"
+    },
+    "overrides": {
+        "undici": "^7.29.0",
+        "sigplot": {
+            "budo": "npm:empty-npm-package@1.0.0",
+            "travis": "npm:empty-npm-package@1.0.0"
+        }
     }
 }

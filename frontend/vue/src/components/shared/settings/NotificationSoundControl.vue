@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import BaseToggleSetting from '@/components/base/BaseToggleSetting.vue'
+import BaseToggleSetting from '@sentinel/shell-api/settings/BaseToggleSetting.vue'
 import { computed } from 'vue'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 const app = useAppStore()
 // Off, the caption offers to turn the sound on; on, it confirms it is on.

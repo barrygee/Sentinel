@@ -55,7 +55,7 @@ import {
   formatTileCount,
   OFFLINE_DISK_MARGIN_RATIO,
   type OfflineAreaEstimateResult,
-} from '@/utils/offlineMapEstimate'
+} from '@sentinel/shell-api/utils/offlineMapEstimate'
 
 const ANNOUNCE_DEBOUNCE_MS = 500
 

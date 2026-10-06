@@ -1027,10 +1027,19 @@ body[data-no-data] .maplibregl-control-container {
     --map-overlay-ink: #ffffff;
     --map-overlay-halo: none;
     --map-overlay-accent: #c8ff00;
+    /* The ⊙ marks (UserLocationMarker): the ring is overlay ink; the dot is
+       lime for your own position and near-white for a Sentry site. */
+    --map-location-dot: #c8ff00;
+    --map-sentry-dot: #f6f6f4;
 }
 
 :root[data-map-theme='light'] {
     --map-overlay-ink: #1b1d22;
     --map-overlay-halo: 0 0 2px #ffffff, 0 0 3px #ffffff;
     --map-overlay-accent: #4d6600;
+    /* On the light map the marks go dark: black rings, a green dot for your
+       position (lime is near-invisible on cream land) and a black one for a
+       Sentry site — the same pairing as on dark, inverted. */
+    --map-location-dot: #2e8b00;
+    --map-sentry-dot: #1b1d22;
 }

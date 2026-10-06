@@ -192,6 +192,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remember vessel names so position-only reports are named
 - Centre off-grid ADS-B on the selected receiver
 - LIGHT is OpenStreetMap's default style; the old light map is gone
+- Dark location marks on the light map; distance on every range ring
 
 ### Bug Fixes
 
@@ -447,6 +448,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - The ADS-B claim wins a shared dongle
 - Reconnect when the rtl_tcp stream goes silent
 - Switching radios keeps each radio's own frequency
+- Follow a source change in Sentinel while the decoder is streaming
+- Re-lock AIR's ADS-B receiver when it changes mid-session
+- Poll ADS-B off grid instead of clearing the map
 
 ### Chores
 
@@ -489,6 +493,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the vessel row's Centre on map action
 - Rebuild bundle
 - Enforce section boundaries with a local ESLint rule
+- Make the repo root an npm workspaces root
 
 ### Other
 
@@ -1377,6 +1382,16 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #412 from barrygee/fix/sdr-radio-switch-keeps-own-frequency
 - Merge remote-tracking branch 'origin/main' into feat/map-light-is-osm-style
 - Merge pull request #413 from barrygee/feat/map-light-is-osm-style
+- Merge pull request #416 from barrygee/fix/adsb-decoder-follow-source-change
+- Merge pull request #417 from barrygee/fix/sdr-panel-relocks-new-adsb-source
+- Merge pull request #418 from barrygee/fix/air-offgrid-adsb-polls
+- Merge pull request #419 from barrygee/chore/p4-1-npm-workspaces
+- Merge pull request #420 from barrygee/refactor/p4-2-shell-api
+- Merge pull request #421 from barrygee/refactor/p4-3-map-kit
+- Merge pull request #422 from barrygee/refactor/p4-4-section-packages
+- Merge pull request #423 from barrygee/refactor/p4-5-section-packages
+- Merge origin/main into feat/map-light-icons-ring-distances
+- Merge pull request #424 from barrygee/feat/map-light-icons-ring-distances
 
 ### Refactoring
 
@@ -1460,6 +1475,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Capabilities and registries remove the last cross-section imports
 - Carve the radio hub into backend/radio_hub (P3.1)
 - IQ capture as a hub bus API (P3.2, plan B12)
+- Extract @sentinel/ui and @sentinel/web-config packages
+- Extract @sentinel/shell-api package
+- Extract @sentinel/map-kit package
+- Move the remaining shared UI sections use into packages
+- Make each section its own workspace package
 
 ### Documentation
 
@@ -1525,6 +1545,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the job-runner tests on a file-backed database (#372)
 - Add P0 parity baseline for the section-containers split
 - Lock aircraft alert navigation after leaving Air
+- Let SIGKILLed pipeline stages be reaped before checking the group
+- Expect per-ring distance labels in the range-ring base spec
 
 ### Build System
 

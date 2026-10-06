@@ -407,9 +407,12 @@ describe('semantic theme tokens', () => {
 
     expect(settingsPanelVue).toContain('class="theme-light"')
     // The SDR page pins the dark island — the class may sit alongside others.
-    expect(readFileSync(resolve(process.cwd(), 'src/components/sdr/SdrView.vue'), 'utf8')).toMatch(
-      /class="[^"]*\btheme-dark\b/,
-    )
+    expect(
+      readFileSync(
+        resolve(process.cwd(), '../../services/sections/sdr/frontend/src/SdrView.vue'),
+        'utf8',
+      ),
+    ).toMatch(/class="[^"]*\btheme-dark\b/)
   })
 
   it('leaves no colour literals in the retrofitted settings panel stylesheet', () => {

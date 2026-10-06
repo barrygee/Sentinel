@@ -3,15 +3,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import ConnectivityToggle from './ConnectivityToggle.vue'
-import { useAppStore } from '@/stores/app'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
-vi.mock('@/services/settingsApi', () => ({
+vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   put: vi.fn(),
   getNamespace: vi.fn(),
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-import * as settingsApi from '@/services/settingsApi'
+import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 const MODE_KEY = 'sentinel_app_connectivityMode'
 const sectionKey = (ns: string) => `sentinel_${ns}_sourceOverride`

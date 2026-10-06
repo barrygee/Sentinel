@@ -105,8 +105,8 @@
  */
 import { computed, nextTick, ref, watch } from 'vue'
 import DownloadProgress from './DownloadProgress.vue'
-import { formatByteSize } from '@/utils/offlineMapEstimate'
-import type { OfflineRegion } from '@/services/offlineMapsApi'
+import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
+import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const props = defineProps<{
   region: OfflineRegion

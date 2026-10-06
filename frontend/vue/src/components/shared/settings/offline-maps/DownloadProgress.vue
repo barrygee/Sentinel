@@ -33,9 +33,12 @@
  * "indeterminate until the first bytes arrive".
  */
 import { computed } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
-import { formatByteSize } from '@/utils/offlineMapEstimate'
-import type { OfflineRegionPhase, OfflineRegionStatus } from '@/services/offlineMapsApi'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
+import type {
+  OfflineRegionPhase,
+  OfflineRegionStatus,
+} from '@sentinel/shell-api/services/offlineMapsApi'
 
 const props = defineProps<{
   status: OfflineRegionStatus

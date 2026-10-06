@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import BaseButton from '@/components/base/BaseButton.vue'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 
 // Standalone "export everything" control. Writes the full Sentinel configuration
 // — the app config plus the two SDR data files that live outside it

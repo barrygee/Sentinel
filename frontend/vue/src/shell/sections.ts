@@ -10,8 +10,8 @@
  * `shell/sectionRegistry.ts`, so that swap is the only file federation needs
  * to touch.
  */
-import '@/components/air/section'
-import '@/components/space/section'
-import '@/components/sea/section'
-import '@/components/land/section'
-import '@/components/sdr/section'
+import '@sentinel/section-air/section'
+import '@sentinel/section-space/section'
+import '@sentinel/section-sea/section'
+import '@sentinel/section-land/section'
+import '@sentinel/section-sdr/section'

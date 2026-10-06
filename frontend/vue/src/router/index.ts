@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import '@/shell/sections'
-import { getSectionRoutes } from '@/shell/sectionRegistry'
-import { useAppStore } from '@/stores/app'
+import { getSectionRoutes } from '@sentinel/shell-api/shell/sectionRegistry'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 // Routes are built from the section registry rather than importing each
 // section's view directly — see docs/plans/section-containers.md §1.3 (F1).

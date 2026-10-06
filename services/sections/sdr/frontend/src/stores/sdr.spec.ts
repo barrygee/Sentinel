@@ -1,0 +1,1883 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useSdrStore } from './sdr'
+import type { SdrStoredFrequency } from './sdr'
+
+type SdrStore = ReturnType<typeof useSdrStore>
+
+function stubFetch(payload: unknown, ok = true) {
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+}
+
+describe('sdr store', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+    sessionStorage.clear()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => [] }))
+  })
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('has the expected defaults', () => {
+    const store = useSdrStore()
+    expect(store.radios).toEqual([])
+    expect(store.currentFreqHz).toBe(100_000_000)
+    expect(store.currentMode).toBe('WFM')
+    expect(store.sampleRate).toBe(2_048_000)
+    expect(store.autoCenterWaterfallOnTune).toBe(true)
+    expect(store.snapToKnown).toBe(true)
+    expect(store.showBandPlan).toBe(true)
+    expect(store.showKnownFreqs).toBe(true)
+    expect(store.resumeDelaySec).toBe(0)
+    expect(store.viewZoom).toBe(1)
+    expect(store.viewAutoScale).toBe(true)
+  })
+
+  // ── persisted boolean toggles (read on init) ───────────────────────────────
+  const boolReads: Array<{ name: string; lsKey: string; read: (s: SdrStore) => boolean }> = [
+    {
+      name: 'autoCenter',
+      lsKey: 'sdrAutoCenterWaterfallOnTune',
+      read: (s) => s.autoCenterWaterfallOnTune,
+    },
+    { name: 'snapToKnown', lsKey: 'sdrSnapToKnown', read: (s) => s.snapToKnown },
+    { name: 'showBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.showBandPlan },
+    { name: 'showKnownFreqs', lsKey: 'sdrShowKnownFreqs', read: (s) => s.showKnownFreqs },
+    { name: 'viewAutoScale', lsKey: 'sdrViewAutoScale', read: (s) => s.viewAutoScale },
+  ]
+  it.each(boolReads)('reads $name as false when stored as "0"', ({ lsKey, read }) => {
+    localStorage.setItem(lsKey, '0')
+    expect(read(useSdrStore())).toBe(false)
+  })
+
+  it('defaults all toggles to true when localStorage read throws', () => {
+    vi.spyOn(localStorage, 'getItem').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    const store = useSdrStore()
+    expect(store.autoCenterWaterfallOnTune).toBe(true)
+    expect(store.snapToKnown).toBe(true)
+    expect(store.showBandPlan).toBe(true)
+    expect(store.showKnownFreqs).toBe(true)
+    expect(store.viewAutoScale).toBe(true)
+    expect(store.resumeDelaySec).toBe(0)
+  })
+
+  // ── simple boolean setters (set ref + persist, swallow failures) ───────────
+  const boolSetters: Array<{
+    name: string
+    lsKey: string
+    apply: (s: SdrStore, on: boolean) => void
+    read: (s: SdrStore) => boolean
+  }> = [
+    {
+      name: 'setSnapToKnown',
+      lsKey: 'sdrSnapToKnown',
+      apply: (s, on) => s.setSnapToKnown(on),
+      read: (s) => s.snapToKnown,
+    },
+    {
+      name: 'setShowBandPlan',
+      lsKey: 'sdrShowBandPlan',
+      apply: (s, on) => s.setShowBandPlan(on),
+      read: (s) => s.showBandPlan,
+    },
+    {
+      name: 'setShowKnownFreqs',
+      lsKey: 'sdrShowKnownFreqs',
+      apply: (s, on) => s.setShowKnownFreqs(on),
+      read: (s) => s.showKnownFreqs,
+    },
+  ]
+  it.each(boolSetters)('$name updates the ref and persists', ({ lsKey, apply, read }) => {
+    const store = useSdrStore()
+    apply(store, false)
+    expect(read(store)).toBe(false)
+    expect(localStorage.getItem(lsKey)).toBe('0')
+    apply(store, true)
+    expect(localStorage.getItem(lsKey)).toBe('1')
+  })
+  it.each(boolSetters)('$name swallows write failures', ({ apply, read }) => {
+    const store = useSdrStore()
+    vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    expect(() => apply(store, false)).not.toThrow()
+    expect(read(store)).toBe(false)
+  })
+
+  describe('setAutoCenterWaterfallOnTune', () => {
+    it('persists the flag', () => {
+      const store = useSdrStore()
+      store.setAutoCenterWaterfallOnTune(false)
+      expect(store.autoCenterWaterfallOnTune).toBe(false)
+      expect(localStorage.getItem('sdrAutoCenterWaterfallOnTune')).toBe('0')
+    })
+
+    it('clears a non-zero tuning offset and re-tunes when turned on', () => {
+      const store = useSdrStore()
+      store.setTuningOffsetHz(5000)
+      store.setAutoCenterWaterfallOnTune(true)
+      expect(store.tuningOffsetHz).toBe(0)
+      expect(store.tuneRequest?.hz).toBe(store.currentFreqHz)
+    })
+
+    it('does not re-tune when the offset is already zero', () => {
+      const store = useSdrStore()
+      store.setAutoCenterWaterfallOnTune(true)
+      expect(store.tuneRequest).toBeNull()
+    })
+
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setAutoCenterWaterfallOnTune(false)).not.toThrow()
+    })
+  })
+
+  // ── hydrate-from-DB for the boolean toggles ────────────────────────────────
+  const hydrateBool: Array<{
+    name: string
+    dbKey: string
+    hydrate: (s: SdrStore) => Promise<void>
+    read: (s: SdrStore) => boolean
+  }> = [
+    {
+      name: 'autoCenter',
+      dbKey: 'autoCenterWaterfallOnTune',
+      hydrate: (s) => s.hydrateAutoCenterFromDb(),
+      read: (s) => s.autoCenterWaterfallOnTune,
+    },
+    {
+      name: 'snapToKnown',
+      dbKey: 'snapToKnown',
+      hydrate: (s) => s.hydrateSnapToKnownFromDb(),
+      read: (s) => s.snapToKnown,
+    },
+    {
+      name: 'showBandPlan',
+      dbKey: 'showBandPlan',
+      hydrate: (s) => s.hydrateShowBandPlanFromDb(),
+      read: (s) => s.showBandPlan,
+    },
+    {
+      name: 'showKnownFreqs',
+      dbKey: 'showKnownFreqs',
+      hydrate: (s) => s.hydrateShowKnownFreqsFromDb(),
+      read: (s) => s.showKnownFreqs,
+    },
+  ]
+  it.each(hydrateBool)(
+    'hydrate $name applies a differing DB value',
+    async ({ dbKey, hydrate, read }) => {
+      stubFetch({ [dbKey]: false })
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(false)
+    },
+  )
+  it.each(hydrateBool)(
+    'hydrate $name ignores a non-boolean DB value',
+    async ({ dbKey, hydrate, read }) => {
+      stubFetch({ [dbKey]: 'nope' })
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(true)
+    },
+  )
+  it.each(hydrateBool)(
+    'hydrate $name returns early on a non-ok response',
+    async ({ hydrate, read }) => {
+      stubFetch({}, false)
+      const store = useSdrStore()
+      await hydrate(store)
+      expect(read(store)).toBe(true)
+    },
+  )
+  it.each(hydrateBool)('hydrate $name swallows fetch errors', async ({ hydrate, read }) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useSdrStore()
+    await expect(hydrate(store)).resolves.toBeUndefined()
+    expect(read(store)).toBe(true)
+  })
+
+  // ── resume delay (numeric) ─────────────────────────────────────────────────
+  describe('resumeDelaySec', () => {
+    it('reads a valid stored value', () => {
+      localStorage.setItem('sdrResumeDelaySec', '5')
+      expect(useSdrStore().resumeDelaySec).toBe(5)
+    })
+    it('falls back to 0 for a negative or non-numeric stored value', () => {
+      localStorage.setItem('sdrResumeDelaySec', '-3')
+      expect(useSdrStore().resumeDelaySec).toBe(0)
+      localStorage.clear()
+      localStorage.setItem('sdrResumeDelaySec', 'abc')
+      expect(useSdrStore().resumeDelaySec).toBe(0)
+    })
+    it('clamps and floors values on set', () => {
+      const store = useSdrStore()
+      store.setResumeDelaySec(7.9)
+      expect(store.resumeDelaySec).toBe(7)
+      expect(localStorage.getItem('sdrResumeDelaySec')).toBe('7')
+      store.setResumeDelaySec(-1)
+      expect(store.resumeDelaySec).toBe(0)
+    })
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setResumeDelaySec(3)).not.toThrow()
+    })
+    it('hydrates a valid value from the DB', async () => {
+      stubFetch({ resumeDelaySec: 9 })
+      const store = useSdrStore()
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(9)
+    })
+    it('ignores an invalid DB value, non-ok, and errors', async () => {
+      stubFetch({ resumeDelaySec: -1 })
+      const store = useSdrStore()
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(0)
+      stubFetch({}, false)
+      await store.hydrateResumeDelaySecFromDb()
+      expect(store.resumeDelaySec).toBe(0)
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      await expect(store.hydrateResumeDelaySecFromDb()).resolves.toBeUndefined()
+    })
+  })
+
+  // ── view settings ──────────────────────────────────────────────────────────
+  describe('waterfall timestamps', () => {
+    it('is on unless it was switched off before', () => {
+      expect(useSdrStore().showWaterfallTimestamps).toBe(true)
+    })
+
+    it('remembers the choice locally, so a reload keeps the labels hidden', () => {
+      useSdrStore().setShowWaterfallTimestamps(false)
+      expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
+
+      setActivePinia(createPinia())
+      expect(useSdrStore().showWaterfallTimestamps).toBe(false)
+    })
+
+    it('records the choice when it is switched off', () => {
+      const store = useSdrStore()
+
+      store.setShowWaterfallTimestamps(false)
+
+      // '0', not a cleared key: an absent key is indistinguishable from never
+      // having chosen, and would let a stale db value win on the next load.
+      expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
+      expect(store.showWaterfallTimestamps).toBe(false)
+    })
+
+    it('still applies the choice when localStorage refuses the write', () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      const store = useSdrStore()
+
+      store.setShowWaterfallTimestamps(false)
+
+      // A private-mode browser still honours the choice for this session; it
+      // just cannot carry it to the next load.
+      expect(store.showWaterfallTimestamps).toBe(false)
+      setItem.mockRestore()
+    })
+
+    it('falls back to on when localStorage cannot be read at all', () => {
+      const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      setActivePinia(createPinia())
+
+      expect(useSdrStore().showWaterfallTimestamps).toBe(true)
+      getItem.mockRestore()
+    })
+
+    describe('hydrating from the config database', () => {
+      it('adopts a stored choice that differs from the local one', async () => {
+        stubFetch({ showWaterfallTimestamps: false })
+        const store = useSdrStore()
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
+      })
+
+      it('leaves the choice alone when the database already agrees', async () => {
+        stubFetch({ showWaterfallTimestamps: true })
+        const store = useSdrStore()
+        const setItem = vi.spyOn(window.localStorage, 'setItem')
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        // Nothing changed, so nothing is rewritten.
+        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(setItem).not.toHaveBeenCalled()
+      })
+
+      it('ignores a value that is not a boolean', async () => {
+        stubFetch({ showWaterfallTimestamps: 'yes' })
+        const store = useSdrStore()
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        expect(store.showWaterfallTimestamps).toBe(true)
+      })
+
+      it('ignores a response with no such key', async () => {
+        stubFetch({})
+        const store = useSdrStore()
+        store.setShowWaterfallTimestamps(false)
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        // No key is not "cleared" — the local choice stands.
+        expect(store.showWaterfallTimestamps).toBe(false)
+      })
+
+      it('keeps the local choice when the request is rejected', async () => {
+        stubFetch({ showWaterfallTimestamps: false }, false)
+        const store = useSdrStore()
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        expect(store.showWaterfallTimestamps).toBe(true)
+      })
+
+      it('keeps the local choice when the backend is unreachable', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+        const store = useSdrStore()
+        store.setShowWaterfallTimestamps(false)
+
+        await store.hydrateShowWaterfallTimestampsFromDb()
+
+        expect(store.showWaterfallTimestamps).toBe(false)
+      })
+    })
+  })
+
+  describe('waterfall timestamp interval', () => {
+    it('defaults to five seconds', () => {
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('restores a previously chosen interval', () => {
+      localStorage.setItem('sdrWaterfallTimestampIntervalSec', '30')
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(30)
+    })
+
+    it('remembers a new interval, so a reload keeps the spacing', () => {
+      useSdrStore().setWaterfallTimestampIntervalSec(15)
+      expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('15')
+
+      setActivePinia(createPinia())
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(15)
+    })
+
+    it.each([
+      ['0', 'zero would mark every raster row'],
+      ['-5', 'a negative interval has no meaning'],
+      ['abc', 'a non-numeric value never parsed'],
+    ])('falls back to the default for a stored %s (%s)', (stored) => {
+      localStorage.setItem('sdrWaterfallTimestampIntervalSec', stored)
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('floors a fractional interval to whole seconds', () => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(7.9)
+      expect(store.waterfallTimestampIntervalSec).toBe(7)
+      expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('7')
+    })
+
+    it.each([
+      ['below the minimum', 0],
+      ['negative', -1],
+      ['not a number', Number.NaN],
+      ['infinite', Number.POSITIVE_INFINITY],
+    ])('rejects an interval that is %s, keeping the default', (_label, value) => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(value)
+      expect(store.waterfallTimestampIntervalSec).toBe(5)
+    })
+
+    it('accepts the one-second minimum', () => {
+      const store = useSdrStore()
+      store.setWaterfallTimestampIntervalSec(1)
+      expect(store.waterfallTimestampIntervalSec).toBe(1)
+    })
+
+    it('still applies the interval when localStorage refuses the write', () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      const store = useSdrStore()
+
+      store.setWaterfallTimestampIntervalSec(20)
+
+      // A private-mode browser still gets the spacing for this session.
+      expect(store.waterfallTimestampIntervalSec).toBe(20)
+      setItem.mockRestore()
+    })
+
+    it('falls back to the default when localStorage cannot be read at all', () => {
+      const getItem = vi.spyOn(window.localStorage, 'getItem').mockImplementation(() => {
+        throw new Error('private mode')
+      })
+      setActivePinia(createPinia())
+
+      expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
+      getItem.mockRestore()
+    })
+
+    describe('hydrating from the config database', () => {
+      it('adopts a stored interval that differs from the local one', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 60 })
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(60)
+        expect(localStorage.getItem('sdrWaterfallTimestampIntervalSec')).toBe('60')
+      })
+
+      it('leaves the interval alone when the database already agrees', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 5 })
+        const store = useSdrStore()
+        const setItem = vi.spyOn(window.localStorage, 'setItem')
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        // Nothing changed, so nothing is rewritten.
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+        expect(setItem).not.toHaveBeenCalled()
+      })
+
+      it.each([
+        ['is not a number', '10'],
+        ['is below the minimum', 0],
+        ['is negative', -30],
+      ])('ignores a stored interval that %s', async (_label, stored) => {
+        stubFetch({ waterfallTimestampIntervalSec: stored })
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+      })
+
+      it('ignores a response with no such key', async () => {
+        stubFetch({})
+        const store = useSdrStore()
+        store.setWaterfallTimestampIntervalSec(45)
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        // No key is not "cleared" — the local choice stands.
+        expect(store.waterfallTimestampIntervalSec).toBe(45)
+      })
+
+      it('keeps the local interval when the request is rejected', async () => {
+        stubFetch({ waterfallTimestampIntervalSec: 60 }, false)
+        const store = useSdrStore()
+
+        await store.hydrateWaterfallTimestampIntervalFromDb()
+
+        expect(store.waterfallTimestampIntervalSec).toBe(5)
+      })
+
+      it('keeps the local interval when the backend is unreachable', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+        const store = useSdrStore()
+        store.setWaterfallTimestampIntervalSec(45)
+
+        await expect(store.hydrateWaterfallTimestampIntervalFromDb()).resolves.toBeUndefined()
+        expect(store.waterfallTimestampIntervalSec).toBe(45)
+      })
+    })
+  })
+
+  describe('view settings', () => {
+    it('reads numeric view settings, falling back on bad values', () => {
+      localStorage.setItem('sdrViewZoom', '4')
+      localStorage.setItem('sdrViewZmin', 'NaNish')
+      const store = useSdrStore()
+      expect(store.viewZoom).toBe(4)
+      expect(store.viewZmin).toBe(0) // fallback for non-finite
+    })
+    it('setViewSettings updates only the provided fields and persists', () => {
+      const store = useSdrStore()
+      store.setViewSettings({ zoom: 3 })
+      expect(store.viewZoom).toBe(3)
+      expect(store.viewZmin).toBe(0) // untouched
+      store.setViewSettings({ zmin: -10, zmax: 5, autoScale: false })
+      expect(store.viewZmin).toBe(-10)
+      expect(store.viewZmax).toBe(5)
+      expect(store.viewAutoScale).toBe(false)
+      expect(localStorage.getItem('sdrViewAutoScale')).toBe('0')
+    })
+    it('swallows write failures', () => {
+      const store = useSdrStore()
+      vi.spyOn(localStorage, 'setItem').mockImplementation(() => {
+        throw new Error('quota')
+      })
+      expect(() => store.setViewSettings({ zoom: 2 })).not.toThrow()
+    })
+  })
+
+  // ── session restore / persist ──────────────────────────────────────────────
+  describe('session', () => {
+    it('drops a restored frequency no tuner can reach instead of re-sending it', () => {
+      sessionStorage.setItem('sdrLastFreqHz', '7812000000')
+      const store = useSdrStore()
+      expect(store.currentFreqHz).not.toBe(7_812_000_000)
+    })
+    it('restores radio/freq/mode/playing from sessionStorage on init', () => {
+      sessionStorage.setItem('sdrLastRadioId', '7')
+      sessionStorage.setItem('sdrLastFreqHz', '88500000')
+      sessionStorage.setItem('sdrLastMode', 'AM')
+      sessionStorage.setItem('sdrPlaying', '1')
+      const store = useSdrStore()
+      expect(store.currentRadioId).toBe(7)
+      expect(store.currentFreqHz).toBe(88500000)
+      expect(store.currentMode).toBe('AM')
+      expect(store.playing).toBe(true)
+    })
+    it('swallows sessionStorage read errors on init', () => {
+      vi.spyOn(sessionStorage, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(() => useSdrStore()).not.toThrow()
+    })
+    it('setRadio persists the radio id', () => {
+      const store = useSdrStore()
+      store.setRadio(3)
+      expect(store.currentRadioId).toBe(3)
+      expect(sessionStorage.getItem('sdrLastRadioId')).toBe('3')
+    })
+    it('setFrequency persists without a radio id when none is set', () => {
+      const store = useSdrStore()
+      store.setFrequency(99_000_000)
+      expect(store.currentFreqHz).toBe(99_000_000)
+      expect(sessionStorage.getItem('sdrLastFreqHz')).toBe('99000000')
+      expect(sessionStorage.getItem('sdrLastRadioId')).toBeNull()
+    })
+    it('setMode and setPlaying persist', () => {
+      const store = useSdrStore()
+      store.setMode('USB')
+      store.setPlaying(true)
+      expect(sessionStorage.getItem('sdrLastMode')).toBe('USB')
+      expect(sessionStorage.getItem('sdrPlaying')).toBe('1')
+    })
+    it('swallows sessionStorage write errors', () => {
+      const store = useSdrStore()
+      vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(() => store.setRadio(1)).not.toThrow()
+    })
+  })
+
+  // ── simple mirror setters + request channels ───────────────────────────────
+  it('setConnected, setBandwidthHz, setTuningOffsetHz and setSpectrum update refs', () => {
+    const store = useSdrStore()
+    store.setConnected(true)
+    expect(store.connected).toBe(true)
+    store.setBandwidthHz(12345)
+    expect(store.bwHz).toBe(12345)
+    store.setTuningOffsetHz(250)
+    expect(store.tuningOffsetHz).toBe(250)
+    const frame = { bins: [1, 2], center_hz: 1, sample_rate: 2, ts: 3 }
+    store.setSpectrum(frame)
+    expect(store.lastSpectrum).toBe(frame)
+  })
+
+  it('requestTune/requestBandwidth/requestFftSize set monotonically-nonced requests', () => {
+    const store = useSdrStore()
+    store.requestTune(101_000_000)
+    expect(store.tuneRequest).toMatchObject({ hz: 101_000_000, center: false })
+    store.requestTune(102_000_000, true)
+    expect(store.tuneRequest).toMatchObject({ hz: 102_000_000, center: true })
+    expect(store.tuneRequest!.nonce).toBeGreaterThan(1)
+
+    store.requestBandwidth(15000)
+    expect(store.bwRequest).toMatchObject({ hz: 15000 })
+    store.requestFftSize(4096)
+    expect(store.fftSizeRequest).toMatchObject({ bins: 4096 })
+  })
+
+  // ── REST loaders ────────────────────────────────────────────────────────────
+  const loaders: Array<{
+    name: string
+    load: (s: SdrStore) => Promise<void>
+    read: (s: SdrStore) => unknown[]
+  }> = [
+    { name: 'loadRadios', load: (s) => s.loadRadios(), read: (s) => s.radios },
+    { name: 'loadGroups', load: (s) => s.loadGroups(), read: (s) => s.groups },
+    { name: 'loadFrequencies', load: (s) => s.loadFrequencies(), read: (s) => s.frequencies },
+  ]
+  it.each(loaders)('$name stores the fetched rows on success', async ({ load, read }) => {
+    stubFetch([{ id: 1 }])
+    const store = useSdrStore()
+    await load(store)
+    expect(read(store)).toEqual([{ id: 1 }])
+  })
+  it.each(loaders)('$name leaves state unchanged on a non-ok response', async ({ load, read }) => {
+    stubFetch([{ id: 1 }], false)
+    const store = useSdrStore()
+    await load(store)
+    expect(read(store)).toEqual([])
+  })
+  it.each(loaders)('$name swallows fetch errors', async ({ load, read }) => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useSdrStore()
+    await expect(load(store)).resolves.toBeUndefined()
+    expect(read(store)).toEqual([])
+  })
+
+  // ── digital decode ─────────────────────────────────────────────────────────
+  describe('digital decode', () => {
+    it('defaults digitalEnabled to false', () => {
+      expect(useSdrStore().digitalEnabled).toBe(false)
+    })
+
+    it('reads digitalEnabled=true from localStorage on init', () => {
+      localStorage.setItem('sdrDigitalEnabled', '1')
+      expect(useSdrStore().digitalEnabled).toBe(true)
+    })
+
+    it('falls back to false when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().digitalEnabled).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('setDigitalEnabled updates state and persists', () => {
+      const store = useSdrStore()
+      store.setDigitalEnabled(true)
+      expect(store.digitalEnabled).toBe(true)
+      expect(localStorage.getItem('sdrDigitalEnabled')).toBe('1')
+      store.setDigitalEnabled(false)
+      expect(localStorage.getItem('sdrDigitalEnabled')).toBe('0')
+    })
+
+    it('setDigitalEnabled swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setDigitalEnabled(true)).not.toThrow()
+      expect(store.digitalEnabled).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('hydrateDigitalEnabledFromDb applies the DB default', async () => {
+      stubFetch({ digitalDecodeDefault: true })
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(true)
+    })
+
+    it('hydrateDigitalEnabledFromDb ignores a non-ok response', async () => {
+      stubFetch({ digitalDecodeDefault: true }, false)
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('hydrateDigitalEnabledFromDb ignores a non-boolean value', async () => {
+      stubFetch({ digitalDecodeDefault: 'yes' })
+      const store = useSdrStore()
+      await store.hydrateDigitalEnabledFromDb()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('hydrateDigitalEnabledFromDb swallows fetch errors', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      await expect(store.hydrateDigitalEnabledFromDb()).resolves.toBeUndefined()
+      expect(store.digitalEnabled).toBe(false)
+    })
+
+    it('pushDecodeEvent prepends call rows and caps the log at 200', () => {
+      const store = useSdrStore()
+      for (let index = 0; index < 205; index++) {
+        store.pushDecodeEvent({ type: 'decode_event', talkgroup: index, ts: index })
+      }
+      expect(store.decodeEvents).toHaveLength(200)
+      // Newest first → the last pushed (talkgroup 204) is at the head.
+      expect(store.decodeEvents[0].talkgroup).toBe(204)
+    })
+
+    it('pushDecodeEventBatch is a no-op for an empty batch', () => {
+      const store = useSdrStore()
+      store.pushDecodeEventBatch([])
+      expect(store.decodeEvents).toHaveLength(0)
+      expect(store.decodeLogs).toHaveLength(0)
+    })
+
+    it('pushDecodeEventBatch folds a frame of events newest-first across both buffers', () => {
+      const store = useSdrStore()
+      // Arrival order (oldest → newest): a call row, two log lines, another row.
+      store.pushDecodeEventBatch([
+        { type: 'decode_event', talkgroup: 1, ts: 1 },
+        { type: 'log', line: 'older', ts: 2 },
+        { type: 'log', line: 'newer', ts: 3 },
+        { type: 'decode_event', talkgroup: 2, ts: 4 },
+      ])
+      // Both buffers come out newest-first, regardless of interleaving.
+      expect(store.decodeEvents.map((event) => event.talkgroup)).toEqual([2, 1])
+      expect(store.decodeLogs).toEqual(['newer', 'older'])
+    })
+
+    it('pushDecodeEventBatch applies the last-in-batch indicator state', () => {
+      const store = useSdrStore()
+      store.pushDecodeEventBatch([
+        { type: 'decode_event', mode: 'DMR', sync: true, ts: 1 },
+        { type: 'decode_event', mode: 'P25', sync: false, ts: 2 },
+      ])
+      expect(store.decodedMode).toBe('P25')
+      expect(store.decodeSync).toBe(false)
+    })
+
+    it('pushDecodeEvent stamps ts when missing', () => {
+      const store = useSdrStore()
+      vi.spyOn(Date, 'now').mockReturnValue(12345)
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR' } as never)
+      expect(store.decodeEvents[0].ts).toBe(12345)
+    })
+
+    it('pushDecodeEvent updates sync/reachability from any frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', sync: true, decoder_reachable: true, ts: 1 })
+      expect(store.decodeSync).toBe(true)
+      expect(store.decoderReachable).toBe(true)
+    })
+
+    it('pushDecodeEvent tracks the latest decoded mode', () => {
+      const store = useSdrStore()
+      expect(store.decodedMode).toBe('')
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      expect(store.decodedMode).toBe('DMR')
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'P25', ts: 2 })
+      expect(store.decodedMode).toBe('P25')
+    })
+
+    it('pushDecodeEvent records the backend-measured decoded-audio rate', () => {
+      const store = useSdrStore()
+      expect(store.decodedAudioRate).toBeNull()
+      store.pushDecodeEvent({ type: 'decode_status', audio_sample_rate: 16000, ts: 1 })
+      expect(store.decodedAudioRate).toBe(16000)
+    })
+
+    it('pushDecodeEvent leaves the decoded-audio rate untouched without the field', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_status', audio_sample_rate: 24000, ts: 1 })
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 2 })
+      expect(store.decodedAudioRate).toBe(24000)
+    })
+
+    it('pushDecodeEvent leaves the decoded mode unchanged for a mode-less frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      store.pushDecodeEvent({ type: 'decode_event', sync: true, ts: 2 })
+      expect(store.decodedMode).toBe('DMR')
+    })
+
+    it('pushDecodeEvent routes a log frame to the log buffer, not the call rows', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', line: 'Sync: +DMR slot1 [slot2]', ts: 1 })
+      expect(store.decodeLogs).toEqual(['Sync: +DMR slot1 [slot2]'])
+      expect(store.decodeEvents).toHaveLength(0)
+    })
+
+    it('pushDecodeEvent keeps log lines newest-first', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', line: 'first', ts: 1 })
+      store.pushDecodeEvent({ type: 'log', line: 'second', ts: 2 })
+      expect(store.decodeLogs).toEqual(['second', 'first'])
+    })
+
+    it('pushDecodeEvent strips ANSI colour codes but keeps real bracketed tokens', () => {
+      const store = useSdrStore()
+      const esc = String.fromCharCode(27)
+      store.pushDecodeEvent({
+        type: 'log',
+        line: `${esc}[33mSync: +DMR [slot2] | Color Code=02${esc}[0m  `,
+        ts: 1,
+      })
+      // Colour codes gone, "[slot2]" preserved, trailing whitespace trimmed.
+      expect(store.decodeLogs).toEqual(['Sync: +DMR [slot2] | Color Code=02'])
+    })
+
+    it('pushDecodeEvent drops a log line that is only ANSI codes', () => {
+      const store = useSdrStore()
+      const esc = String.fromCharCode(27)
+      store.pushDecodeEvent({ type: 'log', line: `${esc}[0m${esc}[33m`, ts: 1 })
+      expect(store.decodeLogs).toEqual([])
+    })
+
+    it('pushDecodeEvent ignores a log frame with no line', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'log', ts: 1 })
+      expect(store.decodeLogs).toEqual([])
+    })
+
+    it('clearDecodeLogs empties the log buffer but keeps call rows', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', mode: 'DMR', ts: 1 })
+      store.pushDecodeEvent({ type: 'log', line: 'a line', ts: 2 })
+      store.clearDecodeLogs()
+      expect(store.decodeLogs).toEqual([])
+      expect(store.decodeEvents).toHaveLength(1)
+    })
+
+    it('pushDecodeEvent does not add a row for a decode_status frame', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_status', decoder_reachable: true, ts: 1 })
+      expect(store.decodeEvents).toHaveLength(0)
+      expect(store.decoderReachable).toBe(true)
+    })
+
+    it('setDecodeStatus updates only the provided fields', () => {
+      const store = useSdrStore()
+      store.setDecodeStatus({ decoder_reachable: true })
+      expect(store.decoderReachable).toBe(true)
+      expect(store.decodeSync).toBe(false)
+      store.setDecodeStatus({ sync: true })
+      expect(store.decodeSync).toBe(true)
+    })
+
+    it('clearDecode resets events, sync, reachability, mode and audio rate', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({
+        type: 'decode_event',
+        mode: 'DMR',
+        sync: true,
+        decoder_reachable: true,
+        audio_sample_rate: 16000,
+        ts: 1,
+      })
+      store.clearDecode()
+      expect(store.decodeEvents).toEqual([])
+      expect(store.decodeSync).toBe(false)
+      expect(store.decoderReachable).toBe(false)
+      expect(store.decodedMode).toBe('')
+      expect(store.decodedAudioRate).toBeNull()
+    })
+
+    it('clearDecodeEvents empties the log but keeps live status', () => {
+      const store = useSdrStore()
+      store.pushDecodeEvent({ type: 'decode_event', decoder_reachable: true, ts: 1 })
+      store.clearDecodeEvents()
+      expect(store.decodeEvents).toEqual([])
+      expect(store.decoderReachable).toBe(true)
+    })
+  })
+
+  describe('tuning ownership', () => {
+    it('defaults to sole owner with no control channel', () => {
+      const store = useSdrStore()
+      expect(store.isOwner).toBe(true)
+      expect(store.controlAvailable).toBe(false)
+      expect(store.locked).toBe(false)
+      expect(store.readOnly).toBe(false)
+    })
+
+    it('setOwnership mirrors the three flags', () => {
+      const store = useSdrStore()
+      store.setOwnership(false, true, true)
+      expect(store.isOwner).toBe(false)
+      expect(store.controlAvailable).toBe(true)
+      expect(store.locked).toBe(true)
+    })
+
+    it('readOnly is true only when control is available, another owns it, and it is locked', () => {
+      const store = useSdrStore()
+      // Follower: control available, not owner, token held elsewhere.
+      store.setOwnership(false, true, true)
+      expect(store.readOnly).toBe(true)
+      // Owner → never read-only.
+      store.setOwnership(true, true, true)
+      expect(store.readOnly).toBe(false)
+      // Free token (not locked) → not read-only, a tune can claim it.
+      store.setOwnership(false, true, false)
+      expect(store.readOnly).toBe(false)
+      // No control channel (direct rtl_tcp) → never read-only.
+      store.setOwnership(false, false, true)
+      expect(store.readOnly).toBe(false)
+    })
+  })
+
+  describe('off-grid AIS decode', () => {
+    /**
+     * The Sea twin of the APRS block below, with one difference that matters:
+     * `aisRadioId` means "which radio is decoding right now", not "which radio
+     * is designated" — the designation lives in `sea.aisSdrRadioId` and is only
+     * turned into decode when SEA is opened off grid (see useOffgridAisDecode).
+     */
+    it('defaults aisRadioId to null', () => {
+      expect(useSdrStore().aisRadioId).toBe(null)
+    })
+
+    it('reads a persisted aisRadioId from localStorage on init', () => {
+      localStorage.setItem('sdrAisRadioId', '4')
+      expect(useSdrStore().aisRadioId).toBe(4)
+    })
+
+    it('ignores a non-numeric persisted aisRadioId', () => {
+      localStorage.setItem('sdrAisRadioId', 'not-a-radio')
+      expect(useSdrStore().aisRadioId).toBe(null)
+    })
+
+    it('falls back to null when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().aisRadioId).toBe(null)
+      spy.mockRestore()
+    })
+
+    it('setAisRadioId persists the radio and clears it on null', () => {
+      const store = useSdrStore()
+      store.setAisRadioId(4)
+      expect(localStorage.getItem('sdrAisRadioId')).toBe('4')
+      store.setAisRadioId(null)
+      expect(store.aisRadioId).toBe(null)
+      expect(localStorage.getItem('sdrAisRadioId')).toBe(null)
+    })
+
+    it('setAisRadioId swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setAisRadioId(4)).not.toThrow()
+      expect(store.aisRadioId).toBe(4)
+      spy.mockRestore()
+    })
+
+    it('startAis POSTs the radio and bandwidth and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      expect(await store.startAis(7, 16000)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/start',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ radio_id: 7, bw_hz: 16000 }),
+        }),
+      )
+    })
+
+    it('startAis defaults the bandwidth to zero (the bridge default)', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      await useSdrStore().startAis(3)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/start',
+        expect.objectContaining({ body: JSON.stringify({ radio_id: 3, bw_hz: 0 }) }),
+      )
+    })
+
+    it('startAis records the decoding radio only once the backend accepts', async () => {
+      // A failed start must never reserve a radio that is not decoding.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      expect(await store.startAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('startAis records the radio on success', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      await store.startAis(7)
+      expect(store.aisRadioId).toBe(7)
+    })
+
+    it('startAis announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAis(3)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAis does not announce a settings change on a refused start', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAis(3)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAis returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().startAis(1)).toBe(false)
+    })
+
+    it('stopAis POSTs the radio and clears the decoding radio', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/ais/stop',
+        expect.objectContaining({ body: JSON.stringify({ radio_id: 7 }) }),
+      )
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('stopAis clears the radio even when the backend refuses', async () => {
+      // The operator asked for the radio back; leaving it reserved would lock
+      // it out of the SDR panel for a decode that is not running.
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('stopAis clears the radio even when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(await store.stopAis(7)).toBe(false)
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('hydrateAisFromDb adopts the backend-persisted radio', async () => {
+      // The backend resumes the persisted radio on startup, so the DB — not
+      // localStorage — is the truth about what is decoding after a reload.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ais_radio_id: 5 }) }),
+      )
+      const store = useSdrStore()
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('hydrateAisFromDb clears the radio when the DB has none', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(null)
+    })
+
+    it('hydrateAisFromDb keeps the cached value on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('hydrateAisFromDb keeps the cached value when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAisRadioId(5)
+      await store.hydrateAisFromDb()
+      expect(store.aisRadioId).toBe(5)
+    })
+
+    it('reserves an AIS radio in the SDR panel, like APRS and ADS-B', async () => {
+      // The AIS bridge holds and tunes the dongle to 162 MHz, so letting the
+      // panel retune it would silently break the Sea map.
+      const store = useSdrStore()
+      store.setAisRadioId(7)
+      expect(store.radioReservation(7)).toBe('AIS')
+      expect(store.radioReservation(8)).toBe(null)
+    })
+  })
+
+  describe('APRS decode', () => {
+    it('defaults aprsEnabled to false and decodeStreamKind to voice', () => {
+      const store = useSdrStore()
+      expect(store.aprsEnabled).toBe(false)
+      expect(store.decodeStreamKind).toBe('voice')
+    })
+
+    it('decodeDockOpen is true while either voice or APRS decode is on', () => {
+      const store = useSdrStore()
+      expect(store.decodeDockOpen).toBe(false)
+      store.setDigitalEnabled(true)
+      expect(store.decodeDockOpen).toBe(true)
+      store.setDigitalEnabled(false)
+      store.setAprsEnabled(true)
+      expect(store.decodeDockOpen).toBe(true)
+    })
+
+    it('reads aprsEnabled=true from localStorage on init', () => {
+      localStorage.setItem('sdrAprsEnabled', '1')
+      expect(useSdrStore().aprsEnabled).toBe(true)
+    })
+
+    it('falls back to false when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().aprsEnabled).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('setAprsEnabled updates state, flips decodeStreamKind, and persists', () => {
+      const store = useSdrStore()
+      store.setAprsEnabled(true)
+      expect(store.aprsEnabled).toBe(true)
+      expect(store.decodeStreamKind).toBe('aprs')
+      expect(localStorage.getItem('sdrAprsEnabled')).toBe('1')
+      store.setAprsEnabled(false)
+      expect(localStorage.getItem('sdrAprsEnabled')).toBe('0')
+      expect(store.decodeStreamKind).toBe('voice')
+    })
+
+    it('setAprsEnabled swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setAprsEnabled(true)).not.toThrow()
+      expect(store.aprsEnabled).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('startAprs POSTs the radio + channel and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      const result = await store.startAprs(7, 100, 15000)
+      expect(result).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/start',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ radio_id: 7, offset_hz: 100, bw_hz: 15000 }),
+        }),
+      )
+    })
+
+    it('startAprs defaults offset/bandwidth to zero', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      await useSdrStore().startAprs(3)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/start',
+        expect.objectContaining({
+          body: JSON.stringify({ radio_id: 3, offset_hz: 0, bw_hz: 0 }),
+        }),
+      )
+    })
+
+    it('startAprs announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAprs(3)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAprs does not announce a settings change on a refused start', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().startAprs(3)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('startAprs returns false on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      expect(await useSdrStore().startAprs(1)).toBe(false)
+    })
+
+    it('startAprs returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().startAprs(1)).toBe(false)
+    })
+
+    it('stopAprs POSTs the radio and returns ok', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) })
+      vi.stubGlobal('fetch', fetchMock)
+      expect(await useSdrStore().stopAprs(9)).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/aprs/stop',
+        expect.objectContaining({ method: 'POST', body: JSON.stringify({ radio_id: 9 }) }),
+      )
+    })
+
+    it('stopAprs announces a settings change once the backend accepts', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().stopAprs(9)
+      expect(listener).toHaveBeenCalledTimes(1)
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('stopAprs does not announce a settings change on a refused stop', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const listener = vi.fn()
+      document.addEventListener('sentinel:settings-changed', listener)
+      await useSdrStore().stopAprs(9)
+      expect(listener).not.toHaveBeenCalled()
+      document.removeEventListener('sentinel:settings-changed', listener)
+    })
+
+    it('stopAprs returns false on a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      expect(await useSdrStore().stopAprs(1)).toBe(false)
+    })
+
+    it('stopAprs returns false when the request throws', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      expect(await useSdrStore().stopAprs(1)).toBe(false)
+    })
+  })
+
+  // Which radio decodes APRS decides which radio's audio is muted, so the id has
+  // to be exact — a stale or missing one silences the wrong dongle.
+  describe('APRS decoding radio', () => {
+    it('defaults aprsRadioId to null', () => {
+      expect(useSdrStore().aprsRadioId).toBe(null)
+    })
+
+    it('reads aprsRadioId from localStorage on init', () => {
+      localStorage.setItem('sdrAprsRadioId', '4')
+      expect(useSdrStore().aprsRadioId).toBe(4)
+    })
+
+    it('ignores a non-numeric cached aprsRadioId', () => {
+      localStorage.setItem('sdrAprsRadioId', 'not-a-number')
+      expect(useSdrStore().aprsRadioId).toBe(null)
+    })
+
+    it('falls back to null when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().aprsRadioId).toBe(null)
+      spy.mockRestore()
+    })
+
+    it('setAprsRadioId persists the id and removes it when cleared', () => {
+      const store = useSdrStore()
+      store.setAprsRadioId(6)
+      expect(store.aprsRadioId).toBe(6)
+      expect(localStorage.getItem('sdrAprsRadioId')).toBe('6')
+      store.setAprsRadioId(null)
+      expect(store.aprsRadioId).toBe(null)
+      expect(localStorage.getItem('sdrAprsRadioId')).toBe(null)
+    })
+
+    it('setAprsRadioId swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setAprsRadioId(2)).not.toThrow()
+      expect(store.aprsRadioId).toBe(2)
+      spy.mockRestore()
+    })
+
+    it('startAprs records the decoding radio once the backend accepts it', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      await store.startAprs(7)
+      expect(store.aprsRadioId).toBe(7)
+    })
+
+    it('startAprs leaves the decoding radio unset when the backend refuses', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      await store.startAprs(7)
+      expect(store.aprsRadioId).toBe(null)
+    })
+
+    it('stopAprs clears the decoding radio', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAprsRadioId(7)
+      await store.stopAprs(7)
+      expect(store.aprsRadioId).toBe(null)
+    })
+
+    it('stopAprs clears the decoding radio even when the request fails', async () => {
+      // The user asked decode to stop — audio must not stay muted regardless.
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAprsRadioId(7)
+      await store.stopAprs(7)
+      expect(store.aprsRadioId).toBe(null)
+    })
+
+    it('hydrateAprsFromDb adopts the radio the backend resumed', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ aprs_radio_id: 5 }) }),
+      )
+      const store = useSdrStore()
+      await store.hydrateAprsFromDb()
+      expect(store.aprsRadioId).toBe(5)
+      expect(store.aprsEnabled).toBe(true)
+    })
+
+    it('hydrateAprsFromDb clears stale local state when nothing is decoding', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ aprs_radio_id: null }) }),
+      )
+      const store = useSdrStore()
+      store.setAprsRadioId(5)
+      store.setAprsEnabled(true)
+      await store.hydrateAprsFromDb()
+      expect(store.aprsRadioId).toBe(null)
+      expect(store.aprsEnabled).toBe(false)
+    })
+
+    it('hydrateAprsFromDb leaves state alone when it already agrees', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ aprs_radio_id: 5 }) }),
+      )
+      const store = useSdrStore()
+      store.setAprsRadioId(5)
+      store.setAprsEnabled(true)
+      await store.hydrateAprsFromDb()
+      expect(store.aprsRadioId).toBe(5)
+      expect(store.aprsEnabled).toBe(true)
+    })
+
+    it('hydrateAprsFromDb ignores a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setAprsRadioId(5)
+      await store.hydrateAprsFromDb()
+      expect(store.aprsRadioId).toBe(5)
+    })
+
+    it('hydrateAprsFromDb swallows fetch errors', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      store.setAprsRadioId(5)
+      await expect(store.hydrateAprsFromDb()).resolves.toBeUndefined()
+      expect(store.aprsRadioId).toBe(5)
+    })
+  })
+
+  describe('mute audio while decoding', () => {
+    it('defaults to on so existing installs keep muting', () => {
+      expect(useSdrStore().muteAudioWhileDecoding).toBe(true)
+    })
+
+    it('reads an explicit off from localStorage on init', () => {
+      localStorage.setItem('sdrMuteAudioWhileDecoding', '0')
+      expect(useSdrStore().muteAudioWhileDecoding).toBe(false)
+    })
+
+    it('falls back to on when localStorage throws on read', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('blocked')
+      })
+      expect(useSdrStore().muteAudioWhileDecoding).toBe(true)
+      spy.mockRestore()
+    })
+
+    it('setMuteAudioWhileDecoding updates state and persists', () => {
+      const store = useSdrStore()
+      store.setMuteAudioWhileDecoding(false)
+      expect(store.muteAudioWhileDecoding).toBe(false)
+      expect(localStorage.getItem('sdrMuteAudioWhileDecoding')).toBe('0')
+      store.setMuteAudioWhileDecoding(true)
+      expect(localStorage.getItem('sdrMuteAudioWhileDecoding')).toBe('1')
+    })
+
+    it('setMuteAudioWhileDecoding swallows a localStorage write error', () => {
+      const store = useSdrStore()
+      const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+        throw new Error('full')
+      })
+      expect(() => store.setMuteAudioWhileDecoding(false)).not.toThrow()
+      expect(store.muteAudioWhileDecoding).toBe(false)
+      spy.mockRestore()
+    })
+
+    it('hydrateMuteAudioWhileDecodingFromDb applies the stored value', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue({ ok: true, json: async () => ({ muteAudioWhileDecoding: false }) }),
+      )
+      const store = useSdrStore()
+      await store.hydrateMuteAudioWhileDecodingFromDb()
+      expect(store.muteAudioWhileDecoding).toBe(false)
+    })
+
+    it('hydrateMuteAudioWhileDecodingFromDb ignores a non-boolean value', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi
+          .fn()
+          .mockResolvedValue({ ok: true, json: async () => ({ muteAudioWhileDecoding: 'no' }) }),
+      )
+      const store = useSdrStore()
+      await store.hydrateMuteAudioWhileDecodingFromDb()
+      expect(store.muteAudioWhileDecoding).toBe(true)
+    })
+
+    it('hydrateMuteAudioWhileDecodingFromDb ignores a non-ok response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.setMuteAudioWhileDecoding(false)
+      await store.hydrateMuteAudioWhileDecodingFromDb()
+      expect(store.muteAudioWhileDecoding).toBe(false)
+    })
+
+    it('hydrateMuteAudioWhileDecodingFromDb swallows fetch errors', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      const store = useSdrStore()
+      await expect(store.hydrateMuteAudioWhileDecodingFromDb()).resolves.toBeUndefined()
+      expect(store.muteAudioWhileDecoding).toBe(true)
+    })
+  })
+
+  // ── favourites ────────────────────────────────────────────────────────────────
+  describe('favouriteFrequencies / setFrequencyFavourite', () => {
+    function makeFrequency(overrides: Partial<SdrStoredFrequency> = {}): SdrStoredFrequency {
+      return {
+        id: 1,
+        group_id: null,
+        label: 'Tower',
+        frequency_hz: 118_300_000,
+        mode: 'AM',
+        favourite: false,
+        ...overrides,
+      }
+    }
+
+    it('exposes only the frequencies flagged as favourite', () => {
+      const store = useSdrStore()
+      store.frequencies = [
+        makeFrequency({ id: 1, favourite: true }),
+        makeFrequency({ id: 2, favourite: false }),
+        makeFrequency({ id: 3, favourite: true }),
+      ]
+      expect(store.favouriteFrequencies.map((freq) => freq.id)).toEqual([1, 3])
+    })
+
+    it('returns an empty list when nothing is favourited', () => {
+      const store = useSdrStore()
+      store.frequencies = [makeFrequency({ id: 1, favourite: false })]
+      expect(store.favouriteFrequencies).toEqual([])
+    })
+
+    it('PATCHes the favourite flag and replaces the local row from the server response', async () => {
+      const updated = makeFrequency({ id: 1, favourite: true, label: 'Tower Updated' })
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => updated })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.frequencies = [makeFrequency({ id: 1, favourite: false })]
+      await store.setFrequencyFavourite(1, true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/sdr/frequencies/1',
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ favourite: true }),
+        }),
+      )
+      expect(store.frequencies[0]).toEqual(updated)
+    })
+
+    it('throws on a non-OK response and leaves the local row untouched', async () => {
+      const original = makeFrequency({ id: 1, favourite: false })
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      store.frequencies = [original]
+      await expect(store.setFrequencyFavourite(1, true)).rejects.toThrow(
+        'Failed to set favourite (status 500)',
+      )
+      expect(store.frequencies[0]).toEqual(original)
+    })
+
+    it('no-ops locally when the updated id is not present in the current list', async () => {
+      const updated = makeFrequency({ id: 999, favourite: true })
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => updated }))
+      const store = useSdrStore()
+      const original = [makeFrequency({ id: 1, favourite: false })]
+      store.frequencies = original
+      await store.setFrequencyFavourite(999, true)
+      // The id from the response isn't in the list, so nothing is replaced.
+      expect(store.frequencies).toEqual(original)
+    })
+  })
+
+  // ── Saving frequencies from outside the SDR panel (the Land pane's repeaters)
+  describe('ensureFrequencyGroup', () => {
+    const REPEATERS_GROUP = {
+      id: 7,
+      name: 'Repeaters',
+      slug: 'repeaters',
+      color: '#c8ff00',
+      sort_order: 0,
+    }
+
+    it('loads the groups first when the store has none, and reuses a matching group', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [REPEATERS_GROUP] })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await expect(store.ensureFrequencyGroup('Repeaters')).resolves.toBe(7)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/groups')
+      // No POST: the existing group was reused.
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      ['a differing case', 'repeaters'],
+      ['surrounding spaces', '  Repeaters  '],
+      ['a singular name', 'Repeater'],
+    ])('reuses an existing group despite %s', async (_description, requestedName) => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+      const store = useSdrStore()
+      store.groups = [REPEATERS_GROUP]
+      await expect(store.ensureFrequencyGroup(requestedName)).resolves.toBe(7)
+    })
+
+    it('creates the group in the SDR accent colour after the existing ones', async () => {
+      const created = { ...REPEATERS_GROUP, id: 12, sort_order: 2 }
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST') {
+          return Promise.resolve({ ok: true, json: async () => created })
+        }
+        return Promise.resolve({ ok: true, json: async () => [created] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.groups = [
+        { id: 1, name: 'Airband', slug: 'airband', color: '#fff', sort_order: 0 },
+        { id: 2, name: 'Marine', slug: 'marine', color: '#fff', sort_order: 1 },
+      ]
+      await expect(store.ensureFrequencyGroup('Repeaters')).resolves.toBe(12)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/groups', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'Repeaters', color: '#c8ff00', sort_order: 2 }),
+      })
+      // The list is reloaded so the manager shows the new group.
+      expect(store.groups).toEqual([created])
+    })
+
+    it('rejects when creating the group fails', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 503, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      store.groups = [{ id: 1, name: 'Airband', slug: 'airband', color: '#fff', sort_order: 0 }]
+      await expect(store.ensureFrequencyGroup('Repeaters')).rejects.toThrow(
+        'Failed to create frequency group (status 503)',
+      )
+    })
+  })
+
+  describe('saveFrequency', () => {
+    const savedRow: SdrStoredFrequency = {
+      id: 42,
+      group_id: null,
+      label: 'GB3NB 2M OUT',
+      frequency_hz: 145_725_000,
+      mode: 'NFM',
+      favourite: false,
+    }
+
+    it('POSTs the frequency with the manager defaults and reloads the list', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST')
+          return Promise.resolve({ ok: true, json: async () => savedRow })
+        return Promise.resolve({ ok: true, json: async () => [savedRow] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await expect(
+        store.saveFrequency({
+          label: 'GB3NB 2M OUT',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          notes: 'NORWICH',
+          group_ids: [7],
+        }),
+      ).resolves.toEqual(savedRow)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: 'GB3NB 2M OUT',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          scannable: true,
+          favourite: false,
+          group_ids: [7],
+          notes: 'NORWICH',
+        }),
+      })
+      expect(store.frequencies).toEqual([savedRow])
+    })
+
+    it('defaults the notes and group list when the caller omits them', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'POST')
+          return Promise.resolve({ ok: true, json: async () => savedRow })
+        return Promise.resolve({ ok: true, json: async () => [savedRow] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      await store.saveFrequency({ label: 'GB3NB 2M OUT', frequency_hz: 145_725_000, mode: 'NFM' })
+      const [, init] = fetchMock.mock.calls[0]
+      expect(JSON.parse((init as RequestInit).body as string)).toMatchObject({
+        group_ids: [],
+        notes: '',
+      })
+    })
+
+    it('rejects on a non-OK response and leaves the list alone', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 422, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      await expect(
+        store.saveFrequency({ label: 'Bad', frequency_hz: 1, mode: 'NFM' }),
+      ).rejects.toThrow('Failed to save frequency (status 422)')
+      expect(store.frequencies).toEqual([])
+    })
+  })
+
+  describe('hasStoredFrequency', () => {
+    it('is true only for an exact Hz match', () => {
+      const store = useSdrStore()
+      store.frequencies = [
+        {
+          id: 1,
+          group_id: null,
+          label: 'GB3NB',
+          frequency_hz: 145_725_000,
+          mode: 'NFM',
+          favourite: false,
+        },
+      ]
+      expect(store.hasStoredFrequency(145_725_000)).toBe(true)
+      expect(store.hasStoredFrequency(145_725_001)).toBe(false)
+    })
+
+    it('is false when nothing is stored', () => {
+      expect(useSdrStore().hasStoredFrequency(145_725_000)).toBe(false)
+    })
+  })
+
+  describe('removeStoredFrequency', () => {
+    function makeRow(id: number, frequencyHz: number): SdrStoredFrequency {
+      return {
+        id,
+        group_id: null,
+        label: `Row ${id}`,
+        frequency_hz: frequencyHz,
+        mode: 'NFM',
+        favourite: false,
+      }
+    }
+
+    it('DELETEs every row at that frequency and reloads the list', async () => {
+      const fetchMock = vi.fn().mockImplementation((url: string, init?: RequestInit) => {
+        if (init?.method === 'DELETE') return Promise.resolve({ ok: true, json: async () => ({}) })
+        return Promise.resolve({ ok: true, json: async () => [] })
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.frequencies = [
+        makeRow(1, 145_725_000),
+        makeRow(2, 433_000_000),
+        makeRow(3, 145_725_000),
+      ]
+      await store.removeStoredFrequency(145_725_000)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies/1', { method: 'DELETE' })
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies/3', { method: 'DELETE' })
+      expect(fetchMock).not.toHaveBeenCalledWith('/api/sdr/frequencies/2', { method: 'DELETE' })
+      expect(store.frequencies).toEqual([])
+    })
+
+    it('reloads without deleting anything when no row matches', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => [] })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSdrStore()
+      store.frequencies = [makeRow(1, 433_000_000)]
+      await store.removeStoredFrequency(145_725_000)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(fetchMock).toHaveBeenCalledWith('/api/sdr/frequencies')
+    })
+
+    it('rejects on a non-OK delete', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: false, status: 404, json: async () => ({}) }),
+      )
+      const store = useSdrStore()
+      store.frequencies = [makeRow(1, 145_725_000)]
+      await expect(store.removeStoredFrequency(145_725_000)).rejects.toThrow(
+        'Failed to remove frequency (status 404)',
+      )
+    })
+  })
+
+  // ── Domain reservations (AIR's ADS-B receiver, LAND's APRS receiver) ───────
+  // A reserved radio is locked out of the SDR panel, so getting this wrong
+  // either strands a dongle the operator can still use, or hands the panel a
+  // receiver another domain is depending on.
+  describe('radio reservations', () => {
+    const mirroredRadio = {
+      id: 3,
+      name: 'Attic',
+      host: '10.0.0.5',
+      port: 1234,
+      enabled: true,
+      sentry_host_id: 7,
+      sentry_device_id: 'serial:97710286',
+    }
+
+    it('reports no reservation on a free radio', () => {
+      const store = useSdrStore()
+      store.radios = [mirroredRadio]
+      expect(store.radioReservation(3)).toBeNull()
+    })
+
+    it('reserves the radio decoding APRS', () => {
+      const store = useSdrStore()
+      store.setAprsRadioId(3)
+      expect(store.radioReservation(3)).toBe('APRS')
+      expect(store.radioReservation(4)).toBeNull()
+    })
+
+    it('reserves the radio mirroring the ADS-B source device', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
+          json: async () => ({
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
+          }),
+        }),
+      )
+      const store = useSdrStore()
+      store.radios = [mirroredRadio]
+      await store.hydrateAdsbSourceFromDb()
+
+      // Read from the central settings, never from AIR's own API.
+      expect(fetch).toHaveBeenCalledWith('/api/settings/air')
+      expect(store.adsbSourceKey).toBe('7:serial:97710286')
+      expect(store.radioReservation(3)).toBe('ADS-B')
+    })
+
+    it('does not reserve a radio mirroring a different device on the same host', async () => {
+      // The device id is what identifies the dongle; two on one Pi must not be
+      // confused for each other.
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'usb:1-1.2' },
+          }),
+        }),
+      )
+      const store = useSdrStore()
+      store.radios = [mirroredRadio]
+      await store.hydrateAdsbSourceFromDb()
+
+      expect(store.radioReservation(3)).toBeNull()
+    })
+
+    it('never reserves a hand-entered radio, which mirrors no device', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
+          json: async () => ({
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
+          }),
+        }),
+      )
+      const store = useSdrStore()
+      store.radios = [{ ...mirroredRadio, sentry_host_id: null, sentry_device_id: null }]
+      await store.hydrateAdsbSourceFromDb()
+
+      expect(store.radioReservation(3)).toBeNull()
+    })
+
+    it('reserves nothing for a radio id the list has never heard of', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          // The central `air` settings namespace, where AIR's receiver is stored.
+          json: async () => ({
+            offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 'serial:97710286' },
+          }),
+        }),
+      )
+      const store = useSdrStore()
+      store.radios = []
+      await store.hydrateAdsbSourceFromDb()
+
+      expect(store.radioReservation(3)).toBeNull()
+    })
+
+    it.each([
+      ['an unset source', { offgridSdrSource: null }],
+      ['a missing key', {}],
+      ['a half-written source', { offgridSdrSource: { sentry_host_id: 7, sentry_device_id: '' } }],
+      [
+        'a source with no host',
+        { offgridSdrSource: { sentry_host_id: null, sentry_device_id: 'x' } },
+      ],
+      [
+        'a non-integer host id',
+        { offgridSdrSource: { sentry_host_id: '7', sentry_device_id: 'x' } },
+      ],
+      ['a non-string device id', { offgridSdrSource: { sentry_host_id: 7, sentry_device_id: 9 } }],
+      ['an unreachable backend', null],
+    ])('holds no ADS-B reservation for %s', async (_label, payload) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: payload !== null, json: async () => payload }),
+      )
+      const store = useSdrStore()
+      store.radios = [mirroredRadio]
+      await store.hydrateAdsbSourceFromDb()
+
+      expect(store.adsbSourceKey).toBeNull()
+      expect(store.radioReservation(3)).toBeNull()
+    })
+  })
+})

@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import DownloadProgress from './DownloadProgress.vue'
-import type { OfflineRegionPhase, OfflineRegionStatus } from '@/services/offlineMapsApi'
+import type {
+  OfflineRegionPhase,
+  OfflineRegionStatus,
+} from '@sentinel/shell-api/services/offlineMapsApi'
 
 function mountProgress(props: {
   status?: OfflineRegionStatus
