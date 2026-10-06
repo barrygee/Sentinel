@@ -3,7 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { defineComponent, h } from 'vue'
 import { axe } from 'jest-axe'
-import { OfflineMapsApiError } from '@/services/offlineMapsApi'
+import { OfflineMapsApiError } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const apiMock = vi.hoisted(() => ({
   getOfflineMapStatus: vi.fn(),
@@ -13,8 +13,8 @@ const apiMock = vi.hoisted(() => ({
   getOfflineRegion: vi.fn(),
   estimateOfflineArea: vi.fn(),
 }))
-vi.mock('@/services/offlineMapsApi', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/services/offlineMapsApi')>()),
+vi.mock('@sentinel/shell-api/services/offlineMapsApi', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@sentinel/shell-api/services/offlineMapsApi')>()),
   getOfflineMapStatus: apiMock.getOfflineMapStatus,
   listOfflineRegions: apiMock.listOfflineRegions,
   createOfflineRegion: apiMock.createOfflineRegion,
@@ -49,8 +49,8 @@ vi.mock('./OfflineAreaMap.vue', () => ({
 }))
 
 import OfflineMapsSettings from './OfflineMapsSettings.vue'
-import { useAppStore } from '@/stores/app'
-import { useOfflineMapsStore } from '@/stores/offlineMaps'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 
 const STATUS = {
   basemap_available: true,

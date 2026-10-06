@@ -1,5 +1,5 @@
 import { onBeforeUnmount } from 'vue'
-import { getConfigFileStatus } from '@/services/settingsApi'
+import { getConfigFileStatus } from '@sentinel/shell-api/services/settingsApi'
 
 /** How often the backend is asked whether the config file was edited. */
 export const CONFIG_FILE_POLL_INTERVAL_MS = 2000

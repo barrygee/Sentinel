@@ -11,14 +11,14 @@ import { axe } from 'jest-axe'
 import SettingsPanel from './SettingsPanel.vue'
 // The panel lists whatever is registered: core's 'app' section comes with it;
 // register the domain sections' settings as each section.ts does in the app.
-import '@/components/air/settings'
-import '@/components/space/settings'
-import '@/components/sea/settings'
-import '@/components/land/settings'
-import '@/components/sdr/settings'
+import '@sentinel/section-air/settings'
+import '@sentinel/section-space/settings'
+import '@sentinel/section-sea/settings'
+import '@sentinel/section-land/settings'
+import '@sentinel/section-sdr/settings'
 import SettingRow from './settings/SettingRow.vue'
-import { useSettingsStore } from '@/stores/settings'
-import { useAppStore } from '@/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 // SettingRow and its many control children are covered by their own specs; stub
 // it so this spec exercises only SettingsPanel's own section/search/commit logic.

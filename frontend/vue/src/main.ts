@@ -18,17 +18,17 @@ import './assets/a11y.css'
 
 import App from './App.vue'
 import router from './router'
-import { useAppStore } from './stores/app'
-import { APP_MODE_STORAGE_KEY, asSourceMode } from './utils/sourceMode'
-import { useBasemapStore } from './stores/basemap'
-import { useThemeStore } from './stores/theme'
-import { useSettingsStore } from './stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { APP_MODE_STORAGE_KEY, asSourceMode } from '@sentinel/shell-api/utils/sourceMode'
+import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
 // Registers every section (routes, nav, capabilities, settings hydrators…)
 // before anything below reads the registries.
 import './shell/sections'
-import { runSettingsHydrators } from './shell/settingsHydration'
-import { getEnabledSectionIds } from './shell/sectionRegistry'
+import { runSettingsHydrators } from '@sentinel/shell-api/shell/settingsHydration'
+import { getEnabledSectionIds } from '@sentinel/shell-api/shell/sectionRegistry'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 

@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import TrackingPanel from './TrackingPanel.vue'
-import { useTrackingStore, type TrackingField } from '@/stores/tracking'
+import { useTrackingStore, type TrackingField } from '@sentinel/shell-api/stores/tracking'
 
 function fieldsWithEverything(): TrackingField[] {
   return [

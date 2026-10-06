@@ -273,13 +273,20 @@ The **`radioSites` capability** comes from the `radio` remote and feeds the `Sen
 zones and range-ring origin. The last-known sites are cached, so zones don't flap while the hub restarts.
 
 Shared packages (host-provided singletons under federation, npm workspace packages in the repo):
-- **`@sentinel/ui`:** `components/base/*`, icons and overlays.
-- **`@sentinel/map-kit`:**
+- **`@sentinel/ui`** (`platform/web/ui`, done in P4.1): the `Base*` primitives, `IconRail`/`IconRailAccordion`, the
+  generic icons and the DOM composables (`useDisclosure`, `useDocumentEvent`, `useWindowEvent`, `useTeleportedMenu`,
+  `useRadioGroupKeyboard`). The settings-bound `BaseToggleSetting`/`BaseNumberSetting` stay with the settings code
+  (they persist through the settings API), and overlays go with `shell-api`.
+- **`@sentinel/web-config`** (`platform/web/config`): the shared tsconfig base, ESLint, Prettier, Vitest config and
+  test setup, used by the SPA and every package.
+- **`@sentinel/map-kit`** (`platform/web/map-kit`, done in P4.3; also holds `UserLocationMarker`, `map-cluster`,
+  `map-label`, `useRangeRingOrigin` and `useUserLocation`):
   - `MapLibreMap` and `SentinelControlBase`
   - the shared controls: names, roads, terrain, sentry-sites, range-rings (incl. `LandRangeRingsControl`) and zoom
   - `adsbSprites`
   - `useOfflineTierRefresh`, `useBasemapLayerSync`, `useMapContextMenu` and the style utils
-- **`@sentinel/shell-api`:**
+- **`@sentinel/shell-api`** (`platform/web/shell-api`, done in P4.2 — `shell/sections.ts`, the composition root, stays
+  in the SPA):
   - the registries
   - the core stores: `app`, `settings`, `theme`, `basemap`, `notifications`, `offlineMaps`, `sentrySites`, `tracking`
 

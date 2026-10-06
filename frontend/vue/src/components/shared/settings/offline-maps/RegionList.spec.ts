@@ -3,7 +3,7 @@ import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import { nextTick } from 'vue'
 import RegionList from './RegionList.vue'
-import type { OfflineRegion } from '@/services/offlineMapsApi'
+import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 function region(overrides: Partial<OfflineRegion>): OfflineRegion {
   return {

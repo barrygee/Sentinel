@@ -20,7 +20,7 @@
 </template>
 
 <script setup lang="ts">
-import type { SettingItem } from '@/types/settings'
+import type { SettingItem } from '@sentinel/shell-api/types/settings'
 
 const props = defineProps<{
   item: SettingItem

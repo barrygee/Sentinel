@@ -3,7 +3,7 @@ import { enableAutoUnmount, mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
-import { useSettingsStore } from '@/stores/settings'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 // Every mount registers a document listener; unmount so earlier tests' instances
 // cannot answer a later test's event.

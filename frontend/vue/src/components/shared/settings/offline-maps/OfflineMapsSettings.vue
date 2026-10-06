@@ -101,10 +101,14 @@
  * single source of truth for the draft/regions/status.
  */
 import { computed, onMounted, ref } from 'vue'
-import { useAppStore } from '@/stores/app'
-import { OFFLINE_MAX_ZOOM, OFFLINE_MIN_ZOOM, useOfflineMapsStore } from '@/stores/offlineMaps'
-import { OFFLINE_DISK_MARGIN_RATIO } from '@/utils/offlineMapEstimate'
-import BaseButton from '@/components/base/BaseButton.vue'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import {
+  OFFLINE_MAX_ZOOM,
+  OFFLINE_MIN_ZOOM,
+  useOfflineMapsStore,
+} from '@sentinel/shell-api/stores/offlineMaps'
+import { OFFLINE_DISK_MARGIN_RATIO } from '@sentinel/shell-api/utils/offlineMapEstimate'
+import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import OfflineAreaMap, { type OfflineRegionOutline } from './OfflineAreaMap.vue'
 import AreaSelector from './AreaSelector.vue'
 import BboxFields from './BboxFields.vue'
@@ -114,7 +118,7 @@ import DownloadEstimate from './DownloadEstimate.vue'
 import RegionList from './RegionList.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 import { isBboxValid } from './bboxValidation'
-import type { OfflineRegion } from '@/services/offlineMapsApi'
+import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const appStore = useAppStore()
 const store = useOfflineMapsStore()
