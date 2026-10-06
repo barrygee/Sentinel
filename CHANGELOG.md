@@ -197,6 +197,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Load sections as Module Federation remotes (#426)
 - Late-mount the SDR engine and check sections share the host Pinia
 - Plain-dot known-frequency markers with hover names
+- Pulse REC yellow with a pause icon while waiting on squelch
 
 ### Bug Fixes
 
@@ -500,6 +501,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle
 - Enforce section boundaries with a local ESLint rule
 - Make the repo root an npm workspaces root
+- Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
 - Rebuild SPA bundle
@@ -1409,6 +1411,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #425 from barrygee/feat/range-ring-distance-at-top
 - Merge pull request #427 from barrygee/feat/p4-7-engine-late-mount
 - Merge pull request #428 from barrygee/style/sdr-known-marker-dot-only
+- Merge remote-tracking branch 'origin/main' into style/sdr-rec-waiting-amber
+- Merge pull request #429 from barrygee/style/sdr-rec-waiting-amber
 
 ### Refactoring
 
@@ -1567,6 +1571,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Expect per-ring distance labels in the range-ring base spec
 - Snapshot the SDR panel's resolved cascade to guard remote CSS order
 - Cover known-frequency hover names and dot alignment
+- Cover the REC button's waiting state
 
 ### Build System
 
