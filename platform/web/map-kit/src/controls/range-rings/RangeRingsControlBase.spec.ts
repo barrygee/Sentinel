@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { RangeRingsControlBase } from './RangeRingsControlBase'
+import { buildRingTopsGeoJSON } from '../../utils/rangeRings'
 import type { ResolvedRingOrigin } from '../../composables/useRangeRingOrigin'
 
 const LAYER = 'test-rings'
@@ -106,6 +107,7 @@ describe('RangeRingsControlBase', () => {
       control.setOrigin(origin())
       expect(map._state.sources.get(LAYER)!.setData).not.toHaveBeenCalled()
       expect(map._state.sources.get(ORIGIN_LAYER)!.setData).not.toHaveBeenCalled()
+      expect(map._state.sources.get(DISTANCE_LAYER)!.setData).not.toHaveBeenCalled()
     })
 
     it.each([
@@ -119,12 +121,74 @@ describe('RangeRingsControlBase', () => {
       control.setOrigin(origin(change))
       expect(map._state.sources.get(LAYER)!.setData).toHaveBeenCalledTimes(1)
       expect(map._state.sources.get(ORIGIN_LAYER)!.setData).toHaveBeenCalledTimes(1)
+      expect(map._state.sources.get(DISTANCE_LAYER)!.setData).toHaveBeenCalledTimes(1)
+    })
+
+    it('moves the distance labels to the tops of the re-centred rings', () => {
+      const { control, map } = addedControl()
+      control.setOrigin(origin({ longitude: -3, latitude: 55 }))
+      const [moved] = map._state.sources.get(DISTANCE_LAYER)!.setData.mock.calls[0]!
+      expect(moved).toEqual(buildRingTopsGeoJSON(-3, 55))
+    })
+
+    it('clears the distance labels with the rings when the origin goes', () => {
+      const { control, map } = addedControl()
+      control.setOrigin(null)
+      expect(map._state.sources.get(DISTANCE_LAYER)!.setData).toHaveBeenCalledWith({
+        type: 'FeatureCollection',
+        features: [],
+      })
+      expect(map._state.visibility[DISTANCE_LAYER]).toBe('none')
     })
 
     it('flags a stale position in the origin label, which no longer carries a distance', () => {
       const { control, map } = addedControl()
       control.setOrigin(origin({ degraded: true }))
       expect(map._state.textField[LABEL_LAYER]).toBe('SENTRY ONE · OFFLINE')
+    })
+  })
+
+  describe('ring distance labels', () => {
+    it('labels each ring once, from its own source of ring-top points', () => {
+      const { map } = addedControl()
+      const layer = map._state.layers.get(DISTANCE_LAYER) as FakeLayer & { source: string }
+      expect(layer.source).toBe(DISTANCE_LAYER)
+      expect(map._state.sources.get(DISTANCE_LAYER)!.data).toEqual(buildRingTopsGeoJSON(-2, 54))
+      expect(layer.layout).toMatchObject({
+        'symbol-placement': 'point',
+        'text-field': ['concat', ['to-string', ['get', 'dist']], ' NM'],
+      })
+    })
+
+    it('keeps the text upright and level at any zoom, pitch or bearing', () => {
+      const { map } = addedControl()
+      expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
+        'text-rotation-alignment': 'viewport',
+        'text-pitch-alignment': 'viewport',
+      })
+    })
+
+    it('sits clear above the top of the ring, never dropped by label collisions', () => {
+      const { map } = addedControl()
+      expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
+        'text-anchor': 'bottom',
+        'text-offset': [0, -0.8],
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      })
+    })
+
+    it('shows with the rings around your own position, where the origin marks stay hidden', () => {
+      const { map } = addedControl(origin({ kind: 'user' }))
+      expect(map._state.visibility[DISTANCE_LAYER]).toBe('visible')
+      expect(map._state.visibility[LABEL_LAYER]).toBe('none')
+    })
+
+    it('hides with the rings when the operator toggles them off', () => {
+      const { control, map } = addedControl()
+      control.handleClickPublic()
+      expect(map._state.visibility[LAYER]).toBe('none')
+      expect(map._state.visibility[DISTANCE_LAYER]).toBe('none')
     })
   })
 
@@ -136,7 +200,11 @@ describe('RangeRingsControlBase', () => {
         'rgba(255,255,255,0.65)',
       )
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#000000')
-      expect(map._state.layers.get(DISTANCE_LAYER)!.paint!['text-color']).toBe('#ffffff')
+      expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
+        'text-color': 'rgba(255,255,255,0.85)',
+        'text-halo-color': 'rgba(0,0,0,0.3)',
+        'text-halo-width': 0.5,
+      })
     })
 
     it('switches to black with a white halo on the bright basemap', () => {
@@ -146,7 +214,11 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.layers.get(ORIGIN_LAYER)!.paint!['circle-stroke-color']).toBe('#000000')
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-color']).toBe('#000000')
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#ffffff')
-      expect(map._state.layers.get(DISTANCE_LAYER)!.paint!['text-color']).toBe('#1b1d22')
+      expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
+        'text-color': 'rgba(27,29,34,0.85)',
+        'text-halo-color': 'rgba(255,255,255,0.35)',
+        'text-halo-width': 0.5,
+      })
     })
   })
 
@@ -157,7 +229,7 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.removedLayers.sort()).toEqual(
         [LAYER, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER, DISTANCE_LAYER].sort(),
       )
-      expect(map._state.removedSources.sort()).toEqual([LAYER, ORIGIN_LAYER].sort())
+      expect(map._state.removedSources.sort()).toEqual([LAYER, ORIGIN_LAYER, DISTANCE_LAYER].sort())
       expect([...map._state.layers.keys()]).toHaveLength(5)
     })
   })

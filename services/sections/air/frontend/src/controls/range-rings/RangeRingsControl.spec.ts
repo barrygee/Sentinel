@@ -149,6 +149,10 @@ describe('RangeRingsControlBase.onInit', () => {
       ORIGIN_LAYER,
       expect.objectContaining({ type: 'geojson' }),
     )
+    expect(map.addSource).toHaveBeenCalledWith(
+      DISTANCE_LAYER,
+      expect.objectContaining({ type: 'geojson' }),
+    )
     expect([...map.layers]).toEqual([
       LAYER_ID,
       ORIGIN_LAYER,
@@ -182,7 +186,11 @@ describe('RangeRingsControlBase.onInit', () => {
 
     expect(map.addSource).not.toHaveBeenCalled()
     map.styleLoadHandlers[0]!()
-    expect(map.addSource).toHaveBeenCalledTimes(2)
+    expect(map.addSource.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+      LAYER_ID,
+      ORIGIN_LAYER,
+      DISTANCE_LAYER,
+    ])
   })
 
   it('builds empty sources when no origin resolves', () => {
@@ -199,6 +207,7 @@ describe('RangeRingsControlBase.onInit', () => {
     for (const id of [LAYER_ID, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER]) map.layers.add(id)
     map.sources.add(LAYER_ID)
     map.sources.add(ORIGIN_LAYER)
+    map.sources.add(DISTANCE_LAYER)
 
     control.onAdd(map.map)
 
@@ -206,6 +215,7 @@ describe('RangeRingsControlBase.onInit', () => {
     expect(map.map.removeLayer).toHaveBeenCalledWith(ORIGIN_DOT_LAYER)
     expect(map.map.removeSource).toHaveBeenCalledWith(LAYER_ID)
     expect(map.map.removeSource).toHaveBeenCalledWith(ORIGIN_LAYER)
+    expect(map.map.removeSource).toHaveBeenCalledWith(DISTANCE_LAYER)
   })
 
   it('filters the label to the outermost ring only', () => {
