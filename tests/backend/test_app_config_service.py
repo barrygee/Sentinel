@@ -225,10 +225,57 @@ class TestApplyConfig:
         async def fake_reconcile(_db, previous, following):
             calls.append((previous, following))
 
-        monkeypatch.setattr("backend.radio_hub.routers.decode.reconcile_ais_decode", fake_reconcile)
+        monkeypatch.setattr(
+            "backend.radio_hub.routers.decode.reconcile_ais_decode", fake_reconcile
+        )
         async with session_factory() as session:
             await apply_config(session, {"sdr": {"ais_radio_id": 4}})
         assert calls == [(None, 4)]
+
+
+class TestRetiredColourMapTheme:
+    """COLOUR was renamed LIGHT; an imported "colour" — an older export, or the
+    live config file written before the rename — means today's LIGHT map."""
+
+    async def test_a_colour_map_theme_becomes_light(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"app": {"mapTheme": "colour"}})
+        assert await _value(session_factory, "app", "mapTheme") == "light"
+
+    async def test_the_config_file_cannot_undo_the_startup_migration(
+        self, session_factory, monkeypatch
+    ):
+        # The sequence seen live: startup rewrites the stored "colour" to "light",
+        # then the config-file sync re-imports the file, which still says "colour".
+        monkeypatch.setattr(database, "AsyncSessionLocal", session_factory)
+        await _add(session_factory, [("app", "mapTheme", "colour")])
+        await database.seed_default_settings()
+        assert await _value(session_factory, "app", "mapTheme") == "light"
+        async with session_factory() as session:
+            await apply_config(
+                session, {"app": {"mapTheme": "colour", "connectivityMode": "online"}}
+            )
+        assert await _value(session_factory, "app", "mapTheme") == "light"
+
+    @pytest.mark.parametrize("theme", ["dark", "light"])
+    async def test_other_themes_are_imported_as_they_are(self, session_factory, theme):
+        async with session_factory() as session:
+            await apply_config(session, {"app": {"mapTheme": theme}})
+        assert await _value(session_factory, "app", "mapTheme") == theme
+
+    async def test_a_document_without_an_app_block_is_fine(self, session_factory):
+        await _add(session_factory, [("app", "mapTheme", "dark")])
+        async with session_factory() as session:
+            await apply_config(session, {"air": {"enabled": True}})
+        assert await _value(session_factory, "app", "mapTheme") == "dark"
+
+    async def test_a_document_without_a_map_theme_leaves_it_alone(
+        self, session_factory
+    ):
+        await _add(session_factory, [("app", "mapTheme", "dark")])
+        async with session_factory() as session:
+            await apply_config(session, {"app": {"connectivityMode": "online"}})
+        assert await _value(session_factory, "app", "mapTheme") == "dark"
 
 
 class TestRetiredAutoMode:

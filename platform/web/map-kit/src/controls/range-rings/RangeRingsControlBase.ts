@@ -1,6 +1,10 @@
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
-import { buildRingsGeoJSON, RING_DISTANCES_NM } from '@sentinel/map-kit/utils/rangeRings'
+import {
+  buildRingsGeoJSON,
+  buildRingTopsGeoJSON,
+  RING_DISTANCES_NM,
+} from '@sentinel/map-kit/utils/rangeRings'
 import type { ResolvedRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 import { isBrightBasemap, overlayAccentColor } from '@sentinel/map-kit/utils/mapTheme'
 
@@ -22,6 +26,17 @@ import { isBrightBasemap, overlayAccentColor } from '@sentinel/map-kit/utils/map
 export abstract class RangeRingsControlBase extends SentinelControlBase {
   /** Stroke of the rings and origin crosshair on the dark basemap. */
   private static readonly DARK_STROKE = 'rgba(255,255,255,0.40)'
+
+  /**
+   * Ring distance labels: --map-overlay-ink at slightly reduced strength (light
+   * on the dark map, dark on the light one) with only a faint, thin halo of the
+   * basemap's own tone, so the text reads cleanly over roads and coastlines
+   * without a visible backing behind it.
+   */
+  private static readonly DARK_MAP_DISTANCE_INK = 'rgba(255,255,255,0.85)'
+  private static readonly DARK_MAP_DISTANCE_HALO = 'rgba(0,0,0,0.3)'
+  private static readonly LIGHT_MAP_DISTANCE_INK = 'rgba(27,29,34,0.85)'
+  private static readonly LIGHT_MAP_DISTANCE_HALO = 'rgba(255,255,255,0.35)'
 
   /** Whether the operator has the rings switched on for this map. */
   ringsVisible: boolean
@@ -53,6 +68,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
   }
   private get labelLayerId(): string {
     return `${this.layerId}-label`
+  }
+  /** Each ring's distance, at the top of the ring (layer and its point source). */
+  private get distanceLayerId(): string {
+    return `${this.layerId}-distances`
   }
 
   get buttonLabel(): string {
@@ -96,6 +115,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       | maplibregl.GeoJSONSource
       | undefined
     if (originSource) originSource.setData(this._buildOriginPoint())
+    const distanceSource = this.map.getSource(this.distanceLayerId) as
+      | maplibregl.GeoJSONSource
+      | undefined
+    if (distanceSource) distanceSource.setData(this._buildRingTops())
     this._applyLabel()
     this._applyVisibility()
   }
@@ -107,10 +130,16 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     // because a palette change reloads the style and re-runs this method.
     const brightBasemap = isBrightBasemap()
     const stroke = brightBasemap ? overlayAccentColor() : RangeRingsControlBase.DARK_STROKE
-    for (const id of [this.labelLayerId, this.originDotLayerId, this.originLayerId, this.layerId]) {
+    for (const id of [
+      this.distanceLayerId,
+      this.labelLayerId,
+      this.originDotLayerId,
+      this.originLayerId,
+      this.layerId,
+    ]) {
       if (this.map.getLayer(id)) this.map.removeLayer(id)
     }
-    for (const id of [this.originLayerId, this.layerId]) {
+    for (const id of [this.distanceLayerId, this.originLayerId, this.layerId]) {
       if (this.map.getSource(id)) this.map.removeSource(id)
     }
 
@@ -150,8 +179,8 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       paint: { 'circle-radius': 1.6, 'circle-color': stroke },
     })
 
-    // One label per ring would repeat the same fact five times, so only the
-    // outermost ring carries it. `symbol-spacing` is screen distance between
+    // The origin's name rides the outermost ring only — on every ring it would
+    // repeat the same fact five times. `symbol-spacing` is screen distance between
     // placements along that ring, and it has to stay well under the ring's
     // on-screen circumference or the single placement lands off-view and the
     // label is invisible — which is exactly what a large spacing did here.
@@ -178,6 +207,44 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       },
     })
 
+    // Each ring's distance ("50 NM") once, just above the top of the ring.
+    // Point labels sit in the viewport plane, so the text is always upright
+    // and level whatever the zoom, pitch or bearing; labels placed along the
+    // ring line flipped over as the ring's direction swung past vertical.
+    // Allowed to overlap and kept out of collision detection so a label is
+    // never dropped near the edge of view and never knocks out a basemap name.
+    const distanceInk = brightBasemap
+      ? RangeRingsControlBase.LIGHT_MAP_DISTANCE_INK
+      : RangeRingsControlBase.DARK_MAP_DISTANCE_INK
+    const distanceHalo = brightBasemap
+      ? RangeRingsControlBase.LIGHT_MAP_DISTANCE_HALO
+      : RangeRingsControlBase.DARK_MAP_DISTANCE_HALO
+    this.map.addSource(this.distanceLayerId, { type: 'geojson', data: this._buildRingTops() })
+    this.map.addLayer({
+      id: this.distanceLayerId,
+      type: 'symbol',
+      source: this.distanceLayerId,
+      layout: {
+        visibility: 'none',
+        'symbol-placement': 'point',
+        'text-field': ['concat', ['to-string', ['get', 'dist']], ' NM'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': 10,
+        'text-letter-spacing': 0.1,
+        'text-anchor': 'bottom',
+        'text-offset': [0, -0.8],
+        'text-rotation-alignment': 'viewport',
+        'text-pitch-alignment': 'viewport',
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: {
+        'text-color': distanceInk,
+        'text-halo-color': distanceHalo,
+        'text-halo-width': 0.5,
+      },
+    })
+
     this._applyLabel()
     this._applyVisibility()
   }
@@ -199,6 +266,11 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     return buildRingsGeoJSON(this.origin.longitude, this.origin.latitude)
   }
 
+  private _buildRingTops(): GeoJSON.FeatureCollection {
+    if (!this.origin) return { type: 'FeatureCollection', features: [] }
+    return buildRingTopsGeoJSON(this.origin.longitude, this.origin.latitude)
+  }
+
   private _buildOriginPoint(): GeoJSON.FeatureCollection {
     if (!this.origin) return { type: 'FeatureCollection', features: [] }
     return {
@@ -213,15 +285,14 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     }
   }
 
-  /** Name the origin along the outer ring, flagging a position that has gone stale. */
+  /**
+   * Name the origin along the outer ring, flagging a position that has gone
+   * stale. The distance is not repeated here: every ring carries its own.
+   */
   private _applyLabel(): void {
     if (!this.map?.getLayer(this.labelLayerId)) return
     const origin = this.origin
-    const text = origin
-      ? `${origin.label}${origin.degraded ? ' · OFFLINE' : ''} · ${
-          RING_DISTANCES_NM[RING_DISTANCES_NM.length - 1]
-        } NM`
-      : ''
+    const text = origin ? `${origin.label}${origin.degraded ? ' · OFFLINE' : ''}` : ''
     this.map.setLayoutProperty(this.labelLayerId, 'text-field', text)
   }
 
@@ -230,6 +301,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     if (!this.map?.getLayer(this.layerId)) return
     const ringsOn = this.ringsVisible && this.origin !== null
     this.map.setLayoutProperty(this.layerId, 'visibility', ringsOn ? 'visible' : 'none')
+    // Distances go with the rings themselves, your own position included.
+    if (this.map.getLayer(this.distanceLayerId)) {
+      this.map.setLayoutProperty(this.distanceLayerId, 'visibility', ringsOn ? 'visible' : 'none')
+    }
     // The ⊙ marker already marks your own position, so the crosshair and the
     // label are for the cases where the centre is somewhere else — showing them
     // on top of ⊙ would be noise, and its own name written twice.

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { getNamespace, notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
+import { isTunableHz } from '../sdrPanelUtils'
 
 export interface SdrRadio {
   id: number
@@ -958,7 +959,8 @@ export const useSdrStore = defineStore('sdr', () => {
       const id = sessionStorage.getItem('sdrLastRadioId')
       if (id) currentRadioId.value = parseInt(id)
       const freq = sessionStorage.getItem('sdrLastFreqHz')
-      if (freq) currentFreqHz.value = parseInt(freq)
+      // A stored frequency no tuner can reach is dropped, not restored and re-sent.
+      if (freq && isTunableHz(parseInt(freq))) currentFreqHz.value = parseInt(freq)
       const mode = sessionStorage.getItem('sdrLastMode') as SdrMode | null
       if (mode) currentMode.value = mode
       playing.value = sessionStorage.getItem('sdrPlaying') === '1'

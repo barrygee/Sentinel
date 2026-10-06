@@ -33,6 +33,29 @@ from backend.radio_hub.services import device_claims
 logger = logging.getLogger(__name__)
 
 
+# Every frequency a supported tuner can reach: down to 500 kHz (HF on an RTL-SDR
+# Blog V4, or direct sampling) and up to 2.2 GHz (the E4000's ceiling; R820T and
+# R828D tuners stop near 1.77 GHz). It also keeps a frequency inside the uint32
+# that the rtl_tcp command and the IQ frame header carry — 7.812 GHz once got
+# into a relay (an accidental digit-wheel scroll), crashed the IQ broadcaster on
+# every frame and was re-asserted on every reconnect.
+MIN_TUNE_HZ = 500_000
+MAX_TUNE_HZ = 2_200_000_000
+
+
+def is_tunable(frequency_hz: object) -> bool:
+    """Whether `frequency_hz` is a whole number of Hz inside the tunable range."""
+    return (
+        isinstance(frequency_hz, int)
+        and not isinstance(frequency_hz, bool)
+        and MIN_TUNE_HZ <= frequency_hz <= MAX_TUNE_HZ
+    )
+
+
+class FrequencyOutOfRangeError(ValueError):
+    """Raised for a retune outside MIN_TUNE_HZ..MAX_TUNE_HZ; nothing is sent to the dongle."""
+
+
 class ReadOnlyTuningError(RuntimeError):
     """Raised when a tuning change is requested but another instance owns the tuner.
 
@@ -473,7 +496,11 @@ class RtlTcpConnection:
         """Copy the relay's reported tuner state onto this connection."""
         if control.sample_rate:
             self.sample_rate = control.sample_rate
-        if control.center_hz:
+        # An out-of-range centre (one the relay was once given by mistake) is
+        # never adopted: labelling IQ frames with it crashes the broadcaster, and
+        # as owner we would re-assert it on every reconnect. Keeping our own valid
+        # centre instead lets the next owner tune put the dongle right.
+        if control.center_hz and is_tunable(control.center_hz):
             self.center_hz = control.center_hz
         self.gain_db = control.gain_db
         self.gain_auto = control.gain_auto
@@ -554,6 +581,8 @@ class RtlTcpConnection:
         await self.writer.drain()
 
     async def set_frequency(self, freq_hz: int) -> None:
+        if not is_tunable(freq_hz):
+            raise FrequencyOutOfRangeError(f"{freq_hz} Hz is outside the tunable range {MIN_TUNE_HZ}-{MAX_TUNE_HZ} Hz")
         if self.control_available and self.control is not None:
             await self._claim_or_read_only()
             await self.control.set(center_hz=freq_hz)

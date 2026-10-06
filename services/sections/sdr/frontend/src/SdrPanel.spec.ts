@@ -354,6 +354,28 @@ describe('SdrPanel — control socket lifecycle', () => {
     expect(input.value).toBe('145.5000')
   })
 
+  function statusAt(centerHz: number) {
+    return {
+      type: 'status',
+      connected: true,
+      center_hz: centerHz,
+      mode: 'NFM',
+      gain_db: 20,
+      gain_auto: false,
+      sample_rate: 2_048_000,
+    }
+  }
+
+  it('does not adopt a centre no tuner can reach (a wedged relay)', async () => {
+    const { wrapper, socket } = await mountConnected()
+    useSdrStore().setFrequency(0) // nothing tuned yet: the first status would normally seed it
+    socket.message(statusAt(7_812_000_000))
+    await wrapper.vm.$nextTick()
+    expect(useSdrStore().currentFreqHz).not.toBe(7_812_000_000)
+    const input = wrapper.find('.sdr-freq-input-large').element as HTMLInputElement
+    expect(input.value).not.toBe('7812.0000')
+  })
+
   it('drops the connection dot on an error message', async () => {
     const { wrapper, socket } = await mountConnected()
     await confirmData(wrapper, socket)

@@ -10,6 +10,7 @@ const LAYER_ID = 'range-rings-lines'
 const ORIGIN_LAYER = `${LAYER_ID}-origin`
 const ORIGIN_DOT_LAYER = `${LAYER_ID}-origin-dot`
 const LABEL_LAYER = `${LAYER_ID}-label`
+const DISTANCE_LAYER = `${LAYER_ID}-distances`
 
 interface FakeMap {
   map: maplibregl.Map
@@ -135,7 +136,7 @@ describe('RangeRingsControl (Air specifics)', () => {
 })
 
 describe('RangeRingsControlBase.onInit', () => {
-  it('builds the rings, the origin crosshair and the label layer when the style is loaded', () => {
+  it('builds the rings, the origin crosshair, the label and the ring distances when the style is loaded', () => {
     const control = new RangeRingsControl(airStore, origin())
     const map = fakeMap({ styleLoaded: true })
     control.onAdd(map.map)
@@ -148,7 +149,17 @@ describe('RangeRingsControlBase.onInit', () => {
       ORIGIN_LAYER,
       expect.objectContaining({ type: 'geojson' }),
     )
-    expect([...map.layers]).toEqual([LAYER_ID, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER])
+    expect(map.addSource).toHaveBeenCalledWith(
+      DISTANCE_LAYER,
+      expect.objectContaining({ type: 'geojson' }),
+    )
+    expect([...map.layers]).toEqual([
+      LAYER_ID,
+      ORIGIN_LAYER,
+      ORIGIN_DOT_LAYER,
+      LABEL_LAYER,
+      DISTANCE_LAYER,
+    ])
   })
 
   it('draws five concentric closed rings', () => {
@@ -175,7 +186,11 @@ describe('RangeRingsControlBase.onInit', () => {
 
     expect(map.addSource).not.toHaveBeenCalled()
     map.styleLoadHandlers[0]!()
-    expect(map.addSource).toHaveBeenCalledTimes(2)
+    expect(map.addSource.mock.calls.map((call: unknown[]) => call[0])).toEqual([
+      LAYER_ID,
+      ORIGIN_LAYER,
+      DISTANCE_LAYER,
+    ])
   })
 
   it('builds empty sources when no origin resolves', () => {
@@ -192,6 +207,7 @@ describe('RangeRingsControlBase.onInit', () => {
     for (const id of [LAYER_ID, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER]) map.layers.add(id)
     map.sources.add(LAYER_ID)
     map.sources.add(ORIGIN_LAYER)
+    map.sources.add(DISTANCE_LAYER)
 
     control.onAdd(map.map)
 
@@ -199,6 +215,7 @@ describe('RangeRingsControlBase.onInit', () => {
     expect(map.map.removeLayer).toHaveBeenCalledWith(ORIGIN_DOT_LAYER)
     expect(map.map.removeSource).toHaveBeenCalledWith(LAYER_ID)
     expect(map.map.removeSource).toHaveBeenCalledWith(ORIGIN_LAYER)
+    expect(map.map.removeSource).toHaveBeenCalledWith(DISTANCE_LAYER)
   })
 
   it('filters the label to the outermost ring only', () => {
@@ -324,7 +341,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
 
     control.setOrigin(SENTRY)
 
-    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · 250 NM')
+    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD')
   })
 
   it('flags a stale position in the label rather than moving the rings', () => {
@@ -334,7 +351,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
 
     control.setOrigin({ ...SENTRY, degraded: true })
 
-    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · OFFLINE · 250 NM')
+    expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · OFFLINE')
   })
 
   it('empties the label when there is no origin', () => {

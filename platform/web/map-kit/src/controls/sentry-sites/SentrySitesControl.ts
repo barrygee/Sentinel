@@ -519,18 +519,18 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * The dot at the centre of a Sentry's ⊙ mark.
+ * The dot at the centre of a Sentry's ⊙ mark: the map palette's
+ * `--map-sentry-dot` (template.css).
  *
- * The off-white the settings panel is built on (`SettingsPanel.css`), against
- * the lit accent dot the operator's own location marker carries
- * (`LOCATION_MARKER_DOT_COLOR`, #c8ff00): unmistakable side by side, and it
- * reads as a fixed installation rather than as a live position. Duplicated as a
- * hex rather than read from the stylesheet because marker elements are handed to
- * MapLibre and live outside the Vue tree. The white ring is shared and
- * deliberately untouched — the mark is the same mark; only whose place it is
- * changes.
+ * On the dark map it is the off-white the settings panel is built on, against
+ * the lime dot of the operator's own location marker; on the light map both
+ * marks go dark (black, against a green dot). Either way the two are
+ * unmistakable side by side, and this one reads as a fixed installation rather
+ * than a live position. A CSS variable, not a hex, so a marker already on the
+ * map follows a palette switch. The ring is shared with the location marker —
+ * the mark is the same mark; only whose place it is changes.
  */
-const SENTRY_MARKER_DOT_COLOR = '#f6f6f4'
+const SENTRY_MARKER_DOT_COLOR = 'var(--map-sentry-dot)'
 
 /** How close two sites must be to share a count, in pixels — the ⊙ mark's own
  *  ring diameter, so sites are grouped exactly when their marks would overlap. */
@@ -558,10 +558,10 @@ const SENTRY_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
 /** Fill of a Sentry count marker's centre. */
 const SENTRY_COUNT_FILL = '#000000'
 
-/** Colour of the count itself — a site's own dot colour, which reads clearly on
- *  the count's black centre, so a group of Sentries is recognisably the same
- *  thing as the marks it stands in for. */
-const SENTRY_COUNT_TEXT = SENTRY_MARKER_DOT_COLOR
+/** Colour of the count itself — the dark map's site dot colour, which reads
+ *  clearly on the count's black centre on either map (so it does not follow
+ *  `--map-sentry-dot`, which goes black on the light map). */
+const SENTRY_COUNT_TEXT = '#f6f6f4'
 
 // Re-exported from its shared home so the map-marker module stays the one
 // place that names a site for callers already importing it from here.
