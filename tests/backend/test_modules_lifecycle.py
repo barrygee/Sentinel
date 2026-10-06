@@ -19,7 +19,7 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import core, land, radio_hub, sdr, sea, space
+from backend.modules import air, core, land, radio_hub, sdr, sea, space
 from backend.platform.bus import bus as process_bus
 from backend.services.ais_stream import reader as ais_reader
 
@@ -51,6 +51,7 @@ class TestModuleOrder:
             "radio-hub",
             "land",
             "sea",
+            "air",
         ]
 
 
@@ -145,8 +146,36 @@ class TestCoreModule:
 
         assert calls == ["offline.stop", "config.stop"]
 
-    def test_wake_wakes_the_offline_map_runner(self):
-        assert core.lifecycle.wake == core.offline_map_job_runner.wake
+    def test_wake_wakes_the_offline_map_runner_and_ends_alert_streams(self, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(core.offline_map_job_runner, "wake", recorder(calls, "offline.wake", is_async=False))
+        monkeypatch.setattr(core.notifications.streams, "wake", recorder(calls, "streams.wake", is_async=False))
+        core.lifecycle.wake()
+        assert calls == ["offline.wake", "streams.wake"]
+
+    async def test_start_reopens_alert_streams_closed_by_a_previous_wake(self, monkeypatch):
+        for name in ("start",):
+            monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
+            monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
+        monkeypatch.setattr(core.registry, "start", recorder([], "registry", is_async=False))
+        core.notifications.streams.wake()
+        await core.lifecycle.start()
+        assert core.notifications.streams._closing is False
+
+
+class TestAirModule:
+    async def test_start_starts_the_squawk_watcher_and_stop_stops_it(self, monkeypatch):
+        calls: list[str] = []
+        monkeypatch.setattr(air.watcher, "start", recorder(calls, "watcher.start", is_async=False))
+        monkeypatch.setattr(air.watcher, "stop", recorder(calls, "watcher.stop"))
+        await air.lifecycle.start()
+        await air.lifecycle.stop()
+        assert calls == ["watcher.start", "watcher.stop"]
+
+    def test_air_starts_after_the_radio_hub(self):
+        # The watcher asks the hub where the off-grid receiver is.
+        order = [module.name for module in modules.MODULES]
+        assert order.index("radio-hub") < order.index("air")
 
 
 class TestSdrModule:

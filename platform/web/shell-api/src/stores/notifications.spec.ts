@@ -303,6 +303,35 @@ describe('notifications store', () => {
       expect(store.items.find((item) => item.id === 'shared')!.hex).toBe('abc')
     })
 
+    it("uses the backend row's hex, so server-raised alerts stay clickable", async () => {
+      localStorage.setItem(
+        LS_KEY,
+        JSON.stringify([{ id: 'shared', type: 'emergency', title: 'old', ts: 10, hex: 'local' }]),
+      )
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => [
+            { msg_id: 'shared', type: 'emergency', title: 'a', detail: '', ts: 20, hex: 'server' },
+            {
+              msg_id: 'server-only',
+              type: 'emergency',
+              title: 'b',
+              detail: '',
+              ts: 30,
+              hex: '4ca123',
+            },
+            { msg_id: 'no-hex', type: 'system', title: 'c', detail: '', ts: 40, hex: null },
+          ],
+        }),
+      )
+      const store = useNotificationsStore()
+      await store.syncFromBackend()
+      const hexById = Object.fromEntries(store.items.map((item) => [item.id, item.hex]))
+      expect(hexById).toEqual({ shared: 'server', 'server-only': '4ca123', 'no-hex': undefined })
+    })
+
     it('defaults a missing detail to an empty string', async () => {
       vi.stubGlobal(
         'fetch',
@@ -382,5 +411,122 @@ describe('notifications store', () => {
       throw new Error('quota')
     })
     expect(() => store.add({ title: 'A' })).not.toThrow()
+  })
+
+  describe('server-pushed alerts (SSE stream)', () => {
+    class FakeEventSource {
+      static instances: FakeEventSource[] = []
+      onmessage: ((event: MessageEvent<string>) => void) | null = null
+      closed = false
+      constructor(public url: string) {
+        FakeEventSource.instances.push(this)
+      }
+      close(): void {
+        this.closed = true
+      }
+      push(data: string): void {
+        this.onmessage!({ data } as MessageEvent<string>)
+      }
+    }
+
+    const pushed = {
+      msg_id: 'adsb-squawk:4ca123:7700:42',
+      type: 'emergency',
+      title: 'EIN123',
+      detail: 'SQK 7700 — General Emergency',
+      ts: 42,
+      hex: '4ca123',
+    }
+
+    beforeEach(() => {
+      FakeEventSource.instances = []
+      vi.stubGlobal('EventSource', FakeEventSource)
+    })
+
+    it('opens one stream however often it is asked', () => {
+      const store = useNotificationsStore()
+      store.connectStream()
+      store.connectStream()
+      expect(FakeEventSource.instances.map((source) => source.url)).toEqual([
+        '/api/air/messages/stream',
+      ])
+    })
+
+    it('shows a pushed alert with its subject, sound, announcement and unread badge', () => {
+      useAppStore().notificationSound = true
+      const store = useNotificationsStore()
+      store.connectStream()
+      FakeEventSource.instances[0]!.push(JSON.stringify(pushed))
+      expect(store.items[0]).toEqual({
+        id: pushed.msg_id,
+        type: 'emergency',
+        title: 'EIN123',
+        detail: 'SQK 7700 — General Emergency',
+        ts: 42,
+        hex: '4ca123',
+      })
+      expect(JSON.parse(localStorage.getItem(LS_KEY)!)[0].id).toBe(pushed.msg_id)
+      expect(store.liveAnnouncement).toMatchObject({
+        message: 'EIN123. SQK 7700 — General Emergency',
+        assertive: true,
+      })
+      expect(playNotificationSound).toHaveBeenCalledWith(true)
+      expect(store.unreadCount).toBe(1)
+    })
+
+    it('never posts a pushed alert back: the server already stored it', () => {
+      const store = useNotificationsStore()
+      store.connectStream()
+      FakeEventSource.instances[0]!.push(JSON.stringify(pushed))
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('ignores an alert it already has', () => {
+      const store = useNotificationsStore()
+      store.connectStream()
+      FakeEventSource.instances[0]!.push(JSON.stringify(pushed))
+      FakeEventSource.instances[0]!.push(JSON.stringify({ ...pushed, title: 'again' }))
+      expect(store.items.map((item) => item.title)).toEqual(['EIN123'])
+      expect(store.unreadCount).toBe(1)
+    })
+
+    it('fills in a missing detail and hex', () => {
+      const store = useNotificationsStore()
+      store.connectStream()
+      FakeEventSource.instances[0]!.push(
+        JSON.stringify({ msg_id: 'm1', type: 'system', title: 'T', ts: 1, hex: null }),
+      )
+      expect(store.items[0]).toMatchObject({ detail: '', hex: undefined })
+    })
+
+    it.each([['not json'], ['null'], ['{"type":"system"}']])(
+      'drops a malformed event %s',
+      (data) => {
+        const store = useNotificationsStore()
+        store.connectStream()
+        FakeEventSource.instances[0]!.push(data)
+        expect(store.total).toBe(0)
+      },
+    )
+
+    it('does nothing where EventSource is unavailable', () => {
+      vi.stubGlobal('EventSource', undefined)
+      const store = useNotificationsStore()
+      expect(() => store.connectStream()).not.toThrow()
+      expect(FakeEventSource.instances).toEqual([])
+    })
+
+    it('disconnect closes the stream and a later connect opens a new one', () => {
+      const store = useNotificationsStore()
+      store.connectStream()
+      store.disconnectStream()
+      expect(FakeEventSource.instances[0]!.closed).toBe(true)
+      store.connectStream()
+      expect(FakeEventSource.instances).toHaveLength(2)
+    })
+
+    it('disconnect without a stream is harmless', () => {
+      expect(() => useNotificationsStore().disconnectStream()).not.toThrow()
+    })
   })
 })

@@ -456,6 +456,17 @@ describe('App', () => {
     })
   })
 
+  describe('server-pushed alerts', () => {
+    it('opens the alerts stream once the app is mounted', async () => {
+      const notifications = useNotificationsStore()
+      const connectSpy = vi.spyOn(notifications, 'connectStream').mockImplementation(() => {})
+      expect(connectSpy).not.toHaveBeenCalled()
+      mountApp()
+      await flushPromises()
+      expect(connectSpy).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('location-unavailable notification', () => {
     it('adds an alert when location becomes unavailable and dismisses it on recovery', async () => {
       const notifications = useNotificationsStore()
