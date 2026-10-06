@@ -26,6 +26,9 @@ export interface AdsbApiEntry {
   emergency?: string
   squawk?: string
   rssi?: number
+  // Seconds between this position being heard and the snapshot being taken
+  // (both adsb.lol and readsb report it); dates the report (aircraftPosition.ts).
+  seen_pos?: number
   // Bitfield from the aircraft database the upstream joins onto the live feed:
   // 1 = military, 2 = interesting, 4 = PIA, 8 = LADD. This — not a `military`
   // boolean — is how adsb.lol/airplanes.live and a readsb build with the
