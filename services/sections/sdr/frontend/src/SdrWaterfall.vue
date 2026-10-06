@@ -605,7 +605,7 @@ const MIN_BW_HZ = 200
 // trace — no label over the signal; clicking it reveals the name (see the
 // template's .sdr-wf-known-marker-pop). Dots whose pixel positions land within
 // KNOWN_CLUSTER_PX of each other merge into ONE marker carrying every member, so
-// a dense band reads as a single dot with a count rather than a smear of rings.
+// a dense band reads as a single dot with a count rather than a smear of dots.
 // `tunedLabel` is the member name to show as a persistent tag while the radio is
 // tuned to (near) that marker.
 const KNOWN_CLUSTER_PX = 16 // dots closer than this on screen merge into one marker
@@ -677,7 +677,11 @@ const visibleKnownFreqs = computed<KnownFreqMarker[]>(() => {
     const positionHz = tuned ? tuned.frequencyHz : centreHz
     return {
       key: members.map((m) => m.id).join('-'),
-      leftPct: ((positionHz - winLo) / w) * 100,
+      // sigplot draws the carrier line at a whole pixel plus half
+      // (`Math.round(px) + 0.5`, sigplot.accordion.js / mx.real_to_pixel), so
+      // the dot snaps to that same column — at the raw fractional position it
+      // sat up to a pixel beside the line, which reads as off-centre on HiDPI.
+      leftPct: ((Math.round(((positionHz - winLo) / w) * boxWidthPx) + 0.5) / boxWidthPx) * 100,
       isCluster: members.length > 1,
       count: members.length,
       label: first.label,
@@ -694,6 +698,22 @@ const openKnownKey = ref<string | null>(null)
 function toggleKnownMarker(key: string) {
   openKnownKey.value = openKnownKey.value === key ? null : key
 }
+// The marker a mouse is hovering (by its `key`), or null. Hovering previews the
+// same name popover a click opens, and pointer-out hides it again — unless that
+// marker was clicked open, which keeps it until it's dismissed as above.
+const hoveredKnownKey = ref<string | null>(null)
+function onKnownMarkerPointerEnter(event: PointerEvent, key: string) {
+  // Mouse only: a touch tap also fires pointerenter, and its click already
+  // toggles the popover — a hover preview there would leave it stuck open.
+  if (event.pointerType === 'mouse') hoveredKnownKey.value = key
+}
+function onKnownMarkerPointerLeave(key: string) {
+  if (hoveredKnownKey.value === key) hoveredKnownKey.value = null
+}
+/** Whether a marker's name popover shows: clicked open, or being hovered. */
+function isKnownPopoverShown(key: string): boolean {
+  return openKnownKey.value === key || hoveredKnownKey.value === key
+}
 // True when an event originated on a known-frequency marker (its dot button or
 // popover). Used both to keep a marker press from also tuning the radio (the
 // plot mouse/touch handlers) and to keep an in-marker click from dismissing the
@@ -707,6 +727,7 @@ useDocumentEvent('mousedown', (e: Event) => {
 })
 watch([zoom, spanStartHz, spanEndHz, () => store.showKnownFreqs], () => {
   openKnownKey.value = null
+  hoveredKnownKey.value = null
 })
 
 // Snap a target frequency to the nearest known (Frequency Manager) frequency when
@@ -738,7 +759,7 @@ function snapToKnownFreqHz(freqHz: number): number {
 
 // No-op kept for the existing watchers — the HTML overlay (visibleKnownFreqs)
 // drives all rendering now. The AnnotationPlugin was previously used for the
-// vertical canvas line, which has been replaced by the SVG ring on the HTML
+// vertical canvas line, which has been replaced by the SVG dot on the HTML
 // marker. Leave the plugin attached but empty (cheap; harmless).
 function syncKnownFrequencies() {
   if (!knownFreqPlugin) return
@@ -3290,35 +3311,28 @@ onBeforeUnmount(() => {
             :aria-label="f.isCluster ? `${f.count} known frequencies` : f.label"
             :aria-expanded="openKnownKey === f.key"
             @click="toggleKnownMarker(f.key)"
+            @pointerenter="onKnownMarkerPointerEnter($event, f.key)"
+            @pointerleave="onKnownMarkerPointerLeave(f.key)"
           >
             <svg
-              class="sdr-wf-known-marker-ring"
+              class="sdr-wf-known-marker-glyph"
               width="14"
               height="14"
               viewBox="0 0 14 14"
               overflow="visible"
               aria-hidden="true"
             >
-              <!-- The SENTINEL ⊙ logo mark (same ring/dot proportions as
-                   frontend/assets/logo.svg): ring in currentColor (white, or
-                   accent while this marker's popover is open), green dot —
-                   matching the map user-location marker. -->
-              <circle cx="7" cy="7" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5" />
-              <circle cx="7" cy="7" r="2.1" fill="#c8ff00" />
+              <!-- Just the green dot of the SENTINEL ⊙ mark — no outer ring. -->
+              <circle cx="7" cy="7" r="2.8" fill="#c8ff00" />
             </svg>
             <span v-if="f.isCluster" class="sdr-wf-known-marker-badge">{{ f.count }}</span>
           </button>
           <span
-            v-if="f.tunedLabel !== null"
-            class="sdr-wf-known-marker-line"
-            aria-hidden="true"
-          ></span>
-          <span
-            v-if="f.tunedLabel !== null && openKnownKey !== f.key"
+            v-if="f.tunedLabel !== null && !isKnownPopoverShown(f.key)"
             class="sdr-wf-known-marker-tag"
             >{{ f.tunedLabel }}</span
           >
-          <div v-if="openKnownKey === f.key" class="sdr-wf-known-marker-pop" role="tooltip">
+          <div v-if="isKnownPopoverShown(f.key)" class="sdr-wf-known-marker-pop" role="tooltip">
             <template v-if="f.isCluster">
               <span v-for="m in f.members" :key="m.id" class="sdr-wf-known-marker-pop-line">{{
                 m.label

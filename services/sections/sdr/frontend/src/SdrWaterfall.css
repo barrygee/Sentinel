@@ -351,7 +351,7 @@
 /* Known-frequency markers — one dot per saved frequency at the top of the
  * spectrum trace, with NO label over the signal. Click / tap a dot to reveal
  * its name in a small borderless popover; the frequency the radio is tuned to
- * keeps a persistent tag and a drop line. Dots that would overlap merge into a
+ * keeps a persistent name tag. Dots that would overlap merge into a
  * single dot with a count that lists its names on click. The overlay is anchored
  * to the spectrum data box (knownFreqOverlayStyle) and takes no pointer events
  * itself — only the dots and popovers do. It still clips its children so a
@@ -377,13 +377,6 @@
   color: var(--ink-strong);
 }
 
-/* Open: the ring switches from white to accent (ring uses currentColor) so it's
- * clear which marker's popover is showing. A tuned-but-not-open marker stays the
- * flat white ring + green dot — the persistent tag alone marks it as active. */
-.sdr-wf-known-marker--open {
-  color: var(--accent-text);
-}
-
 .sdr-wf-known-marker-dot {
   position: relative;
   display: flex;
@@ -402,22 +395,22 @@
 
 /* The carrier/tuning line is drawn by sigplot straight down the plot canvas,
  * underneath this HTML overlay, so without a backdrop it runs straight through
- * the ring. This opaque disc — matching the plot background, slightly larger
- * than the ring — masks that stretch so the line visibly breaks with a small
- * gap above and below the dot instead of cutting through it. */
+ * the dot. This opaque disc — matching the plot background, a little wider
+ * than the dot — masks that stretch so the line breaks with a small (~3px) gap
+ * above and below the dot instead of touching it. */
 .sdr-wf-known-marker-dot::before {
   content: '';
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   background: var(--instrument-bg);
   border-radius: 50%;
   transform: translate(-50%, -50%);
 }
 
-.sdr-wf-known-marker-ring {
+.sdr-wf-known-marker-glyph {
   position: relative;
   display: block;
 }
@@ -437,26 +430,26 @@
   text-align: center;
 }
 
-/* Drop line + persistent tag for the tuned marker. */
-.sdr-wf-known-marker-line {
-  width: 1px;
-  height: 26px;
-  margin-top: 1px;
-  background: rgba(var(--ink-rgb), 0.35);
-}
-
-/* The tuned marker's persistent name tag — the SAME flat, borderless dark
- * treatment as the click popover (no accent outline), so an active frequency
- * reads calmly rather than shouting a green box over the trace. */
+/* The tuned marker's persistent name tag. It is drawn as the very same box, in
+ * the very same place, as the name popover (hover / click) below — same offset
+ * under the dot, padding, caret and shadow — because the two take turns: the
+ * tag hides while the popover shows. Any difference between them reads as the
+ * name jumping each time the popover opens or closes (hover-out, or any click
+ * elsewhere). 9px/10px vertical padding = the popover's 6px/7px plus its name
+ * line's 3px, so the text sits on the same line too. */
 .sdr-wf-known-marker-tag {
-  margin-top: 3px;
-  padding: 5px 9px 6px;
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  padding: 9px 10px 10px;
   background: var(--instrument-bg);
+  box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.55);
   color: var(--ink-strong);
   font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   white-space: nowrap;
+  transform: translateX(-50%);
   pointer-events: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -479,8 +472,9 @@
   pointer-events: auto;
 }
 
-/* Caret pointing up to the dot. */
-.sdr-wf-known-marker-pop::before {
+/* Caret pointing up to the dot (popover and tuned tag alike). */
+.sdr-wf-known-marker-pop::before,
+.sdr-wf-known-marker-tag::before {
   content: '';
   position: absolute;
   top: -4px;
