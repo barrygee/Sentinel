@@ -172,6 +172,11 @@ import App from './App.vue'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import { registerAllSections } from '@/test/registerSections'
+
+// App reads the section registry (nav, routes, radio pane) as it sets up;
+// main.ts fills it before mounting, so the spec does too.
+await registerAllSections()
 
 function mountApp(options: { attach?: boolean } = {}) {
   return mount(App, {

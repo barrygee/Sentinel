@@ -132,6 +132,10 @@ export function shellFederationPlugin(): PluginOption {
   }
   return federation({
     name: 'sentinel_shell',
+    // The host's own entry (it provides the shared modules) goes with the
+    // other hashed shell files: the backend serves /spa-assets/, and anything
+    // else at the site root falls through to the SPA's index.html.
+    filename: 'spa-assets/remoteEntry-[hash].js',
     remotes: {},
     shared,
     // Exposes no types; the generated-types step only fails without a tsconfig.

@@ -65,6 +65,10 @@ export function sentinelSectionViteConfig(sectionId: string, packageUrl: string)
     build: {
       outDir: resolve(SPA_DIST_DIR, 'remotes', sectionId),
       emptyOutDir: true,
+      // Like the shell's: `assets/` is the backend's tile/sprite/font mount, so
+      // a remote's chunks under remotes/<id>/assets/ would be caught by
+      // anything matching `/assets/` (proxy rules, e2e routes that stub tiles).
+      assetsDir: 'spa-assets',
       // A federation remote is loaded by the shell, which needs only its entry.
       rolldownOptions: { input: {} },
     },

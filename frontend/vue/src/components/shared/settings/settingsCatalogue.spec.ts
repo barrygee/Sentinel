@@ -11,11 +11,11 @@ vi.mock('./offline-maps/OfflineMapsSettings.vue', () => ({
 import type { SettingControl } from '@sentinel/shell-api/types/settings'
 import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import './appSettings'
-import '@sentinel/section-air/settings'
-import '@sentinel/section-space/settings'
-import '@sentinel/section-sea/settings'
-import '@sentinel/section-land/settings'
-import '@sentinel/section-sdr/settings'
+import { registerAirSettings } from '@sentinel/section-air/settings'
+import { registerSpaceSettings } from '@sentinel/section-space/settings'
+import { registerSeaSettings } from '@sentinel/section-sea/settings'
+import { registerLandSettings } from '@sentinel/section-land/settings'
+import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import AprsLabelFieldsControl from '@sentinel/section-land/settings/AprsLabelFieldsControl.vue'
@@ -50,6 +50,13 @@ import SpaceHoverPreviewControl from '@sentinel/section-space/settings/SpaceHove
 import SpaceTleDatabaseControl from '@sentinel/section-space/settings/SpaceTleDatabaseControl.vue'
 import SpaceTleManualControl from '@sentinel/section-space/settings/SpaceTleManualControl.vue'
 import SpaceTleOnlineControl from '@sentinel/section-space/settings/SpaceTleOnlineControl.vue'
+
+// Each section's Settings nav entry and items, as its register() adds them at boot.
+registerAirSettings()
+registerSpaceSettings()
+registerSeaSettings()
+registerLandSettings()
+registerSdrSettings()
 
 /**
  * The full Settings catalogue as the sections register it (F3). This pins

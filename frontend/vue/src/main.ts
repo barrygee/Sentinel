@@ -118,6 +118,12 @@ const themeStore = useThemeStore()
       runSettingsHydrators(data)
     }
   } catch {}
-  app.use(createAppRouter())
+  const router = createAppRouter()
+  app.use(router)
+  // Mount only once the initial navigation has resolved, so App.vue's route
+  // watchers start on the real route: seeing the start location ('/') change
+  // to it would count as a navigation — focus jumps to <main> (skipping the
+  // skip link) and the SDR radio pane toggles as if the operator had arrived.
+  await router.isReady()
   app.mount('#app')
 })()
