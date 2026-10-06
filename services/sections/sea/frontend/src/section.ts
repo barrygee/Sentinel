@@ -1,4 +1,6 @@
+import { getActivePinia } from 'pinia'
 import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import SeaView from './SeaView.vue'
 import { seaSidebarFilter } from './seaSidebarFilter'
@@ -11,7 +13,9 @@ import { registerSeaSettings } from './settings'
  * in dev and tests and through Module Federation in the built app
  * (docs/plans/section-containers.md §3.6).
  */
-export default function register(): void {
+export default function register(shell: ShellContext): void {
+  assertHostPinia(shell, getActivePinia(), 'sea')
+
   // Its Settings nav entry and items (F3).
   registerSeaSettings()
 

@@ -15,12 +15,22 @@ import type { Component } from 'vue'
  * called, not what reads its output.
  */
 
+/** A module whose default export is a component — what a lazy `import('./X.vue')` resolves to. */
+export interface ComponentModule {
+  default: Component
+}
+
+/**
+ * A routed view: the component itself, or a loader vue-router calls on the
+ * first visit, so a section's `./register` entry need not carry its views.
+ */
+export type SectionRouteComponent = Component | (() => Promise<ComponentModule>)
+
 /** A route contributed by a section. */
 export interface SectionRouteDefinition {
   /** The path registered with vue-router, e.g. "/sea/". */
   path: string
-  /** The routed view component. Statically imported until federation (P4) loads it at runtime. */
-  component: Component
+  component: SectionRouteComponent
 }
 
 /** Everything one section contributes to the shell. */
@@ -38,12 +48,14 @@ export interface SectionDefinition {
   enabledByDefault: boolean
   route: SectionRouteDefinition
   /**
-   * The persistent radio pane rendered in `MapSidebar`'s `#radio` slot. Only
-   * the sdr section registers this today. It is mounted once by `App.vue` —
-   * not per-route — which is why the SDR engine survives navigation to every
-   * other section (docs/plans/section-containers.md §1.4).
+   * Loads the persistent radio pane rendered in `MapSidebar`'s `#radio` slot —
+   * the section's engine. Only the sdr section registers one. The shell starts
+   * it at boot, mounts the app without it if it is slow, and late-mounts it on
+   * arrival (`shell/sectionEngines.ts` in the SPA, plan §3.5). It is mounted
+   * once by `App.vue`, not per route, which is why the SDR engine survives
+   * navigation to every other section (§1.4).
    */
-  persistentRadioPane?: Component
+  loadPersistentRadioPane?: () => Promise<ComponentModule>
   /**
    * Set by the shell, never by a section: the section was expected (it is in
    * the deployment's section list) but its code could not be loaded, so the
@@ -79,7 +91,7 @@ export function getRegisteredSections(): SectionDefinition[] {
 /** Route definitions for every registered section, in nav order, ready to spread into `createRouter`'s `routes`. */
 export function getSectionRoutes(): Array<{
   path: string
-  component: Component
+  component: SectionRouteComponent
   meta: { domain: string }
 }> {
   return sectionsByNavOrder().map((section) => ({
@@ -100,14 +112,14 @@ export function isSectionUnavailable(sectionId: string): boolean {
 }
 
 /**
- * The persistent radio pane component, if any registered section provides
- * one. Today only `sdr` does; returns `undefined` when no section registers
- * a pane so the shell renders nothing in its place.
+ * The loader of the persistent radio pane, if any registered section provides
+ * one. Today only `sdr` does; `undefined` when no section registers a pane, so
+ * the shell renders nothing in its place.
  */
-export function getPersistentRadioPane(): Component | undefined {
+export function getPersistentRadioPaneLoader(): (() => Promise<ComponentModule>) | undefined {
   return sectionsByNavOrder()
-    .map((section) => section.persistentRadioPane)
-    .find((pane): pane is Component => pane !== undefined)
+    .map((section) => section.loadPersistentRadioPane)
+    .find((loader) => loader !== undefined)
 }
 
 /**

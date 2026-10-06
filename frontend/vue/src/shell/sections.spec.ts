@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { createPinia, setActivePinia } from 'pinia'
 
 /**
  * `sections.ts` has no logic of its own — it lists every section's `./register`
@@ -26,13 +27,15 @@ describe('shell/sections', () => {
     const { sectionSources } = await import('./sections')
     const sources = await sectionSources()
     expect(sources.map((source) => source.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
-    for (const source of sources) (await source.load()).default()
-    const { getRegisteredSections, getPersistentRadioPane } =
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    for (const source of sources) (await source.load()).default({ pinia })
+    const { getRegisteredSections, getPersistentRadioPaneLoader } =
       await import('@sentinel/shell-api/shell/sectionRegistry')
     const { default: SdrTabPanel } = await import('@sentinel/section-sdr/SdrTabPanel.vue')
 
     const sections = getRegisteredSections()
     expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
-    expect(getPersistentRadioPane()).toBe(SdrTabPanel)
+    expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)
   })
 })

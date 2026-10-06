@@ -28,6 +28,7 @@ import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
 // remotes in the built app (vite.config.ts swaps the module).
 import { sectionSources } from './shell/sections'
 import { loadSections } from './shell/sectionLoader'
+import { startSectionEngines } from './shell/sectionEngines'
 // Built app only: every @sentinel/ui, shell-api and map-kit module, so this
 // container can provide each one a section remote uses (sections never carry
 // their own copies — @sentinel/web-config/federation). Empty in dev and tests.
@@ -68,10 +69,13 @@ const themeStore = useThemeStore()
   // and App read the registries.
   const settingsResponse = fetch('/api/settings').catch(() => null)
   try {
-    await loadSections(await sectionSources())
+    await loadSections(await sectionSources(), { pinia })
   } catch (error) {
     console.error('[sentinel] loading sections failed:', error)
   }
+  // The SDR engine (its persistent radio pane) loads alongside the settings;
+  // boot waits for it only up to a timeout, then mounts and late-mounts it.
+  const enginesReady = startSectionEngines()
   try {
     const res = await settingsResponse
     if (res?.ok) {
@@ -118,6 +122,7 @@ const themeStore = useThemeStore()
       runSettingsHydrators(data)
     }
   } catch {}
+  await enginesReady
   const router = createAppRouter()
   app.use(router)
   // Mount only once the initial navigation has resolved, so App.vue's route

@@ -2,12 +2,10 @@
    tiny stub components to stand in for App.vue's child components. */
 /**
  * Focused spec for App.vue's `v-if="persistentRadioPane"` false branch: when
- * no registered section provides a persistent radio pane (sdr normally
- * does), the shell's `#radio` slot must render nothing rather than erroring
- * on `<component :is="undefined">`. Kept separate from App.spec.ts because it
- * needs to override `getPersistentRadioPane()` for the whole file — mounting
- * both behaviours from one file would mean one test's module mock leaking
- * into the other.
+ * no section engine has loaded (no sdr section, or its engine still on its
+ * way), the shell's `#radio` slot must render nothing rather than erroring
+ * on `<component :is="undefined">`. Kept separate from App.spec.ts, which
+ * loads every section and the engine for the whole file.
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
@@ -59,11 +57,6 @@ vi.mock('@sentinel/shell-api/services/offlineMapsApi', async (importOriginal) =>
 // radio pane. Real registrations (getNavEntries, getSectionRoutes, etc.) are
 // left untouched so the rest of the shell mounts exactly as it does in
 // production — only the pane lookup is forced to the "none registered" case.
-vi.mock('@sentinel/shell-api/shell/sectionRegistry', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@sentinel/shell-api/shell/sectionRegistry')>()
-  return { ...actual, getPersistentRadioPane: () => undefined }
-})
-
 const MapSidebarStub = defineComponent({
   name: 'MapSidebar',
   props: { hideTabs: { type: Boolean, default: false } },
