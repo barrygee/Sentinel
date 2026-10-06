@@ -85,6 +85,26 @@ async def _nearest_recent_row(db: AsyncSession, lat: float, lon: float, radius: 
     return nearest if distance_nm <= radius * _NEARBY_FRACTION_OF_RADIUS else None
 
 
+# How old the served snapshot is, in ms, as a duration rather than a timestamp:
+# the browser subtracts it from its own clock, so a receiver whose clock is
+# wrong (an off-grid Pi with no RTC) can't make cached aircraft look live.
+SNAPSHOT_AGE_HEADER = "X-Snapshot-Age-Ms"
+
+
+def _fresh_response(data: dict, cache_state: str) -> JSONResponse:
+    """A snapshot fetched by this request."""
+    return JSONResponse(content=data, headers={"X-Cache": cache_state, SNAPSHOT_AGE_HEADER: "0"})
+
+
+def _cached_response(row: AdsbCache, cache_state: str) -> JSONResponse:
+    """A snapshot from the cache, labelled with how long ago it was fetched."""
+    age_ms = max(0, now_ms() - row.fetched_at)
+    return JSONResponse(
+        content=json.loads(row.payload),
+        headers={"X-Cache": cache_state, SNAPSHOT_AGE_HEADER: str(age_ms)},
+    )
+
+
 @router.get("/adsb/point/{lat}/{lon}/{radius}")
 async def get_aircraft_near_point(
     lat: float,
@@ -94,12 +114,16 @@ async def get_aircraft_near_point(
 ):
     """Proxy the upstream /v2/point endpoint with a SQLite write-through cache.
 
+    Every response says how old its snapshot is in `X-Snapshot-Age-Ms` (0 when
+    fetched by this request), so the map can age aircraft by when they were
+    actually observed rather than when the response arrived.
+
     Cache strategy:
       - HIT:    fresh row exists (within adsb_ttl_ms) → return immediately
       - MISS:   no row or expired → fetch upstream, upsert row, return fresh data
-      - RATED:  upstream returned 429 → serve existing cache row regardless of age
+      - RATED:  upstream returned 429 → serve the cache row if within adsb_stale_ms
       - THROTTLED: our own limiter declined the call (see adsb_min_request_interval_ms)
-                → serve existing cache row regardless of age
+                → serve the cache row if within adsb_stale_ms
       - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data
       - NEARBY: no row for this exact point and no fresh fetch → serve the nearest
                 recent row (the point tracks the map centre, so pans miss the cache)
@@ -136,7 +160,7 @@ async def get_aircraft_near_point(
     # is None (offgrid mode with no offgrid source configured) we skip
     # the cache so callers get a 503 rather than stale data.
     if row and is_fresh(row.expires_at) and primary_url is not None:
-        return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "HIT"})
+        return _cached_response(row, "HIT")
 
     # offgrid mode with no offgrid source configured — nothing to fetch
     if primary_url is None:
@@ -228,9 +252,9 @@ async def get_aircraft_near_point(
             await db.commit()
         except OperationalError:
             await db.rollback()
-            return JSONResponse(content=data, headers={"X-Cache": "BYPASS"})
+            return _fresh_response(data, "BYPASS")
 
-        return JSONResponse(content=data, headers={"X-Cache": "MISS"})
+        return _fresh_response(data, "MISS")
 
     # No row for this exact point: the query point follows the map centre, so
     # every pan lands on a fresh cache key. Borrow the nearest recent row so a
@@ -239,25 +263,21 @@ async def get_aircraft_near_point(
     if row is None:
         nearby_row = await _nearest_recent_row(db, lat, lon, radius)
         if nearby_row is not None:
-            return JSONResponse(content=json.loads(nearby_row.payload), headers={"X-Cache": "NEARBY"})
+            return _cached_response(nearby_row, "NEARBY")
 
-    # Rate-limited: serve whatever we have cached, regardless of age
-    if rate_limited and row:
-        return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "RATED"})
-
-    # Locally throttled: a refresh is at most one rate-limit interval away, so
-    # serve the cached row rather than reporting an outage the upstream isn't having.
-    if throttled and row:
-        return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "THROTTLED"})
-
-    # All upstreams failed — serve stale data if still within the stale window
+    # No fresh snapshot: serve the cached row, but only inside the stale window
+    # whatever the reason — rate-limited (RATED), locally throttled (THROTTLED;
+    # a refresh is at most one rate-limit interval away) or failed (STALE). An
+    # older row would put aircraft on the map minutes after they were last
+    # seen there.
     if row and is_within_stale(row.fetched_at, settings.adsb_stale_ms):
-        return JSONResponse(content=json.loads(row.payload), headers={"X-Cache": "STALE"})
+        cache_state = "RATED" if rate_limited else "THROTTLED" if throttled else "STALE"
+        return _cached_response(row, cache_state)
     # Nothing cached to prefer: the fallback's empty list is a truthful
     # answer, better than an outage. Not cached, so the next poll tries the
     # primary again rather than serving it as a fresh HIT.
     if empty_fallback is not None:
-        return JSONResponse(content=empty_fallback, headers={"X-Cache": "FALLBACK"})
+        return _fresh_response(empty_fallback, "FALLBACK")
     raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
 
 

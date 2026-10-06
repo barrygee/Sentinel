@@ -3,6 +3,14 @@ import * as maplibregl from 'maplibre-gl'
 import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
 import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '../../stores/airNotif'
 import { parseAlt, isMilitary, type AdsbApiEntry } from './adsbParse'
+import {
+  displayedPosition,
+  observedAt,
+  reanchor,
+  snapshotAgeMs,
+  startTracking,
+  type TrackedPosition,
+} from './aircraftPosition'
 import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '../../constants/adsb'
 import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
 import {
@@ -74,19 +82,6 @@ interface TrailGeoFeature {
   properties: { alt: number; opacity: number; emerg: 0 | 1; military: 0 | 1; hex: string }
 }
 
-interface LastPosition {
-  lon: number
-  lat: number
-  gs: number
-  track: number | null
-  lastSeen: number
-  prevLon: number
-  prevLat: number
-  prevSeen: number
-  interpLon: number
-  interpLat: number
-}
-
 export class AdsbLiveControl implements maplibregl.IControl {
   visible: boolean
   labelsVisible: boolean
@@ -118,7 +113,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _trails: Record<string, TrailEntry[]> = {}
   _trailHex: string | null = null
   private _MAX_TRAIL = 100
-  private _lastPositions: Record<string, LastPosition> = {}
+  private _lastPositions: Record<string, TrackedPosition> = {}
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
   _selectedHex: string | null = null
@@ -1873,30 +1868,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Position hold / stale removal ----
 
-  private _deadReckon(
-    lon: number,
-    lat: number,
-    trackDeg: number,
-    gs: number,
-    elapsedSec: number,
-  ): [number, number] {
-    const distNm = gs * (elapsedSec / 3600)
-    const angDist = distNm / 3440.065
-    const bearRad = (trackDeg * Math.PI) / 180
-    const lat1 = (lat * Math.PI) / 180
-    const lon1 = (lon * Math.PI) / 180
-    const lat2 = Math.asin(
-      Math.sin(lat1) * Math.cos(angDist) + Math.cos(lat1) * Math.sin(angDist) * Math.cos(bearRad),
-    )
-    const lon2 =
-      lon1 +
-      Math.atan2(
-        Math.sin(bearRad) * Math.sin(angDist) * Math.cos(lat1),
-        Math.cos(angDist) - Math.sin(lat1) * Math.sin(lat2),
-      )
-    return [(lon2 * 180) / Math.PI, (lat2 * 180) / Math.PI]
-  }
-
   private _interpolate(): void {
     if (!this.map) return
     if (!this._geojson.features.length) return
@@ -1924,18 +1895,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const hex = f.properties.hex
       const pos = this._lastPositions[hex]
       const ageSec = pos ? (now - pos.lastSeen) / 1000 : 0
-      let coords: [number, number]
-
-      if (pos) {
-        const elapsedSec = (now - pos.lastSeen) / 1000
-        if (pos.track != null && pos.gs > 0) {
-          coords = this._deadReckon(pos.lon, pos.lat, pos.track, pos.gs, elapsedSec)
-        } else {
-          coords = [pos.lon, pos.lat]
-        }
-      } else {
-        coords = f.geometry.coordinates
-      }
+      const coords = pos ? displayedPosition(pos, now) : f.geometry.coordinates
 
       const stale = ageSec >= DIM_SEC ? 1 : 0
       return {
@@ -2032,6 +1992,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
         return
       }
       this._fetchFailCount = 0
+      // Taken before parsing, and the server's snapshot age with it: every
+      // report below is dated by when it was observed, not when it arrived.
+      const receivedAt = Date.now()
+      const snapshotAge = snapshotAgeMs(resp.headers.get('X-Snapshot-Age-Ms'))
       const data = await resp.json()
       if (!this.map) return
       const aircraft = (data.ac || []) as AircraftApiEntry[]
@@ -2055,48 +2019,27 @@ export class AdsbLiveControl implements maplibregl.IControl {
         seen.add(hex)
 
         if (hex) {
+          const report = { lon: a.lon!, lat: a.lat!, gs: a.gs, track: a.track }
+          const reportObservedAt = observedAt(receivedAt, snapshotAge, a.seen_pos)
+          const existing = this._lastPositions[hex]
+          if (existing) {
+            const next = reanchor(existing, report, reportObservedAt, Date.now())
+            // Nothing newer than what is held (a cached snapshot served again):
+            // keep the aircraft as it is — its age, position, trail and details.
+            if (!next) continue
+            this._lastPositions[hex] = next
+          } else {
+            this._lastPositions[hex] = startTracking(report, reportObservedAt)
+          }
+        }
+
+        if (hex) {
           if (!this._trails[hex]) this._trails[hex] = []
           const trail = this._trails[hex]
           const last = trail[trail.length - 1]
           if (!last || last.lon !== a.lon || last.lat !== a.lat) {
             trail.push({ lon: a.lon!, lat: a.lat!, alt })
             if (trail.length > this._MAX_TRAIL) trail.shift()
-          }
-        }
-
-        if (hex) {
-          const lastSeen = Date.now()
-          const existing = this._lastPositions[hex]
-          if (!existing) {
-            this._lastPositions[hex] = {
-              lon: a.lon!,
-              lat: a.lat!,
-              gs: a.gs ?? 0,
-              track: a.track ?? null,
-              lastSeen,
-              prevLon: a.lon!,
-              prevLat: a.lat!,
-              prevSeen: lastSeen,
-              interpLon: a.lon!,
-              interpLat: a.lat!,
-            }
-          } else {
-            const prevElapsed = (lastSeen - existing.lastSeen) / 1000
-            const [curLon, curLat] =
-              existing.track != null && existing.gs > 0
-                ? this._deadReckon(
-                    existing.lon,
-                    existing.lat,
-                    existing.track,
-                    existing.gs,
-                    prevElapsed,
-                  )
-                : [existing.lon, existing.lat]
-            existing.lon = curLon
-            existing.lat = curLat
-            existing.gs = a.gs ?? 0
-            existing.track = a.track ?? null
-            existing.lastSeen = lastSeen
           }
         }
 
