@@ -559,3 +559,162 @@ class TestAdsbFeedsSquawkAlerts:
         resp = client.get(self.POINT)
         assert resp.headers["X-Cache"] == "HIT"
         assert len(observed) == 1
+
+
+# ── /api/air/adsb/point — an empty fallback never hides cached aircraft ──────
+
+
+class TestEmptyFallbackDoesNotHideCachedAircraft:
+    """When the primary source fails, the fallback is the other mode's source —
+    online, the operator's own decoder — which often has nothing for the area.
+
+    The regression: adsb.lol answered 429, the decoder answered `{"ac": []}`,
+    and that empty list was cached as a fresh MISS, so the map went blank for a
+    whole TTL with good aircraft for the same area sitting in the cache.
+    """
+
+    ONLINE = "https://online.example/v2"
+    OFFGRID = "http://offgrid.example/data/aircraft.json"
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+    CACHED = {"ac": [{"hex": "abc123"}], "total": 1}
+    EMPTY = {"ac": [], "total": 0, "msg": "readsb"}
+
+    def _configure_sources(self, client):
+        client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
+        client.put("/api/settings/air/offgridDataSourceURL", json={"value": {"url": self.OFFGRID}})
+
+    @staticmethod
+    def _rate_limited() -> httpx.HTTPStatusError:
+        request = httpx.Request("GET", "https://online.example/v2/point")
+        return httpx.HTTPStatusError("slow down", request=request, response=httpx.Response(429, request=request))
+
+    def _sources(self, monkeypatch, primary, fallback=None) -> list[str]:
+        """Primary raises or returns `primary`; the fallback returns `fallback` (default: empty)."""
+        calls: list[str] = []
+
+        async def fake_fetch(lat, lon, radius, base_url):
+            calls.append(base_url)
+            outcome = primary if base_url == self.ONLINE else (fallback or self.EMPTY)
+            if isinstance(outcome, Exception):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        return calls
+
+    def _prime_expired(self, client, monkeypatch, point=None):
+        """Cache CACHED for the point with a row that is already past its TTL."""
+        monkeypatch.setattr(settings, "adsb_ttl_ms", 0)
+        self._sources(monkeypatch, self.CACHED)
+        assert client.get(point or self.POINT).headers["X-Cache"] == "MISS"
+        monkeypatch.setattr(settings, "adsb_ttl_ms", 10_000)
+
+    def test_rate_limited_primary_serves_the_cached_row_not_the_empty_fallback(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch)
+        calls = self._sources(monkeypatch, self._rate_limited())
+
+        resp = client.get(self.POINT)
+
+        assert calls == [self.ONLINE, self.OFFGRID]
+        assert resp.headers["X-Cache"] == "RATED"
+        assert resp.json() == self.CACHED
+
+    def test_unreachable_primary_serves_stale_data_not_the_empty_fallback(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch)
+        self._sources(monkeypatch, httpx.ConnectError("down"))
+
+        resp = client.get(self.POINT)
+
+        assert resp.headers["X-Cache"] == "STALE"
+        assert resp.json() == self.CACHED
+
+    def test_throttled_primary_on_a_new_point_borrows_the_nearby_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch, "/api/air/adsb/point/54.0/-1.5/100")
+        self._sources(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get("/api/air/adsb/point/54.1/-1.5/100")
+
+        assert resp.headers["X-Cache"] == "NEARBY"
+        assert resp.json() == self.CACHED
+
+    def test_the_empty_fallback_does_not_overwrite_the_cached_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch)
+        self._sources(monkeypatch, self._rate_limited())
+        client.get(self.POINT)
+
+        # The primary recovers but is now throttled locally: the row it serves
+        # must still be the good one, not an empty list written in between.
+        self._sources(monkeypatch, UpstreamThrottledError())
+        resp = client.get(self.POINT)
+
+        assert resp.headers["X-Cache"] == "THROTTLED"
+        assert resp.json() == self.CACHED
+
+    def test_with_nothing_cached_the_empty_fallback_is_served_but_not_cached(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._sources(monkeypatch, self._rate_limited())
+
+        resp = client.get(self.POINT)
+
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "FALLBACK"
+        assert resp.json() == self.EMPTY
+        # Not cached: the next poll asks the primary again instead of a HIT.
+        calls = self._sources(monkeypatch, self.CACHED)
+        again = client.get(self.POINT)
+        assert calls == [self.ONLINE]
+        assert again.headers["X-Cache"] == "MISS"
+        assert again.json() == self.CACHED
+
+    def test_a_fallback_with_aircraft_is_still_served_and_cached(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._sources(monkeypatch, self._rate_limited(), fallback=self.CACHED)
+
+        resp = client.get(self.POINT)
+
+        assert resp.headers["X-Cache"] == "MISS"
+        assert resp.json() == self.CACHED
+        assert client.get(self.POINT).headers["X-Cache"] == "HIT"
+
+    def test_an_empty_answer_from_the_primary_is_the_truth_and_is_cached(self, client, monkeypatch):
+        self._configure_sources(client)
+        calls = self._sources(monkeypatch, {"ac": [], "total": 0})
+
+        assert client.get(self.POINT).headers["X-Cache"] == "MISS"
+        assert client.get(self.POINT).headers["X-Cache"] == "HIT"
+        assert calls == [self.ONLINE]
+
+
+class TestEveryPollKeepsTheSquawkWatcherIdle:
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+
+    def test_a_cache_hit_still_counts_as_a_browser_poll(self, client, monkeypatch):
+        from backend.services.adsb_squawk import tracker
+
+        async def fake_fetch(lat, lon, radius, base_url):
+            return {"ac": []}
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        client.get(self.POINT)
+        monkeypatch.setattr(tracker, "last_browser_poll_ms", 0)
+
+        resp = client.get(self.POINT)
+
+        assert resp.headers["X-Cache"] == "HIT"
+        assert tracker.last_browser_poll_ms > 0
+
+    def test_a_poll_that_fails_outright_still_counts(self, client, monkeypatch):
+        from backend.services.adsb_squawk import tracker
+
+        async def failing_fetch(lat, lon, radius, base_url):
+            raise httpx.ConnectError("down")
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", failing_fetch)
+        monkeypatch.setattr(tracker, "last_browser_poll_ms", 0)
+
+        assert client.get(self.POINT).status_code == 503
+        assert tracker.last_browser_poll_ms > 0

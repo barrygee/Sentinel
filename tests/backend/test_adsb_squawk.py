@@ -133,6 +133,15 @@ class TestSquawkTracker:
         await tracker.observe({"ac": []}, DB)
         assert tracker.last_observed_ms == 5_000_000
 
+    def test_a_browser_poll_is_noted_without_observing_anything(self, published, clock):
+        tracker = SquawkTracker()
+        assert tracker.last_browser_poll_ms == 0
+        clock[0] = 7_000_000
+        tracker.browser_polled()
+        assert tracker.last_browser_poll_ms == 7_000_000
+        # A poll is not a snapshot: it must not look like one was observed.
+        assert tracker.last_observed_ms == 0
+
     async def test_an_aircraft_missing_from_one_snapshot_does_not_alert_again(self, published, clock):
         tracker = SquawkTracker()
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
@@ -325,6 +334,7 @@ class TestWatchArea:
 class FakeTracker:
     def __init__(self, last_observed_ms: int = 0) -> None:
         self.last_observed_ms = last_observed_ms
+        self.last_browser_poll_ms = 0
         self.observed: list[dict] = []
 
     async def observe(self, snapshot: dict, db: Any) -> None:
@@ -376,6 +386,24 @@ class TestWatchOnce:
 
     async def test_fetches_once_the_idle_window_has_passed(self, watch_setup, monkeypatch, clock):
         watch_setup.last_observed_ms = clock[0] - 15_000
+        fetch(monkeypatch, lambda base_url: {"ac": []})
+        assert await watch_once(DB) is True
+
+    async def test_does_nothing_while_a_browser_polls_even_if_its_fetches_failed(
+        self, watch_setup, monkeypatch, clock
+    ):
+        # The map's requests were answered from cache (upstream slow or
+        # rate-limiting), so nothing was observed for a long time — yet the map
+        # is open, and a watcher fetch now would take its rate budget.
+        watch_setup.last_observed_ms = clock[0] - 600_000
+        watch_setup.last_browser_poll_ms = clock[0] - 14_999
+        calls = fetch(monkeypatch, lambda base_url: {"ac": []})
+        assert await watch_once(DB) is False
+        assert calls == []
+
+    async def test_fetches_once_the_browser_has_stopped_polling(self, watch_setup, monkeypatch, clock):
+        watch_setup.last_observed_ms = clock[0] - 600_000
+        watch_setup.last_browser_poll_ms = clock[0] - 15_000
         fetch(monkeypatch, lambda base_url: {"ac": []})
         assert await watch_once(DB) is True
 
