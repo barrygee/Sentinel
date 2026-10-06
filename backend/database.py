@@ -93,6 +93,8 @@ async def create_tables():
             "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmin REAL NOT NULL DEFAULT 0.0",
             "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmax REAL NOT NULL DEFAULT 0.0",
             "ALTER TABLE sdr_stored_frequencies ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0",
+            # Subject aircraft of a notification (server-raised squawk alerts).
+            "ALTER TABLE air_messages ADD COLUMN hex TEXT",
         ]:
             try:
                 await conn.execute(sa_text(col_sql))

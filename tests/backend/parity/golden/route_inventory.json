@@ -76,6 +76,14 @@
     ]
   },
   {
+    "path": "/api/air/messages/stream",
+    "type": "Route",
+    "name": "stream_air_messages",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/api/air/messages",
     "type": "Route",
     "name": "create_air_message",

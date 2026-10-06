@@ -102,6 +102,12 @@ export async function installDefaultMocks(page: Page): Promise<void> {
     if (route.request().method() !== 'GET') void route.fulfill({ status: 204 })
     else void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
   })
+  // Server-pushed alerts (SSE). An empty stream that asks the browser to wait
+  // ten minutes before reconnecting, so EventSource stays quiet in tests.
+  // Registered after the catch-all above: Playwright tries the newest route first.
+  await page.route('**/api/air/messages/stream', (route) => {
+    void route.fulfill({ contentType: 'text/event-stream', body: 'retry: 600000\n\n' })
+  })
   await page.route('**/api/air/tracking', (route) => {
     void route.fulfill({ contentType: 'application/json', body: JSON.stringify([]) })
   })

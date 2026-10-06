@@ -5,15 +5,15 @@ The order is load-bearing — see `backend/platform/lifecycle.py`:
            seed) → space (satellite radio backfill)
   start:   bus (NATS, when configured — so every later module publishes onto a
            connected bus) → core (config file sync, offline maps) → radio hub (decode secret,
-           resumed APRS/AIS decode, Sentry poller) → land → sea
+           resumed APRS/AIS decode, Sentry poller) → land → sea → air (squawk
+           watcher; it asks the radio hub where the receiver is)
   stop:    the reverse.
-
-Air has no lifecycle: everything it does is request-driven.
 
 `MANIFESTS` are the services this process hosts, registered in-process with the
 service registry at import (`backend/main.py`, plan §3.2).
 """
 
+from backend.modules.air import lifecycle as air_lifecycle
 from backend.modules.air import manifest as air_manifest
 from backend.modules.bus import lifecycle as bus_lifecycle
 from backend.modules.core import lifecycle as core_lifecycle
@@ -38,6 +38,7 @@ MODULES: tuple[ModuleLifecycle, ...] = (
     radio_hub_lifecycle,
     land_lifecycle,
     sea_lifecycle,
+    air_lifecycle,
 )
 
 MANIFESTS: tuple[ServiceManifest, ...] = (

@@ -28,6 +28,13 @@ class Settings(BaseSettings):
     # serving cached data instead. Capped at one interval so a burst of callers
     # cannot pile into an ever-growing queue.
     adsb_rate_limit_max_wait_ms: int = 5000
+    # Server-side squawk alerts (docs/plans/adsb-server-alerts.md). The watcher
+    # fetches aircraft itself only when no browser has fetched any for this many
+    # seconds, so an open Air page costs no extra upstream calls.
+    adsb_watch_idle_s: float = 15.0
+    # Radius (nm) the watcher covers around the receiver (off grid) or
+    # Settings › App › Location (online) — the same radius the map asks for.
+    adsb_watch_radius_nm: int = 250
     # How long outbound calls to a host are suspended after it answers 429.
     # adsb.lol documents no fixed request budget ("rate limits are dynamic based
     # on the environment load"), so the fixed interval above is a floor, not a

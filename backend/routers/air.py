@@ -23,6 +23,7 @@ from backend.database import get_db
 from backend.models import AdsbCache, AirTracking
 from backend.services import adsb as adsb_service
 from backend.services import adsb_source
+from backend.services.adsb_squawk import tracker as squawk_tracker
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException
@@ -181,6 +182,12 @@ async def get_aircraft_near_point(
             continue
 
     if data is not None:
+        # Every fresh snapshot feeds the server-side squawk alerts, which is
+        # also what keeps their watcher from fetching while a map is open. Own
+        # session (on the same engine): an alert write must never disturb this
+        # request's cache write.
+        async with AsyncSession(db.bind, expire_on_commit=False) as alert_db:
+            await squawk_tracker.observe(data, alert_db)
         payload_str = json.dumps(data)
         ts = now_ms()
 

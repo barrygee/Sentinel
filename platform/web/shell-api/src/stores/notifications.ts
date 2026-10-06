@@ -127,17 +127,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       noradId: opts.noradId,
       satName: opts.satName,
     }
-    items.value.unshift(item)
-    _save(items.value)
-
-    _announceSeq += 1
-    liveAnnouncement.value = {
-      message: item.detail ? `${item.title}. ${item.detail}` : item.title,
-      assertive: item.type === 'emergency',
-      seq: _announceSeq,
-    }
-
-    if (useAppStore().notificationSound) playNotificationSound(item.type === 'emergency')
+    _present(item)
 
     fetch('/api/air/messages', {
       method: 'POST',
@@ -150,12 +140,28 @@ export const useNotificationsStore = defineStore('notifications', () => {
         ts: item.ts,
       }),
     }).catch(() => {})
+    return item.id
+  }
+
+  // Shows a new alert: list, persistence, screen-reader announcement, sound and
+  // the unread badge. Shared by add() and alerts the server pushes.
+  function _present(item: NotificationItem): void {
+    items.value.unshift(item)
+    _save(items.value)
+
+    _announceSeq += 1
+    liveAnnouncement.value = {
+      message: item.detail ? `${item.title}. ${item.detail}` : item.title,
+      assertive: item.type === 'emergency',
+      seq: _announceSeq,
+    }
+
+    if (useAppStore().notificationSound) playNotificationSound(item.type === 'emergency')
 
     if (!panelOpen.value) {
       unreadCount.value++
       _startBellPulse()
     }
-    return item.id
   }
 
   function update(opts: UpdateOptions): void {
@@ -229,6 +235,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
         title: string
         detail: string
         ts: number
+        hex?: string | null
       }>
       if (!Array.isArray(rows) || !rows.length) return
       const localById = new Map(items.value.map((i) => [i.id, i]))
@@ -242,7 +249,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
             title: r.title,
             detail: r.detail ?? '',
             ts: r.ts,
-            hex: prev?.hex,
+            hex: r.hex ?? prev?.hex,
             clickAction: prev?.clickAction,
             action: prev?.action,
           }
@@ -252,6 +259,46 @@ export const useNotificationsStore = defineStore('notifications', () => {
       items.value = [...fromBackend, ...localOnly].sort((a, b) => a.ts - b.ts)
       _save(items.value)
     } catch {}
+  }
+
+  // Alerts raised by the server (e.g. emergency squawks noticed with no Air
+  // page open) arrive on this Server-Sent Events stream as they happen. The
+  // server already stored them, so they are shown but never POSTed back.
+  let _stream: EventSource | null = null
+
+  function connectStream(): void {
+    if (_stream || typeof EventSource === 'undefined') return
+    _stream = new EventSource('/api/air/messages/stream')
+    _stream.onmessage = (event: MessageEvent<string>) => {
+      let row: {
+        msg_id: string
+        type: string
+        title: string
+        detail?: string
+        ts: number
+        hex?: string | null
+      }
+      try {
+        row = JSON.parse(event.data)
+      } catch {
+        return
+      }
+      if (!row?.msg_id || items.value.some((i) => i.id === row.msg_id)) return
+      _present({
+        id: row.msg_id,
+        type: row.type as NotificationType,
+        title: row.title,
+        detail: row.detail ?? '',
+        ts: row.ts,
+        hex: row.hex ?? undefined,
+      })
+    }
+    // EventSource reconnects by itself after a drop (the server sets a 5 s retry).
+  }
+
+  function disconnectStream(): void {
+    _stream?.close()
+    _stream = null
   }
 
   function _startBellPulse(): void {
@@ -287,5 +334,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     closePanel,
     togglePanel,
     syncFromBackend,
+    connectStream,
+    disconnectStream,
   }
 })

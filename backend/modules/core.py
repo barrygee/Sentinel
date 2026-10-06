@@ -1,5 +1,6 @@
 """Core lifecycle: database schema and settings, the live config file, offline maps, the service registry."""
 
+from backend.core import notifications
 from backend.core.service_registry import registry
 from backend.database import (
     create_tables,
@@ -24,6 +25,7 @@ async def _prepare() -> None:
 
 
 async def _start() -> None:
+    notifications.streams.reopen()
     # Live config file: apply an edit made while Sentinel was stopped, write the
     # seeded/migrated settings out, then keep file and database in sync both ways.
     await app_config_file.sync.start()
@@ -41,11 +43,17 @@ async def _stop() -> None:
     await app_config_file.sync.stop()
 
 
+def _wake() -> None:
+    # Wakes a running `pmtiles extract`, and ends every open alerts stream, so
+    # shutdown doesn't wait on either.
+    offline_map_job_runner.wake()
+    notifications.streams.wake()
+
+
 lifecycle = ModuleLifecycle(
     name="core",
     prepare=_prepare,
     start=_start,
     stop=_stop,
-    # Wakes a running `pmtiles extract` so shutdown doesn't wait on it.
-    wake=offline_map_job_runner.wake,
+    wake=_wake,
 )

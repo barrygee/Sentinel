@@ -156,7 +156,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _fetchFailCount = 0
 
   private _emergencySquawks: Set<string> = new Set(['7700', '7600', '7500'])
-  private _prevSquawk: Record<string, string> = {}
   _typeFilter: 'all' | 'civil' | 'mil' = 'all'
   _allHidden = false
   _hideGroundVehicles = false
@@ -496,7 +495,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const _savedHasDeparted = this._hasDeparted
     const _savedSeenOnGround = this._seenOnGround
     const _savedLandedAt = this._landedAt
-    const _savedPrevSquawk = this._prevSquawk
     this._geojson = { type: 'FeatureCollection', features: [] }
     this._trailsGeojson = { type: 'FeatureCollection', features: [] }
     this._trails = {}
@@ -506,7 +504,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._hasDeparted = {}
     this._seenOnGround = {}
     this._landedAt = {}
-    this._prevSquawk = {}
 
     this.map.addSource('adsb-trails-source', {
       type: 'geojson',
@@ -640,7 +637,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._hasDeparted = _savedHasDeparted
     this._seenOnGround = _savedSeenOnGround
     this._landedAt = _savedLandedAt
-    this._prevSquawk = _savedPrevSquawk
     try {
       const renderData =
         this._interpolatedFeatures && this._interpolatedFeatures.length
@@ -2205,61 +2201,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       for (const hex of Object.keys(this._hasDeparted)) {
         if (!seen.has(hex) && !this._lastPositions[hex]) delete this._hasDeparted[hex]
       }
-      for (const hex of Object.keys(this._prevSquawk)) {
-        if (!seen.has(hex) && !this._lastPositions[hex]) delete this._prevSquawk[hex]
-      }
-
-      for (const f of this._geojson.features) {
-        const props = f.properties
-        const hex = props.hex
-        if (!hex) continue
-        const squawk = props.squawk || ''
-        const prev = this._prevSquawk[hex]
-        const isEmerg = this._emergencySquawks.has(squawk)
-        const wasEmerg = prev !== undefined && this._emergencySquawks.has(prev)
-        if (squawk !== prev) {
-          if (isEmerg) {
-            const callsign = (props.flight || '').trim() || (props.r || '').trim() || hex
-            const squawkLabels: Record<string, string> = {
-              '7700': 'General Emergency',
-              '7600': 'Radio Failure / Lost Comm',
-              '7500': 'Hijacking / Unlawful Interference',
-            }
-            const now2 = new Date()
-            const detail =
-              [
-                /* v8 ignore start -- defensive: an emergency squawk is always one of the
-                   labelled codes (7700/7600/7500), so the || 'Emergency' never runs */
-                `SQK ${squawk} — ${squawkLabels[squawk] || 'Emergency'}`,
-                /* v8 ignore stop */
-                props.alt_baro > 0 ? `ALT ${props.alt_baro.toLocaleString()} ft` : 'ON GROUND',
-                props.gs ? `GS ${Math.round(props.gs)} kt` : '',
-              ]
-                .filter(Boolean)
-                .join(' · ') +
-              `\n${now2.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}  ${now2.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
-            const coords = f.geometry.coordinates
-            this._notificationsStore.add({
-              type: 'emergency',
-              title: callsign,
-              detail,
-              clickAction: () => {
-                if (this.map)
-                  this.map.flyTo({ center: coords, zoom: Math.max(this.map.getZoom(), 9) })
-              },
-            })
-          } else if (wasEmerg) {
-            const callsign = (props.flight || '').trim() || (props.r || '').trim() || hex
-            const now2 = new Date()
-            this._notificationsStore.add({
-              type: 'squawk-clr',
-              title: callsign,
-              detail: `Squawk changed to ${squawk || '(none)'}  ·  ${now2.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}  ${now2.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`,
-            })
-          }
-          this._prevSquawk[hex] = squawk
-        }
-      }
+      // Emergency-squawk alerts are raised by the server, which notices them
+      // with or without this page open (docs/plans/adsb-server-alerts.md); the
+      // map still highlights the aircraft (squawkEmerg above).
 
       this._lastFetchTime = Date.now()
       this._restoreTrackingState()
@@ -2538,7 +2482,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._hasDeparted = {}
     this._seenOnGround = {}
     this._landedAt = {}
-    this._prevSquawk = {}
     try {
       ;(this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(
         this._geojson as GeoJSON.GeoJSON,

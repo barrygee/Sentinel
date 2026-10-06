@@ -181,6 +181,9 @@ onMounted(async () => {
   // alerts) run independently of the active section, so alerts fire from any
   // page. Sections register them in their section.ts (F7).
   startBackgroundServices()
+  // Alerts the server raises (emergency squawks noticed with no Air page
+  // open) are pushed as they happen, whichever page is showing.
+  notificationsStore.connectStream()
   // Offline-map downloads keep running server-side whether or not Settings is
   // open — fetch status/regions once here so a queued/running job resumes
   // polling from app bootstrap, not only when the Settings panel is mounted.
