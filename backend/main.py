@@ -7,8 +7,10 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 from backend.core import app_sections as app_sections_router
 from backend.core import notifications as notifications_router
+from backend.core import registry_router
+from backend.core.service_registry import registry
 from backend.error_handlers import request_validation_error_handler
-from backend.modules import MODULES
+from backend.modules import MANIFESTS, MODULES
 from backend.platform.lifecycle import run_lifecycles
 from backend.radio_hub.routers import decode as hub_decode_router
 from backend.radio_hub.routers import decoders as hub_decoders_router
@@ -72,6 +74,12 @@ app.include_router(sentry_router.router)
 app.include_router(adsb_source_router.router)
 app.include_router(offline_map.router)
 app.include_router(app_sections_router.router)
+app.include_router(registry_router.router)
+
+# This process hosts every section (and the radio hub) until each moves into its
+# own container (P6); register them now, at import, so they are listed before
+# the first request — and in tests, which skip the lifespan.
+registry.register_in_process(list(MANIFESTS), instance_id="core")
 
 
 # ── Health probe ───────────────────────────────────────────────────────────────

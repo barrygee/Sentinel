@@ -4,6 +4,7 @@ import asyncio
 import logging
 import time
 
+from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.services import aprs_store
 
@@ -42,3 +43,5 @@ async def _stop() -> None:
 
 
 lifecycle = ModuleLifecycle(name="land", start=_start, stop=_stop)
+
+manifest = section_manifest("land", display_name="LAND", nav_order=40, routes=["/api/land/"])

@@ -1,6 +1,9 @@
 """Radio hub lifecycle: decode bridges, resumed background decodes, the Sentry fleet poller, IQ broadcasters."""
 
+from backend.config import settings
+from backend.modules.manifest import MONOLITH_VERSION
 from backend.platform.lifecycle import ModuleLifecycle
+from backend.platform.service_manifest import ServiceManifest
 from backend.radio_hub.routers import decode as decode_router
 from backend.radio_hub.services import manifest_decode
 from backend.radio_hub.services import sdr as sdr_service
@@ -39,3 +42,27 @@ def _wake() -> None:
 
 
 lifecycle = ModuleLifecycle(name="radio-hub", start=_start, stop=_stop, wake=_wake)
+
+# Everything that touches a physical radio. These prefixes sit inside the SDR
+# section's `/api/sdr/`; the gateway's longest-prefix match sends them here.
+# No UI remote: the radio panes are part of the SDR section's.
+manifest = ServiceManifest(
+    id="radio-hub",
+    kind="radio-hub",
+    version=MONOLITH_VERSION,
+    displayName="RADIO HUB",
+    internalUrl=settings.core_internal_url,
+    routes=[
+        "/api/sdr/radios",
+        "/api/sdr/connect",
+        "/api/sdr/disconnect",
+        "/api/sdr/status/",
+        "/api/sdr/decode/",
+        "/api/sdr/aprs/",
+        "/api/sdr/ais/",
+        "/api/sdr/decoders",
+        "/api/sdr/sentry-hosts",
+        "/api/sdr/adsb",
+        "/ws/sdr/",
+    ],
+)
