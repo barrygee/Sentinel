@@ -460,6 +460,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Poll ADS-B off grid instead of clearing the map
 - Refuse frequencies no tuner can reach; break the 7.812 GHz loop
 - Imported configs map the retired "colour" theme to light
+- Give the SPA build stage bash and the web-packages script
 
 ### Chores
 
@@ -1417,6 +1418,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #429 from barrygee/style/sdr-rec-waiting-amber
 - Merge pull request #430 from barrygee/feat/p5-1-section-registry
 - Merge pull request #431 from barrygee/feat/p5-2-nats-bus
+- Merge pull request #432 from barrygee/fix/docker-spa-build
 
 ### Refactoring
 
