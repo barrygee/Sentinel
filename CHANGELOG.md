@@ -199,6 +199,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Plain-dot known-frequency markers with hover names
 - Pulse REC yellow with a pause icon while waiting on squelch
 - Add the live service registry and section manifests
+- Forward event bus over NATS between processes
 
 ### Bug Fixes
 
@@ -1415,6 +1416,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into style/sdr-rec-waiting-amber
 - Merge pull request #429 from barrygee/style/sdr-rec-waiting-amber
 - Merge pull request #430 from barrygee/feat/p5-1-section-registry
+- Merge pull request #431 from barrygee/feat/p5-2-nats-bus
 
 ### Refactoring
 
@@ -1526,6 +1528,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Browser storage keys by owner
 - Record the as-built P4.7 engine, Pinia and CSS-order checks
 - Describe service registration in the serving model
+- Describe the NATS event bus and NATS_URL
 
 ### Tests
 
@@ -1576,6 +1579,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover known-frequency hover names and dot alignment
 - Cover the REC button's waiting state
 - Cover the service registry, manifests and registration endpoint
+- Cover the NATS bus transport and remote seam
 
 ### Build System
 
