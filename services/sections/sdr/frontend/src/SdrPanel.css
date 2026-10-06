@@ -1670,6 +1670,18 @@
   animation: sdr-rec-pulse 0.9s ease-in-out infinite;
 }
 
+/* Armed but waiting: recording is on while the squelch is closed, at the start
+   or mid-session, so nothing is being captured yet. Pulses bright yellow (the
+   same yellow as the RECORDINGS panel's "Waiting" dot) with a pause icon until
+   the squelch opens, then the rule drops and the button pulses red like
+   --active. Doubled class so it beats --active's !important colours, and its
+   hover keeps the yellow too. */
+.sdr-rec-btn--active.sdr-rec-btn--waiting,
+.sdr-rec-btn--waiting:hover:not(:disabled) {
+  background: rgba(255, 214, 0, 0.16) !important;
+  color: #ffd600 !important;
+}
+
 @keyframes sdr-rec-pulse {
   0%,
   100% {
