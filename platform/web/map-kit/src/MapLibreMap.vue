@@ -19,7 +19,7 @@
 // Never put it in ref() or reactive() — Vue's Proxy wrapping breaks WebGL internals.
 import { ref, onMounted, onUnmounted, useId } from 'vue'
 import * as maplibregl from 'maplibre-gl'
-import { ignoreOfflineTileErrors, setMapStyle } from './utils/mapStyle'
+import { ignoreOfflineTileErrors, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
 import type { Map } from 'maplibre-gl'
 
 // `regionLabel`/`regionDescription` are deliberately NOT named `ariaLabel` etc.:

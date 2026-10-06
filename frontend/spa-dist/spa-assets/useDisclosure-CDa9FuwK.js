@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";import{P as t}from"./_virtual_mf___mfe_internal__sentinel_shell__mf_owner__261401875018842__loadShare__pinia__loadShare__.js-DHlEDfXJ.js";var n=e({useDisclosure:()=>r});function r(e=!1){let n=t(e);function r(){n.value=!n.value}return{open:n,toggle:r}}export{n,r as t};

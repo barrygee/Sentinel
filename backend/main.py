@@ -5,6 +5,7 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
+from backend.core import app_sections as app_sections_router
 from backend.core import notifications as notifications_router
 from backend.error_handlers import request_validation_error_handler
 from backend.modules import MODULES
@@ -70,6 +71,7 @@ app.include_router(hub_decoders_router.router)
 app.include_router(sentry_router.router)
 app.include_router(adsb_source_router.router)
 app.include_router(offline_map.router)
+app.include_router(app_sections_router.router)
 
 
 # ── Health probe ───────────────────────────────────────────────────────────────
@@ -101,6 +103,16 @@ if fonts_dir.exists():
 
 if SPA_DIR.exists():
     app.mount("/spa-assets", StaticFiles(directory=str(SPA_DIR / "spa-assets")), name="spa-assets")
+
+# Each section's federation remote (GET /api/app/sections lists them). Mounted
+# even before the remotes are built (check_dir=False), so a rebuild is served
+# without a restart — and a missing remote file is a 404, never the SPA's
+# index.html, which the shell would otherwise try to run as a remote entry.
+app.mount(
+    "/remotes",
+    app_sections_router.RemotesStaticFiles(directory=str(SPA_DIR / "remotes"), check_dir=False),
+    name="remotes",
+)
 
 
 # ── SPA catch-all ─────────────────────────────────────────────────────────────

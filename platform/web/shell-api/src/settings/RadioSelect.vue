@@ -35,8 +35,8 @@
  * platform registered the list is simply empty.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { getCapability } from '../shell/capabilities'
-import type { RadioSummary } from '../shell/radioCapability'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@sentinel/ui/base/SettingsDropdown.vue'

@@ -1,0 +1,1 @@
+var e=[];function t(t){if(e.some(e=>e.id===t.id))throw Error(`Background service "${t.id}" is already registered`);e.push(t)}function n(){for(let t of e)t.start()}function r(){e.length=0}export{t as registerBackgroundService,r as resetBackgroundServicesForTests,n as startBackgroundServices};

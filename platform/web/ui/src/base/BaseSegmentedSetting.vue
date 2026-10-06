@@ -21,8 +21,8 @@
 </template>
 
 <script setup lang="ts" generic="TValue extends string">
-import BasePillToggle from './BasePillToggle.vue'
-import { useRadioGroupKeyboard } from '../composables/useRadioGroupKeyboard'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 
 /**
  * `BaseSegmentedSetting` — a single-select segmented control for the Settings

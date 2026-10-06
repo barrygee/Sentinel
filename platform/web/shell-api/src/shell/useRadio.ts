@@ -1,6 +1,6 @@
 import { computed } from 'vue'
-import { getCapability } from './capabilities'
-import type { RadioCapability } from './radioCapability'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import type { RadioCapability } from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * The `radio` capability for a component, with a reactive `connected` and an

@@ -1,5 +1,5 @@
-import { RangeRingsControlBase } from './RangeRingsControlBase'
-import type { ResolvedRingOrigin } from '../../composables/useRangeRingOrigin'
+import { RangeRingsControlBase } from '@sentinel/map-kit/controls/range-rings/RangeRingsControlBase'
+import type { ResolvedRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 
 const LS_KEY = 'sentinel_land_rangeRings'
 

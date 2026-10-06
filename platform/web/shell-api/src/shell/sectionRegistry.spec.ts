@@ -173,6 +173,32 @@ describe('shell/sectionRegistry', () => {
     })
   })
 
+  describe('isSectionUnavailable', () => {
+    it('is true only for a stand-in the shell registered for a section that failed to load', async () => {
+      const { registerSection, isSectionUnavailable } = await freshRegistry()
+      const view = stubComponent('View')
+      registerSection({
+        id: 'air',
+        label: 'AIR',
+        navOrder: 10,
+        enabledByDefault: true,
+        route: { path: '/air/', component: view },
+      })
+      registerSection({
+        id: 'sea',
+        label: 'SEA',
+        navOrder: 30,
+        enabledByDefault: false,
+        route: { path: '/sea/', component: view },
+        unavailable: true,
+      })
+
+      expect(isSectionUnavailable('air')).toBe(false)
+      expect(isSectionUnavailable('sea')).toBe(true)
+      expect(isSectionUnavailable('land')).toBe(false)
+    })
+  })
+
   describe('getPersistentRadioPane', () => {
     it('returns undefined when no registered section provides a pane', async () => {
       const { registerSection, getPersistentRadioPane } = await freshRegistry()

@@ -40,7 +40,7 @@
  * CSS): `--ba-icon-action-tooltip-offset`, `-bg`, `-color`, `-font`,
  * `-padding`, `-height`, `-radius`, `-z`.
  */
-import BasePillToggle from './BasePillToggle.vue'
+import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 
 withDefaults(
   defineProps<{

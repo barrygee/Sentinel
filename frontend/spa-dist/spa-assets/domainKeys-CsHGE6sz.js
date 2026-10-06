@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";var t=e({offgridKey:()=>a,onlineKey:()=>i}),n={air:`onlineDataSourceURL`},r={air:`offgridDataSourceURL`};function i(e){return n[e]??`onlineUrl`}function a(e){return r[e]??`offgridSource`}export{a as n,i as r,t};

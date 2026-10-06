@@ -279,6 +279,42 @@
         "title": "DecoderManifest",
         "type": "object"
       },
+      "DeployedSection": {
+        "description": "One section the shell should load.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "remoteEntry": {
+            "title": "Remoteentry",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "remoteEntry"
+        ],
+        "title": "DeployedSection",
+        "type": "object"
+      },
+      "DeployedSections": {
+        "description": "Body of GET /api/app/sections.",
+        "properties": {
+          "sections": {
+            "items": {
+              "$ref": "#/components/schemas/DeployedSection"
+            },
+            "title": "Sections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sections"
+        ],
+        "title": "DeployedSections",
+        "type": "object"
+      },
       "DeviceSnapshotOut": {
         "description": "Response for `GET /api/sdr/sentry-hosts/{host_id}/devices` — the cached poll snapshot.",
         "properties": {
@@ -2247,6 +2283,28 @@
         "summary": "Remove Tracked Aircraft",
         "tags": [
           "air"
+        ]
+      }
+    },
+    "/api/app/sections": {
+      "get": {
+        "description": "List the sections the shell should load as federation remotes.",
+        "operationId": "list_sections_api_app_sections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeployedSections"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sections",
+        "tags": [
+          "app"
         ]
       }
     },

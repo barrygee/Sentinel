@@ -3,26 +3,31 @@ import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydr
 import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import LandView from './LandView.vue'
 import { landSidebarFilter } from './landSidebarFilter'
-// Registers this section's Settings nav entry and items (F3).
-import './settings'
+import { registerLandSettings } from './settings'
 import { hydrateLandFromSettings } from './landSettingsHydration'
 
 /**
  * Registers the LAND section with the shell (route + nav entry).
  *
- * In-monolith stand-in for the `register(shell)` entry a future `land`
- * Module Federation remote will export (docs/plans/section-containers.md §3.6).
+ * The section's `./register` entry: the shell calls it once at boot, statically
+ * in dev and tests and through Module Federation in the built app
+ * (docs/plans/section-containers.md §3.6).
  */
-registerSection({
-  id: 'land',
-  label: 'LAND',
-  navOrder: 40,
-  enabledByDefault: false,
-  route: { path: '/land/', component: LandView },
-})
+export default function register(): void {
+  // Its Settings nav entry and items (F3).
+  registerLandSettings()
 
-// FILTER rail sub-tabs (F2).
-registerSidebarFilterSubTabs('land', landSidebarFilter)
+  registerSection({
+    id: 'land',
+    label: 'LAND',
+    navOrder: 40,
+    enabledByDefault: false,
+    route: { path: '/land/', component: LandView },
+  })
 
-// Applies its stored settings to its stores at boot, before the first render (F1).
-registerSettingsHydrator('land', hydrateLandFromSettings)
+  // FILTER rail sub-tabs (F2).
+  registerSidebarFilterSubTabs('land', landSidebarFilter)
+
+  // Applies its stored settings to its stores at boot, before the first render (F1).
+  registerSettingsHydrator('land', hydrateLandFromSettings)
+}

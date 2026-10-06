@@ -2,21 +2,7 @@ import type { Page } from '@playwright/test'
 import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json' }
 import landRepeatersFixture from '../fixtures/land-repeaters.json' with { type: 'json' }
 
-/**
- * Install default catch-all API stubs for every Sentinel `/api/**` route.
- *
- * The preview server serves the committed SPA bundle with no Python backend.
- * Any fetch to `/api/**` that the SPA makes during startup would otherwise
- * result in a 404 (Vite preview doesn't proxy to FastAPI). These stubs return
- * the minimal JSON shapes that stores and components expect so the app renders
- * without errors and tests can layer their own per-path overrides on top.
- *
- * Call this in `test.beforeEach` before `page.goto()`. Tests that need
- * specific data override individual routes with their own `page.route()` call
- * AFTER this one — Playwright matches routes in most-recently-registered order
- * so the override wins.
- *
- * WebSocket routes (/ws/sdr/** A healthy offline-map status: both sources present, plenty of disk, and a
+/** A healthy offline-map status: both sources present, plenty of disk, and a
  *  tiny calibration table so estimates are easy to reason about. Exported for
  *  specs that need to assert against the same numbers. */
 export const OFFLINE_MAP_STATUS = {
@@ -35,7 +21,28 @@ export const OFFLINE_MAP_STATUS = {
   },
 }
 
-/**) must be stubbed separately per-test using
+/** Every section, as `GET /api/app/sections` lists a full deployment: the
+ *  shell loads each as a federation remote from `/remotes/<id>/`. */
+export const DEPLOYED_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr'].map((id) => ({
+  id,
+  remoteEntry: `/remotes/${id}/remoteEntry.js`,
+}))
+
+/**
+ * Install default catch-all API stubs for every Sentinel `/api/**` route.
+ *
+ * The preview server serves the committed SPA bundle with no Python backend.
+ * Any fetch to `/api/**` that the SPA makes during startup would otherwise
+ * result in a 404 (Vite preview doesn't proxy to FastAPI). These stubs return
+ * the minimal JSON shapes that stores and components expect so the app renders
+ * without errors and tests can layer their own per-path overrides on top.
+ *
+ * Call this in `test.beforeEach` before `page.goto()`. Tests that need
+ * specific data override individual routes with their own `page.route()` call
+ * AFTER this one — Playwright matches routes in most-recently-registered order
+ * so the override wins.
+ *
+ * WebSocket routes (/ws/sdr/**) must be stubbed separately per-test using
  * `page.routeWebSocket(...)`.
  */
 export async function installDefaultMocks(page: Page): Promise<void> {
@@ -49,6 +56,17 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   const emptyStyle = JSON.stringify({ version: 8, sources: {}, layers: [] })
   await page.route('**/assets/{fiord,osm-light}*.json', (route) => {
     void route.fulfill({ contentType: 'application/json', body: emptyStyle })
+  })
+
+  // The sections the shell loads as federation remotes, before it mounts.
+  // Stubbed rather than left to `vite preview` (which lists whatever is built)
+  // so every spec sees all five, whatever happens to be in spa-dist/remotes/;
+  // remote-down.spec breaks one remote's files to show the stand-in page.
+  await page.route('/api/app/sections', (route) => {
+    void route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ sections: DEPLOYED_SECTIONS }),
+    })
   })
 
   // ADS-B point data — empty aircraft list

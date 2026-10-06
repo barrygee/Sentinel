@@ -17,16 +17,21 @@ import './assets/styles.css'
 import './assets/a11y.css'
 
 import App from './App.vue'
-import router from './router'
+import { createAppRouter } from './router'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { APP_MODE_STORAGE_KEY, asSourceMode } from '@sentinel/shell-api/utils/sourceMode'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
-// Registers every section (routes, nav, capabilities, settings hydrators…)
-// before anything below reads the registries.
-import './shell/sections'
+// The sections this build includes: imported in dev/tests, Module Federation
+// remotes in the built app (vite.config.ts swaps the module).
+import { sectionSources } from './shell/sections'
+import { loadSections } from './shell/sectionLoader'
+// Built app only: every @sentinel/ui, shell-api and map-kit module, so this
+// container can provide each one a section remote uses (sections never carry
+// their own copies — @sentinel/web-config/federation). Empty in dev and tests.
+import 'virtual:sentinel-shared-package-modules'
 import { runSettingsHydrators } from '@sentinel/shell-api/shell/settingsHydration'
 import { getEnabledSectionIds } from '@sentinel/shell-api/shell/sectionRegistry'
 
@@ -39,7 +44,6 @@ maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol))
 const pinia = createPinia()
 const app = createApp(App)
 app.use(pinia)
-app.use(router)
 
 // Drop cached keys belonging to removed features before any store reads
 // storage (see utils/removedStorageKeys.ts).
@@ -58,9 +62,19 @@ const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
 
 ;(async () => {
+  // Fetch the settings and load the sections at the same time. Sections must
+  // have registered before the settings are applied (their enabled defaults and
+  // settings hydrators are part of what they register) and before the router
+  // and App read the registries.
+  const settingsResponse = fetch('/api/settings').catch(() => null)
   try {
-    const res = await fetch('/api/settings')
-    if (res.ok) {
+    await loadSections(await sectionSources())
+  } catch (error) {
+    console.error('[sentinel] loading sections failed:', error)
+  }
+  try {
+    const res = await settingsResponse
+    if (res?.ok) {
       const data = (await res.json()) as Record<string, Record<string, unknown>>
       // Seed the settings store from this same payload so reads like
       // sdr.bandPlan (waterfall band strip)
@@ -104,5 +118,12 @@ const themeStore = useThemeStore()
       runSettingsHydrators(data)
     }
   } catch {}
+  const router = createAppRouter()
+  app.use(router)
+  // Mount only once the initial navigation has resolved, so App.vue's route
+  // watchers start on the real route: seeing the start location ('/') change
+  // to it would count as a navigation — focus jumps to <main> (skipping the
+  // skip link) and the SDR radio pane toggles as if the operator had arrived.
+  await router.isReady()
   app.mount('#app')
 })()

@@ -1,5 +1,5 @@
 import type { Router } from 'vue-router'
-import type { NotificationItem } from '../stores/notifications'
+import type { NotificationItem } from '@sentinel/shell-api/stores/notifications'
 
 /**
  * Notification registries (docs/plans/section-containers.md §3.6, F8).

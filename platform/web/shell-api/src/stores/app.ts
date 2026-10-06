@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import type { SourceMode } from '../utils/sourceMode'
+import type { SourceMode } from '@sentinel/shell-api/utils/sourceMode'
 
 /** The app-wide data-source mode (Settings › Connectivity Mode). */
 export type ConnectivityMode = SourceMode

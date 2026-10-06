@@ -3,10 +3,9 @@
  * jsdom, the shared test setup (jest-axe matcher, in-memory storage) and the
  * 100% coverage gate every package ships at, matching the SPA's.
  */
-import vue from '@vitejs/plugin-vue'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
-import { maplibreContourAlias } from './vite.ts'
+import { maplibreContourAlias, sentinelVuePlugin } from './vite.ts'
 
 const sharedTestSetup = fileURLToPath(new URL('./test-setup.ts', import.meta.url))
 
@@ -18,7 +17,7 @@ const sharedTestSetup = fileURLToPath(new URL('./test-setup.ts', import.meta.url
  */
 export function sentinelPackageVitestConfig(packageUrl: string) {
   return defineConfig({
-    plugins: [vue()],
+    plugins: [sentinelVuePlugin()],
     resolve: { alias: maplibreContourAlias(packageUrl) },
     test: {
       environment: 'jsdom',

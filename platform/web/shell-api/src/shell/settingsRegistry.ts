@@ -1,4 +1,4 @@
-import type { SettingItem } from '../types/settings'
+import type { SettingItem } from '@sentinel/shell-api/types/settings'
 
 /**
  * Settings registry (docs/plans/section-containers.md §3.6, F3).

@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { aprsSymbolIcon } from '../utils/aprsSymbols'
+import { aprsSymbolIcon } from '@sentinel/ui/utils/aprsSymbols'
 
 const props = defineProps<{ symbol?: string | null }>()
 

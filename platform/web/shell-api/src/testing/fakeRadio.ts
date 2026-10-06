@@ -1,13 +1,13 @@
 import { reactive } from 'vue'
 import { vi } from 'vitest'
-import { provideCapability } from '../shell/capabilities'
+import { provideCapability } from '@sentinel/shell-api/shell/capabilities'
 import type {
   RadioCapability,
   RadioDecoderKind,
   RadioDecoders,
   RadioSummary,
-} from '../shell/radioCapability'
-import type { RadioSite, RadioSiteDevices } from '../shell/radioSitesCapability'
+} from '@sentinel/shell-api/shell/radioCapability'
+import type { RadioSite, RadioSiteDevices } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
  * A stand-in `radio` capability for specs of the sections that *use* the SDR

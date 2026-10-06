@@ -9,6 +9,7 @@
     "./*": "./src/*.ts"
   },
   "scripts": {
+    "build": "vite build",
     "lint": "eslint . && prettier --check .",
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",

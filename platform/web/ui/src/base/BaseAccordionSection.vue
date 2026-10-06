@@ -64,7 +64,7 @@
  * Styling stays in `SdrPanel.css` until the B10 co-location sweep, same as
  * `BaseSelectMenu`.
  */
-import ChevronIcon from '../icons/ChevronIcon.vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 
 /** Whether the body is expanded (caller-owned so panels can collapse sections). */
 const expanded = defineModel<boolean>('expanded', { required: true })

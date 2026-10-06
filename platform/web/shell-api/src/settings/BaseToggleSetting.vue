@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
-import { useStagedSetting } from './useStagedSetting'
+import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
 
 /**
  * `BaseToggleSetting` — a full Settings-panel toggle row: a short uppercase

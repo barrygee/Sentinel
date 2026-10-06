@@ -1,5 +1,5 @@
 import { onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
-import { SIDEBAR_PANE_IDS, type SidebarPaneId } from '../constants/sidebarPanes'
+import { SIDEBAR_PANE_IDS, type SidebarPaneId } from '@sentinel/shell-api/constants/sidebarPanes'
 
 /**
  * Tracks whether a `MapSidebar` pane's DOM node exists yet, so a domain view

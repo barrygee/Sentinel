@@ -12,7 +12,7 @@
 // `mlcontour.DemSource`.
 import * as maplibregl from 'maplibre-gl'
 import mlcontour from 'maplibre-contour'
-import { withTierVersion } from '../../utils/offlineTileVersion'
+import { withTierVersion } from '@sentinel/map-kit/utils/offlineTileVersion'
 
 /** Tile URL template for the contour DEM fetch. */
 export const TERRAIN_TILE_URL_TEMPLATE = '/api/offline-map/terrain/{z}/{x}/{y}'

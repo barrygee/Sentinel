@@ -2,22 +2,27 @@ import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
 import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import SeaView from './SeaView.vue'
 import { seaSidebarFilter } from './seaSidebarFilter'
-// Registers this section's Settings nav entry and items (F3).
-import './settings'
+import { registerSeaSettings } from './settings'
 
 /**
  * Registers the SEA section with the shell (route + nav entry).
  *
- * In-monolith stand-in for the `register(shell)` entry a future `sea`
- * Module Federation remote will export (docs/plans/section-containers.md §3.6).
+ * The section's `./register` entry: the shell calls it once at boot, statically
+ * in dev and tests and through Module Federation in the built app
+ * (docs/plans/section-containers.md §3.6).
  */
-registerSection({
-  id: 'sea',
-  label: 'SEA',
-  navOrder: 30,
-  enabledByDefault: false,
-  route: { path: '/sea/', component: SeaView },
-})
+export default function register(): void {
+  // Its Settings nav entry and items (F3).
+  registerSeaSettings()
 
-// FILTER rail sub-tabs (F2).
-registerSidebarFilterSubTabs('sea', seaSidebarFilter)
+  registerSection({
+    id: 'sea',
+    label: 'SEA',
+    navOrder: 30,
+    enabledByDefault: false,
+    route: { path: '/sea/', component: SeaView },
+  })
+
+  // FILTER rail sub-tabs (F2).
+  registerSidebarFilterSubTabs('sea', seaSidebarFilter)
+}

@@ -1,16 +1,16 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
-import { SentinelControlBase } from '../../sentinel-control-base/SentinelControlBase'
-import { buildLocationMarkerSvg } from '../../UserLocationMarker'
+import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { buildLocationMarkerSvg } from '@sentinel/map-kit/UserLocationMarker'
 import {
   buildCountMarker,
   groupByProximity,
   type ScreenPosition,
-} from '../../map-cluster/mapCluster'
-import { setMarkerAccessibleName } from '../../map-label/mapMarkerAria'
-import { formatLatitude, formatLongitude } from '../../utils/locationUtils'
+} from '@sentinel/map-kit/map-cluster/mapCluster'
+import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
+import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
-import { siteLabel } from '../../utils/sentrySiteLabel'
+import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
 import type { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import type { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 

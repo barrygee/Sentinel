@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";var t=e({formatLatitude:()=>i,formatLongitude:()=>a,isValidLatLon:()=>n});function n(e,t){return!isNaN(e)&&e>=-90&&e<=90&&!isNaN(t)&&t>=-180&&t<=180}var r=5;function i(e){return`${Math.abs(e).toFixed(r)}° ${e>=0?`N`:`S`}`}function a(e){return`${Math.abs(e).toFixed(r)}° ${e>=0?`E`:`W`}`}export{t as i,a as n,n as r,i as t};

@@ -1,5 +1,5 @@
 import type { Map as MapLibreGlMap, MapMouseEvent } from 'maplibre-gl'
-import { formatLatitude, formatLongitude } from '../utils/locationUtils'
+import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 
 export function useMapContextMenu() {
   let _ctxMenu: HTMLElement | null = null

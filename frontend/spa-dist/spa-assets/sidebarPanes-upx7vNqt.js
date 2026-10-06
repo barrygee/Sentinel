@@ -1,0 +1,1 @@
+var e={search:`msb-pane-search`,alerts:`msb-pane-alerts`,tracking:`msb-pane-tracking`,passes:`msb-pane-passes`,radio:`msb-pane-radio`};function t(t){return`#${e[t]}`}export{e as SIDEBAR_PANE_IDS,t as sidebarPaneSelector};

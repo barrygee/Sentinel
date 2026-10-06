@@ -1,6 +1,6 @@
 import { ref, type Ref } from 'vue'
-import { useDocumentEvent } from './useDocumentEvent'
-import { useWindowEvent } from './useWindowEvent'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import { useWindowEvent } from '@sentinel/ui/composables/useWindowEvent'
 
 /**
  * How long after a menu opens that scroll events are ignored rather than

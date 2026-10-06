@@ -1,8 +1,8 @@
 import { watch } from 'vue'
 import type { Map as MapLibreGlMap, VectorTileSource } from 'maplibre-gl'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
-import { withTierVersion } from '../utils/offlineTileVersion'
-import type { TerrainToggleControl } from '../controls/terrain/TerrainToggleControl'
+import { withTierVersion } from '@sentinel/map-kit/utils/offlineTileVersion'
+import type { TerrainToggleControl } from '@sentinel/map-kit/controls/terrain/TerrainToggleControl'
 
 /** The `openmaptiles` source id and tile template every offline basemap style shares
  *  (`fiord.json`/`osm-light.json` — see the BUILD CONTRACT). */

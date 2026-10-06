@@ -1076,6 +1076,14 @@
     ]
   },
   {
+    "path": "/api/app/sections",
+    "type": "Route",
+    "name": "list_sections",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/health",
     "type": "Route",
     "name": "health_check",
@@ -1107,6 +1115,12 @@
     "path": "/spa-assets",
     "type": "Mount",
     "name": "spa-assets",
+    "methods": null
+  },
+  {
+    "path": "/remotes",
+    "type": "Mount",
+    "name": "remotes",
     "methods": null
   },
   {
