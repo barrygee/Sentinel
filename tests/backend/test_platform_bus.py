@@ -158,3 +158,183 @@ class TestRequestReply:
         event_bus.reply("slow", slow)
         with pytest.raises(asyncio.TimeoutError):
             await event_bus.request("slow", {}, timeout=0.01)
+
+
+class RecordingRemote:
+    """A `RemoteTransport` that records what the bus asks of it."""
+
+    def __init__(self, reply: object = None) -> None:
+        self.calls: list[tuple] = []
+        self.reply = reply
+
+    def watch(self, subscription):
+        self.calls.append(("watch", subscription.pattern, subscription.is_responder))
+
+    def unwatch(self, subscription):
+        self.calls.append(("unwatch", subscription.pattern))
+
+    async def forward(self, subject, payload):
+        self.calls.append(("forward", subject, payload))
+
+    async def request(self, subject, payload, timeout):
+        self.calls.append(("request", subject, payload, timeout))
+        return self.reply
+
+
+class TestRemoteAttachment:
+    def test_subscribe_and_reply_record_which_kind_they_are(self):
+        event_bus = EventBus()
+        event_bus.subscribe("decode.aprs.*", lambda payload: None)
+        event_bus.reply("hub.decode.ais.status", lambda payload: None)
+        assert [(item.pattern, item.is_responder) for item in event_bus._subscriptions] == [
+            ("decode.aprs.*", False),
+            ("hub.decode.ais.status", True),
+        ]
+
+    def test_attach_watches_every_existing_subscription(self):
+        event_bus = EventBus()
+        event_bus.subscribe("decode.aprs.*", lambda payload: None)
+        event_bus.reply("hub.decode.ais.status", lambda payload: None)
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+        assert event_bus.remote is remote
+        assert remote.calls == [
+            ("watch", "decode.aprs.*", False),
+            ("watch", "hub.decode.ais.status", True),
+        ]
+
+    def test_subscriptions_after_attach_are_watched_and_unwatched_once(self):
+        event_bus = EventBus()
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+        unsubscribe = event_bus.reply("hub.decode.x.start", lambda payload: None)
+        unsubscribe()
+        unsubscribe()  # already gone: must not unwatch twice
+        assert remote.calls == [("watch", "hub.decode.x.start", True), ("unwatch", "hub.decode.x.start")]
+
+    def test_unsubscribe_without_a_remote_only_removes_locally(self):
+        event_bus = EventBus()
+        unsubscribe = event_bus.subscribe("event", lambda payload: None)
+        unsubscribe()
+        assert event_bus._subscriptions == []
+
+    def test_detach_unwatches_everything_and_goes_in_process(self):
+        event_bus = EventBus()
+        event_bus.subscribe("decode.aprs.*", lambda payload: None)
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+        remote.calls.clear()
+        event_bus.detach_remote()
+        assert event_bus.remote is None
+        assert remote.calls == [("unwatch", "decode.aprs.*")]
+        # A later subscription no longer reaches the detached transport.
+        event_bus.subscribe("event", lambda payload: None)
+        assert remote.calls == [("unwatch", "decode.aprs.*")]
+
+    def test_detach_without_a_remote_is_a_no_op(self):
+        event_bus = EventBus()
+        event_bus.detach_remote()
+        assert event_bus.remote is None
+
+
+class TestRemotePublish:
+    async def test_forwards_after_every_local_handler(self):
+        event_bus = EventBus()
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+        event_bus.subscribe("event", lambda payload: remote.calls.append(("local",)))
+        await event_bus.publish("event", {"value": 1})
+        assert remote.calls[-2:] == [("local",), ("forward", "event", {"value": 1})]
+
+    async def test_forwards_even_when_nothing_listens_locally(self):
+        event_bus = EventBus()
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+        await event_bus.publish("registry.changed", {"id": "sea"})
+        assert remote.calls == [("forward", "registry.changed", {"id": "sea"})]
+
+    async def test_forwards_when_a_local_handler_failed_quietly(self):
+        event_bus = EventBus()
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+
+        def broken(payload):
+            raise RuntimeError("boom")
+
+        event_bus.subscribe("event", broken)
+        await event_bus.publish("event", {})
+        assert remote.calls[-1] == ("forward", "event", {})
+
+    async def test_does_not_forward_when_raise_errors_propagated(self):
+        event_bus = EventBus()
+        remote = RecordingRemote()
+        event_bus.attach_remote(remote)
+
+        def broken(payload):
+            raise ValueError("bad channel")
+
+        event_bus.subscribe("event", broken)
+        with pytest.raises(ValueError):
+            await event_bus.publish("event", {}, raise_errors=True)
+        assert [call for call in remote.calls if call[0] == "forward"] == []
+
+
+class TestRemoteDelivery:
+    async def test_deliver_remote_runs_only_the_given_subscription(self):
+        event_bus = EventBus()
+        calls: list[str] = []
+        event_bus.subscribe("settings.changed.*", lambda payload: calls.append("narrow"))
+        event_bus.subscribe("settings.>", lambda payload: calls.append("wide"))
+        await event_bus.deliver_remote(event_bus._subscriptions[1], "settings.changed.land", {})
+        assert calls == ["wide"]
+
+    async def test_deliver_remote_awaits_async_handlers(self):
+        event_bus = EventBus()
+        calls: list[dict] = []
+
+        async def handler(payload):
+            await asyncio.sleep(0)
+            calls.append(payload)
+
+        event_bus.subscribe("decode.ais.*", handler)
+        await event_bus.deliver_remote(event_bus._subscriptions[0], "decode.ais.1", {"radio_id": 1})
+        assert calls == [{"radio_id": 1}]
+
+    async def test_deliver_remote_logs_a_failing_handler(self, caplog):
+        event_bus = EventBus()
+
+        def broken(payload):
+            raise RuntimeError("boom")
+
+        event_bus.subscribe("decode.ais.*", broken)
+        with caplog.at_level(logging.ERROR, logger="backend.platform.bus"):
+            await event_bus.deliver_remote(event_bus._subscriptions[0], "decode.ais.1", {})
+        assert "event bus handler for 'decode.ais.*' failed on remote subject 'decode.ais.1'" in caplog.text
+
+
+class TestRemoteRequest:
+    async def test_a_local_responder_wins_over_the_remote(self):
+        event_bus = EventBus()
+        remote = RecordingRemote(reply="remote")
+        event_bus.attach_remote(remote)
+        event_bus.reply("hub.decode.ais.status", lambda payload: "local")
+        assert await event_bus.request("hub.decode.ais.status", {}) == "local"
+        assert [call for call in remote.calls if call[0] == "request"] == []
+
+    async def test_with_no_local_responder_the_remote_answers(self):
+        event_bus = EventBus()
+        remote = RecordingRemote(reply={"running": True})
+        event_bus.attach_remote(remote)
+        reply = await event_bus.request("hub.decode.ais.status", {"radio_id": 2}, timeout=None)
+        assert reply == {"running": True}
+        assert remote.calls == [("request", "hub.decode.ais.status", {"radio_id": 2}, None)]
+
+    async def test_answer_remote_uses_the_first_local_responder(self):
+        event_bus = EventBus()
+        event_bus.reply("hub.decode.ais.status", lambda payload: {"first": payload["radio_id"]})
+        event_bus.reply("hub.decode.*.status", lambda payload: {"second": True})
+        assert await event_bus.answer_remote("hub.decode.ais.status", {"radio_id": 4}) == {"first": 4}
+
+    async def test_answer_remote_without_a_responder_raises_lookup_error(self):
+        with pytest.raises(LookupError, match="hub.decode.ais.status"):
+            await EventBus().answer_remote("hub.decode.ais.status", {})
