@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";var t=e({siteLabel:()=>n});function n(e){return e.name?.trim()||`${e.address}:${e.port}`}export{n,t};

@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";var t=e({currentMapTheme:()=>n,isBrightBasemap:()=>r,overlayAccentColor:()=>i});function n(){return document.documentElement.dataset.mapTheme===`light`?`light`:`dark`}function r(){return n()===`light`}function i(){return r()?`#000000`:`#c8ff00`}export{i,r as n,t as r,n as t};

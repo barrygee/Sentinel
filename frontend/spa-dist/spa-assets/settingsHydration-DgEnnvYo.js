@@ -1,0 +1,1 @@
+var e=new Map;function t(t,n){if(e.has(t))throw Error(`Section "${t}" already registered a settings hydrator`);e.set(t,n)}function n(t){for(let n of e.values())n(t)}function r(){e.clear()}export{t as registerSettingsHydrator,r as resetSettingsHydratorsForTests,n as runSettingsHydrators};

@@ -1,0 +1,1 @@
+var e=[];function t(t){if(e.some(e=>e.id===t.id))throw Error(`Footer item "${t.id}" is already registered`);e.push(t),e.sort((e,t)=>e.order-t.order)}function n(){return e}function r(){e.length=0}export{n as getFooterItems,t as registerFooterItem,r as resetFooterRegistryForTests};

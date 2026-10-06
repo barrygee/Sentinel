@@ -1,0 +1,1 @@
+import{t as e}from"./rolldown-runtime-DK3Fl9T5.js";var t=e({withTierVersion:()=>n});function n(e,t){return t?`${e}${e.includes(`?`)?`&`:`?`}v=${encodeURIComponent(t)}`:e}export{n,t};
