@@ -1,8 +1,8 @@
 """GET /api/app/sections and the /remotes/<id>/ mount (backend/core/app_sections.py).
 
 The shell loads every listed section as a Module Federation remote and runs
-whatever its remoteEntry.js contains, so these pin which directories count as
-a section, the order they are listed in, and how the remote files are served.
+whatever its remoteEntry.js contains, so these pin which registered sections
+are listed, the order they are listed in, and how the remote files are served.
 """
 
 from pathlib import Path
@@ -15,9 +15,11 @@ from backend.core import app_sections
 from backend.core.app_sections import (
     REMOTE_ENTRY_FILENAME,
     RemotesStaticFiles,
-    built_sections,
+    deployed_sections,
 )
+from backend.core.service_registry import ServiceRegistry
 from backend.main import app
+from backend.platform.service_manifest import ServiceManifest
 
 NO_CACHE = "no-cache, no-store, must-revalidate"
 
@@ -33,94 +35,122 @@ def build_remote(remotes_dir: Path, section_id: str) -> Path:
     return section_dir
 
 
-def listed_ids(remotes_dir: Path) -> list[str]:
-    return [section.id for section in built_sections(remotes_dir)]
+def make_manifest(
+    service_id: str, nav_order: int = 100, kind: str = "section", with_ui: bool = True
+) -> ServiceManifest:
+    body: dict = {
+        "id": service_id,
+        "kind": kind,
+        "version": "1.0.0",
+        "navOrder": nav_order,
+        "internalUrl": f"http://{service_id}:8000",
+        "routes": [f"/api/{service_id}/"],
+    }
+    if with_ui:
+        body["ui"] = {"remoteEntry": f"/remotes/{service_id}/remoteEntry.js"}
+    return ServiceManifest.model_validate(body)
 
 
-class TestBuiltSections:
-    def test_missing_remotes_directory_lists_nothing(self, tmp_path: Path):
-        assert built_sections(tmp_path / "remotes") == []
+def listed(service_registry: ServiceRegistry, remotes_dir: Path) -> list[tuple[str, bool]]:
+    return [
+        (section.id, section.available)
+        for section in deployed_sections(service_registry, remotes_dir)
+    ]
 
-    def test_remotes_path_that_is_a_file_lists_nothing(self, tmp_path: Path):
-        remotes_file = tmp_path / "remotes"
-        remotes_file.write_text("not a directory")
 
-        assert built_sections(remotes_file) == []
+class TestDeployedSections:
+    def test_an_empty_registry_lists_nothing(self, tmp_path: Path):
+        build_remote(tmp_path, "air")
 
-    def test_empty_remotes_directory_lists_nothing(self, tmp_path: Path):
-        (tmp_path / "remotes").mkdir()
+        assert deployed_sections(ServiceRegistry(), tmp_path) == []
 
-        assert built_sections(tmp_path / "remotes") == []
+    def test_lists_an_in_process_section_once_its_remote_is_built(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        service_registry.register_in_process([make_manifest("sea")], "core")
+        assert listed(service_registry, tmp_path) == []
 
-    def test_lists_each_built_remote_with_its_entry_url(self, tmp_path: Path):
         build_remote(tmp_path, "sea")
 
-        sections = built_sections(tmp_path)
-
-        assert [section.model_dump() for section in sections] == [
-            {"id": "sea", "remoteEntry": "/remotes/sea/remoteEntry.js"}
+        assert [section.model_dump() for section in deployed_sections(service_registry, tmp_path)] == [
+            {"id": "sea", "remoteEntry": "/remotes/sea/remoteEntry.js", "available": True}
         ]
 
-    def test_lists_known_sections_in_nav_order_whatever_the_directory_order(
-        self, tmp_path: Path
-    ):
-        for section_id in ("sdr", "land", "air", "sea", "space"):
-            build_remote(tmp_path, section_id)
-
-        assert listed_ids(tmp_path) == ["air", "space", "sea", "land", "sdr"]
-
-    def test_lists_unknown_sections_after_the_known_ones_alphabetically(
-        self, tmp_path: Path
-    ):
-        for section_id in ("weather", "sdr", "hf-2", "air"):
-            build_remote(tmp_path, section_id)
-
-        assert listed_ids(tmp_path) == ["air", "sdr", "hf-2", "weather"]
-
-    def test_skips_a_section_directory_without_a_remote_entry(self, tmp_path: Path):
+    def test_an_in_process_section_needs_its_entry_not_just_a_directory(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        service_registry.register_in_process([make_manifest("air"), make_manifest("space")], "core")
         build_remote(tmp_path, "air")
         (tmp_path / "space" / "spa-assets").mkdir(parents=True)
 
-        assert listed_ids(tmp_path) == ["air"]
+        assert listed(service_registry, tmp_path) == [("air", True)]
 
-    def test_skips_a_remote_entry_that_is_a_directory(self, tmp_path: Path):
+    def test_a_remote_entry_that_is_a_directory_does_not_count(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        service_registry.register_in_process([make_manifest("air")], "core")
         (tmp_path / "air" / REMOTE_ENTRY_FILENAME).mkdir(parents=True)
 
-        assert listed_ids(tmp_path) == []
+        assert listed(service_registry, tmp_path) == []
 
-    def test_skips_plain_files_in_the_remotes_directory(self, tmp_path: Path):
+    def test_a_built_remote_nobody_registered_is_not_listed(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        service_registry.register_in_process([make_manifest("air")], "core")
         build_remote(tmp_path, "air")
-        (tmp_path / "README.txt").write_text("not a section")
+        build_remote(tmp_path, "weather")
 
-        assert listed_ids(tmp_path) == ["air"]
+        assert listed(service_registry, tmp_path) == [("air", True)]
 
-    @pytest.mark.parametrize(
-        "bad_id", ["Air", "1air", ".hidden", "-air", "air_2", "a ir"]
-    )
-    def test_skips_directories_whose_name_is_not_a_section_id(
-        self, tmp_path: Path, bad_id: str
-    ):
-        build_remote(tmp_path, "space")
-        build_remote(tmp_path, bad_id)
+    async def test_an_out_of_process_section_is_listed_without_a_local_build(self, tmp_path: Path):
+        """Its own container serves its remote, so nothing is built here."""
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("weather"), "weather-1")
 
-        assert listed_ids(tmp_path) == ["space"]
+        assert listed(service_registry, tmp_path) == [("weather", True)]
+
+    async def test_an_unavailable_section_is_listed_as_unavailable(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("weather"), "weather-1")
+        service_registry.get("weather").available = False
+
+        assert listed(service_registry, tmp_path) == [("weather", False)]
+
+    async def test_skips_services_that_are_not_sections_with_a_ui(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("radio-hub", kind="radio-hub", with_ui=False), "hub-1")
+        await service_registry.register(make_manifest("headless", with_ui=False), "headless-1")
+        await service_registry.register(make_manifest("ais", kind="decoder"), "ais-1")
+
+        assert listed(service_registry, tmp_path) == []
+
+    async def test_lists_in_nav_order_whoever_registered_first(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("weather", nav_order=60), "weather-1")
+        service_registry.register_in_process(
+            [make_manifest("sdr", 50), make_manifest("air", 10)], "core"
+        )
+        build_remote(tmp_path, "sdr")
+        build_remote(tmp_path, "air")
+
+        assert [section_id for section_id, _ in listed(service_registry, tmp_path)] == [
+            "air",
+            "sdr",
+            "weather",
+        ]
 
 
 class TestListSectionsEndpoint:
-    def test_lists_the_remotes_built_under_the_spa(
+    def test_lists_this_process_sections_built_under_the_spa_in_nav_order(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr(app_sections, "REMOTES_DIR", tmp_path)
-        build_remote(tmp_path, "land")
-        build_remote(tmp_path, "air")
+        for section_id in ("sdr", "land", "air", "sea", "space"):
+            build_remote(tmp_path, section_id)
 
         response = TestClient(app).get("/api/app/sections")
 
         assert response.status_code == 200
         assert response.json() == {
             "sections": [
-                {"id": "air", "remoteEntry": "/remotes/air/remoteEntry.js"},
-                {"id": "land", "remoteEntry": "/remotes/land/remoteEntry.js"},
+                {"id": section_id, "remoteEntry": f"/remotes/{section_id}/remoteEntry.js", "available": True}
+                for section_id in ("air", "space", "sea", "land", "sdr")
             ]
         }
 
@@ -135,7 +165,9 @@ class TestListSectionsEndpoint:
         build_remote(tmp_path, "sdr")
 
         assert client.get("/api/app/sections").json() == {
-            "sections": [{"id": "sdr", "remoteEntry": "/remotes/sdr/remoteEntry.js"}]
+            "sections": [
+                {"id": "sdr", "remoteEntry": "/remotes/sdr/remoteEntry.js", "available": True}
+            ]
         }
 
     def test_lists_nothing_before_the_spa_is_built(
@@ -147,6 +179,22 @@ class TestListSectionsEndpoint:
 
         assert response.status_code == 200
         assert response.json() == {"sections": []}
+
+    async def test_reads_the_live_registry(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("weather"), "weather-1")
+        monkeypatch.setattr(app_sections, "registry", service_registry)
+        monkeypatch.setattr(app_sections, "REMOTES_DIR", tmp_path)
+
+        response = TestClient(app).get("/api/app/sections")
+
+        assert response.json() == {
+            "sections": [
+                {"id": "weather", "remoteEntry": "/remotes/weather/remoteEntry.js", "available": True}
+            ]
+        }
 
     def test_only_get_is_allowed(self):
         assert TestClient(app).post("/api/app/sections").status_code == 405
