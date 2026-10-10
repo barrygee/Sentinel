@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -60,20 +61,32 @@ async def wait_for_core(waiting_for: str) -> None:
     `docker compose up`, or core restarting under it). Background work whose
     first run reads settings awaits this first, so it starts when it can rather
     than failing once and logging a traceback for an expected startup race.
-    `waiting_for` names the work in the one log line written while waiting.
+    `waiting_for` names the work in the log: one line while waiting, and one
+    once core answers (with how long that took), so a slow start reads clearly.
     """
     if not settings_are_remote():
         return
+    started = time.monotonic()
     logged = False
     while True:
         try:
             await _core_request("GET", _settings_url("app"))
-            return
         except SettingsUnavailable as error:
             if not logged:
                 logger.info("%s: waiting for core to answer (%s)", waiting_for, error)
                 logged = True
             await asyncio.sleep(CORE_WAIT_RETRY_S)
+            continue
+        if logged:
+            logger.info(
+                "%s: connected to core at %s after %.1f s",
+                waiting_for,
+                settings.sentinel_core_url,
+                time.monotonic() - started,
+            )
+        else:
+            logger.info("%s: connected to core at %s", waiting_for, settings.sentinel_core_url)
+        return
 
 
 def _settings_url(*path_segments: str) -> str:
