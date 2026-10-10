@@ -105,19 +105,7 @@ async def resolve_effective_mode(domain: str, db: AsyncSession) -> str:
     the AISStream WebSocket and its off-grid source is a local SDR decoder, so
     there is no pair of URLs to resolve, but the *choice* is identical.
     """
-    result = await db.execute(
-        select(UserSettings).where(
-            ((UserSettings.namespace == domain) & (UserSettings.key == "sourceOverride"))
-            | ((UserSettings.namespace == "app") & (UserSettings.key == "connectivityMode"))
-        )
-    )
-    values: dict[str, object] = {}
-    for row in result.scalars().all():
-        try:
-            values[f"{row.namespace}.{row.key}"] = json.loads(row.value)
-        except (json.JSONDecodeError, TypeError):
-            values[f"{row.namespace}.{row.key}"] = row.value
-
+    values = await _domain_settings_map(domain, db)
     return _effective_mode(values.get(f"{domain}.sourceOverride"), values.get("app.connectivityMode"))
 
 

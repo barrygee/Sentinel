@@ -33,6 +33,9 @@ def import_legacy_tables(target_db_path: str, legacy_db_path: str, tables: Seque
     """
     legacy = Path(legacy_db_path) if legacy_db_path else None
     if legacy is None or not legacy.is_file() or Path(target_db_path).resolve() == legacy.resolve():
+        # Said out loud: on a fresh stack the service can start before the app
+        # has created its database, and silence would look like a failed import.
+        logger.info("legacy import: no monolith database at %r; nothing to import", legacy_db_path)
         return {}
     copied: dict[str, int] = {}
     connection = sqlite3.connect(target_db_path, uri=True)
@@ -61,4 +64,6 @@ def import_legacy_tables(target_db_path: str, legacy_db_path: str, tables: Seque
         connection.close()
     for table, row_count in copied.items():
         logger.info("legacy import: copied %d rows into %s", row_count, table)
+    if not copied:
+        logger.info("legacy import: %s already hold data or are missing from %s", ", ".join(tables), legacy_db_path)
     return copied

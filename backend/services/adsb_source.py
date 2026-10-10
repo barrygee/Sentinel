@@ -26,8 +26,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.bus import bus
+from backend.platform.settings_client import read_setting, write_setting
 from sqlalchemy.ext.asyncio import AsyncSession
 
 ADSB_CENTRE_HZ = 1_090_000_000
@@ -96,7 +96,7 @@ class AdsbSource:
 
 async def get_source(db: AsyncSession) -> AdsbSource | None:
     """The configured source device, or `None` when the operator has not picked one."""
-    raw = await get_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY)
+    raw = await read_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY)
     if not isinstance(raw, dict):
         return None
     host_id = raw.get("sentry_host_id")
@@ -108,7 +108,7 @@ async def get_source(db: AsyncSession) -> AdsbSource | None:
 
 async def set_source(db: AsyncSession, host_id: int, device_id: str) -> AdsbSource:
     """Record which Sentry device feeds Off Grid ADS-B."""
-    await upsert_setting(
+    await write_setting(
         db,
         SOURCE_SETTING_NAMESPACE,
         SOURCE_SETTING_KEY,
@@ -126,7 +126,7 @@ async def clear_source(db: AsyncSession) -> None:
     keeps its place in the config document, as its default does.
     """
     await release(db)
-    await upsert_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY, None)
+    await write_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY, None)
 
 
 def _host_error(reply: dict[str, Any]) -> AdsbSourceError | None:

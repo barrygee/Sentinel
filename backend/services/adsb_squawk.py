@@ -23,8 +23,8 @@ from typing import Any
 import httpx
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.db_helpers import get_setting
 from backend.platform.bus import EventPayload, bus
+from backend.platform.settings_client import read_setting
 from backend.services import adsb as adsb_service
 from backend.services import adsb_source
 from backend.services.upstream_rate_limit import UpstreamThrottledError
@@ -162,7 +162,7 @@ bus.subscribe(SQUAWK_CHANGED_SUBJECT, _on_squawk_changed)
 
 async def _parse_location(db: AsyncSession) -> tuple[float, float] | None:
     """Settings › App › Location as `(lat, lon)`, or None while it is unset."""
-    location = await get_setting(db, "app", "location", default=None)
+    location = await read_setting(db, "app", "location", default=None)
     if not isinstance(location, dict):
         return None
     try:

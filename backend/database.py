@@ -78,6 +78,7 @@ SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
 # The tables each extracted section owns — all its service's own database holds.
 SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
 LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
+AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 
 
 async def _add_columns(conn, alter_statements) -> None:
@@ -111,6 +112,14 @@ async def create_space_tables() -> None:
 async def create_land_tables() -> None:
     """The Land service's schema (P6.2). Neither table has gained a column since its first release."""
     await create_section_tables(LAND_TABLES)
+
+
+async def create_air_tables() -> None:
+    """The Air service's schema (P6.3). Neither table has gained a column since its first release.
+
+    `air_messages` is not Air's: notifications are core's, despite the path.
+    """
+    await create_section_tables(AIR_TABLES)
 
 
 async def create_tables():

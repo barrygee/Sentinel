@@ -73,7 +73,7 @@ services:
       - SENTINEL_JOIN_TOKEN=${SENTINEL_JOIN_TOKEN:-}
       - SENTINEL_JOIN_TOKEN_FILE=/run/sentinel/join-token
       # Sections the app must NOT host itself because they run in their own
-      # containers (comma-separated, e.g. `space,land`). A section container takes
+      # containers (comma-separated, e.g. `space,land,air`). A section container takes
       # its section over from the app anyway; listing it here also skips the
       # app's copy, and keeps the section gone when its container is stopped.
       - SENTINEL_EXTERNAL_SERVICES=${SENTINEL_EXTERNAL_SERVICES:-}
@@ -192,6 +192,31 @@ services:
       DB_PATH: /app/data/land.db
       SERVICE_INTERNAL_URL: http://land:8000
     command: uv run uvicorn backend.standalone.land:app --host 0.0.0.0 --port 8000 --reload
+
+  # The Air section as its own service (P6.3). OPT-IN: `--profile air`.
+  # Same pattern as `space`/`land`: registers with the app and takes /api/air/
+  # (core keeps /api/air/messages — notifications), /api/sdr/adsb/ and
+  # /remotes/air/ over. Its tables (the ADS-B snapshot cache, tracked aircraft)
+  # live in its own database on air_data, copied from the app's on first boot.
+  # It asks the radio hub for Sentry reservations and the receiver's location,
+  # and raises squawk alerts, over NATS — so it needs the `nats` service.
+  air:
+    <<: *section-service
+    container_name: sentinel-air
+    profiles: ["air"]
+    volumes:
+      - air_data:/app/data
+      - *legacy-db
+      - *backend-code
+      - *spa-dist
+      - *join-token-ro
+    environment:
+      <<: *section-env
+      DB_PATH: /app/data/air.db
+      SERVICE_INTERNAL_URL: http://air:8000
+      # Where Off Grid AIR reads decoded aircraft (same default as the app's).
+      ADSB_OFFGRID_URL: ${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
+    command: uv run uvicorn backend.standalone.air:app --host 0.0.0.0 --port 8000 --reload
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
@@ -359,11 +384,14 @@ services:
     profiles: ["adsb", "all"]
     depends_on:
       - app
+      - gateway
     environment:
       # Where the I/Q comes from is the operator's choice in Settings → AIR, not
       # a compose value: this is polled so changing the source device takes
       # effect at the next reconnect rather than needing the container recreated.
-      - CONFIG_URL=http://app:8000/api/sdr/adsb/config
+      # Through the gateway, so it reaches Air wherever Air runs (inside the
+      # app, or the `air` service) — /api/sdr/adsb/ is Air's, not the app's.
+      - CONFIG_URL=http://gateway:8080/api/sdr/adsb/config
       # Static fallback, for running this decoder standalone or before a source
       # has been picked. Leave unset to require the configured source.
       - RTL_TCP_HOST=${SENTINEL_ADSB_RTL_TCP_HOST:-}
@@ -399,6 +427,7 @@ volumes:
   join_token:
   space_data:
   land_data:
+  air_data:
 
 networks:
   sentinel:
