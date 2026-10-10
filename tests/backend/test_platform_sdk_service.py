@@ -1,6 +1,8 @@
 """The service factory (backend/platform/sdk/__init__.py): what a standalone
 section serves, the address it advertises, and the order its lifecycle runs in."""
 
+import asyncio
+
 import httpx
 import pytest
 from fastapi import APIRouter, Query
@@ -185,6 +187,55 @@ class TestLifespan:
             assert calls == ["section.prepare", "section.start", "registration.start"]
 
         assert calls[3:] == ["registration.stop", "section.stop"]
+
+    async def test_waits_for_core_before_any_section_work(self, calls, monkeypatch):
+        async def wait_for_core(waiting_for):
+            calls.append(f"core-ready: {waiting_for}")
+
+        monkeypatch.setattr(sdk_module, "wait_for_core", wait_for_core)
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.section_lifecycle(calls)],
+        )
+
+        async with app.router.lifespan_context(app):
+            assert calls == [
+                "core-ready: space service startup",
+                "section.prepare",
+                "section.start",
+                "registration.start",
+            ]
+
+    async def test_nothing_starts_while_core_does_not_answer(self, calls, monkeypatch):
+        core_answered = asyncio.Event()
+        waiting = asyncio.Event()
+
+        async def wait_for_core(waiting_for):
+            waiting.set()
+            await core_answered.wait()
+
+        monkeypatch.setattr(sdk_module, "wait_for_core", wait_for_core)
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.section_lifecycle(calls)],
+        )
+        started = asyncio.Event()
+
+        async def run_service():
+            async with app.router.lifespan_context(app):
+                started.set()
+
+        service = asyncio.create_task(run_service())
+        await asyncio.wait_for(waiting.wait(), timeout=5)  # fails, not hangs, if it never waits
+        await asyncio.sleep(0.05)
+        assert calls == []  # no prepare, no start, no registration
+        assert not started.is_set()
+
+        core_answered.set()
+        await asyncio.wait_for(service, timeout=5)
+        assert calls[:3] == ["section.prepare", "section.start", "registration.start"]
 
     async def test_connects_the_bus_to_nats_when_configured(self, calls, monkeypatch):
         transports: list = []

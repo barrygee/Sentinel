@@ -29,6 +29,7 @@ from backend.platform.settings_client import (
     read_secret,
     read_setting,
     settings_are_remote,
+    wait_for_core,
     write_secret,
     write_setting,
 )
@@ -382,3 +383,62 @@ class TestSecretsRemotely:
 
         with pytest.raises(SettingsUnavailable, match="unreachable"):
             await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+
+class TestWaitForCore:
+    @pytest.fixture
+    def sleeps(self, monkeypatch) -> list[float]:
+        """Every wait between attempts, recorded instead of slept."""
+        slept: list[float] = []
+
+        async def sleep(seconds):
+            slept.append(seconds)
+
+        monkeypatch.setattr(settings_client_module.asyncio, "sleep", sleep)
+        return slept
+
+    async def test_returns_at_once_in_the_monolith(self, monkeypatch, sleeps):
+        monkeypatch.setattr(settings, "sentinel_core_url", "")
+
+        def no_http(**options):
+            raise AssertionError("the monolith is core; there is nothing to wait for")
+
+        monkeypatch.setattr(settings_client_module.httpx, "AsyncClient", no_http)
+
+        await wait_for_core("Land APRS station cleanup")
+
+        assert sleeps == []
+
+    async def test_returns_once_core_answers(self, fake_core, sleeps):
+        await wait_for_core("Land APRS station cleanup")
+
+        assert [(request.method, str(request.url)) for request in fake_core.requests] == [
+            ("GET", f"{CORE_URL}/api/settings/app")
+        ]
+        assert sleeps == []
+
+    async def test_retries_while_core_is_unreachable_or_refusing(self, fake_core, sleeps, monkeypatch, caplog):
+        replies = iter(["unreachable", 503, 200])
+
+        def answer(request):
+            fake_core.requests.append(request)
+            reply = next(replies)
+            if reply == "unreachable":
+                raise httpx.ConnectError("connection refused", request=request)
+            return httpx.Response(reply, json={})
+
+        monkeypatch.setattr(fake_core, "answer", answer)
+        caplog.set_level("INFO", logger=settings_client_module.__name__)
+
+        await wait_for_core("Land APRS station cleanup")
+
+        assert len(fake_core.requests) == 3
+        assert sleeps == [settings_client_module.CORE_WAIT_RETRY_S] * 2
+        # One line while waiting, naming the work held up — not one per attempt.
+        waiting_lines = [record for record in caplog.records if "waiting for core" in record.getMessage()]
+        assert len(waiting_lines) == 1
+        assert waiting_lines[0].levelname == "INFO"
+        assert waiting_lines[0].getMessage().startswith("Land APRS station cleanup: waiting for core to answer")
+
+    async def test_retries_every_two_seconds(self):
+        assert settings_client_module.CORE_WAIT_RETRY_S == 2.0

@@ -51,6 +51,22 @@ async def db_setup(test_engine):
 
 
 @pytest.fixture(autouse=True)
+def core_is_up(monkeypatch):
+    """A service built by `create_service` waits for core before it starts.
+
+    Tests that run a service's lifespan point it at a core URL nothing serves,
+    so that wait would never end. Here core always answers; the tests of the
+    wait itself (test_platform_sdk_service, test_platform_settings_client)
+    patch it back.
+    """
+
+    async def answered(waiting_for: str) -> None:
+        return None
+
+    monkeypatch.setattr("backend.platform.sdk.wait_for_core", answered)
+
+
+@pytest.fixture(autouse=True)
 def isolate_sdr_data_files(tmp_path, monkeypatch):
     """Keep tests from clobbering the committed SDR seed files.
 
