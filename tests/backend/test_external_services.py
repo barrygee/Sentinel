@@ -40,14 +40,20 @@ class TestExternalServices:
         with pytest.raises(ValueError, match="air"):
             external_services()
 
-    def test_space_is_extractable(self):
-        assert "space" in EXTRACTABLE_SERVICES
+    def test_space_and_land_are_extractable(self):
+        assert {"space", "land"} <= EXTRACTABLE_SERVICES
+
+    def test_land_can_be_external_alongside_space(self, monkeypatch):
+        monkeypatch.setattr(settings, "sentinel_external_services", "space,land")
+
+        assert external_services() == frozenset({"space", "land"})
+        assert hosts_in_process("land") is False
 
 
 def import_main(external: str) -> dict:
     """What `backend.main` builds with SENTINEL_EXTERNAL_SERVICES=`external`."""
     probe = (
-        "import json\n"
+        "import json, sys\n"
         "from backend.main import app\n"
         "from backend.modules import MANIFESTS, MODULES\n"
         "from backend.core.service_registry import registry\n"
@@ -57,6 +63,7 @@ def import_main(external: str) -> dict:
         "  'manifests': [manifest.id for manifest in MANIFESTS],\n"
         "  'registered': [registration.manifest.id for registration in registry.services()],\n"
         "  'withheld_remotes': sorted(next(r.app.withheld for r in app.routes if getattr(r, 'path', '') == '/remotes')),\n"
+        "  'imported': sorted(name for name in sys.modules if name.startswith('backend.')),\n"
         "}))\n"
     )
     environment = {**os.environ, "SENTINEL_EXTERNAL_SERVICES": external, "PYTHONPATH": str(REPO_ROOT)}
@@ -72,37 +79,81 @@ def import_main(external: str) -> dict:
     return json.loads(result.stdout.strip().splitlines()[-1])
 
 
+# The code that is each extracted section's own: an external section's must
+# never be imported by the app, since importing it subscribes it to bus events.
+SECTION_CODE = {
+    "space": {
+        "backend.routers.space",
+        "backend.modules.space",
+        "backend.services.tle",
+        "backend.services.satellite",
+        "backend.services.daynight",
+        "backend.services.sat_radio",
+    },
+    "land": {
+        "backend.routers.land",
+        "backend.modules.land",
+        "backend.services.aprs_store",
+        "backend.services.repeaters",
+    },
+}
+SECTION_ROUTE = {"space": "/api/space/", "land": "/api/land/"}
+
+
 @pytest.fixture(scope="module")
 def monolith() -> dict:
     return import_main("")
 
 
 @pytest.fixture(scope="module")
-def without_space() -> dict:
-    return import_main("space")
+def deployments(monolith) -> dict[str, dict]:
+    return {
+        "": monolith,
+        "space": import_main("space"),
+        "land": import_main("land"),
+        "space,land": import_main("space,land"),
+    }
 
 
-class TestTheMonolithWithoutSpace:
-    def test_the_monolith_hosts_space_by_default(self, monolith):
-        assert any(path.startswith("/api/space/") for path in monolith["routes"])
-        assert "space" in monolith["modules"]
-        assert "space" in monolith["manifests"]
-        assert "space" in monolith["registered"]
-
-    def test_leaves_out_spaces_routes(self, without_space):
-        assert not any(path.startswith("/api/space/") for path in without_space["routes"])
-
-    def test_leaves_out_spaces_lifecycle_and_registration(self, without_space):
-        assert "space" not in without_space["modules"]
-        assert "space" not in without_space["manifests"]
-        assert "space" not in without_space["registered"]
-
-    def test_withholds_spaces_remote_build(self, monolith, without_space):
+class TestTheMonolithHostsEverythingByDefault:
+    def test_hosts_every_section_in_lifecycle_order(self, monolith):
+        assert monolith["modules"] == ["bus", "core", "sdr", "space", "radio-hub", "land", "sea", "air"]
+        assert monolith["manifests"] == ["air", "space", "sea", "land", "sdr", "radio-hub"]
         assert monolith["withheld_remotes"] == []
-        assert without_space["withheld_remotes"] == ["space"]
 
-    def test_keeps_every_other_section_and_the_core(self, monolith, without_space):
-        assert without_space["modules"] == [name for name in monolith["modules"] if name != "space"]
-        assert without_space["registered"] == [service for service in monolith["registered"] if service != "space"]
-        assert any(path.startswith("/api/air/") for path in without_space["routes"])
-        assert "/api/settings/{namespace}" in without_space["routes"]
+    @pytest.mark.parametrize("section", ["space", "land"])
+    def test_hosts_and_imports_each_extractable_section(self, monolith, section):
+        assert any(path.startswith(SECTION_ROUTE[section]) for path in monolith["routes"])
+        assert section in monolith["registered"]
+        assert SECTION_CODE[section] <= set(monolith["imported"])
+
+
+@pytest.mark.parametrize("external", ["space", "land", "space,land"])
+class TestTheMonolithWithoutASection:
+    def test_leaves_out_their_routes(self, deployments, external):
+        for section in external.split(","):
+            assert not any(path.startswith(SECTION_ROUTE[section]) for path in deployments[external]["routes"])
+
+    def test_leaves_out_their_lifecycle_and_registration(self, deployments, external):
+        for section in external.split(","):
+            assert section not in deployments[external]["modules"]
+            assert section not in deployments[external]["manifests"]
+            assert section not in deployments[external]["registered"]
+
+    def test_never_imports_their_code(self, deployments, external):
+        imported = set(deployments[external]["imported"])
+        for section in external.split(","):
+            assert not SECTION_CODE[section] & imported
+
+    def test_withholds_their_remote_builds(self, deployments, external):
+        assert deployments[external]["withheld_remotes"] == sorted(external.split(","))
+
+    def test_keeps_every_other_section_and_the_core(self, monolith, deployments, external):
+        gone = set(external.split(","))
+        kept = deployments[external]
+        assert kept["modules"] == [name for name in monolith["modules"] if name not in gone]
+        assert kept["registered"] == [service for service in monolith["registered"] if service not in gone]
+        for section in {"space", "land"} - gone:
+            assert any(path.startswith(SECTION_ROUTE[section]) for path in kept["routes"])
+        assert any(path.startswith("/api/air/") for path in kept["routes"])
+        assert "/api/settings/{namespace}" in kept["routes"]

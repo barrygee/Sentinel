@@ -414,8 +414,17 @@ so starting the `space` container is the whole switch, and stopping it greys Spa
 `SENTINEL_EXTERNAL_SERVICES=space` makes the monolith leave out Space's router, lifecycle and in-process registration
 altogether: the "section absent" deployment, and the way to stop the monolith doing Space's startup work twice.
 It also withholds Space's built remote from the app's `/remotes` mount, so `/remotes/space/` can only come from the
-container. CI's `gateway-smoke` job runs the composed stack three ways — `monolith`, `space-service` and
-`space-absent` — with `tests/e2e/section-deployment.spec.ts` asserting each.
+container. CI's `gateway-smoke` job runs the composed stack three ways — `monolith`, `sections-service` and
+`sections-absent` — with `tests/e2e/section-deployment.spec.ts` asserting each extracted section.
+
+*As built (P6.2, Land):* the same pattern, plus one rule the first extraction didn't need. Sections subscribe to bus
+events at import (`aprs_store` on `decode.aprs.*`), so the monolith must not even **import** an external section's
+code — otherwise its leftover copy keeps handling the events (and writing to the app's database, with no cleanup loop
+to trim it). `backend/modules/__init__.py` now imports each section module only when it is hosted, and `main.py`
+imports Land's and Space's routers the same way. Decoded APRS packets reach the Land container from the radio hub over
+NATS (`decode.aprs.*` is forwarded like any event), so Land needs the `nats` service; APRS start/stop stays with the
+hub. The APRS retention setting is read through the settings client. Section services share compose anchors
+(`x-section-service`, `x-section-env`).
 Rolling back is unsetting it and restarting the app.
 
 ### 4.5 Security

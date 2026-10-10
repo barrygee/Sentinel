@@ -1,30 +1,43 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { deploymentOf, isDeployed } from './support/sectionDeployment';
 
 /**
- * Section deployment suite — a section works the same whether core hosts it
- * in-process, it runs in its own container, or it is not deployed at all
- * (section-containers plan P6: "e2e green with the section present *and*
- * absent"). Space is the first section extracted (P6.1).
+ * Section deployment suite — each extracted section works the same whether
+ * core hosts it in-process, it runs in its own container, or it is not
+ * deployed at all (section-containers plan P6: "e2e green with the section
+ * present *and* absent"). SENTINEL_E2E_SECTIONS says which deployment each
+ * section has (see support/sectionDeployment.ts); the gateway-smoke CI job
+ * runs this spec once per deployment.
  *
- * SENTINEL_E2E_SPACE says which deployment the stack under test is:
- *   in-process (default)  the monolith hosts Space, as `npm run test:e2e:fullstack` boots it.
- *   service               Space runs in its own container and the app does NOT host it
- *                         (SENTINEL_EXTERNAL_SERVICES=space), so only the container can answer.
- *   absent                the app does not host Space and no container runs it.
- * The gateway-smoke CI job runs this spec once per deployment.
- *
- * Test inventory:
- *   1. /api/app/sections lists Space exactly when it is deployed.
- *   2. Space's API answers with JSON when deployed (from the container in `service` mode).
- *   3. Space's remote entry is served, uncached, when deployed.
- *   4. The shell offers Space in the nav and opens its view when deployed.
- *   5. Absent: no Space link, /space/ falls back to the first section, every other section still loads.
+ * Test inventory, per extracted section:
+ *   1. /api/app/sections lists it exactly when it is deployed.
+ *   2. Its API answers with JSON when deployed (from the container in `service` mode).
+ *   3. Its remote entry is served, uncached, when deployed — and is a 404 when absent.
+ *   4. The shell offers it in the nav and opens its view when deployed.
+ *   5. Absent: no nav link, its route falls back to the first section, the rest still loads.
  */
 
-type SpaceDeployment = 'in-process' | 'service' | 'absent';
+interface ExtractedSection {
+    id: string;
+    label: RegExp;
+    /** A deterministic, read-only endpoint of the section (no upstream, no internet). */
+    probePath: string;
+    /** Land ships disabled (default_config.json); the nav only shows enabled sections. */
+    enabledByDefault: boolean;
+}
 
-const deployment = (process.env.SENTINEL_E2E_SPACE ?? 'in-process') as SpaceDeployment;
-const spaceIsDeployed = deployment !== 'absent';
+const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
+    { id: 'space', label: /space/i, probePath: '/api/space/daynight', enabledByDefault: true },
+    {
+        id: 'land',
+        label: /land/i,
+        probePath: '/api/land/aprs/stations',
+        enabledByDefault: false,
+    },
+];
+
+/** Sections every deployment keeps, enabled by default — what must survive an absent one. */
+const ALWAYS_PRESENT = ['air', 'sea', 'sdr'];
 
 interface DeployedSection {
     id: string;
@@ -40,94 +53,126 @@ async function waitForShellHydration(page: Page): Promise<void> {
     await expect(page.locator('main#main')).toBeAttached();
 }
 
-test(`/api/app/sections lists Space only when it is deployed (${deployment})`, async ({
-    request,
-}) => {
-    const response = await request.get('/api/app/sections');
-    expect(response.status()).toBe(200);
-    const { sections } = (await response.json()) as { sections: DeployedSection[] };
-    const space = sections.find((section) => section.id === 'space');
-
-    if (spaceIsDeployed) {
-        expect(space).toEqual({
-            id: 'space',
-            remoteEntry: '/remotes/space/remoteEntry.js',
-            available: true,
+/** Turns a section on for the duration of `body`, restoring its stored value after. */
+async function withSectionEnabled(
+    request: APIRequestContext,
+    sectionId: string,
+    body: () => Promise<void>,
+): Promise<void> {
+    const before = (await (await request.get(`/api/settings/${sectionId}`)).json()) as {
+        enabled?: boolean;
+    };
+    await request.put(`/api/settings/${sectionId}/enabled`, { data: { value: true } });
+    try {
+        await body();
+    } finally {
+        await request.put(`/api/settings/${sectionId}/enabled`, {
+            data: { value: before.enabled ?? false },
         });
-    } else {
-        expect(space).toBeUndefined();
     }
-    // Space's presence never changes the other sections.
-    expect(sections.map((section) => section.id)).toEqual(
-        expect.arrayContaining(['air', 'sea', 'land', 'sdr']),
-    );
-});
+}
 
-test(`Space's API answers with JSON when deployed (${deployment})`, async ({ request }) => {
-    test.skip(!spaceIsDeployed, 'Space is not deployed');
+for (const section of EXTRACTED_SECTIONS) {
+    const deployment = deploymentOf(section.id);
+    const deployed = isDeployed(section.id);
 
-    // The day/night terminator is computed locally: no upstream, so this is
-    // deterministic. In `service` mode the app has no Space routes at all, so
-    // a JSON answer here can only have come from the Space container.
-    const response = await request.get('/api/space/daynight');
-    expect(response.status()).toBe(200);
-    expect(response.headers()['content-type']).toContain('application/json');
-    expect(await response.json()).toEqual(expect.any(Object));
-});
+    test.describe(`${section.id} (${deployment})`, () => {
+        test('/api/app/sections lists it only when it is deployed', async ({ request }) => {
+            const response = await request.get('/api/app/sections');
+            expect(response.status()).toBe(200);
+            const { sections } = (await response.json()) as { sections: DeployedSection[] };
+            const listed = sections.find((listedSection) => listedSection.id === section.id);
 
-test(`Space's remote entry is served uncached when deployed (${deployment})`, async ({
-    request,
-}) => {
-    test.skip(!spaceIsDeployed, 'Space is not deployed');
+            if (deployed) {
+                expect(listed).toEqual({
+                    id: section.id,
+                    remoteEntry: `/remotes/${section.id}/remoteEntry.js`,
+                    available: true,
+                });
+            } else {
+                expect(listed).toBeUndefined();
+            }
+            expect(sections.map((listedSection) => listedSection.id)).toEqual(
+                expect.arrayContaining(ALWAYS_PRESENT),
+            );
+        });
 
-    const response = await request.get('/remotes/space/remoteEntry.js');
-    expect(response.status()).toBe(200);
-    expect(response.headers()['content-type']).toContain('javascript');
-    expect(response.headers()['cache-control']).toContain('no-cache');
-});
+        test('its API answers with JSON when deployed', async ({ request }) => {
+            test.skip(!deployed, `${section.id} is not deployed`);
 
-test(`the shell offers Space and opens its view when deployed (${deployment})`, async ({
-    page,
-}) => {
-    test.skip(!spaceIsDeployed, 'Space is not deployed');
+            // In `service` mode the app has no routes for this section at all,
+            // so a JSON answer can only have come from its container.
+            const response = await request.get(section.probePath);
+            expect(response.status()).toBe(200);
+            expect(response.headers()['content-type']).toContain('application/json');
+            expect(await response.json()).toEqual(expect.any(Object));
+        });
 
-    await page.goto('/space/');
-    await waitForShellHydration(page);
+        test('its remote entry is served uncached when deployed, and withheld when not', async ({
+            request,
+        }) => {
+            const response = await request.get(`/remotes/${section.id}/remoteEntry.js`);
 
-    const domainNav = page.getByRole('navigation', { name: /domains/i });
-    await expect(domainNav.getByRole('link', { name: /space/i })).toHaveAttribute(
-        'aria-current',
-        'page',
-        { timeout: 10_000 },
-    );
-    // The remote really loaded: not the stand-in a failed remote gets.
-    await expect(
-        page.getByRole('heading', { level: 1, name: /space is unavailable/i }),
-    ).toHaveCount(0);
-});
+            if (!deployed) {
+                // Not even a stale copy: the app withholds the build of a section it doesn't host.
+                expect(response.status()).toBe(404);
+                return;
+            }
+            expect(response.status()).toBe(200);
+            expect(response.headers()['content-type']).toContain('javascript');
+            expect(response.headers()['cache-control']).toContain('no-cache');
+        });
 
-test('an absent Space leaves no trace and the other sections keep working', async ({
-    page,
-    request,
-}) => {
-    test.skip(spaceIsDeployed, 'Space is deployed');
+        test('the shell offers it and opens its view when deployed', async ({ page, request }) => {
+            test.skip(!deployed, `${section.id} is not deployed`);
 
-    // Not even a stale copy of its remote: the app withholds the build of a
-    // section it doesn't host.
-    expect((await request.get('/remotes/space/remoteEntry.js')).status()).toBe(404);
+            const openSection = async () => {
+                await page.goto(`/${section.id}/`);
+                await waitForShellHydration(page);
 
-    await page.goto('/space/');
-    await waitForShellHydration(page);
+                const domainNav = page.getByRole('navigation', { name: /domains/i });
+                await expect(domainNav.getByRole('link', { name: section.label })).toHaveAttribute(
+                    'aria-current',
+                    'page',
+                    { timeout: 10_000 },
+                );
+                // The remote really loaded: not the stand-in a failed remote gets.
+                await expect(
+                    page.getByRole('heading', { level: 1, name: /is unavailable/i }),
+                ).toHaveCount(0);
+            };
 
-    // An unknown section route falls back to the first section.
-    await expect(page).toHaveURL(/\/air\/$/);
-    const domainNav = page.getByRole('navigation', { name: /domains/i });
-    await expect(domainNav.getByRole('link', { name: /space/i })).toHaveCount(0);
-    // The sections enabled by default (Land ships disabled, default_config.json).
-    for (const section of ['air', 'sea', 'sdr']) {
-        await expect(
-            domainNav.getByRole('link', { name: new RegExp(section, 'i') }),
-        ).toBeAttached();
-    }
-    await expect(page.getByRole('heading', { level: 1, name: /is unavailable/i })).toHaveCount(0);
-});
+            if (section.enabledByDefault) {
+                await openSection();
+            } else {
+                await withSectionEnabled(request, section.id, openSection);
+            }
+        });
+
+        test('when absent it leaves no trace and the other sections keep working', async ({
+            page,
+            request,
+        }) => {
+            test.skip(deployed, `${section.id} is deployed`);
+
+            // Even switched on in settings, an absent section has nothing to show.
+            await withSectionEnabled(request, section.id, async () => {
+                await page.goto(`/${section.id}/`);
+                await waitForShellHydration(page);
+
+                // An unknown section route falls back to the first section.
+                await expect(page).toHaveURL(/\/air\/$/);
+                const domainNav = page.getByRole('navigation', { name: /domains/i });
+                await expect(domainNav.getByRole('link', { name: section.label })).toHaveCount(0);
+                for (const presentSection of ALWAYS_PRESENT) {
+                    await expect(
+                        domainNav.getByRole('link', { name: new RegExp(presentSection, 'i') }),
+                    ).toBeAttached();
+                }
+                await expect(
+                    page.getByRole('heading', { level: 1, name: /is unavailable/i }),
+                ).toHaveCount(0);
+            });
+        });
+    });
+}

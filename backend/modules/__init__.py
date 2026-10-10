@@ -14,31 +14,38 @@ service registry at import (`backend/main.py`, plan §3.2).
 
 A service listed in `SENTINEL_EXTERNAL_SERVICES` runs in its own container
 (P6), so its lifecycle and manifest are left out here — `hosts_in_process`
-says which.
+says which. Its module is not even imported: a section subscribes to bus
+events at import (e.g. Land's `decode.aprs.*` store), and the copy left behind
+in this process would otherwise keep handling them.
 """
 
+import importlib
+from types import ModuleType
+
 from backend.config import settings
-from backend.modules.air import lifecycle as air_lifecycle
-from backend.modules.air import manifest as air_manifest
-from backend.modules.bus import lifecycle as bus_lifecycle
-from backend.modules.core import lifecycle as core_lifecycle
-from backend.modules.land import lifecycle as land_lifecycle
-from backend.modules.land import manifest as land_manifest
-from backend.modules.radio_hub import lifecycle as radio_hub_lifecycle
-from backend.modules.radio_hub import manifest as radio_hub_manifest
-from backend.modules.sdr import lifecycle as sdr_lifecycle
-from backend.modules.sdr import manifest as sdr_manifest
-from backend.modules.sea import lifecycle as sea_lifecycle
-from backend.modules.sea import manifest as sea_manifest
-from backend.modules.space import lifecycle as space_lifecycle
-from backend.modules.space import manifest as space_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
 # The services that have a standalone entry point (`backend/standalone/`) and
 # whose routers `backend/main.py` can leave out. Grows one section at a time
 # through P6.
-EXTRACTABLE_SERVICES = frozenset({"space"})
+EXTRACTABLE_SERVICES = frozenset({"space", "land"})
+
+# Every module, in lifecycle order (see above), with the service it belongs
+# to. bus and core are this process itself and never run elsewhere.
+_MODULE_ORDER: tuple[tuple[str, str], ...] = (
+    ("bus", "bus"),
+    ("core", "core"),
+    ("sdr", "sdr"),
+    ("space", "space"),
+    ("radio_hub", "radio-hub"),
+    ("land", "land"),
+    ("sea", "sea"),
+    ("air", "air"),
+)
+
+# The services this process can host, in the order they are registered.
+_MANIFEST_ORDER: tuple[str, ...] = ("air", "space", "sea", "land", "sdr", "radio_hub")
 
 
 def external_services() -> frozenset[str]:
@@ -64,26 +71,16 @@ def hosts_in_process(service_id: str) -> bool:
     return service_id not in external_services()
 
 
-_ALL_MODULES: tuple[ModuleLifecycle, ...] = (
-    bus_lifecycle,
-    core_lifecycle,
-    sdr_lifecycle,
-    space_lifecycle,
-    radio_hub_lifecycle,
-    land_lifecycle,
-    sea_lifecycle,
-    air_lifecycle,
-)
+def _module(module_name: str) -> ModuleType:
+    return importlib.import_module(f"backend.modules.{module_name}")
 
-_ALL_MANIFESTS: tuple[ServiceManifest, ...] = (
-    air_manifest,
-    space_manifest,
-    sea_manifest,
-    land_manifest,
-    sdr_manifest,
-    radio_hub_manifest,
-)
 
-# Lifecycles are named after the service they belong to; bus and core are never external.
-MODULES: tuple[ModuleLifecycle, ...] = tuple(module for module in _ALL_MODULES if hosts_in_process(module.name))
-MANIFESTS: tuple[ServiceManifest, ...] = tuple(manifest for manifest in _ALL_MANIFESTS if hosts_in_process(manifest.id))
+MODULES: tuple[ModuleLifecycle, ...] = tuple(
+    _module(module_name).lifecycle for module_name, service_id in _MODULE_ORDER if hosts_in_process(service_id)
+)
+_SERVICE_OF_MODULE = dict(_MODULE_ORDER)
+MANIFESTS: tuple[ServiceManifest, ...] = tuple(
+    _module(module_name).manifest
+    for module_name in _MANIFEST_ORDER
+    if hosts_in_process(_SERVICE_OF_MODULE[module_name])
+)

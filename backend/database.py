@@ -75,8 +75,9 @@ SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
     "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
 )
 
-# The tables the Space section owns — all a Space service's own database holds.
+# The tables each extracted section owns — all its service's own database holds.
 SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
+LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 
 
 async def _add_columns(conn, alter_statements) -> None:
@@ -88,14 +89,28 @@ async def _add_columns(conn, alter_statements) -> None:
             pass
 
 
-async def create_space_tables() -> None:
-    """Create only the Space section's tables — the schema of a Space service's own database (P6)."""
+async def create_section_tables(table_names: tuple[str, ...], added_columns: tuple[str, ...] = ()) -> None:
+    """Create only a section's own tables — the schema of its service's own database (P6).
+
+    `added_columns` are the ALTERs for columns added to those tables after
+    their first release, shared with create_tables().
+    """
     async with engine.begin() as conn:
         from backend import models  # noqa: F401 — import triggers model registration with Base
 
-        space_tables = [Base.metadata.tables[table_name] for table_name in SPACE_TABLES]
-        await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=space_tables))
-        await _add_columns(conn, SATELLITE_CATALOGUE_ADDED_COLUMNS)
+        section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
+        await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
+        await _add_columns(conn, added_columns)
+
+
+async def create_space_tables() -> None:
+    """The Space service's schema (P6.1)."""
+    await create_section_tables(SPACE_TABLES, SATELLITE_CATALOGUE_ADDED_COLUMNS)
+
+
+async def create_land_tables() -> None:
+    """The Land service's schema (P6.2). Neither table has gained a column since its first release."""
+    await create_section_tables(LAND_TABLES)
 
 
 async def create_tables():
