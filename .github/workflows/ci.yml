@@ -283,7 +283,7 @@ jobs:
   # per deployment of the extracted sections (section-containers plan P6: "e2e
   # green with the section present *and* absent"):
   #   monolith          the app hosts every section, as `docker compose up` does.
-  #   sections-service  Space and Land run in their own containers and the app
+  #   sections-service  Space, Land and Air run in their own containers and the app
   #                     does NOT host them, so only the containers can answer.
   #   sections-absent   the app does not host them and no container runs them.
   gateway-smoke:
@@ -299,15 +299,15 @@ jobs:
             services: app gateway nats
             sections: ''
           - deployment: sections-service
-            external_services: space,land
-            profiles: space,land
-            services: app gateway nats space land
-            sections: space:service,land:service
+            external_services: space,land,air
+            profiles: space,land,air
+            services: app gateway nats space land air
+            sections: space:service,land:service,air:service
           - deployment: sections-absent
-            external_services: space,land
+            external_services: space,land,air
             profiles: ''
             services: app gateway nats
-            sections: space:absent,land:absent
+            sections: space:absent,land:absent,air:absent
     env:
       SENTINEL_EXTERNAL_SERVICES: ${{ matrix.external_services }}
       COMPOSE_PROFILES: ${{ matrix.profiles }}
@@ -356,8 +356,10 @@ jobs:
           for attempt in $(seq 1 90); do
             sections=$(curl -fsS http://localhost:8080/api/app/sections || true)
             if echo "$sections" | grep -q '"id":"space"' && echo "$sections" | grep -q '"id":"land"' \
+              && echo "$sections" | grep -q '"id":"air"' \
               && curl -fsS -o /dev/null http://localhost:8080/api/space/daynight \
-              && curl -fsS -o /dev/null http://localhost:8080/api/land/aprs/stations; then exit 0; fi
+              && curl -fsS -o /dev/null http://localhost:8080/api/land/aprs/stations \
+              && curl -fsS -o /dev/null http://localhost:8080/api/air/tracking; then exit 0; fi
             sleep 2
           done
           echo "::error::the section services never registered behind the gateway"
