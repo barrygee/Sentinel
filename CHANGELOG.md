@@ -207,6 +207,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the Air section as its own service
 - Set the background squawk-check interval per mode in Settings
 - Run the Sea section as its own service (P6.4)
+- Log when a section service connects to core
 
 ### Bug Fixes
 
@@ -1457,6 +1458,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into fix/adsb-watcher-online-interval
 - Merge pull request #445 from barrygee/fix/adsb-watcher-online-interval
 - Merge pull request #447 from barrygee/fix/wait-for-core-before-first-run
+- Merge pull request #448 from barrygee/feat/log-core-connected
 
 ### Refactoring
 
@@ -1639,6 +1641,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the per-mode squawk-check interval
 - Run the suite against code defaults, not the repo .env
 - Cover waiting for core before a service starts
+- Cover the connected-to-core log line
 
 ### Build System
 
