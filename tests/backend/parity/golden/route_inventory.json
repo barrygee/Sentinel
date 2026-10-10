@@ -1100,6 +1100,30 @@
     ]
   },
   {
+    "path": "/internal/settings/secrets/{namespace}/{key}",
+    "type": "Route",
+    "name": "read_secret",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/internal/settings/secrets/{namespace}/{key}",
+    "type": "Route",
+    "name": "write_secret",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/internal/settings/secrets/{namespace}/{key}",
+    "type": "Route",
+    "name": "delete_secret",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
     "path": "/health",
     "type": "Route",
     "name": "health_check",

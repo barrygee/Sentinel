@@ -34,14 +34,17 @@ class TestExternalServices:
         assert hosts_in_process("air") is True
 
     def test_refuses_a_section_that_cannot_run_on_its_own_yet(self, monkeypatch):
-        # Leaving Sea out would silently drop the section, not move it.
-        monkeypatch.setattr(settings, "sentinel_external_services", "space,sea")
+        # Leaving SDR out would silently drop the section, not move it.
+        monkeypatch.setattr(settings, "sentinel_external_services", "space,sdr")
 
-        with pytest.raises(ValueError, match="sea"):
+        with pytest.raises(ValueError, match="sdr"):
             external_services()
 
-    def test_space_land_and_air_are_extractable(self):
-        assert {"space", "land", "air"} <= EXTRACTABLE_SERVICES
+    def test_space_land_air_and_sea_are_extractable(self):
+        assert {"space", "land", "air", "sea"} <= EXTRACTABLE_SERVICES
+
+    def test_the_radio_hub_and_sdr_are_not_extractable_yet(self):
+        assert not {"radio-hub", "sdr"} & EXTRACTABLE_SERVICES
 
     def test_land_can_be_external_alongside_space(self, monkeypatch):
         monkeypatch.setattr(settings, "sentinel_external_services", "space,land")
@@ -104,6 +107,14 @@ SECTION_CODE = {
         "backend.services.adsb_source",
         "backend.services.adsb_squawk",
     },
+    "sea": {
+        "backend.routers.sea",
+        "backend.modules.sea",
+        "backend.services.ais_stream",
+        "backend.services.ais_store",
+        "backend.services.ais_decode",
+        "backend.services.sea_ais_receiver",
+    },
 }
 # Paths each section serves. Exact paths, not prefixes: core keeps
 # /api/air/messages inside Air's /api/air/.
@@ -111,7 +122,11 @@ SECTION_PATHS = {
     "space": {"/api/space/iss", "/api/space/tle/status"},
     "land": {"/api/land/repeaters", "/api/land/aprs/stations"},
     "air": {"/api/air/tracking", "/api/sdr/adsb/source", "/api/sdr/adsb/config"},
+    "sea": {"/api/sea/vessels", "/api/sea/status", "/api/sea/ais-key"},
 }
+# Core's routes for every section's secret settings (the AISStream key is
+# Sea's), whatever happens to Sea.
+CORE_SECRET_SETTINGS = "/internal/settings/secrets/{namespace}/{key}"
 # Core's notifications, whatever happens to Air.
 CORE_AIR_MESSAGES = {"/api/air/messages", "/api/air/messages/stream"}
 
@@ -130,6 +145,8 @@ def deployments(monolith) -> dict[str, dict]:
         "space,land": import_main("space,land"),
         "air": import_main("air"),
         "space,land,air": import_main("space,land,air"),
+        "sea": import_main("sea"),
+        "space,land,air,sea": import_main("space,land,air,sea"),
     }
 
 
@@ -139,14 +156,14 @@ class TestTheMonolithHostsEverythingByDefault:
         assert monolith["manifests"] == ["air", "space", "sea", "land", "sdr", "radio-hub"]
         assert monolith["withheld_remotes"] == []
 
-    @pytest.mark.parametrize("section", ["space", "land", "air"])
+    @pytest.mark.parametrize("section", ["space", "land", "air", "sea"])
     def test_hosts_and_imports_each_extractable_section(self, monolith, section):
         assert SECTION_PATHS[section] <= set(monolith["routes"])
         assert section in monolith["registered"]
         assert SECTION_CODE[section] <= set(monolith["imported"])
 
 
-@pytest.mark.parametrize("external", ["space", "land", "space,land", "air", "space,land,air"])
+@pytest.mark.parametrize("external", ["space", "land", "space,land", "air", "space,land,air", "sea", "space,land,air,sea"])
 class TestTheMonolithWithoutASection:
     def test_leaves_out_their_routes(self, deployments, external):
         for section in external.split(","):
@@ -154,6 +171,10 @@ class TestTheMonolithWithoutASection:
 
     def test_keeps_cores_notifications_under_air(self, deployments, external):
         assert CORE_AIR_MESSAGES <= set(deployments[external]["routes"])
+
+    def test_keeps_cores_secret_settings_route(self, deployments, external):
+        # An external Sea reads its AISStream key through it.
+        assert CORE_SECRET_SETTINGS in deployments[external]["routes"]
 
     def test_leaves_out_their_lifecycle_and_registration(self, deployments, external):
         for section in external.split(","):
@@ -174,7 +195,7 @@ class TestTheMonolithWithoutASection:
         kept = deployments[external]
         assert kept["modules"] == [name for name in monolith["modules"] if name not in gone]
         assert kept["registered"] == [service for service in monolith["registered"] if service not in gone]
-        for section in {"space", "land", "air"} - gone:
+        for section in set(SECTION_PATHS) - gone:
             assert SECTION_PATHS[section] <= set(kept["routes"])
-        assert any(path.startswith("/api/sea/") for path in kept["routes"])
+        assert any(path.startswith("/api/sdr/") for path in kept["routes"])
         assert "/api/settings/{namespace}" in kept["routes"]

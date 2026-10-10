@@ -26,9 +26,8 @@ import re
 from backend.cache import now_ms
 from backend.config import settings as app_settings
 from backend.database import get_db
-from backend.db_helpers import get_setting, upsert_setting
-from backend.models import UserSettings
 from backend.platform.bus import bus
+from backend.platform.settings_client import delete_secret, read_secret, write_secret
 
 # Imported for its side effect (B2): registers the decode.ais.* bus subscriber
 # that upserts off-grid AIS events into ais_store, at module-import time so it
@@ -43,7 +42,6 @@ from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/sea", tags=["sea"])
@@ -214,14 +212,17 @@ async def get_feed_status(db: AsyncSession = Depends(get_db)):
 # The key is a secret, so it never round-trips through the generic settings
 # API (which is exported as config JSON): the settings router redacts this key
 # on read and refuses it on write, and these endpoints are the only way in.
+# It is still stored in core's user_settings: the settings client's secret calls
+# reach it directly in the monolith and over core's join-token-gated
+# /internal/settings/secrets/ routes when Sea runs in its own container (P6.4).
 
 
 @router.get("/ais-key")
 async def get_ais_key_status(db: AsyncSession = Depends(get_db)):
     """Report whether a key is configured and where it came from — never the key."""
-    saved = await get_setting(db, "sea", "aisstreamApiKey", default="")
-    if isinstance(saved, str) and saved.strip():
-        return JSONResponse({"configured": True, "source": "settings", "fingerprint": key_fingerprint(saved.strip())})
+    saved = (await read_secret(db, "sea", "aisstreamApiKey")).strip()
+    if saved:
+        return JSONResponse({"configured": True, "source": "settings", "fingerprint": key_fingerprint(saved)})
     env_key = app_settings.aisstream_api_key.strip()
     if env_key:
         return JSONResponse({"configured": True, "source": "env", "fingerprint": key_fingerprint(env_key)})
@@ -234,13 +235,12 @@ async def put_ais_key(body: AisKeyIn, db: AsyncSession = Depends(get_db)):
     key = body.key.strip()
     if not _API_KEY_PATTERN.match(key):
         raise HTTPException(status_code=422, detail="key must be 8–128 letters, digits, '-' or '_'")
-    await upsert_setting(db, "sea", "aisstreamApiKey", key)
+    await write_secret(db, "sea", "aisstreamApiKey", key)
     return JSONResponse({"status": "ok", "fingerprint": key_fingerprint(key)})
 
 
 @router.delete("/ais-key")
 async def delete_ais_key(db: AsyncSession = Depends(get_db)):
     """Forget the saved key; the ``.env`` key (if any) applies again."""
-    await db.execute(delete(UserSettings).where(UserSettings.namespace == "sea", UserSettings.key == "aisstreamApiKey"))
-    await db.commit()
+    await delete_secret(db, "sea", "aisstreamApiKey")
     return JSONResponse({"status": "ok"})

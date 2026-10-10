@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(messag
 
 from backend.core import app_sections as app_sections_router
 from backend.core import notifications as notifications_router
-from backend.core import registry_router, spa_csp
+from backend.core import registry_router, settings_secrets, spa_csp
 from backend.core.service_registry import registry
 from backend.error_handlers import request_validation_error_handler
 from backend.modules import MANIFESTS, MODULES, external_services, hosts_in_process
@@ -17,7 +17,7 @@ from backend.radio_hub.routers import decoders as hub_decoders_router
 from backend.radio_hub.routers import radio_control as hub_radio_control_router
 from backend.radio_hub.routers import radios as hub_radios_router
 from backend.radio_hub.routers import sentry as sentry_router
-from backend.routers import offline_map, sea
+from backend.routers import offline_map
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from fastapi import FastAPI
@@ -72,7 +72,10 @@ if hosts_in_process("land"):
     from backend.routers import land
 
     app.include_router(land.router)
-app.include_router(sea.router)
+if hosts_in_process("sea"):
+    from backend.routers import sea
+
+    app.include_router(sea.router)
 app.include_router(settings_router.router)
 # The radio hub (backend/radio_hub/) and the SDR section share the /api/sdr/
 # prefix. They are included interleaved so the routes keep exactly the order the
@@ -89,6 +92,8 @@ if hosts_in_process("air"):
 app.include_router(offline_map.router)
 app.include_router(app_sections_router.router)
 app.include_router(registry_router.router)
+# Secret settings for their owning service (Sea's AISStream key), join-token gated.
+app.include_router(settings_secrets.router)
 
 # This process hosts every section (and the radio hub) until each moves into its
 # own container (P6); register them now, at import, so they are listed before

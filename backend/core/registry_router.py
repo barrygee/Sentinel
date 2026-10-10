@@ -15,17 +15,13 @@ Status codes a registering service acts on:
 
 from __future__ import annotations
 
-import hmac
-
+from backend.core.internal_auth import require_join_token
 from backend.core.service_registry import RegistrationConflict, registry
-from backend.platform.join_token import core_join_token
 from backend.platform.service_manifest import ServiceManifest
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
 router = APIRouter(prefix="/internal/registry", tags=["registry"], include_in_schema=False)
-
-_BEARER_PREFIX = "Bearer "
 
 
 class RegistrationRequest(BaseModel):
@@ -47,25 +43,13 @@ class RegistrationResponse(BaseModel):
     registeredAt: int  # camelCase: the wire name
 
 
-def _require_join_token(authorization: str | None) -> None:
-    expected = core_join_token()
-    if not expected:
-        raise HTTPException(status_code=503, detail="Service registration is disabled on this deployment")
-    presented = (
-        authorization[len(_BEARER_PREFIX) :] if authorization and authorization.startswith(_BEARER_PREFIX) else ""
-    )
-    # Constant-time, so the token can't be recovered a character at a time.
-    if not hmac.compare_digest(presented.encode(), expected.encode()):
-        raise HTTPException(status_code=401, detail="Invalid join token")
-
-
 @router.post("/register", response_model=RegistrationResponse)
 async def register_service(
     request: RegistrationRequest,
     authorization: str | None = Header(default=None),
 ) -> RegistrationResponse:
     """Register (or re-register) a service and its manifest."""
-    _require_join_token(authorization)
+    require_join_token(authorization)
     try:
         registration = await registry.register(request.manifest, request.instance_id)
     except RegistrationConflict as conflict:

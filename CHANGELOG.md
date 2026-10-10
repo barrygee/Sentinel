@@ -205,6 +205,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the Space section as its own service
 - Run the Land section as its own service
 - Run the Air section as its own service
+- Run the Sea section as its own service (P6.4)
 
 ### Bug Fixes
 
@@ -474,6 +475,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retry a failed APRS cleanup after a minute, not a day
 - Ignore Docker Compose keys in the shared .env
 - Smaller bold range-ring distance labels, closer to the ring
+- Compose MODULES and MANIFESTS lazily so a section service loads only its own section
 
 ### Chores
 
@@ -1449,6 +1451,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #442 from barrygee/feat/p6-3-air-service
 - Merge pull request #443 from barrygee/fix/settings-ignore-compose-keys
 - Merge pull request #444 from barrygee/fix/range-ring-labels
+- Merge pull request #446 from barrygee/feat/p6-4-sea-service
 
 ### Refactoring
 
@@ -1628,6 +1631,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the Land service and run e2e per extracted section
 - Cover the Air service and run e2e with Air split and absent
 - Every map-layer font stack ships its ASCII glyphs
+- Run the suite against code defaults, not the repo .env
 
 ### Build System
 

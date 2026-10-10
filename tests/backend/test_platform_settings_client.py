@@ -24,9 +24,12 @@ from backend.platform import settings_client as settings_client_module
 from backend.platform.bus import bus
 from backend.platform.settings_client import (
     SettingsUnavailable,
+    delete_secret,
     read_namespace,
+    read_secret,
     read_setting,
     settings_are_remote,
+    write_secret,
     write_setting,
 )
 
@@ -130,6 +133,8 @@ class FakeCore:
     def __init__(self) -> None:
         self.requests: list[httpx.Request] = []
         self.namespaces: dict[str, Any] = {}
+        # Secrets by "namespace/key", as core's /internal/settings/secrets/ holds them.
+        self.secrets: dict[str, Any] = {}
         self.status = 200
         self.unreachable = False
 
@@ -139,6 +144,15 @@ class FakeCore:
             raise httpx.ConnectError("connection refused", request=request)
         if self.status != 200:
             return httpx.Response(self.status, json={"detail": "nope"})
+        if request.url.path.startswith("/internal/settings/secrets/"):
+            secret_path = request.url.path.removeprefix("/internal/settings/secrets/")
+            if request.method == "GET":
+                return httpx.Response(200, json={"value": self.secrets.get(secret_path, "")})
+            if request.method == "PUT":
+                self.secrets[secret_path] = json.loads(request.content)["value"]
+            else:
+                self.secrets.pop(secret_path, None)
+            return httpx.Response(204)
         if request.method == "GET":
             namespace = request.url.path.rsplit("/", 1)[-1]
             return httpx.Response(200, json=self.namespaces.get(namespace, {}))
@@ -234,3 +248,137 @@ class TestRemoteWrites:
 
         with pytest.raises(SettingsUnavailable, match="400"):
             await write_setting(None, "radiotest", "radios", [])
+
+
+# ── secrets (P6.4) ────────────────────────────────────────────────────────────
+
+SECRET_URL = f"{CORE_URL}/internal/settings/secrets/sea/aisstreamApiKey"
+JOIN_TOKEN = "service-join-token"
+
+
+class TestSecretsLocally:
+    """In the monolith the secret is a user_settings row like any other."""
+
+    @pytest.fixture(autouse=True)
+    def monolith(self, monkeypatch):
+        monkeypatch.setattr(settings, "sentinel_core_url", "")
+
+    async def test_unset_reads_as_empty(self, db):
+        assert await read_secret(db, "sea", "aisstreamApiKey") == ""
+
+    async def test_write_then_read(self, db):
+        await write_secret(db, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+        assert await read_secret(db, "sea", "aisstreamApiKey") == "abcdef0123456789"
+        assert await get_setting(db, "sea", "aisstreamApiKey") == "abcdef0123456789"
+
+    async def test_writing_a_secret_is_not_announced(self, db):
+        heard: list[dict] = []
+        unsubscribe = bus.subscribe("settings.changed.sea", heard.append)
+        try:
+            await write_secret(db, "sea", "aisstreamApiKey", "abcdef0123456789")
+        finally:
+            unsubscribe()
+
+        assert heard == []
+
+    async def test_delete_removes_the_row(self, db):
+        await write_secret(db, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+        await delete_secret(db, "sea", "aisstreamApiKey")
+
+        assert await get_setting(db, "sea", "aisstreamApiKey", default="gone") == "gone"
+
+    async def test_delete_leaves_other_keys_alone(self, db):
+        await write_setting(db, "sea", "enabled", True)
+        await write_secret(db, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+        await delete_secret(db, "sea", "aisstreamApiKey")
+
+        assert await get_setting(db, "sea", "enabled") is True
+
+    async def test_a_non_string_value_reads_as_empty(self, db):
+        await write_setting(db, "sea", "aisstreamApiKey", 12345)
+
+        assert await read_secret(db, "sea", "aisstreamApiKey") == ""
+
+
+class TestSecretsRemotely:
+    """In a service's container they go to core's join-token-gated internal route."""
+
+    @pytest.fixture(autouse=True)
+    def join_token(self, monkeypatch):
+        monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
+
+    async def test_read_gets_the_internal_route_with_the_join_token(self, fake_core):
+        fake_core.secrets["sea/aisstreamApiKey"] = "abcdef0123456789"
+
+        assert await read_secret(None, "sea", "aisstreamApiKey") == "abcdef0123456789"
+        (request,) = fake_core.requests
+        assert (request.method, str(request.url)) == ("GET", SECRET_URL)
+        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+
+    async def test_an_unset_secret_reads_as_empty(self, fake_core):
+        assert await read_secret(None, "sea", "aisstreamApiKey") == ""
+
+    async def test_a_non_string_answer_reads_as_empty(self, fake_core):
+        fake_core.secrets["sea/aisstreamApiKey"] = None
+
+        assert await read_secret(None, "sea", "aisstreamApiKey") == ""
+
+    async def test_write_puts_the_value_with_the_join_token(self, fake_core, announcements):
+        await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+        (request,) = fake_core.requests
+        assert (request.method, str(request.url)) == ("PUT", SECRET_URL)
+        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+        assert json.loads(request.content) == {"value": "abcdef0123456789"}
+        assert fake_core.secrets == {"sea/aisstreamApiKey": "abcdef0123456789"}
+
+    async def test_delete_deletes_with_the_join_token(self, fake_core):
+        fake_core.secrets["sea/aisstreamApiKey"] = "abcdef0123456789"
+
+        await delete_secret(None, "sea", "aisstreamApiKey")
+
+        (request,) = fake_core.requests
+        assert (request.method, str(request.url)) == ("DELETE", SECRET_URL)
+        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+        assert fake_core.secrets == {}
+
+    async def test_never_uses_the_public_settings_api(self, fake_core):
+        await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")
+        await read_secret(None, "sea", "aisstreamApiKey")
+        await delete_secret(None, "sea", "aisstreamApiKey")
+
+        assert not any("/api/settings" in str(request.url) for request in fake_core.requests)
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            lambda: read_secret(None, "sea", "aisstreamApiKey"),
+            lambda: write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789"),
+            lambda: delete_secret(None, "sea", "aisstreamApiKey"),
+        ],
+        ids=["read", "write", "delete"],
+    )
+    async def test_without_a_join_token_yet_nothing_is_sent(self, fake_core, monkeypatch, call):
+        # Core writes the shared token file at start; until then there is none.
+        monkeypatch.setattr(settings, "sentinel_join_token", "")
+        monkeypatch.setattr(settings, "sentinel_join_token_file", "")
+
+        with pytest.raises(SettingsUnavailable, match="join token"):
+            await call()
+        assert fake_core.requests == []
+
+    @pytest.mark.parametrize("status", [401, 404, 503])
+    async def test_a_refusal_raises_settings_unavailable(self, fake_core, status):
+        fake_core.status = status
+
+        with pytest.raises(SettingsUnavailable, match=str(status)):
+            await read_secret(None, "sea", "aisstreamApiKey")
+
+    async def test_an_unreachable_core_raises_settings_unavailable(self, fake_core):
+        fake_core.unreachable = True
+
+        with pytest.raises(SettingsUnavailable, match="unreachable"):
+            await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")

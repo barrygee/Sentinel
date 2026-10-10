@@ -297,8 +297,16 @@ class TestRadioHubModule:
 
 
 class TestSeaModule:
-    def test_stop_and_wake_drive_the_ais_reader(self):
-        assert sea.lifecycle.stop == ais_reader.stop
+    async def test_stop_and_wake_drive_the_ais_reader(self, monkeypatch):
+        stopped: list[str] = []
+
+        async def reader_stop() -> None:
+            stopped.append("reader")
+
+        monkeypatch.setattr(ais_reader, "stop", reader_stop)
+        await sea.lifecycle.stop()
+
+        assert stopped == ["reader"]
         assert sea.lifecycle.wake == ais_reader.wake
 
     async def test_start_warms_the_reader_then_reconciles_the_ais_receiver(
@@ -309,8 +317,9 @@ class TestSeaModule:
         async def reader_start() -> None:
             calls.append("reader")
 
-        async def reconcile_now() -> None:
+        async def reconcile_now() -> bool:
             calls.append("receiver")
+            return True
 
         monkeypatch.setattr(ais_reader, "start", reader_start)
         monkeypatch.setattr(sea.sea_ais_receiver, "reconcile_now", reconcile_now)
@@ -321,6 +330,158 @@ class TestSeaModule:
         # The receiver asks the hub to decode, so the hub must be up first.
         order = [module.name for module in modules.MODULES]
         assert order.index("radio-hub") < order.index("sea")
+
+
+class TestSeaReceiverRetry:
+    """A failed startup reconcile (core or the hub still starting) is retried
+    every minute until it succeeds once (P6.4)."""
+
+    @pytest.fixture(autouse=True)
+    def quiet_reader(self, monkeypatch):
+        async def reader_start() -> None:
+            pass
+
+        async def reader_stop() -> None:
+            pass
+
+        monkeypatch.setattr(ais_reader, "start", reader_start)
+        monkeypatch.setattr(ais_reader, "stop", reader_stop)
+        monkeypatch.setattr(sea, "_receiver_retry_task", None)
+
+    def outcomes(self, monkeypatch, *results: bool) -> list[bool]:
+        """Make reconcile_now return `results` in turn; returns the calls made."""
+        remaining = iter(results)
+        made: list[bool] = []
+
+        async def reconcile_now() -> bool:
+            result = next(remaining)
+            made.append(result)
+            return result
+
+        monkeypatch.setattr(sea.sea_ais_receiver, "reconcile_now", reconcile_now)
+        return made
+
+    async def test_a_successful_start_schedules_no_retry(self, monkeypatch):
+        self.outcomes(monkeypatch, True)
+
+        await sea.lifecycle.start()
+
+        assert sea._receiver_retry_task is None
+
+    async def test_a_failed_start_schedules_a_retry(self, monkeypatch):
+        self.outcomes(monkeypatch, False)
+
+        await sea.lifecycle.start()
+        try:
+            assert sea._receiver_retry_task is not None
+            assert not sea._receiver_retry_task.done()
+        finally:
+            await sea.lifecycle.stop()
+
+    async def test_retries_a_minute_apart_until_one_succeeds(self, monkeypatch):
+        made = self.outcomes(monkeypatch, False, False, True)
+        sleeps: list[float] = []
+
+        async def record_sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+
+        monkeypatch.setattr(sea.asyncio, "sleep", record_sleep)
+
+        await sea._retry_receiver_reconcile()
+
+        assert made == [False, False, True]
+        assert sleeps == [sea.RECEIVER_RETRY_S] * 3
+        assert sea.RECEIVER_RETRY_S == 60
+
+    async def test_stop_cancels_a_pending_retry(self, monkeypatch):
+        self.outcomes(monkeypatch, False)
+        await sea.lifecycle.start()
+        retry = sea._receiver_retry_task
+
+        await sea.lifecycle.stop()
+
+        assert retry is not None and retry.cancelled()
+        assert sea._receiver_retry_task is None
+
+    async def test_stop_still_stops_the_reader_after_a_retry(self, monkeypatch):
+        self.outcomes(monkeypatch, False)
+        stopped: list[str] = []
+
+        async def reader_stop() -> None:
+            stopped.append("reader")
+
+        monkeypatch.setattr(ais_reader, "stop", reader_stop)
+        await sea.lifecycle.start()
+
+        await sea.lifecycle.stop()
+
+        assert stopped == ["reader"]
+
+
+class TestReconcileNowReportsFailure:
+    async def test_true_when_the_reconcile_ran(self, monkeypatch):
+        async def reconcile(db) -> None:
+            return None
+
+        monkeypatch.setattr(sea.sea_ais_receiver, "reconcile", reconcile)
+
+        assert await sea.sea_ais_receiver.reconcile_now() is True
+
+    async def test_false_and_logged_when_it_raised(self, monkeypatch, caplog):
+        async def reconcile(db) -> None:
+            raise LookupError("no responder for hub.decode.ais.start")
+
+        monkeypatch.setattr(sea.sea_ais_receiver, "reconcile", reconcile)
+
+        assert await sea.sea_ais_receiver.reconcile_now() is False
+        assert "AIS receiver reconcile failed" in caplog.text
+
+
+class TestComposedLazily:
+    """MODULES and MANIFESTS are composed on first use, not at import (P6.4):
+    a standalone service imports its own backend.modules.<id>, and composing at
+    import would load every other module — the radio hub's responders too."""
+
+    def probe(self, code: str) -> list[str]:
+        import json
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        environment = {**os.environ, "PYTHONPATH": str(repo_root), "SENTINEL_EXTERNAL_SERVICES": ""}
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=repo_root, env=environment, capture_output=True, text=True, check=True
+        )
+        return json.loads(result.stdout.strip().splitlines()[-1])
+
+    def test_importing_one_module_loads_no_other(self):
+        loaded = self.probe(
+            "import json, sys\n"
+            "import backend.modules.land\n"
+            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub')))))\n"
+        )
+
+        assert loaded == ["backend.modules.land", "backend.modules.manifest"]
+
+    def test_asking_for_modules_composes_every_hosted_one(self):
+        loaded = self.probe(
+            "import json, sys\n"
+            "from backend.modules import MODULES\n"
+            "print(json.dumps([module.name for module in MODULES]))\n"
+        )
+
+        assert loaded == ["bus", "core", "sdr", "space", "radio-hub", "land", "sea", "air"]
+
+    def test_is_composed_once_and_cached(self):
+        assert modules.MODULES is modules.MODULES
+        assert modules.MANIFESTS is modules.MANIFESTS
+        assert "MODULES" in vars(modules) and "MANIFESTS" in vars(modules)
+
+    def test_an_unknown_attribute_still_raises(self):
+        with pytest.raises(AttributeError, match="NOT_A_THING"):
+            modules.NOT_A_THING  # noqa: B018 — the lookup is the test
 
 
 class TestLandModule:

@@ -35,9 +35,9 @@ import websockets
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.db_helpers import get_setting
+from backend.platform.settings_client import read_secret
 from backend.services.ais_store import AisVesselStore, store
-from backend.utils import resolve_domain_urls, resolve_effective_mode
+from backend.utils import domain_settings_map, domain_urls_of, effective_mode_of
 
 logger = logging.getLogger(__name__)
 
@@ -392,14 +392,16 @@ class AisStreamReader:
     # ── configuration ─────────────────────────────────────────────────────────
 
     async def _read_config(self) -> dict[str, Any]:
+        # One read of Sea's settings (and one of its secret) per tick: when Sea
+        # runs in its own container each read is a round trip to core.
         async with AsyncSessionLocal() as db:
-            enabled = bool(await get_setting(db, "sea", "enabled", default=False))
-            primary_url, _fallback = await resolve_domain_urls("sea", db, online_default=settings.aisstream_ws_url)
-            configured_key = await get_setting(db, "sea", "aisstreamApiKey", default="")
-            raw_boxes = await get_setting(db, "sea", "aisBoundingBoxes", default=None)
-            source_mode = await resolve_effective_mode("sea", db)
-        api_key = configured_key.strip() if isinstance(configured_key, str) and configured_key.strip() else ""
-        api_key = api_key or settings.aisstream_api_key.strip()
+            sea_settings = await domain_settings_map("sea", db)
+            configured_key = await read_secret(db, "sea", "aisstreamApiKey")
+        enabled = bool(sea_settings.get("sea.enabled", False))
+        primary_url, _fallback = domain_urls_of("sea", sea_settings, online_default=settings.aisstream_ws_url)
+        raw_boxes = sea_settings.get("sea.aisBoundingBoxes")
+        source_mode = effective_mode_of("sea", sea_settings)
+        api_key = configured_key.strip() or settings.aisstream_api_key.strip()
         boxes = validate_bounding_boxes(raw_boxes) or WORLD_BOUNDING_BOXES
         if primary_url is None:
             mode = "no-source"

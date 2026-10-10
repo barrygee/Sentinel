@@ -70,14 +70,20 @@ async def reconcile(db: AsyncSession) -> dict[str, Any] | None:
     return await bus.request("hub.decode.ais.stop", {"radio_id": decoding, "db": db}, timeout=None)
 
 
-async def reconcile_now() -> None:
-    """Reconcile with a session of its own, never raising (startup and background use)."""
+async def reconcile_now() -> bool:
+    """Reconcile with a session of its own, never raising (startup and background use).
+
+    Returns False when the reconcile itself failed (core's settings or the hub
+    unreachable) — not when the hub answered that it couldn't start the radio.
+    """
     async with _reconcile_lock:
         try:
             async with AsyncSessionLocal() as db:
                 await reconcile(db)
         except Exception:
             logger.exception("Sea: AIS receiver reconcile failed")
+            return False
+    return True
 
 
 def _on_settings_changed(namespace: str):
