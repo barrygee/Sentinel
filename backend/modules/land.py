@@ -13,14 +13,24 @@ logger = logging.getLogger(__name__)
 _cleanup_task: asyncio.Task[None] | None = None
 
 
+# Between cleanups, and before retrying one that failed. A failed run is
+# retried soon rather than a day later: when Land runs in its own container
+# (P6.2) its first run can fall while core — which holds the retention
+# setting — is still starting.
+CLEANUP_INTERVAL_S = 24 * 60 * 60
+CLEANUP_RETRY_S = 60
+
+
 async def _daily_cleanup_loop() -> None:
-    """Run APRS-station cleanup once at startup, then every 24h."""
+    """Run APRS-station cleanup once at startup, then every 24h (a minute after a failure)."""
     while True:
         try:
             await aprs_store.cleanup_expired(int(time.time() * 1000))
         except Exception:
-            logger.exception("APRS station cleanup failed")
-        await asyncio.sleep(24 * 60 * 60)
+            logger.exception("APRS station cleanup failed; retrying in %d s", CLEANUP_RETRY_S)
+            await asyncio.sleep(CLEANUP_RETRY_S)
+            continue
+        await asyncio.sleep(CLEANUP_INTERVAL_S)
 
 
 async def _start() -> None:
