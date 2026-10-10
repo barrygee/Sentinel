@@ -15,6 +15,11 @@ Two modes, chosen by `SENTINEL_CORE_URL`:
     `PUT` there stores, announces and mirrors the value to the config file
     exactly as a browser's write does. The `db` argument is then unused; call
     sites don't change.
+
+Secret settings (`SECRET_SETTING_KEYS`, e.g. Sea's AISStream key) never cross
+the public settings API, which redacts them. Their owner uses `read_secret` /
+`write_secret` / `delete_secret`, which go to core's join-token-gated
+`/internal/settings/secrets/` routes when remote (plan §4.3 rule 4).
 """
 
 from __future__ import annotations
@@ -25,6 +30,7 @@ import httpx
 from backend.config import settings
 from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.bus import bus
+from backend.platform.join_token import service_join_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Core is on the same network; a request slower than this is a fault, not load.
@@ -102,3 +108,49 @@ async def write_setting(
         return
     await upsert_setting(db, namespace, key, value)
     await bus.publish(f"settings.changed.{namespace}", {"keys": [key], "db": db}, raise_errors=raise_errors)
+
+
+# ── secrets ───────────────────────────────────────────────────────────────────
+
+
+def _secret_url(namespace: str, key: str) -> str:
+    return "/".join([settings.sentinel_core_url.rstrip("/"), "internal", "settings", "secrets", namespace, key])
+
+
+def _join_token_header() -> dict[str, str]:
+    token = service_join_token()
+    if not token:
+        # Core hasn't written the shared token file yet (it is starting).
+        raise SettingsUnavailable("no join token yet: core's secret settings can't be reached")
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def read_secret(db: AsyncSession, namespace: str, key: str) -> str:
+    """The secret stored at (namespace, key), or `""` when none is saved."""
+    if settings_are_remote():
+        response = await _core_request("GET", _secret_url(namespace, key), headers=_join_token_header())
+        value = response.json().get("value")
+    else:
+        value = await get_setting(db, namespace, key, default="")
+    return value if isinstance(value, str) else ""
+
+
+async def write_secret(db: AsyncSession, namespace: str, key: str, value: str) -> None:
+    """Store a secret. Not announced on the bus: its owner re-reads it on its own schedule."""
+    if settings_are_remote():
+        await _core_request("PUT", _secret_url(namespace, key), headers=_join_token_header(), json={"value": value})
+        return
+    await upsert_setting(db, namespace, key, value)
+
+
+async def delete_secret(db: AsyncSession, namespace: str, key: str) -> None:
+    """Forget a secret (a no-op when none is saved)."""
+    if settings_are_remote():
+        await _core_request("DELETE", _secret_url(namespace, key), headers=_join_token_header())
+        return
+    # Deferred, like read_namespace's: only the monolith touches the table.
+    from backend.models import UserSettings
+    from sqlalchemy import delete
+
+    await db.execute(delete(UserSettings).where(UserSettings.namespace == namespace, UserSettings.key == key))
+    await db.commit()

@@ -105,15 +105,22 @@ async def resolve_effective_mode(domain: str, db: AsyncSession) -> str:
     the AISStream WebSocket and its off-grid source is a local SDR decoder, so
     there is no pair of URLs to resolve, but the *choice* is identical.
     """
-    values = await _domain_settings_map(domain, db)
-    return _effective_mode(values.get(f"{domain}.sourceOverride"), values.get("app.connectivityMode"))
+    return effective_mode_of(domain, await domain_settings_map(domain, db))
 
 
-async def _domain_settings_map(domain: str, db: AsyncSession) -> dict[str, object]:
+def effective_mode_of(domain: str, settings_map: dict[str, object]) -> str:
+    """:func:`resolve_effective_mode` over a map already read by :func:`domain_settings_map`."""
+    return _effective_mode(settings_map.get(f"{domain}.sourceOverride"), settings_map.get("app.connectivityMode"))
+
+
+async def domain_settings_map(domain: str, db: AsyncSession) -> dict[str, object]:
     """`{"<namespace>.<key>": value}` for every `domain` setting plus `app.connectivityMode`.
 
     A section in its own container has no `user_settings` table; it asks core
-    (`backend/platform/settings_client.py`).
+    (`backend/platform/settings_client.py`) — so a caller that needs several of
+    these settings at once reads the map once and derives from it
+    (:func:`effective_mode_of`, :func:`domain_urls_of`) rather than paying a
+    round trip per question.
     """
     # Deferred: the settings client imports the bus, which must not load with utils.
     from backend.platform.settings_client import read_namespace, read_setting, settings_are_remote
@@ -164,11 +171,17 @@ async def resolve_domain_urls(
         online_default: Fallback online URL used when the DB has no onlineUrl configured.
         offgrid_default: Fallback off-grid URL used when the DB has no off-grid source configured.
     """
-    settings_map = await _domain_settings_map(domain, db)
+    return domain_urls_of(domain, await domain_settings_map(domain, db), online_default, offgrid_default)
 
-    effective_mode = _effective_mode(
-        settings_map.get(f"{domain}.sourceOverride"), settings_map.get("app.connectivityMode")
-    )
+
+def domain_urls_of(
+    domain: str,
+    settings_map: dict[str, object],
+    online_default: str | None = None,
+    offgrid_default: str | None = None,
+) -> tuple[str | None, str | None]:
+    """:func:`resolve_domain_urls` over a map already read by :func:`domain_settings_map`."""
+    effective_mode = effective_mode_of(domain, settings_map)
 
     _online_key = {"air": "onlineDataSourceURL"}.get(domain, "onlineUrl")
     _offgrid_key = {"air": "offgridDataSourceURL"}.get(domain, "offgridSource")
