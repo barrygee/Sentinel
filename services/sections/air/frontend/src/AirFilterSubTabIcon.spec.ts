@@ -27,6 +27,14 @@ describe('AirFilterSubTabIcon', () => {
     for (const category of CATEGORIES) expect(glyphFor(category)).not.toBe(fallback)
   })
 
+  it('draws a different glyph for every category, so no two tabs look alike', () => {
+    // Military aircraft and military bases once shared the same star.
+    const glyphs = CATEGORIES.map((category) =>
+      mount(AirFilterSubTabIcon, { props: { category } }).find('svg').html(),
+    )
+    expect(new Set(glyphs).size).toBe(CATEGORIES.length)
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(AirFilterSubTabIcon, { props: { category: 'aircraft' } })
     expect(await axe(wrapper.element)).toHaveNoViolations()

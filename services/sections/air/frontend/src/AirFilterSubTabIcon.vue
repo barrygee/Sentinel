@@ -88,6 +88,8 @@
       stroke-linecap="round"
     />
   </svg>
+  <!-- Military bases: a shield with two rank chevrons — a different silhouette
+       from the military-aircraft star, so the two tabs can't be confused. -->
   <svg
     v-else-if="category === 'mil'"
     width="19"
@@ -97,10 +99,18 @@
     xmlns="http://www.w3.org/2000/svg"
     aria-hidden="true"
   >
-    <polygon
-      points="12,2 15,9 22,9 16.5,13.5 18.5,21 12,16.5 5.5,21 7.5,13.5 2,9 9,9"
+    <path
+      d="M12 2.5 L19.5 5.5 V11 C19.5 15.8 16.4 19.5 12 21.5 C7.6 19.5 4.5 15.8 4.5 11 V5.5 Z"
       stroke="currentColor"
-      stroke-width="1.4"
+      stroke-width="1.5"
+      stroke-linejoin="round"
+      fill="none"
+    />
+    <path
+      d="M8.5 9.5 L12 12 L15.5 9.5 M8.5 13.5 L12 16 L15.5 13.5"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
       stroke-linejoin="round"
       fill="none"
     />
