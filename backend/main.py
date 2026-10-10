@@ -17,8 +17,7 @@ from backend.radio_hub.routers import decoders as hub_decoders_router
 from backend.radio_hub.routers import radio_control as hub_radio_control_router
 from backend.radio_hub.routers import radios as hub_radios_router
 from backend.radio_hub.routers import sentry as sentry_router
-from backend.routers import adsb_source as adsb_source_router
-from backend.routers import air, offline_map, sea
+from backend.routers import offline_map, sea
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from fastapi import FastAPI
@@ -55,12 +54,16 @@ app = FastAPI(
 app.add_exception_handler(RequestValidationError, request_validation_error_handler)
 
 # ── API routers ────────────────────────────────────────────────────────────────
-app.include_router(air.router)
+# A section in SENTINEL_EXTERNAL_SERVICES runs in its own container (P6) and
+# serves its paths itself, through the gateway. Its routers aren't even
+# imported here: importing a section's services subscribes them to the bus.
+if hosts_in_process("air"):
+    from backend.routers import adsb_source as adsb_source_router
+    from backend.routers import air
+
+    app.include_router(air.router)
 # Core notifications keep their /api/air/messages paths (B5).
 app.include_router(notifications_router.router)
-# A section in SENTINEL_EXTERNAL_SERVICES runs in its own container (P6) and
-# serves these paths itself, through the gateway. Its router isn't even
-# imported here: importing a section's services subscribes them to the bus.
 if hosts_in_process("space"):
     from backend.routers import space
 
@@ -80,7 +83,9 @@ app.include_router(hub_radio_control_router.router)
 app.include_router(hub_decode_router.router)
 app.include_router(hub_decoders_router.router)
 app.include_router(sentry_router.router)
-app.include_router(adsb_source_router.router)
+if hosts_in_process("air"):
+    # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
+    app.include_router(adsb_source_router.router)
 app.include_router(offline_map.router)
 app.include_router(app_sections_router.router)
 app.include_router(registry_router.router)

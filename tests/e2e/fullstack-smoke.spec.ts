@@ -84,7 +84,9 @@ test('FastAPI serves the SPA bundle and the Vue shell hydrates on /', async ({ p
     // Air and Space domain links must be present. Checking two is enough to
     // prove the nav rendered — the full domain-link suite is covered by the
     // mocked UI suite in frontend/vue/e2e/.
-    await expect(domainsNav.getByRole('link', { name: /air/i })).toBeAttached();
+    if (isDeployed('air')) {
+        await expect(domainsNav.getByRole('link', { name: /air/i })).toBeAttached();
+    }
     if (!spaceIsAbsent) {
         await expect(domainsNav.getByRole('link', { name: /space/i })).toBeAttached();
     }
