@@ -29,14 +29,11 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
 
   /**
    * Ring distance labels: --map-overlay-ink at slightly reduced strength (light
-   * on the dark map, dark on the light one) with only a faint, thin halo of the
-   * basemap's own tone, so the text reads cleanly over roads and coastlines
-   * without a visible backing behind it.
+   * on the dark map, dark on the light one), bold and with no halo — the
+   * weight alone carries it, and any halo read as a drop shadow.
    */
   private static readonly DARK_MAP_DISTANCE_INK = 'rgba(255,255,255,0.85)'
-  private static readonly DARK_MAP_DISTANCE_HALO = 'rgba(0,0,0,0.3)'
   private static readonly LIGHT_MAP_DISTANCE_INK = 'rgba(27,29,34,0.85)'
-  private static readonly LIGHT_MAP_DISTANCE_HALO = 'rgba(255,255,255,0.35)'
 
   /** Whether the operator has the rings switched on for this map. */
   ringsVisible: boolean
@@ -216,9 +213,6 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     const distanceInk = brightBasemap
       ? RangeRingsControlBase.LIGHT_MAP_DISTANCE_INK
       : RangeRingsControlBase.DARK_MAP_DISTANCE_INK
-    const distanceHalo = brightBasemap
-      ? RangeRingsControlBase.LIGHT_MAP_DISTANCE_HALO
-      : RangeRingsControlBase.DARK_MAP_DISTANCE_HALO
     this.map.addSource(this.distanceLayerId, { type: 'geojson', data: this._buildRingTops() })
     this.map.addLayer({
       id: this.distanceLayerId,
@@ -228,11 +222,13 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
         visibility: 'none',
         'symbol-placement': 'point',
         'text-field': ['concat', ['to-string', ['get', 'dist']], ' NM'],
-        'text-font': ['Noto Sans Regular'],
-        'text-size': 10,
+        // Bold so the small label holds up against the ring line and basemap.
+        // Only the ASCII range of Noto Sans Bold is bundled (digits + "NM").
+        'text-font': ['Noto Sans Bold'],
+        'text-size': 9,
         'text-letter-spacing': 0.1,
         'text-anchor': 'bottom',
-        'text-offset': [0, -0.8],
+        'text-offset': [0, -0.3],
         'text-rotation-alignment': 'viewport',
         'text-pitch-alignment': 'viewport',
         'text-allow-overlap': true,
@@ -240,8 +236,6 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       },
       paint: {
         'text-color': distanceInk,
-        'text-halo-color': distanceHalo,
-        'text-halo-width': 0.5,
       },
     })
 

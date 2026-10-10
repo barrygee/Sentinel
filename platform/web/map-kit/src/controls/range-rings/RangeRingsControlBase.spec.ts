@@ -160,6 +160,14 @@ describe('RangeRingsControlBase', () => {
       })
     })
 
+    it('sets the distance in small bold type', () => {
+      const { map } = addedControl()
+      expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
+        'text-font': ['Noto Sans Bold'],
+        'text-size': 9,
+      })
+    })
+
     it('keeps the text upright and level at any zoom, pitch or bearing', () => {
       const { map } = addedControl()
       expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
@@ -172,7 +180,7 @@ describe('RangeRingsControlBase', () => {
       const { map } = addedControl()
       expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
         'text-anchor': 'bottom',
-        'text-offset': [0, -0.8],
+        'text-offset': [0, -0.3],
         'text-allow-overlap': true,
         'text-ignore-placement': true,
       })
@@ -202,8 +210,6 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#000000')
       expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
         'text-color': 'rgba(255,255,255,0.85)',
-        'text-halo-color': 'rgba(0,0,0,0.3)',
-        'text-halo-width': 0.5,
       })
     })
 
@@ -216,8 +222,6 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#ffffff')
       expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
         'text-color': 'rgba(27,29,34,0.85)',
-        'text-halo-color': 'rgba(255,255,255,0.35)',
-        'text-halo-width': 0.5,
       })
     })
   })
