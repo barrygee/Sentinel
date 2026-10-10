@@ -279,9 +279,39 @@ jobs:
   # NATS, built and started with docker compose exactly as deployed, then the
   # full-stack smoke suite driven THROUGH the gateway — plus the gateway-only
   # spec (/internal/ refused, CSP, unbuffered SSE, WebSocket upgrade).
+  # The composed stack (app + gateway + NATS) driven through the gateway, once
+  # per Space deployment (section-containers plan P6: "e2e green with the
+  # section present *and* absent"):
+  #   monolith       the app hosts every section, as `docker compose up` does.
+  #   space-service  Space runs in its own container and the app does NOT host
+  #                  it, so only the container can answer /api/space/.
+  #   space-absent   the app does not host Space and no container runs it.
   gateway-smoke:
-    name: gateway-smoke (composed stack + Playwright)
+    name: gateway-smoke (${{ matrix.deployment }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - deployment: monolith
+            external_services: ''
+            profiles: ''
+            services: app gateway nats
+            space: in-process
+          - deployment: space-service
+            external_services: space
+            profiles: space
+            services: app gateway nats space
+            space: service
+          - deployment: space-absent
+            external_services: space
+            profiles: ''
+            services: app gateway nats
+            space: absent
+    env:
+      SENTINEL_EXTERNAL_SERVICES: ${{ matrix.external_services }}
+      COMPOSE_PROFILES: ${{ matrix.profiles }}
+      SENTINEL_E2E_SPACE: ${{ matrix.space }}
     steps:
       - uses: actions/checkout@v6
 
@@ -305,7 +335,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build and start the composed stack
-        run: docker compose up -d --build --wait app gateway nats
+        run: docker compose up -d --build --wait ${{ matrix.services }}
 
       # The app container runs `uv run`, which syncs the venv before uvicorn
       # starts, so "running" is not "serving": wait for /health through the gateway.
@@ -318,17 +348,30 @@ jobs:
           echo "::error::the app never became healthy behind the gateway"
           exit 1
 
+      # A section container serves nothing until it has registered with the app
+      # and the app has pushed its routes into the gateway.
+      - name: Wait for the Space service to register
+        if: matrix.space == 'service'
+        run: |
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/api/app/sections | grep -q '"id":"space"' \
+              && curl -fsS -o /dev/null http://localhost:8080/api/space/daynight; then exit 0; fi
+            sleep 2
+          done
+          echo "::error::the Space service never registered behind the gateway"
+          exit 1
+
       - name: Full-stack smoke through the gateway
         run: npm run test:e2e:gateway
 
       - name: Stack logs on failure
         if: failure()
-        run: docker compose logs app gateway nats
+        run: docker compose logs ${{ matrix.services }}
 
       - name: Upload Playwright report on failure
         if: failure()
         uses: actions/upload-artifact@v6
         with:
-          name: gateway-smoke-report
+          name: gateway-smoke-report-${{ matrix.deployment }}
           path: tests/e2e/playwright-report/
           retention-days: 7
