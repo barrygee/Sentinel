@@ -477,6 +477,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Ignore Docker Compose keys in the shared .env
 - Smaller bold range-ring distance labels, closer to the ring
 - Compose MODULES and MANIFESTS lazily so a section service loads only its own section
+- Hold a section service's startup until core answers
 
 ### Chores
 
@@ -1455,6 +1456,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #446 from barrygee/feat/p6-4-sea-service
 - Merge remote-tracking branch 'origin/main' into fix/adsb-watcher-online-interval
 - Merge pull request #445 from barrygee/fix/adsb-watcher-online-interval
+- Merge pull request #447 from barrygee/fix/wait-for-core-before-first-run
 
 ### Refactoring
 
@@ -1636,6 +1638,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Every map-layer font stack ships its ASCII glyphs
 - Cover the per-mode squawk-check interval
 - Run the suite against code defaults, not the repo .env
+- Cover waiting for core before a service starts
 
 ### Build System
 
