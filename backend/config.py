@@ -263,6 +263,19 @@ class Settings(BaseSettings):
     # it in `.env` (never committed). Empty disables registration over HTTP: the
     # monolith's own sections register in-process and need no token.
     sentinel_join_token: str = ""
+    # Where the join token lives when it isn't set above: core generates it on
+    # first start and every service on the same compose stack reads it from
+    # this shared volume, so a split deployment needs no configuration. Empty
+    # (the default, and non-Docker dev) means no file: registration then needs
+    # an explicit SENTINEL_JOIN_TOKEN.
+    sentinel_join_token_file: str = ""
+    # Services the monolith must NOT host in-process, comma-separated (e.g.
+    # `space`), because they run in their own containers (P6). Their routers,
+    # lifecycles and in-process registrations are left out. A service that
+    # registers over HTTP takes its id over from the in-process copy anyway;
+    # listing it here also skips the copy's startup work and keeps it gone
+    # when the container is stopped (the "section absent" deployment).
+    sentinel_external_services: str = ""
     # Where core reaches this process's own sections. The monolith registers
     # every section in-process with this URL; the gateway (P5.3) routes to it.
     core_internal_url: str = "http://app:8000"
@@ -285,6 +298,28 @@ class Settings(BaseSettings):
     # NATS server the event bus forwards to, e.g. `nats://nats:4222`. Empty keeps
     # the bus in-process only — the all-in-one app needs no broker.
     nats_url: str = ""
+
+    # ── Running as a separate service (section-containers plan §4.2, P6) ─────
+    # Set only in a service's own container (`backend/platform/sdk/`). Core's
+    # address on the internal network, e.g. `http://app:8000`. Empty (the
+    # monolith) means this process IS core: settings are read from the local
+    # database rather than over HTTP.
+    sentinel_core_url: str = ""
+    # The address core and the gateway reach this service on, e.g.
+    # `http://space:8000` — the manifest's `internalUrl`.
+    service_internal_url: str = ""
+    # Identifies this copy of the service to the registry. Empty uses the host
+    # name, which is stable across restarts of the same container — so a
+    # restart re-registers rather than waits out its own live registration.
+    service_instance_id: str = ""
+    # Seconds between re-registrations. Registration is idempotent and core
+    # keeps the registry in memory only, so this is how a restarted core
+    # relearns the service.
+    service_register_interval_s: float = 30.0
+    # The monolith's database, mounted into a service's container on first
+    # boot so it can copy its own tables out of it (legacy import, plan §4.3).
+    # Empty or missing skips the import.
+    legacy_db_path: str = ""
 
     class Config:
         env_file = ".env"

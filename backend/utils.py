@@ -121,6 +121,40 @@ async def resolve_effective_mode(domain: str, db: AsyncSession) -> str:
     return _effective_mode(values.get(f"{domain}.sourceOverride"), values.get("app.connectivityMode"))
 
 
+async def _domain_settings_map(domain: str, db: AsyncSession) -> dict[str, object]:
+    """`{"<namespace>.<key>": value}` for every `domain` setting plus `app.connectivityMode`.
+
+    A section in its own container has no `user_settings` table; it asks core
+    (`backend/platform/settings_client.py`).
+    """
+    # Deferred: the settings client imports the bus, which must not load with utils.
+    from backend.platform.settings_client import read_namespace, read_setting, settings_are_remote
+
+    if settings_are_remote():
+        settings_map: dict[str, object] = {
+            f"{domain}.{key}": value for key, value in (await read_namespace(db, domain)).items()
+        }
+        connectivity_mode = await read_setting(db, "app", "connectivityMode")
+        if connectivity_mode is not None:
+            settings_map["app.connectivityMode"] = connectivity_mode
+        return settings_map
+
+    result = await db.execute(
+        select(UserSettings).where(
+            (UserSettings.namespace == domain)
+            | ((UserSettings.namespace == "app") & (UserSettings.key == "connectivityMode"))
+        )
+    )
+    settings_map = {}
+    for row in result.scalars().all():
+        namespaced_key = f"{row.namespace}.{row.key}"
+        try:
+            settings_map[namespaced_key] = json.loads(row.value)
+        except (json.JSONDecodeError, TypeError):
+            settings_map[namespaced_key] = row.value
+    return settings_map
+
+
 async def resolve_domain_urls(
     domain: str,
     db: AsyncSession,
@@ -142,21 +176,7 @@ async def resolve_domain_urls(
         online_default: Fallback online URL used when the DB has no onlineUrl configured.
         offgrid_default: Fallback off-grid URL used when the DB has no off-grid source configured.
     """
-    result = await db.execute(
-        select(UserSettings).where(
-            (UserSettings.namespace == domain)
-            | ((UserSettings.namespace == "app") & (UserSettings.key == "connectivityMode"))
-        )
-    )
-    rows = result.scalars().all()
-
-    settings_map: dict[str, object] = {}
-    for row in rows:
-        namespaced_key = f"{row.namespace}.{row.key}"
-        try:
-            settings_map[namespaced_key] = json.loads(row.value)
-        except (json.JSONDecodeError, TypeError):
-            settings_map[namespaced_key] = row.value
+    settings_map = await _domain_settings_map(domain, db)
 
     effective_mode = _effective_mode(
         settings_map.get(f"{domain}.sourceOverride"), settings_map.get("app.connectivityMode")

@@ -107,12 +107,64 @@ class TestRegister:
             await registry.register(make_manifest(), "instance-2")
         assert registry.get("weather").instance_id == "instance-1"
 
-    async def test_another_instance_cannot_take_an_in_process_id(self):
+    async def test_a_service_takes_its_id_over_from_the_monoliths_in_process_copy(self, announced):
+        """P6: starting a section's own container is the whole switch — the
+        monolith's in-process copy yields rather than refusing it."""
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("air")], instance_id="core")
+        announced.clear()
+
+        registration = await registry.register(make_manifest("air", internalUrl="http://air-svc:8000"), "air-1")
+
+        assert registry.get("air") is registration
+        assert registration.in_process is False
+        assert registration.instance_id == "air-1"
+        assert registration.manifest.internal_url == "http://air-svc:8000"
+        assert announced == [{"id": "air", "change": "registered"}]
+
+    async def test_another_live_out_of_process_instance_cannot_take_an_id(self):
+        registry = ServiceRegistry()
+        registry.register_in_process([make_manifest("air")], instance_id="core")
+        await registry.register(make_manifest("air"), "air-1")
 
         with pytest.raises(RegistrationConflict):
-            await registry.register(make_manifest("air"), "instance-2")
+            await registry.register(make_manifest("air"), "air-2")
+
+    async def test_an_unchanged_re_registration_is_a_quiet_no_op(self, announced):
+        """Services re-register on an interval; that must not churn the gateway."""
+        registry = ServiceRegistry()
+        first = await registry.register(make_manifest(), "instance-1")
+        first.consecutive_probe_failures = 2
+        announced.clear()
+
+        again = await registry.register(make_manifest(), "instance-1")
+
+        assert again is first
+        assert again.consecutive_probe_failures == 2
+        assert announced == []
+
+    async def test_a_re_registration_with_a_changed_manifest_replaces_and_announces(self, announced):
+        registry = ServiceRegistry()
+        first = await registry.register(make_manifest(), "instance-1")
+        announced.clear()
+
+        again = await registry.register(make_manifest(version="0.2.0"), "instance-1")
+
+        assert again is not first
+        assert again.manifest.version == "0.2.0"
+        assert announced == [{"id": "weather", "change": "registered"}]
+
+    async def test_a_re_registration_of_an_unavailable_service_revives_and_announces(self, announced):
+        registry = ServiceRegistry()
+        first = await registry.register(make_manifest(), "instance-1")
+        first.available = False
+        announced.clear()
+
+        again = await registry.register(make_manifest(), "instance-1")
+
+        assert again is not first
+        assert again.available is True
+        assert announced == [{"id": "weather", "change": "registered"}]
 
     async def test_another_instance_may_take_an_id_whose_holder_is_down(self):
         registry = ServiceRegistry()
@@ -270,7 +322,9 @@ class TestProbes:
         announced.clear()
 
         async def answer_after_re_registration(request: httpx.Request) -> httpx.Response:
-            await registry.register(make_manifest(), "instance-1")
+            # A changed manifest (a restart with a new version), so the
+            # registration really is replaced rather than refreshed in place.
+            await registry.register(make_manifest(version="0.2.0"), "instance-1")
             return httpx.Response(500)
 
         transport = httpx.MockTransport(answer_after_re_registration)

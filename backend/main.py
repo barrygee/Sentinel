@@ -10,7 +10,7 @@ from backend.core import notifications as notifications_router
 from backend.core import registry_router, spa_csp
 from backend.core.service_registry import registry
 from backend.error_handlers import request_validation_error_handler
-from backend.modules import MANIFESTS, MODULES
+from backend.modules import MANIFESTS, MODULES, external_services, hosts_in_process
 from backend.platform.lifecycle import run_lifecycles
 from backend.radio_hub.routers import decode as hub_decode_router
 from backend.radio_hub.routers import decoders as hub_decoders_router
@@ -58,7 +58,10 @@ app.add_exception_handler(RequestValidationError, request_validation_error_handl
 app.include_router(air.router)
 # Core notifications keep their /api/air/messages paths (B5).
 app.include_router(notifications_router.router)
-app.include_router(space.router)
+# A section in SENTINEL_EXTERNAL_SERVICES runs in its own container (P6) and
+# serves these paths itself, through the gateway.
+if hosts_in_process("space"):
+    app.include_router(space.router)
 app.include_router(land.router)
 app.include_router(sea.router)
 app.include_router(settings_router.router)
@@ -118,7 +121,12 @@ if SPA_DIR.exists():
 # index.html, which the shell would otherwise try to run as a remote entry.
 app.mount(
     "/remotes",
-    app_sections_router.RemotesStaticFiles(directory=str(SPA_DIR / "remotes"), check_dir=False),
+    app_sections_router.RemotesStaticFiles(
+        directory=str(SPA_DIR / "remotes"),
+        check_dir=False,
+        # A section that runs in its own container serves its own remote.
+        withheld=external_services(),
+    ),
     name="remotes",
 )
 

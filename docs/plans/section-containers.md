@@ -345,6 +345,16 @@ This is the one FastAPI factory every service uses.
 - **Test factory:** builds the service with the in-memory bus and in-memory SQLite, keeping today's `conftest.py`
   approach per service.
 
+*As built (P6.0):* the SDK is `backend/platform/sdk/` rather than a separate `platform/py-sdk` package, and each
+extracted section's entry point is `backend/standalone/<id>.py` — the same image as the app, run with a different
+`uvicorn` target. The section code itself is not moved yet, so the monolith (the rollback and `dev-all` path) and the
+service run literally the same routers and services; the move into `services/sections/<id>/backend` is P8 cleanup.
+`create_service()` runs the bus, the section's lifecycles and then registration (re-sent every
+`SERVICE_REGISTER_INTERVAL_S`, so a restarted core relearns its services; an unchanged re-registration is a no-op), and
+serves `/health` and `/remotes/<id>/`. With `SENTINEL_CORE_URL` set, `backend/platform/settings_client.py` reads and
+writes settings through core's `/api/settings` instead of the local database. The join token needs no configuration
+under compose: core writes it to a shared volume (`SENTINEL_JOIN_TOKEN_FILE`) at start.
+
 ### 4.3 Persistence split (owner choice: DB per container)
 **Settings stay central.** Core's `user_settings` holds every namespace, so the following keep working unchanged:
 - the live `sentinel_config.json` mirror and upload/export
@@ -364,7 +374,10 @@ Four rules make that safe:
 
 **Domain data** moves to each service's own SQLite on its own volume (see §2.1).
 
-**Legacy import** runs on first boot, is idempotent, and is also available as a `migrate-legacy` profile. If the old
+**Legacy import** runs on first boot, is idempotent, and is also available as a `migrate-legacy` profile.
+*As built (P6.1):* `backend/platform/sdk/legacy_import.py` attaches the monolith's database read-only
+(`LEGACY_DB_PATH`, the `sentinel_db` volume mounted at `/legacy`) and fills each of the section's tables that is still
+empty, copying only the columns both sides have. No separate profile was needed. If the old
 `sentinel.db` is mounted read-only and the service DB is empty, the service copies its tables and files:
 - `sdr` copies its WAV recordings.
 - The hub copies `.u8` IQ captures and `sentry_hosts`.
@@ -394,6 +407,16 @@ has marked unavailable gets a static 503 without a dial. No per-id env templatin
 
 **Rollback:** `dev-all` (or the monolith during P6) can re-register any section, so the extraction of a single section
 can be reverted by flipping its route back.
+
+*As built (P6.1):* the flip is the registration itself. The monolith still registers its own copy of every section
+in-process, and an out-of-process registration of the same id **takes it over** (core logs "moved out of process") —
+so starting the `space` container is the whole switch, and stopping it greys Space out through the normal probes.
+`SENTINEL_EXTERNAL_SERVICES=space` makes the monolith leave out Space's router, lifecycle and in-process registration
+altogether: the "section absent" deployment, and the way to stop the monolith doing Space's startup work twice.
+It also withholds Space's built remote from the app's `/remotes` mount, so `/remotes/space/` can only come from the
+container. CI's `gateway-smoke` job runs the composed stack three ways — `monolith`, `space-service` and
+`space-absent` — with `tests/e2e/section-deployment.spec.ts` asserting each.
+Rolling back is unsetting it and restarting the app.
 
 ### 4.5 Security
 - **Join token:** `SENTINEL_JOIN_TOKEN` lives in `.env` and is never committed. It gates registration, and core issues

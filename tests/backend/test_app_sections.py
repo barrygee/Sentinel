@@ -249,6 +249,41 @@ class TestRemotesStaticFiles:
         assert client.get("/remotes/air/remoteEntry.js").status_code == 200
 
 
+class TestWithheldRemotes:
+    """The monolith withholds the remote of a section that runs in its own
+    container, so a browser can only ever load it from that service."""
+
+    @pytest.fixture
+    def withholding_client(self, tmp_path: Path) -> TestClient:
+        remotes_app = FastAPI()
+        remotes_app.mount(
+            "/remotes",
+            RemotesStaticFiles(directory=str(tmp_path), check_dir=False, withheld=frozenset({"space"})),
+        )
+        build_remote(tmp_path, "air")
+        build_remote(tmp_path, "space")
+        return TestClient(remotes_app)
+
+    def test_a_withheld_sections_files_are_a_404_although_built(self, withholding_client: TestClient):
+        for path in ("/remotes/space/remoteEntry.js", "/remotes/space/spa-assets/section-Ab12Cd34.js"):
+            response = withholding_client.get(path)
+            assert response.status_code == 404
+            assert "text/javascript" not in response.headers.get("content-type", "")
+
+    def test_a_dot_segment_cannot_reach_a_withheld_section(self, withholding_client: TestClient):
+        response = withholding_client.get("/remotes/air/../space/remoteEntry.js")
+
+        assert response.status_code == 404
+
+    def test_other_sections_are_still_served(self, withholding_client: TestClient):
+        assert withholding_client.get("/remotes/air/remoteEntry.js").status_code == 200
+
+    def test_nothing_is_withheld_by_default(self, remotes_client: TestClient, tmp_path: Path):
+        build_remote(tmp_path, "space")
+
+        assert remotes_client.get("/remotes/space/remoteEntry.js").status_code == 200
+
+
 class TestRemotesMountInTheApp:
     def test_a_missing_remote_file_is_a_404_not_the_spa_index(self):
         """Falling through to index.html would hand the shell HTML to run as a

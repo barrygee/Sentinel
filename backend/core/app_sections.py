@@ -17,21 +17,19 @@ one that fails to load gets the "section unavailable" page instead of taking
 the app down.
 """
 
-import os
 from pathlib import Path
 
 from backend.core.service_registry import ServiceRegistry, registry
+
+# RemotesStaticFiles is re-exported: the monolith mounts it at /remotes (backend/main.py).
+from backend.platform.remote_files import REMOTE_ENTRY_FILENAME, RemotesStaticFiles  # noqa: F401
 from fastapi import APIRouter
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from starlette.responses import Response
-from starlette.types import Scope
 
 router = APIRouter(prefix="/api/app", tags=["app"])
 
 SPA_DIR = Path(__file__).resolve().parents[2] / "frontend" / "spa-dist"
 REMOTES_DIR = SPA_DIR / "remotes"
-REMOTE_ENTRY_FILENAME = "remoteEntry.js"
 
 
 class DeployedSection(BaseModel):
@@ -67,33 +65,3 @@ def deployed_sections(service_registry: ServiceRegistry, remotes_dir: Path) -> l
 async def list_sections() -> DeployedSections:
     """List the sections the shell should load as federation remotes."""
     return DeployedSections(sections=deployed_sections(registry, REMOTES_DIR))
-
-
-class RemotesStaticFiles(StaticFiles):
-    """Serves `/remotes/<id>/…` — each section remote's entry and chunks.
-
-    `remoteEntry.js` is the one unhashed file: it names the hashed chunks, so,
-    like the SPA's index.html, it must never be cached, or a browser keeps
-    loading a section's previous build after an upgrade. The chunks themselves
-    stay cacheable.
-    """
-
-    async def check_config(self) -> None:
-        # Before the SPA is built there is no remotes/ directory, and Starlette
-        # answers every request with a 500. Nothing is deployed yet, so a
-        # missing remote is just a 404 until the build creates it.
-        if self.directory is not None and not Path(self.directory).is_dir():
-            return
-        await super().check_config()
-
-    def file_response(
-        self,
-        full_path: os.PathLike[str] | str,
-        stat_result: os.stat_result,
-        scope: Scope,
-        status_code: int = 200,
-    ) -> Response:
-        response = super().file_response(full_path, stat_result, scope, status_code)
-        if Path(full_path).name == REMOTE_ENTRY_FILENAME:
-            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        return response

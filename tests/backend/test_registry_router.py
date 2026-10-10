@@ -11,6 +11,7 @@ from backend.config import settings
 from backend.core import registry_router
 from backend.core.service_registry import ServiceRegistry
 from backend.main import app
+from backend.platform import join_token as join_token_module
 from backend.platform.service_manifest import ServiceManifest
 
 JOIN_TOKEN = "test-join-token"
@@ -94,6 +95,21 @@ class TestJoinToken:
         assert JOIN_TOKEN not in response.text
 
 
+    def test_accepts_the_token_core_generated_into_the_shared_file(
+        self, isolated_registry, client, monkeypatch, tmp_path
+    ):
+        monkeypatch.setattr(settings, "sentinel_join_token", "")
+        monkeypatch.setattr(settings, "sentinel_join_token_file", str(tmp_path / "join-token"))
+        monkeypatch.setattr(join_token_module, "_generated_token", None)
+        generated = join_token_module.core_join_token()
+
+        accepted = client.post(REGISTER_URL, json=registration(), headers={"Authorization": f"Bearer {generated}"})
+        refused = client.post(REGISTER_URL, json=registration(), headers=AUTHORIZED)
+
+        assert accepted.status_code == 200
+        assert refused.status_code == 401
+
+
 class TestRegister:
     def test_registers_a_service_and_returns_what_was_recorded(self, isolated_registry, client):
         response = client.post(REGISTER_URL, json=registration(), headers=AUTHORIZED)
@@ -124,6 +140,18 @@ class TestRegister:
         assert response.status_code == 409
         assert "already registered by a live instance" in response.json()["detail"]
         assert isolated_registry.get("weather").instance_id == "weather-1"
+
+    def test_a_service_takes_its_section_over_from_the_monolith(self, isolated_registry, client):
+        response = client.post(
+            REGISTER_URL,
+            json=registration("sea-1", id="sea", routes=["/api/sea/"], internalUrl="http://sea:8000", ui=None),
+            headers=AUTHORIZED,
+        )
+
+        assert response.status_code == 200
+        taken_over = isolated_registry.get("sea")
+        assert taken_over.in_process is False
+        assert taken_over.manifest.internal_url == "http://sea:8000"
 
     def test_a_route_another_service_holds_is_a_conflict(self, isolated_registry, client):
         response = client.post(

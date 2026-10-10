@@ -57,34 +57,59 @@ class Base(DeclarativeBase):
     pass
 
 
+# Columns added to satellite_catalogue after its first release. SQLite's
+# create_all never adds a column to an existing table, so each is ALTERed in
+# (a duplicate is an OperationalError, ignored). Shared by the monolith's
+# create_tables() and the Space service's create_space_tables().
+SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
+    "ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
+    "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN downlink_hz INTEGER",
+    "ALTER TABLE satellite_catalogue ADD COLUMN downlink_mode TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN ctcss_hz REAL",
+    "ALTER TABLE satellite_catalogue ADD COLUMN transponder_type TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN beacon_hz INTEGER",
+    "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
+    "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
+)
+
+# The tables the Space section owns — all a Space service's own database holds.
+SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
+
+
+async def _add_columns(conn, alter_statements) -> None:
+    for alter_statement in alter_statements:
+        try:
+            await conn.execute(sa_text(alter_statement))
+        except OperationalError:
+            # Column already exists — raised by SQLite on duplicate ALTER TABLE
+            pass
+
+
+async def create_space_tables() -> None:
+    """Create only the Space section's tables — the schema of a Space service's own database (P6)."""
+    async with engine.begin() as conn:
+        from backend import models  # noqa: F401 — import triggers model registration with Base
+
+        space_tables = [Base.metadata.tables[table_name] for table_name in SPACE_TABLES]
+        await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=space_tables))
+        await _add_columns(conn, SATELLITE_CATALOGUE_ADDED_COLUMNS)
+
+
 async def create_tables():
     """Create all database tables on startup if they do not already exist."""
     async with engine.begin() as conn:
         from backend import models  # noqa: F401 — import triggers model registration with Base
 
         await conn.run_sync(Base.metadata.create_all)
-        # Add name_source column to satellite_catalogue if it doesn't exist yet
-        # (SQLite create_all does not add new columns to existing tables)
-        try:
-            await conn.execute(sa_text("ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT"))
-        except OperationalError:
-            # Column already exists — raised by SQLite on duplicate ALTER TABLE
-            pass
+        await _add_columns(conn, SATELLITE_CATALOGUE_ADDED_COLUMNS)
         for col_sql in [
             "ALTER TABLE sdr_radios ADD COLUMN bandwidth INTEGER",
             "ALTER TABLE sdr_radios ADD COLUMN rf_gain REAL",
             "ALTER TABLE sdr_radios ADD COLUMN agc INTEGER",
             "ALTER TABLE sdr_frequency_groups ADD COLUMN slug TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
-            "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
-            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_hz INTEGER",
-            "ALTER TABLE satellite_catalogue ADD COLUMN downlink_mode TEXT",
-            "ALTER TABLE satellite_catalogue ADD COLUMN ctcss_hz REAL",
-            "ALTER TABLE satellite_catalogue ADD COLUMN transponder_type TEXT",
-            "ALTER TABLE satellite_catalogue ADD COLUMN beacon_hz INTEGER",
-            "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
-            "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
-            "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
             # Per-frequency tuning settings (applied on click / scan-stop).
             "ALTER TABLE sdr_stored_frequencies ADD COLUMN bandwidth INTEGER",
             "ALTER TABLE sdr_stored_frequencies ADD COLUMN sample_rate INTEGER",
@@ -505,20 +530,23 @@ async def backfill_satellite_radio_store() -> None:
 
     No-ops when nothing changes, so it's cheap to run on every boot.
     """
-    from backend.db_helpers import get_setting_row, upsert_setting  # avoid circular import
-    from backend.services.sat_radio import get_radio_map, load_radio_file
+    # Deferred to avoid a circular import. Through the settings client, because
+    # the store is core's: a Space service in its own container reaches it over
+    # HTTP (`backend/platform/settings_client.py`).
+    from backend.platform.settings_client import read_setting, write_setting
+    from backend.services.sat_radio import load_radio_file
 
     file_map = load_radio_file()
 
     async with AsyncSessionLocal() as session:
-        row = await get_setting_row(session, "space", "satelliteRadio")
-        store = await get_radio_map(session) if row is not None else {}
+        stored = await read_setting(session, "space", "satelliteRadio")
+        store = stored if isinstance(stored, dict) else {}
 
         merged = {**store, **file_map}  # file wins per-key it defines
-        if row is not None and merged == store:
+        if stored is not None and merged == store:
             return  # already in sync — nothing to write
 
-        await upsert_setting(session, "space", "satelliteRadio", merged)
+        await write_setting(session, "space", "satelliteRadio", merged)
 
 
 async def resolve_retired_auto_modes() -> None:

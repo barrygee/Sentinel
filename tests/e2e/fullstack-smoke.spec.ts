@@ -29,6 +29,11 @@ import { test, expect, type Page } from '@playwright/test';
  *      confirms the satellite is stored (no internet required).
  */
 
+// The gateway-smoke CI job also runs this suite against a stack with no Space
+// deployed (see section-deployment.spec.ts); the Space-specific checks below
+// are skipped there, and that suite checks Space is cleanly absent instead.
+const spaceIsAbsent = process.env.SENTINEL_E2E_SPACE === 'absent';
+
 // ---------------------------------------------------------------------------
 // Helper: wait for the Vue shell to hydrate (Domains nav present)
 // ---------------------------------------------------------------------------
@@ -78,7 +83,9 @@ test('FastAPI serves the SPA bundle and the Vue shell hydrates on /', async ({ p
     // prove the nav rendered — the full domain-link suite is covered by the
     // mocked UI suite in frontend/vue/e2e/.
     await expect(domainsNav.getByRole('link', { name: /air/i })).toBeAttached();
-    await expect(domainsNav.getByRole('link', { name: /space/i })).toBeAttached();
+    if (!spaceIsAbsent) {
+        await expect(domainsNav.getByRole('link', { name: /space/i })).toBeAttached();
+    }
 });
 
 // ---------------------------------------------------------------------------
@@ -88,6 +95,7 @@ test('FastAPI serves the SPA bundle and the Vue shell hydrates on /', async ({ p
 test('vue-router deep link /space/ is served by catch-all and renders the Space view', async ({
     page,
 }) => {
+    test.skip(spaceIsAbsent, 'Space is not deployed');
     // /space/ is a client-side route; the FastAPI catch-all returns index.html
     // for it so Vue Router can take over. A 404 or raw JSON would mean the
     // catch-all is broken or something ahead of it matched first.
@@ -265,6 +273,7 @@ test('startup seeder populates the SDR band plan from backend/data/sdr_bandplan.
 test('POST /api/space/tle/manual stores a satellite and it appears in /api/space/tle/list', async ({
     request,
 }) => {
+    test.skip(spaceIsAbsent, 'Space is not deployed');
     // A historical ISS TLE (NORAD 25544, epoch 2008-264) with verified SGP4-
     // valid checksums. Using a historical TLE is fine — we only care that the
     // backend parses, validates, and stores it; no propagation happens here.

@@ -180,6 +180,22 @@ class TestCoreModule:
         assert calls == ["registry.start", "gateway.start", "gateway.stop", "registry.stop"]
 
 
+    async def test_writes_the_shared_join_token_before_the_registry_starts(self, monkeypatch):
+        """Services read the token from the shared volume; it must exist before
+        anything can register (they never ask core for it)."""
+        calls: list[str] = []
+        for name in ("start",):
+            monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
+            monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
+        monkeypatch.setattr(core, "core_join_token", lambda: calls.append("join_token") or "token")
+        monkeypatch.setattr(core.registry, "start", recorder(calls, "registry.start", is_async=False))
+        monkeypatch.setattr(core.gateway_sync, "start", recorder([], "gateway.start", is_async=False))
+
+        await core.lifecycle.start()
+
+        assert calls == ["join_token", "registry.start"]
+
+
 class TestAirModule:
     async def test_start_starts_the_squawk_watcher_and_stop_stops_it(self, monkeypatch):
         calls: list[str] = []
