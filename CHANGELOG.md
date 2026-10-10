@@ -203,6 +203,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Raise emergency squawk alerts server-side
 - Front the stack with a Caddy gateway routed by the registry
 - Run the Space section as its own service
+- Run the Land section as its own service
 
 ### Bug Fixes
 
@@ -1440,6 +1441,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #438 from barrygee/fix/air-mil-base-icon
 - Merge pull request #439 from barrygee/fix/sdr-band-label-fit
 - Merge pull request #440 from barrygee/feat/p6-1-space-service
+- Merge pull request #441 from barrygee/feat/p6-2-land-service
 
 ### Refactoring
 
@@ -1555,6 +1557,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Plan and describe server-side squawk alerts
 - Document the gateway, its routing and the CSP trade-off
 - Record P6.0/P6.1 as built
+- Record P6.2 Land as built
 
 ### Tests
 
@@ -1614,6 +1617,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Assert every FILTER sub-tab glyph is distinct
 - Cover band-plan label fitting
 - Cover the service SDK, Space service and section deployments
+- Cover the Land service and run e2e per extracted section
 
 ### Build System
 
@@ -1658,6 +1662,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split frontend-vue job into themed parallel jobs (#236)
 - Fail the build when the committed spa-dist is stale
 - Run the composed stack with Space present, split and absent
+- Split and absent legs cover Space and Land
 
 ### Styling
 
