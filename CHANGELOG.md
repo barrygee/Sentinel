@@ -202,6 +202,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Forward event bus over NATS between processes
 - Raise emergency squawk alerts server-side
 - Front the stack with a Caddy gateway routed by the registry
+- Run the Space section as its own service
 
 ### Bug Fixes
 
@@ -1438,6 +1439,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #437 from barrygee/fix/adsb-feed-gap
 - Merge pull request #438 from barrygee/fix/air-mil-base-icon
 - Merge pull request #439 from barrygee/fix/sdr-band-label-fit
+- Merge pull request #440 from barrygee/feat/p6-1-space-service
 
 ### Refactoring
 
@@ -1552,6 +1554,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Describe the NATS event bus and NATS_URL
 - Plan and describe server-side squawk alerts
 - Document the gateway, its routing and the CSP trade-off
+- Record P6.0/P6.1 as built
 
 ### Tests
 
@@ -1610,6 +1613,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover feed-aware removal and the upstream-hang regression
 - Assert every FILTER sub-tab glyph is distinct
 - Cover band-plan label fitting
+- Cover the service SDK, Space service and section deployments
 
 ### Build System
 
@@ -1653,6 +1657,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Regenerate on merge to main instead of per-PR
 - Split frontend-vue job into themed parallel jobs (#236)
 - Fail the build when the committed spa-dist is stale
+- Run the composed stack with Space present, split and absent
 
 ### Styling
 
