@@ -465,6 +465,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the SPA build stage bash and the web-packages script
 - Stop the squawk watcher and an empty fallback blanking the map
 - Age aircraft by observation time and glide them onto new reports
+- Keep aircraft through an upstream hang instead of emptying the map
 
 ### Chores
 
@@ -514,6 +515,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle
 - Rebuild SPA bundle for server-side squawk alerts
 - Rebuild SPA bundle for ADS-B observation-time aging
+- Rebuild SPA bundle for feed-aware aircraft removal
 
 ### Other
 
@@ -1429,6 +1431,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #434 from barrygee/feat/p5-3-caddy-gateway
 - Merge pull request #435 from barrygee/fix/adsb-watcher-idle
 - Merge pull request #436 from barrygee/fix/adsb-honest-aging
+- Merge pull request #437 from barrygee/fix/adsb-feed-gap
 
 ### Refactoring
 
@@ -1598,6 +1601,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Unit tests and a composed-stack smoke through the gateway
 - Cover the watcher idling on polls and the empty-fallback rules
 - Cover observation-time aging, re-anchoring and the snapshot age header
+- Cover feed-aware removal and the upstream-hang regression
 
 ### Build System
 
