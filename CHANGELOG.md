@@ -472,6 +472,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the military-bases filter tab its own icon
 - Fit band-plan labels to their strip instead of cropping them
 - Retry a failed APRS cleanup after a minute, not a day
+- Ignore Docker Compose keys in the shared .env
+- Smaller bold range-ring distance labels, closer to the ring
 
 ### Chores
 
@@ -1445,6 +1447,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #440 from barrygee/feat/p6-1-space-service
 - Merge pull request #441 from barrygee/feat/p6-2-land-service
 - Merge pull request #442 from barrygee/feat/p6-3-air-service
+- Merge pull request #443 from barrygee/fix/settings-ignore-compose-keys
+- Merge pull request #444 from barrygee/fix/range-ring-labels
 
 ### Refactoring
 
@@ -1623,6 +1627,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the service SDK, Space service and section deployments
 - Cover the Land service and run e2e per extracted section
 - Cover the Air service and run e2e with Air split and absent
+- Every map-layer font stack ships its ASCII glyphs
 
 ### Build System
 
