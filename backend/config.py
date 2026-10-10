@@ -324,6 +324,10 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        # .env is shared with Docker Compose, which reads its own keys from it
+        # (COMPOSE_PROFILES, …). Those are not app settings, and refusing them
+        # made the app fail to start outside Docker as soon as one was set.
+        extra = "ignore"
 
 
 # Singleton settings object — imported by all modules that need configuration
