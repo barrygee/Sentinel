@@ -17,9 +17,9 @@ from __future__ import annotations
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.db_helpers import get_setting
 from backend.models import AprsStation
 from backend.platform.bus import bus
+from backend.platform.settings_client import read_setting
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,9 +30,10 @@ async def _retention_ms(db: AsyncSession) -> int:
     Reads ``land``/``aprsRetentionMinutes`` (minutes) and converts to ms; falls
     back to ``settings.aprs_station_ttl_ms`` (default 5 min) when unset, blank, or
     non-positive. This is read per query/sweep so a Settings change takes effect
-    immediately without a restart.
+    immediately without a restart. Through the settings client: the setting
+    is core's, reached over HTTP when Land runs in its own container.
     """
-    raw = await get_setting(db, "land", "aprsRetentionMinutes", default=None)
+    raw = await read_setting(db, "land", "aprsRetentionMinutes", default=None)
     if raw is None:
         return settings.aprs_station_ttl_ms
     try:

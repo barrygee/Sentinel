@@ -169,6 +169,7 @@ type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
+    "backend.standalone.land",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",

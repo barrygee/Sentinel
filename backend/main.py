@@ -18,7 +18,7 @@ from backend.radio_hub.routers import radio_control as hub_radio_control_router
 from backend.radio_hub.routers import radios as hub_radios_router
 from backend.radio_hub.routers import sentry as sentry_router
 from backend.routers import adsb_source as adsb_source_router
-from backend.routers import air, land, offline_map, sea, space
+from backend.routers import air, offline_map, sea
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from fastapi import FastAPI
@@ -59,10 +59,16 @@ app.include_router(air.router)
 # Core notifications keep their /api/air/messages paths (B5).
 app.include_router(notifications_router.router)
 # A section in SENTINEL_EXTERNAL_SERVICES runs in its own container (P6) and
-# serves these paths itself, through the gateway.
+# serves these paths itself, through the gateway. Its router isn't even
+# imported here: importing a section's services subscribes them to the bus.
 if hosts_in_process("space"):
+    from backend.routers import space
+
     app.include_router(space.router)
-app.include_router(land.router)
+if hosts_in_process("land"):
+    from backend.routers import land
+
+    app.include_router(land.router)
 app.include_router(sea.router)
 app.include_router(settings_router.router)
 # The radio hub (backend/radio_hub/) and the SDR section share the /api/sdr/
