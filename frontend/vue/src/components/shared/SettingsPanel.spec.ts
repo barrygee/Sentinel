@@ -599,7 +599,9 @@ describe('SettingsPanel', () => {
       expect(ids).toEqual([
         'air-source-override',
         'air-offgrid-sdr-source',
+        'air-offgrid-squawk-watch-interval',
         'air-online-source',
+        'air-online-squawk-watch-interval',
         'map-layers',
         'air-overhead-alerts',
         'air-tag-fields',
@@ -612,6 +614,13 @@ describe('SettingsPanel', () => {
       ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
+      )
+      // Each mode's background squawk-check interval sits under that mode's source.
+      expect(airItems.find((item) => item.id === 'air-offgrid-squawk-watch-interval')!.label).toBe(
+        'Off Grid Squawk Checks',
+      )
+      expect(airItems.find((item) => item.id === 'air-online-squawk-watch-interval')!.label).toBe(
+        'Online Squawk Checks',
       )
     })
   })
