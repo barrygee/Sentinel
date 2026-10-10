@@ -466,6 +466,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop the squawk watcher and an empty fallback blanking the map
 - Age aircraft by observation time and glide them onto new reports
 - Keep aircraft through an upstream hang instead of emptying the map
+- Give the military-bases filter tab its own icon
+- Fit band-plan labels to their strip instead of cropping them
 
 ### Chores
 
@@ -516,6 +518,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle for server-side squawk alerts
 - Rebuild SPA bundle for ADS-B observation-time aging
 - Rebuild SPA bundle for feed-aware aircraft removal
+- Rebuild SPA bundle for the military-bases icon
+- Rebuild SPA bundle for band-plan label fitting
 
 ### Other
 
@@ -1432,6 +1436,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #435 from barrygee/fix/adsb-watcher-idle
 - Merge pull request #436 from barrygee/fix/adsb-honest-aging
 - Merge pull request #437 from barrygee/fix/adsb-feed-gap
+- Merge pull request #438 from barrygee/fix/air-mil-base-icon
+- Merge pull request #439 from barrygee/fix/sdr-band-label-fit
 
 ### Refactoring
 
@@ -1602,6 +1608,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the watcher idling on polls and the empty-fallback rules
 - Cover observation-time aging, re-anchoring and the snapshot age header
 - Cover feed-aware removal and the upstream-hang regression
+- Assert every FILTER sub-tab glyph is distinct
+- Cover band-plan label fitting
 
 ### Build System
 
