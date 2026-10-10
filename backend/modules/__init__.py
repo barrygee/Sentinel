@@ -75,12 +75,39 @@ def _module(module_name: str) -> ModuleType:
     return importlib.import_module(f"backend.modules.{module_name}")
 
 
-MODULES: tuple[ModuleLifecycle, ...] = tuple(
-    _module(module_name).lifecycle for module_name, service_id in _MODULE_ORDER if hosts_in_process(service_id)
-)
 _SERVICE_OF_MODULE = dict(_MODULE_ORDER)
-MANIFESTS: tuple[ServiceManifest, ...] = tuple(
-    _module(module_name).manifest
-    for module_name in _MANIFEST_ORDER
-    if hosts_in_process(_SERVICE_OF_MODULE[module_name])
-)
+
+
+def _hosted_lifecycles() -> tuple[ModuleLifecycle, ...]:
+    return tuple(
+        _module(module_name).lifecycle for module_name, service_id in _MODULE_ORDER if hosts_in_process(service_id)
+    )
+
+
+def _hosted_manifests() -> tuple[ServiceManifest, ...]:
+    return tuple(
+        _module(module_name).manifest
+        for module_name in _MANIFEST_ORDER
+        if hosts_in_process(_SERVICE_OF_MODULE[module_name])
+    )
+
+
+_COMPOSED = {"MODULES": _hosted_lifecycles, "MANIFESTS": _hosted_manifests}
+
+
+def __getattr__(name: str) -> tuple[ModuleLifecycle, ...] | tuple[ServiceManifest, ...]:
+    """`MODULES` and `MANIFESTS`, composed on first use rather than at import (PEP 562).
+
+    A standalone section service imports its own module from this package
+    (`backend.modules.sea`), which runs this file. Composing eagerly would then
+    import every other hosted module too — the radio hub's bus responders and
+    the other sections' subscribers among them — so the service would answer
+    `hub.*` requests itself, against its own database, instead of sending them
+    to the hub over NATS. Only the monolith's composition root
+    (`backend/main.py`) asks for these.
+    """
+    if name in _COMPOSED:
+        composed = _COMPOSED[name]()
+        globals()[name] = composed  # cached: later lookups never reach __getattr__
+        return composed
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

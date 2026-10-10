@@ -323,6 +323,53 @@ class TestSeaModule:
         assert order.index("radio-hub") < order.index("sea")
 
 
+class TestComposedLazily:
+    """MODULES and MANIFESTS are composed on first use, not at import (P6.4):
+    a standalone service imports its own backend.modules.<id>, and composing at
+    import would load every other module — the radio hub's responders too."""
+
+    def probe(self, code: str) -> list[str]:
+        import json
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[2]
+        environment = {**os.environ, "PYTHONPATH": str(repo_root), "SENTINEL_EXTERNAL_SERVICES": ""}
+        result = subprocess.run(
+            [sys.executable, "-c", code], cwd=repo_root, env=environment, capture_output=True, text=True, check=True
+        )
+        return json.loads(result.stdout.strip().splitlines()[-1])
+
+    def test_importing_one_module_loads_no_other(self):
+        loaded = self.probe(
+            "import json, sys\n"
+            "import backend.modules.land\n"
+            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub')))))\n"
+        )
+
+        assert loaded == ["backend.modules.land", "backend.modules.manifest"]
+
+    def test_asking_for_modules_composes_every_hosted_one(self):
+        loaded = self.probe(
+            "import json, sys\n"
+            "from backend.modules import MODULES\n"
+            "print(json.dumps([module.name for module in MODULES]))\n"
+        )
+
+        assert loaded == ["bus", "core", "sdr", "space", "radio-hub", "land", "sea", "air"]
+
+    def test_is_composed_once_and_cached(self):
+        assert modules.MODULES is modules.MODULES
+        assert modules.MANIFESTS is modules.MANIFESTS
+        assert "MODULES" in vars(modules) and "MANIFESTS" in vars(modules)
+
+    def test_an_unknown_attribute_still_raises(self):
+        with pytest.raises(AttributeError, match="NOT_A_THING"):
+            modules.NOT_A_THING  # noqa: B018 — the lookup is the test
+
+
 class TestLandModule:
     @pytest.fixture(autouse=True)
     def no_leftover_task(self, monkeypatch):
