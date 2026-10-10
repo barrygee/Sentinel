@@ -24,6 +24,8 @@ the public settings API, which redacts them. Their owner uses `read_secret` /
 
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any
 
 import httpx
@@ -33,8 +35,13 @@ from backend.platform.bus import bus
 from backend.platform.join_token import service_join_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
+logger = logging.getLogger(__name__)
+
 # Core is on the same network; a request slower than this is a fault, not load.
 CORE_REQUEST_TIMEOUT_S = 5.0
+
+# Between attempts while `wait_for_core` waits for core to start answering.
+CORE_WAIT_RETRY_S = 2.0
 
 
 class SettingsUnavailable(Exception):
@@ -44,6 +51,29 @@ class SettingsUnavailable(Exception):
 def settings_are_remote() -> bool:
     """True when this process is a service reading core's settings over HTTP."""
     return bool(settings.sentinel_core_url)
+
+
+async def wait_for_core(waiting_for: str) -> None:
+    """Return once core's settings API answers; at once when settings are local.
+
+    A section's container usually starts a few seconds before core does (a full
+    `docker compose up`, or core restarting under it). Background work whose
+    first run reads settings awaits this first, so it starts when it can rather
+    than failing once and logging a traceback for an expected startup race.
+    `waiting_for` names the work in the one log line written while waiting.
+    """
+    if not settings_are_remote():
+        return
+    logged = False
+    while True:
+        try:
+            await _core_request("GET", _settings_url("app"))
+            return
+        except SettingsUnavailable as error:
+            if not logged:
+                logger.info("%s: waiting for core to answer (%s)", waiting_for, error)
+                logged = True
+            await asyncio.sleep(CORE_WAIT_RETRY_S)
 
 
 def _settings_url(*path_segments: str) -> str:
