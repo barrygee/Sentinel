@@ -1,8 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import {
   CORRECTION_MS,
+  DIM_AFTER_MS,
+  FEED_SILENCE_LIMIT_MS,
+  GONE_AFTER_MS,
   deadReckon,
   displayedPosition,
+  isGone,
+  isStale,
   observedAt,
   reanchor,
   snapshotAgeMs,
@@ -202,5 +207,38 @@ describe('reanchor', () => {
   it('takes the eastward sign for a correction exactly half a world away', () => {
     const next = reanchor(held, { lon: 180, lat: 0 }, 11_000, 11_000)!
     expect(next.correction!.lon).toBe(180)
+  })
+})
+
+describe('isStale', () => {
+  const heard: TrackedPosition = { lon: 0, lat: 0, gs: 0, track: null, lastSeen: 100_000 }
+
+  it('is fresh until DIM_AFTER_MS without a report, then stale', () => {
+    expect(isStale(heard, 100_000 + DIM_AFTER_MS - 1)).toBe(false)
+    expect(isStale(heard, 100_000 + DIM_AFTER_MS)).toBe(true)
+  })
+})
+
+describe('isGone', () => {
+  const heard: TrackedPosition = { lon: 0, lat: 0, gs: 0, track: null, lastSeen: 100_000 }
+
+  it('stays while the feed itself has nothing newer, however long ago the report was', () => {
+    // The feed is stuck on the snapshot the aircraft came from.
+    expect(isGone(heard, 100_000, 100_000 + 4 * 60_000)).toBe(false)
+  })
+
+  it('goes once GONE_AFTER_MS of newer feed has left it out, not a moment before', () => {
+    expect(isGone(heard, 100_000 + GONE_AFTER_MS - 1, 100_000 + GONE_AFTER_MS)).toBe(false)
+    expect(isGone(heard, 100_000 + GONE_AFTER_MS, 100_000 + GONE_AFTER_MS)).toBe(true)
+  })
+
+  it('goes after FEED_SILENCE_LIMIT_MS unheard even with a silent feed', () => {
+    expect(isGone(heard, 100_000, 100_000 + FEED_SILENCE_LIMIT_MS - 1)).toBe(false)
+    expect(isGone(heard, 100_000, 100_000 + FEED_SILENCE_LIMIT_MS)).toBe(true)
+  })
+
+  it('dims before it can go', () => {
+    expect(DIM_AFTER_MS).toBeLessThan(GONE_AFTER_MS)
+    expect(GONE_AFTER_MS).toBeLessThan(FEED_SILENCE_LIMIT_MS)
   })
 })
