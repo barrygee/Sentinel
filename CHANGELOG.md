@@ -204,6 +204,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Front the stack with a Caddy gateway routed by the registry
 - Run the Space section as its own service
 - Run the Land section as its own service
+- Run the Air section as its own service
 
 ### Bug Fixes
 
@@ -470,6 +471,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep aircraft through an upstream hang instead of emptying the map
 - Give the military-bases filter tab its own icon
 - Fit band-plan labels to their strip instead of cropping them
+- Retry a failed APRS cleanup after a minute, not a day
 
 ### Chores
 
@@ -1442,6 +1444,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #439 from barrygee/fix/sdr-band-label-fit
 - Merge pull request #440 from barrygee/feat/p6-1-space-service
 - Merge pull request #441 from barrygee/feat/p6-2-land-service
+- Merge pull request #442 from barrygee/feat/p6-3-air-service
 
 ### Refactoring
 
@@ -1558,6 +1561,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document the gateway, its routing and the CSP trade-off
 - Record P6.0/P6.1 as built
 - Record P6.2 Land as built
+- Record P6.3 Air as built
 
 ### Tests
 
@@ -1618,6 +1622,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover band-plan label fitting
 - Cover the service SDK, Space service and section deployments
 - Cover the Land service and run e2e per extracted section
+- Cover the Air service and run e2e with Air split and absent
 
 ### Build System
 
@@ -1663,6 +1668,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fail the build when the committed spa-dist is stale
 - Run the composed stack with Space present, split and absent
 - Split and absent legs cover Space and Land
+- Split and absent legs include Air
 
 ### Styling
 
