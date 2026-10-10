@@ -18,6 +18,7 @@ import { registerLandSettings } from '@sentinel/section-land/settings'
 import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
+import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
 import AprsLabelFieldsControl from '@sentinel/section-land/settings/AprsLabelFieldsControl.vue'
 import AprsSdrSourceControl from '@sentinel/section-land/settings/AprsSdrSourceControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
@@ -100,10 +101,28 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   ['air', 'air-offgrid-sdr-source', { component: AdsbSdrSourceControl, emits: ['stage'] }],
   [
     'air',
+    'air-offgrid-squawk-watch-interval',
+    {
+      component: SquawkWatchIntervalControl,
+      props: { mode: 'offgrid' },
+      emits: ['stage', 'commit'],
+    },
+  ],
+  [
+    'air',
     'air-online-source',
     {
       component: OnlineSourceControl,
       props: { ns: 'air', defaultUrl: 'https://api.adsb.lol/v2' },
+      emits: ['stage', 'commit'],
+    },
+  ],
+  [
+    'air',
+    'air-online-squawk-watch-interval',
+    {
+      component: SquawkWatchIntervalControl,
+      props: { mode: 'online' },
       emits: ['stage', 'commit'],
     },
   ],

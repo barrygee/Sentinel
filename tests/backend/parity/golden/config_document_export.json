@@ -22,10 +22,12 @@
     "enabled": true,
     "sourceOverride": "online",
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
+    "squawkWatchOnlineIntervalSec": 20,
     "offgridDataSourceURL": {
       "url": ""
     },
     "offgridSdrSource": null,
+    "squawkWatchOffgridIntervalSec": 20,
     "mapLayers": {
       "rangeRings": false,
       "aara": true,

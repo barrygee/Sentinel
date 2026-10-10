@@ -42,7 +42,9 @@
       "mil": false,
       "radiusNm": 10
     },
-    "sourceOverride": "online"
+    "sourceOverride": "online",
+    "squawkWatchOffgridIntervalSec": 20,
+    "squawkWatchOnlineIntervalSec": 20
   },
   "app": {
     "connectivityMode": "online",

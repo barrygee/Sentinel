@@ -32,6 +32,13 @@ class Settings(BaseSettings):
     # fetches aircraft itself only when no browser has fetched any for this many
     # seconds, so an open Air page costs no extra upstream calls.
     adsb_watch_idle_s: float = 15.0
+    # Defaults for how often the watcher fetches for itself once idle — online
+    # (the public feed) and off grid (the local decoder). The operator sets
+    # them in Settings › AIR (`air.squawkWatchOnlineIntervalSec` /
+    # `air.squawkWatchOffgridIntervalSec`); these apply while those are unset
+    # or invalid. 20 s matches the cadence the watcher had before they existed.
+    adsb_watch_online_interval_s: float = 20.0
+    adsb_watch_offgrid_interval_s: float = 20.0
     # Radius (nm) the watcher covers around the receiver (off grid) or
     # Settings › App › Location (online) — the same radius the map asks for.
     adsb_watch_radius_nm: int = 250

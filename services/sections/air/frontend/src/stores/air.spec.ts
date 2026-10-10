@@ -6,6 +6,8 @@ import {
   USER_ALERT_LOCATION_ID,
   parseStoredOverheadAlerts,
   sentryAlertLocationId,
+  DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
+  SQUAWK_WATCH_INTERVAL_SETTING,
 } from './air'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
@@ -20,6 +22,28 @@ describe('air store', () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  describe('squawk watch interval', () => {
+    it('starts both modes at the backend default of 20 seconds', () => {
+      expect(DEFAULT_SQUAWK_WATCH_INTERVAL_SEC).toBe(20)
+      expect(useAirStore().squawkWatchIntervalSec).toEqual({ online: 20, offgrid: 20 })
+    })
+
+    it('sets one mode without touching the other', () => {
+      const store = useAirStore()
+      store.setSquawkWatchIntervalSec('online', 45)
+      expect(store.squawkWatchIntervalSec).toEqual({ online: 45, offgrid: 20 })
+      store.setSquawkWatchIntervalSec('offgrid', 5)
+      expect(store.squawkWatchIntervalSec).toEqual({ online: 45, offgrid: 5 })
+    })
+
+    it('names the setting keys the backend reads', () => {
+      expect(SQUAWK_WATCH_INTERVAL_SETTING).toEqual({
+        online: 'squawkWatchOnlineIntervalSec',
+        offgrid: 'squawkWatchOffgridIntervalSec',
+      })
+    })
   })
 
   it('initialises overlay states to the defaults', () => {
