@@ -15,9 +15,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import models  # noqa: F401 — register ORM models with Base
-from backend.database import Base, get_db
-from backend.main import app
+from backend.config import settings
+
+# Run against the code's defaults, not the developer's `.env`. backend/config.py
+# loads the repo's `.env`, which on a live machine holds deployment keys such as
+# SENTINEL_EXTERNAL_SERVICES; read when backend.main is imported below, that
+# would change which sections the app hosts — and so the parity goldens —
+# depending on whose checkout runs the suite. Real environment variables still
+# apply, as in CI. Must run before anything below imports the app.
+settings.__init__(_env_file=None)
+
+from backend import models  # noqa: E402,F401 — register ORM models with Base
+from backend.database import Base, get_db  # noqa: E402
+from backend.main import app  # noqa: E402
 
 
 @pytest.fixture()
