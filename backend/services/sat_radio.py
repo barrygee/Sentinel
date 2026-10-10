@@ -14,13 +14,17 @@ TLE (re)import, the map is applied back onto the catalogue rows
 
 This mirrors the SDR pattern (table mirrored into UserSettings, restored on
 re-import) — see backend/database.py:sync_sdr_groups_to_config.
+
+The store is core's (settings are central), so it is read and written through
+the settings client: in-process in the monolith, over HTTP when Space runs in
+its own container.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from backend.db_helpers import get_setting, upsert_setting
+from backend.platform.settings_client import read_setting, write_setting
 from backend.services.json_store import DATA_DIR, load_json_file, write_json_file
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,7 +74,7 @@ def clean_entry(fields: dict[str, Any]) -> dict[str, Any]:
 
 async def get_radio_map(db: AsyncSession) -> dict[str, dict[str, Any]]:
     """Return the persistent norad_id -> radio-fields map (empty if unset)."""
-    value = await get_setting(db, _NAMESPACE, _KEY, default={})
+    value = await read_setting(db, _NAMESPACE, _KEY, default={})
     return value if isinstance(value, dict) else {}
 
 
@@ -130,7 +134,7 @@ async def replace_radio_map(db: AsyncSession, new_map: dict[str, Any]) -> dict[s
         if ce:
             cleaned[key] = ce
 
-    await upsert_setting(db, _NAMESPACE, _KEY, cleaned)
+    await write_setting(db, _NAMESPACE, _KEY, cleaned)
 
     # Refresh the catalogue display columns so the change is visible immediately
     # (mirrors what a TLE re-import would do via apply_radio_to_rows).

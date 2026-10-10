@@ -3,7 +3,8 @@
   POST /internal/registry/register — `{"instanceId", "manifest"}` → the registration
 
 Called by each service on start, with the deployment's join token as a bearer
-token (`SENTINEL_JOIN_TOKEN`). Under `/internal/`, which the gateway never
+token (`SENTINEL_JOIN_TOKEN`, or the shared file core generates —
+`backend/platform/join_token.py`). Under `/internal/`, which the gateway never
 routes from outside: only services on the deployment's network reach it.
 
 Status codes a registering service acts on:
@@ -16,8 +17,8 @@ from __future__ import annotations
 
 import hmac
 
-from backend.config import settings
 from backend.core.service_registry import RegistrationConflict, registry
+from backend.platform.join_token import core_join_token
 from backend.platform.service_manifest import ServiceManifest
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,7 +48,7 @@ class RegistrationResponse(BaseModel):
 
 
 def _require_join_token(authorization: str | None) -> None:
-    expected = settings.sentinel_join_token
+    expected = core_join_token()
     if not expected:
         raise HTTPException(status_code=503, detail="Service registration is disabled on this deployment")
     presented = (

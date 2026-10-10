@@ -99,12 +99,25 @@ class ServiceRegistry:
         Re-registering from the same instance replaces its manifest — a service
         restarting with a new version does exactly that. A *different* instance
         may only take an id over once the current holder has failed its probes;
-        a live id is never stolen (plan §3.2.1).
+        a live id is never stolen (plan §3.2.1). The exception is the
+        monolith's in-process copy, which always yields to the real service.
 
         Raises `RegistrationConflict` when the id is held by another live
         instance, or a route prefix is already another service's.
         """
         self._check_conflicts(manifest, instance_id)
+        current = self._services.get(manifest.id)
+        if (
+            current is not None
+            and not current.in_process
+            and current.instance_id == instance_id
+            and current.available
+            and current.manifest == manifest
+        ):
+            # A service re-registers on an interval so a restarted core relearns
+            # it; when nothing changed there is nothing to announce, and the
+            # gateway's routes stay as they are.
+            return current
         registration = RegisteredService(
             manifest=manifest,
             instance_id=instance_id,
@@ -112,13 +125,21 @@ class ServiceRegistry:
             registered_at_ms=_now_ms(),
         )
         self._services[manifest.id] = registration
-        logger.info("registry: %s %s registered from %s", manifest.kind, manifest.id, manifest.internal_url)
+        if current is not None and current.in_process:
+            logger.info("registry: %s moved out of process to %s", manifest.id, manifest.internal_url)
+        else:
+            logger.info("registry: %s %s registered from %s", manifest.kind, manifest.id, manifest.internal_url)
         await self._announce(manifest.id, "registered")
         return registration
 
     def _check_conflicts(self, manifest: ServiceManifest, instance_id: str) -> None:
         current = self._services.get(manifest.id)
-        if current is not None and current.instance_id != instance_id and current.available:
+        # The monolith's own copy of a section yields to that section running in
+        # its own container (P6): moving a section out is just starting it.
+        holder_is_live_elsewhere = (
+            current is not None and not current.in_process and current.instance_id != instance_id and current.available
+        )
+        if holder_is_live_elsewhere:
             raise RegistrationConflict(f"service {manifest.id!r} is already registered by a live instance")
         claimed_routes = set(manifest.routes)
         for other in self._services.values():

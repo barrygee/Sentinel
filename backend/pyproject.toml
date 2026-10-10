@@ -135,7 +135,7 @@ type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
     "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "backend.services.sat_radio", "backend.modules.space", "backend.standalone.space",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",

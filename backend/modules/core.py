@@ -10,6 +10,7 @@ from backend.database import (
     resolve_retired_auto_modes,
     seed_default_settings,
 )
+from backend.platform.join_token import core_join_token
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.services import app_config_file
 from backend.services.offline_map.job_runner import runner as offline_map_job_runner
@@ -34,6 +35,9 @@ async def _start() -> None:
     # stale queued/running rows failed, drop orphan .part files), rebuild the
     # tile-tier registry, and start the one-job-at-a-time worker.
     await offline_map_job_runner.start()
+    # Write the shared join token (when configured by file) before any service
+    # can look for it: services read it from the volume, they don't ask for it.
+    core_join_token()
     # Health-probe the services that registered from other processes.
     registry.start()
     # Push the registry's routes into the gateway, and keep them there.
