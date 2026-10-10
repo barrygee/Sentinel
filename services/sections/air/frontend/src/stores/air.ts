@@ -111,6 +111,21 @@ const LS_OVERHEAD_ALERTS_KEY = 'overheadAlerts'
 
 export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
 
+/** Connectivity modes the background squawk watcher has its own interval for. */
+export type SquawkWatchMode = 'online' | 'offgrid'
+
+/**
+ * Seconds between the backend's own ADS-B checks for emergency squawks while no
+ * AIR map is polling — the backend's default for both modes (backend/config.py).
+ */
+export const DEFAULT_SQUAWK_WATCH_INTERVAL_SEC = 20
+
+/** The `air` setting holding each mode's interval (backend/services/adsb_squawk.py). */
+export const SQUAWK_WATCH_INTERVAL_SETTING: Record<SquawkWatchMode, string> = {
+  online: 'squawkWatchOnlineIntervalSec',
+  offgrid: 'squawkWatchOffgridIntervalSec',
+}
+
 /**
  * Overhead-alert settings for one place aircraft can be overhead *of*.
  *
@@ -278,6 +293,14 @@ export const useAirStore = defineStore('air', () => {
   )
   /** Overhead-alert settings per location — see `OverheadAlertConfig`. */
   const overheadAlerts = ref<Record<string, OverheadAlertConfig>>(readPersistedOverheadAlerts())
+  /** Background squawk-check interval per mode; edited in Settings › AIR, enforced by the backend. */
+  const squawkWatchIntervalSec = ref<Record<SquawkWatchMode, number>>({
+    online: DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
+    offgrid: DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
+  })
+  function setSquawkWatchIntervalSec(mode: SquawkWatchMode, seconds: number): void {
+    squawkWatchIntervalSec.value = { ...squawkWatchIntervalSec.value, [mode]: seconds }
+  }
   const filterQuery = ref('')
   const filterOpen = ref(false)
   // The active FILTER category (aircraft / airports / military bases), driven by
@@ -433,6 +456,8 @@ export const useAirStore = defineStore('air', () => {
     hydrateOverheadAlerts,
     loadOverheadAlertsFromConfig,
     forgetOverheadAlert,
+    squawkWatchIntervalSec,
+    setSquawkWatchIntervalSec,
     filterQuery,
     filterOpen,
     airFilterCategory,

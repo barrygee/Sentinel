@@ -8,6 +8,7 @@ import MapLayersControl from './settings/MapLayersControl.vue'
 import OnlineSourceControl from '@sentinel/shell-api/settings/OnlineSourceControl.vue'
 import OverheadAlertsControl from './settings/OverheadAlertsControl.vue'
 import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
+import SquawkWatchIntervalControl from './settings/SquawkWatchIntervalControl.vue'
 
 /**
  * AIR's Settings section (F3): data sources, map layers, overhead alerts and aircraft labels.
@@ -36,12 +37,38 @@ export function registerAirSettings(): void {
     {
       section: 'air',
       sectionLabel: 'AIR',
+      id: 'air-offgrid-squawk-watch-interval',
+      label: 'Off Grid Squawk Checks',
+      desc: 'Seconds between background checks of the Off Grid ADS-B SDR for emergency squawks while no AIR map is open',
+      searchTerms: 'squawk emergency 7700 7600 7500 alerts background check interval off grid',
+      control: {
+        component: SquawkWatchIntervalControl,
+        props: { mode: 'offgrid' },
+        emits: ['stage', 'commit'],
+      },
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
       id: 'air-online-source',
       label: 'Online Data Source',
       desc: 'URL for live air data feed',
       control: {
         component: OnlineSourceControl,
         props: { ns: 'air', defaultUrl: 'https://api.adsb.lol/v2' },
+        emits: ['stage', 'commit'],
+      },
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
+      id: 'air-online-squawk-watch-interval',
+      label: 'Online Squawk Checks',
+      desc: 'Seconds between background calls to the Online Data Source to check for emergency squawks while no AIR map is open',
+      searchTerms: 'squawk emergency 7700 7600 7500 alerts background check interval online',
+      control: {
+        component: SquawkWatchIntervalControl,
+        props: { mode: 'online' },
         emits: ['stage', 'commit'],
       },
     },

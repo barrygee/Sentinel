@@ -50,6 +50,18 @@ not "gone" — forgetting at once would alert again when it reappeared."""
 WATCH_TICK_S = 5.0
 """How often the watcher checks whether it has to fetch."""
 
+WATCH_INTERVAL_SETTINGS = {
+    "online": "squawkWatchOnlineIntervalSec",
+    "offgrid": "squawkWatchOffgridIntervalSec",
+}
+"""The `air` setting holding the watcher's interval in each connectivity mode."""
+
+MIN_WATCH_INTERVAL_S = WATCH_TICK_S
+"""Shorter can't be honoured: the watcher only looks this often."""
+
+MAX_WATCH_INTERVAL_S = 9999
+"""The Settings input takes four digits."""
+
 
 def _now_ms() -> int:
     return int(time.time() * 1000)
@@ -171,10 +183,31 @@ async def _parse_location(db: AsyncSession) -> tuple[float, float] | None:
         return None
 
 
-async def watch_area(db: AsyncSession) -> tuple[float, float] | None:
+async def watch_interval_s(db: AsyncSession, mode: str) -> float:
+    """Seconds between the watcher's own fetches in `mode` ("online" / "offgrid").
+
+    The operator's Settings › AIR value, or the config default while that is
+    unset or out of range — a hand-edited config file must not make the
+    watcher hammer the public feed or stop checking altogether.
+    """
+    default = settings.adsb_watch_offgrid_interval_s if mode == "offgrid" else settings.adsb_watch_online_interval_s
+    value = await read_setting(db, "air", WATCH_INTERVAL_SETTINGS.get(mode, WATCH_INTERVAL_SETTINGS["online"]))
+    if not isinstance(value, int | float):
+        return default
+    if not MIN_WATCH_INTERVAL_S <= value <= MAX_WATCH_INTERVAL_S:
+        return default
+    return float(value)
+
+
+async def watch_area(db: AsyncSession, mode: str | None = None) -> tuple[float, float] | None:
     """Where the watcher looks: the receiver off grid (else the operator's
-    location), the operator's location online; None leaves the watcher idle."""
-    if await resolve_effective_mode("air", db) == "offgrid":
+    location), the operator's location online; None leaves the watcher idle.
+
+    `mode` saves resolving the effective mode again when the caller has it.
+    """
+    if mode is None:
+        mode = await resolve_effective_mode("air", db)
+    if mode == "offgrid":
         try:
             receiver = await adsb_source.receiver_location(db)
         except (LookupError, TimeoutError):
@@ -188,16 +221,22 @@ async def watch_area(db: AsyncSession) -> tuple[float, float] | None:
 async def watch_once(db: AsyncSession) -> bool:
     """Fetch one snapshot for the tracker unless a browser polled, or a snapshot arrived, recently.
 
-    Returns whether a snapshot was observed.
+    "Recently" for a snapshot is the operator's interval for the current mode
+    (`watch_interval_s`). Returns whether a snapshot was observed.
     """
     # Idle while a browser is polling, not just while its fetches succeed: when
     # the upstream is slow or rate-limiting, the map's requests are answered
     # from cache, and a watcher fetching then takes the rate budget the map's
     # next fetch needed — which then falls back to an empty off-grid list.
-    last_activity_ms = max(tracker.last_observed_ms, tracker.last_browser_poll_ms)
-    if _now_ms() - last_activity_ms < settings.adsb_watch_idle_s * 1000:
+    now_ms = _now_ms()
+    if now_ms - tracker.last_browser_poll_ms < settings.adsb_watch_idle_s * 1000:
         return False
-    area = await watch_area(db)
+    mode = await resolve_effective_mode("air", db)
+    # Any snapshot counts, the map's included, so the interval is the gap
+    # between fetches whoever made them.
+    if now_ms - tracker.last_observed_ms < await watch_interval_s(db, mode) * 1000:
+        return False
+    area = await watch_area(db, mode)
     if area is None:
         return False
     primary_url, fallback_url = await resolve_domain_urls(
