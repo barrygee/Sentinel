@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { isDeployed } from './support/sectionDeployment';
 
 /**
  * Full-stack integration smoke suite for Sentinel.
@@ -30,9 +31,10 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 // The gateway-smoke CI job also runs this suite against a stack with no Space
-// deployed (see section-deployment.spec.ts); the Space-specific checks below
-// are skipped there, and that suite checks Space is cleanly absent instead.
-const spaceIsAbsent = process.env.SENTINEL_E2E_SPACE === 'absent';
+// deployed (SENTINEL_E2E_SECTIONS, see section-deployment.spec.ts); the
+// Space-specific checks below are skipped there, and that suite checks Space is
+// cleanly absent instead.
+const spaceIsAbsent = !isDeployed('space');
 
 // ---------------------------------------------------------------------------
 // Helper: wait for the Vue shell to hydrate (Domains nav present)
