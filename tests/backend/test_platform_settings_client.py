@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator, Iterator
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -439,6 +440,54 @@ class TestWaitForCore:
         assert len(waiting_lines) == 1
         assert waiting_lines[0].levelname == "INFO"
         assert waiting_lines[0].getMessage().startswith("Land APRS station cleanup: waiting for core to answer")
+
+    def core_lines(self, caplog) -> list[tuple[str, str]]:
+        return [
+            (record.levelname, record.getMessage())
+            for record in caplog.records
+            if record.name == settings_client_module.__name__
+        ]
+
+    async def test_says_it_connected_when_core_answers_first_time(self, fake_core, sleeps, caplog):
+        caplog.set_level("INFO", logger=settings_client_module.__name__)
+
+        await wait_for_core("space service startup")
+
+        assert self.core_lines(caplog) == [("INFO", f"space service startup: connected to core at {CORE_URL}/")]
+
+    async def test_says_how_long_it_waited_once_core_answers(self, fake_core, sleeps, monkeypatch, caplog):
+        replies = iter(["unreachable", "unreachable", 200])
+
+        def answer(request):
+            fake_core.requests.append(request)
+            if next(replies) == "unreachable":
+                raise httpx.ConnectError("connection refused", request=request)
+            return httpx.Response(200, json={})
+
+        clock = iter([100.0, 116.34])  # started, then answered
+        monkeypatch.setattr(fake_core, "answer", answer)
+        # Only the settings client's clock: asyncio needs the real one.
+        monkeypatch.setattr(settings_client_module, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+        caplog.set_level("INFO", logger=settings_client_module.__name__)
+
+        await wait_for_core("land service startup")
+
+        assert self.core_lines(caplog) == [
+            (
+                "INFO",
+                "land service startup: waiting for core to answer "
+                "(core settings API unreachable: connection refused)",
+            ),
+            ("INFO", f"land service startup: connected to core at {CORE_URL}/ after 16.3 s"),
+        ]
+
+    async def test_logs_nothing_in_the_monolith(self, monkeypatch, sleeps, caplog):
+        monkeypatch.setattr(settings, "sentinel_core_url", "")
+        caplog.set_level("INFO", logger=settings_client_module.__name__)
+
+        await wait_for_core("land service startup")
+
+        assert self.core_lines(caplog) == []
 
     async def test_retries_every_two_seconds(self):
         assert settings_client_module.CORE_WAIT_RETRY_S == 2.0
