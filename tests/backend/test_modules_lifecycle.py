@@ -370,6 +370,32 @@ class TestLandModule:
 
         assert "APRS station cleanup failed" in caplog.text
 
+    async def test_a_failed_cleanup_is_retried_after_a_minute_not_a_day(self, monkeypatch):
+        """When Land runs in its own container its first run can fall while
+        core (which holds the retention setting) is still starting."""
+        outcomes = iter([RuntimeError("core not up yet"), None, None])
+        sleeps: list[float] = []
+
+        async def cleanup_expired(now_ms: int) -> None:
+            outcome = next(outcomes)
+            if outcome is not None:
+                raise outcome
+
+        async def record_sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            if len(sleeps) == 2:
+                raise asyncio.CancelledError
+
+        monkeypatch.setattr(land.aprs_store, "cleanup_expired", cleanup_expired)
+        monkeypatch.setattr(land.asyncio, "sleep", record_sleep)
+
+        with pytest.raises(asyncio.CancelledError):
+            await land._daily_cleanup_loop()
+
+        assert sleeps == [land.CLEANUP_RETRY_S, land.CLEANUP_INTERVAL_S]
+        assert land.CLEANUP_RETRY_S == 60
+        assert land.CLEANUP_INTERVAL_S == 24 * 60 * 60
+
     async def test_stop_without_start_is_a_no_op(self):
         await land.lifecycle.stop()
 

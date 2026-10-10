@@ -166,3 +166,31 @@ class TestImportLegacyTables:
 
         assert write_attempts == ["attempt to write a readonly database"]
         assert len(rows(legacy, "tle")) == 2
+
+
+class TestLegacyImportLogging:
+    """A first boot that copies nothing must say so: on a fresh stack the
+    service can start before the app has created its database."""
+
+    def test_says_so_when_there_is_no_legacy_database(self, tmp_path, target, caplog):
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            import_legacy_tables(str(target), str(tmp_path / "missing.db"), ["tle"])
+
+        assert "no monolith database" in caplog.text
+
+    def test_says_so_when_every_table_already_has_data(self, legacy, target, caplog):
+        import_legacy_tables(str(target), str(legacy), ["tle"])
+        caplog.clear()
+
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            import_legacy_tables(str(target), str(legacy), ["tle"])
+
+        assert "tle already hold data or are missing" in caplog.text
+
+    def test_reports_each_table_it_copied(self, legacy, target, caplog):
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            import_legacy_tables(str(target), str(legacy), ["tle", "catalogue"])
+
+        assert "copied 2 rows into tle" in caplog.text
+        assert "copied 1 rows into catalogue" in caplog.text
+        assert "already hold data" not in caplog.text

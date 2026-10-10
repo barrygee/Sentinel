@@ -34,14 +34,14 @@ class TestExternalServices:
         assert hosts_in_process("air") is True
 
     def test_refuses_a_section_that_cannot_run_on_its_own_yet(self, monkeypatch):
-        # Leaving Air out would silently drop the section, not move it.
-        monkeypatch.setattr(settings, "sentinel_external_services", "space,air")
+        # Leaving Sea out would silently drop the section, not move it.
+        monkeypatch.setattr(settings, "sentinel_external_services", "space,sea")
 
-        with pytest.raises(ValueError, match="air"):
+        with pytest.raises(ValueError, match="sea"):
             external_services()
 
-    def test_space_and_land_are_extractable(self):
-        assert {"space", "land"} <= EXTRACTABLE_SERVICES
+    def test_space_land_and_air_are_extractable(self):
+        assert {"space", "land", "air"} <= EXTRACTABLE_SERVICES
 
     def test_land_can_be_external_alongside_space(self, monkeypatch):
         monkeypatch.setattr(settings, "sentinel_external_services", "space,land")
@@ -96,8 +96,24 @@ SECTION_CODE = {
         "backend.services.aprs_store",
         "backend.services.repeaters",
     },
+    "air": {
+        "backend.routers.air",
+        "backend.routers.adsb_source",
+        "backend.modules.air",
+        "backend.services.adsb",
+        "backend.services.adsb_source",
+        "backend.services.adsb_squawk",
+    },
 }
-SECTION_ROUTE = {"space": "/api/space/", "land": "/api/land/"}
+# Paths each section serves. Exact paths, not prefixes: core keeps
+# /api/air/messages inside Air's /api/air/.
+SECTION_PATHS = {
+    "space": {"/api/space/iss", "/api/space/tle/status"},
+    "land": {"/api/land/repeaters", "/api/land/aprs/stations"},
+    "air": {"/api/air/tracking", "/api/sdr/adsb/source", "/api/sdr/adsb/config"},
+}
+# Core's notifications, whatever happens to Air.
+CORE_AIR_MESSAGES = {"/api/air/messages", "/api/air/messages/stream"}
 
 
 @pytest.fixture(scope="module")
@@ -112,6 +128,8 @@ def deployments(monolith) -> dict[str, dict]:
         "space": import_main("space"),
         "land": import_main("land"),
         "space,land": import_main("space,land"),
+        "air": import_main("air"),
+        "space,land,air": import_main("space,land,air"),
     }
 
 
@@ -121,18 +139,21 @@ class TestTheMonolithHostsEverythingByDefault:
         assert monolith["manifests"] == ["air", "space", "sea", "land", "sdr", "radio-hub"]
         assert monolith["withheld_remotes"] == []
 
-    @pytest.mark.parametrize("section", ["space", "land"])
+    @pytest.mark.parametrize("section", ["space", "land", "air"])
     def test_hosts_and_imports_each_extractable_section(self, monolith, section):
-        assert any(path.startswith(SECTION_ROUTE[section]) for path in monolith["routes"])
+        assert SECTION_PATHS[section] <= set(monolith["routes"])
         assert section in monolith["registered"]
         assert SECTION_CODE[section] <= set(monolith["imported"])
 
 
-@pytest.mark.parametrize("external", ["space", "land", "space,land"])
+@pytest.mark.parametrize("external", ["space", "land", "space,land", "air", "space,land,air"])
 class TestTheMonolithWithoutASection:
     def test_leaves_out_their_routes(self, deployments, external):
         for section in external.split(","):
-            assert not any(path.startswith(SECTION_ROUTE[section]) for path in deployments[external]["routes"])
+            assert not SECTION_PATHS[section] & set(deployments[external]["routes"])
+
+    def test_keeps_cores_notifications_under_air(self, deployments, external):
+        assert CORE_AIR_MESSAGES <= set(deployments[external]["routes"])
 
     def test_leaves_out_their_lifecycle_and_registration(self, deployments, external):
         for section in external.split(","):
@@ -153,7 +174,7 @@ class TestTheMonolithWithoutASection:
         kept = deployments[external]
         assert kept["modules"] == [name for name in monolith["modules"] if name not in gone]
         assert kept["registered"] == [service for service in monolith["registered"] if service not in gone]
-        for section in {"space", "land"} - gone:
-            assert any(path.startswith(SECTION_ROUTE[section]) for path in kept["routes"])
-        assert any(path.startswith("/api/air/") for path in kept["routes"])
+        for section in {"space", "land", "air"} - gone:
+            assert SECTION_PATHS[section] <= set(kept["routes"])
+        assert any(path.startswith("/api/sea/") for path in kept["routes"])
         assert "/api/settings/{namespace}" in kept["routes"]

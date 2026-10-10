@@ -14,7 +14,7 @@ import { deploymentOf, isDeployed } from './support/sectionDeployment';
  *   2. Its API answers with JSON when deployed (from the container in `service` mode).
  *   3. Its remote entry is served, uncached, when deployed — and is a 404 when absent.
  *   4. The shell offers it in the nav and opens its view when deployed.
- *   5. Absent: no nav link, its route falls back to the first section, the rest still loads.
+ *   5. Absent: no nav link, its route falls back to the first deployed section, the rest still loads.
  */
 
 interface ExtractedSection {
@@ -27,6 +27,7 @@ interface ExtractedSection {
 }
 
 const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
+    { id: 'air', label: /air/i, probePath: '/api/air/tracking', enabledByDefault: true },
     { id: 'space', label: /space/i, probePath: '/api/space/daynight', enabledByDefault: true },
     {
         id: 'land',
@@ -37,7 +38,7 @@ const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
 ];
 
 /** Sections every deployment keeps, enabled by default — what must survive an absent one. */
-const ALWAYS_PRESENT = ['air', 'sea', 'sdr'];
+const ALWAYS_PRESENT = ['sea', 'sdr'];
 
 interface DeployedSection {
     id: string;
@@ -160,8 +161,10 @@ for (const section of EXTRACTED_SECTIONS) {
                 await page.goto(`/${section.id}/`);
                 await waitForShellHydration(page);
 
-                // An unknown section route falls back to the first section.
-                await expect(page).toHaveURL(/\/air\/$/);
+                // An unknown section route falls back to the first section that is
+                // deployed (Air when present, else the next in nav order).
+                await expect(page).not.toHaveURL(new RegExp(`/${section.id}/$`));
+                await expect(page).toHaveURL(/\/(air|space|sea|land|sdr)\/$/);
                 const domainNav = page.getByRole('navigation', { name: /domains/i });
                 await expect(domainNav.getByRole('link', { name: section.label })).toHaveCount(0);
                 for (const presentSection of ALWAYS_PRESENT) {
