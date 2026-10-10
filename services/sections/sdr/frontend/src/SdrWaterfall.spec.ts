@@ -862,6 +862,29 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(bands[0].text()).toBe('Air Band')
   })
 
+  it('fits each band label to its strip: full name, short form, or none — never cropped', async () => {
+    const { wrapper, store, settings } = mountWaterfall()
+    // A 2.048 MHz span over a 932px data box: ~455px per MHz.
+    settings.setSetting('sdr', 'bandPlan', [
+      { name: 'Air Band', startHz: 99_000_000, endHz: 99_900_000 }, // ~410px
+      { name: '30m Amateur', startHz: 100_000_000, endHz: 100_100_000 }, // ~45px
+      { name: '60m Amateur', startHz: 100_200_000, endHz: 100_250_000 }, // ~23px
+    ])
+    store.setShowBandPlan(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+
+    const bands = wrapper.findAll('.sdr-wf-band')
+    expect(bands.map((band) => band.text())).toEqual(['Air Band', '30m', ''])
+    // The narrowest strip still marks its band, it just has no label to crop.
+    expect(bands[2]!.find('span').exists()).toBe(false)
+    expect(bands.map((band) => band.attributes('title'))).toEqual([
+      'Air Band',
+      '30m Amateur',
+      '60m Amateur',
+    ])
+  })
+
   it('keeps the band-plan in its normal slot for a read-only follower', async () => {
     const { wrapper, store, settings } = mountWaterfall()
     settings.setSetting('sdr', 'bandPlan', [

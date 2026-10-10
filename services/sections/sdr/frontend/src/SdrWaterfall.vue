@@ -182,6 +182,7 @@ import { useSdrStore, type SdrMode } from './stores/sdr'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { findSignalEdges, findTimeExtent } from './composables/useSdrSignalMarker'
+import { fitBandLabel } from './bandLabel'
 
 const store = useSdrStore()
 const settings = useSettingsStore()
@@ -855,6 +856,8 @@ const visibleBands = computed(() => {
       return {
         key: `${b.name}-${i}`,
         name: b.name,
+        // Full name, short form or nothing — whatever fits the strip uncropped.
+        label: fitBandLabel(b.name, (rightFrac - leftFrac) * dataBoxWidthPx.value),
         leftPct: leftFrac * 100,
         widthPct: (rightFrac - leftFrac) * 100,
       }
@@ -3271,7 +3274,7 @@ onBeforeUnmount(() => {
           :style="{ left: b.leftPct + '%', width: b.widthPct + '%' }"
           :title="b.name"
         >
-          <span>{{ b.name }}</span>
+          <span v-if="b.label">{{ b.label }}</span>
         </div>
       </div>
       <div class="sdr-wf-tick-gutter" :style="tickGutterStyle">
