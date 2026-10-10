@@ -425,6 +425,16 @@ imports Land's and Space's routers the same way. Decoded APRS packets reach the 
 NATS (`decode.aprs.*` is forwarded like any event), so Land needs the `nats` service; APRS start/stop stays with the
 hub. The APRS retention setting is read through the settings client. Section services share compose anchors
 (`x-section-service`, `x-section-env`).
+
+*As built (P6.3, Air):* Air serves `/api/air/` and `/api/sdr/adsb/`; core keeps `/api/air/messages` (the longer prefix
+wins in the gateway). Nothing new had to cross processes: the Sentry reservation and receiver-location calls were
+already `hub.*` bus requests and squawk alerts already `notifications.raise` events (P5.2), so both now go over NATS —
+verified live in both directions. Its settings reads (`resolve_effective_mode`, the Off Grid source device,
+`app.location`) moved onto the settings client. The one deployment change: the `adsb-decoder` used to poll
+`http://app:8000/api/sdr/adsb/config` directly, which stops working once the app doesn't host Air, so it now polls
+through the gateway. Long-lived section loops that read core's settings on their first pass (Land's cleanup, Air's
+squawk watcher) can start before core answers; Land's cleanup now retries a failed run after a minute instead of a
+day (Air's watcher already ticks every 5 s). With Air absent the shell falls back to the first deployed section.
 Rolling back is unsetting it and restarting the app.
 
 ### 4.5 Security
