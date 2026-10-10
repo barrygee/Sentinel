@@ -36,6 +36,7 @@ from backend.platform.nats_transport import NatsTransport
 from backend.platform.remote_files import RemotesStaticFiles
 from backend.platform.sdk.registration import ServiceRegistrar
 from backend.platform.service_manifest import ServiceManifest
+from backend.platform.settings_client import wait_for_core
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -81,6 +82,23 @@ def _bus_lifecycle(service_id: str) -> ModuleLifecycle:
     return ModuleLifecycle(name="bus", start=start, stop=stop)
 
 
+def _core_ready_lifecycle(service_id: str) -> ModuleLifecycle:
+    """Hold the service's startup until core answers.
+
+    A section's settings are core's, and the work its lifecycles start (table
+    seeding, first cleanups, watchdogs) reads them straight away. The service
+    container usually starts a few seconds before core, so without this every
+    full `docker compose up` logged a failed first run per section. Every
+    `prepare` runs before any `start`, so waiting in the first `prepare` covers
+    all of a section's startup work.
+    """
+
+    async def prepare() -> None:
+        await wait_for_core(f"{service_id} service startup")
+
+    return ModuleLifecycle(name="core-ready", prepare=prepare)
+
+
 def _registration_lifecycle(registrar: ServiceRegistrar) -> ModuleLifecycle:
     async def start() -> None:
         registrar.start()
@@ -97,10 +115,11 @@ def create_service(
 ) -> FastAPI:
     """Build the FastAPI app for one standalone service.
 
-    `lifecycles` run after the bus connects and before registration starts, so
-    a service is only routed to once its own `prepare`/`start` have run (and it
-    deregisters — stops re-registering — before they stop). `remote_dir` is
-    the built UI remote served at `/remotes/<id>/` (sections only).
+    `lifecycles` run once core answers (see `_core_ready_lifecycle`), after
+    the bus connects and before registration starts, so a service is only
+    routed to once its own `prepare`/`start` have run (and it deregisters —
+    stops re-registering — before they stop). `remote_dir` is the built UI
+    remote served at `/remotes/<id>/` (sections only).
 
     Raises `ServiceMisconfigured` when the environment can't place the service.
     """
@@ -108,7 +127,12 @@ def create_service(
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     advertised = advertised_manifest(manifest)
     registrar = ServiceRegistrar(advertised)
-    modules = (_bus_lifecycle(advertised.id), *lifecycles, _registration_lifecycle(registrar))
+    modules = (
+        _core_ready_lifecycle(advertised.id),
+        _bus_lifecycle(advertised.id),
+        *lifecycles,
+        _registration_lifecycle(registrar),
+    )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:

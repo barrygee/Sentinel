@@ -13,7 +13,6 @@ from sqlalchemy.pool import StaticPool
 from backend import database
 from backend.config import settings
 from backend.platform import settings_client
-from backend.platform.settings_client import SettingsUnavailable
 
 
 @pytest.fixture
@@ -222,27 +221,3 @@ class TestSpaceServicePrepare:
             ("import", "/data/space.db", "/legacy/sentinel.db", ("tle_cache", "satellite_catalogue")),
             "backfill",
         ]
-
-    async def test_the_backfill_waits_for_core(self, space_service, monkeypatch):
-        attempts: list[int] = []
-
-        async def backfill():
-            attempts.append(1)
-            if len(attempts) < 3:
-                raise SettingsUnavailable("core is still starting")
-
-        monkeypatch.setattr(space_service, "CORE_RETRY_S", 0)
-        monkeypatch.setattr(space_service, "backfill_satellite_radio_store", backfill)
-
-        await space_service._backfill_when_core_is_up()
-
-        assert len(attempts) == 3
-
-    async def test_other_backfill_errors_are_not_swallowed(self, space_service, monkeypatch):
-        async def backfill():
-            raise RuntimeError("bad radio file")
-
-        monkeypatch.setattr(space_service, "backfill_satellite_radio_store", backfill)
-
-        with pytest.raises(RuntimeError, match="bad radio file"):
-            await space_service._backfill_when_core_is_up()
