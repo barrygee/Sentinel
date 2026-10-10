@@ -81,3 +81,60 @@ class TestResolveEffectiveMode:
         await upsert_setting(db, "sea", "sourceOverride", "offgrid")
         assert await resolve_effective_mode("sea", db) == "offgrid"
         assert await resolve_effective_mode("air", db) == "online"
+
+
+class TestDerivingFromOneRead:
+    """effective_mode_of / domain_urls_of answer from a map read once (P6.4):
+    in a section's own container every read is a round trip to core."""
+
+    def test_effective_mode_prefers_the_sections_override(self):
+        from backend.utils import effective_mode_of
+
+        settings_map = {"sea.sourceOverride": "offgrid", "app.connectivityMode": "online"}
+
+        assert effective_mode_of("sea", settings_map) == "offgrid"
+
+    def test_effective_mode_falls_back_to_the_app_mode_then_online(self):
+        from backend.utils import effective_mode_of
+
+        assert effective_mode_of("sea", {"app.connectivityMode": "offgrid"}) == "offgrid"
+        assert effective_mode_of("sea", {}) == "online"
+
+    def test_effective_mode_ignores_another_sections_override(self):
+        from backend.utils import effective_mode_of
+
+        assert effective_mode_of("sea", {"air.sourceOverride": "offgrid"}) == "online"
+
+    def test_urls_follow_the_mode(self):
+        from backend.utils import domain_urls_of
+
+        settings_map = {
+            "sea.onlineUrl": "wss://online.test/stream",
+            "sea.offgridSource": {"url": "http://box.test/ais"},
+        }
+
+        assert domain_urls_of("sea", settings_map) == ("wss://online.test/stream", "http://box.test/ais")
+        assert domain_urls_of("sea", {**settings_map, "sea.sourceOverride": "offgrid"}) == (
+            "http://box.test/ais",
+            "wss://online.test/stream",
+        )
+
+    def test_urls_use_the_defaults_when_unset(self):
+        from backend.utils import domain_urls_of
+
+        assert domain_urls_of("sea", {}, online_default="wss://default.test") == ("wss://default.test", None)
+        assert domain_urls_of("sea", {"sea.sourceOverride": "offgrid"}, offgrid_default="http://d.test") == (
+            "http://d.test",
+            None,
+        )
+
+    async def test_the_map_is_one_namespace_plus_the_app_mode(self, db):
+        from backend.db_helpers import upsert_setting
+        from backend.utils import domain_settings_map
+
+        await upsert_setting(db, "sea", "enabled", True)
+        await upsert_setting(db, "app", "connectivityMode", "offgrid")
+        await upsert_setting(db, "app", "location", {"latitude": 1, "longitude": 2})
+        await upsert_setting(db, "air", "sourceOverride", "online")
+
+        assert await domain_settings_map("sea", db) == {"sea.enabled": True, "app.connectivityMode": "offgrid"}

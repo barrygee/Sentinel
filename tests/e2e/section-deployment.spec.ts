@@ -35,10 +35,13 @@ const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
         probePath: '/api/land/aprs/stations',
         enabledByDefault: false,
     },
+    // The AIS key status: answered without dialling AISStream, and in `service`
+    // mode it is read from core over the join-token-gated internal route.
+    { id: 'sea', label: /sea/i, probePath: '/api/sea/ais-key', enabledByDefault: true },
 ];
 
 /** Sections every deployment keeps, enabled by default — what must survive an absent one. */
-const ALWAYS_PRESENT = ['sea', 'sdr'];
+const ALWAYS_PRESENT = ['sdr'];
 
 interface DeployedSection {
     id: string;

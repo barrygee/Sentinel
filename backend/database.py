@@ -79,6 +79,7 @@ SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
 SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
 LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
+SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 
 
 async def _add_columns(conn, alter_statements) -> None:
@@ -120,6 +121,15 @@ async def create_air_tables() -> None:
     `air_messages` is not Air's: notifications are core's, despite the path.
     """
     await create_section_tables(AIR_TABLES)
+
+
+async def create_sea_tables() -> None:
+    """The Sea service's schema (P6.4): the vessel warm-start snapshot and static data.
+
+    Neither table has gained a column since its first release. The AISStream
+    key is not Sea's to store: it is a setting, kept in core (secret).
+    """
+    await create_section_tables(SEA_TABLES)
 
 
 async def create_tables():

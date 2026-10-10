@@ -435,6 +435,23 @@ verified live in both directions. Its settings reads (`resolve_effective_mode`, 
 through the gateway. Long-lived section loops that read core's settings on their first pass (Land's cleanup, Air's
 squawk watcher) can start before core answers; Land's cleanup now retries a failed run after a minute instead of a
 day (Air's watcher already ticks every 5 s). With Air absent the shell falls back to the first deployed section.
+
+*As built (P6.4, Sea):* Sea serves `/api/sea/` and holds the one AISStream connection a key allows, which is why the
+app must not import Sea's code when it is external (already the P6.2 rule). Two things were new. **Secrets** (rule 4
+above): the AISStream key stays in core's `user_settings`, and the service reaches it through core's
+`/internal/settings/secrets/{namespace}/{key}` — join-token gated (`backend/core/internal_auth.py`, shared with
+registration) and limited to `SECRET_SETTING_KEYS` — via the settings client's `read_secret`/`write_secret`/
+`delete_secret`; the `.env` fallback `AISSTREAM_API_KEY` is passed to the container like any env setting. The join
+token is still deployment-wide, so any service could read it; per-service credentials remain §4.5 work. **A latent
+bug in every extracted service:** `backend/modules/__init__.py` composed `MODULES`/`MANIFESTS` at import, so a
+service importing its own `backend.modules.<id>` also imported every other module — the radio hub's `hub.*`
+responders included. Air's and Sea's `hub.*` requests were then answered locally against the service's own database
+instead of crossing NATS. Both are now composed lazily (PEP 562), and each service loads only its own section.
+Off-grid vessels arrive as `decode.ais.*`, the receiver reconcile and bridge status are `hub.decode.ais.*` requests,
+and `settings.changed.{sea,app}` reaches the reconciler over NATS (all verified live). The startup reconcile retries
+every minute until it succeeds once, because core or the hub may still be starting. The AIS reader reads Sea's
+settings once per tick (`domain_settings_map` + `effective_mode_of`/`domain_urls_of`) rather than once per question,
+since each read is now a round trip to core.
 Rolling back is unsetting it and restarting the app.
 
 ### 4.5 Security
