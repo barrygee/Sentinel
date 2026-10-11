@@ -8,6 +8,8 @@
  * than decorative. Contrast is 21:1 for the text and 13:1 for the chip.
  */
 
+import { DARK_COUNT_RING } from '@sentinel/map-kit/map-cluster/mapCluster'
+
 /** Glyph and text colour for APRS station labels on the map. */
 export const APRS_ACCENT_COLOR = '#ffffff'
 
@@ -45,8 +47,8 @@ export const APRS_COUNT_FILL = '#000000'
 export const APRS_COUNT_RING = 'rgba(0, 170, 255, 0.25)'
 
 /**
- * Ring for the repeater layer's count markers. Each layer groups its own
- * points, so a count's ring says which set it stands for: APRS blue (above),
- * repeaters lime — at a similar transparency so the map still shows through.
+ * Ring for the repeater layer's count markers: the dark ring Sentry site groups
+ * use, so a group of fixed stations reads the same in both places — and is told
+ * apart at a glance from an APRS group's blue (above).
  */
-export const REPEATER_COUNT_RING = 'rgba(200, 255, 0, 0.3)'
+export const REPEATER_COUNT_RING = DARK_COUNT_RING

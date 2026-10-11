@@ -51,6 +51,7 @@ const created = mocks.created
 vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 
 import { SentrySitesControl, siteLabel } from './SentrySitesControl'
+import { DARK_COUNT_RING } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
@@ -306,6 +307,12 @@ describe('SentrySitesControl', () => {
       const count = clusterMarkers()[0]!.element
       expect(count.querySelector('.sentry-cluster-count')!.textContent).toBe('2')
       expect(count.getAttribute('aria-label')).toBe('2 Sentry sites here — zoom in to see them')
+    })
+
+    it('rings the count in the shared dark ring', () => {
+      sitesStore.sites = crowdedSites()
+      addControl()
+      expect(clusterMarkers()[0]!.element.style.border).toContain(DARK_COUNT_RING)
     })
 
     it('never counts a lone site — a "1" says less than the mark it replaced', () => {

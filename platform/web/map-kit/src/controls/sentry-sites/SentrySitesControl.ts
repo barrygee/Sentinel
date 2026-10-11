@@ -3,6 +3,7 @@ import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import { buildLocationMarkerSvg } from '@sentinel/map-kit/UserLocationMarker'
 import {
+  DARK_COUNT_RING,
   buildCountMarker,
   groupByProximity,
   type ScreenPosition,
@@ -358,7 +359,7 @@ export class SentrySitesControl extends SentinelControlBase {
       ariaLabel: countLabel,
       className: 'sentry-cluster-marker',
       countClassName: 'sentry-cluster-count',
-      ringColor: SENTRY_COUNT_RING,
+      ringColor: DARK_COUNT_RING,
       fillColor: SENTRY_COUNT_FILL,
       textColor: SENTRY_COUNT_TEXT,
     })
@@ -550,10 +551,6 @@ const CLUSTER_ZOOM_STEP = 3
  * operator to answer "how many are here".
  */
 const CLUSTER_ZOOM_MAX = 17
-
-/** Ring around a Sentry count marker — the same nearly-black, semitransparent
- *  ring the APRS counts use, so a count reads the same wherever it appears. */
-const SENTRY_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
 
 /** Fill of a Sentry count marker's centre. */
 const SENTRY_COUNT_FILL = '#000000'
