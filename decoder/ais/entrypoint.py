@@ -47,6 +47,7 @@ import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from pyais import decode as decode_ais_sentence
@@ -230,6 +231,52 @@ def post_event(ingest_url: str, secret: str, event: dict) -> bool:
         return False
 
 
+class HubLink:
+    """Logs the radio hub becoming unreachable once and coming back once.
+
+    The supervisor polls the hub's decode config every couple of seconds, so a
+    line per failed poll fills the log whenever the hub is starting or
+    restarting (a `docker compose up` starts this container before the hub
+    answers). Only connection failures are quietened: an HTTP error means the
+    hub answered, so it is still logged every time.
+    """
+
+    def __init__(self, clock=time.monotonic) -> None:
+        self._clock = clock
+        self._connected = False
+        self._unreachable_since: float | None = None
+
+    def reached(self, url: str) -> None:
+        """The hub answered: say so the first time, and after every outage."""
+        if self._unreachable_since is not None:
+            waited = self._clock() - self._unreachable_since
+            _log_hub(f"connected to the radio hub at {_origin(url)} after {waited:.1f} s")
+        elif not self._connected:
+            _log_hub(f"connected to the radio hub at {_origin(url)}")
+        self._connected = True
+        self._unreachable_since = None
+
+    def unreachable(self, url: str, error: object) -> None:
+        """A poll couldn't connect: log the first one, then retry quietly."""
+        if self._unreachable_since is not None:
+            return
+        self._unreachable_since = self._clock()
+        _log_hub(f"waiting for the radio hub at {_origin(url)} ({error}); retrying quietly")
+
+
+def _origin(url: str) -> str:
+    """scheme://host:port of a URL, the part that says which hub this is."""
+    parts = urllib.parse.urlsplit(url)
+    return f"{parts.scheme}://{parts.netloc}"
+
+
+def _log_hub(message: str) -> None:
+    print(f"[ais] {message}", file=sys.stderr, flush=True)
+
+
+_hub_link = HubLink()
+
+
 def fetch_decode_config(config_url: str, secret: str) -> dict:
     """GET the backend's AIS decode config (``active`` gate). {} on failure.
 
@@ -240,9 +287,15 @@ def fetch_decode_config(config_url: str, secret: str) -> dict:
     request = urllib.request.Request(config_url, headers={"X-Decode-Secret": secret}, method="GET")
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
+            _hub_link.reached(config_url)
             if 200 <= response.status < 300:
                 return json.loads(response.read().decode("utf-8"))
-    except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+    except urllib.error.HTTPError as exc:
+        _hub_link.reached(config_url)
+        print(f"[ais] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
+    except (urllib.error.URLError, OSError) as exc:
+        _hub_link.unreachable(config_url, getattr(exc, "reason", exc))
+    except json.JSONDecodeError as exc:
         print(f"[ais] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
     return {}
 
