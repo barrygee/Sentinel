@@ -480,6 +480,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Smaller bold range-ring distance labels, closer to the ring
 - Compose MODULES and MANIFESTS lazily so a section service loads only its own section
 - Hold a section service's startup until core answers
+- Log a radio hub outage once instead of every poll
 
 ### Chores
 
@@ -1461,6 +1462,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #447 from barrygee/fix/wait-for-core-before-first-run
 - Merge pull request #448 from barrygee/feat/log-core-connected
 - Merge pull request #449 from barrygee/feat/p6-5-radio-hub-service
+- Merge pull request #450 from barrygee/fix/decoder-hub-wait-logging
 
 ### Refactoring
 
@@ -1646,6 +1648,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover waiting for core before a service starts
 - Cover the connected-to-core log line
 - Cover the standalone radio hub service
+- Cover logging of radio hub outages and recovery
 
 ### Build System
 
