@@ -62,6 +62,7 @@ import {
   stationStatusSummary,
 } from './RepeatersControl'
 import { useLandStore } from '../../stores/land'
+import { DARK_COUNT_RING } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { useRepeatersStore, DEFAULT_REPEATER_LABEL_FIELDS } from '../../stores/repeaters'
 import * as repeatersApi from '../../services/repeatersApi'
 import type {
@@ -361,6 +362,15 @@ describe('RepeatersControl', () => {
     // Sited at the mean of its members' positions.
     expect(cluster[0]?.lngLat).toEqual([0.25, 52])
     expect(cluster[0]?.anchor).toBe('center')
+  })
+
+  it('rings a count in the dark ring Sentry site groups use, not a coloured band', () => {
+    repeatersStore.stations = [
+      station({ callsign: 'GB3A', longitude: 0 }),
+      station({ callsign: 'GB3B', longitude: 0.5 }),
+    ]
+    addControl()
+    expect(clusterMarkers()[0]?.element.style.border).toContain(DARK_COUNT_RING)
   })
 
   it('counts even a lone station below the label-reveal zoom', () => {

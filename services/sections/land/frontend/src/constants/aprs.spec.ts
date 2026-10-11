@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { DARK_COUNT_RING } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { APRS_ACCENT_COLOR, APRS_COUNT_RING, REPEATER_COUNT_RING } from './aprs'
 
 /**
@@ -24,6 +25,10 @@ describe('APRS label palette', () => {
 
     it('gives each layer a ring no other layer uses', () => {
       expect(new Set(Object.values(rings)).size).toBe(Object.keys(rings).length)
+    })
+
+    it('rings repeater groups like Sentry site groups', () => {
+      expect(REPEATER_COUNT_RING).toBe(DARK_COUNT_RING)
     })
 
     it.each(Object.entries(rings))('keeps the %s ring translucent', (_layer, ring) => {

@@ -5,6 +5,7 @@ import {
   COUNT_MARKER_CENTRE_PX,
   COUNT_MARKER_RING_PX,
   COUNT_MARKER_SIZE_PX,
+  DARK_COUNT_RING,
   formatCount,
   groupByGridCell,
   groupByProximity,
@@ -210,6 +211,14 @@ describe('buildCountMarker', () => {
     expect(marker.style.height).toBe(marker.style.width) // square, so the ring is a circle
     expect(centre.style.width).toBe(`${COUNT_MARKER_CENTRE_PX}px`)
     expect(COUNT_MARKER_SIZE_PX - COUNT_MARKER_RING_PX * 2).toBe(COUNT_MARKER_CENTRE_PX)
+  })
+
+  it('offers a dark ring that is near-black and lets the map show through', () => {
+    const [red, green, blue, alpha] = DARK_COUNT_RING.match(/[\d.]+/g)!.map(Number)
+    // Near-black: no channel above an eighth of full brightness.
+    expect(Math.max(red!, green!, blue!)).toBeLessThanOrEqual(32)
+    expect(alpha).toBeGreaterThan(0)
+    expect(alpha).toBeLessThan(1)
   })
 
   it("paints the caller's colours, and no fill of its own behind the ring", () => {
