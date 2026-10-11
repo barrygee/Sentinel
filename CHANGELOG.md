@@ -208,6 +208,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Set the background squawk-check interval per mode in Settings
 - Run the Sea section as its own service (P6.4)
 - Log when a section service connects to core
+- Run the radio hub as its own service (P6.5)
 
 ### Bug Fixes
 
@@ -1459,6 +1460,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #445 from barrygee/fix/adsb-watcher-online-interval
 - Merge pull request #447 from barrygee/fix/wait-for-core-before-first-run
 - Merge pull request #448 from barrygee/feat/log-core-connected
+- Merge pull request #449 from barrygee/feat/p6-5-radio-hub-service
 
 ### Refactoring
 
@@ -1576,6 +1578,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record P6.0/P6.1 as built
 - Record P6.2 Land as built
 - Record P6.3 Air as built
+- Record the radio hub extraction as built (P6.5)
 
 ### Tests
 
@@ -1642,6 +1645,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the suite against code defaults, not the repo .env
 - Cover waiting for core before a service starts
 - Cover the connected-to-core log line
+- Cover the standalone radio hub service
 
 ### Build System
 
@@ -1688,6 +1692,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the composed stack with Space present, split and absent
 - Split and absent legs cover Space and Land
 - Split and absent legs include Air
+- Run the radio hub as a service and absent
 
 ### Styling
 
