@@ -482,6 +482,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Compose MODULES and MANIFESTS lazily so a section service loads only its own section
 - Hold a section service's startup until core answers
 - Log a radio hub outage once instead of every poll
+- Ring repeater group markers like Sentry site groups
 
 ### Chores
 
@@ -1465,6 +1466,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #449 from barrygee/feat/p6-5-radio-hub-service
 - Merge pull request #450 from barrygee/fix/decoder-hub-wait-logging
 - Merge pull request #451 from barrygee/feat/p6-6-sdr-service
+- Merge pull request #452 from barrygee/fix/land-repeater-count-ring
 
 ### Refactoring
 
@@ -1653,6 +1655,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the standalone radio hub service
 - Cover logging of radio hub outages and recovery
 - Cover the standalone SDR service and the legacy file import
+- Pin the shared dark ring on repeater and Sentry group markers
 
 ### Build System
 
