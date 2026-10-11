@@ -454,6 +454,30 @@ settings once per tick (`domain_settings_map` + `effective_mode_of`/`domain_urls
 since each read is now a round trip to core.
 Rolling back is unsetting it and restarting the app.
 
+*As built (P6.5, radio hub):* the hub runs as `backend.standalone.radio_hub` (compose service and profile `radio-hub`
+rather than the `radio` profile in §2.1, so the id is the same on both `.env` lines). It serves every hub prefix in
+the routing table above, including `/ws/sdr/`, which Caddy proxies with no extra config. It has no UI remote: the
+radio panes stay the SDR section's. Its database holds only `sentry_hosts` (bearer tokens included), copied by
+legacy import. Everything it read straight from `user_settings` now goes through the settings client: `sdr.radios`,
+`sdr.aprs_radio_id`, `sdr.ais_radio_id`, the APRS channel and `app.instanceId` (core's `get_instance_id` uses the
+client too). In the monolith that makes those writes announce `settings.changed.sdr`, which nothing subscribes to.
+Like a section, the monolith doesn't even import an external hub's code, because its modules register the `hub.*`
+responders at import. Nothing new had to cross processes: Air's reservations, Sea's AIS receiver, the SDR
+section's IQ captures, `decode.<kind>.*`, `settings.changed.land` and `sdr.decode.radio-reassigned` were already
+bus traffic. All were verified over NATS on a composed stack, with the stub decoder driving a full decode and the
+spectrum WebSocket streaming through the gateway. Two deployment changes:
+- **Decoders** dial the hub directly (PCM over TCP, voice back over UDP, ingest/config over HTTP), so their host is
+  `${SENTINEL_RADIO_HUB_HOST:-app}`. Running the hub in its own container therefore takes a third `.env` line. Having
+  decoders learn the hub's address from the registry is P7 (advertised URLs).
+- **IQ captures** still land where the SDR section serves recordings from: the hub's `IQ_CAPTURE_DIR` points at
+  that folder on the app's volume (mounted a second time into the hub container), so the app finds `<id>.u8` as
+  soon as the hub replies to `hub.iq-capture.stop`. This needs a shared host. Proxying captures from the hub
+  replaces it in P7, and the folder moves with the SDR section in P6.6.
+
+With the hub stopped, its prefixes are a JSON 503 from the gateway while the SDR section's own routes keep working.
+With the hub absent (never registered), `/api/sdr/radios` falls through to the app's SPA catch-all, as an absent
+section's API does.
+
 ### 4.5 Security
 - **Join token:** `SENTINEL_JOIN_TOKEN` lives in `.env` and is never committed. It gates registration, and core issues
   each service its own NATS user with per-subject permissions.
