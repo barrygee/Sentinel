@@ -266,12 +266,133 @@ class TestHubClient:
         _, responses = hub_calls
         responses.append(urllib.error.URLError("connection refused"))
         assert stub.HubClient("http://hub", "s").register({}) == 0
-        assert "POST /register failed" in capsys.readouterr().err
+        assert (
+            "waiting for the radio hub at http://hub (connection refused)"
+            in capsys.readouterr().err
+        )
 
     def test_an_empty_body_reads_as_no_fields(self, hub_calls):
         _, responses = hub_calls
         responses.append((200, None))
         assert stub.HubClient("http://hub", "s").config() == (200, False)
+
+    def test_an_unreadable_body_is_status_0_and_logged(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            stub.urllib.request,
+            "urlopen",
+            lambda request, timeout: _Response(200, b"not json"),
+        )
+        link = stub.HubLink("http://hub", clock=_FakeClock())
+        assert stub.HubClient("http://hub", "s", link=link).config() == (0, False)
+        lines = _stderr_lines(capsys)
+        assert lines[0] == "[stub] connected to the radio hub at http://hub"
+        assert lines[1].startswith("[stub] GET /stub/config failed: Expecting value")
+        assert len(lines) == 2
+
+
+# ── logging the hub going away and coming back ───────────────────────────────
+
+
+class _FakeClock:
+    """A monotonic clock the test moves by hand."""
+
+    def __init__(self) -> None:
+        self.now = 50.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def _stderr_lines(capsys) -> list[str]:
+    return [line for line in capsys.readouterr().err.splitlines() if line]
+
+
+def _refused() -> urllib.error.URLError:
+    return urllib.error.URLError(ConnectionRefusedError(111, "Connection refused"))
+
+
+class TestHubLink:
+    def test_the_first_answer_says_connected_without_a_wait(self, capsys):
+        stub.HubLink("http://hub:8000").reached()
+        assert _stderr_lines(capsys) == [
+            "[stub] connected to the radio hub at http://hub:8000"
+        ]
+
+    def test_an_outage_is_logged_once_and_recovery_reports_the_wait(self, capsys):
+        clock = _FakeClock()
+        link = stub.HubLink("http://hub:8000", clock=clock)
+        link.unreachable("Connection refused")
+        clock.now += 2
+        link.unreachable("Connection refused")
+        clock.now += 4
+        link.reached()
+        link.reached()
+        assert _stderr_lines(capsys) == [
+            "[stub] waiting for the radio hub at http://hub:8000 "
+            "(Connection refused); retrying quietly",
+            "[stub] connected to the radio hub at http://hub:8000 after 6.0 s",
+        ]
+
+    def test_an_outage_after_a_connection_is_logged_again(self, capsys):
+        link = stub.HubLink("http://hub:8000", clock=_FakeClock())
+        link.reached()
+        link.unreachable("Connection refused")
+        assert _stderr_lines(capsys)[-1] == (
+            "[stub] waiting for the radio hub at http://hub:8000 "
+            "(Connection refused); retrying quietly"
+        )
+
+    def test_it_defaults_to_the_monotonic_clock(self):
+        assert stub.HubLink("http://hub")._clock is stub.time.monotonic
+
+
+class TestHubClientLogging:
+    def test_repeated_refusals_log_one_wait_then_the_recovery(self, hub_calls, capsys):
+        _, responses = hub_calls
+        clock = _FakeClock()
+        hub = stub.HubClient(
+            "http://hub:8000", "s", link=stub.HubLink("http://hub:8000", clock=clock)
+        )
+        responses.extend([_refused(), _refused(), _refused(), (201, {})])
+        for _ in range(3):
+            assert hub.register({}) == 0
+            clock.now += 2
+        assert hub.register({}) == 201
+        assert _stderr_lines(capsys) == [
+            "[stub] waiting for the radio hub at http://hub:8000 "
+            "([Errno 111] Connection refused); retrying quietly",
+            "[stub] connected to the radio hub at http://hub:8000 after 6.0 s",
+        ]
+
+    def test_an_http_error_counts_as_reaching_the_hub(self, hub_calls, capsys):
+        _, responses = hub_calls
+        clock = _FakeClock()
+        hub = stub.HubClient(
+            "http://hub:8000", "s", link=stub.HubLink("http://hub:8000", clock=clock)
+        )
+        responses.extend([_refused(), _http_error(404)])
+        hub.config()
+        clock.now += 1.5
+        assert hub.config() == (404, False)
+        assert _stderr_lines(capsys)[-1] == (
+            "[stub] connected to the radio hub at http://hub:8000 after 1.5 s"
+        )
+
+    def test_a_bare_os_error_is_logged_as_itself(self, hub_calls, capsys):
+        _, responses = hub_calls
+        responses.append(TimeoutError("timed out"))
+        assert stub.HubClient("http://hub", "s").ingest({}) == 0
+        assert _stderr_lines(capsys) == [
+            "[stub] waiting for the radio hub at http://hub (timed out); retrying quietly"
+        ]
+
+    def test_without_a_link_it_makes_one_for_its_hub(self, hub_calls, capsys):
+        _, responses = hub_calls
+        responses.append((200, {"active": False}))
+        stub.HubClient("http://radio-hub:8000", "s").config()
+        assert _stderr_lines(capsys) == [
+            "[stub] connected to the radio hub at http://radio-hub:8000"
+        ]
 
 
 # ── PCM summary ──────────────────────────────────────────────────────────────

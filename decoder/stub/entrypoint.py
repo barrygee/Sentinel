@@ -138,18 +138,56 @@ def resolve_secret(
         sleep(1.0)
 
 
+class HubLink:
+    """Logs the hub becoming unreachable once and coming back once.
+
+    The supervisor polls the hub every ``POLL_SECONDS``, so a line per failed
+    request fills the log whenever the hub is starting or restarting (a
+    ``docker compose up`` starts this container before the hub answers). An
+    HTTP error means the hub answered, so it counts as reaching it.
+    """
+
+    def __init__(
+        self, hub_url: str, clock: Callable[[], float] = time.monotonic
+    ) -> None:
+        self._hub_url = hub_url
+        self._clock = clock
+        self._connected = False
+        self._unreachable_since: float | None = None
+
+    def reached(self) -> None:
+        """The hub answered: say so the first time, and after every outage."""
+        if self._unreachable_since is not None:
+            waited = self._clock() - self._unreachable_since
+            log(f"connected to the radio hub at {self._hub_url} after {waited:.1f} s")
+        elif not self._connected:
+            log(f"connected to the radio hub at {self._hub_url}")
+        self._connected = True
+        self._unreachable_since = None
+
+    def unreachable(self, error: object) -> None:
+        """A request couldn't connect: log the first one, then retry quietly."""
+        if self._unreachable_since is not None:
+            return
+        self._unreachable_since = self._clock()
+        log(f"waiting for the radio hub at {self._hub_url} ({error}); retrying quietly")
+
+
 class HubClient:
     """The hub's decoder-facing endpoints for one kind, authenticated with the secret."""
 
-    def __init__(self, hub_url: str, secret: str, kind: str = KIND) -> None:
+    def __init__(
+        self, hub_url: str, secret: str, kind: str = KIND, link: HubLink | None = None
+    ) -> None:
         self._base = f"{hub_url}/api/sdr/decoders"
         self._kind = kind
         self._secret = secret
+        self._link = link or HubLink(hub_url)
 
     def _request(
         self, method: str, path: str, body: dict | None = None
     ) -> tuple[int, dict]:
-        """One request; returns (status, JSON body). Status 0 means the hub was unreachable."""
+        """One request; returns (status, JSON body). Status 0 means the hub was unreachable (or answered garbage)."""
         data = json.dumps(body).encode("utf-8") if body is not None else None
         headers = {"X-Decode-Secret": self._secret}
         if data is not None:
@@ -161,11 +199,16 @@ class HubClient:
             with urllib.request.urlopen(
                 request, timeout=_HTTP_TIMEOUT_SECONDS
             ) as response:
+                self._link.reached()
                 return response.status, json.loads(response.read() or b"{}")
         except urllib.error.HTTPError as exc:
+            self._link.reached()
             return exc.code, {}
-        except (urllib.error.URLError, OSError, json.JSONDecodeError) as exc:
+        except json.JSONDecodeError as exc:
             log(f"{method} {path} failed: {exc}")
+            return 0, {}
+        except (urllib.error.URLError, OSError) as exc:
+            self._link.unreachable(getattr(exc, "reason", exc))
             return 0, {}
 
     def register(self, manifest: dict) -> int:
