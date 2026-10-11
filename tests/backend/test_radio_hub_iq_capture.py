@@ -87,6 +87,39 @@ class TestCaptureDir:
         assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
 
 
+class TestCaptureDirOnceTheSdrSectionRunsElsewhere:
+    """With `sdr` in SENTINEL_EXTERNAL_SERVICES, captures go to the SDR service's recordings volume (P6.6)."""
+
+    @pytest.fixture(autouse=True)
+    def both_folders_set(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sentinel.db"))
+        monkeypatch.setattr(settings, "iq_capture_dir", str(tmp_path / "app" / "recordings"))
+        monkeypatch.setattr(settings, "sdr_service_recordings_dir", str(tmp_path / "sdr-service" / "recordings"))
+
+    def test_writes_into_the_sdr_services_folder(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
+
+        assert iq_capture.iq_capture_dir() == tmp_path / "sdr-service" / "recordings"
+
+    def test_follows_the_list_with_the_hub_external_too(self, monkeypatch, tmp_path):
+        # The hub's own container reads the same list to find where SDR lives.
+        monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub,sdr")
+
+        assert iq_capture.iq_capture_dir() == tmp_path / "sdr-service" / "recordings"
+
+    def test_keeps_the_apps_folder_while_the_app_hosts_the_sdr_section(self, monkeypatch, tmp_path):
+        # The SDR volume is mounted everywhere, but unused until SDR moves.
+        monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub")
+
+        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
+
+    def test_without_the_sdr_services_folder_set_it_keeps_the_apps(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
+        monkeypatch.setattr(settings, "sdr_service_recordings_dir", "")
+
+        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
+
+
 class TestStart:
     async def test_unknown_radio_is_declined(self, broadcaster):
         assert await _start(1, radio_id=99) == {"ok": False, "reason": "unknown_radio"}

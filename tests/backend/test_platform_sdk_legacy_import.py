@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from backend.platform.sdk.legacy_import import import_legacy_tables
+from backend.platform.sdk import legacy_import
+from backend.platform.sdk.legacy_import import import_legacy_files, import_legacy_tables
 
 
 def make_db(path: Path, schema: list[str], rows: dict[str, list[tuple]] | None = None) -> Path:
@@ -194,3 +195,118 @@ class TestLegacyImportLogging:
         assert "copied 2 rows into tle" in caplog.text
         assert "copied 1 rows into catalogue" in caplog.text
         assert "already hold data" not in caplog.text
+
+
+@pytest.fixture
+def legacy_files(tmp_path) -> Path:
+    """The monolith's recordings folder."""
+    folder = tmp_path / "legacy-recordings"
+    folder.mkdir()
+    (folder / "1.wav").write_bytes(b"wav one")
+    (folder / "1.u8").write_bytes(b"iq one")
+    (folder / "2.wav").write_bytes(b"wav two")
+    return folder
+
+
+class TestImportLegacyFiles:
+    def test_copies_each_named_file_into_a_folder_it_makes(self, legacy_files, tmp_path):
+        target_dir = tmp_path / "service" / "recordings"
+
+        copied = import_legacy_files(legacy_files, target_dir, ["1.wav", "1.u8"])
+
+        assert copied == 2
+        assert {path.name: path.read_bytes() for path in target_dir.iterdir()} == {
+            "1.wav": b"wav one",
+            "1.u8": b"iq one",
+        }
+
+    def test_leaves_the_legacy_files_in_place(self, legacy_files, tmp_path):
+        import_legacy_files(legacy_files, tmp_path / "target", ["1.wav"])
+
+        assert (legacy_files / "1.wav").read_bytes() == b"wav one"
+
+    def test_keeps_a_file_already_in_the_target(self, legacy_files, tmp_path):
+        target_dir = tmp_path / "target"
+        target_dir.mkdir()
+        (target_dir / "1.wav").write_bytes(b"newer")
+
+        copied = import_legacy_files(legacy_files, target_dir, ["1.wav", "2.wav"])
+
+        assert copied == 1
+        assert (target_dir / "1.wav").read_bytes() == b"newer"
+        assert (target_dir / "2.wav").read_bytes() == b"wav two"
+
+    def test_skips_a_file_missing_from_the_legacy_folder(self, legacy_files, tmp_path):
+        target_dir = tmp_path / "target"
+
+        copied = import_legacy_files(legacy_files, target_dir, ["3.wav", "2.wav"])
+
+        assert copied == 1
+        assert sorted(path.name for path in target_dir.iterdir()) == ["2.wav"]
+
+    def test_skips_a_name_that_is_a_folder_not_a_file(self, legacy_files, tmp_path):
+        (legacy_files / "4.wav").mkdir()
+
+        assert import_legacy_files(legacy_files, tmp_path / "target", ["4.wav"]) == 0
+
+    def test_takes_only_the_bare_file_name_so_nothing_outside_either_folder_is_touched(self, legacy_files, tmp_path):
+        (tmp_path / "secret.wav").write_bytes(b"outside")
+        target_dir = tmp_path / "service" / "recordings"
+
+        copied = import_legacy_files(legacy_files, target_dir, ["../secret.wav", "../../1.wav"])
+
+        # "../secret.wav" is looked up as legacy_files/secret.wav, which doesn't exist.
+        assert copied == 1
+        assert sorted(path.name for path in target_dir.iterdir()) == ["1.wav"]
+        assert not (tmp_path / "service" / "secret.wav").exists()
+
+    def test_copies_nothing_for_no_names(self, legacy_files, tmp_path):
+        assert import_legacy_files(legacy_files, tmp_path / "target", []) == 0
+
+    def test_a_failed_copy_is_logged_cleaned_up_and_does_not_stop_the_rest(
+        self, legacy_files, tmp_path, monkeypatch, caplog
+    ):
+        target_dir = tmp_path / "target"
+        real_copy = legacy_import.shutil.copy2
+
+        def copy_failing_on_the_first(source, destination):
+            if Path(source).name == "1.wav":
+                Path(destination).write_bytes(b"partial")
+                raise OSError("No space left on device")
+            return real_copy(source, destination)
+
+        monkeypatch.setattr(legacy_import.shutil, "copy2", copy_failing_on_the_first)
+
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            copied = import_legacy_files(legacy_files, target_dir, ["1.wav", "2.wav"])
+
+        assert copied == 1
+        assert not (target_dir / "1.wav").exists()
+        assert (target_dir / "2.wav").read_bytes() == b"wav two"
+        assert f"could not copy {legacy_files / '1.wav'}" in caplog.text
+        assert "No space left on device" in caplog.text
+
+    def test_a_failed_copy_that_left_nothing_behind_is_still_skipped(self, legacy_files, tmp_path, monkeypatch):
+        def refuse(source, destination):
+            raise PermissionError("Permission denied")
+
+        monkeypatch.setattr(legacy_import.shutil, "copy2", refuse)
+
+        assert import_legacy_files(legacy_files, tmp_path / "target", ["1.wav"]) == 0
+
+
+class TestLegacyFileImportLogging:
+    def test_reports_how_many_files_and_megabytes_it_copied_and_where(self, legacy_files, tmp_path, caplog):
+        (legacy_files / "big.u8").write_bytes(b"\0" * 2_500_000)
+        target_dir = tmp_path / "target"
+
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            import_legacy_files(legacy_files, target_dir, ["big.u8", "2.wav"])
+
+        assert f"copied 2 files (2.5 MB) from {legacy_files} into {target_dir}" in caplog.text
+
+    def test_says_nothing_when_it_copied_nothing(self, legacy_files, tmp_path, caplog):
+        with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
+            import_legacy_files(legacy_files, tmp_path / "target", ["missing.wav"])
+
+        assert caplog.text == ""
