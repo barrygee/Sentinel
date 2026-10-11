@@ -37,6 +37,8 @@ import { isDeployed } from './support/sectionDeployment';
 const spaceIsAbsent = !isDeployed('space');
 // Radios belong to the radio hub (P6.5); a stack without one has no radio API.
 const radioHubIsAbsent = !isDeployed('radio-hub');
+// Frequency groups and the band plan are the SDR section's (P6.6).
+const sdrIsAbsent = !isDeployed('sdr');
 
 // ---------------------------------------------------------------------------
 // Helper: wait for the Vue shell to hydrate (Domains nav present)
@@ -211,6 +213,8 @@ test('SDR radio can be created via POST, survives a server restart (reload), and
 test('SDR frequency group can be created, persists across a GET, and is deleted cleanly', async ({
     request,
 }) => {
+    test.skip(sdrIsAbsent, 'The SDR section is not deployed');
+
     // Create a group via the real API. The slug is derived from the name
     // server-side, stored in SQLite, and returned in the response.
     const createResponse = await request.post('/api/sdr/groups', {
@@ -251,6 +255,8 @@ test('SDR frequency group can be created, persists across a GET, and is deleted 
 test('startup seeder populates the SDR band plan from backend/data/sdr_bandplan.json', async ({
     request,
 }) => {
+    test.skip(sdrIsAbsent, 'The SDR section is not deployed');
+
     // The SDR module's prepare step seeds UserSettings(sdr.bandPlan) from the
     // tracked backend/data/sdr_bandplan.json on a fresh install. (The frequency
     // catalogue is NOT seeded: since #146 sdr_frequencies.json is runtime-owned
