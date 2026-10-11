@@ -145,6 +145,11 @@ export const COUNT_MARKER_CENTRE_PX = 20
  *  to. */
 export const COUNT_MARKER_SIZE_PX = COUNT_MARKER_CENTRE_PX + COUNT_MARKER_RING_PX * 2
 
+/** The nearly-black, semitransparent ring of a dark count marker — Sentry
+ *  sites and the Land repeater layer — so their groups read the same wherever
+ *  they appear. */
+export const DARK_COUNT_RING = 'rgba(20, 23, 28, 0.55)'
+
 /** How the caller wants its count marker to look and be announced. */
 export interface CountMarkerOptions {
   /** How many points the marker stands for. Announced in full, drawn capped. */
