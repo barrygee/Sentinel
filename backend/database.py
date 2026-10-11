@@ -81,6 +81,14 @@ LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
+# Parents before children: a legacy import copies them in this order.
+SDR_TABLES: tuple[str, ...] = (
+    "sdr_frequency_groups",
+    "sdr_stored_frequencies",
+    "sdr_frequency_group_links",
+    "sdr_search_ranges",
+    "sdr_recordings",
+)
 
 
 async def _add_columns(conn, alter_statements) -> None:
@@ -141,6 +149,25 @@ async def create_radio_hub_tables() -> None:
     kept in core.
     """
     await create_section_tables(RADIO_HUB_TABLES)
+
+
+async def create_sdr_tables() -> None:
+    """The SDR section service's schema (P6.6): frequency groups, stored frequencies, search ranges, recordings.
+
+    The columns `create_tables()` adds to older databases are all in the
+    models, so a new database already has them; a legacy import copies only
+    the columns both sides have. The band plan and the settings mirrors of the
+    tables (`sdr.groups`, `sdr.frequencies`, `sdr.searchRanges`) are core's
+    settings, not tables here. Also makes the recordings folder, which lives
+    next to the database.
+    """
+    await create_section_tables(SDR_TABLES)
+    sdr_recordings_dir().mkdir(parents=True, exist_ok=True)
+
+
+def sdr_recordings_dir() -> Path:
+    """The folder the SDR section keeps recordings in (`<id>.wav`, and the hub's `<id>.u8`): next to the database."""
+    return Path(settings.db_path).parent / "recordings"
 
 
 async def create_tables():
@@ -221,8 +248,7 @@ async def create_tables():
         for removed_table in _REMOVED_TABLES:
             await conn.execute(sa_text(f"DROP TABLE IF EXISTS {removed_table}"))
     # Ensure recordings directory exists inside the data volume
-    recordings_dir = Path(settings.db_path).parent / "recordings"
-    recordings_dir.mkdir(parents=True, exist_ok=True)
+    sdr_recordings_dir().mkdir(parents=True, exist_ok=True)
 
 
 async def get_db():
@@ -421,8 +447,10 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
     config is self-contained and slugs resolve to readable names. Frequencies
     are never duplicated, even when a frequency belongs to multiple groups.
     Group colours are intentionally omitted — the `color` column still exists
-    on the table for UI use."""
-    from backend.db_helpers import upsert_setting  # avoid circular import
+    on the table for UI use.
+
+    The mirror is a core setting, so it is written through the settings client:
+    over HTTP when the SDR section runs in its own container (P6.6)."""
     from backend.models import (  # avoid circular import
         SdrFrequencyGroup,
         SdrFrequencyGroupLink,
@@ -473,19 +501,21 @@ async def sync_sdr_groups_to_config(session: AsyncSession) -> None:
             }
         )
 
-    await upsert_setting(session, "sdr", "frequencies", payload)
+    from backend.platform.settings_client import write_setting  # avoid circular import
+
+    await write_setting(session, "sdr", "frequencies", payload)
     # Mirror the group catalogue as {name, slug} so the config is self-contained
     # and frequency slug refs resolve to readable names on re-import.
-    await upsert_setting(session, "sdr", "groups", [{"name": g.name, "slug": g.slug} for g in groups])
-    await session.commit()
+    await write_setting(session, "sdr", "groups", [{"name": g.name, "slug": g.slug} for g in groups])
 
 
 async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
     """Mirror the SdrSearchRange table into UserSettings
     (namespace='sdr', key='searchRanges') so the persisted app config JSON
-    always reflects current state."""
-    from backend.db_helpers import upsert_setting  # avoid circular import
+    always reflects current state. Written through the settings client, like
+    `sync_sdr_groups_to_config`."""
     from backend.models import SdrSearchRange  # avoid circular import
+    from backend.platform.settings_client import write_setting  # avoid circular import
 
     rows = (
         (await session.execute(select(SdrSearchRange).order_by(SdrSearchRange.sort_order, SdrSearchRange.id)))
@@ -507,8 +537,7 @@ async def sync_sdr_search_ranges_to_config(session: AsyncSession) -> None:
         }
         for r in rows
     ]
-    await upsert_setting(session, "sdr", "searchRanges", payload)
-    await session.commit()
+    await write_setting(session, "sdr", "searchRanges", payload)
 
 
 async def seed_sdr_data_from_files() -> None:
@@ -553,14 +582,15 @@ async def seed_sdr_data_from_files() -> None:
 async def seed_sdr_bandplan_from_file() -> None:
     """Seed UserSettings(sdr.bandPlan) from backend/data/sdr_bandplan.json on
     first run (key unset). The waterfall reads sdr.bandPlan; the file is the
-    source of truth and is written back on edit via sdr_data.set_bandplan."""
-    from backend.db_helpers import get_setting_row, upsert_setting  # avoid circular import
+    source of truth and is written back on edit via sdr_data.set_bandplan.
+    The setting is core's, so it is read and written through the settings client."""
+    from backend.platform.settings_client import read_setting, write_setting  # avoid circular import
     from backend.services.sdr_data import load_sdr_bandplan_file
 
     async with AsyncSessionLocal() as session:
-        if await get_setting_row(session, "sdr", "bandPlan") is not None:
+        if await read_setting(session, "sdr", "bandPlan") is not None:
             return
-        await upsert_setting(session, "sdr", "bandPlan", load_sdr_bandplan_file())
+        await write_setting(session, "sdr", "bandPlan", load_sdr_bandplan_file())
 
 
 async def backfill_satellite_radio_store() -> None:

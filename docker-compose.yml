@@ -64,8 +64,15 @@ services:
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       - decoder_secret:/run/decoder    # shared auto-generated ingest secret
       - join_token:/run/sentinel       # shared auto-generated registry join token
+      # The SDR section service's volume, for its recordings folder: when the
+      # `sdr` service runs and the app still hosts the radio hub, IQ captures
+      # are written straight into it (SDR_SERVICE_RECORDINGS_DIR below).
+      - sdr_data:/sdr-service-data
     environment:
       - DB_PATH=/app/data/sentinel.db
+      # Where the radio hub writes IQ captures once the SDR section runs in its
+      # own container (`sdr` in SENTINEL_EXTERNAL_SERVICES); unused otherwise.
+      - SDR_SERVICE_RECORDINGS_DIR=/sdr-service-data/recordings
       # Service registration (section-containers plan §3.2): sections running in
       # their own containers (e.g. the `space` profile) register with the app
       # using a join token. Unset, the app generates one into the shared
@@ -73,7 +80,7 @@ services:
       - SENTINEL_JOIN_TOKEN=${SENTINEL_JOIN_TOKEN:-}
       - SENTINEL_JOIN_TOKEN_FILE=/run/sentinel/join-token
       # Sections the app must NOT host itself because they run in their own
-      # containers (comma-separated, e.g. `space,land,air,sea,radio-hub`). A section container takes
+      # containers (comma-separated, e.g. `space,land,air,sea,radio-hub,sdr`). A section container takes
       # its section over from the app anyway; listing it here also skips the
       # app's copy, and keeps the section gone when its container is stopped.
       - SENTINEL_EXTERNAL_SERVICES=${SENTINEL_EXTERNAL_SERVICES:-}
@@ -274,19 +281,51 @@ services:
       - *backend-code
       - *join-token-ro
       - decoder_secret:/run/decoder   # writes the decoders' ingest secret
-      # The app's data volume again, for the SDR section's recordings folder:
-      # IQ captures are written straight into it (IQ_CAPTURE_DIR below), so the
-      # app finds each <id>.u8 the moment the hub stops writing it.
+      # The SDR section's recordings folder, wherever the SDR section runs: IQ
+      # captures are written straight into it, so the SDR section finds each
+      # <id>.u8 the moment the hub stops writing it. The app's data volume when
+      # the app hosts SDR (IQ_CAPTURE_DIR), the `sdr` service's own volume when
+      # it runs in its own container (SDR_SERVICE_RECORDINGS_DIR) — the hub
+      # picks by SENTINEL_EXTERNAL_SERVICES, so there is nothing to set.
       - sentinel_db:/sdr-data
+      - sdr_data:/sdr-service-data
     environment:
       <<: *section-env
       DB_PATH: /app/data/radio-hub.db
       SERVICE_INTERNAL_URL: http://radio-hub:8000
       IQ_CAPTURE_DIR: /sdr-data/recordings
+      SDR_SERVICE_RECORDINGS_DIR: /sdr-service-data/recordings
+      SENTINEL_EXTERNAL_SERVICES: ${SENTINEL_EXTERNAL_SERVICES:-}
       # The decoders' ingest secret; empty uses the auto-generated file. The PCM
       # and voice ports keep the app's defaults (7355–7358).
       DECODER_INGEST_SECRET: ${SENTINEL_DECODER_SECRET:-}
     command: uv run uvicorn backend.standalone.radio_hub:app --host 0.0.0.0 --port 8000 --reload
+
+  # The SDR section as its own service (P6.6). OPT-IN: `--profile sdr`.
+  # Same pattern as the sections above: registers with the app and takes
+  # /api/sdr/ and /remotes/sdr/ over — only the rest of /api/sdr/ (stored
+  # frequencies, groups, search ranges, band plan, recordings): the radio
+  # hub's longer prefixes and Air's /api/sdr/adsb/ stay where they are. Its
+  # tables live in its own database on sdr_data, copied from the app's on
+  # first boot together with the recordings' WAV/IQ files. The band plan and
+  # the other SDR settings stay in the app. Raw-IQ captures go through the
+  # radio hub over NATS, and the hub writes them into this volume, which is
+  # why it is mounted into the app and the radio-hub service too.
+  sdr:
+    <<: *section-service
+    container_name: sentinel-sdr
+    profiles: ["sdr"]
+    volumes:
+      - sdr_data:/app/data
+      - *legacy-db
+      - *backend-code
+      - *spa-dist
+      - *join-token-ro
+    environment:
+      <<: *section-env
+      DB_PATH: /app/data/sdr.db
+      SERVICE_INTERNAL_URL: http://sdr:8000
+    command: uv run uvicorn backend.standalone.sdr:app --host 0.0.0.0 --port 8000 --reload
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
@@ -500,6 +539,7 @@ volumes:
   air_data:
   sea_data:
   radio_hub_data:
+  sdr_data:
 
 networks:
   sentinel:

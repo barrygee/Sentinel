@@ -188,6 +188,7 @@ type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.standalone.sdr",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",

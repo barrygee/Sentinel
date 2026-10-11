@@ -27,9 +27,9 @@ from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
 # The services that have a standalone entry point (`backend/standalone/`) and
-# whose routers `backend/main.py` can leave out. Grows one section at a time
-# through P6.
-EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio-hub"})
+# whose routers `backend/main.py` can leave out: since P6.6, every one but
+# bus and core.
+EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio-hub", "sdr"})
 
 # Every module, in lifecycle order (see above), with the service it belongs
 # to. bus and core are this process itself and never run elsewhere.

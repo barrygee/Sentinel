@@ -26,11 +26,10 @@ import logging
 from pathlib import Path
 
 from backend.cache import now_ms
-from backend.config import settings
-from backend.database import get_db, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
-from backend.db_helpers import get_setting
+from backend.database import get_db, sdr_recordings_dir, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
 from backend.platform.bus import bus
+from backend.platform.settings_client import read_namespace, read_setting
 from backend.services.sdr_data import write_sdr_frequencies_file
 from backend.services.sdr_frequencies import reconcile_sdr_frequencies
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -238,7 +237,7 @@ def _recording_to_dict(r: SdrRecording) -> dict:
 
 
 def _recordings_dir() -> Path:
-    return Path(settings.db_path).parent / "recordings"
+    return sdr_recordings_dir()
 
 
 # ── Group CRUD ────────────────────────────────────────────────────────────────
@@ -493,11 +492,13 @@ async def delete_search_range(range_id: int, db: AsyncSession = Depends(get_db))
 async def get_sdr_data_frequencies(db: AsyncSession = Depends(get_db)):
     """Return {groups, frequencies, searchRanges} as the textarea source — the
     current DB state mirrored into the flat config representation."""
+    # Core's settings, read in one go: remotely each read is a round trip to core.
+    sdr_settings = await read_namespace(db, "sdr")
     return JSONResponse(
         {
-            "groups": await get_setting(db, "sdr", "groups", default=[]),
-            "frequencies": await get_setting(db, "sdr", "frequencies", default=[]),
-            "searchRanges": await get_setting(db, "sdr", "searchRanges", default=[]),
+            "groups": sdr_settings.get("groups", []),
+            "frequencies": sdr_settings.get("frequencies", []),
+            "searchRanges": sdr_settings.get("searchRanges", []),
         }
     )
 
@@ -585,7 +586,7 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
     await db.refresh(rec)
 
     # Check if raw IQ recording is enabled in settings
-    record_iq = await get_setting(db, "sdr", "recordRawIq", default=False) is True
+    record_iq = await read_setting(db, "sdr", "recordRawIq", default=False) is True
 
     if record_iq and body.radio_id is not None:
         # The radio hub taps the radio's IQ and writes <rec.id>.u8 into the

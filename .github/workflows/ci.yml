@@ -283,9 +283,14 @@ jobs:
   # per deployment of the extracted sections (section-containers plan P6: "e2e
   # green with the section present *and* absent"):
   #   monolith          the app hosts every section, as `docker compose up` does.
-  #   sections-service  Space, Land, Air and Sea run in their own containers and the app
-  #                     does NOT host them, so only the containers can answer.
-  #   sections-absent   the app does not host them and no container runs them.
+  #   sections-service  Space, Land, Air, Sea, SDR and the radio hub run in their own
+  #                     containers and the app does NOT host them, so only the
+  #                     containers can answer.
+  #   sections-absent   the app does not host them and no container runs them —
+  #                     except SDR, kept in the app so the shell has a section to show.
+  #   sdr-absent        only SDR is gone (the app hosts the rest, the radio hub
+  #                     included): the shell boots without the SDR remote, whose
+  #                     audio engine it otherwise loads eagerly.
   gateway-smoke:
     name: gateway-smoke (${{ matrix.deployment }})
     runs-on: ubuntu-latest
@@ -299,15 +304,20 @@ jobs:
             services: app gateway nats
             sections: ''
           - deployment: sections-service
-            external_services: space,land,air,sea,radio-hub
-            profiles: space,land,air,sea,radio-hub
-            services: app gateway nats space land air sea radio-hub
-            sections: space:service,land:service,air:service,sea:service,radio-hub:service
+            external_services: space,land,air,sea,radio-hub,sdr
+            profiles: space,land,air,sea,radio-hub,sdr
+            services: app gateway nats space land air sea radio-hub sdr
+            sections: space:service,land:service,air:service,sea:service,radio-hub:service,sdr:service
           - deployment: sections-absent
             external_services: space,land,air,sea,radio-hub
             profiles: ''
             services: app gateway nats
             sections: space:absent,land:absent,air:absent,sea:absent,radio-hub:absent
+          - deployment: sdr-absent
+            external_services: sdr
+            profiles: ''
+            services: app gateway nats
+            sections: sdr:absent
     env:
       SENTINEL_EXTERNAL_SERVICES: ${{ matrix.external_services }}
       COMPOSE_PROFILES: ${{ matrix.profiles }}
@@ -361,6 +371,8 @@ jobs:
               && curl -fsS -o /dev/null http://localhost:8080/api/land/aprs/stations \
               && curl -fsS -o /dev/null http://localhost:8080/api/air/tracking \
               && curl -fsS -o /dev/null http://localhost:8080/api/sea/ais-key \
+              && echo "$sections" | grep -q '"id":"sdr"' \
+              && curl -fsS http://localhost:8080/api/sdr/groups | grep -q '^\[' \
               && curl -fsS http://localhost:8080/api/sdr/radios | grep -q '^\['; then exit 0; fi
             sleep 2
           done

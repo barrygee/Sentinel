@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.config import settings
+from backend.modules import hosts_in_process
 from backend.platform.bus import EventPayload, bus
 from backend.radio_hub import radios as radio_registry
 from backend.radio_hub.services import sdr as sdr_svc
@@ -48,9 +49,15 @@ def iq_capture_dir() -> Path:
     The folder the SDR section serves recordings from. In the monolith the two
     share it; the hub's own container (P6.5) sets ``IQ_CAPTURE_DIR`` to that
     same folder on the app's volume, so the SDR section still finds the file
-    the moment the hub replies to ``stop``. Both containers must share a host
-    for that — serving captures from the hub instead is multi-host work (P7).
+    the moment the hub replies to ``stop``. Once the SDR section runs in its
+    own container (P6.6) its recordings are on its own volume, which compose
+    mounts wherever the hub runs (``SDR_SERVICE_RECORDINGS_DIR``); which of
+    the two applies follows ``SENTINEL_EXTERNAL_SERVICES``, so the operator
+    sets nothing extra. Hub and SDR must share a host for that — serving
+    captures from the hub instead is multi-host work (P7).
     """
+    if settings.sdr_service_recordings_dir and not hosts_in_process("sdr"):
+        return Path(settings.sdr_service_recordings_dir)
     if settings.iq_capture_dir:
         return Path(settings.iq_capture_dir)
     return Path(settings.db_path).parent / "recordings"

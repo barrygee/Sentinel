@@ -472,11 +472,35 @@ spectrum WebSocket streaming through the gateway. Two deployment changes:
 - **IQ captures** still land where the SDR section serves recordings from: the hub's `IQ_CAPTURE_DIR` points at
   that folder on the app's volume (mounted a second time into the hub container), so the app finds `<id>.u8` as
   soon as the hub replies to `hub.iq-capture.stop`. This needs a shared host. Proxying captures from the hub
-  replaces it in P7, and the folder moves with the SDR section in P6.6.
+  replaces it in P7. The folder moved with the SDR section in P6.6 (below).
 
 With the hub stopped, its prefixes are a JSON 503 from the gateway while the SDR section's own routes keep working.
 With the hub absent (never registered), `/api/sdr/radios` falls through to the app's SPA catch-all, as an absent
 section's API does.
+
+*As built (P6.6, SDR):* the last extraction. The SDR section runs as `backend.standalone.sdr` (compose service and
+profile `sdr`, `sdr.db` on `sdr_data`) and serves the rest of `/api/sdr/`: stored frequencies, groups, search ranges,
+the band plan editor and recordings. Every other `/api/sdr/` path is a longer prefix (the hub's, or Air's
+`/api/sdr/adsb/`), so the gateway needed no change; `main.py` still includes the SDR and hub routers interleaved
+when it hosts both, which keeps the route-order golden, and includes either alone otherwise. Three things were new:
+- **Settings mirrors.** The SDR section mirrors its tables into core's settings (`sdr.groups`, `sdr.frequencies`,
+  `sdr.searchRanges`) after every edit, so the live config file keeps showing them, and seeds `sdr.bandPlan`, which
+  the waterfall reads from core. Those reads and writes, and `sdr.recordRawIq`, now go through the settings client.
+  In the monolith that makes them announce `settings.changed.sdr`, which nothing subscribes to.
+- **Recordings move with the section.** They live next to its database (`recordings/` on `sdr_data`), and legacy
+  import copies the WAV and `.u8` files of the recordings it copied (`import_legacy_files`). It does that only on the
+  boot that copied `sdr_recordings`, so a recording deleted since doesn't come back. The radio hub writes IQ
+  captures into whichever folder the live SDR section serves: `IQ_CAPTURE_DIR` (the app's volume) while the app
+  hosts SDR, and `SDR_SERVICE_RECORDINGS_DIR` (`sdr_data`, mounted into both the app and the `radio-hub` service)
+  once `sdr` is in `SENTINEL_EXTERNAL_SERVICES`, which the hub's container now receives too. The operator lists
+  `sdr` on the two usual `.env` lines and sets nothing else. This still needs one host (P7).
+- **No section is always present any more.** CI's absent leg keeps SDR in the app, so the shell still has a section
+  to show, and a fourth leg, `sdr-absent`, removes only SDR. That leg shows the shell boots without the SDR
+  remote, whose audio engine it otherwise loads eagerly.
+
+Verified on an isolated composed stack with a fake rtl_tcp: legacy import (five tables, two files), the mirrors
+reaching core, and IQ captures landing on `sdr_data` with the hub in its own container and with the hub in the
+app. All four gateway-smoke legs passed locally.
 
 ### 4.5 Security
 - **Join token:** `SENTINEL_JOIN_TOKEN` lives in `.env` and is never committed. It gates registration, and core issues

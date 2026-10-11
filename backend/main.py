@@ -13,7 +13,6 @@ from backend.error_handlers import request_validation_error_handler
 from backend.modules import MANIFESTS, MODULES, external_services, hosts_in_process
 from backend.platform.lifecycle import run_lifecycles
 from backend.routers import offline_map
-from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -77,6 +76,9 @@ app.include_router(settings_router.router)
 # single SDR router registered them in (the parity route-inventory golden pins it).
 # Like a section, an external hub (P6.5) isn't even imported: its modules answer
 # `hub.*` bus requests at import, and would do so here instead of in its container.
+# Either can run in its own container without the other; the gateway's longest
+# prefix match keeps each one's paths apart (the hub's are all longer than
+# the SDR section's /api/sdr/).
 hosts_radio_hub = hosts_in_process("radio-hub")
 if hosts_radio_hub:
     from backend.radio_hub.routers import decode as hub_decode_router
@@ -86,7 +88,10 @@ if hosts_radio_hub:
     from backend.radio_hub.routers import sentry as sentry_router
 
     app.include_router(hub_radios_router.router)
-app.include_router(sdr_router.router)
+if hosts_in_process("sdr"):
+    from backend.routers import sdr as sdr_router
+
+    app.include_router(sdr_router.router)
 if hosts_radio_hub:
     app.include_router(hub_radio_control_router.router)
     app.include_router(hub_decode_router.router)

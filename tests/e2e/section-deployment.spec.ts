@@ -18,7 +18,7 @@ import { deploymentOf, isDeployed } from './support/sectionDeployment';
  *
  * And for the radio hub (P6.5), which has no nav entry or remote of its own:
  *   6. Its radio API answers with JSON when deployed, and isn't served when absent.
- *   7. Absent, the SDR section it sits inside still answers and opens.
+ *   7. Absent, the SDR section it sits inside still answers and opens (when deployed).
  */
 
 interface ExtractedSection {
@@ -42,10 +42,17 @@ const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
     // The AIS key status: answered without dialling AISStream, and in `service`
     // mode it is read from core over the join-token-gated internal route.
     { id: 'sea', label: /sea/i, probePath: '/api/sea/ais-key', enabledByDefault: true },
+    // Frequency groups: the SDR section's own table, not the radio hub's.
+    { id: 'sdr', label: /sdr/i, probePath: '/api/sdr/groups', enabledByDefault: true },
 ];
 
-/** Sections every deployment keeps, enabled by default — what must survive an absent one. */
-const ALWAYS_PRESENT = ['sdr'];
+/**
+ * The sections this stack deploys that are enabled by default — what must
+ * survive an absent one. Every gateway-smoke leg deploys at least one.
+ */
+const PRESENT_SECTIONS = EXTRACTED_SECTIONS.filter(
+    (section) => section.enabledByDefault && isDeployed(section.id),
+).map((section) => section.id);
 
 interface DeployedSection {
     id: string;
@@ -101,7 +108,7 @@ for (const section of EXTRACTED_SECTIONS) {
                 expect(listed).toBeUndefined();
             }
             expect(sections.map((listedSection) => listedSection.id)).toEqual(
-                expect.arrayContaining(ALWAYS_PRESENT),
+                expect.arrayContaining(PRESENT_SECTIONS),
             );
         });
 
@@ -174,7 +181,7 @@ for (const section of EXTRACTED_SECTIONS) {
                 await expect(page).toHaveURL(/\/(air|space|sea|land|sdr)\/$/);
                 const domainNav = page.getByRole('navigation', { name: /domains/i });
                 await expect(domainNav.getByRole('link', { name: section.label })).toHaveCount(0);
-                for (const presentSection of ALWAYS_PRESENT) {
+                for (const presentSection of PRESENT_SECTIONS) {
                     await expect(
                         domainNav.getByRole('link', { name: new RegExp(presentSection, 'i') }),
                     ).toBeAttached();
@@ -196,9 +203,11 @@ test.describe(`radio-hub (${deploymentOf('radio-hub')})`, () => {
         const response = await request.get('/api/sdr/radios');
 
         if (!deployed) {
-            // Nothing registers /api/sdr/radios, so it is not an API at all —
-            // the app's SPA fallback, never a stale copy of the hub.
-            expect(response.headers()['content-type'] ?? '').not.toContain('application/json');
+            // Nothing registers /api/sdr/radios, so it is never a radio list
+            // (a stale copy of the hub): the app's SPA fallback, or the SDR
+            // section's own 404 when that section runs in its own container.
+            const isJson = (response.headers()['content-type'] ?? '').includes('application/json');
+            expect(response.ok() && isJson).toBe(false);
             return;
         }
         // In `service` mode the app has no radio routes, so a JSON list can
@@ -212,7 +221,9 @@ test.describe(`radio-hub (${deploymentOf('radio-hub')})`, () => {
         page,
         request,
     }) => {
-        // The SDR section's own API (frequency groups) is the app's, not the hub's.
+        test.skip(!isDeployed('sdr'), 'the SDR section is not deployed');
+
+        // The SDR section's own API (frequency groups) is never the hub's.
         const groups = await request.get('/api/sdr/groups');
         expect(groups.status()).toBe(200);
         expect(Array.isArray(await groups.json())).toBe(true);
