@@ -3,14 +3,15 @@
 Owned by core rather than by whichever section first needs it (Air used to
 generate it for ADS-B reservations): the radio hub sends it verbatim to Sentry
 as the reservation holder, so it must outlive any one section and keep the
-same key in the config file.
+same key in the config file. It is read and written through the settings
+client, because the hub that needs it may run in its own container (P6.5).
 """
 
 from __future__ import annotations
 
 import uuid
 
-from backend.db_helpers import get_setting, upsert_setting
+from backend.platform.settings_client import read_setting, write_setting
 from sqlalchemy.ext.asyncio import AsyncSession
 
 INSTANCE_ID_NAMESPACE = "app"
@@ -26,9 +27,9 @@ async def get_instance_id(db: AsyncSession) -> str:
     is holding the moment it restarted, and it would have to wait out the lease
     it took itself.
     """
-    stored = await get_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY)
+    stored = await read_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY)
     if isinstance(stored, str) and stored:
         return stored
     generated = f"sentinel:{uuid.uuid4()}"
-    await upsert_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY, generated)
+    await write_setting(db, INSTANCE_ID_NAMESPACE, INSTANCE_ID_KEY, generated)
     return generated

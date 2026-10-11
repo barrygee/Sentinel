@@ -204,7 +204,7 @@ name = "Radio hub imports no section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.radio_hub", "backend.modules.radio_hub",
+    "backend.radio_hub", "backend.modules.radio_hub", "backend.standalone.radio_hub",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",

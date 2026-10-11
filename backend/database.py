@@ -80,6 +80,7 @@ SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
 LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
+RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
 
 
 async def _add_columns(conn, alter_statements) -> None:
@@ -130,6 +131,16 @@ async def create_sea_tables() -> None:
     key is not Sea's to store: it is a setting, kept in core (secret).
     """
     await create_section_tables(SEA_TABLES)
+
+
+async def create_radio_hub_tables() -> None:
+    """The radio hub service's schema (P6.5): the Sentry hosts it polls and claims dongles through.
+
+    `sentry_hosts` has not gained a column since its first release. The radios
+    themselves (`sdr.radios`) are not the hub's to store: they are a setting,
+    kept in core.
+    """
+    await create_section_tables(RADIO_HUB_TABLES)
 
 
 async def create_tables():

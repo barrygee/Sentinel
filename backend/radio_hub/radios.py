@@ -1,8 +1,10 @@
 """The radio hub's view of configured radios (`sdr.radios`) and their live IQ.
 
-`sdr.radios` stays a core setting (plan B7) — the hub only reads and writes it.
-These lookups are shared by every hub router: radio CRUD, connection control,
-the spectrum/IQ WebSockets and the decode bridges.
+`sdr.radios` stays a core setting (plan B7) — the hub only reads and writes it,
+through the settings client, so the same code works when the hub runs in its
+own container and the setting is core's, over HTTP (P6.5). These lookups are
+shared by every hub router: radio CRUD, connection control, the spectrum/IQ
+WebSockets and the decode bridges.
 """
 
 from __future__ import annotations
@@ -11,7 +13,7 @@ import asyncio
 import json
 import logging
 
-from backend.db_helpers import get_setting, upsert_setting
+from backend.platform.settings_client import read_setting, write_setting
 from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services.sentry_fleet import fleet_poller
 from fastapi import WebSocket
@@ -21,14 +23,14 @@ logger = logging.getLogger(__name__)
 
 
 async def get_radios(db: AsyncSession) -> list[dict]:
-    """Read the sdr.radios array from UserSettings. Returns [] if not set."""
-    val = await get_setting(db, "sdr", "radios", default=[])
-    return val if isinstance(val, list) else []
+    """Read the sdr.radios array. Returns [] if not set."""
+    radios = await read_setting(db, "sdr", "radios", default=[])
+    return radios if isinstance(radios, list) else []
 
 
 async def save_radios(db: AsyncSession, radios: list[dict]) -> None:
-    """Write the sdr.radios array back to UserSettings (upsert)."""
-    await upsert_setting(db, "sdr", "radios", radios)
+    """Write the sdr.radios array back, announcing it like a Settings save."""
+    await write_setting(db, "sdr", "radios", radios)
 
 
 def get_radio_by_id(radios: list[dict], radio_id: int) -> dict | None:
