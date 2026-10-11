@@ -15,13 +15,16 @@ default_config.json:
 Each file seeds the DB on startup and is written back on every edit (atomic,
 fail-soft) — the same pattern as backend/services/sat_radio.py. The DB /
 UserSettings copy stays authoritative at runtime.
+
+The UserSettings copies are core's settings, so they go through the settings
+client: over HTTP when the SDR section runs in its own container (P6.6).
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from backend.db_helpers import get_setting, upsert_setting
+from backend.platform.settings_client import read_namespace, read_setting, write_setting
 from backend.services.json_store import DATA_DIR, load_json_file, write_json_file
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,11 +69,13 @@ async def write_sdr_frequencies_file(db: AsyncSession) -> bool:
     mirror (UserSettings, kept current by the sync_* helpers) and write the
     file. Call right after `sync_sdr_groups_to_config` /
     `sync_sdr_search_ranges_to_config` so the file matches the tables."""
+    # One read for all three: remotely, each read is a round trip to core.
+    sdr_settings = await read_namespace(db, "sdr")
     payload: dict[str, Any] = {
         "_comment": _FREQ_COMMENT,
-        "groups": await get_setting(db, "sdr", "groups", default=[]),
-        "frequencies": await get_setting(db, "sdr", "frequencies", default=[]),
-        "searchRanges": await get_setting(db, "sdr", "searchRanges", default=[]),
+        "groups": sdr_settings.get("groups", []),
+        "frequencies": sdr_settings.get("frequencies", []),
+        "searchRanges": sdr_settings.get("searchRanges", []),
     }
     return write_json_file(FREQUENCIES_FILE, payload)
 
@@ -130,13 +135,13 @@ def load_sdr_bandplan_file() -> list:
 
 async def get_bandplan(db: AsyncSession) -> list:
     """Return the persisted bandPlan from UserSettings (empty if unset)."""
-    val = await get_setting(db, "sdr", "bandPlan", default=[])
+    val = await read_setting(db, "sdr", "bandPlan", default=[])
     return val if isinstance(val, list) else []
 
 
 async def set_bandplan(db: AsyncSession, bandplan: list) -> None:
     """Persist the bandPlan into UserSettings and write the file back."""
-    await upsert_setting(db, "sdr", "bandPlan", bandplan)
+    await write_setting(db, "sdr", "bandPlan", bandplan)
     write_sdr_bandplan_file(bandplan)
 
 

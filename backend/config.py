@@ -333,6 +333,11 @@ class Settings(BaseSettings):
     # own container points this at the SDR section's folder on the app's
     # volume (P6.5).
     iq_capture_dir: str = ""
+    # Where the radio hub writes them instead once the SDR section runs in its
+    # own container (`sdr` in SENTINEL_EXTERNAL_SERVICES, P6.6): that service's
+    # recordings folder, on its own volume, mounted into whichever container
+    # hosts the hub. Empty falls back to `iq_capture_dir`.
+    sdr_service_recordings_dir: str = ""
 
     class Config:
         env_file = ".env"
