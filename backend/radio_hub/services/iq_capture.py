@@ -45,10 +45,14 @@ _active_captures: dict[int, tuple[sdr_svc.RadioBroadcaster, asyncio.Queue]] = {}
 def iq_capture_dir() -> Path:
     """Where capture files are written: ``<capture dir>/<capture_id>.u8``.
 
-    The same folder the SDR section serves recordings from — in the monolith the
-    two share it. When the hub is extracted (P6) this becomes the hub's volume
-    and the SDR section proxies ``GET /api/sdr/recordings/{id}/iq`` instead.
+    The folder the SDR section serves recordings from. In the monolith the two
+    share it; the hub's own container (P6.5) sets ``IQ_CAPTURE_DIR`` to that
+    same folder on the app's volume, so the SDR section still finds the file
+    the moment the hub replies to ``stop``. Both containers must share a host
+    for that — serving captures from the hub instead is multi-host work (P7).
     """
+    if settings.iq_capture_dir:
+        return Path(settings.iq_capture_dir)
     return Path(settings.db_path).parent / "recordings"
 
 

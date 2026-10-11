@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { isDeployed } from './support/sectionDeployment';
 
 /**
  * Gateway smoke suite — what the Caddy gateway in front of the composed stack
@@ -99,6 +100,8 @@ test('the alerts SSE stream reaches the browser unbuffered', async ({ page }) =>
 });
 
 test('the SDR WebSocket upgrades through the gateway', async ({ page }) => {
+    test.skip(!isDeployed('radio-hub'), 'The radio hub is not deployed');
+
     await page.goto('/air/');
     // No radio 999 exists; the hub may close straight after, but the upgrade
     // itself proves the gateway proxies WebSockets to it.

@@ -327,6 +327,12 @@ class Settings(BaseSettings):
     # boot so it can copy its own tables out of it (legacy import, plan §4.3).
     # Empty or missing skips the import.
     legacy_db_path: str = ""
+    # Where the radio hub writes raw-IQ captures (`<id>.u8`). They belong to
+    # the SDR section's recordings, which it serves from `<dir of db_path>/recordings`;
+    # empty means that same folder (one process hosts both). The radio hub's
+    # own container points this at the SDR section's folder on the app's
+    # volume (P6.5).
+    iq_capture_dir: str = ""
 
     class Config:
         env_file = ".env"

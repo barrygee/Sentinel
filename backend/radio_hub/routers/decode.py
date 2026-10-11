@@ -14,9 +14,9 @@ import logging
 import secrets
 
 from backend.database import get_db
-from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.aprs_channel import read_aprs_channel_hz
 from backend.platform.bus import bus
+from backend.platform.settings_client import read_setting, write_setting
 from backend.radio_hub import radios as radio_registry
 from backend.radio_hub.services import manifest_decode, sdr_decode
 from backend.radio_hub.services import sdr as sdr_svc
@@ -161,7 +161,7 @@ async def aprs_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get
     # was started for (it is keyed internally by host:port).
     bridge.radio_id = body.radio_id
     await bridge.start(bw_hz=body.bw_hz or None)
-    await upsert_setting(db, "sdr", "aprs_radio_id", body.radio_id)
+    await write_setting(db, "sdr", "aprs_radio_id", body.radio_id)
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": True})
 
 
@@ -173,7 +173,7 @@ async def aprs_stop(body: PacketDecodeControlIn, db: AsyncSession = Depends(get_
     if not radio:
         raise HTTPException(404, "Radio not found")
     await sdr_decode.stop_aprs_bridge(radio["host"], radio["port"])
-    await upsert_setting(db, "sdr", "aprs_radio_id", None)
+    await write_setting(db, "sdr", "aprs_radio_id", None)
     return JSONResponse({"status": "ok", "radio_id": body.radio_id, "active": False})
 
 
@@ -313,7 +313,7 @@ async def resume_persisted_aprs() -> None:
     from backend.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
-        radio_id = await get_setting(db, "sdr", "aprs_radio_id", default=None)
+        radio_id = await read_setting(db, "sdr", "aprs_radio_id", default=None)
         if not isinstance(radio_id, int):
             return
         radios = await radio_registry.get_radios(db)
@@ -411,7 +411,7 @@ async def start_ais_on_radio(db: AsyncSession, radio_id: int, *, bw_hz: int = 0)
     # was started for (it is keyed internally by host:port).
     bridge.radio_id = radio_id
     await bridge.start(bw_hz=bw_hz or None)
-    await upsert_setting(db, "sdr", "ais_radio_id", radio_id)
+    await write_setting(db, "sdr", "ais_radio_id", radio_id)
     return {"ok": True}
 
 
@@ -427,7 +427,7 @@ async def stop_ais_on_radio(db: AsyncSession, radio_id: int) -> dict:
     if not radio:
         return {"ok": False, "reason": "unknown_radio", "message": "Radio not found"}
     await sdr_decode.stop_ais_bridge(radio["host"], radio["port"])
-    await upsert_setting(db, "sdr", "ais_radio_id", None)
+    await write_setting(db, "sdr", "ais_radio_id", None)
     return {"ok": True}
 
 
@@ -570,7 +570,7 @@ async def resume_persisted_ais() -> None:
     from backend.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
-        radio_id = await get_setting(db, "sdr", "ais_radio_id", default=None)
+        radio_id = await read_setting(db, "sdr", "ais_radio_id", default=None)
         if not isinstance(radio_id, int):
             return
         radios = await radio_registry.get_radios(db)

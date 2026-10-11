@@ -12,11 +12,6 @@ from backend.core.service_registry import registry
 from backend.error_handlers import request_validation_error_handler
 from backend.modules import MANIFESTS, MODULES, external_services, hosts_in_process
 from backend.platform.lifecycle import run_lifecycles
-from backend.radio_hub.routers import decode as hub_decode_router
-from backend.radio_hub.routers import decoders as hub_decoders_router
-from backend.radio_hub.routers import radio_control as hub_radio_control_router
-from backend.radio_hub.routers import radios as hub_radios_router
-from backend.radio_hub.routers import sentry as sentry_router
 from backend.routers import offline_map
 from backend.routers import sdr as sdr_router
 from backend.routers import settings as settings_router
@@ -80,12 +75,23 @@ app.include_router(settings_router.router)
 # The radio hub (backend/radio_hub/) and the SDR section share the /api/sdr/
 # prefix. They are included interleaved so the routes keep exactly the order the
 # single SDR router registered them in (the parity route-inventory golden pins it).
-app.include_router(hub_radios_router.router)
+# Like a section, an external hub (P6.5) isn't even imported: its modules answer
+# `hub.*` bus requests at import, and would do so here instead of in its container.
+hosts_radio_hub = hosts_in_process("radio-hub")
+if hosts_radio_hub:
+    from backend.radio_hub.routers import decode as hub_decode_router
+    from backend.radio_hub.routers import decoders as hub_decoders_router
+    from backend.radio_hub.routers import radio_control as hub_radio_control_router
+    from backend.radio_hub.routers import radios as hub_radios_router
+    from backend.radio_hub.routers import sentry as sentry_router
+
+    app.include_router(hub_radios_router.router)
 app.include_router(sdr_router.router)
-app.include_router(hub_radio_control_router.router)
-app.include_router(hub_decode_router.router)
-app.include_router(hub_decoders_router.router)
-app.include_router(sentry_router.router)
+if hosts_radio_hub:
+    app.include_router(hub_radio_control_router.router)
+    app.include_router(hub_decode_router.router)
+    app.include_router(hub_decoders_router.router)
+    app.include_router(sentry_router.router)
 if hosts_in_process("air"):
     # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
     app.include_router(adsb_source_router.router)
@@ -95,8 +101,8 @@ app.include_router(registry_router.router)
 # Secret settings for their owning service (Sea's AISStream key), join-token gated.
 app.include_router(settings_secrets.router)
 
-# This process hosts every section (and the radio hub) until each moves into its
-# own container (P6); register them now, at import, so they are listed before
+# Register the sections (and the radio hub) this process hosts — every one not
+# in SENTINEL_EXTERNAL_SERVICES — now, at import, so they are listed before
 # the first request — and in tests, which skip the lifespan.
 registry.register_in_process(list(MANIFESTS), instance_id="core")
 
