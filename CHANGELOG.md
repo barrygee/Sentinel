@@ -209,6 +209,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the Sea section as its own service (P6.4)
 - Log when a section service connects to core
 - Run the radio hub as its own service (P6.5)
+- Run the SDR section as its own service (P6.6)
 
 ### Bug Fixes
 
@@ -1463,6 +1464,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #448 from barrygee/feat/log-core-connected
 - Merge pull request #449 from barrygee/feat/p6-5-radio-hub-service
 - Merge pull request #450 from barrygee/fix/decoder-hub-wait-logging
+- Merge pull request #451 from barrygee/feat/p6-6-sdr-service
 
 ### Refactoring
 
@@ -1581,6 +1583,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record P6.2 Land as built
 - Record P6.3 Air as built
 - Record the radio hub extraction as built (P6.5)
+- Record the SDR section extraction as built (P6.6)
 
 ### Tests
 
@@ -1649,6 +1652,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the connected-to-core log line
 - Cover the standalone radio hub service
 - Cover logging of radio hub outages and recovery
+- Cover the standalone SDR service and the legacy file import
 
 ### Build System
 
@@ -1696,6 +1700,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split and absent legs cover Space and Land
 - Split and absent legs include Air
 - Run the radio hub as a service and absent
+- Run the SDR section as a service and absent
 
 ### Styling
 
