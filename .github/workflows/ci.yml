@@ -299,15 +299,15 @@ jobs:
             services: app gateway nats
             sections: ''
           - deployment: sections-service
-            external_services: space,land,air,sea
-            profiles: space,land,air,sea
-            services: app gateway nats space land air sea
-            sections: space:service,land:service,air:service,sea:service
+            external_services: space,land,air,sea,radio-hub
+            profiles: space,land,air,sea,radio-hub
+            services: app gateway nats space land air sea radio-hub
+            sections: space:service,land:service,air:service,sea:service,radio-hub:service
           - deployment: sections-absent
-            external_services: space,land,air,sea
+            external_services: space,land,air,sea,radio-hub
             profiles: ''
             services: app gateway nats
-            sections: space:absent,land:absent,air:absent,sea:absent
+            sections: space:absent,land:absent,air:absent,sea:absent,radio-hub:absent
     env:
       SENTINEL_EXTERNAL_SERVICES: ${{ matrix.external_services }}
       COMPOSE_PROFILES: ${{ matrix.profiles }}
@@ -360,7 +360,8 @@ jobs:
               && curl -fsS -o /dev/null http://localhost:8080/api/space/daynight \
               && curl -fsS -o /dev/null http://localhost:8080/api/land/aprs/stations \
               && curl -fsS -o /dev/null http://localhost:8080/api/air/tracking \
-              && curl -fsS -o /dev/null http://localhost:8080/api/sea/ais-key; then exit 0; fi
+              && curl -fsS -o /dev/null http://localhost:8080/api/sea/ais-key \
+              && curl -fsS http://localhost:8080/api/sdr/radios | grep -q '^\['; then exit 0; fi
             sleep 2
           done
           echo "::error::the section services never registered behind the gateway"

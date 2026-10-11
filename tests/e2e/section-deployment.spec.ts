@@ -15,6 +15,10 @@ import { deploymentOf, isDeployed } from './support/sectionDeployment';
  *   3. Its remote entry is served, uncached, when deployed — and is a 404 when absent.
  *   4. The shell offers it in the nav and opens its view when deployed.
  *   5. Absent: no nav link, its route falls back to the first deployed section, the rest still loads.
+ *
+ * And for the radio hub (P6.5), which has no nav entry or remote of its own:
+ *   6. Its radio API answers with JSON when deployed, and isn't served when absent.
+ *   7. Absent, the SDR section it sits inside still answers and opens.
  */
 
 interface ExtractedSection {
@@ -182,3 +186,47 @@ for (const section of EXTRACTED_SECTIONS) {
         });
     });
 }
+
+test.describe(`radio-hub (${deploymentOf('radio-hub')})`, () => {
+    const deployed = isDeployed('radio-hub');
+
+    test('its radio API answers with JSON when deployed, and is not served when absent', async ({
+        request,
+    }) => {
+        const response = await request.get('/api/sdr/radios');
+
+        if (!deployed) {
+            // Nothing registers /api/sdr/radios, so it is not an API at all —
+            // the app's SPA fallback, never a stale copy of the hub.
+            expect(response.headers()['content-type'] ?? '').not.toContain('application/json');
+            return;
+        }
+        // In `service` mode the app has no radio routes, so a JSON list can
+        // only have come from the hub's container.
+        expect(response.status()).toBe(200);
+        expect(response.headers()['content-type']).toContain('application/json');
+        expect(Array.isArray(await response.json())).toBe(true);
+    });
+
+    test('the SDR section answers and opens whether or not the hub is deployed', async ({
+        page,
+        request,
+    }) => {
+        // The SDR section's own API (frequency groups) is the app's, not the hub's.
+        const groups = await request.get('/api/sdr/groups');
+        expect(groups.status()).toBe(200);
+        expect(Array.isArray(await groups.json())).toBe(true);
+
+        await page.goto('/sdr/');
+        await waitForShellHydration(page);
+        const domainNav = page.getByRole('navigation', { name: /domains/i });
+        await expect(domainNav.getByRole('link', { name: /sdr/i })).toHaveAttribute(
+            'aria-current',
+            'page',
+            { timeout: 10_000 },
+        );
+        await expect(page.getByRole('heading', { level: 1, name: /is unavailable/i })).toHaveCount(
+            0,
+        );
+    });
+});

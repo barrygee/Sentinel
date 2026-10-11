@@ -35,6 +35,8 @@ import { isDeployed } from './support/sectionDeployment';
 // Space-specific checks below are skipped there, and that suite checks Space is
 // cleanly absent instead.
 const spaceIsAbsent = !isDeployed('space');
+// Radios belong to the radio hub (P6.5); a stack without one has no radio API.
+const radioHubIsAbsent = !isDeployed('radio-hub');
 
 // ---------------------------------------------------------------------------
 // Helper: wait for the Vue shell to hydrate (Domains nav present)
@@ -164,6 +166,8 @@ test('PUT /api/settings persists to SQLite and survives a full page reload', asy
 test('SDR radio can be created via POST, survives a server restart (reload), and is deleted cleanly', async ({
     request,
 }) => {
+    test.skip(radioHubIsAbsent, 'The radio hub is not deployed');
+
     // Create a new radio via the real API.
     const createResponse = await request.post('/api/sdr/radios', {
         data: {
