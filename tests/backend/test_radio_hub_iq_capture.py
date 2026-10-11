@@ -79,6 +79,13 @@ class TestCaptureDir:
         monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sentinel.db"))
         assert iq_capture.iq_capture_dir() == tmp_path / "data" / "recordings"
 
+    def test_iq_capture_dir_overrides_it(self, monkeypatch, tmp_path):
+        # The hub's own container (P6.5) writes into the SDR section's folder
+        # on the app's volume, not beside its own database.
+        monkeypatch.setattr(settings, "db_path", str(tmp_path / "hub" / "radio-hub.db"))
+        monkeypatch.setattr(settings, "iq_capture_dir", str(tmp_path / "app" / "recordings"))
+        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
+
 
 class TestStart:
     async def test_unknown_radio_is_declined(self, broadcaster):
@@ -143,6 +150,18 @@ class TestStop:
         capture_dir: Path = iq_capture.iq_capture_dir()
         assert (capture_dir / "1.u8").read_bytes() == b"\xaa"
         assert (capture_dir / "2.u8").read_bytes() == b"\xbb\xcc"
+
+    async def test_writes_into_iq_capture_dir_when_it_is_set(self, broadcaster, monkeypatch, tmp_path):
+        shared = tmp_path / "app-volume" / "recordings"
+        monkeypatch.setattr(settings, "iq_capture_dir", str(shared))
+        await _start(9)
+        _, queue = iq_capture._active_captures[9]
+        await queue.put(_broadcast(b"\x09"))
+
+        assert await _stop(9) == {"ok": True}
+
+        assert (shared / "9.u8").read_bytes() == b"\x09"
+        assert not (tmp_path / "recordings" / "9.u8").exists()
 
     async def test_unknown_capture_is_not_active(self, broadcaster):
         assert await _stop(404) == {"ok": False, "reason": "not_active"}
