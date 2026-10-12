@@ -72,15 +72,8 @@ services:
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       - decoder_secret:/run/decoder    # shared auto-generated ingest secret
       - join_token:/run/sentinel       # shared auto-generated registry join token
-      # The SDR section service's volume, for its recordings folder: when the
-      # `sdr` service runs and the app still hosts the radio hub, IQ captures
-      # are written straight into it (SDR_SERVICE_RECORDINGS_DIR below).
-      - sdr_data:/sdr-service-data
     environment:
       - DB_PATH=/app/data/sentinel.db
-      # Where the radio hub writes IQ captures once the SDR section runs in its
-      # own container (`sdr` in SENTINEL_EXTERNAL_SERVICES); unused otherwise.
-      - SDR_SERVICE_RECORDINGS_DIR=/sdr-service-data/recordings
       # Service registration (section-containers plan §3.2): sections running in
       # their own containers (e.g. the `space` profile) register with the app
       # using a join token. Unset, the app generates one into the shared
@@ -299,21 +292,13 @@ services:
       - *backend-code
       - *join-token-ro
       - decoder_secret:/run/decoder   # writes the decoders' ingest secret
-      # The SDR section's recordings folder, wherever the SDR section runs: IQ
-      # captures are written straight into it, so the SDR section finds each
-      # <id>.u8 the moment the hub stops writing it. The app's data volume when
-      # the app hosts SDR (IQ_CAPTURE_DIR), the `sdr` service's own volume when
-      # it runs in its own container (SDR_SERVICE_RECORDINGS_DIR) — the hub
-      # picks by SENTINEL_EXTERNAL_SERVICES, so there is nothing to set.
-      - sentinel_db:/sdr-data
-      - sdr_data:/sdr-service-data
+      # IQ captures are written to recordings/ on radio_hub_data; the SDR
+      # section copies each one over HTTP when its recording stops (P7.3), so
+      # no volume is shared with it.
     environment:
       <<: *section-env
       DB_PATH: /app/data/radio-hub.db
       SERVICE_INTERNAL_URL: http://radio-hub:8000
-      IQ_CAPTURE_DIR: /sdr-data/recordings
-      SDR_SERVICE_RECORDINGS_DIR: /sdr-service-data/recordings
-      SENTINEL_EXTERNAL_SERVICES: ${SENTINEL_EXTERNAL_SERVICES:-}
       # The decoders' ingest secret; empty uses the auto-generated file. The PCM
       # and voice ports keep the app's defaults (7355–7358).
       DECODER_INGEST_SECRET: ${SENTINEL_DECODER_SECRET:-}
@@ -326,9 +311,9 @@ services:
   # hub's longer prefixes and Air's /api/sdr/adsb/ stay where they are. Its
   # tables live in its own database on sdr_data, copied from the app's on
   # first boot together with the recordings' WAV/IQ files. The band plan and
-  # the other SDR settings stay in the app. Raw-IQ captures go through the
-  # radio hub over NATS, and the hub writes them into this volume, which is
-  # why it is mounted into the app and the radio-hub service too.
+  # the other SDR settings stay in the app. Raw-IQ captures are started
+  # and stopped on the radio hub over NATS; when one stops this service copies
+  # the file from the hub over HTTP into recordings/ on this volume (P7.3).
   sdr:
     <<: *section-service
     container_name: sentinel-sdr

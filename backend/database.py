@@ -166,7 +166,7 @@ async def create_sdr_tables() -> None:
 
 
 def sdr_recordings_dir() -> Path:
-    """The folder the SDR section keeps recordings in (`<id>.wav`, and the hub's `<id>.u8`): next to the database."""
+    """The folder the SDR section keeps recordings in (`<id>.wav`, and the IQ `<id>.u8`): next to the database."""
     return Path(settings.db_path).parent / "recordings"
 
 

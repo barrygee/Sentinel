@@ -15,15 +15,19 @@ from urllib.parse import urlsplit
 from backend.config import settings
 
 
-def advertised_hub_host() -> str:
-    """The host this radio hub is registered under.
+def advertised_hub_url() -> str:
+    """The base URL this radio hub is registered under.
 
     A hub in its own container advertises ``SERVICE_INTERNAL_URL``; a hub inside
     the app is registered in-process at ``core_internal_url``. Either way it is
     the address the gateway already reaches the hub on.
     """
-    advertised_url = settings.service_internal_url or settings.core_internal_url
-    return urlsplit(advertised_url).hostname or ""
+    return settings.service_internal_url or settings.core_internal_url
+
+
+def advertised_hub_host() -> str:
+    """The host part of `advertised_hub_url`."""
+    return urlsplit(advertised_hub_url()).hostname or ""
 
 
 def socket_endpoint(port: int) -> dict[str, str | int]:

@@ -83,6 +83,7 @@ hosts_radio_hub = hosts_in_process("radio-hub")
 if hosts_radio_hub:
     from backend.radio_hub.routers import decode as hub_decode_router
     from backend.radio_hub.routers import decoders as hub_decoders_router
+    from backend.radio_hub.routers import iq_captures as hub_iq_captures_router
     from backend.radio_hub.routers import radio_control as hub_radio_control_router
     from backend.radio_hub.routers import radios as hub_radios_router
     from backend.radio_hub.routers import sentry as sentry_router
@@ -97,6 +98,7 @@ if hosts_radio_hub:
     app.include_router(hub_decode_router.router)
     app.include_router(hub_decoders_router.router)
     app.include_router(sentry_router.router)
+    app.include_router(hub_iq_captures_router.router)
 if hosts_in_process("air"):
     # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
     app.include_router(adsb_source_router.router)

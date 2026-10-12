@@ -291,11 +291,14 @@
             <button
               v-if="c.has_iq_file"
               class="sdr-recording-iq"
-              title="Download IQ"
-              aria-label="Download IQ"
+              :disabled="c.iq_file_pending"
+              :title="c.iq_file_pending ? 'IQ still copying from the radio hub' : 'Download IQ'"
+              :aria-label="
+                c.iq_file_pending ? 'IQ still copying from the radio hub' : 'Download IQ'
+              "
               @click.stop="downloadRecording(c, 'iq')"
             >
-              IQ
+              {{ c.iq_file_pending ? 'IQ…' : 'IQ' }}
             </button>
           </div>
 
@@ -334,7 +337,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, watch, onBeforeUnmount } from 'vue'
 import ScrollHintChevronIcon from '@sentinel/ui/icons/ScrollHintChevronIcon.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
@@ -350,6 +353,8 @@ interface SdrRecording {
   file_size_bytes: number
   started_at: string
   has_iq_file: boolean
+  /** True while the IQ is still being copied from the radio hub to the SDR section. */
+  iq_file_pending?: boolean
   radio_id: number | null
   radio_name: string
 }
@@ -473,13 +478,34 @@ function fmtTime(s: number): string {
 
 // ── Recording loading ──────────────────────────────────────────────────────────────
 
+// While any recording's IQ is still being copied from the radio hub, re-list
+// this often so its IQ button enables once the copy lands.
+const IQ_PENDING_RELOAD_MS = 3000
+let pendingReloadTimer: ReturnType<typeof setTimeout> | null = null
+
 async function reload(): Promise<void> {
   try {
     const res = await fetch('/api/sdr/recordings', { cache: 'no-store' })
     if (res.ok) recordings.value = await res.json()
   } catch (_) {}
   nextTick(updateScrollHint)
+  scheduleReloadWhileIqPending()
 }
+
+function scheduleReloadWhileIqPending(): void {
+  if (pendingReloadTimer !== null) clearTimeout(pendingReloadTimer)
+  pendingReloadTimer = null
+  if (!recordings.value.some((recording) => recording.iq_file_pending)) return
+  pendingReloadTimer = setTimeout(() => {
+    pendingReloadTimer = null
+    void reload()
+  }, IQ_PENDING_RELOAD_MS)
+}
+
+onBeforeUnmount(() => {
+  if (pendingReloadTimer !== null) clearTimeout(pendingReloadTimer)
+  pendingReloadTimer = null
+})
 
 // ── Recording playback ─────────────────────────────────────────────────────────────
 
@@ -1191,9 +1217,13 @@ defineExpose({ reload })
   color: rgba(100, 180, 255, 0.75);
 }
 
-.sdr-recording-iq:hover {
+.sdr-recording-iq:hover:not(:disabled) {
   background: rgba(100, 180, 255, 0.15);
   color: rgba(100, 180, 255, 0.95);
+}
+
+.sdr-recording-iq:disabled {
+  cursor: progress;
 }
 
 /* ── Live recording row ── */

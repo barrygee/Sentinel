@@ -471,8 +471,8 @@ spectrum WebSocket streaming through the gateway. Two deployment changes:
   removed it (below).
 - **IQ captures** still land where the SDR section serves recordings from: the hub's `IQ_CAPTURE_DIR` points at
   that folder on the app's volume (mounted a second time into the hub container), so the app finds `<id>.u8` as
-  soon as the hub replies to `hub.iq-capture.stop`. This needs a shared host. Proxying captures from the hub
-  replaces it in P7. The folder moved with the SDR section in P6.6 (below).
+  soon as the hub replies to `hub.iq-capture.stop`. This needs a shared host. The folder moved with the SDR
+  section in P6.6 (below), and P7.3 replaced the shared folder with an HTTP copy.
 
 With the hub stopped, its prefixes are a JSON 503 from the gateway while the SDR section's own routes keep working.
 With the hub absent (never registered), `/api/sdr/radios` falls through to the app's SPA catch-all, as an absent
@@ -493,7 +493,8 @@ when it hosts both, which keeps the route-order golden, and includes either alon
   captures into whichever folder the live SDR section serves: `IQ_CAPTURE_DIR` (the app's volume) while the app
   hosts SDR, and `SDR_SERVICE_RECORDINGS_DIR` (`sdr_data`, mounted into both the app and the `radio-hub` service)
   once `sdr` is in `SENTINEL_EXTERNAL_SERVICES`, which the hub's container now receives too. The operator lists
-  `sdr` on the two usual `.env` lines and sets nothing else. This still needs one host (P7).
+  `sdr` on the two usual `.env` lines and sets nothing else. This still needed one host; P7.3 removed both folders
+  (below).
 - **No section is always present any more.** CI's absent leg keeps SDR in the app, so the shell still has a section
   to show, and a fourth leg, `sdr-absent`, removes only SDR. That leg shows the shell boots without the SDR
   remote, whose audio engine it otherwise loads eagerly.
@@ -551,6 +552,38 @@ app's SPA page (and a 405 for a POST). Decoders treat all of those as "waiting f
 Two things remain for a second host: a hub there must publish its PCM/UDP ports and advertise a host the decoders can
 resolve (P7.5's `compose.radio-host.yaml`), and a section service on another host can't join core through the gateway,
 which never routes `/internal/`, so core's registration and secrets endpoints need a reachable address too (P7.4/P7.5).
+
+*As built (P7.3, IQ captures without a shared volume):* the radio hub no longer writes into the SDR section's
+folder unless the SDR section shares its process (`shares_process_with("sdr")`: the app, not a standalone service,
+with SDR hosted). In the monolith the capture is still written straight into the recordings, so nothing below runs.
+Otherwise it goes into the hub's own staging folder, `iq-captures/` next to its database, which holds nothing but
+captures waiting to be collected. The SDR section collects them (`services/sdr_iq_capture_transfer.py`):
+- **On stop, in the background.** `POST /api/sdr/recordings/stop` returns at once with `iq_file_pending: true` and
+  starts the copy. The copy asks the hub where the capture is (`hub.iq-capture.locate` → `download_url`, the hub's
+  registered address plus `/internal/radio-hub/iq-captures/<id>`), then streams it through a `.part` file that is
+  renamed when complete, and deletes the hub's copy. That route (`radio_hub/routers/iq_captures.py`) needs the
+  join token, refuses a capture still being written (409) and is never routed by the gateway. While the IQ is
+  pending, its download is a 409 and the recordings list shows a disabled "IQ…" button, re-listing every 3 s until
+  it lands. A minute of capture is ~300 MB, so the stop request no longer waits for it.
+- **A reconcile loop** (the SDR lifecycle, every 60 s, only when the hub is in another process) catches up on
+  anything the background copy missed. It retries pending copies (hub down or restarted). It stops a capture whose
+  stop never arrived. It asks the hub what it holds (`hub.iq-capture.list`) and has it discard
+  (`hub.iq-capture.discard`) anything nobody will collect: a deleted recording, a capture whose start never
+  committed, a copy that landed but whose delete failed. A recording still in progress always keeps its capture.
+  A capture the hub no longer holds at all is lost, and its recording stops claiming an IQ file. An outage is
+  logged once when it starts and once when it ends. Deleting a pending recording also asks the hub to discard it
+  straight away.
+- `list`/`discard` and the HTTP delete refuse to touch a folder shared with the SDR section, so they can never
+  delete a recording's own IQ.
+
+The owner chose copy-on-stop over the B12 row's "proxy downloads from the hub", so a recording's files live together
+on `sdr_data` and don't depend on the hub staying up or where it runs. `IQ_CAPTURE_DIR`, `SDR_SERVICE_RECORDINGS_DIR`,
+the `sdr_data` mounts in the app and `radio-hub`, the hub's `sentinel_db` mount and its `SENTINEL_EXTERNAL_SERVICES`
+are gone. The IQ never touches the bus. Verified on an isolated stack with a fake rtl_tcp in all four topologies (hub
+and SDR each in their own container, hub in the app, SDR in the app, monolith), plus three failure cases:
+- the hub stopped before the recording stopped: collected by the reconcile loop once it was back;
+- a pending recording deleted while the hub was down: the hub's copy was discarded when it returned;
+- the gateway answers 404 for `/internal/radio-hub/` and the hub answers 401 without the token.
 
 ---
 

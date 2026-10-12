@@ -71,6 +71,17 @@ def hosts_in_process(service_id: str) -> bool:
     return service_id not in external_services()
 
 
+def shares_process_with(service_id: str) -> bool:
+    """True when `service_id` runs in this very process, so the two share its files and memory.
+
+    `hosts_in_process` answers for the app, whose `SENTINEL_EXTERNAL_SERVICES`
+    lists what runs elsewhere. A standalone service (`SENTINEL_CORE_URL` set)
+    hosts only itself, whatever that list says, so it shares a process with no
+    other service.
+    """
+    return not settings.sentinel_core_url and hosts_in_process(service_id)
+
+
 def _module(module_name: str) -> ModuleType:
     return importlib.import_module(f"backend.modules.{module_name}")
 

@@ -11,7 +11,10 @@ reply (ok, declined, unreachable) and see exactly which requests were sent:
     marks `has_iq_file` only on an `ok` reply;
   * no hub answer (raised or declined) never fails the recording itself;
   * stop asks the hub to stop only for a recording that has an IQ file, and
-    reports the size of the file the hub wrote.
+    reports the size of the file the hub wrote;
+  * with the hub in another process (P7.3), stop hands the copy to the
+    background and returns at once with the IQ pending; a pending IQ can't be
+    downloaded yet, and deleting its recording has the hub discard it.
 """
 
 from __future__ import annotations
@@ -152,3 +155,114 @@ class TestStopAsksTheHub:
         assert stopped.status_code == 200
         assert stopped.json()["status"] == "complete"
         assert stopped.json()["iq_file_size_bytes"] == 0
+
+
+@pytest.fixture()
+def hub_elsewhere(monkeypatch) -> dict[str, list[int]]:
+    """The radio hub in its own container; records what the router hands the transfer service."""
+    monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub")
+    handed: dict[str, list[int]] = {"collect": [], "discard": []}
+    monkeypatch.setattr(sdr_section_router, "schedule_collect", handed["collect"].append)
+
+    async def discard(recording_id: int) -> None:
+        handed["discard"].append(recording_id)
+
+    monkeypatch.setattr(sdr_section_router, "discard_hub_capture", discard)
+    return handed
+
+
+def _write_iq(tmp_path, recording_id: int, size: int = 4) -> None:
+    recordings_dir = tmp_path / "recordings"
+    recordings_dir.mkdir(exist_ok=True)
+    (recordings_dir / f"{recording_id}.u8").write_bytes(b"\x00" * size)
+
+
+class TestIqCopiedFromAHubElsewhere:
+    def test_stop_returns_at_once_with_the_iq_pending_and_copies_in_the_background(
+        self, client, fake_bus, hub_elsewhere
+    ):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+
+        body = _stop(client, recording_id).json()
+
+        assert body["iq_file_pending"] is True
+        assert body["iq_file_size_bytes"] == 0
+        assert body["status"] == "complete"
+        assert hub_elsewhere["collect"] == [recording_id]
+
+    def test_a_pending_iq_shows_in_the_list_and_cannot_be_downloaded_yet(
+        self, client, fake_bus, hub_elsewhere
+    ):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+        _stop(client, recording_id)
+
+        listed = client.get("/api/sdr/recordings").json()
+        assert [row["iq_file_pending"] for row in listed] == [True]
+        download = client.get(f"/api/sdr/recordings/{recording_id}/iq")
+        assert download.status_code == 409
+
+    def test_once_copied_the_iq_downloads(self, client, fake_bus, hub_elsewhere, tmp_path):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+        _stop(client, recording_id)
+        _write_iq(tmp_path, recording_id)
+
+        assert client.get("/api/sdr/recordings").json()[0]["iq_file_pending"] is False
+        download = client.get(f"/api/sdr/recordings/{recording_id}/iq")
+        assert download.status_code == 200
+        assert download.content == b"\x00" * 4
+
+    def test_nothing_is_copied_for_a_recording_without_iq(self, client, fake_bus, hub_elsewhere):
+        _enable_raw_iq(client, enabled=False)
+        recording_id = _start(client)
+
+        assert _stop(client, recording_id).json()["iq_file_pending"] is False
+        assert hub_elsewhere["collect"] == []
+
+    def test_nothing_is_copied_when_the_iq_is_already_here(self, client, fake_bus, hub_elsewhere, tmp_path):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+        _write_iq(tmp_path, recording_id, size=6)
+
+        body = _stop(client, recording_id).json()
+
+        assert body["iq_file_pending"] is False
+        assert body["iq_file_size_bytes"] == 6
+        assert hub_elsewhere["collect"] == []
+
+    def test_deleting_a_recording_with_pending_iq_has_the_hub_discard_it(self, client, fake_bus, hub_elsewhere):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+        _stop(client, recording_id)
+
+        assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
+        assert hub_elsewhere["discard"] == [recording_id]
+
+    def test_deleting_a_recording_whose_iq_is_here_leaves_the_hub_alone(
+        self, client, fake_bus, hub_elsewhere, tmp_path
+    ):
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+        _stop(client, recording_id)
+        _write_iq(tmp_path, recording_id)
+
+        assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
+        assert hub_elsewhere["discard"] == []
+        assert not (tmp_path / "recordings" / f"{recording_id}.u8").exists()
+
+
+class TestIqWrittenInPlaceByAHubInThisProcess:
+    def test_never_pending_nor_copied(self, client, fake_bus, monkeypatch):
+        collected: list[int] = []
+        monkeypatch.setattr(sdr_section_router, "schedule_collect", collected.append)
+        _enable_raw_iq(client)
+        recording_id = _start(client)
+
+        body = _stop(client, recording_id).json()
+
+        assert body["iq_file_pending"] is False
+        assert collected == []
+        # A file that never arrived is simply missing, as before P7.3.
+        assert client.get(f"/api/sdr/recordings/{recording_id}/iq").status_code == 404

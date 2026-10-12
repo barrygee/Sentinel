@@ -108,7 +108,8 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -126,7 +127,8 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -143,7 +145,8 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -160,7 +163,8 @@ forbidden_modules = [
     "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
     "backend.services.sat_radio", "backend.modules.space",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -178,7 +182,8 @@ forbidden_modules = [
     "backend.services.sat_radio", "backend.modules.space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -187,7 +192,8 @@ name = "SDR section imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.standalone.sdr",
 ]
 forbidden_modules = [
@@ -214,5 +220,6 @@ forbidden_modules = [
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies", "backend.modules.sdr",
+    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
+    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
 ]

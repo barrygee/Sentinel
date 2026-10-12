@@ -972,6 +972,22 @@
     ]
   },
   {
+    "path": "/internal/radio-hub/iq-captures/{capture_id}",
+    "type": "Route",
+    "name": "download_capture",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/internal/radio-hub/iq-captures/{capture_id}",
+    "type": "Route",
+    "name": "delete_capture",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
     "path": "/api/sdr/adsb/source",
     "type": "Route",
     "name": "get_source",

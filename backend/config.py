@@ -327,17 +327,6 @@ class Settings(BaseSettings):
     # boot so it can copy its own tables out of it (legacy import, plan §4.3).
     # Empty or missing skips the import.
     legacy_db_path: str = ""
-    # Where the radio hub writes raw-IQ captures (`<id>.u8`). They belong to
-    # the SDR section's recordings, which it serves from `<dir of db_path>/recordings`;
-    # empty means that same folder (one process hosts both). The radio hub's
-    # own container points this at the SDR section's folder on the app's
-    # volume (P6.5).
-    iq_capture_dir: str = ""
-    # Where the radio hub writes them instead once the SDR section runs in its
-    # own container (`sdr` in SENTINEL_EXTERNAL_SERVICES, P6.6): that service's
-    # recordings folder, on its own volume, mounted into whichever container
-    # hosts the hub. Empty falls back to `iq_capture_dir`.
-    sdr_service_recordings_dir: str = ""
 
     class Config:
         env_file = ".env"

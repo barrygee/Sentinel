@@ -32,6 +32,8 @@ RADIO = {"id": 4, "name": "Shack dongle", "host": "dongle.local", "port": 1234}
 # Captured before the `core` fixture swaps httpx.AsyncClient for a fake-core client.
 RealAsyncClient = httpx.AsyncClient
 
+INTERNAL_IQ_CAPTURES = "/internal/radio-hub/iq-captures/"
+
 
 # ── schema ────────────────────────────────────────────────────────────────────
 
@@ -450,8 +452,16 @@ class TestRadioHubServiceApp:
     def test_every_route_sits_under_a_prefix_it_registers(self, hub_service):
         prefixes = tuple(hub_service.app.state.registrar.manifest.routes)
         paths = {getattr(route, "path", "") for route in hub_service.app.routes} - {"/health"}
+        # Except the IQ capture handoff, which only the SDR section calls, at the
+        # hub's own address — never through the gateway (P7.3).
+        public_paths = {path for path in paths if not path.startswith(INTERNAL_IQ_CAPTURES)}
 
-        assert paths and all(path.startswith(prefixes) for path in paths)
+        assert public_paths and all(path.startswith(prefixes) for path in public_paths)
+
+    def test_serves_finished_iq_captures_to_the_sdr_section(self, hub_service):
+        paths = {getattr(route, "path", "") for route in hub_service.app.routes}
+
+        assert f"{INTERNAL_IQ_CAPTURES}{{capture_id}}" in paths
 
     def test_serves_nothing_of_the_sdr_section_other_sections_or_core(self, hub_service):
         paths = [getattr(route, "path", "") for route in hub_service.app.routes]
@@ -468,7 +478,8 @@ class TestRadioHubServiceApp:
                     "/api/land",
                     "/api/sea",
                     "/api/settings",
-                    "/internal",
+                    "/internal/registry",
+                    "/internal/settings",
                     "/remotes",
                 )
             )
