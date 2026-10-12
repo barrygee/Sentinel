@@ -213,6 +213,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run backend containers unprivileged and wait on health
 - Reach the radio hub through the gateway and its advertised sockets
 - Copy IQ captures from the radio hub instead of sharing a volume
+- Add a Record Raw IQ switch to Settings › SDR options
 
 ### Bug Fixes
 
@@ -1475,6 +1476,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #454 from barrygee/feat/p7-2-advertised-urls
 - Merge pull request #455 from barrygee/chore/decoder-dockerfile-stale-env
 - Merge pull request #456 from barrygee/feat/p7-3-iq-capture-copy
+- Merge pull request #457 from barrygee/feat/sdr-record-raw-iq-setting
 
 ### Refactoring
 
@@ -1669,6 +1671,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin the shared dark ring on repeater and Sentry group markers
 - Pin the entrypoint's privilege drop
 - Cover IQ capture staging, collection and reconcile
+- Cover the Record Raw IQ option
 
 ### Build System
 
