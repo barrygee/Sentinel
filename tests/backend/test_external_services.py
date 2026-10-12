@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 
 from backend.config import settings
-from backend.modules import EXTRACTABLE_SERVICES, external_services, hosts_in_process
+from backend.modules import EXTRACTABLE_SERVICES, external_services, hosts_in_process, shares_process_with
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -70,6 +70,34 @@ class TestExternalServices:
 
         assert external_services() == frozenset({"space", "land"})
         assert hosts_in_process("land") is False
+
+
+class TestSharesProcessWith:
+    """Whether another service runs in this very process (P7.3: whether IQ captures need copying)."""
+
+    @pytest.fixture(autouse=True)
+    def in_the_app(self, monkeypatch):
+        monkeypatch.setattr(settings, "sentinel_core_url", "")
+        monkeypatch.setattr(settings, "sentinel_external_services", "")
+
+    def test_the_monolith_shares_its_process_with_every_service(self):
+        assert shares_process_with("sdr") is True
+        assert shares_process_with("radio-hub") is True
+
+    def test_the_app_does_not_share_it_with_a_service_it_leaves_out(self, monkeypatch):
+        monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
+
+        assert shares_process_with("sdr") is False
+        assert shares_process_with("radio-hub") is True
+
+    def test_a_standalone_service_shares_it_with_nothing_whatever_the_list_says(self, monkeypatch):
+        # The radio hub's container hosts only the hub: with no
+        # SENTINEL_EXTERNAL_SERVICES, hosts_in_process would claim SDR too.
+        monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
+
+        assert hosts_in_process("sdr") is True
+        assert shares_process_with("sdr") is False
+        assert shares_process_with("radio-hub") is False
 
 
 def import_main(external: str) -> dict:

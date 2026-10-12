@@ -20,6 +20,15 @@ def _advertised_urls(monkeypatch):
     monkeypatch.setattr(settings, "core_internal_url", "http://app:8000")
 
 
+class TestAdvertisedHubUrl:
+    def test_a_hub_inside_the_app_is_reached_on_core(self):
+        assert decoder_sockets.advertised_hub_url() == "http://app:8000"
+
+    def test_a_hub_in_its_own_container_advertises_its_service_url(self, monkeypatch):
+        monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000")
+        assert decoder_sockets.advertised_hub_url() == "http://radio-hub:8000"
+
+
 class TestAdvertisedHubHost:
     def test_a_hub_inside_the_app_is_reached_on_core(self):
         assert decoder_sockets.advertised_hub_host() == "app"

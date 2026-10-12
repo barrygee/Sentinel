@@ -224,7 +224,71 @@ class TestSdrModule:
         await sdr.lifecycle.prepare()
 
         assert calls == ["frequencies", "bandplan"]
-        assert sdr.lifecycle.start is None and sdr.lifecycle.stop is None
+
+
+class TestSdrIqCaptureReconcile:
+    """With the radio hub in another process the SDR section collects its IQ captures (P7.3)."""
+
+    @pytest.fixture(autouse=True)
+    def hub_elsewhere(self, monkeypatch):
+        monkeypatch.setattr(sdr, "_reconcile_task", None)
+        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: True)
+
+    async def test_start_reconciles_at_once_and_stop_cancels_the_loop(self, monkeypatch):
+        ran = asyncio.Event()
+
+        async def reconcile() -> None:
+            ran.set()
+
+        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+
+        await sdr.lifecycle.start()
+        task = sdr._reconcile_task
+        await asyncio.wait_for(ran.wait(), timeout=1)
+        assert task is not None and not task.done()
+
+        await sdr.lifecycle.stop()
+
+        assert task.cancelled()
+        assert sdr._reconcile_task is None
+
+    async def test_does_not_start_when_the_hub_writes_in_place(self, monkeypatch):
+        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: False)
+
+        await sdr.lifecycle.start()
+
+        assert sdr._reconcile_task is None
+
+    async def test_a_failed_run_is_logged_and_the_loop_runs_again(self, monkeypatch, caplog):
+        outcomes = iter([RuntimeError("database is locked"), None])
+        runs: list[str] = []
+        sleeps: list[float] = []
+
+        async def reconcile() -> None:
+            runs.append("run")
+            outcome = next(outcomes)
+            if outcome is not None:
+                raise outcome
+
+        async def record_sleep(seconds: float) -> None:
+            sleeps.append(seconds)
+            if len(sleeps) == 2:
+                raise asyncio.CancelledError
+
+        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+        monkeypatch.setattr(sdr.asyncio, "sleep", record_sleep)
+
+        with caplog.at_level(logging.ERROR, logger="backend.modules.sdr"), pytest.raises(asyncio.CancelledError):
+            await sdr._reconcile_iq_captures_loop()
+
+        assert runs == ["run", "run"]
+        assert sleeps == [sdr.sdr_iq_capture_transfer.RECONCILE_INTERVAL_S] * 2
+        assert "IQ capture reconcile failed" in caplog.text
+
+    async def test_stop_without_start_is_a_no_op(self):
+        await sdr.lifecycle.stop()
+
+        assert sdr._reconcile_task is None
 
 
 class TestSpaceModule:

@@ -8,11 +8,14 @@ broadcaster to record IQ; it sends `hub.iq-capture.{start,stop}` on the bus.
 Driven through the real process-wide bus, in one event loop, so the drain task
 that writes the file actually runs (the HTTP TestClient runs each request on its
 own loop, which would never let it flush). Pinned here:
-  * the reply contract — `{"ok": True}` or `{"ok": False, "reason": ...}`,
+  * the reply contract — `{"ok": True, ...}` or `{"ok": False, "reason": ...}`,
     never a raised exception (a NATS reply can't carry one);
-  * the file lands at `<db dir>/recordings/<capture_id>.u8` and holds the raw
-    IQ bytes with each broadcast's 8-byte header stripped;
-  * stop releases the broadcaster subscription and flushes before replying.
+  * the file lands in the SDR section's `<db dir>/recordings/` when the SDR
+    section shares this process, else in the hub's staging `<db dir>/iq-captures/`
+    (P7.3), and holds the raw IQ bytes with each broadcast's 8-byte header stripped;
+  * stop releases the broadcaster subscription and flushes before replying;
+  * locate / list / discard, which the SDR section collects staged captures
+    with — and which never touch a folder shared with the SDR section.
 """
 
 from __future__ import annotations
@@ -37,13 +40,26 @@ def _broadcast(iq: bytes) -> bytes:
     return struct.pack("<II", 2_048_000, 145_800_000) + iq
 
 
+@pytest.fixture(autouse=True)
+def in_the_monolith(monkeypatch, tmp_path):
+    """Every service in this process (the default deployment); the DB lives in tmp_path."""
+    monkeypatch.setattr(settings, "db_path", str(tmp_path / "sentinel.db"))
+    monkeypatch.setattr(settings, "sentinel_core_url", "")
+    monkeypatch.setattr(settings, "sentinel_external_services", "")
+    monkeypatch.setattr(settings, "service_internal_url", "")
+    monkeypatch.setattr(settings, "core_internal_url", "http://app:8000")
+
+
+@pytest.fixture()
+def sdr_elsewhere(monkeypatch):
+    """The app hosts the hub but the SDR section runs in its own container."""
+    monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
+
+
 @pytest.fixture()
 def broadcaster(monkeypatch, tmp_path) -> Iterator[sdr_svc.RadioBroadcaster]:
-    """A real (unstarted) broadcaster for RADIO; the DB lives in tmp_path."""
-    monkeypatch.setattr(settings, "db_path", str(tmp_path / "sentinel.db"))
-    radio_broadcaster = sdr_svc.RadioBroadcaster(
-        sdr_svc.RtlTcpConnection(host=RADIO["host"], port=RADIO["port"])
-    )
+    """A real (unstarted) broadcaster for RADIO."""
+    radio_broadcaster = sdr_svc.RadioBroadcaster(sdr_svc.RtlTcpConnection(host=RADIO["host"], port=RADIO["port"]))
 
     async def _radios(_db):
         return [RADIO]
@@ -52,11 +68,7 @@ def broadcaster(monkeypatch, tmp_path) -> Iterator[sdr_svc.RadioBroadcaster]:
     monkeypatch.setattr(
         sdr_svc,
         "get_broadcaster",
-        lambda host, port: (
-            radio_broadcaster
-            if (host, port) == (RADIO["host"], RADIO["port"])
-            else None
-        ),
+        lambda host, port: radio_broadcaster if (host, port) == (RADIO["host"], RADIO["port"]) else None,
     )
     monkeypatch.setattr(iq_capture, "_FLUSH_GRACE_S", 0.01)
     yield radio_broadcaster
@@ -74,50 +86,45 @@ def _stop(capture_id: int):
     return bus.request(iq_capture.STOP_SUBJECT, {"capture_id": capture_id})
 
 
+def _locate(capture_id: int):
+    return bus.request(iq_capture.LOCATE_SUBJECT, {"capture_id": capture_id})
+
+
+def _list():
+    return bus.request(iq_capture.LIST_SUBJECT, {})
+
+
+def _discard(capture_id: int):
+    return bus.request(iq_capture.DISCARD_SUBJECT, {"capture_id": capture_id})
+
+
 class TestCaptureDir:
-    def test_sits_beside_the_database(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sentinel.db"))
-        assert iq_capture.iq_capture_dir() == tmp_path / "data" / "recordings"
+    def test_is_the_sdr_sections_recordings_when_it_shares_this_process(self, tmp_path):
+        assert iq_capture.iq_capture_dir() == tmp_path / "recordings"
+        assert iq_capture.holds_staged_captures() is False
 
-    def test_iq_capture_dir_overrides_it(self, monkeypatch, tmp_path):
-        # The hub's own container (P6.5) writes into the SDR section's folder
-        # on the app's volume, not beside its own database.
+    def test_is_the_hubs_staging_folder_while_the_sdr_section_runs_elsewhere(self, sdr_elsewhere, tmp_path):
+        assert iq_capture.iq_capture_dir() == tmp_path / "iq-captures"
+        assert iq_capture.holds_staged_captures() is True
+
+    def test_is_the_staging_folder_in_the_hubs_own_container(self, monkeypatch, tmp_path):
+        # A standalone hub hosts only itself, though no external list says so.
+        monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
         monkeypatch.setattr(settings, "db_path", str(tmp_path / "hub" / "radio-hub.db"))
-        monkeypatch.setattr(settings, "iq_capture_dir", str(tmp_path / "app" / "recordings"))
-        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
+
+        assert iq_capture.iq_capture_dir() == tmp_path / "hub" / "iq-captures"
+
+    def test_capture_path_names_the_file_after_the_capture(self, tmp_path):
+        assert iq_capture.capture_path(12) == tmp_path / "recordings" / "12.u8"
 
 
-class TestCaptureDirOnceTheSdrSectionRunsElsewhere:
-    """With `sdr` in SENTINEL_EXTERNAL_SERVICES, captures go to the SDR service's recordings volume (P6.6)."""
+class TestDownloadUrl:
+    def test_is_the_internal_route_at_the_address_the_hub_registers(self):
+        assert iq_capture.download_url(7) == "http://app:8000/internal/radio-hub/iq-captures/7"
 
-    @pytest.fixture(autouse=True)
-    def both_folders_set(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sentinel.db"))
-        monkeypatch.setattr(settings, "iq_capture_dir", str(tmp_path / "app" / "recordings"))
-        monkeypatch.setattr(settings, "sdr_service_recordings_dir", str(tmp_path / "sdr-service" / "recordings"))
-
-    def test_writes_into_the_sdr_services_folder(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
-
-        assert iq_capture.iq_capture_dir() == tmp_path / "sdr-service" / "recordings"
-
-    def test_follows_the_list_with_the_hub_external_too(self, monkeypatch, tmp_path):
-        # The hub's own container reads the same list to find where SDR lives.
-        monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub,sdr")
-
-        assert iq_capture.iq_capture_dir() == tmp_path / "sdr-service" / "recordings"
-
-    def test_keeps_the_apps_folder_while_the_app_hosts_the_sdr_section(self, monkeypatch, tmp_path):
-        # The SDR volume is mounted everywhere, but unused until SDR moves.
-        monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub")
-
-        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
-
-    def test_without_the_sdr_services_folder_set_it_keeps_the_apps(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
-        monkeypatch.setattr(settings, "sdr_service_recordings_dir", "")
-
-        assert iq_capture.iq_capture_dir() == tmp_path / "app" / "recordings"
+    def test_uses_the_hubs_own_service_url_without_doubling_a_slash(self, monkeypatch):
+        monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000/")
+        assert iq_capture.download_url(7) == "http://radio-hub:8000/internal/radio-hub/iq-captures/7"
 
 
 class TestStart:
@@ -126,17 +133,13 @@ class TestStart:
         assert iq_capture._active_captures == {}
         assert broadcaster._iq_subscribers == []
 
-    async def test_radio_without_a_running_broadcaster_is_declined(
-        self, broadcaster, monkeypatch
-    ):
+    async def test_radio_without_a_running_broadcaster_is_declined(self, broadcaster, monkeypatch):
         monkeypatch.setattr(sdr_svc, "get_broadcaster", lambda host, port: None)
         assert await _start(1) == {"ok": False, "reason": "not_streaming"}
         assert iq_capture._active_captures == {}
         assert not iq_capture.iq_capture_dir().exists()
 
-    async def test_a_failure_opening_the_capture_is_a_reply_not_an_exception(
-        self, broadcaster, monkeypatch
-    ):
+    async def test_a_failure_opening_the_capture_is_a_reply_not_an_exception(self, broadcaster, monkeypatch):
         async def _refuse(_path):
             raise OSError("disk full")
 
@@ -144,9 +147,7 @@ class TestStart:
         assert await _start(1) == {"ok": False, "reason": "error"}
         assert iq_capture._active_captures == {}
 
-    async def test_subscribes_to_the_radios_iq_and_creates_the_folder(
-        self, broadcaster
-    ):
+    async def test_subscribes_to_the_radios_iq_and_creates_the_folder(self, broadcaster):
         assert await _start(5) == {"ok": True}
         assert iq_capture.iq_capture_dir().is_dir()
         broadcaster_used, queue = iq_capture._active_captures[5]
@@ -156,9 +157,7 @@ class TestStart:
 
 
 class TestStop:
-    async def test_writes_raw_iq_without_headers_then_releases_the_radio(
-        self, broadcaster
-    ):
+    async def test_writes_raw_iq_without_headers_then_releases_the_radio(self, broadcaster):
         await _start(42)
         _, queue = iq_capture._active_captures[42]
         await queue.put(_broadcast(b"\x01\x02"))
@@ -166,9 +165,7 @@ class TestStop:
 
         assert await _stop(42) == {"ok": True}
 
-        assert (
-            iq_capture.iq_capture_dir() / "42.u8"
-        ).read_bytes() == b"\x01\x02\x03\x04\x05"
+        assert (iq_capture.iq_capture_dir() / "42.u8").read_bytes() == b"\x01\x02\x03\x04\x05"
         assert broadcaster._iq_subscribers == []
         assert 42 not in iq_capture._active_captures
 
@@ -184,16 +181,16 @@ class TestStop:
         assert (capture_dir / "1.u8").read_bytes() == b"\xaa"
         assert (capture_dir / "2.u8").read_bytes() == b"\xbb\xcc"
 
-    async def test_writes_into_iq_capture_dir_when_it_is_set(self, broadcaster, monkeypatch, tmp_path):
-        shared = tmp_path / "app-volume" / "recordings"
-        monkeypatch.setattr(settings, "iq_capture_dir", str(shared))
+    async def test_writes_into_the_staging_folder_while_the_sdr_section_runs_elsewhere(
+        self, broadcaster, sdr_elsewhere, tmp_path
+    ):
         await _start(9)
         _, queue = iq_capture._active_captures[9]
         await queue.put(_broadcast(b"\x09"))
 
         assert await _stop(9) == {"ok": True}
 
-        assert (shared / "9.u8").read_bytes() == b"\x09"
+        assert (tmp_path / "iq-captures" / "9.u8").read_bytes() == b"\x09"
         assert not (tmp_path / "recordings" / "9.u8").exists()
 
     async def test_unknown_capture_is_not_active(self, broadcaster):
@@ -203,3 +200,81 @@ class TestStop:
         await _start(3)
         assert await _stop(3) == {"ok": True}
         assert await _stop(3) == {"ok": False, "reason": "not_active"}
+
+
+class TestLocate:
+    async def test_names_where_to_download_a_finished_capture_and_its_size(self, broadcaster, sdr_elsewhere):
+        await _start(4)
+        _, queue = iq_capture._active_captures[4]
+        await queue.put(_broadcast(b"\x01\x02\x03"))
+        await _stop(4)
+
+        assert await _locate(4) == {
+            "ok": True,
+            "download_url": "http://app:8000/internal/radio-hub/iq-captures/4",
+            "size_bytes": 3,
+        }
+
+    async def test_a_capture_still_being_written_is_not_ready(self, broadcaster, sdr_elsewhere):
+        await _start(4)
+
+        assert await _locate(4) == {"ok": False, "reason": "capturing"}
+        await _stop(4)
+
+    async def test_a_capture_the_hub_does_not_hold_is_not_found(self, sdr_elsewhere):
+        assert await _locate(4) == {"ok": False, "reason": "not_found"}
+
+
+class TestList:
+    async def test_lists_staged_files_and_running_captures_in_order(self, broadcaster, sdr_elsewhere, tmp_path):
+        staging = tmp_path / "iq-captures"
+        staging.mkdir()
+        (staging / "12.u8").write_bytes(b"x")
+        (staging / "3.u8").write_bytes(b"x")
+        # Not captures: a half-copied leftover and a stray file.
+        (staging / "5.u8.part").write_bytes(b"x")
+        (staging / "notes.u8").write_bytes(b"x")
+        await _start(7)
+
+        assert await _list() == {"ok": True, "capture_ids": [3, 7, 12]}
+        await _stop(7)
+
+    async def test_holds_nothing_before_any_capture(self, sdr_elsewhere):
+        assert await _list() == {"ok": True, "capture_ids": []}
+
+    async def test_never_reports_the_sdr_sections_own_recordings(self, tmp_path):
+        recordings = tmp_path / "recordings"
+        recordings.mkdir()
+        (recordings / "3.u8").write_bytes(b"x")
+
+        assert await _list() == {"ok": True, "capture_ids": []}
+
+
+class TestDiscard:
+    async def test_deletes_a_staged_capture(self, sdr_elsewhere, tmp_path):
+        staging = tmp_path / "iq-captures"
+        staging.mkdir()
+        (staging / "3.u8").write_bytes(b"x")
+
+        assert await _discard(3) == {"ok": True}
+        assert not (staging / "3.u8").exists()
+
+    async def test_stops_a_running_capture_before_deleting_it(self, broadcaster, sdr_elsewhere, tmp_path):
+        await _start(8)
+
+        assert await _discard(8) == {"ok": True}
+
+        assert 8 not in iq_capture._active_captures
+        assert broadcaster._iq_subscribers == []
+        assert not (tmp_path / "iq-captures" / "8.u8").exists()
+
+    async def test_a_capture_already_gone_is_fine(self, sdr_elsewhere):
+        assert await _discard(3) == {"ok": True}
+
+    async def test_refuses_to_delete_the_sdr_sections_own_recording(self, tmp_path):
+        recordings = tmp_path / "recordings"
+        recordings.mkdir()
+        (recordings / "3.u8").write_bytes(b"recording")
+
+        assert await _discard(3) == {"ok": False, "reason": "shared_folder"}
+        assert (recordings / "3.u8").read_bytes() == b"recording"

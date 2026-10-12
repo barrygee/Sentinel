@@ -44,6 +44,7 @@ interface Recording {
   file_size_bytes: number
   started_at: string
   has_iq_file: boolean
+  iq_file_pending?: boolean
   radio_id: number | null
   radio_name: string
 }
@@ -563,6 +564,123 @@ describe('SdrRecordingsSection — download', () => {
     await wrapper.find('.sdr-recording-iq').trigger('click')
     expect(anchors[0].href).toContain('/api/sdr/recordings/6/iq')
     expect(anchors[0].download).toBe('pass6.u8')
+  })
+})
+
+// =============================================================================
+describe('SdrRecordingsSection — IQ still copying from the radio hub', () => {
+  const PENDING_LABEL = 'IQ still copying from the radio hub'
+
+  function recordingsFetchCount(): number {
+    return fetchCalls.filter((call) => call.url === '/api/sdr/recordings').length
+  }
+
+  beforeEach(() => {
+    // Only the reload timer is faked: flushPromises needs the real setImmediate.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('shows a disabled, labelled IQ button while the copy is pending', async () => {
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    const button = wrapper.find('.sdr-recording-iq')
+    expect(button.attributes('disabled')).toBeDefined()
+    expect(button.attributes('aria-label')).toBe(PENDING_LABEL)
+    expect(button.attributes('title')).toBe(PENDING_LABEL)
+    expect(button.text()).toBe('IQ…')
+  })
+
+  it('does not start a download from a pending IQ button', async () => {
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    const createElement = vi.spyOn(document, 'createElement')
+    await wrapper.find('.sdr-recording-iq').trigger('click')
+    expect(createElement).not.toHaveBeenCalledWith('a')
+  })
+
+  it('re-lists until the copy lands, then enables the button and stops', async () => {
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    expect(recordingsFetchCount()).toBe(1)
+
+    // Still copying on the next look.
+    await vi.advanceTimersByTimeAsync(2999)
+    expect(recordingsFetchCount()).toBe(1)
+    await vi.advanceTimersByTimeAsync(1)
+    await flushPromises()
+    expect(recordingsFetchCount()).toBe(2)
+
+    recordingsPayload = [makeRec({ id: 4, has_iq_file: true, iq_file_pending: false })]
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+    expect(recordingsFetchCount()).toBe(3)
+
+    const button = wrapper.find('.sdr-recording-iq')
+    expect(button.attributes('disabled')).toBeUndefined()
+    expect(button.attributes('aria-label')).toBe('Download IQ')
+    expect(button.text()).toBe('IQ')
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(recordingsFetchCount()).toBe(3)
+  })
+
+  it('does not poll when no recording is waiting for its IQ', async () => {
+    await mountWithRecordings([makeRec({ id: 4, has_iq_file: true })])
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(recordingsFetchCount()).toBe(1)
+  })
+
+  it('keeps a single pending re-list when reloaded meanwhile', async () => {
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    await vi.advanceTimersByTimeAsync(1000)
+    await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await flushPromises()
+    expect(recordingsFetchCount()).toBe(2)
+
+    // The first timer was replaced, so nothing fires at the original 3 s mark.
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(recordingsFetchCount()).toBe(2)
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+    expect(recordingsFetchCount()).toBe(3)
+  })
+
+  it('stops polling when it is unmounted', async () => {
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    wrapper.unmount()
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(recordingsFetchCount()).toBe(1)
+  })
+
+  it('unmounts cleanly with nothing pending', async () => {
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+    const wrapper = await mountWithRecordings([makeRec({ id: 4 })])
+    clearTimeoutSpy.mockClear()
+    wrapper.unmount()
+    expect(clearTimeoutSpy).not.toHaveBeenCalled()
+  })
+
+  it('has no axe violations with an IQ still copying', async () => {
+    vi.useRealTimers()
+    const wrapper = await mountWithRecordings([
+      makeRec({ id: 4, has_iq_file: true, iq_file_pending: true }),
+    ])
+    expect(
+      await axe(wrapper.html(), {
+        rules: { region: { enabled: false } },
+      }),
+    ).toHaveNoViolations()
   })
 })
 
