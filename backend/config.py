@@ -117,15 +117,6 @@ class Settings(BaseSettings):
     decoder_pcm_port: int = 7355
     # UDP port the backend listens on for decoded voice audio sent back by dsd-fme.
     decoder_audio_udp_port: int = 7356
-    # Shared secret the decoder must present on POST /api/sdr/decode/ingest.
-    # Normally left empty: the backend auto-generates one on startup and writes
-    # it to `decoder_secret_file` (a volume the decoder container also mounts),
-    # so neither side needs manual configuration. Set this to pin an explicit
-    # secret (it takes precedence over the generated file).
-    decoder_ingest_secret: str = ""
-    # Path to the auto-generated/shared ingest secret. Mounted into both the app
-    # and decoder containers via a shared volume (see docker-compose.yml).
-    decoder_secret_file: str = "/run/decoder/secret"
     # Default channel bandwidth (Hz) used when digital decode is enabled.
     decoder_default_bw_hz: int = 12_500
     # Offset added to a radio's rtl_tcp port to reach the fan-out relay's NDJSON
@@ -266,16 +257,6 @@ class Settings(BaseSettings):
     offline_progress_sample_s: float = 1.0
 
     # ── Service registry (section-containers plan §3.2) ──────────────────────
-    # Shared secret a service presents to POST /internal/registry/register. Set
-    # it in `.env` (never committed). Empty disables registration over HTTP: the
-    # monolith's own sections register in-process and need no token.
-    sentinel_join_token: str = ""
-    # Where the join token lives when it isn't set above: core generates it on
-    # first start and every service on the same compose stack reads it from
-    # this shared volume, so a split deployment needs no configuration. Empty
-    # (the default, and non-Docker dev) means no file: registration then needs
-    # an explicit SENTINEL_JOIN_TOKEN.
-    sentinel_join_token_file: str = ""
     # Services the monolith must NOT host in-process, comma-separated (e.g.
     # `space`), because they run in their own containers (P6). Their routers,
     # lifecycles and in-process registrations are left out. A service that
@@ -306,12 +287,25 @@ class Settings(BaseSettings):
     # the bus in-process only — the all-in-one app needs no broker.
     nats_url: str = ""
     # This process's NATS user: a JSON file `{"user", "password"}` written by the
-    # `nats-setup` compose service (backend/scripts/generate_nats_credentials.py).
+    # `service-credentials` compose service
+    # (backend/scripts/generate_service_credentials.py).
     # Empty connects without a user, as a broker without authorization expects.
     nats_credentials_file: str = ""
     # The CA certificate the broker's TLS certificate is checked against (a
     # `tls://` NATS_URL). Empty trusts the system's certificate authorities.
     nats_certificate_authority_file: str = ""
+
+    # ── Internal HTTP credentials (section-containers plan §4.5, P7.4b) ──────
+    # This process's own credential for the deployment's internal routes
+    # (registering with core, its secret settings, the hub's IQ captures): a
+    # JSON file `{"caller", "token"}` written by the `service-credentials`
+    # compose service. Empty (non-Docker dev) = no credential, so nothing that
+    # needs one is attempted.
+    service_http_credentials_file: str = ""
+    # The callers this process accepts on its internal routes, by credential
+    # hash: `{"<sha256 hex>": "<caller>"}`, written for core and the radio hub
+    # only. Empty = every internal route and decoder endpoint here answers 503.
+    accepted_callers_file: str = ""
 
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's

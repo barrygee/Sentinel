@@ -6,15 +6,17 @@
 The hub writes a capture into its own folder (`services/iq_capture.py`). When
 the SDR section runs somewhere else it has no view of that folder, so on stop
 it streams the file from here into its recordings, then deletes it. Under
-`/internal/`, which the gateway never routes, and behind the deployment's join
-token: raw IQ is for the deployment's own services, not for browsers.
+`/internal/`, which the gateway never routes, and only for the SDR section's
+own credential (`backend/platform/service_access.py`): raw IQ is for the
+service that keeps the recordings, not for browsers or other sections.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from backend.core.internal_auth import require_join_token
+from backend.core.internal_auth import require_caller, require_permission
+from backend.platform.service_access import may_fetch_iq_captures
 from backend.radio_hub.services import iq_capture
 from fastapi import APIRouter, Header, HTTPException, Response
 from fastapi import Path as PathParameter
@@ -39,14 +41,14 @@ def _finished_capture(capture_id: int) -> Path:
 @router.get("/{capture_id}")
 async def download_capture(capture_id: int = _CaptureId, authorization: str | None = Header(default=None)):
     """Stream a finished capture to the SDR section."""
-    require_join_token(authorization)
+    require_permission(may_fetch_iq_captures(require_caller(authorization)))
     return FileResponse(_finished_capture(capture_id), media_type="application/octet-stream")
 
 
 @router.delete("/{capture_id}", status_code=204)
 async def delete_capture(capture_id: int = _CaptureId, authorization: str | None = Header(default=None)):
     """Delete the hub's copy once the SDR section holds its own."""
-    require_join_token(authorization)
+    require_permission(may_fetch_iq_captures(require_caller(authorization)))
     if not iq_capture.holds_staged_captures():
         # The file is the SDR section's own recording, in the same process.
         raise HTTPException(status_code=409, detail="IQ captures are written into the SDR section's recordings here")

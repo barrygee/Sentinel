@@ -89,7 +89,7 @@ WORKDIR /app
 # network; the hub's config reply names its AIS PCM feed (7358, distinct from
 # voice's 7355 and APRS's 7357 so all three can decode at once).
 ENV SENTINEL_GATEWAY_URL=http://gateway:8080 \
-    INGEST_SECRET_FILE=/run/decoder/secret \
+    DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json \
     DIREWOLF_CONFIG=/app/direwolf.conf
 
 CMD ["python3", "/app/entrypoint.py"]

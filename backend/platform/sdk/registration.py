@@ -1,7 +1,7 @@
 """A service registering itself with core (section-containers plan §3.2).
 
-The service POSTs its manifest to core's `/internal/registry/register` with the
-join token, retrying until core answers, then again every
+The service POSTs its manifest to core's `/internal/registry/register` with its
+own HTTP credential (`backend/platform/service_credentials.py`), retrying until core answers, then again every
 `service_register_interval_s`. Core keeps the registry in memory, so the repeat
 is how a restarted core relearns the service; an unchanged re-registration is a
 no-op on core's side.
@@ -18,7 +18,7 @@ import socket
 
 import httpx
 from backend.config import settings
-from backend.platform.join_token import service_join_token
+from backend.platform.service_credentials import own_token
 from backend.platform.service_manifest import ServiceManifest
 
 logger = logging.getLogger(__name__)
@@ -44,9 +44,9 @@ class ServiceRegistrar:
 
     async def register_once(self, client: httpx.AsyncClient) -> bool:
         """One registration attempt. True when core recorded it."""
-        token = service_join_token()
+        token = own_token()
         if not token:
-            logger.warning("registration: no join token yet (SENTINEL_JOIN_TOKEN / SENTINEL_JOIN_TOKEN_FILE)")
+            logger.warning("registration: no HTTP credential (SERVICE_HTTP_CREDENTIALS_FILE), so core can't be joined")
             return False
         try:
             response = await client.post(

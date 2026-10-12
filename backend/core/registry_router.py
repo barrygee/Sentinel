@@ -2,21 +2,24 @@
 
   POST /internal/registry/register — `{"instanceId", "manifest"}` → the registration
 
-Called by each service on start, with the deployment's join token as a bearer
-token (`SENTINEL_JOIN_TOKEN`, or the shared file core generates —
-`backend/platform/join_token.py`). Under `/internal/`, which the gateway never
-routes from outside: only services on the deployment's network reach it.
+Called by each service on start, with its own credential as a bearer token
+(`backend/platform/service_credentials.py`); a credential registers only its
+own service id (`backend/platform/service_access.py`). Under `/internal/`,
+which the gateway never routes from outside: only services on the deployment's
+network reach it.
 
 Status codes a registering service acts on:
-  200 registered (or re-registered); 401 wrong or missing token; 409 the id is
-  held by another live instance, or a route is another service's; 422 the
-  manifest is invalid; 503 registration is disabled (no join token configured).
+  200 registered (or re-registered); 401 wrong or missing credential; 403 the
+  credential belongs to another service; 409 the id is held by another live
+  instance, or a route is another service's; 422 the manifest is invalid; 503
+  registration is disabled (core has no accepted-callers list).
 """
 
 from __future__ import annotations
 
-from backend.core.internal_auth import require_join_token
+from backend.core.internal_auth import require_caller, require_permission
 from backend.core.service_registry import RegistrationConflict, registry
+from backend.platform.service_access import may_register
 from backend.platform.service_manifest import ServiceManifest
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,7 +52,8 @@ async def register_service(
     authorization: str | None = Header(default=None),
 ) -> RegistrationResponse:
     """Register (or re-register) a service and its manifest."""
-    require_join_token(authorization)
+    # A service registers itself only: its credential can't claim another id.
+    require_permission(may_register(require_caller(authorization), request.manifest.id))
     try:
         registration = await registry.register(request.manifest, request.instance_id)
     except RegistrationConflict as conflict:

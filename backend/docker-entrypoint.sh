@@ -20,10 +20,9 @@ set -eu
 runtime_user_id="${SENTINEL_RUNTIME_USER_ID:-1000}"
 runtime_group_id="${SENTINEL_RUNTIME_GROUP_ID:-1000}"
 
-# Mounts the process writes to: its database volume, and the shared secret
-# volumes core writes (read-only in section containers, so a failure there is
-# expected and harmless), and the radio hub's recordings mounts.
-writable_directories="${SENTINEL_WRITABLE_DIRECTORIES:-/app/data /run/decoder /run/sentinel /sdr-data /sdr-service-data}"
+# Mounts the process writes to: its database volume (its recordings and IQ
+# captures included). The one-shot service-credentials job names its own.
+writable_directories="${SENTINEL_WRITABLE_DIRECTORIES:-/app/data}"
 
 if [ "$(id -u)" != "0" ]; then
     exec "$@"

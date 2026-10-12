@@ -8,23 +8,23 @@ here or over the bus (``hub.decode.<kind>.*``, see
 published as ``decode.<kind>.<radioId>``.
 
   GET    /api/sdr/decoders                          — registered decoder manifests
-  POST   /api/sdr/decoders/register                 — register a manifest (decoder secret)
+  POST   /api/sdr/decoders/register                 — register a manifest (its decoder's credential)
   POST   /api/sdr/decoders/{kind}/start             — start/retune a kind on a radio
   POST   /api/sdr/decoders/{kind}/stop              — stop a kind on a radio
   GET    /api/sdr/decoders/{kind}/status/{radio_id} — is it decoding, is the decoder connected
-  POST   /api/sdr/decoders/{kind}/ingest            — a decoded event (decoder secret)
-  GET    /api/sdr/decoders/{kind}/config            — is a session serving PCM (decoder secret)
+  POST   /api/sdr/decoders/{kind}/ingest            — a decoded event (that kind's decoder credential)
+  GET    /api/sdr/decoders/{kind}/config            — is a session serving PCM (that kind's decoder credential)
 """
 
 from __future__ import annotations
 
-import secrets
 from typing import Any
 
+from backend.core.internal_auth import require_decoder
 from backend.database import get_db
 from backend.platform.bus import bus
 from backend.radio_hub.routers.decode import DecodeEventIn
-from backend.radio_hub.services import manifest_decode, sdr_decode
+from backend.radio_hub.services import manifest_decode
 from backend.radio_hub.services.decoder_manifest import DecoderManifest
 from backend.radio_hub.services.decoder_sockets import socket_endpoint
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -59,15 +59,6 @@ class ManifestDecodeStopIn(BaseModel):
     radio_id: int
 
 
-def _require_decode_secret(x_decode_secret: str) -> None:
-    """Fail closed, exactly as the voice/APRS/AIS ingest endpoints do."""
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
-
-
 def _reply_or_raise(reply: dict[str, Any]) -> JSONResponse:
     if not reply["ok"]:
         reason = reply["reason"]
@@ -90,7 +81,8 @@ async def register_decoder(body: DecoderManifest, x_decode_secret: str = Header(
     again or replaces its own earlier version, 409 when another decoder holds the
     kind, the kind is decoding, or its PCM port is taken.
     """
-    _require_decode_secret(x_decode_secret)
+    # A decoder registers its own kind only (backend/platform/service_access.py).
+    require_decoder(x_decode_secret, body.decoder_kind)
     try:
         outcome = manifest_decode.register(body)
     except manifest_decode.RegistrationRejected as exc:
@@ -132,7 +124,9 @@ async def ingest_decoder_event(body: DecodeEventIn, kind: str = _KIND, x_decode_
     any section, then relayed to the radio's ``/ws/sdr/{id}/decode`` subscribers
     with ``type`` defaulted to the kind.
     """
-    _require_decode_secret(x_decode_secret)
+    # Docstring kept byte-for-byte (the OpenAPI parity golden pins it): "secret"
+    # is now this kind's own decoder credential, never another kind's.
+    require_decoder(x_decode_secret, kind)
     if manifest_decode.get_manifest(kind) is None:
         raise HTTPException(404, "Decoder kind not registered")
     bridge = manifest_decode.get_active_bridge(kind)
@@ -154,7 +148,7 @@ async def decoder_config(kind: str = _KIND, x_decode_secret: str = Header(defaul
     404 for a kind the hub doesn't know — after a hub restart, that is the
     decoder's cue to register again.
     """
-    _require_decode_secret(x_decode_secret)
+    require_decoder(x_decode_secret, kind)
     manifest = manifest_decode.get_manifest(kind)
     if manifest is None:
         raise HTTPException(404, "Decoder kind not registered")

@@ -105,7 +105,7 @@ if hosts_in_process("air"):
 app.include_router(offline_map.router)
 app.include_router(app_sections_router.router)
 app.include_router(registry_router.router)
-# Secret settings for their owning service (Sea's AISStream key), join-token gated.
+# Secret settings for their owning service (Sea's AISStream key), per-service credential gated.
 app.include_router(settings_secrets.router)
 
 # Register the sections (and the radio hub) this process hosts — every one not

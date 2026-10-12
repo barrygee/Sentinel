@@ -1,7 +1,7 @@
 """This process's NATS identity: its user, password, reply inbox and trusted CA (plan §4.5, P7.4).
 
-Compose mounts each service's own folder from the `nats-setup` output
-(`backend/scripts/generate_nats_credentials.py`) and points
+Compose mounts each service's own folder from the `service-credentials` output
+(`backend/scripts/generate_service_credentials.py`) and points
 `NATS_CREDENTIALS_FILE` and `NATS_CERTIFICATE_AUTHORITY_FILE` at it. Neither
 is set outside Docker, where the process connects anonymously and trusts the
 system's CAs, as before.

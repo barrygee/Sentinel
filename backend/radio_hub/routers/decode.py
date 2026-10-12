@@ -1,9 +1,14 @@
 """Radio hub — decode bridges: voice (dsd-fme), APRS and off-grid AIS (Direwolf).
 
-Owns the decoder contract (secret-authed `/ingest` + `/config`, 409 when no
-bridge is active), the background APRS/AIS start/stop/status controls, and the
+Owns the decoder contract (`/ingest` + `/config`, 409 when no bridge is
+active), the background APRS/AIS start/stop/status controls, and the
 decoded-event and decoded-audio WebSockets. Ingested APRS/AIS events are
 published as `decode.<kind>.<radioId>` for the sections that consume them.
+
+Each decoder presents its own credential in `X-Decode-Secret` and is accepted
+only for its own kind (`require_decoder`, P7.4b). The endpoint docstrings still
+say "shared secret": they feed the OpenAPI schema the parity golden pins
+byte-for-byte, so they describe the header, not how its value is issued.
 """
 
 from __future__ import annotations
@@ -11,9 +16,9 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import secrets
 
 from backend.config import settings
+from backend.core.internal_auth import require_decoder
 from backend.database import get_db
 from backend.platform.aprs_channel import read_aprs_channel_hz
 from backend.platform.bus import bus
@@ -88,11 +93,7 @@ async def ingest_decode_event(
     knowledge of which radio is selected. The backend stays decoder-agnostic: it
     only relays validated JSON onto the active bridge's event subscribers.
     """
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "voice")
     bridge = sdr_decode.get_active_bridge()
     if bridge is None:
         raise HTTPException(409, "decode not active")
@@ -115,11 +116,7 @@ async def decode_config(x_decode_secret: str = Header(default="")):
     ingest endpoint rejects with 409 — a flood of wasted requests. When ``active``
     is false the supervisor idles instead of launching.
     """
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "voice")
     bridge = sdr_decode.get_active_bridge()
     # The supervisor polls this through the gateway, so the reply is how it finds
     # the hub's own sockets: the PCM it reads and the port it sends voice back to.
@@ -224,11 +221,7 @@ async def ingest_aprs_event(body: DecodeEventIn, x_decode_secret: str = Header(d
     # decoded event on decode.aprs.<radio_id> (B2) instead of writing straight
     # into aprs_store itself — backend/services/aprs_store.py subscribes and
     # performs the exact upsert this router used to do directly.
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "aprs")
     bridge = sdr_decode.get_active_aprs_bridge()
     if bridge is None:
         raise HTTPException(409, "aprs decode not active")
@@ -252,11 +245,7 @@ async def aprs_decode_config(x_decode_secret: str = Header(default="")):
     the PCM port isn't listening, so launching Direwolf would just fail to
     connect and flood ingest with rejected startup output.
     """
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "aprs")
     bridge = sdr_decode.get_active_aprs_bridge()
     # ``pcmFeed``: where the sidecar, polling through the gateway, finds the PCM.
     return JSONResponse(
@@ -500,11 +489,7 @@ async def ingest_ais_event(body: DecodeEventIn, x_decode_secret: str = Header(de
     # publishes the decoded event on decode.ais.<radio_id> (B2) instead of
     # calling ais_decode.ingest_event directly — backend/services/ais_decode.py
     # subscribes and performs the exact same ingest this router used to do.
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "ais")
     bridge = sdr_decode.get_active_ais_bridge()
     if bridge is None:
         raise HTTPException(409, "ais decode not active")
@@ -528,11 +513,7 @@ async def ais_decode_config(x_decode_secret: str = Header(default="")):
     listening, so launching Direwolf would just fail to connect and flood ingest
     with rejected startup output.
     """
-    secret = sdr_decode.resolve_ingest_secret()
-    if not secret:
-        raise HTTPException(503, "decode ingestion disabled")
-    if not secrets.compare_digest(x_decode_secret, secret):
-        raise HTTPException(401, "invalid decode secret")
+    require_decoder(x_decode_secret, "ais")
     bridge = sdr_decode.get_active_ais_bridge()
     # ``pcmFeed``: where the sidecar, polling through the gateway, finds the PCM.
     return JSONResponse(
