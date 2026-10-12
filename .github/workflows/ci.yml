@@ -344,11 +344,35 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
+      # The containers drop to an unprivileged uid that must be able to write
+      # the bind-mounted ./backend (the live config file): the runner's own.
+      - name: Run the stack as the runner's user
+        run: |
+          echo "SENTINEL_RUNTIME_USER_ID=$(id -u)" >> "$GITHUB_ENV"
+          echo "SENTINEL_RUNTIME_GROUP_ID=$(id -g)" >> "$GITHUB_ENV"
+
+      # --wait returns once every container with a healthcheck reports healthy
+      # (the app and each section service answer /health).
       - name: Build and start the composed stack
         run: docker compose up -d --build --wait ${{ matrix.services }}
 
-      # The app container runs `uv run`, which syncs the venv before uvicorn
-      # starts, so "running" is not "serving": wait for /health through the gateway.
+      # Every container built from the app image must have dropped root. The
+      # server is PID 1 (the entrypoint execs it); `exec id -u` would not do,
+      # since exec runs as the image's user, which is root until the drop.
+      - name: No backend container runs as root
+        run: |
+          for service in $(docker compose ps --services); do
+            case "$service" in gateway|nats) continue ;; esac
+            server_process_user_id=$(docker compose exec -T "$service" awk '/^Uid:/ { print $2 }' /proc/1/status)
+            echo "$service runs as user id $server_process_user_id"
+            if [ "$server_process_user_id" = "0" ]; then
+              echo "::error::$service runs as root"
+              exit 1
+            fi
+          done
+
+      # Healthy is the app answering on its own port; this is the gateway
+      # routing to it.
       - name: Wait for the app behind the gateway
         run: |
           for attempt in $(seq 1 90); do
