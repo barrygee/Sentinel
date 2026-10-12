@@ -764,6 +764,15 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
+  // Whether a recording also captures the radio's raw IQ (`<id>.u8`) on the
+  // server. Read only by the backend when a recording starts, so unlike the
+  // display options above there is no localStorage cache: the Settings box
+  // adopts the stored value when it opens.
+  const recordRawIq = ref<boolean>(false)
+  function setRecordRawIq(on: boolean) {
+    recordRawIq.value = on
+  }
+
   // Which decoded-event stream the dock is showing for the viewed radio. APRS
   // when APRS decode is on (its packet table + raw log), otherwise the voice
   // call table. Drives the dock's column layout.
@@ -1319,6 +1328,8 @@ export const useSdrStore = defineStore('sdr', () => {
     muteAudioWhileDecoding,
     setMuteAudioWhileDecoding,
     hydrateMuteAudioWhileDecodingFromDb,
+    recordRawIq,
+    setRecordRawIq,
     decodeStreamKind,
     decodeDockOpen,
     startAprs,
