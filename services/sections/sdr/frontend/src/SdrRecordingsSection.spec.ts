@@ -592,7 +592,7 @@ describe('SdrRecordingsSection — IQ still copying from the radio hub', () => {
     expect(button.attributes('disabled')).toBeDefined()
     expect(button.attributes('aria-label')).toBe(PENDING_LABEL)
     expect(button.attributes('title')).toBe(PENDING_LABEL)
-    expect(button.text()).toBe('IQ…')
+    expect(button.text()).toBe('COPYING IQ…')
   })
 
   it('does not start a download from a pending IQ button', async () => {
@@ -625,7 +625,7 @@ describe('SdrRecordingsSection — IQ still copying from the radio hub', () => {
     const button = wrapper.find('.sdr-recording-iq')
     expect(button.attributes('disabled')).toBeUndefined()
     expect(button.attributes('aria-label')).toBe('Download IQ')
-    expect(button.text()).toBe('IQ')
+    expect(button.text()).toBe('DOWNLOAD IQ')
 
     await vi.advanceTimersByTimeAsync(30_000)
     expect(recordingsFetchCount()).toBe(3)
