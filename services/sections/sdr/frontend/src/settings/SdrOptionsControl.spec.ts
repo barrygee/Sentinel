@@ -20,7 +20,8 @@ const ROW = {
   showBandPlan: 2,
   showKnownFreqs: 3,
   muteWhileDecoding: 4,
-  showWaterfallTimestamps: 5,
+  recordRawIq: 5,
+  showWaterfallTimestamps: 6,
 } as const
 
 function switches(wrapper: ReturnType<typeof mount>) {
@@ -49,10 +50,10 @@ describe('SdrOptionsControl', () => {
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
   })
 
-  it('renders one toggle switch for each of the six SDR options', async () => {
+  it('renders one toggle switch for each of the seven SDR options', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    expect(switches(wrapper)).toHaveLength(6)
+    expect(switches(wrapper)).toHaveLength(7)
   })
 
   it('names each switch after its option, with no per-option description', async () => {
@@ -65,6 +66,7 @@ describe('SdrOptionsControl', () => {
       'Show Band Plan',
       'Display Known Frequencies',
       'Mute Audio While Decoding',
+      'Record Raw IQ with Recordings (Large Files)',
       'Show Waterfall Timestamps',
     ])
     // The old per-toggle prose is gone — only the option names are on screen.
@@ -83,10 +85,11 @@ describe('SdrOptionsControl', () => {
   it('drives each option with the Settings panel’s toggle switch', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    expect(wrapper.findAll('.toggle-track')).toHaveLength(6)
+    expect(wrapper.findAll('.toggle-track')).toHaveLength(7)
     // Every option is independently on or off — no tick boxes, no radio group.
     expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(0)
     expect(wrapper.findAll('input[type="radio"]')).toHaveLength(0)
+    // Every option but raw IQ recording, which is off until asked for.
     expect(wrapper.findAll('.toggle-track.is-on')).toHaveLength(6)
   })
 
@@ -104,7 +107,7 @@ describe('SdrOptionsControl', () => {
     expect(wrapper.find('.lft-wrap').attributes('style')).toContain('--lft-accent: #c8ff00')
   })
 
-  it('shows every option on by default', async () => {
+  it('shows every option on by default except raw IQ recording', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
     expect(switches(wrapper).map((_box, index) => isOn(wrapper, index))).toEqual([
@@ -113,6 +116,7 @@ describe('SdrOptionsControl', () => {
       true,
       true,
       true,
+      false,
       true,
     ])
   })
@@ -285,7 +289,7 @@ describe('SdrOptionsControl', () => {
       const wrapper = mount(SdrOptionsControl)
       await flushPromises()
       // Six toggles: the interval row adds a field, not a seventh switch.
-      expect(switches(wrapper)).toHaveLength(6)
+      expect(switches(wrapper)).toHaveLength(7)
       expect(intervalInput(wrapper).element.value).toBe('5')
     })
 
@@ -354,10 +358,10 @@ describe('SdrOptionsControl', () => {
       vi.unstubAllGlobals()
     })
 
-    it('renders the delay as a number field, not a seventh toggle', async () => {
+    it('renders the delay as a number field, not an eighth toggle', async () => {
       const wrapper = mount(SdrOptionsControl)
       await flushPromises()
-      expect(switches(wrapper)).toHaveLength(6)
+      expect(switches(wrapper)).toHaveLength(7)
       expect(delayInput(wrapper).element.value).toBe('5')
     })
 
@@ -378,6 +382,86 @@ describe('SdrOptionsControl', () => {
 
       await delayInput(wrapper).trigger('keydown.enter')
       expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+  })
+
+  describe('raw IQ recording row', () => {
+    // Saves a recording's raw IQ alongside its audio. Only the backend reads it
+    // (when a recording starts), so it defaults off and stays off until asked.
+
+    it('starts off, and is off in the store too', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      expect(isOn(wrapper, ROW.recordRawIq)).toBe(false)
+      expect(useSdrStore().recordRawIq).toBe(false)
+    })
+
+    it('switching it on mirrors into the store but saves nothing until APPLY', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      await switches(wrapper)[ROW.recordRawIq]!.trigger('click')
+
+      expect(useSdrStore().recordRawIq).toBe(true)
+      expect(isOn(wrapper, ROW.recordRawIq)).toBe(true)
+      expect(settingsApi.put).not.toHaveBeenCalled()
+
+      await runStagedWrite(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledExactlyOnceWith('sdr', 'recordRawIq', true)
+    })
+
+    it('switching it back off stages false', async () => {
+      useSdrStore().setRecordRawIq(true)
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      await switches(wrapper)[ROW.recordRawIq]!.trigger('click')
+      await runStagedWrite(wrapper)
+
+      expect(useSdrStore().recordRawIq).toBe(false)
+      expect(settingsApi.put).toHaveBeenCalledExactlyOnceWith('sdr', 'recordRawIq', false)
+    })
+
+    it('adopts the stored value when the box opens', async () => {
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue({ recordRawIq: true } as never)
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      expect(useSdrStore().recordRawIq).toBe(true)
+      expect(isOn(wrapper, ROW.recordRawIq)).toBe(true)
+    })
+
+    it('leaves the display options alone when toggled', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      await switches(wrapper)[ROW.recordRawIq]!.trigger('click')
+
+      expect(
+        switches(wrapper)
+          .map((_box, index) => index)
+          .filter((index) => index !== ROW.recordRawIq)
+          .every((index) => isOn(wrapper, index)),
+      ).toBe(true)
+    })
+
+    it('is not cached in the browser: only the backend reads it', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      await switches(wrapper)[ROW.recordRawIq]!.trigger('click')
+
+      const storedKeys = Array.from({ length: localStorage.length }, (_slot, index) =>
+        localStorage.key(index),
+      )
+      expect(storedKeys.some((key) => /raw ?iq/i.test(key ?? ''))).toBe(false)
+      setActivePinia(createPinia())
+      expect(useSdrStore().recordRawIq).toBe(false)
+    })
+
+    it('has no accessibility violations while switched on', async () => {
+      useSdrStore().setRecordRawIq(true)
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
     })
   })
 

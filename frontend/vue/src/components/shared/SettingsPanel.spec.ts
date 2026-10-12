@@ -248,6 +248,15 @@ describe('SettingsPanel', () => {
       await wrapper.find('#settings-search-input').setValue('Mute Audio While Decoding')
       expect(renderedItemIds(wrapper)).toContain('sdr-options')
     })
+
+    it.each(['raw iq', 'record raw iq', 'iq capture'])(
+      'finds the raw IQ recording option by searching "%s"',
+      async (query) => {
+        const wrapper = mountPanel()
+        await wrapper.find('#settings-search-input').setValue(query)
+        expect(renderedItemIds(wrapper)).toContain('sdr-options')
+      },
+    )
   })
 
   describe('LAND and SEA section rows', () => {
