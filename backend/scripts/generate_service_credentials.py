@@ -7,7 +7,7 @@ configuration:
     python -m backend.scripts.generate_service_credentials [output directory]
 
 It is safe to run on every `up`: the certificate authority, each service's
-NATS password and each caller's HTTP token are created once and kept, the
+NATS password and each caller's HTTP token are created once and kept, each
 server certificate is reissued only when its host names change or it is about
 to expire, and `nats.conf` and the accepted-callers lists are regenerated from
 `backend/platform/nats_permissions.py` and `service_access.py` every time. The
@@ -24,15 +24,20 @@ The output directory (default `/run/service-credentials`, the
         nats-credentials.json   its NATS user (services only; decoders don't use the bus)
         certificate-authority.pem   the CA certificate (services only)
         accepted-callers.json   the tokens it accepts, as SHA-256 hashes (core and the radio hub)
+    services/gateway/       core's TLS service entrypoint: its certificate, key and the CA
+    services/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
 
-A second host (P7.5) gets a copy of its own `services/<caller>/` folders, and
-the server certificate must name the address it dials
-(`NATS_SERVER_EXTRA_HOSTNAMES`). Uses the `openssl` command line tool, which
-the backend image ships.
+A second host (P7.5) gets a copy of its own `services/<caller>/` folders
+(`backend/scripts/service_credentials_bundle.py`). The broker's and the service
+entrypoint's certificates must name the address other hosts dial this one by
+(`SENTINEL_CORE_HOSTNAMES`), and a radio host's gateway certificate the address
+core dials it by (`SENTINEL_RADIO_HOST_HOSTNAMES`). Uses the `openssl` command
+line tool, which the backend image ships.
 """
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import secrets
@@ -53,6 +58,13 @@ SERVER_CERTIFICATE_VALID_DAYS = 825
 RENEW_WHEN_EXPIRING_WITHIN_SECONDS = 30 * 24 * 3600
 BUILT_IN_SERVER_HOSTNAMES = ("nats", "localhost")
 """`nats` is the broker's compose DNS name; `localhost` is for running a client next to it."""
+BUILT_IN_ENTRYPOINT_HOSTNAMES = ("gateway", "localhost")
+"""Core's TLS service entrypoint is a listener on the `gateway` container."""
+BUILT_IN_RADIO_HOST_GATEWAY_HOSTNAMES = ("radio-host-gateway", "localhost")
+GATEWAY_FOLDER = "gateway"
+"""`services/gateway/`: the service entrypoint's certificate and key, and the CA it trusts upstream."""
+RADIO_HOST_GATEWAY_FOLDER = "radio-host-gateway"
+"""`services/radio-host-gateway/`: the second host's TLS gateway, copied there with its hub's folders."""
 CLIENT_PORT = 4222
 MONITORING_PORT = 8222
 CERTIFICATE_FILE = "certificate.pem"
@@ -122,23 +134,36 @@ def certificate_expires_at(certificate: Path) -> float:
     return parsed.replace(tzinfo=UTC).timestamp()
 
 
+def _subject_alternative_name(hostname: str) -> str:
+    """`IP:` for an address (hosts on a LAN are often dialled by IP), `DNS:` for a name."""
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        return f"DNS:{hostname}"
+    return f"IP:{hostname}"
+
+
 def ensure_server_certificate(
-    directory: Path, hostnames: list[str], authority_certificate: Path, authority_key: Path
+    directory: Path,
+    hostnames: list[str],
+    authority_certificate: Path,
+    authority_key: Path,
+    purpose: str = "NATS server",
 ) -> None:
-    """(Re)issue the broker's certificate for `hostnames` unless the current one still fits."""
+    """(Re)issue a TLS server certificate for `hostnames` unless the current one still fits."""
     if _server_certificate_is_current(directory, hostnames):
         return
     directory.mkdir(parents=True, exist_ok=True)
     private_key, request = directory / PRIVATE_KEY_FILE, directory / "certificate-request.pem"
     _openssl("ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(private_key))
     private_key.chmod(0o600)
-    _openssl("req", "-new", "-key", str(private_key), "-subj", "/CN=nats", "-out", str(request))
+    _openssl("req", "-new", "-key", str(private_key), "-subj", f"/CN={hostnames[0]}", "-out", str(request))
     extensions = directory / "certificate-extensions.cnf"
     extensions.write_text(
         "basicConstraints=critical,CA:FALSE\n"
         "keyUsage=critical,digitalSignature,keyEncipherment\n"
         "extendedKeyUsage=serverAuth\n"
-        f"subjectAltName={','.join(f'DNS:{hostname}' for hostname in hostnames)}\n"
+        f"subjectAltName={','.join(_subject_alternative_name(hostname) for hostname in hostnames)}\n"
     )
     _openssl(
         "x509", "-req", "-in", str(request), "-CA", str(authority_certificate), "-CAkey", str(authority_key),
@@ -148,7 +173,7 @@ def ensure_server_certificate(
     request.unlink()
     extensions.unlink()
     (directory / HOSTNAMES_FILE).write_text("\n".join(hostnames) + "\n")
-    print(f"service-credentials: issued the NATS server certificate for {', '.join(hostnames)}")
+    print(f"service-credentials: issued the {purpose} certificate for {', '.join(hostnames)}")
 
 
 def ensure_service_credentials(directory: Path, user: str, authority_certificate: Path) -> str:
@@ -217,10 +242,33 @@ def server_config(passwords: dict[str, str]) -> str:
     return json.dumps(config, indent=2) + "\n"
 
 
+def _hostnames_from(variable: str) -> list[str]:
+    """A comma-separated host name list from the environment, trimmed, blanks dropped."""
+    return [name.strip() for name in os.environ.get(variable, "").split(",") if name.strip()]
+
+
 def server_hostnames() -> list[str]:
-    """The names the server certificate covers: the built-in ones plus `NATS_SERVER_EXTRA_HOSTNAMES`."""
-    extra = [name.strip() for name in os.environ.get("NATS_SERVER_EXTRA_HOSTNAMES", "").split(",") if name.strip()]
-    return list(dict.fromkeys([*BUILT_IN_SERVER_HOSTNAMES, *extra]))
+    """The names the broker's certificate covers: the built-in ones plus `SENTINEL_CORE_HOSTNAMES`."""
+    return list(dict.fromkeys([*BUILT_IN_SERVER_HOSTNAMES, *_hostnames_from("SENTINEL_CORE_HOSTNAMES")]))
+
+
+def entrypoint_hostnames() -> list[str]:
+    """The names core's service entrypoint certificate covers: built-in plus `SENTINEL_CORE_HOSTNAMES`."""
+    return list(dict.fromkeys([*BUILT_IN_ENTRYPOINT_HOSTNAMES, *_hostnames_from("SENTINEL_CORE_HOSTNAMES")]))
+
+
+def radio_host_gateway_hostnames() -> list[str]:
+    """The names a radio host's gateway certificate covers; empty when `SENTINEL_RADIO_HOST_HOSTNAMES` is unset."""
+    extra = _hostnames_from("SENTINEL_RADIO_HOST_HOSTNAMES")
+    return list(dict.fromkeys([*BUILT_IN_RADIO_HOST_GATEWAY_HOSTNAMES, *extra])) if extra else []
+
+
+def ensure_gateway_certificate(
+    directory: Path, hostnames: list[str], authority_certificate: Path, authority_key: Path, purpose: str
+) -> None:
+    """A gateway's TLS certificate and key, plus the CA certificate it trusts, in its own folder."""
+    ensure_server_certificate(directory, hostnames, authority_certificate, authority_key, purpose)
+    shutil.copyfile(authority_certificate, directory / CERTIFICATE_AUTHORITY_FILE)
 
 
 def generate(output_directory: Path) -> None:
@@ -229,6 +277,23 @@ def generate(output_directory: Path) -> None:
     server_directory = output_directory / "server"
     ensure_server_certificate(server_directory, server_hostnames(), authority_certificate, authority_key)
     services_directory = output_directory / "services"
+    ensure_gateway_certificate(
+        services_directory / GATEWAY_FOLDER,
+        entrypoint_hostnames(),
+        authority_certificate,
+        authority_key,
+        "service entrypoint",
+    )
+    # Only when a radio host is named: the CA key never leaves this host, so its
+    # gateway's certificate is issued here and copied there with the bundle.
+    if radio_host_hostnames := radio_host_gateway_hostnames():
+        ensure_gateway_certificate(
+            services_directory / RADIO_HOST_GATEWAY_FOLDER,
+            radio_host_hostnames,
+            authority_certificate,
+            authority_key,
+            "radio host gateway",
+        )
     passwords = {
         user: ensure_service_credentials(services_directory / user, user, authority_certificate)
         for user in SERVICE_PERMISSIONS

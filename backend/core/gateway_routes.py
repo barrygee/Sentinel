@@ -18,6 +18,7 @@ import json
 from typing import Any, NamedTuple
 from urllib.parse import urlsplit
 
+from backend.config import settings
 from backend.core.service_registry import RegisteredService
 from backend.platform.service_manifest import RESERVED_ROUTE_PREFIXES
 
@@ -90,7 +91,12 @@ def _proxy_handlers(internal_url: str) -> list[dict[str, Any]]:
     port = parts.port or _DEFAULT_PORTS[parts.scheme]
     proxy: dict[str, Any] = {"handler": "reverse_proxy", "upstreams": [{"dial": f"{parts.hostname}:{port}"}]}
     if parts.scheme == "https":
-        proxy["transport"] = {"protocol": "http", "tls": {}}
+        tls: dict[str, Any] = {}
+        if settings.gateway_upstream_certificate_authority_file:
+            # A service on another host behind a gateway whose certificate the
+            # deployment's own CA issued (P7.5): trust that CA for this upstream.
+            tls["ca"] = {"provider": "file", "pem_files": [settings.gateway_upstream_certificate_authority_file]}
+        proxy["transport"] = {"protocol": "http", "tls": tls}
     handlers: list[dict[str, Any]] = []
     if parts.path:
         # A service mounted under a path on its host gets that path put back in

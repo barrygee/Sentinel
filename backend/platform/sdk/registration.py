@@ -18,6 +18,7 @@ import socket
 
 import httpx
 from backend.config import settings
+from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 from backend.platform.service_manifest import ServiceManifest
 
@@ -68,7 +69,7 @@ class ServiceRegistrar:
         return False
 
     async def _run(self) -> None:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=internal_verify()) as client:
             while True:
                 try:
                     self.registered = await self.register_once(client)

@@ -33,6 +33,7 @@ import httpx
 from backend.config import settings
 from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.bus import bus
+from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -95,7 +96,7 @@ def _settings_url(*path_segments: str) -> str:
 
 async def _core_request(method: str, url: str, **request_options: Any) -> httpx.Response:
     try:
-        async with httpx.AsyncClient(timeout=CORE_REQUEST_TIMEOUT_S) as client:
+        async with httpx.AsyncClient(timeout=CORE_REQUEST_TIMEOUT_S, verify=internal_verify()) as client:
             response = await client.request(method, url, **request_options)
     except httpx.HTTPError as error:
         raise SettingsUnavailable(f"core settings API unreachable: {error}") from error

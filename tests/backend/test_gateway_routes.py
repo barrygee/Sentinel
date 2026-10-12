@@ -9,6 +9,7 @@ import json
 
 import pytest
 
+from backend.config import settings
 from backend.core.gateway_routes import (
     CORE_SERVICE_ID,
     GatewayRoute,
@@ -142,6 +143,32 @@ class TestCaddyRoutes:
                 "transport": {"protocol": "http", "tls": {}},
             }
         ]
+
+    def test_trusts_the_deployment_ca_for_https_upstreams_when_configured(self, monkeypatch):
+        # A hub on a radio host presents a certificate the deployment CA issued (P7.5).
+        monkeypatch.setattr(
+            settings, "gateway_upstream_certificate_authority_file", "/run/service-credentials/certificate-authority.pem"
+        )
+        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio-hub", "https://radio.lan:8443", True)])
+
+        assert route["handle"] == [
+            {
+                "handler": "reverse_proxy",
+                "upstreams": [{"dial": "radio.lan:8443"}],
+                "transport": {
+                    "protocol": "http",
+                    "tls": {
+                        "ca": {"provider": "file", "pem_files": ["/run/service-credentials/certificate-authority.pem"]}
+                    },
+                },
+            }
+        ]
+
+    def test_plain_http_upstreams_ignore_the_ca(self, monkeypatch):
+        monkeypatch.setattr(settings, "gateway_upstream_certificate_authority_file", "/ca.pem")
+        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://sea:8000", True)])
+
+        assert route["handle"] == [{"handler": "reverse_proxy", "upstreams": [{"dial": "sea:8000"}]}]
 
     def test_puts_a_service_s_base_path_back_in_front_of_the_request(self):
         (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://host:8000/sea", True)])

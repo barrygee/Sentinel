@@ -29,7 +29,8 @@ from backend.scripts import generate_service_credentials as setup
 
 @pytest.fixture(autouse=True)
 def no_extra_hostnames(monkeypatch):
-    monkeypatch.delenv("NATS_SERVER_EXTRA_HOSTNAMES", raising=False)
+    monkeypatch.delenv("SENTINEL_CORE_HOSTNAMES", raising=False)
+    monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES", raising=False)
 
 
 def _mode(path: Path) -> int:
@@ -170,7 +171,7 @@ class TestGenerate:
         ).read_bytes()
         certificate_before = (tmp_path / "server" / "certificate.pem").read_bytes()
         monkeypatch.setenv(
-            "NATS_SERVER_EXTRA_HOSTNAMES", " sentinel.lan, ,nats,radio-host "
+            "SENTINEL_CORE_HOSTNAMES", " sentinel.lan, ,nats,radio-host "
         )
         setup.generate(tmp_path)
         certificate = tmp_path / "server" / "certificate.pem"
@@ -361,9 +362,96 @@ class TestServerHostnames:
 
     def test_extra_names_are_trimmed_and_deduplicated(self, monkeypatch):
         monkeypatch.setenv(
-            "NATS_SERVER_EXTRA_HOSTNAMES", "a.lan, localhost,,b.lan,a.lan"
+            "SENTINEL_CORE_HOSTNAMES", "a.lan, localhost,,b.lan,a.lan"
         )
         assert setup.server_hostnames() == ["nats", "localhost", "a.lan", "b.lan"]
+
+
+class TestGatewayCertificates:
+    """Core's TLS service entrypoint, and a radio host's gateway (P7.5)."""
+
+    def test_the_service_entrypoint_gets_a_certificate_from_the_deployment_ca(self, tmp_path):
+        setup.generate(tmp_path)
+        folder = tmp_path / "services" / "gateway"
+        authority = tmp_path / "certificate-authority" / "certificate.pem"
+        assert sorted(path.name for path in folder.iterdir()) == [
+            "certificate-authority.pem", "certificate.pem", "hostnames.txt", "private-key.pem",
+        ]  # fmt: skip
+        assert _verifies_against(folder / "certificate.pem", authority)
+        assert "DNS:gateway, DNS:localhost" in _subject_alternative_names(folder / "certificate.pem")
+        assert _mode(folder / "private-key.pem") == 0o600
+        # The CA the gateway trusts upstream, never the CA's key.
+        assert (folder / "certificate-authority.pem").read_bytes() == authority.read_bytes()
+
+    def test_core_hostnames_cover_the_entrypoint_and_the_broker_alike(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SENTINEL_CORE_HOSTNAMES", "sentinel.lan,192.168.5.10")
+        setup.generate(tmp_path)
+        entrypoint = _subject_alternative_names(tmp_path / "services" / "gateway" / "certificate.pem")
+        broker = _subject_alternative_names(tmp_path / "server" / "certificate.pem")
+        assert "DNS:gateway, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in entrypoint
+        assert "DNS:nats, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in broker
+
+    def test_the_common_name_is_the_first_host_name(self, tmp_path):
+        setup.generate(tmp_path)
+        subject = subprocess.run(
+            ["openssl", "x509", "-noout", "-subject", "-in", str(tmp_path / "services" / "gateway" / "certificate.pem")],
+            check=True, capture_output=True, text=True,
+        ).stdout  # fmt: skip
+        assert "CN=gateway" in subject.replace(" ", "")
+
+    def test_no_radio_host_certificate_unless_one_is_named(self, tmp_path):
+        setup.generate(tmp_path)
+        assert not (tmp_path / "services" / "radio-host-gateway").exists()
+
+    def test_a_named_radio_host_gets_its_gateway_certificate(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", " radio.lan, 10.0.0.9 ")
+        setup.generate(tmp_path)
+        folder = tmp_path / "services" / "radio-host-gateway"
+        certificate = folder / "certificate.pem"
+        assert _verifies_against(certificate, tmp_path / "certificate-authority" / "certificate.pem")
+        names = _subject_alternative_names(certificate)
+        assert "DNS:radio-host-gateway, DNS:localhost, DNS:radio.lan, IP Address:10.0.0.9" in names
+        assert (folder / "certificate-authority.pem").exists()
+        assert "issued the radio host gateway certificate" in capsys.readouterr().out
+
+    def test_renaming_the_radio_host_reissues_only_its_certificate(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan")
+        setup.generate(tmp_path)
+        entrypoint_before = (tmp_path / "services" / "gateway" / "certificate.pem").read_bytes()
+        radio_before = (tmp_path / "services" / "radio-host-gateway" / "certificate.pem").read_bytes()
+        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio2.lan")
+        setup.generate(tmp_path)
+        assert (tmp_path / "services" / "gateway" / "certificate.pem").read_bytes() == entrypoint_before
+        radio_after = tmp_path / "services" / "radio-host-gateway" / "certificate.pem"
+        assert radio_after.read_bytes() != radio_before
+        assert "DNS:radio2.lan" in _subject_alternative_names(radio_after)
+
+    def test_unsetting_the_radio_host_leaves_its_folder_alone(self, tmp_path, monkeypatch):
+        # A bundle may already be on the radio host: nothing is deleted behind it.
+        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan")
+        setup.generate(tmp_path)
+        monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES")
+        setup.generate(tmp_path)
+        assert (tmp_path / "services" / "radio-host-gateway" / "certificate.pem").exists()
+
+
+class TestHostnameLists:
+    def test_entrypoint_names_default_to_the_built_in_ones(self):
+        assert setup.entrypoint_hostnames() == ["gateway", "localhost"]
+
+    def test_no_radio_host_names_by_default(self):
+        assert setup.radio_host_gateway_hostnames() == []
+
+    def test_radio_host_names_are_trimmed_and_deduplicated(self, monkeypatch):
+        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan, ,localhost,radio.lan")
+        assert setup.radio_host_gateway_hostnames() == ["radio-host-gateway", "localhost", "radio.lan"]
+
+    @pytest.mark.parametrize(
+        ("hostname", "expected"),
+        [("radio.lan", "DNS:radio.lan"), ("192.168.1.2", "IP:192.168.1.2"), ("fd00::7", "IP:fd00::7")],
+    )
+    def test_addresses_become_ip_names(self, hostname, expected):
+        assert setup._subject_alternative_name(hostname) == expected
 
 
 class TestRunAsAModule:

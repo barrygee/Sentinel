@@ -549,9 +549,8 @@ decoder reads them on each launch, so it follows the hub if it moves. `SENTINEL_
 moving the hub into its own container is the usual two `.env` lines. Polling through the gateway means "no hub" now
 arrives as an answer rather than a refused connection: a gateway 502/503/504, or, with no hub registered at all, the
 app's SPA page (and a 405 for a POST). Decoders treat all of those as "waiting for the radio hub" and log them once.
-Two things remain for a second host: a hub there must publish its PCM/UDP ports and advertise a host the decoders can
-resolve (P7.5's `compose.radio-host.yaml`), and a section service on another host can't join core through the gateway,
-which never routes `/internal/`, so core's registration and secrets endpoints need a reachable address too (P7.4/P7.5).
+Two things remained for a second host, both solved in P7.5a: the decoders reach a hub's sockets over the radio host's
+own network (`DECODER_SOCKETS_HOST`), and a service on another host joins core through the TLS service entrypoint.
 
 *As built (P7.3, IQ captures without a shared volume):* the radio hub no longer writes into the SDR section's
 folder unless the SDR section shares its process (`shares_process_with("sdr")`: the app, not a standalone service,
@@ -640,6 +639,25 @@ as Sea and Sea registering as Space were refused; only SDR's credential reached 
 credential worked for `stub` and got 403 on the voice/APRS/AIS endpoints; no or made-up credentials got 401;
 the gateway still 404s `/internal/`; a second setup run kept every credential. Live cutover: `docker compose up -d
 --build`, then `docker volume rm` the orphaned `<project>_nats_setup`, `_join_token` and `_decoder_secret`.
+
+*As built (P7.5a, radio host over TLS):* the owner chose TLS both ways and no NATS leaf. Core's gateway gained a
+second listener, **:8443, the service entrypoint**: TLS with a certificate the deployment CA issues for `gateway`,
+`localhost` and `SENTINEL_CORE_HOSTNAMES` (which also feeds the broker's certificate, renamed from
+`NATS_SERVER_EXTRA_HOSTNAMES`; IP addresses become `IP:` SANs), proxying every path, `/internal/` included, to the app.
+It and NATS are published on 127.0.0.1 unless `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS` / `NATS_PUBLISHED_ADDRESS` open
+them. `compose.radio-host.yaml` runs the hub, the voice/APRS/AIS/stub decoders and `radio-host-gateway` (Caddy, TLS,
+certificate issued on core when `SENTINEL_RADIO_HOST_HOSTNAMES` is set, since the CA key never leaves core). The hub
+registers `SENTINEL_RADIO_HOST_URL` (its gateway) and joins core through the entrypoint and NATS; `DECODER_SOCKETS_HOST`
+sends its decoders to `radio-hub` on the radio host's own network, so no PCM port is published and decoder credentials
+never cross the LAN. Internal HTTP clients trust the deployment CA (`backend/platform/internal_tls.py`); the gateway
+trusts it for `https://` upstreams. Credentials move as a bundle (`backend/scripts/service_credentials_bundle.py`:
+`export radio-host` on core, a `credentials-import` one-shot on the radio host; core's own folders are refused). The
+ADS-B decoder stays on the core host (Air reads `aircraft.json` from it). Verified with two compose projects on one
+machine reaching each other through `host.docker.internal`: the hub connected, joined NATS and registered over TLS; the
+stub decoder registered locally; core's gateway served `/api/sdr/*` and the IQ WebSocket from the remote hub; a raw-IQ
+recording on a fake rtl_tcp was captured on the radio host and copied to the SDR section over TLS (13.3 MB, hub staging
+emptied); untrusted, unnamed and credential-less calls were refused. Walkthrough: `docs/radio-host.md`. P7.5b:
+`docker buildx bake` (amd64/arm64) and decoder upstreams pinned to commits.
 
 ---
 

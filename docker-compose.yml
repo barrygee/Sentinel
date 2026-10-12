@@ -32,6 +32,9 @@ x-section-env: &section-env
   SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json
   NATS_CREDENTIALS_FILE: /run/service-credentials/nats-credentials.json
   NATS_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
+  # The same CA, trusted for HTTPS to a hub on a radio host (the SDR section
+  # fetches its IQ captures there — P7.5).
+  INTERNAL_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
   # The unprivileged user the process runs as (see the app's entry below).
   SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
   SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
@@ -114,6 +117,11 @@ services:
       - NATS_URL=${NATS_URL-tls://nats:4222}
       - NATS_CREDENTIALS_FILE=/run/service-credentials/nats-credentials.json
       - NATS_CERTIFICATE_AUTHORITY_FILE=/run/service-credentials/certificate-authority.pem
+      # The deployment CA, trusted for HTTPS to services on other hosts (health
+      # probes of a radio host's hub — P7.5), and the gateway's own copy of it
+      # (a path in the GATEWAY container) for proxying to them.
+      - INTERNAL_CERTIFICATE_AUTHORITY_FILE=/run/service-credentials/certificate-authority.pem
+      - GATEWAY_UPSTREAM_CERTIFICATE_AUTHORITY_FILE=/run/service-credentials/certificate-authority.pem
       # The gateway's admin API, which core pushes the service registry's routes
       # into. Set GATEWAY_ADMIN_URL= (empty) in .env to run without a gateway.
       - GATEWAY_ADMIN_URL=${GATEWAY_ADMIN_URL-http://gateway:2019}
@@ -139,30 +147,46 @@ services:
   # runtime by the app from the service registry (backend/core/gateway_sync.py),
   # so moving a section into its own container needs no gateway edit. The
   # admin API (:2019) is reachable on the compose network only — never published.
+  #
+  # It also serves core's TLS service entrypoint on :8443 (P7.5): every path
+  # straight to the app, /internal/ included, for Sentinel processes on another
+  # host (a radio host's hub, a section elsewhere) to register, read settings
+  # and their secrets. Not for browsers. Its certificate is issued by the
+  # deployment CA (service-credentials) for `gateway`, `localhost` and
+  # SENTINEL_CORE_HOSTNAMES. Published on 127.0.0.1 only unless
+  # SENTINEL_SERVICE_ENTRYPOINT_ADDRESS opens it to the LAN (e.g. 0.0.0.0:8443).
   gateway:
     image: caddy:2.10-alpine
     container_name: sentinel-gateway
     command: ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
     ports:
       - "8080:8080"
+      - "${SENTINEL_SERVICE_ENTRYPOINT_ADDRESS:-127.0.0.1:8443}:8443"
     volumes:
       - ./gateway/caddy.json:/etc/caddy/caddy.json:ro
-    # Nothing to persist: no TLS certificates (plain HTTP on the LAN) and the
-    # dynamic routes are re-pushed by the app, so run unprivileged on a
+      # The entrypoint's certificate and key, and the CA it trusts when
+      # proxying to a service registered at an https:// address.
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/gateway}}
+    # Nothing to persist (its certificate comes from the volume above, and the
+    # dynamic routes are re-pushed by the app), so run unprivileged on a
     # read-only filesystem with scratch space for Caddy's data/config dirs,
     # owned by that user (a root-owned tmpfs makes Caddy log a storage error).
-    user: "65534:65534"
+    # The runtime user, because it owns the private key service-credentials wrote.
+    user: "${SENTINEL_RUNTIME_USER_ID:-1000}:${SENTINEL_RUNTIME_GROUP_ID:-1000}"
     read_only: true
     tmpfs:
-      - /data:uid=65534,gid=65534
-      - /config:uid=65534,gid=65534
+      - /data:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
+      - /config:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:2019/config/"]
       interval: 10s
       timeout: 3s
       retries: 3
     depends_on:
-      - app
+      app:
+        condition: service_started
+      service-credentials:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - sentinel
@@ -337,8 +361,8 @@ services:
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
   # low-rate control events (settings changes, decode events, hub requests);
-  # FFT/IQ/PCM never go through it. Not published on the host — only
-  # Sentinel's own containers talk to it.
+  # FFT/IQ/PCM never go through it. Only Sentinel's own processes talk to it:
+  # this host's containers, and a radio host's hub when one is set up.
   #
   # Clients connect over TLS (a CA generated for this deployment) and each
   # signs in as its own NATS user, allowed only the subjects it uses
@@ -346,6 +370,11 @@ services:
   nats:
     image: nats:2.11-alpine
     container_name: sentinel-nats
+    # On 127.0.0.1 only unless NATS_PUBLISHED_ADDRESS opens it to the LAN
+    # (e.g. 0.0.0.0:4222) for a radio host's hub (P7.5). TLS and a user per
+    # service either way, so publishing it exposes nothing unauthenticated.
+    ports:
+      - "${NATS_PUBLISHED_ADDRESS:-127.0.0.1:4222}:4222"
     depends_on:
       service-credentials:
         condition: service_completed_successfully
@@ -389,9 +418,14 @@ services:
       SENTINEL_WRITABLE_DIRECTORIES: /run/service-credentials
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
-      # Extra names the broker's certificate must cover, comma-separated
-      # (a second host dialling it by another address — P7.5).
-      NATS_SERVER_EXTRA_HOSTNAMES: ${NATS_SERVER_EXTRA_HOSTNAMES:-}
+      # Names (or IP addresses) other hosts reach THIS core host by,
+      # comma-separated: the broker's and the service entrypoint's certificates
+      # cover them (a radio host dialling core — P7.5).
+      SENTINEL_CORE_HOSTNAMES: ${SENTINEL_CORE_HOSTNAMES:-}
+      # Names (or IP addresses) core reaches a RADIO HOST by: when set, its
+      # gateway's certificate is issued here (the CA key never leaves this host)
+      # and exported with its bundle (backend/scripts/service_credentials_bundle.py).
+      SENTINEL_RADIO_HOST_HOSTNAMES: ${SENTINEL_RADIO_HOST_HOSTNAMES:-}
     command: ["python", "-m", "backend.scripts.generate_service_credentials", "/run/service-credentials"]
     # A one-shot job, not a server.
     healthcheck:

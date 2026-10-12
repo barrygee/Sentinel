@@ -1,0 +1,64 @@
+{
+    "admin": {
+        "disabled": true
+    },
+    "apps": {
+        "http": {
+            "servers": {
+                "radio_host": {
+                    "listen": [":8443"],
+                    "protocols": ["h1", "h2"],
+                    "automatic_https": {
+                        "disable": true
+                    },
+                    "tls_connection_policies": [
+                        {
+                            "default_sni": "radio-host-gateway"
+                        }
+                    ],
+                    "routes": [
+                        {
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [
+                                        {
+                                            "dial": "radio-hub:8000"
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ],
+                    "errors": {
+                        "routes": [
+                            {
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 503,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Service unavailable\"}"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                }
+            }
+        },
+        "tls": {
+            "certificates": {
+                "load_files": [
+                    {
+                        "certificate": "/run/service-credentials/certificate.pem",
+                        "key": "/run/service-credentials/private-key.pem"
+                    }
+                ]
+            }
+        }
+    }
+}

@@ -26,8 +26,13 @@ def advertised_hub_url() -> str:
 
 
 def advertised_hub_host() -> str:
-    """The host part of `advertised_hub_url`."""
-    return urlsplit(advertised_hub_url()).hostname or ""
+    """The host decoders dial the hub's sockets on.
+
+    ``DECODER_SOCKETS_HOST`` when set (a hub behind a radio host's gateway: its
+    decoders share its compose network, P7.5), else the host part of
+    `advertised_hub_url`.
+    """
+    return settings.decoder_sockets_host or urlsplit(advertised_hub_url()).hostname or ""
 
 
 def socket_endpoint(port: int) -> dict[str, str | int]:
