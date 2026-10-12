@@ -29,6 +29,10 @@ from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AprsDecodeBridge
 from backend.services import aprs_store
+from tests.backend.service_credentials_test_helpers import (
+    accept_callers,
+    decoder_header,
+)
 
 
 class _FakeBroadcaster:
@@ -42,15 +46,13 @@ class _FakeBroadcaster:
 
 
 @pytest.fixture(autouse=True)
-def _reset_decode_state():
+def _reset_decode_state(monkeypatch, tmp_path):
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
-    original_secret = settings.decoder_ingest_secret
+    accept_callers(monkeypatch, tmp_path)
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
-    settings.decoder_ingest_secret = original_secret
-    sdr_decode._ingest_secret = None
 
 
 @pytest.fixture(autouse=True)
@@ -235,7 +237,7 @@ class TestAprsStatus:
 
 class TestAprsIngest:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.post(
             "/api/sdr/aprs/ingest",
             json={"event": _position_event()},
@@ -244,7 +246,6 @@ class TestAprsIngest:
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right"
         resp = client.post(
             "/api/sdr/aprs/ingest",
             json={"event": _position_event()},
@@ -253,16 +254,14 @@ class TestAprsIngest:
         assert resp.status_code == 401
 
     def test_no_active_bridge_returns_409(self, client):
-        settings.decoder_ingest_secret = "s"
         resp = client.post(
             "/api/sdr/aprs/ingest",
             json={"event": _position_event()},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("aprs-decoder"),
         )
         assert resp.status_code == 409
 
     def test_position_event_relayed_and_stored(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_aprs_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()  # drop seeded status frame
@@ -270,7 +269,7 @@ class TestAprsIngest:
         resp = client.post(
             "/api/sdr/aprs/ingest",
             json={"event": _position_event()},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("aprs-decoder"),
         )
         assert resp.status_code == 200
         # Relayed to the panel WS subscribers, defaulted to type "aprs".
@@ -282,7 +281,6 @@ class TestAprsIngest:
         assert [s["callsign"] for s in stations] == ["M0ABC-9"]
 
     def test_log_event_relayed_but_not_stored(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_aprs_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()
@@ -290,7 +288,7 @@ class TestAprsIngest:
         resp = client.post(
             "/api/sdr/aprs/ingest",
             json={"event": {"type": "log", "line": "M0ABC-9>APRS:..."}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("aprs-decoder"),
         )
         assert resp.status_code == 200
         event = queue.get_nowait()
@@ -304,7 +302,7 @@ class TestAprsIngest:
 
 class TestAprsConfig:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         assert (
             client.get(
                 "/api/sdr/aprs/config", headers={"X-Decode-Secret": "x"}
@@ -313,7 +311,6 @@ class TestAprsConfig:
         )
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right"
         assert (
             client.get(
                 "/api/sdr/aprs/config", headers={"X-Decode-Secret": "no"}
@@ -322,18 +319,16 @@ class TestAprsConfig:
         )
 
     def test_reports_inactive_without_bridge(self, client):
-        settings.decoder_ingest_secret = "s"
         body = client.get(
-            "/api/sdr/aprs/config", headers={"X-Decode-Secret": "s"}
+            "/api/sdr/aprs/config", headers=decoder_header("aprs-decoder")
         ).json()
         assert body == {"active": False, "pcmFeed": {"host": "app", "port": 7357}}
 
     def test_reports_active_with_running_bridge(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_aprs_bridge()
         bridge._running = True
         body = client.get(
-            "/api/sdr/aprs/config", headers={"X-Decode-Secret": "s"}
+            "/api/sdr/aprs/config", headers=decoder_header("aprs-decoder")
         ).json()
         assert body == {"active": True, "pcmFeed": {"host": "app", "port": 7357}}
 

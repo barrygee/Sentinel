@@ -1,7 +1,7 @@
 """Which event-bus subjects each Sentinel process may use on NATS (plan §4.5, P7.4).
 
 Every process connects as its own NATS user, and the server enforces this
-table: `backend/scripts/generate_nats_credentials.py` writes it into the
+table: `backend/scripts/generate_service_credentials.py` writes it into the
 server's `nats.conf` on every `docker compose up`. A subject a service starts
 using must be added here, or the broker refuses it (the service logs a NATS
 "Permissions Violation" and the event stays in-process).

@@ -4,8 +4,9 @@ tests/backend/test_radio_hub_iq_captures_router.py
 Tests for backend/radio_hub/routers/iq_captures.py — where the SDR section
 downloads a finished IQ capture from the radio hub and then deletes it
 (section-containers plan P7.3). Pinned here:
-  * the deployment's join token is required (401 without or with a wrong one,
-    503 when this deployment has none);
+  * only the SDR section's own credential (or core's) is accepted: 401 without
+    or with an unknown one, 403 for any other caller, 503 when this process
+    accepts no callers (P7.4b);
   * a capture still being written is refused (409), a missing one is 404, an
     id below 1 is rejected before anything is read;
   * GET streams the raw bytes; DELETE removes the staged file;
@@ -18,23 +19,24 @@ from __future__ import annotations
 import pytest
 
 from backend.config import settings
-from backend.platform import join_token as join_token_module
 from backend.radio_hub.services import iq_capture
+from tests.backend.service_credentials_test_helpers import (
+    TOKENS,
+    accept_callers,
+    bearer,
+)
 
-JOIN_TOKEN = "deployment-join-token"
-AUTHORIZED = {"Authorization": f"Bearer {JOIN_TOKEN}"}
+AUTHORIZED = bearer("sdr")
 URL = "/internal/radio-hub/iq-captures"
 
 
 @pytest.fixture(autouse=True)
 def deployment(monkeypatch, tmp_path):
-    """A join token, and the app hosting the hub with the SDR section elsewhere (staged captures)."""
+    """Credentials, and the app hosting the hub with the SDR section elsewhere (staged captures)."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "sentinel.db"))
-    monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
-    monkeypatch.setattr(settings, "sentinel_join_token_file", "")
+    accept_callers(monkeypatch, tmp_path)
     monkeypatch.setattr(settings, "sentinel_core_url", "")
     monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
-    monkeypatch.setattr(join_token_module, "_generated_token", None)
 
 
 @pytest.fixture()
@@ -47,24 +49,34 @@ def staged(tmp_path):
     return capture
 
 
-class TestJoinToken:
+class TestCredential:
     @pytest.mark.parametrize("method", ["get", "delete"])
-    def test_refuses_a_caller_without_the_token(self, client, staged, method):
+    def test_refuses_a_caller_without_a_credential(self, client, staged, method):
         assert getattr(client, method)(f"{URL}/5").status_code == 401
         assert staged.exists()
 
     @pytest.mark.parametrize("method", ["get", "delete"])
-    def test_refuses_a_wrong_token(self, client, staged, method):
+    def test_refuses_an_unknown_credential(self, client, staged, method):
         response = getattr(client, method)(f"{URL}/5", headers={"Authorization": "Bearer guess"})
         assert response.status_code == 401
         assert staged.exists()
 
-    def test_refuses_a_token_without_the_bearer_scheme(self, client, staged):
-        assert client.get(f"{URL}/5", headers={"Authorization": JOIN_TOKEN}).status_code == 401
+    def test_refuses_a_credential_without_the_bearer_scheme(self, client, staged):
+        assert client.get(f"{URL}/5", headers={"Authorization": TOKENS["sdr"]}).status_code == 401
 
-    def test_is_unavailable_on_a_deployment_without_a_join_token(self, client, staged, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
+    def test_is_unavailable_when_this_process_accepts_no_callers(self, client, staged, monkeypatch):
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         assert client.get(f"{URL}/5", headers=AUTHORIZED).status_code == 503
+
+    @pytest.mark.parametrize("method", ["get", "delete"])
+    @pytest.mark.parametrize("caller", ["sea", "space", "land", "air", "radio-hub", "stub-decoder"])
+    def test_refuses_every_other_caller(self, client, staged, method, caller):
+        # Raw IQ is for the service that keeps the recordings only.
+        assert getattr(client, method)(f"{URL}/5", headers=bearer(caller)).status_code == 403
+        assert staged.exists()
+
+    def test_core_may_fetch_it(self, client, staged):
+        assert client.get(f"{URL}/5", headers=bearer("core")).status_code == 200
 
 
 class TestDownload:

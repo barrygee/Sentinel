@@ -20,10 +20,10 @@ from backend.config import settings
 from backend.platform import settings_client
 from backend.services import ais_stream, sea_ais_receiver
 from backend.services.ais_store import AisVesselStore
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CORE_URL = "http://app:8000"
-JOIN_TOKEN = "service-join-token"
 KEY = "abcdef0123456789"
 # Captured before the `core` fixture swaps httpx.AsyncClient for a fake-core client.
 RealAsyncClient = httpx.AsyncClient
@@ -95,8 +95,10 @@ class FakeCore:
         self.requests.append(request)
         path = request.url.path
         if path.startswith("/internal/settings/secrets/"):
-            if request.headers.get("Authorization") != f"Bearer {JOIN_TOKEN}":
-                return httpx.Response(401, json={"detail": "Invalid join token"})
+            if request.headers.get("Authorization") != bearer("sea")["Authorization"]:
+                return httpx.Response(
+                    401, json={"detail": "Invalid service credential"}
+                )
             secret_path = path.removeprefix("/internal/settings/secrets/")
             if request.method == "GET":
                 return httpx.Response(200, json={"value": self.secrets.get(secret_path, "")})
@@ -111,11 +113,11 @@ class FakeCore:
 
 
 @pytest.fixture
-def core(monkeypatch) -> FakeCore:
+def core(monkeypatch, tmp_path) -> FakeCore:
     fake = FakeCore()
     real_client = httpx.AsyncClient
     monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
-    monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
+    present_credential(monkeypatch, tmp_path, "sea")
     monkeypatch.setattr(settings, "aisstream_api_key", "")
     monkeypatch.setattr(
         settings_client.httpx,
@@ -181,8 +183,11 @@ class TestTheAisKeyOverHttp:
         assert core.secrets == {}
         assert (await sea_client.get("/api/sea/ais-key")).json()["source"] == "env"
 
-    async def test_a_core_that_refuses_the_token_is_an_error_not_a_missing_key(self, sea_client, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "stale-token")
+    async def test_a_core_that_refuses_the_credential_is_an_error_not_a_missing_key(
+        self, sea_client, monkeypatch, tmp_path
+    ):
+        # Another service's credential, as core would see a misplaced mount.
+        present_credential(monkeypatch, tmp_path, "space")
 
         with pytest.raises(settings_client.SettingsUnavailable, match="401"):
             await sea_client.get("/api/sea/ais-key")

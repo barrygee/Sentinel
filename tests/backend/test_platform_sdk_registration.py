@@ -11,6 +11,7 @@ from backend.config import settings
 from backend.platform.sdk import registration as registration_module
 from backend.platform.sdk.registration import ServiceRegistrar, instance_id
 from backend.platform.service_manifest import ServiceManifest
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
 CORE_URL = "http://core.test:8000"
 
@@ -28,10 +29,9 @@ def make_manifest() -> ServiceManifest:
 
 
 @pytest.fixture(autouse=True)
-def service_settings(monkeypatch):
+def service_settings(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL + "/")
-    monkeypatch.setattr(settings, "sentinel_join_token", "the-token")
-    monkeypatch.setattr(settings, "sentinel_join_token_file", "")
+    present_credential(monkeypatch, tmp_path, "space")
     monkeypatch.setattr(settings, "service_instance_id", "space-1")
 
 
@@ -50,7 +50,7 @@ class TestInstanceId:
 
 
 class TestRegisterOnce:
-    async def test_posts_the_manifest_with_the_join_token(self):
+    async def test_posts_the_manifest_with_its_own_credential(self):
         received: list[httpx.Request] = []
 
         def answer(request: httpx.Request) -> httpx.Response:
@@ -64,11 +64,14 @@ class TestRegisterOnce:
         (request,) = received
         assert request.method == "POST"
         assert str(request.url) == f"{CORE_URL}/internal/registry/register"
-        assert request.headers["Authorization"] == "Bearer the-token"
-        assert json.loads(request.content) == {"instanceId": "space-1", "manifest": make_manifest().to_wire()}
+        assert request.headers["Authorization"] == bearer("space")["Authorization"]
+        assert json.loads(request.content) == {
+            "instanceId": "space-1",
+            "manifest": make_manifest().to_wire(),
+        }
 
-    async def test_does_not_call_core_without_a_join_token(self, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
+    async def test_does_not_call_core_without_a_credential(self, monkeypatch):
+        monkeypatch.setattr(settings, "service_http_credentials_file", "")
         calls: list[httpx.Request] = []
 
         registrar = ServiceRegistrar(make_manifest())

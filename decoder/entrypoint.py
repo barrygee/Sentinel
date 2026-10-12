@@ -17,9 +17,8 @@ plus the port).
 
 Environment:
     SENTINEL_GATEWAY_URL           Sentinel's gateway (http://gateway:8080)
-    INGEST_SECRET                  shared secret (explicit override)
-    INGEST_SECRET_FILE             path to the auto-generated shared secret file
-                                   (the backend writes it; preferred over env)
+    DECODER_CREDENTIALS_FILE       this decoder's own credential (written by the
+                                   `service-credentials` compose service)
     DSD_EXTRA_ARGS                 optional extra dsd-fme args (space-separated)
 """
 
@@ -38,33 +37,23 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-# How long to wait for the backend to write the shared secret file on startup.
-_SECRET_WAIT_SECONDS = 30
-
 
 def resolve_secret() -> str | None:
-    """Resolve the ingest secret from the env override or the shared file.
+    """This decoder's own credential, from ``DECODER_CREDENTIALS_FILE``.
 
-    An explicit ``INGEST_SECRET`` wins. Otherwise read ``INGEST_SECRET_FILE``,
-    polling briefly because the backend writes it during its own startup and the
-    decoder may come up first. Returns None if neither yields a secret.
+    The one-shot ``service-credentials`` service writes the file before any
+    decoder starts (``{"caller", "token"}``); the hub accepts the token for this
+    decoder's kind only. None when the variable is unset or the file unreadable.
     """
-    env_secret = os.environ.get("INGEST_SECRET", "").strip()
-    if env_secret:
-        return env_secret
-    path = os.environ.get("INGEST_SECRET_FILE", "").strip()
+    path = os.environ.get("DECODER_CREDENTIALS_FILE", "").strip()
     if not path:
         return None
-    deadline = time.monotonic() + _SECRET_WAIT_SECONDS
-    while time.monotonic() < deadline:
-        try:
-            contents = open(path, encoding="utf-8").read().strip()  # noqa: SIM115
-            if contents:
-                return contents
-        except OSError:
-            pass
-        time.sleep(1)
-    return None
+    try:
+        with open(path, encoding="utf-8") as credentials_file:
+            token = json.load(credentials_file).get("token")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return token if isinstance(token, str) and token else None
 
 
 # ── dsd-fme log parsing ───────────────────────────────────────────────────────
@@ -362,7 +351,7 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
     secret = resolve_secret()
     if not secret:
         print(
-            "[decoder] no ingest secret (INGEST_SECRET / INGEST_SECRET_FILE) — refusing to start",
+            "[decoder] no decoder credential (DECODER_CREDENTIALS_FILE) — refusing to start",
             file=sys.stderr,
             flush=True,
         )

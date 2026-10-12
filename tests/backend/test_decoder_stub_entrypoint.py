@@ -136,43 +136,38 @@ class TestBuildManifest:
 
 
 class TestResolveSecret:
-    def test_the_env_override_wins(self, tmp_path):
-        secret_file = tmp_path / "secret"
-        secret_file.write_text("from-file")
-        env = {"INGEST_SECRET": " from-env ", "INGEST_SECRET_FILE": str(secret_file)}
-        assert stub.resolve_secret(env) == "from-env"
+    """The stub's own credential, from DECODER_CREDENTIALS_FILE (P7.4b)."""
 
-    def test_reads_the_shared_file(self, tmp_path):
-        secret_file = tmp_path / "secret"
-        secret_file.write_text("from-file\n")
+    def test_reads_the_token(self, tmp_path):
+        path = tmp_path / "http-credentials.json"
+        path.write_text('{"caller": "stub-decoder", "token": "own-token"}')
         assert (
-            stub.resolve_secret({"INGEST_SECRET_FILE": str(secret_file)}) == "from-file"
+            stub.resolve_secret({"DECODER_CREDENTIALS_FILE": f" {path} "})
+            == "own-token"
         )
 
-    def test_waits_for_the_hub_to_write_the_file(self, tmp_path):
-        secret_file = tmp_path / "secret"
-        naps = []
+    def test_none_when_the_variable_is_unset(self):
+        assert stub.resolve_secret({}) is None
 
-        def _nap(seconds):
-            naps.append(seconds)
-            secret_file.write_text(
-                "" if len(naps) == 1 else "late"
-            )  # empty first, then written
+    def test_the_old_shared_secret_variable_is_ignored(self):
+        assert stub.resolve_secret({"INGEST_SECRET": "shared"}) is None
 
+    def test_none_when_the_file_is_missing(self, tmp_path):
         assert (
-            stub.resolve_secret({"INGEST_SECRET_FILE": str(secret_file)}, sleep=_nap)
-            == "late"
-        )
-        assert naps == [1.0, 1.0]
-
-    def test_gives_up_after_the_wait(self, tmp_path):
-        env = {"INGEST_SECRET_FILE": str(tmp_path / "never")}
-        assert (
-            stub.resolve_secret(env, wait_seconds=0, sleep=lambda seconds: None) is None
+            stub.resolve_secret(
+                {"DECODER_CREDENTIALS_FILE": str(tmp_path / "absent.json")}
+            )
+            is None
         )
 
-    def test_none_without_either_source(self):
-        assert stub.resolve_secret({"INGEST_SECRET": "  "}) is None
+    @pytest.mark.parametrize(
+        "contents",
+        ["not json", "[1, 2]", '{"caller": "x"}', '{"token": ""}', '{"token": 42}'],
+    )
+    def test_none_for_an_unusable_file(self, tmp_path, contents):
+        path = tmp_path / "http-credentials.json"
+        path.write_text(contents)
+        assert stub.resolve_secret({"DECODER_CREDENTIALS_FILE": str(path)}) is None
 
 
 # ── the hub client ───────────────────────────────────────────────────────────

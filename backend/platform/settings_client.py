@@ -18,8 +18,8 @@ Two modes, chosen by `SENTINEL_CORE_URL`:
 
 Secret settings (`SECRET_SETTING_KEYS`, e.g. Sea's AISStream key) never cross
 the public settings API, which redacts them. Their owner uses `read_secret` /
-`write_secret` / `delete_secret`, which go to core's join-token-gated
-`/internal/settings/secrets/` routes when remote (plan §4.3 rule 4).
+`write_secret` / `delete_secret`, which go to core's
+`/internal/settings/secrets/` routes with this service's own credential when remote (plan §4.3 rule 4).
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ import httpx
 from backend.config import settings
 from backend.db_helpers import get_setting, upsert_setting
 from backend.platform.bus import bus
-from backend.platform.join_token import service_join_token
+from backend.platform.service_credentials import own_token
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -160,18 +160,17 @@ def _secret_url(namespace: str, key: str) -> str:
     return "/".join([settings.sentinel_core_url.rstrip("/"), "internal", "settings", "secrets", namespace, key])
 
 
-def _join_token_header() -> dict[str, str]:
-    token = service_join_token()
+def _credential_header() -> dict[str, str]:
+    token = own_token()
     if not token:
-        # Core hasn't written the shared token file yet (it is starting).
-        raise SettingsUnavailable("no join token yet: core's secret settings can't be reached")
+        raise SettingsUnavailable("no HTTP credential: core's secret settings can't be reached")
     return {"Authorization": f"Bearer {token}"}
 
 
 async def read_secret(db: AsyncSession, namespace: str, key: str) -> str:
     """The secret stored at (namespace, key), or `""` when none is saved."""
     if settings_are_remote():
-        response = await _core_request("GET", _secret_url(namespace, key), headers=_join_token_header())
+        response = await _core_request("GET", _secret_url(namespace, key), headers=_credential_header())
         value = response.json().get("value")
     else:
         value = await get_setting(db, namespace, key, default="")
@@ -181,7 +180,7 @@ async def read_secret(db: AsyncSession, namespace: str, key: str) -> str:
 async def write_secret(db: AsyncSession, namespace: str, key: str, value: str) -> None:
     """Store a secret. Not announced on the bus: its owner re-reads it on its own schedule."""
     if settings_are_remote():
-        await _core_request("PUT", _secret_url(namespace, key), headers=_join_token_header(), json={"value": value})
+        await _core_request("PUT", _secret_url(namespace, key), headers=_credential_header(), json={"value": value})
         return
     await upsert_setting(db, namespace, key, value)
 
@@ -189,7 +188,7 @@ async def write_secret(db: AsyncSession, namespace: str, key: str, value: str) -
 async def delete_secret(db: AsyncSession, namespace: str, key: str) -> None:
     """Forget a secret (a no-op when none is saved)."""
     if settings_are_remote():
-        await _core_request("DELETE", _secret_url(namespace, key), headers=_join_token_header())
+        await _core_request("DELETE", _secret_url(namespace, key), headers=_credential_header())
         return
     # Deferred, like read_namespace's: only the monolith touches the table.
     from backend.models import UserSettings

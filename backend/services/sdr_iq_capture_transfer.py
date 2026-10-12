@@ -32,7 +32,7 @@ from backend.database import AsyncSessionLocal, sdr_recordings_dir
 from backend.models import SdrRecording
 from backend.modules import shares_process_with
 from backend.platform.bus import bus
-from backend.platform.join_token import service_join_token
+from backend.platform.service_credentials import own_token
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
@@ -84,9 +84,9 @@ async def fetch_iq_capture(download_url: str, destination: Path) -> int:
     left untouched then. A failed delete is only logged: the copy succeeded,
     and the next reconcile run has the hub discard it.
     """
-    token = service_join_token()
+    token = own_token()
     if not token:
-        raise IqCaptureTransferError("no join token: the radio hub's captures can't be reached")
+        raise IqCaptureTransferError("no HTTP credential: the radio hub's captures can't be reached")
     headers = {"Authorization": f"Bearer {token}"}
     partial = destination.with_name(destination.name + ".part")
     destination.parent.mkdir(parents=True, exist_ok=True)

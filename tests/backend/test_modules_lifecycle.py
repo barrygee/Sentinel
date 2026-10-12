@@ -177,23 +177,12 @@ class TestCoreModule:
 
         # The gateway's routes come from the registry, so it syncs only once
         # the registry is up and stops before the registry does.
-        assert calls == ["registry.start", "gateway.start", "gateway.stop", "registry.stop"]
-
-
-    async def test_writes_the_shared_join_token_before_the_registry_starts(self, monkeypatch):
-        """Services read the token from the shared volume; it must exist before
-        anything can register (they never ask core for it)."""
-        calls: list[str] = []
-        for name in ("start",):
-            monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
-            monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
-        monkeypatch.setattr(core, "core_join_token", lambda: calls.append("join_token") or "token")
-        monkeypatch.setattr(core.registry, "start", recorder(calls, "registry.start", is_async=False))
-        monkeypatch.setattr(core.gateway_sync, "start", recorder([], "gateway.start", is_async=False))
-
-        await core.lifecycle.start()
-
-        assert calls == ["join_token", "registry.start"]
+        assert calls == [
+            "registry.start",
+            "gateway.start",
+            "gateway.stop",
+            "registry.stop",
+        ]
 
 
 class TestAirModule:
@@ -299,15 +288,8 @@ class TestSpaceModule:
 
 
 class TestRadioHubModule:
-    async def test_start_resolves_the_secret_then_resumes_decodes_then_starts_the_poller(
-        self, monkeypatch
-    ):
+    async def test_start_resumes_decodes_then_starts_the_poller(self, monkeypatch):
         calls: list[str] = []
-        monkeypatch.setattr(
-            radio_hub.sdr_decode_service,
-            "resolve_ingest_secret",
-            recorder(calls, "secret", is_async=False),
-        )
         monkeypatch.setattr(
             radio_hub.decode_router, "resume_persisted_aprs", recorder(calls, "aprs")
         )
@@ -320,7 +302,7 @@ class TestRadioHubModule:
 
         await radio_hub.lifecycle.start()
 
-        assert calls == ["secret", "aprs", "ais", "fleet.start"]
+        assert calls == ["aprs", "ais", "fleet.start"]
 
     async def test_stop_stops_the_poller_then_decoders_then_broadcasters(
         self, monkeypatch

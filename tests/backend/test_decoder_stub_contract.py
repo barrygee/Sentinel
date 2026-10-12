@@ -39,8 +39,10 @@ from backend.main import app
 from backend.platform.bus import bus
 from backend.radio_hub.services import manifest_decode
 from backend.radio_hub.services import sdr as sdr_svc
+from tests.backend.service_credentials_test_helpers import TOKENS, accept_callers
 
-SECRET = "contract-secret"
+# The stub decoder's own credential: the hub accepts it for the `stub` kind only.
+SECRET = TOKENS["stub-decoder"]
 RTL_SAMPLE_RATE = 1_024_000
 IQ_CHUNK = 40_960
 TONE_OFFSET_HZ = 25_000
@@ -137,9 +139,9 @@ class LiveHub:
 
 
 @pytest.fixture()
-def live_hub(client, monkeypatch) -> Iterator[LiveHub]:
+def live_hub(client, monkeypatch, tmp_path) -> Iterator[LiveHub]:
     """`client` installs the in-memory test database on `app`; uvicorn then serves it."""
-    monkeypatch.setattr(settings, "decoder_ingest_secret", SECRET)
+    accept_callers(monkeypatch, tmp_path)
     loop = asyncio.new_event_loop()
     server = uvicorn.Server(
         uvicorn.Config(

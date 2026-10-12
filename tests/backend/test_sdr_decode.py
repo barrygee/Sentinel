@@ -20,7 +20,6 @@ import asyncio
 import logging
 import math
 import struct
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -306,16 +305,14 @@ def _iq_payload(sample_rate: int, center_hz: int, raw_iq: bytes) -> bytes:
 
 @pytest.fixture(autouse=True)
 def _clear_bridges():
-    """Keep the module-level bridge caches + secret cache clean between tests."""
+    """Keep the module-level bridge caches clean between tests."""
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
-    sdr_decode._ingest_secret = None
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
-    sdr_decode._ingest_secret = None
 
 
 async def _wait_until(predicate, timeout: float = 2.0) -> bool:
@@ -561,51 +558,6 @@ class TestBridgeCacheHelpers:
 
     def test_get_active_bridge_none_when_empty(self):
         assert sdr_decode.get_active_bridge() is None
-
-
-# ── resolve_ingest_secret ─────────────────────────────────────────────────────
-
-
-class TestResolveIngestSecret:
-    def test_explicit_setting_takes_precedence(self, monkeypatch):
-        monkeypatch.setattr(settings, "decoder_ingest_secret", "pinned")
-        assert sdr_decode.resolve_ingest_secret() == "pinned"
-
-    def test_reads_existing_secret_file(self, monkeypatch, tmp_path):
-        secret_file = tmp_path / "secret"
-        secret_file.write_text("from-file\n")
-        monkeypatch.setattr(settings, "decoder_ingest_secret", "")
-        monkeypatch.setattr(settings, "decoder_secret_file", str(secret_file))
-        assert sdr_decode.resolve_ingest_secret() == "from-file"
-
-    def test_generates_and_persists_when_missing(self, monkeypatch, tmp_path):
-        secret_file = tmp_path / "sub" / "secret"
-        monkeypatch.setattr(settings, "decoder_ingest_secret", "")
-        monkeypatch.setattr(settings, "decoder_secret_file", str(secret_file))
-        generated = sdr_decode.resolve_ingest_secret()
-        assert generated
-        # Persisted to disk so the decoder container can read the same value.
-        assert secret_file.read_text().strip() == generated
-
-    def test_caches_after_first_resolution(self, monkeypatch, tmp_path):
-        secret_file = tmp_path / "secret"
-        monkeypatch.setattr(settings, "decoder_ingest_secret", "")
-        monkeypatch.setattr(settings, "decoder_secret_file", str(secret_file))
-        first = sdr_decode.resolve_ingest_secret()
-        secret_file.write_text("changed-on-disk")
-        # Cached → the on-disk change is not re-read within the process.
-        assert sdr_decode.resolve_ingest_secret() == first
-
-    def test_falls_back_to_memory_when_file_unwritable(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(settings, "decoder_ingest_secret", "")
-        monkeypatch.setattr(settings, "decoder_secret_file", str(tmp_path / "secret"))
-
-        def _boom(*args, **kwargs):
-            raise OSError("read-only fs")
-
-        monkeypatch.setattr(Path, "write_text", _boom)
-        secret = sdr_decode.resolve_ingest_secret()
-        assert secret  # ephemeral in-memory secret, backend still works
 
 
 class _ConnStub:

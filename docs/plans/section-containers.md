@@ -179,7 +179,7 @@ Decoders declare `kind: decoder`, `decoderKind: "ais"`, and their PCM spec (rate
 declares `endpoints: { aircraftJson: "http://adsb-decoder:8080/data/aircraft.json" }`.
 
 ### 3.2 Registry lifecycle
-1. On start a service `POST`s its manifest to `app` `/internal/registry/register` with the join token. The registry
+1. On start a service `POST`s its manifest to `app` `/internal/registry/register` with its own credential. The registry
    validates the schema, id pattern and route prefixes (no collisions, no `/api/app`), and **rejects re-registration
    of a live id from a different instance**.
 2. `app` seeds settings defaults (idempotent), makes sure the gateway route exists, and publishes `registry.changed`.
@@ -339,7 +339,7 @@ docker-bake.hcl            amd64 + arm64
 
 ### 4.2 `sentinel_sdk.create_service()`
 This is the one FastAPI factory every service uses.
-- **Config from env:** `SENTINEL_CORE_URL`, `SENTINEL_JOIN_TOKEN`, `NATS_URL`, `SERVICE_INTERNAL_URL`, `DB_PATH`.
+- **Config from env:** `SENTINEL_CORE_URL`, `SERVICE_HTTP_CREDENTIALS_FILE`, `NATS_URL`, `SERVICE_INTERNAL_URL`, `DB_PATH`.
 - **Lifespan:** legacy import → register → seed → background tasks.
 - **Also provides:** the SIGTERM/SIGINT wake chain, `/health`, and the error-handler pack.
 - **Test factory:** builds the service with the in-memory bus and in-memory SQLite, keeping today's `conftest.py`
@@ -352,8 +352,8 @@ service run literally the same routers and services; the move into `services/sec
 `create_service()` runs the bus, the section's lifecycles and then registration (re-sent every
 `SERVICE_REGISTER_INTERVAL_S`, so a restarted core relearns its services; an unchanged re-registration is a no-op), and
 serves `/health` and `/remotes/<id>/`. With `SENTINEL_CORE_URL` set, `backend/platform/settings_client.py` reads and
-writes settings through core's `/api/settings` instead of the local database. The join token needs no configuration
-under compose: core writes it to a shared volume (`SENTINEL_JOIN_TOKEN_FILE`) at start.
+writes settings through core's `/api/settings` instead of the local database. Its credential needs no configuration
+under compose: the one-shot `service-credentials` service generates it before anything starts (P7.4b).
 
 ### 4.3 Persistence split (owner choice: DB per container)
 **Settings stay central.** Core's `user_settings` holds every namespace, so the following keep working unchanged:
@@ -504,16 +504,16 @@ reaching core, and IQ captures landing on `sdr_data` with the hub in its own con
 app. All four gateway-smoke legs passed locally.
 
 ### 4.5 Security
-- **Join token:** `SENTINEL_JOIN_TOKEN` lives in `.env` and is never committed. It gates registration, and core issues
-  each service its own NATS user with per-subject permissions.
+- **Service credentials:** every service and decoder has its own generated HTTP credential and every service its own
+  NATS user with per-subject permissions (P7.4a/b); nothing secret lives in `.env` or the repository.
 - **Manifest validation:** a service can't claim another section's prefixes or `/api/app`.
 - **Remote code:** UI code is served same-origin through the gateway, under CSP `script-src 'self'`.
   *As built (P5.3):* core sets the CSP on the shell document with the inline boot scripts allowed by hash, but it
   must also allow `blob:` and `'unsafe-eval'` for SDR audio (the demod worklet is a Blob URL; the plain-HTTP LAN
   fallback evaluates it with `new Function`). Serving the worklet source as a same-origin file would remove both —
   a follow-up.
-- **Internal surfaces:** the Caddy admin API is bound to the internal network. The shared `decoder_secret` volume is
-  replaced by per-service credentials.
+- **Internal surfaces:** the Caddy admin API is bound to the internal network. The shared `decoder_secret` volume and
+  join token are replaced by per-service credentials (P7.4b).
 - **Multi-host:** NATS TLS with a locally generated CA (`make certs`).
 
 ### 4.6 Multi-host
@@ -611,7 +611,35 @@ and the hub in their own containers and as the monolith: all clients connect ove
 to the hub get their replies; Land requesting `hub.iq-capture.list`, Air subscribing `decode.>`, Space publishing
 `notifications.raise` and Sea subscribing `_INBOX.core.>` are each refused; anonymous, wrong-password and
 untrusted-CA connections are refused. A second host gets a copy of its own `services/<user>/` folder (P7.5).
-P7.4b replaces the shared join token and decoder secret with per-service HTTP credentials.
+
+*As built (P7.4b, per-service HTTP credentials):* the deployment-wide join token (`join_token` volume,
+`SENTINEL_JOIN_TOKEN[_FILE]`) and the shared decoder secret (`decoder_secret` volume, `SENTINEL_DECODER_SECRET`,
+`DECODER_INGEST_SECRET`, the decoders' `INGEST_SECRET[_FILE]`) are gone, overrides included (the owner chose one
+mechanism). The one-shot setup service is renamed `service-credentials` (`service_credentials` volume,
+`backend/scripts/generate_service_credentials.py`; the NATS file is now `nats-credentials.json`) and also gives every
+caller — each service and each decoder (`voice-decoder`, `aprs-decoder`, `ais-decoder`, `stub-decoder`) — a random
+token, created once and kept, in `services/<caller>/http-credentials.json`. Core and the radio hub get
+`accepted-callers.json`: each token's SHA-256 hash and its caller, regenerated every run and re-read when it changes,
+so no process holds another's token. Decoders' files are world-readable (they run as uid 10001) but each decoder
+mounts only its own folder. What a caller may do is `backend/platform/service_access.py`:
+
+| Caller | Register in core | Secret settings | Hub IQ captures | Decoder kind |
+|---|---|---|---|---|
+| `core` | any id | all | yes | – |
+| `space`, `land`, `air`, `radio-hub` | own id | – | – | – |
+| `sea` | own id | `sea/aisstreamApiKey` | – | – |
+| `sdr` | own id | – | yes | – |
+| `*-decoder` | – | – | – | its own (`voice`/`aprs`/`ais`/`stub`) |
+
+Guards (`backend/core/internal_auth.py`): no accepted-callers list → 503, unknown credential → 401, a known caller
+doing something not in its row → 403. Decoders still send `X-Decode-Secret` (the OpenAPI golden pins the header); a
+decoder registers, polls and ingests only its own kind, so a third-party decoder kind now needs a table entry and a
+compose mount. Verified on an isolated stack with every section, the hub and the stub decoder in containers, and as
+the monolith: all six services registered; Sea read its key; Space and SDR were refused it (403); Space registering
+as Sea and Sea registering as Space were refused; only SDR's credential reached the hub's IQ route; the stub's
+credential worked for `stub` and got 403 on the voice/APRS/AIS endpoints; no or made-up credentials got 401;
+the gateway still 404s `/internal/`; a second setup run kept every credential. Live cutover: `docker compose up -d
+--build`, then `docker volume rm` the orphaned `<project>_nats_setup`, `_join_token` and `_decoder_secret`.
 
 ---
 

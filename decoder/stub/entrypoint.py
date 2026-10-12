@@ -27,8 +27,8 @@ Environment:
                          mono; one = ``absolute`` mono; two = ``absolute`` stereo
     REPORT_SECONDS       PCM per summary event                (1.0)
     POLL_SECONDS         config poll interval                 (2.0)
-    INGEST_SECRET        shared decoder secret (explicit override)
-    INGEST_SECRET_FILE   path to the hub's auto-generated decoder secret
+    DECODER_CREDENTIALS_FILE  the stub's own credential (written by the
+                         `service-credentials` compose service)
 """
 
 from __future__ import annotations
@@ -48,8 +48,6 @@ from dataclasses import dataclass
 KIND = "stub"
 SAMPLE_RATE = 48_000
 BYTES_PER_SAMPLE = 2
-# How long to wait for the hub to write the shared secret file on startup.
-SECRET_WAIT_SECONDS = 30.0
 _HTTP_TIMEOUT_SECONDS = 5.0
 
 
@@ -108,35 +106,22 @@ def build_manifest(config: StubConfig) -> dict:
     }
 
 
-def resolve_secret(
-    env: dict[str, str],
-    *,
-    wait_seconds: float = SECRET_WAIT_SECONDS,
-    sleep: Callable[[float], None] = time.sleep,
-) -> str | None:
-    """The decoder secret: ``INGEST_SECRET``, else ``INGEST_SECRET_FILE``.
+def resolve_secret(env: dict[str, str]) -> str | None:
+    """The stub's own credential, from ``DECODER_CREDENTIALS_FILE``.
 
-    The file is polled for up to ``wait_seconds`` because the hub writes it during
-    its own startup and the stub may come up first. None if neither yields one.
+    The one-shot ``service-credentials`` service writes the file
+    (``{"caller", "token"}``) before any decoder starts; the hub accepts the
+    token for the ``stub`` kind only. None when unset or unreadable.
     """
-    env_secret = env.get("INGEST_SECRET", "").strip()
-    if env_secret:
-        return env_secret
-    path = env.get("INGEST_SECRET_FILE", "").strip()
+    path = env.get("DECODER_CREDENTIALS_FILE", "").strip()
     if not path:
         return None
-    deadline = time.monotonic() + wait_seconds
-    while True:
-        try:
-            with open(path, encoding="utf-8") as secret_file:
-                contents = secret_file.read().strip()
-            if contents:
-                return contents
-        except OSError:
-            pass
-        if time.monotonic() >= deadline:
-            return None
-        sleep(1.0)
+    try:
+        with open(path, encoding="utf-8") as credentials_file:
+            token = json.load(credentials_file).get("token")
+    except (OSError, ValueError, AttributeError):
+        return None
+    return token if isinstance(token, str) and token else None
 
 
 class HubLink:
@@ -373,7 +358,7 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
     secret = resolve_secret(env)
     if not secret:
         log(
-            "no decoder secret (INGEST_SECRET / INGEST_SECRET_FILE) — refusing to start"
+            "no decoder credential (DECODER_CREDENTIALS_FILE) — refusing to start"
         )
         return 1
     hub = HubClient(config.gateway_url, secret)

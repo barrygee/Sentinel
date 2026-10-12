@@ -40,7 +40,7 @@ const EXTRACTED_SECTIONS: readonly ExtractedSection[] = [
         enabledByDefault: false,
     },
     // The AIS key status: answered without dialling AISStream, and in `service`
-    // mode it is read from core over the join-token-gated internal route.
+    // mode it is read from core over the internal route, with Sea's own credential.
     { id: 'sea', label: /sea/i, probePath: '/api/sea/ais-key', enabledByDefault: true },
     // Frequency groups: the SDR section's own table, not the radio hub's.
     { id: 'sdr', label: /sdr/i, probePath: '/api/sdr/groups', enabledByDefault: true },

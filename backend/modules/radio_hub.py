@@ -12,9 +12,6 @@ from backend.radio_hub.services.sentry_fleet import fleet_poller
 
 
 async def _start() -> None:
-    # Materialise the digital-decode ingest secret (auto-generated into the shared
-    # volume the decoder container reads) so the sidecar can authenticate.
-    sdr_decode_service.resolve_ingest_secret()
     # Resume background APRS/AIS decode on the persisted radios (best-effort; a
     # missing radio or unreachable dongle is logged and skipped, never blocking
     # startup).

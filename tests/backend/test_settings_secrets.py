@@ -3,8 +3,9 @@
   GET/PUT/DELETE /internal/settings/secrets/{namespace}/{key}
 
 Sea in its own container reads and writes the AISStream key through it, since
-the public settings API redacts the key. Every refusal is pinned here: no join
-token configured, a missing or wrong token, and a key that isn't a secret.
+the public settings API redacts the key. Every refusal is pinned here: core
+accepting no callers, a missing or wrong credential, another service's
+credential (only Sea's reaches the key, P7.4b), and a key that isn't a secret.
 """
 
 import pytest
@@ -13,19 +14,20 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.config import settings
 from backend.db_helpers import upsert_setting
-from backend.platform import join_token as join_token_module
+from tests.backend.service_credentials_test_helpers import (
+    TOKENS,
+    accept_callers,
+    bearer,
+)
 
-JOIN_TOKEN = "test-join-token"
 SECRET_URL = "/internal/settings/secrets/sea/aisstreamApiKey"
-AUTHORIZED = {"Authorization": f"Bearer {JOIN_TOKEN}"}
+AUTHORIZED = bearer("sea")
 KEY = "abcdef0123456789"
 
 
 @pytest.fixture(autouse=True)
-def join_token(monkeypatch):
-    monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
-    monkeypatch.setattr(settings, "sentinel_join_token_file", "")
-    monkeypatch.setattr(join_token_module, "_generated_token", None)
+def accepting(monkeypatch, tmp_path):
+    accept_callers(monkeypatch, tmp_path)
 
 
 class TestReadingAndWriting:
@@ -91,29 +93,78 @@ class TestReadingAndWriting:
 @pytest.mark.parametrize("method", ["GET", "PUT", "DELETE"])
 class TestRefusals:
     def request(self, client, method, url=SECRET_URL, headers=None):
-        return client.request(method, url, headers=headers or {}, json={"value": KEY} if method == "PUT" else None)
+        return client.request(
+            method,
+            url,
+            headers=headers or {},
+            json={"value": KEY} if method == "PUT" else None,
+        )
 
-    def test_without_a_token(self, client, method):
+    def test_without_a_credential(self, client, method):
         assert self.request(client, method).status_code == 401
 
-    def test_with_the_wrong_token(self, client, method):
-        assert self.request(client, method, headers={"Authorization": "Bearer wrong"}).status_code == 401
+    def test_with_a_wrong_credential(self, client, method):
+        assert (
+            self.request(
+                client, method, headers={"Authorization": "Bearer wrong"}
+            ).status_code
+            == 401
+        )
 
-    def test_with_the_token_but_not_as_a_bearer(self, client, method):
-        assert self.request(client, method, headers={"Authorization": JOIN_TOKEN}).status_code == 401
+    def test_with_the_credential_but_not_as_a_bearer(self, client, method):
+        assert (
+            self.request(
+                client, method, headers={"Authorization": TOKENS["sea"]}
+            ).status_code
+            == 401
+        )
 
-    def test_when_the_deployment_has_no_join_token(self, client, method, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
+    def test_when_core_accepts_no_callers(self, client, method, monkeypatch):
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
 
         assert self.request(client, method, headers=AUTHORIZED).status_code == 503
 
-    @pytest.mark.parametrize("url", ["/internal/settings/secrets/sea/enabled", "/internal/settings/secrets/app/location"])
+    @pytest.mark.parametrize(
+        "caller", ["space", "land", "air", "sdr", "radio-hub", "ais-decoder"]
+    )
+    def test_with_another_services_credential(self, client, method, caller):
+        # Before P7.4b any service holding the join token could read Sea's key.
+        assert self.request(client, method, headers=bearer(caller)).status_code == 403
+
+    def test_core_itself_may(self, client, method):
+        assert self.request(client, method, headers=bearer("core")).status_code in (
+            200,
+            204,
+        )
+
+    def test_an_unknown_key_is_404_even_for_a_caller_without_secrets(
+        self, client, method
+    ):
+        # Existence is checked before ownership, so the 404 reveals nothing about who owns what.
+        url = "/internal/settings/secrets/sea/enabled"
+        assert (
+            self.request(client, method, url=url, headers=bearer("space")).status_code
+            == 404
+        )
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/internal/settings/secrets/sea/enabled",
+            "/internal/settings/secrets/app/location",
+        ],
+    )
     def test_a_key_that_is_not_a_secret_does_not_exist_here(self, client, method, url):
         # Otherwise the route would be a way round the settings router's validation.
-        assert self.request(client, method, url=url, headers=AUTHORIZED).status_code == 404
+        assert (
+            self.request(client, method, url=url, headers=AUTHORIZED).status_code == 404
+        )
 
-    def test_a_refused_write_stores_nothing(self, client, method):
-        self.request(client, method, headers={"Authorization": "Bearer wrong"})
+    @pytest.mark.parametrize(
+        "headers", [{"Authorization": "Bearer wrong"}, bearer("air")]
+    )
+    def test_a_refused_write_stores_nothing(self, client, method, headers):
+        self.request(client, method, headers=headers)
 
         assert client.get(SECRET_URL, headers=AUTHORIZED).json() == {"value": ""}
 

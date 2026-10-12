@@ -28,15 +28,21 @@ curl -X POST localhost:8080/api/sdr/decoders/stub/start \
 docker compose logs -f stub-decoder
 ```
 
-Without Docker, from the repo root (the secret is whatever the backend uses —
-set `DECODER_INGEST_SECRET` on the backend to pin it). With no gateway, point the
-stub straight at the app, and start the app with `CORE_INTERNAL_URL` set to its
-own address, because that is the host the hub's config reply names for the PCM
-feed (the default, `http://app:8000`, only resolves on the compose network):
+Without Docker, from the repo root: generate the credentials into a local
+folder, give the app the callers it accepts and the stub its own credential.
+With no gateway, point the stub straight at the app, and start the app with
+`CORE_INTERNAL_URL` set to its own address, because that is the host the hub's
+config reply names for the PCM feed (the default, `http://app:8000`, only
+resolves on the compose network):
 
 ```bash
-CORE_INTERNAL_URL=http://localhost:8080 uv run --project backend uvicorn backend.main:app --port 8080
-SENTINEL_GATEWAY_URL=http://localhost:8080 INGEST_SECRET=… python decoder/stub/entrypoint.py
+uv run --project backend python -m backend.scripts.generate_service_credentials /tmp/sentinel-credentials
+CORE_INTERNAL_URL=http://localhost:8080 \
+  ACCEPTED_CALLERS_FILE=/tmp/sentinel-credentials/services/core/accepted-callers.json \
+  uv run --project backend uvicorn backend.main:app --port 8080
+SENTINEL_GATEWAY_URL=http://localhost:8080 \
+  DECODER_CREDENTIALS_FILE=/tmp/sentinel-credentials/services/stub-decoder/http-credentials.json \
+  python decoder/stub/entrypoint.py
 ```
 
 ## Configuration
@@ -48,4 +54,4 @@ SENTINEL_GATEWAY_URL=http://localhost:8080 INGEST_SECRET=… python decoder/stub
 | `STUB_CHANNELS_HZ` | empty | empty = `ownership: relative` mono; one frequency = `absolute` mono; two = `absolute` stereo |
 | `REPORT_SECONDS` | `1.0` | PCM per summary event |
 | `POLL_SECONDS` | `2.0` | config poll interval |
-| `INGEST_SECRET` / `INGEST_SECRET_FILE` | — / `/run/decoder/secret` | the shared decoder secret |
+| `DECODER_CREDENTIALS_FILE` | `/run/service-credentials/http-credentials.json` (compose) | its own credential, accepted for the `stub` kind only |

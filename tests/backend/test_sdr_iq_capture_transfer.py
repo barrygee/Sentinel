@@ -29,10 +29,9 @@ from sqlalchemy.orm import sessionmaker
 
 from backend.config import settings
 from backend.models import SdrRecording
-from backend.platform import join_token as join_token_module
 from backend.services import sdr_iq_capture_transfer as transfer
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
-JOIN_TOKEN = "deployment-join-token"
 DOWNLOAD_URL = "http://radio-hub:8000/internal/radio-hub/iq-captures/{}"
 LOCATE = "hub.iq-capture.locate"
 STOP = "hub.iq-capture.stop"
@@ -100,13 +99,11 @@ class FakeHubHttp:
 
 @pytest.fixture(autouse=True)
 def sdr_section_elsewhere(monkeypatch, tmp_path):
-    """The SDR section in its own container: the hub is in another process, the token is shared."""
+    """The SDR section in its own container: the hub is in another process; SDR has its own credential."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "sdr.db"))
     monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
     monkeypatch.setattr(settings, "sentinel_external_services", "")
-    monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
-    monkeypatch.setattr(settings, "sentinel_join_token_file", "")
-    monkeypatch.setattr(join_token_module, "_generated_token", None)
+    present_credential(monkeypatch, tmp_path, "sdr")
     monkeypatch.setattr(transfer, "_hub_reachable", True)
     transfer._collecting.clear()
     yield
@@ -211,25 +208,36 @@ class TestFetchIqCapture:
         assert destination.read_bytes() == b"\x01\x02\x03\x04"
         assert not (tmp_path / "recordings" / "3.u8.part").exists()
         assert hub_http.methods() == ["GET", "DELETE"]
-        assert all(str(request.url) == DOWNLOAD_URL.format(3) for request in hub_http.requests)
+        assert all(
+            str(request.url) == DOWNLOAD_URL.format(3) for request in hub_http.requests
+        )
 
-    async def test_presents_the_join_token(self, hub_http, tmp_path):
+    async def test_presents_the_sdr_sections_own_credential(self, hub_http, tmp_path):
         hub_http.files[3] = b"x"
         await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8")
 
-        assert {request.headers["Authorization"] for request in hub_http.requests} == {f"Bearer {JOIN_TOKEN}"}
+        assert {request.headers["Authorization"] for request in hub_http.requests} == {
+            bearer("sdr")["Authorization"]
+        }
 
-    async def test_copies_a_capture_larger_than_one_chunk_intact(self, hub_http, tmp_path, monkeypatch):
+    async def test_copies_a_capture_larger_than_one_chunk_intact(
+        self, hub_http, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(transfer, "_CHUNK_BYTES", 3)
         hub_http.files[3] = bytes(range(10))
 
-        assert await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8") == 10
+        assert (
+            await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8")
+            == 10
+        )
         assert (tmp_path / "3.u8").read_bytes() == bytes(range(10))
 
-    async def test_refuses_without_a_join_token_and_asks_nothing(self, hub_http, tmp_path, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
+    async def test_refuses_without_a_credential_and_asks_nothing(
+        self, hub_http, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "service_http_credentials_file", "")
 
-        with pytest.raises(transfer.IqCaptureTransferError, match="no join token"):
+        with pytest.raises(transfer.IqCaptureTransferError, match="no HTTP credential"):
             await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8")
         assert hub_http.requests == []
 

@@ -42,7 +42,7 @@ WORKDIR /app
 # network; the hub's config reply names its APRS PCM feed (7357, distinct from
 # the voice feed's 7355 so both can run at once).
 ENV SENTINEL_GATEWAY_URL=http://gateway:8080 \
-    INGEST_SECRET_FILE=/run/decoder/secret \
+    DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json \
     DIREWOLF_CONFIG=/app/direwolf.conf
 
 CMD ["python3", "/app/entrypoint.py"]

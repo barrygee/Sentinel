@@ -25,13 +25,16 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.config import settings
 from backend.database import Base
 from backend.models import AprsStation  # noqa: F401 — register ORM model with Base
 from backend.platform.bus import bus
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
 from backend.services import ais_decode, ais_store, aprs_store
+from tests.backend.service_credentials_test_helpers import (
+    accept_callers,
+    decoder_header,
+)
 
 
 class _FakeBroadcaster:
@@ -45,19 +48,17 @@ class _FakeBroadcaster:
 
 
 @pytest.fixture(autouse=True)
-def _reset_decode_state():
+def _reset_decode_state(monkeypatch, tmp_path):
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
     ais_store.store.clear()
-    original_secret = settings.decoder_ingest_secret
+    accept_callers(monkeypatch, tmp_path)
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
     ais_store.store.clear()
-    settings.decoder_ingest_secret = original_secret
-    sdr_decode._ingest_secret = None
 
 
 @pytest.fixture()
@@ -200,7 +201,6 @@ class TestAisDecodeEventSubscriber:
 
 class TestAprsIngestPublishesOnTheBus:
     def test_publishes_on_the_bridges_radio_id(self, client, _patch_aprs_store_db):
-        settings.decoder_ingest_secret = "s"
         radio_id = _add_radio(client)
         bridge = _register_aprs_bridge()
         bridge.radio_id = radio_id
@@ -210,7 +210,7 @@ class TestAprsIngestPublishesOnTheBus:
             resp = client.post(
                 "/api/sdr/aprs/ingest",
                 json={"event": _aprs_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("aprs-decoder"),
             )
         finally:
             unsubscribe()
@@ -220,14 +220,13 @@ class TestAprsIngestPublishesOnTheBus:
         assert captured[0]["event"]["from"] == "M0ABC-9"
 
     def test_no_active_bridge_returns_409_and_publishes_nothing(self, client):
-        settings.decoder_ingest_secret = "s"
         captured: list[dict] = []
         unsubscribe = bus.subscribe(">", captured.append)
         try:
             resp = client.post(
                 "/api/sdr/aprs/ingest",
                 json={"event": _aprs_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("aprs-decoder"),
             )
         finally:
             unsubscribe()
@@ -240,7 +239,6 @@ class TestAprsIngestPublishesOnTheBus:
         # Before the bus existed this was a direct call, so a store-write
         # failure surfaced as a 500 to the sidecar (which retries); publish()
         # must be called with raise_errors=True to keep that contract.
-        settings.decoder_ingest_secret = "s"
         radio_id = _add_radio(client)
         bridge = _register_aprs_bridge()
         bridge.radio_id = radio_id
@@ -251,13 +249,12 @@ class TestAprsIngestPublishesOnTheBus:
             client.post(
                 "/api/sdr/aprs/ingest",
                 json={"event": _aprs_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("aprs-decoder"),
             )
 
 
 class TestAisIngestPublishesOnTheBus:
     def test_publishes_on_the_bridges_radio_id(self, client):
-        settings.decoder_ingest_secret = "s"
         radio_id = _add_radio(client)
         bridge = _register_ais_bridge()
         bridge.radio_id = radio_id
@@ -267,7 +264,7 @@ class TestAisIngestPublishesOnTheBus:
             resp = client.post(
                 "/api/sdr/ais/ingest",
                 json={"event": _ais_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("ais-decoder"),
             )
         finally:
             unsubscribe()
@@ -277,14 +274,13 @@ class TestAisIngestPublishesOnTheBus:
         assert captured[0]["event"]["mmsi"] == "227006760"
 
     def test_no_active_bridge_returns_409_and_publishes_nothing(self, client):
-        settings.decoder_ingest_secret = "s"
         captured: list[dict] = []
         unsubscribe = bus.subscribe(">", captured.append)
         try:
             resp = client.post(
                 "/api/sdr/ais/ingest",
                 json={"event": _ais_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("ais-decoder"),
             )
         finally:
             unsubscribe()
@@ -294,7 +290,6 @@ class TestAisIngestPublishesOnTheBus:
     def test_a_subscriber_exception_still_fails_the_ingest_request(
         self, client, monkeypatch
     ):
-        settings.decoder_ingest_secret = "s"
         radio_id = _add_radio(client)
         bridge = _register_ais_bridge()
         bridge.radio_id = radio_id
@@ -305,7 +300,7 @@ class TestAisIngestPublishesOnTheBus:
             client.post(
                 "/api/sdr/ais/ingest",
                 json={"event": _ais_position_event()},
-                headers={"X-Decode-Secret": "s"},
+                headers=decoder_header("ais-decoder"),
             )
 
 

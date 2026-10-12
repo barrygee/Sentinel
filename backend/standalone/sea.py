@@ -7,8 +7,8 @@ is why the app must not host its own copy as well (`SENTINEL_EXTERNAL_SERVICES`)
 
 Settings stay in core and are read over HTTP, including the AISStream key: it
 is a secret the public settings API redacts, so Sea reads and writes it through
-core's join-token-gated `/internal/settings/secrets/` routes. Everything else it
-needs crosses NATS, so `NATS_URL` must be set: off-grid vessels arrive as
+core's `/internal/settings/secrets/` routes, which only Sea's own credential
+may use for it. Everything else it needs crosses NATS, so `NATS_URL` must be set: off-grid vessels arrive as
 `decode.ais.*` events from the radio hub, Sea asks the hub to start/stop its
 designated AIS receiver (`hub.decode.ais.{start,stop}`) and for the bridge's
 state (`hub.decode.ais.status`), and it reconciles that receiver whenever core

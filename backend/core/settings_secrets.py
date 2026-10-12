@@ -8,9 +8,10 @@ Secrets live in core's `user_settings` like every other setting, but the public
 settings API redacts them on read and refuses them on write, so a section in its
 own container can't reach its own secret through it (the AISStream key is Sea's).
 These routes are its way in: under `/internal/`, which the gateway never routes,
-behind the deployment's join token, and only for keys listed in
+behind each service's own credential, only for keys listed in
 `SECRET_SETTING_KEYS` — so they can't be used to write ordinary settings around
-the settings router's validation.
+the settings router's validation — and only for the service that owns the key
+(`backend/platform/service_access.py`).
 
 No `settings.changed` event is published: a secret's owner re-reads it on its
 own schedule (Sea's AIS reader, every watchdog tick), and the config document
@@ -19,10 +20,11 @@ never carries it.
 
 from __future__ import annotations
 
-from backend.core.internal_auth import require_join_token
+from backend.core.internal_auth import require_caller, require_permission
 from backend.database import get_db
 from backend.db_helpers import get_setting, upsert_setting
 from backend.models import UserSettings
+from backend.platform.service_access import may_use_secret
 from backend.services.app_config import is_secret_setting
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
@@ -39,10 +41,12 @@ class SecretValue(BaseModel):
 
 
 def _require_secret(namespace: str, key: str, authorization: str | None) -> None:
-    require_join_token(authorization)
+    caller = require_caller(authorization)
     if not is_secret_setting(namespace, key):
         # Not "forbidden": as far as this route is concerned, nothing else exists.
         raise HTTPException(status_code=404, detail="No such secret setting")
+    # Only the secret's owner: Sea's credential reaches the AISStream key, no other service's does.
+    require_permission(may_use_secret(caller, namespace, key))
 
 
 @router.get("/{namespace}/{key}", response_model=SecretValue)
