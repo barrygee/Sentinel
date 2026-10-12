@@ -27,7 +27,11 @@ x-section-env: &section-env
   SENTINEL_CORE_URL: http://app:8000
   SENTINEL_JOIN_TOKEN: ${SENTINEL_JOIN_TOKEN:-}
   SENTINEL_JOIN_TOKEN_FILE: /run/sentinel/join-token
-  NATS_URL: ${NATS_URL-nats://nats:4222}
+  NATS_URL: ${NATS_URL-tls://nats:4222}
+  # Each service's own NATS user and the CA the broker's certificate is checked
+  # against, from its folder of the `nats-setup` output (mounted per service).
+  NATS_CREDENTIALS_FILE: /run/nats/credentials.json
+  NATS_CERTIFICATE_AUTHORITY_FILE: /run/nats/certificate-authority.pem
   # The unprivileged user the process runs as (see the app's entry below).
   SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
   SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
@@ -72,6 +76,8 @@ services:
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       - decoder_secret:/run/decoder    # shared auto-generated ingest secret
       - join_token:/run/sentinel       # shared auto-generated registry join token
+      # Its own NATS user (`core`) and the event bus's CA, from nats-setup.
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/core}}
     environment:
       - DB_PATH=/app/data/sentinel.db
       # Service registration (section-containers plan §3.2): sections running in
@@ -109,8 +115,11 @@ services:
       - ADSB_OFFGRID_URL=${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
       # Event bus broker (the `nats` service below). Events are always delivered
       # in-process first; NATS carries them to sections in other containers.
-      # Set NATS_URL= (empty) in .env to run without a broker.
-      - NATS_URL=${NATS_URL-nats://nats:4222}
+      # Set NATS_URL= (empty) in .env to run without a broker. TLS, with each
+      # process signing in as its own NATS user (see `nats-setup` below).
+      - NATS_URL=${NATS_URL-tls://nats:4222}
+      - NATS_CREDENTIALS_FILE=/run/nats/credentials.json
+      - NATS_CERTIFICATE_AUTHORITY_FILE=/run/nats/certificate-authority.pem
       # The gateway's admin API, which core pushes the service registry's routes
       # into. Set GATEWAY_ADMIN_URL= (empty) in .env to run without a gateway.
       - GATEWAY_ADMIN_URL=${GATEWAY_ADMIN_URL-http://gateway:2019}
@@ -182,6 +191,7 @@ services:
       - *backend-code
       - *spa-dist
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/space}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/space.db
@@ -204,6 +214,7 @@ services:
       - *backend-code
       - *spa-dist
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/land}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/land.db
@@ -227,6 +238,7 @@ services:
       - *backend-code
       - *spa-dist
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/air}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/air.db
@@ -254,6 +266,7 @@ services:
       - *backend-code
       - *spa-dist
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/sea}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/sea.db
@@ -291,6 +304,7 @@ services:
       - *legacy-db
       - *backend-code
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/radio-hub}}
       - decoder_secret:/run/decoder   # writes the decoders' ingest secret
       # IQ captures are written to recordings/ on radio_hub_data; the SDR
       # section copies each one over HTTP when its recording stops (P7.3), so
@@ -324,6 +338,7 @@ services:
       - *backend-code
       - *spa-dist
       - *join-token-ro
+      - {type: volume, source: nats_setup, target: /run/nats, read_only: true, volume: {subpath: services/sdr}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/sdr.db
@@ -335,11 +350,21 @@ services:
   # low-rate control events (settings changes, decode events, hub requests);
   # FFT/IQ/PCM never go through it. Not published on the host — only
   # Sentinel's own containers talk to it.
+  #
+  # Clients connect over TLS (a CA generated for this deployment) and each
+  # signs in as its own NATS user, allowed only the subjects it uses
+  # (backend/platform/nats_permissions.py). nats-setup writes the config.
   nats:
     image: nats:2.11-alpine
     container_name: sentinel-nats
-    # -m: monitoring port for the healthcheck (inside the network only).
-    command: ["--name", "sentinel", "-m", "8222"]
+    depends_on:
+      nats-setup:
+        condition: service_completed_successfully
+    volumes:
+      - {type: volume, source: nats_setup, target: /etc/nats-sentinel, read_only: true, volume: {subpath: server}}
+    # The config also opens the monitoring port (8222, inside the network
+    # only) for the healthcheck.
+    command: ["--config", "/etc/nats-sentinel/nats.conf"]
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
       interval: 10s
@@ -348,6 +373,38 @@ services:
     restart: unless-stopped
     networks:
       - sentinel
+
+  # Generates the event bus's security on every `up`, then exits (plan §4.5,
+  # P7.4): a CA for this deployment, the broker's TLS certificate, one NATS
+  # user + password per service and nats.conf with each user's subject
+  # permissions. Everything is kept on the nats_setup volume and only created
+  # when missing. The config is regenerated each time, but the broker reads it
+  # only at start: after a permissions change, `docker compose restart nats`.
+  # Each service mounts only its own
+  # services/<user>/ folder; the CA's private key is never mounted elsewhere.
+  # See backend/scripts/generate_nats_credentials.py.
+  nats-setup:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: sentinel-nats-setup
+    volumes:
+      - nats_setup:/run/nats-setup
+      - ./backend:/app/backend
+    environment:
+      # The entrypoint hands this folder to the runtime user, which then owns
+      # every file the services read.
+      SENTINEL_WRITABLE_DIRECTORIES: /run/nats-setup
+      SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
+      SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
+      # Extra names the broker's certificate must cover, comma-separated
+      # (a second host dialling it by another address — P7.5).
+      NATS_SERVER_EXTRA_HOSTNAMES: ${NATS_SERVER_EXTRA_HOSTNAMES:-}
+    command: ["python", "-m", "backend.scripts.generate_nats_credentials", "/run/nats-setup"]
+    # A one-shot job, not a server.
+    healthcheck:
+      disable: true
+    restart: "no"
 
   # Digital-voice decoder (dsd-fme). OPT-IN: it only builds/starts when you pass
   # `--profile decoder`, so it is never built by default or in CI. Building it
@@ -539,6 +596,7 @@ volumes:
   sentinel_db:
   decoder_secret:
   join_token:
+  nats_setup:
   space_data:
   land_data:
   air_data:

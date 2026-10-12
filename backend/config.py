@@ -305,6 +305,13 @@ class Settings(BaseSettings):
     # NATS server the event bus forwards to, e.g. `nats://nats:4222`. Empty keeps
     # the bus in-process only — the all-in-one app needs no broker.
     nats_url: str = ""
+    # This process's NATS user: a JSON file `{"user", "password"}` written by the
+    # `nats-setup` compose service (backend/scripts/generate_nats_credentials.py).
+    # Empty connects without a user, as a broker without authorization expects.
+    nats_credentials_file: str = ""
+    # The CA certificate the broker's TLS certificate is checked against (a
+    # `tls://` NATS_URL). Empty trusts the system's certificate authorities.
+    nats_certificate_authority_file: str = ""
 
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's
