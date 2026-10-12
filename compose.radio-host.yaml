@@ -103,11 +103,11 @@ services:
       - radio-host
 
   # The decoders, opt-in by profile exactly as on the core host.
-  decoder:
+  voice-decoder:
     build:
       context: ./decoder
       dockerfile: Dockerfile
-    profiles: ["decoder", "all"]
+    profiles: ["voice-decoder", "all"]
     environment: *decoder-env
     volumes:
       - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/voice-decoder}}

@@ -7,7 +7,7 @@
 # implements the AMBE/IMBE vocoders — patent-encumbered, "educational purposes
 # only" per its own README. There is NO metadata-only build of dsd-fme without
 # it. This image is therefore OPT-IN: it is gated behind a compose profile
-# (`--profile decoder`), is never built by default, never built in CI, and is
+# (`--profile voice-decoder`), is never built by default, never built in CI, and is
 # never published. Building it is a deliberate local action that compiles mbelib
 # on YOUR machine; the resulting layers stay local. See decoder/README.md.
 
