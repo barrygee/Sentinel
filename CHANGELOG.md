@@ -487,6 +487,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Hold a section service's startup until core answers
 - Log a radio hub outage once instead of every poll
 - Ring repeater group markers like Sentry site groups
+- Style the recording IQ button like DOWNLOAD and label it DOWNLOAD IQ
 
 ### Chores
 
@@ -1477,6 +1478,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #455 from barrygee/chore/decoder-dockerfile-stale-env
 - Merge pull request #456 from barrygee/feat/p7-3-iq-capture-copy
 - Merge pull request #457 from barrygee/feat/sdr-record-raw-iq-setting
+- Merge pull request #458 from barrygee/fix/sdr-recording-iq-button-style
 
 ### Refactoring
 
