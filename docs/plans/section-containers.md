@@ -466,9 +466,9 @@ responders at import. Nothing new had to cross processes: Air's reservations, Se
 section's IQ captures, `decode.<kind>.*`, `settings.changed.land` and `sdr.decode.radio-reassigned` were already
 bus traffic. All were verified over NATS on a composed stack, with the stub decoder driving a full decode and the
 spectrum WebSocket streaming through the gateway. Two deployment changes:
-- **Decoders** dial the hub directly (PCM over TCP, voice back over UDP, ingest/config over HTTP), so their host is
-  `${SENTINEL_RADIO_HUB_HOST:-app}`. Running the hub in its own container therefore takes a third `.env` line. Having
-  decoders learn the hub's address from the registry is P7 (advertised URLs).
+- **Decoders** dialled the hub directly (PCM over TCP, voice back over UDP, ingest/config over HTTP), so their host
+  was `${SENTINEL_RADIO_HUB_HOST:-app}` and running the hub in its own container took a third `.env` line. P7.2
+  removed it (below).
 - **IQ captures** still land where the SDR section serves recordings from: the hub's `IQ_CAPTURE_DIR` points at
   that folder on the app's volume (mounted a second time into the hub container), so the app finds `<id>.u8` as
   soon as the hub replies to `hub.iq-capture.stop`. This needs a shared host. Proxying captures from the hub
@@ -535,6 +535,22 @@ their lifespan has started. Section services wait for `app` and `nats` to be `se
 `docker compose up --wait` (CI) returns only once every backend container is serving. CI also checks that no
 backend container's PID 1 is root. The gateway's tmpfs scratch dirs are now owned by Caddy's user, so it no longer
 logs a storage error. The decoder images already ran unprivileged.
+
+*As built (P7.2, advertised URLs):* every service already registered the address the gateway reaches it on
+(`SERVICE_INTERNAL_URL`, or `core_internal_url` for whatever the app hosts in-process), so what was left were the
+decoders, which were told the hub's host by compose. They now talk HTTP (config poll, ingest, manifest
+registration) only to the gateway (`SENTINEL_GATEWAY_URL`, default `http://gateway:8080`), which routes to the hub
+wherever the registry says it is. Their PCM feed (TCP) and the voice decoder's audio return (UDP) can't go through
+Caddy, so every decoder `config` reply names them, `{"pcmFeed": {"host", "port"}}` plus `voiceAudioReturn` for
+voice, with the host taken from the hub's own registered address (`radio_hub/services/decoder_sockets.py`). A
+decoder reads them on each launch, so it follows the hub if it moves. `SENTINEL_RADIO_HUB_HOST` and the per-decoder
+`INGEST_URL`/`CONFIG_URL`/`IQ_PCM_HOST`/`IQ_PCM_PORT`/`AUDIO_UDP_*` (and the stub's `HUB_URL`/`PCM_HOST`) are gone, so
+moving the hub into its own container is the usual two `.env` lines. Polling through the gateway means "no hub" now
+arrives as an answer rather than a refused connection: a gateway 502/503/504, or, with no hub registered at all, the
+app's SPA page (and a 405 for a POST). Decoders treat all of those as "waiting for the radio hub" and log them once.
+Two things remain for a second host: a hub there must publish its PCM/UDP ports and advertise a host the decoders can
+resolve (P7.5's `compose.radio-host.yaml`), and a section service on another host can't join core through the gateway,
+which never routes `/internal/`, so core's registration and secrets endpoints need a reachable address too (P7.4/P7.5).
 
 ---
 
