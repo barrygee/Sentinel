@@ -57,19 +57,45 @@ RUN set -eux; \
 FROM python:3.12-slim
 WORKDIR /app
 
+# The runtime user. docker-entrypoint.sh drops to it (or to
+# SENTINEL_RUNTIME_USER_ID / SENTINEL_RUNTIME_GROUP_ID) after handing it the
+# writable mounts; nothing runs as root.
+ARG SENTINEL_RUNTIME_USER_ID=1000
+ARG SENTINEL_RUNTIME_GROUP_ID=1000
+RUN groupadd --gid "${SENTINEL_RUNTIME_GROUP_ID}" sentinel \
+    && useradd --uid "${SENTINEL_RUNTIME_USER_ID}" --gid sentinel --create-home --shell /usr/sbin/nologin sentinel
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY --from=pmtiles-fetcher /usr/local/bin/pmtiles /usr/local/bin/pmtiles
 
+# uv's own setting (the name is uv's): how long a package download may take.
 ENV UV_HTTP_TIMEOUT=120
 
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --no-dev --no-install-project
 
-COPY backend/ ./backend/
+# uv only builds the venv; the containers run its programs directly. `uv run`
+# re-syncs before starting and so installed the dev dependency group into the
+# image's venv on every boot, which the unprivileged runtime user cannot (and
+# should not) do.
+ENV PATH="/app/.venv/bin:${PATH}"
+
+# backend/ is owned by the runtime user: the app writes the live config file
+# (backend/data/sentinel_config.json) when no bind mount replaces it.
+COPY --chown=sentinel:sentinel backend/ ./backend/
 COPY frontend/assets/ ./frontend/assets/
 COPY --from=spa-builder /repo/frontend/spa-dist/ ./frontend/spa-dist/
+COPY --chmod=0755 backend/docker-entrypoint.sh /usr/local/bin/sentinel-entrypoint
 
-RUN mkdir -p /app/data
+RUN mkdir -p /app/data && chown sentinel:sentinel /app/data
 
-CMD ["uv", "run", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Core and every service answer /health on :8000 once their lifespan startup
+# has finished, so compose can wait on `service_healthy`. The start period
+# covers the first boot, when a service copies its tables out of the app's
+# database (legacy import) before it serves anything.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+
+ENTRYPOINT ["sentinel-entrypoint"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

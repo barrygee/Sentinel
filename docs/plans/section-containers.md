@@ -522,6 +522,20 @@ app. All four gateway-smoke legs passed locally.
 - `docker buildx bake` builds amd64 and arm64 images. Decoder images are still built locally only (the mbelib rule).
 - Decoder upstreams get pinned to SHAs.
 
+*As built (P7.1, healthchecks + non-root images):* the app image's server never runs as root. Its entrypoint
+(`backend/docker-entrypoint.sh`) starts as root only to hand the writable mounts (`/app/data`, the decoder secret
+and join-token volumes, the radio hub's recordings mounts) to `SENTINEL_RUNTIME_USER_ID`/`SENTINEL_RUNTIME_GROUP_ID`
+(default 1000, the
+image's `sentinel` user), then `setpriv`-drops to it, which the official postgres/redis images also do. A bare
+`USER` could not upgrade a live deployment, whose named volumes are root-owned. Set both ids in `.env` on a Linux
+host whose checkout isn't uid 1000, because the app writes `sentinel_config.json` into the bind-mounted
+`./backend`. The containers run the venv's `uvicorn` directly (the venv is on `PATH`) instead of `uv run`, which
+re-synced at start and so installed the dev dependency group into the venv on every boot, as root. The image's `HEALTHCHECK` polls `/health`, which core and every service serve once
+their lifespan has started. Section services wait for `app` and `nats` to be `service_healthy`, so
+`docker compose up --wait` (CI) returns only once every backend container is serving. CI also checks that no
+backend container's PID 1 is root. The gateway's tmpfs scratch dirs are now owned by Caddy's user, so it no longer
+logs a storage error. The decoder images already ran unprivileged.
+
 ---
 
 ## 5. Migration phases
