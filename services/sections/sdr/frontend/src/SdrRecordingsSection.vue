@@ -298,7 +298,7 @@
               "
               @click.stop="downloadRecording(c, 'iq')"
             >
-              {{ c.iq_file_pending ? 'IQ…' : 'IQ' }}
+              {{ c.iq_file_pending ? 'COPYING IQ…' : 'DOWNLOAD IQ' }}
             </button>
           </div>
 
@@ -1178,8 +1178,9 @@ defineExpose({ reload })
 }
 
 /* Download is a text pill ("DOWNLOAD"), no icon. Sized to match the FM/USB/LSB
-   mode pills (9px). */
-.sdr-recording-export {
+   mode pills (9px). The raw-IQ download ("DOWNLOAD IQ") is the same pill. */
+.sdr-recording-export,
+.sdr-recording-iq {
   padding: 0 14px;
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 9px;
@@ -1188,7 +1189,8 @@ defineExpose({ reload })
   text-transform: uppercase;
 }
 
-.sdr-recording-export:hover {
+.sdr-recording-export:hover,
+.sdr-recording-iq:hover:not(:disabled) {
   background: rgba(var(--ink-rgb), 0.15);
   color: var(--ink-strong);
 }
@@ -1208,20 +1210,7 @@ defineExpose({ reload })
   color: var(--accent-text);
 }
 
-.sdr-recording-iq {
-  padding: 0 12px;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(100, 180, 255, 0.75);
-}
-
-.sdr-recording-iq:hover:not(:disabled) {
-  background: rgba(100, 180, 255, 0.15);
-  color: rgba(100, 180, 255, 0.95);
-}
-
+/* While the IQ is still copying from the radio hub ("COPYING IQ…"). */
 .sdr-recording-iq:disabled {
   cursor: progress;
 }
