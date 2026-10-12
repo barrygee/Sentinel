@@ -25,6 +25,7 @@ import pytest
 from nats.errors import NoRespondersError
 from nats.errors import TimeoutError as NatsTimeoutError
 
+from backend.config import settings
 from backend.platform import nats_transport
 from backend.platform.bus import EventBus, Subscription, _pattern_matches
 from backend.platform.nats_transport import (
@@ -40,18 +41,27 @@ from backend.platform.nats_transport import (
 
 
 class FakeMessage:
-    def __init__(self, subject: str, data: bytes, reply_future: asyncio.Future[bytes] | None = None) -> None:
+    def __init__(
+        self,
+        subject: str,
+        data: bytes,
+        reply_future: asyncio.Future[bytes] | None = None,
+    ) -> None:
         self.subject = subject
         self.data = data
         self._reply_future = reply_future
 
     async def respond(self, data: bytes) -> None:
-        assert self._reply_future is not None, "respond() on a message that was not a request"
+        assert self._reply_future is not None, (
+            "respond() on a message that was not a request"
+        )
         self._reply_future.set_result(data)
 
 
 class FakeNatsSubscription:
-    def __init__(self, client: FakeClient, pattern: str, queue: str, callback: Any) -> None:
+    def __init__(
+        self, client: FakeClient, pattern: str, queue: str, callback: Any
+    ) -> None:
         self.client = client
         self.pattern = pattern
         self.queue = queue
@@ -91,12 +101,16 @@ class FakeBroker:
         for subscription in self._targets(sender, subject):
             await subscription.callback(FakeMessage(subject, data))
 
-    async def ask(self, sender: FakeClient, subject: str, data: bytes, timeout: float) -> FakeMessage:
+    async def ask(
+        self, sender: FakeClient, subject: str, data: bytes, timeout: float
+    ) -> FakeMessage:
         targets = self._targets(sender, subject)
         if not targets:
             raise NoRespondersError
         reply_future: asyncio.Future[bytes] = asyncio.get_running_loop().create_future()
-        asyncio.get_running_loop().create_task(targets[0].callback(FakeMessage(subject, data, reply_future)))
+        asyncio.get_running_loop().create_task(
+            targets[0].callback(FakeMessage(subject, data, reply_future))
+        )
         try:
             reply = await asyncio.wait_for(reply_future, timeout=timeout)
         except TimeoutError as error:
@@ -130,7 +144,9 @@ class FakeClient:
         self.published.append((subject, data))
         await self.broker.route(self, subject, data)
 
-    async def subscribe(self, pattern: str, queue: str = "", cb: Any = None) -> FakeNatsSubscription:
+    async def subscribe(
+        self, pattern: str, queue: str = "", cb: Any = None
+    ) -> FakeNatsSubscription:
         subscription = FakeNatsSubscription(self, pattern, queue, cb)
         self.broker.subscriptions.append(subscription)
         return subscription
@@ -162,8 +178,12 @@ async def fake_session_opener():
     yield "local-session"
 
 
-def transport_for(event_bus: EventBus, *, open_session: Any = fake_session_opener) -> NatsTransport:
-    return NatsTransport(event_bus, "nats://broker:4222", client_name="test", open_session=open_session)
+def transport_for(
+    event_bus: EventBus, *, open_session: Any = fake_session_opener
+) -> NatsTransport:
+    return NatsTransport(
+        event_bus, "nats://broker:4222", client_name="test", open_session=open_session
+    )
 
 
 async def connected_pair(
@@ -189,7 +209,9 @@ async def settled(*transports: NatsTransport) -> None:
 
 class TestEncoding:
     def test_encode_drops_the_process_local_session_and_keeps_the_rest(self):
-        encoded = encode_payload({"keys": ["aprsChannelHz"], "db": object(), "radio_id": 3})
+        encoded = encode_payload(
+            {"keys": ["aprsChannelHz"], "db": object(), "radio_id": 3}
+        )
         assert json.loads(encoded) == {"keys": ["aprsChannelHz"], "radio_id": 3}
 
     def test_encode_raises_type_error_for_a_value_json_cannot_carry(self):
@@ -212,7 +234,9 @@ class TestEncoding:
 
 
 class TestStart:
-    async def test_connects_with_no_echo_and_unlimited_reconnects_then_attaches(self, broker):
+    async def test_connects_with_no_echo_and_unlimited_reconnects_then_attaches(
+        self, broker
+    ):
         event_bus = EventBus()
         transport = transport_for(event_bus)
         await transport.start()
@@ -225,6 +249,18 @@ class TestStart:
         assert event_bus.remote is transport
         assert transport.connected is True
 
+    async def test_connects_as_this_process_s_own_nats_user(
+        self, broker, monkeypatch, tmp_path
+    ):
+        credentials = tmp_path / "credentials.json"
+        credentials.write_text(json.dumps({"user": "sea", "password": "sea-password"}))
+        monkeypatch.setattr(settings, "nats_credentials_file", str(credentials))
+        transport = transport_for(EventBus())
+        await transport.start()
+        options = transport._client.options
+        assert (options["user"], options["password"]) == ("sea", "sea-password")
+        assert options["inbox_prefix"] == "_INBOX.sea"
+
     async def test_watches_subscriptions_made_before_it_connected(self, broker):
         event_bus = EventBus()
         event_bus.subscribe("settings.changed.*", lambda payload: None)
@@ -236,7 +272,9 @@ class TestStart:
             ("hub.decode.ais.status", RESPONDER_QUEUE),
         ]
 
-    async def test_an_unreachable_broker_does_not_hold_up_startup(self, broker, monkeypatch, caplog):
+    async def test_an_unreachable_broker_does_not_hold_up_startup(
+        self, broker, monkeypatch, caplog
+    ):
         monkeypatch.setattr(nats_transport, "STARTUP_CONNECT_WAIT_S", 0.01)
         broker.up.clear()
         event_bus = EventBus()
@@ -251,7 +289,9 @@ class TestStart:
         await transport._connect_task
         assert event_bus.remote is transport
 
-    async def test_stop_while_still_connecting_cancels_and_closes(self, broker, monkeypatch):
+    async def test_stop_while_still_connecting_cancels_and_closes(
+        self, broker, monkeypatch
+    ):
         monkeypatch.setattr(nats_transport, "STARTUP_CONNECT_WAIT_S", 0.01)
         broker.up.clear()
         event_bus = EventBus()
@@ -295,7 +335,10 @@ class TestPublishAcrossProcesses:
         hub_bus.subscribe("settings.changed.*", hub_seen.append)
         await settled(core_transport, hub_transport)
         publisher_session = object()
-        await core_bus.publish("settings.changed.land", {"keys": ["aprsChannelHz"], "db": publisher_session})
+        await core_bus.publish(
+            "settings.changed.land",
+            {"keys": ["aprsChannelHz"], "db": publisher_session},
+        )
         # Local: synchronous, with the publisher's own session; and only once —
         # no_echo stops NATS handing the publish back to its own process.
         assert core_seen == [{"keys": ["aprsChannelHz"], "db": publisher_session}]
@@ -316,7 +359,9 @@ class TestPublishAcrossProcesses:
         seen: list[dict] = []
         hub_bus.subscribe("registry.changed", seen.append)
         await settled(hub_transport)
-        await core_bus.publish("registry.changed", {"id": "sea", "change": "registered"})
+        await core_bus.publish(
+            "registry.changed", {"id": "sea", "change": "registered"}
+        )
         assert seen == [{"id": "sea", "change": "registered"}]
 
     async def test_an_unsubscribed_handler_stops_receiving(self, broker):
@@ -375,7 +420,9 @@ class TestPublishAcrossProcesses:
             raise OSError("database locked")
             yield  # pragma: no cover - never reached
 
-        core_bus, _, hub_bus, hub_transport = await connected_pair(open_session=broken_opener)
+        core_bus, _, hub_bus, hub_transport = await connected_pair(
+            open_session=broken_opener
+        )
         seen: list[dict] = []
         hub_bus.subscribe("decode.ais.*", seen.append)
         await settled(hub_transport)
@@ -397,7 +444,9 @@ class TestRequestAcrossProcesses:
 
         hub_bus.reply("hub.decode.ais.status", status)
         await settled(hub_transport)
-        reply = await core_bus.request("hub.decode.ais.status", {"radio_id": 3, "db": object()})
+        reply = await core_bus.request(
+            "hub.decode.ais.status", {"radio_id": 3, "db": object()}
+        )
         assert reply == {"radio_id": 3, "session": "local-session"}
 
     async def test_a_local_responder_answers_without_the_wire(self, broker):
@@ -459,8 +508,13 @@ class TestRequestAcrossProcesses:
         _, core_transport, hub_bus, hub_transport = await connected_pair()
         hub_bus.reply("hub.decode.ais.status", lambda payload: {})
         await settled(hub_transport)
-        reply = await core_transport._client.request("hub.decode.ais.status", b"[1]", timeout=1)
-        assert json.loads(reply.data) == {"ok": False, "error": "bus payload must be a JSON object"}
+        reply = await core_transport._client.request(
+            "hub.decode.ais.status", b"[1]", timeout=1
+        )
+        assert json.loads(reply.data) == {
+            "ok": False,
+            "error": "bus payload must be a JSON object",
+        }
 
     async def test_a_result_json_cannot_carry_gets_an_error_reply(self, broker):
         core_bus, _, hub_bus, hub_transport = await connected_pair()
@@ -478,7 +532,9 @@ class TestUnwatch:
         event_bus = EventBus()
         transport = transport_for(event_bus)
         await transport.start()
-        await transport._unwatch(Subscription("never.watched", lambda payload: None, is_responder=False))
+        await transport._unwatch(
+            Subscription("never.watched", lambda payload: None, is_responder=False)
+        )
         assert broker.subscriptions == []
 
     async def test_a_failed_nats_unsubscribe_is_swallowed(self, broker):
@@ -519,7 +575,9 @@ class TestConnectionLogging:
         with caplog.at_level(logging.WARNING, logger=nats_transport.__name__):
             await transport._on_error(OSError("Connection refused"))
         # Logged again: a failure after a successful connection is news.
-        assert [record.getMessage() for record in caplog.records] == ["NATS error: Connection refused"]
+        assert [record.getMessage() for record in caplog.records] == [
+            "NATS error: Connection refused"
+        ]
 
     async def test_disconnect_and_reconnect_are_logged(self, broker, caplog):
         transport = transport_for(EventBus())
@@ -548,16 +606,26 @@ async def test_against_a_real_nats_server():
         received.set()
 
     hub_bus.subscribe("settings.changed.*", on_event)
-    hub_bus.reply("hub.decode.ais.status", lambda payload: {"radio_id": payload["radio_id"]})
-    core_transport = NatsTransport(core_bus, url, client_name="core-test", open_session=fake_session_opener)
-    hub_transport = NatsTransport(hub_bus, url, client_name="hub-test", open_session=fake_session_opener)
+    hub_bus.reply(
+        "hub.decode.ais.status", lambda payload: {"radio_id": payload["radio_id"]}
+    )
+    core_transport = NatsTransport(
+        core_bus, url, client_name="core-test", open_session=fake_session_opener
+    )
+    hub_transport = NatsTransport(
+        hub_bus, url, client_name="hub-test", open_session=fake_session_opener
+    )
     await core_transport.start()
     await hub_transport.start()
     try:
-        await core_bus.publish("settings.changed.land", {"keys": ["aprsChannelHz"], "db": object()})
+        await core_bus.publish(
+            "settings.changed.land", {"keys": ["aprsChannelHz"], "db": object()}
+        )
         await asyncio.wait_for(received.wait(), timeout=2)
         assert hub_seen == [{"keys": ["aprsChannelHz"], "db": "local-session"}]
-        assert await core_bus.request("hub.decode.ais.status", {"radio_id": 7}) == {"radio_id": 7}
+        assert await core_bus.request("hub.decode.ais.status", {"radio_id": 7}) == {
+            "radio_id": 7
+        }
         with pytest.raises(LookupError):
             await core_bus.request("hub.nothing", {}, timeout=1)
     finally:
