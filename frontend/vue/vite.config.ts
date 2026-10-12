@@ -67,6 +67,14 @@ export default defineConfig(({ command }) => {
         },
       },
     },
+    // `vite preview` serves the Playwright e2e suite, and by default it inherits
+    // `server.proxy` above — so any /api or /ws call a spec doesn't mock went on
+    // to whatever answers on :8080, which on a dev machine is the live stack
+    // (a stray DELETE would remove real data). An explicit empty proxy keeps
+    // the suite self-contained: an unmocked call now fails, as it does in CI.
+    preview: {
+      proxy: {},
+    },
     build: {
       outDir: '../../frontend/spa-dist',
       emptyOutDir: true,
