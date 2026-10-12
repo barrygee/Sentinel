@@ -7,9 +7,14 @@ x-section-service: &section-service
     dockerfile: backend/Dockerfile
   expose:
     - "8000"
+  # Healthy = /health answers (the image's HEALTHCHECK). A section also holds
+  # its own startup until core answers (create_service's wait_for_core), so
+  # this only keeps compose's start order and `up --wait` honest.
   depends_on:
-    - app
-    - nats
+    app:
+      condition: service_healthy
+    nats:
+      condition: service_healthy
   restart: unless-stopped
   networks:
     - sentinel
@@ -23,6 +28,9 @@ x-section-env: &section-env
   SENTINEL_JOIN_TOKEN: ${SENTINEL_JOIN_TOKEN:-}
   SENTINEL_JOIN_TOKEN_FILE: /run/sentinel/join-token
   NATS_URL: ${NATS_URL-nats://nats:4222}
+  # The unprivileged user the process runs as (see the app's entry below).
+  SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
+  SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
 
 # Mounts every section service shares. The app's database is read once on
 # first boot to copy the section's tables out (legacy import, opened read-only
@@ -113,9 +121,17 @@ services:
       # The gateway's admin API, which core pushes the service registry's routes
       # into. Set GATEWAY_ADMIN_URL= (empty) in .env to run without a gateway.
       - GATEWAY_ADMIN_URL=${GATEWAY_ADMIN_URL-http://gateway:2019}
+      # The image never runs its process as root: the entrypoint hands the
+      # volumes above to this uid/gid and drops to it. The default (1000) is the
+      # image's own `sentinel` user. On a Linux host whose checkout is not owned
+      # by uid 1000, set both to your ids (`id -u` / `id -g`) in .env, because
+      # the ./backend bind mount is where the app writes sentinel_config.json.
+      - SENTINEL_RUNTIME_USER_ID=${SENTINEL_RUNTIME_USER_ID:-1000}
+      - SENTINEL_RUNTIME_GROUP_ID=${SENTINEL_RUNTIME_GROUP_ID:-1000}
     depends_on:
-      - nats
-    command: uv run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+      nats:
+        condition: service_healthy
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
     networks:
       - sentinel
@@ -137,12 +153,13 @@ services:
       - ./gateway/caddy.json:/etc/caddy/caddy.json:ro
     # Nothing to persist: no TLS certificates (plain HTTP on the LAN) and the
     # dynamic routes are re-pushed by the app, so run unprivileged on a
-    # read-only filesystem with scratch space for Caddy's data/config dirs.
+    # read-only filesystem with scratch space for Caddy's data/config dirs,
+    # owned by that user (a root-owned tmpfs makes Caddy log a storage error).
     user: "65534:65534"
     read_only: true
     tmpfs:
-      - /data
-      - /config
+      - /data:uid=65534,gid=65534
+      - /config:uid=65534,gid=65534
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:2019/config/"]
       interval: 10s
@@ -176,7 +193,7 @@ services:
       <<: *section-env
       DB_PATH: /app/data/space.db
       SERVICE_INTERNAL_URL: http://space:8000
-    command: uv run uvicorn backend.standalone.space:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.space:app --host 0.0.0.0 --port 8000 --reload
 
   # The Land section as its own service (P6.2). OPT-IN: `--profile land`.
   # Same pattern as `space`: registers with the app and takes /api/land/ and
@@ -198,7 +215,7 @@ services:
       <<: *section-env
       DB_PATH: /app/data/land.db
       SERVICE_INTERNAL_URL: http://land:8000
-    command: uv run uvicorn backend.standalone.land:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.land:app --host 0.0.0.0 --port 8000 --reload
 
   # The Air section as its own service (P6.3). OPT-IN: `--profile air`.
   # Same pattern as `space`/`land`: registers with the app and takes /api/air/
@@ -223,7 +240,7 @@ services:
       SERVICE_INTERNAL_URL: http://air:8000
       # Where Off Grid AIR reads decoded aircraft (same default as the app's).
       ADSB_OFFGRID_URL: ${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
-    command: uv run uvicorn backend.standalone.air:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.air:app --host 0.0.0.0 --port 8000 --reload
 
   # The Sea section as its own service (P6.4). OPT-IN: `--profile sea`.
   # Same pattern as the sections above: registers with the app and takes
@@ -251,7 +268,7 @@ services:
       # The .env fallback key, used when none is saved in Settings › SEA (the
       # same variable the app reads when it hosts Sea itself). Never committed.
       AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
-    command: uv run uvicorn backend.standalone.sea:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.sea:app --host 0.0.0.0 --port 8000 --reload
 
   # The radio hub as its own service (P6.5). OPT-IN: `--profile radio-hub`.
   # Same image and pattern as the sections above, but it is not a section: no
@@ -299,7 +316,7 @@ services:
       # The decoders' ingest secret; empty uses the auto-generated file. The PCM
       # and voice ports keep the app's defaults (7355–7358).
       DECODER_INGEST_SECRET: ${SENTINEL_DECODER_SECRET:-}
-    command: uv run uvicorn backend.standalone.radio_hub:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.radio_hub:app --host 0.0.0.0 --port 8000 --reload
 
   # The SDR section as its own service (P6.6). OPT-IN: `--profile sdr`.
   # Same pattern as the sections above: registers with the app and takes
@@ -325,7 +342,7 @@ services:
       <<: *section-env
       DB_PATH: /app/data/sdr.db
       SERVICE_INTERNAL_URL: http://sdr:8000
-    command: uv run uvicorn backend.standalone.sdr:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn backend.standalone.sdr:app --host 0.0.0.0 --port 8000 --reload
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
