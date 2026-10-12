@@ -34,6 +34,7 @@ from contextlib import AbstractAsyncContextManager
 from typing import Any
 
 from backend.platform.bus import EventBus, EventPayload, Subscription
+from backend.platform.nats_credentials import connection_options
 from nats.aio.client import Client as NatsClient
 from nats.aio.msg import Msg
 from nats.aio.subscription import Subscription as NatsSubscription
@@ -132,6 +133,8 @@ class NatsTransport:
             error_cb=self._on_error,
             disconnected_cb=self._on_disconnected,
             reconnected_cb=self._on_reconnected,
+            # This process's NATS user, reply inbox and TLS trust (P7.4).
+            **connection_options(),
         )
         self._last_error_text = None
         self._bus.attach_remote(self)

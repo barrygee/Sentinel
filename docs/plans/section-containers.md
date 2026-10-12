@@ -585,6 +585,34 @@ and SDR each in their own container, hub in the app, SDR in the app, monolith), 
 - a pending recording deleted while the hub was down: the hub's copy was discarded when it returned;
 - the gateway answers 404 for `/internal/radio-hub/` and the hub answers 401 without the token.
 
+*As built (P7.4a, NATS TLS + per-service users):* the broker no longer accepts anonymous or plain-text clients.
+The owner chose a generated config over core-issued JWTs: a one-shot `nats-setup` compose service (the app image
+running `backend/scripts/generate_nats_credentials.py`, before `nats` starts) keeps on the `nats_setup` volume a CA
+for this deployment, the broker's certificate (names `nats` and `localhost`, plus `NATS_SERVER_EXTRA_HOSTNAMES`;
+reissued when those change or it nears expiry), one random password per NATS user and `nats.conf`. Everything but
+the config is created once and kept. The users are `core` (the app, which may use every subject: it holds every
+secret and can host any section in-process) and one per extractable service, each allowed only its subjects
+(`backend/platform/nats_permissions.py`):
+
+| User | Publishes | Subscribes | Requests |
+|---|---|---|---|
+| `radio-hub` | `decode.>`, replies to requests | `hub.>`, `settings.changed.land`, `sdr.decode.radio-reassigned` | – |
+| `air` | `notifications.raise`, `air.squawk.changed` | `air.squawk.changed` | `hub.sentry.>` |
+| `sea` | – | `decode.ais.*`, `settings.changed.sea`, `settings.changed.app` | `hub.decode.ais.>` |
+| `land` | – | `decode.aprs.*` | – |
+| `sdr` | – | – | `hub.iq-capture.>` |
+| `space` | – | – | – |
+
+Each user also subscribes its own reply inbox, `_INBOX.<user>.>` (the client sets that prefix), so no service can
+read another's replies. Each service mounts only its own `services/<user>/` folder (`credentials.json` and the CA
+certificate) through a volume subpath; the CA's key stays in the setup volume. The broker reads its config only at
+start, so a permissions change takes `docker compose restart nats`. Verified on an isolated stack with every section
+and the hub in their own containers and as the monolith: all clients connect over TLS; the SDR, Sea and Air requests
+to the hub get their replies; Land requesting `hub.iq-capture.list`, Air subscribing `decode.>`, Space publishing
+`notifications.raise` and Sea subscribing `_INBOX.core.>` are each refused; anonymous, wrong-password and
+untrusted-CA connections are refused. A second host gets a copy of its own `services/<user>/` folder (P7.5).
+P7.4b replaces the shared join token and decoder secret with per-service HTTP credentials.
+
 ---
 
 ## 5. Migration phases
