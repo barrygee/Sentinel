@@ -146,27 +146,31 @@ class TestPostEvent:
 
 
 class TestBuildDsdCommand:
-    def test_defaults(self, monkeypatch):
-        for var in (
-            "IQ_PCM_HOST",
-            "IQ_PCM_PORT",
-            "AUDIO_UDP_HOST",
-            "AUDIO_UDP_PORT",
-            "DSD_EXTRA_ARGS",
-        ):
-            monkeypatch.delenv(var, raising=False)
-        command = entrypoint.build_dsd_command()
-        assert command[0] == "dsd-fme"
-        assert "tcp:app:7355" in command
-        assert "udp:app:7356" in command
+    def test_dials_the_sockets_the_hub_named(self, monkeypatch):
+        monkeypatch.delenv("DSD_EXTRA_ARGS", raising=False)
+        command = entrypoint.build_dsd_command(("radio-hub", 7355), ("radio-hub", 7356))
+        assert command == [
+            "dsd-fme",
+            "-i",
+            "tcp:radio-hub:7355",
+            "-o",
+            "udp:radio-hub:7356",
+        ]
 
-    def test_custom_hosts_and_extra_args(self, monkeypatch):
-        monkeypatch.setenv("IQ_PCM_HOST", "backend")
-        monkeypatch.setenv("IQ_PCM_PORT", "9000")
+    def test_the_two_sockets_can_differ(self, monkeypatch):
+        monkeypatch.delenv("DSD_EXTRA_ARGS", raising=False)
+        command = entrypoint.build_dsd_command(("pcm-host", 9000), ("audio-host", 9001))
+        assert command[2] == "tcp:pcm-host:9000"
+        assert command[4] == "udp:audio-host:9001"
+
+    def test_extra_args_are_appended(self, monkeypatch):
         monkeypatch.setenv("DSD_EXTRA_ARGS", "-fr -mc")
-        command = entrypoint.build_dsd_command()
-        assert "tcp:backend:9000" in command
-        assert "-fr" in command and "-mc" in command
+        command = entrypoint.build_dsd_command(("app", 7355), ("app", 7356))
+        assert command[-2:] == ["-fr", "-mc"]
+
+    def test_blank_extra_args_add_nothing(self, monkeypatch):
+        monkeypatch.setenv("DSD_EXTRA_ARGS", "   ")
+        assert len(entrypoint.build_dsd_command(("app", 7355), ("app", 7356))) == 5
 
 
 # ── resolve_secret ──────────────────────────────────────────────────────────
@@ -194,6 +198,9 @@ class TestResolveSecret:
 # ── run_dsd_once stdout decoding ──────────────────────────────────────────────
 
 
+_SOCKETS = (("app", 7355), ("app", 7356))
+
+
 class TestRunDsdOnceDecoding:
     """Regression cover for the strict-UTF-8 crash.
 
@@ -219,7 +226,7 @@ class TestRunDsdOnceDecoding:
         with patch.object(
             entrypoint.subprocess, "Popen", return_value=process
         ) as popen:
-            entrypoint.run_dsd_once(_queue.Queue())
+            entrypoint.run_dsd_once(_queue.Queue(), *_SOCKETS)
         # The exact kwargs that make the read loop tolerant of bad bytes; if any
         # regresses (e.g. back to the strict-decode default) this assertion fails.
         _, kwargs = popen.call_args
@@ -233,7 +240,7 @@ class TestRunDsdOnceDecoding:
         events: _queue.Queue = _queue.Queue()
         process = self._fake_process(["Sync: +DMR � garbled �\n"])
         with patch.object(entrypoint.subprocess, "Popen", return_value=process):
-            returncode = entrypoint.run_dsd_once(events)
+            returncode = entrypoint.run_dsd_once(events, *_SOCKETS)
         assert returncode == 0
         # The line was forwarded as a log event rather than aborting the loop.
         queued = events.get_nowait()

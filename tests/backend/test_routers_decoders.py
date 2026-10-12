@@ -388,22 +388,30 @@ class TestIngest:
         assert published == []
 
 
+# The manifest's PCM port on the host the hub is registered under (in-process
+# here, so core_internal_url's http://app:8000).
+POCSAG_PCM_FEED = {"host": "app", "port": 7360}
+
+
 class TestConfig:
     def test_inactive_until_a_session_serves_pcm(self, client):
         _register()
         assert client.get("/api/sdr/decoders/pocsag/config", headers=SECRET).json() == {
-            "active": False
+            "active": False,
+            "pcmFeed": POCSAG_PCM_FEED,
         }
         _running_bridge(running=False)
         assert client.get("/api/sdr/decoders/pocsag/config", headers=SECRET).json() == {
-            "active": False
+            "active": False,
+            "pcmFeed": POCSAG_PCM_FEED,
         }
 
     def test_active_while_a_session_serves_pcm(self, client):
         _register()
         _running_bridge()
         assert client.get("/api/sdr/decoders/pocsag/config", headers=SECRET).json() == {
-            "active": True
+            "active": True,
+            "pcmFeed": POCSAG_PCM_FEED,
         }
 
     def test_404_tells_the_decoder_to_register_again(self, client):

@@ -56,13 +56,14 @@ on restart.
 
 | Variable             | Default                                   | Purpose                                      |
 | -------------------- | ----------------------------------------- | -------------------------------------------- |
-| `IQ_PCM_HOST`        | `app`                                     | Backend PCM feed host                        |
-| `IQ_PCM_PORT`        | `7357`                                    | Backend PCM feed port (APRS)                 |
-| `INGEST_URL`         | `http://app:8000/api/sdr/aprs/ingest`     | Where decoded packets are POSTed             |
-| `CONFIG_URL`         | `http://app:8000/api/sdr/aprs/config`     | Polled `active` gate before launching        |
+| `SENTINEL_GATEWAY_URL` | `http://gateway:8080`                   | Sentinel's gateway: the `active` gate (`/api/sdr/aprs/config`) is polled and packets POSTed through it |
 | `INGEST_SECRET_FILE` | `/run/decoder/secret`                     | Shared auto-generated ingest secret (volume) |
 | `APRS_EXTRA_ARGS`    | _(unset)_                                 | Extra `direwolf` flags (space-separated)     |
 | `DIREWOLF_CONFIG`    | `/app/direwolf.conf`                      | Direwolf config file passed as `-c`          |
+
+The PCM feed's host and port aren't configured here: each config reply names
+them (`pcmFeed`), using the address the radio hub registered with Sentinel, so
+the decoder follows the hub whether the app or the `radio-hub` service hosts it.
 
 ## Troubleshooting
 

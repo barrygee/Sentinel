@@ -110,11 +110,14 @@ To pin an explicit value instead, set `SENTINEL_DECODER_SECRET` in `.env`
 |---|---|---|
 | `SENTINEL_DECODER_SECRET` | `.env` (optional) | Pin the ingest secret instead of auto-generating it |
 | `DSD_EXTRA_ARGS` | `decoder` env | Extra `dsd-fme` flags (e.g. dongle) |
-| `CONFIG_URL` | `decoder` env | Backend decode-config endpoint polled for the active-session flag |
+| `SENTINEL_GATEWAY_URL` | `.env` (optional) | Sentinel's gateway (default `http://gateway:8080`); config and ingest go through it |
 | `MBELIB_REF` / `DSDFME_REF` | build args | Pin the upstream git refs for reproducibility |
 
 The backend ports (`DECODER_PCM_PORT` 7355, `DECODER_AUDIO_UDP_PORT` 7356) are
 set in `docker-compose.yml` and only need changing if they clash on your host.
+The decoder doesn't need to be told them, or which container hosts the radio
+hub: the hub's decode-config reply names both sockets (`pcmFeed`,
+`voiceAudioReturn`) by the address the hub registered with Sentinel.
 
 ## Troubleshooting
 

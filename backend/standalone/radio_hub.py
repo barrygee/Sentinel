@@ -17,9 +17,10 @@ Sentry reservations, Sea's AIS receiver, the SDR section's IQ captures
 (`hub.*` requests); the hub publishes `decode.<kind>.*` for Land and Sea, and
 reacts to core's `settings.changed.land` and `sdr.decode.radio-reassigned`.
 
-Decoder sidecars connect to the hub directly (PCM over TCP, voice back over
-UDP), so they are pointed at this container rather than the app
-(`SENTINEL_RADIO_HUB_HOST` in compose). IQ captures are written into the SDR
+Decoder sidecars reach it through the gateway like everyone else; their PCM
+(TCP) and voice return (UDP) sockets are named in each decoder config reply, by
+the host this service registers (`SERVICE_INTERNAL_URL`, see
+`radio_hub/services/decoder_sockets.py`). IQ captures are written into the SDR
 section's recordings folder (`IQ_CAPTURE_DIR`), which is still on the app's volume.
 """
 

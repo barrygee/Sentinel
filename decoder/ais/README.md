@@ -109,9 +109,7 @@ Everything is wired by compose defaults; these are the overrides.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `IQ_PCM_HOST` / `IQ_PCM_PORT` | `app` / `7358` | Backend stereo PCM feed |
-| `INGEST_URL` | `http://app:8000/api/sdr/ais/ingest` | Where decoded events are POSTed |
-| `CONFIG_URL` | `http://app:8000/api/sdr/ais/config` | Polled `active` gate |
+| `SENTINEL_GATEWAY_URL` | `http://gateway:8080` | Sentinel's gateway: the `active` gate (`/api/sdr/ais/config`) is polled and events POSTed through it. The stereo PCM feed's host and port come back in each config reply (`pcmFeed`) |
 | `INGEST_SECRET` | — | Explicit shared secret (overrides the file) |
 | `INGEST_SECRET_FILE` | `/run/decoder/secret` | Auto-generated secret, shared volume |
 | `DIREWOLF_CONFIG` | `/app/direwolf.conf` | Direwolf config (two-channel AIS) |

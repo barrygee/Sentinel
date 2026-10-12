@@ -6,8 +6,8 @@ decoder container that follows the decoder contract for manifest-declared kinds
 (section-containers plan §3.4). The module lives outside the backend package
 (it ships in its own image), so it is loaded by path, as the APRS sidecar's is.
 
-The hub is faked at `urllib.request.urlopen` and the PCM feed with a scripted
-socket; the end-to-end run against the real hub is test_decoder_stub_contract.py.
+The gateway (and the hub behind it) is faked at `urllib.request.urlopen` and the
+PCM feed with a scripted socket; the end-to-end run against the real hub is test_decoder_stub_contract.py.
 The container's forever-loop `main()` is not exercised.
 """
 
@@ -46,8 +46,7 @@ stub = _load_entrypoint()
 
 def _config(**overrides):
     values = {
-        "hub_url": "http://hub:8000",
-        "pcm_host": "hub",
+        "gateway_url": "http://gateway:8080",
         "pcm_port": 7370,
         "channels_hz": (),
         "report_seconds": 0.001,  # 48 frames per summary
@@ -55,6 +54,10 @@ def _config(**overrides):
     }
     values.update(overrides)
     return stub.StubConfig(**values)
+
+
+# Where the hub's config reply says its PCM feed is.
+PCM_FEED = ("radio-hub", 7370)
 
 
 def _pcm(*samples: int) -> bytes:
@@ -65,11 +68,10 @@ def _pcm(*samples: int) -> bytes:
 
 
 class TestStubConfig:
-    def test_defaults_point_at_the_compose_app(self):
+    def test_defaults_point_at_the_compose_gateway(self):
         config = stub.StubConfig.from_env({})
         assert config == stub.StubConfig(
-            hub_url="http://app:8000",
-            pcm_host="app",
+            gateway_url="http://gateway:8080",
             pcm_port=7370,
             channels_hz=(),
             report_seconds=1.0,
@@ -80,16 +82,15 @@ class TestStubConfig:
     def test_reads_every_variable(self):
         config = stub.StubConfig.from_env(
             {
-                "HUB_URL": "http://hub:9000/",
-                "PCM_HOST": "hub",
+                "SENTINEL_GATEWAY_URL": "http://gateway:9000/",
                 "PCM_PORT": "7999",
                 "STUB_CHANNELS_HZ": "161975000, 162025000",
                 "REPORT_SECONDS": "0.5",
                 "POLL_SECONDS": "3",
             }
         )
-        assert config.hub_url == "http://hub:9000"  # trailing slash dropped
-        assert (config.pcm_host, config.pcm_port) == ("hub", 7999)
+        assert config.gateway_url == "http://gateway:9000"  # trailing slash dropped
+        assert config.pcm_port == 7999
         assert config.channels_hz == (161_975_000, 162_025_000)
         assert config.pcm_channels == 2
         assert (config.report_seconds, config.poll_seconds) == (0.5, 3.0)
@@ -233,12 +234,20 @@ class TestHubClient:
         assert request.get_header("Content-type") == "application/json"
         assert json.loads(request.data) == {"decoderKind": "stub"}
 
-    def test_config_reads_active(self, hub_calls):
+    def test_config_reads_active_and_the_pcm_feed(self, hub_calls):
         calls, responses = hub_calls
-        responses.extend([(200, {"active": True}), (200, {"active": False})])
+        pcm_feed = {"host": "radio-hub", "port": 7370}
+        responses.extend(
+            [
+                (200, {"active": True, "pcmFeed": pcm_feed}),
+                (200, {"active": False, "pcmFeed": pcm_feed}),
+                (200, {"active": True}),
+            ]
+        )
         client = stub.HubClient("http://hub:8000", "s3cret")
-        assert client.config() == (200, True)
-        assert client.config() == (200, False)
+        assert client.config() == (200, True, ("radio-hub", 7370))
+        assert client.config() == (200, False, ("radio-hub", 7370))
+        assert client.config() == (200, True, None)
         assert (calls[0].get_method(), calls[0].full_url) == (
             "GET",
             "http://hub:8000/api/sdr/decoders/stub/config",
@@ -248,7 +257,7 @@ class TestHubClient:
     def test_config_404_means_unknown_kind(self, hub_calls):
         _, responses = hub_calls
         responses.append(_http_error(404))
-        assert stub.HubClient("http://hub", "s").config() == (404, False)
+        assert stub.HubClient("http://hub", "s").config() == (404, False, None)
 
     def test_ingest_wraps_the_event(self, hub_calls):
         calls, responses = hub_calls
@@ -267,27 +276,70 @@ class TestHubClient:
         responses.append(urllib.error.URLError("connection refused"))
         assert stub.HubClient("http://hub", "s").register({}) == 0
         assert (
-            "waiting for the radio hub at http://hub (connection refused)"
+            "waiting for the radio hub through http://hub (connection refused)"
             in capsys.readouterr().err
         )
 
     def test_an_empty_body_reads_as_no_fields(self, hub_calls):
         _, responses = hub_calls
         responses.append((200, None))
-        assert stub.HubClient("http://hub", "s").config() == (200, False)
+        assert stub.HubClient("http://hub", "s").config() == (200, False, None)
 
-    def test_an_unreadable_body_is_status_0_and_logged(self, monkeypatch, capsys):
+    @pytest.mark.parametrize(
+        "body", [b"<!doctype html><title>Sentinel</title>", b"\xff\xfe not utf-8"]
+    )
+    def test_a_body_that_is_not_json_means_no_hub_is_registered(
+        self, monkeypatch, capsys, body
+    ):
+        # No hub registered: the gateway hands the path to the app, whose SPA
+        # fallback answers GET with its HTML page and a 200.
         monkeypatch.setattr(
             stub.urllib.request,
             "urlopen",
-            lambda request, timeout: _Response(200, b"not json"),
+            lambda request, timeout: _Response(200, body),
         )
-        link = stub.HubLink("http://hub", clock=_FakeClock())
-        assert stub.HubClient("http://hub", "s", link=link).config() == (0, False)
-        lines = _stderr_lines(capsys)
-        assert lines[0] == "[stub] connected to the radio hub at http://hub"
-        assert lines[1].startswith("[stub] GET /stub/config failed: Expecting value")
-        assert len(lines) == 2
+        link = stub.HubLink("http://gateway", clock=_FakeClock())
+        client = stub.HubClient("http://gateway", "s", link=link)
+        assert client.config() == (0, False, None)
+        assert client.config() == (0, False, None)
+        assert _stderr_lines(capsys) == [
+            "[stub] waiting for the radio hub through http://gateway "
+            "(no radio hub registered yet); retrying quietly"
+        ]
+
+    @pytest.mark.parametrize("body", [[], None, "active"])
+    def test_json_that_is_not_an_object_reads_as_no_fields(
+        self, monkeypatch, capsys, body
+    ):
+        monkeypatch.setattr(
+            stub.urllib.request,
+            "urlopen",
+            lambda request, timeout: _Response(200, json.dumps(body).encode()),
+        )
+        assert stub.HubClient("http://gateway", "s").config() == (200, False, None)
+        assert _stderr_lines(capsys) == [
+            "[stub] connected to the radio hub through http://gateway"
+        ]
+
+    @pytest.mark.parametrize("code", [405, 502, 503, 504])
+    def test_the_gateway_answering_for_no_hub_is_status_0_and_one_quiet_wait(
+        self, hub_calls, capsys, code
+    ):
+        # 502/503/504: the hub is registered but down. 405: no hub registered,
+        # so a POST fell through to the app, which only serves GET there.
+        _, responses = hub_calls
+        responses.extend([_http_error(code), _http_error(code)])
+        client = stub.HubClient(
+            "http://gateway",
+            "s",
+            link=stub.HubLink("http://gateway", clock=_FakeClock()),
+        )
+        assert client.register({}) == 0
+        assert client.register({}) == 0
+        assert _stderr_lines(capsys) == [
+            f"[stub] waiting for the radio hub through http://gateway (HTTP {code}); "
+            "retrying quietly"
+        ]
 
 
 # ── logging the hub going away and coming back ───────────────────────────────
@@ -315,7 +367,7 @@ class TestHubLink:
     def test_the_first_answer_says_connected_without_a_wait(self, capsys):
         stub.HubLink("http://hub:8000").reached()
         assert _stderr_lines(capsys) == [
-            "[stub] connected to the radio hub at http://hub:8000"
+            "[stub] connected to the radio hub through http://hub:8000"
         ]
 
     def test_an_outage_is_logged_once_and_recovery_reports_the_wait(self, capsys):
@@ -328,9 +380,9 @@ class TestHubLink:
         link.reached()
         link.reached()
         assert _stderr_lines(capsys) == [
-            "[stub] waiting for the radio hub at http://hub:8000 "
+            "[stub] waiting for the radio hub through http://hub:8000 "
             "(Connection refused); retrying quietly",
-            "[stub] connected to the radio hub at http://hub:8000 after 6.0 s",
+            "[stub] connected to the radio hub through http://hub:8000 after 6.0 s",
         ]
 
     def test_an_outage_after_a_connection_is_logged_again(self, capsys):
@@ -338,7 +390,7 @@ class TestHubLink:
         link.reached()
         link.unreachable("Connection refused")
         assert _stderr_lines(capsys)[-1] == (
-            "[stub] waiting for the radio hub at http://hub:8000 "
+            "[stub] waiting for the radio hub through http://hub:8000 "
             "(Connection refused); retrying quietly"
         )
 
@@ -359,9 +411,9 @@ class TestHubClientLogging:
             clock.now += 2
         assert hub.register({}) == 201
         assert _stderr_lines(capsys) == [
-            "[stub] waiting for the radio hub at http://hub:8000 "
+            "[stub] waiting for the radio hub through http://hub:8000 "
             "([Errno 111] Connection refused); retrying quietly",
-            "[stub] connected to the radio hub at http://hub:8000 after 6.0 s",
+            "[stub] connected to the radio hub through http://hub:8000 after 6.0 s",
         ]
 
     def test_an_http_error_counts_as_reaching_the_hub(self, hub_calls, capsys):
@@ -373,9 +425,9 @@ class TestHubClientLogging:
         responses.extend([_refused(), _http_error(404)])
         hub.config()
         clock.now += 1.5
-        assert hub.config() == (404, False)
+        assert hub.config() == (404, False, None)
         assert _stderr_lines(capsys)[-1] == (
-            "[stub] connected to the radio hub at http://hub:8000 after 1.5 s"
+            "[stub] connected to the radio hub through http://hub:8000 after 1.5 s"
         )
 
     def test_a_bare_os_error_is_logged_as_itself(self, hub_calls, capsys):
@@ -383,7 +435,7 @@ class TestHubClientLogging:
         responses.append(TimeoutError("timed out"))
         assert stub.HubClient("http://hub", "s").ingest({}) == 0
         assert _stderr_lines(capsys) == [
-            "[stub] waiting for the radio hub at http://hub (timed out); retrying quietly"
+            "[stub] waiting for the radio hub through http://hub (timed out); retrying quietly"
         ]
 
     def test_without_a_link_it_makes_one_for_its_hub(self, hub_calls, capsys):
@@ -391,7 +443,7 @@ class TestHubClientLogging:
         responses.append((200, {"active": False}))
         stub.HubClient("http://radio-hub:8000", "s").config()
         assert _stderr_lines(capsys) == [
-            "[stub] connected to the radio hub at http://radio-hub:8000"
+            "[stub] connected to the radio hub through http://radio-hub:8000"
         ]
 
 
@@ -479,9 +531,9 @@ class _FakeHub:
         self.events.append(event)
         return self.ingest_status
 
-    def config(self) -> tuple[int, bool]:
+    def config(self) -> tuple[int, bool, tuple[str, int] | None]:
         self.config_calls += 1
-        return self.configs.pop(0) if self.configs else (200, True)
+        return self.configs.pop(0) if self.configs else (200, True, PCM_FEED)
 
     def register(self, manifest: dict) -> int:
         self.registered.append(manifest)
@@ -501,7 +553,7 @@ class TestRunSession:
             return pcm_socket
 
         accepted = stub.run_session(
-            hub, config or _config(), connect=_connect, clock=clock
+            hub, config or _config(), PCM_FEED, connect=_connect, clock=clock
         )
         return accepted, connected, pcm_socket
 
@@ -510,7 +562,7 @@ class TestRunSession:
         accepted, connected, pcm_socket = self._run(
             hub, [_pcm(1000) * 48 * 2 + _pcm(1000) * 10, _pcm(1000) * 38]
         )
-        assert connected == [(("hub", 7370), 5.0)]
+        assert connected == [(("radio-hub", 7370), 5.0)]
         assert pcm_socket.timeouts == [10.0]
         assert accepted == 3
         assert (
@@ -540,7 +592,7 @@ class TestRunSession:
 
     def test_ends_when_a_config_poll_says_inactive(self):
         times = iter([0.0, 11.0, 11.0, 11.0])
-        hub = _FakeHub(configs=[(200, False)])
+        hub = _FakeHub(configs=[(200, False, PCM_FEED)])
         accepted, _, pcm_socket = self._run(
             hub, [_pcm(5) * 10, _pcm(5) * 10], clock=lambda: next(times)
         )
@@ -550,7 +602,7 @@ class TestRunSession:
 
     def test_keeps_going_while_polls_say_active_or_fail(self):
         times = iter([0.0, 11.0, 11.0, 22.0, 22.0, 30.0])
-        hub = _FakeHub(configs=[(200, True), (0, False)])
+        hub = _FakeHub(configs=[(200, True, PCM_FEED), (0, False, None)])
         self._run(hub, [_pcm(5), _pcm(5), _pcm(5)], clock=lambda: next(times))
         assert hub.config_calls == 2
 
@@ -559,9 +611,11 @@ class TestSuperviseOnce:
     def test_registers_then_runs_an_active_session(self, monkeypatch):
         sessions = []
         monkeypatch.setattr(
-            stub, "run_session", lambda hub, config: sessions.append(config)
+            stub,
+            "run_session",
+            lambda hub, config, pcm_feed: sessions.append((config, pcm_feed)),
         )
-        hub = _FakeHub(configs=[(200, True)])
+        hub = _FakeHub(configs=[(200, True, PCM_FEED)])
         assert (
             stub.supervise_once(
                 hub, _config(), {"decoderKind": "stub"}, registered=False
@@ -569,11 +623,11 @@ class TestSuperviseOnce:
             is True
         )
         assert hub.registered == [{"decoderKind": "stub"}]
-        assert sessions == [_config()]
+        assert sessions == [(_config(), PCM_FEED)]
 
     @pytest.mark.parametrize("status", [200, 201])
     def test_either_registration_success_counts(self, monkeypatch, status):
-        hub = _FakeHub(register_status=status, configs=[(200, False)])
+        hub = _FakeHub(register_status=status, configs=[(200, False, None)])
         assert stub.supervise_once(hub, _config(), {}, registered=False) is True
 
     @pytest.mark.parametrize("status", [0, 401, 409, 422])
@@ -582,28 +636,103 @@ class TestSuperviseOnce:
         assert stub.supervise_once(hub, _config(), {}, registered=False) is False
         assert hub.config_calls == 0
 
+    @pytest.mark.parametrize("status", [401, 409, 422])
+    def test_a_refused_registration_is_logged(self, capsys, status):
+        hub = _FakeHub(register_status=status)
+        stub.supervise_once(hub, _config(), {}, registered=False)
+        assert _stderr_lines(capsys) == [
+            f"[stub] registration answered {status}; retrying"
+        ]
+
+    def test_no_hub_answering_registration_is_left_to_the_hub_link(self, capsys):
+        # Status 0: the HubLink already logged the wait, once; a line per retry
+        # here would undo that.
+        hub = _FakeHub(register_status=0)
+        stub.supervise_once(hub, _config(), {}, registered=False)
+        assert _stderr_lines(capsys) == []
+
     def test_does_not_register_again_once_registered(self):
-        hub = _FakeHub(configs=[(200, False)])
+        hub = _FakeHub(configs=[(200, False, None)])
         assert stub.supervise_once(hub, _config(), {}, registered=True) is True
         assert hub.registered == []
 
     def test_a_404_means_register_again(self):
-        hub = _FakeHub(configs=[(404, False)])
+        hub = _FakeHub(configs=[(404, False, None)])
         assert stub.supervise_once(hub, _config(), {}, registered=True) is False
 
-    @pytest.mark.parametrize("config_reply", [(200, False), (0, False), (500, False)])
+    @pytest.mark.parametrize(
+        "config_reply",
+        [(200, False, PCM_FEED), (0, False, None), (500, False, None)],
+    )
     def test_idles_without_an_active_session(self, monkeypatch, config_reply):
         monkeypatch.setattr(
-            stub, "run_session", lambda hub, config: pytest.fail("no session expected")
+            stub,
+            "run_session",
+            lambda hub, config, pcm_feed: pytest.fail("no session expected"),
         )
         hub = _FakeHub(configs=[config_reply])
         assert stub.supervise_once(hub, _config(), {}, registered=True) is True
 
+    def test_an_active_session_without_a_pcm_feed_idles_and_says_why(
+        self, monkeypatch, capsys
+    ):
+        # A hub from before P7.2 answers {"active": true} with no pcmFeed.
+        monkeypatch.setattr(
+            stub,
+            "run_session",
+            lambda hub, config, pcm_feed: pytest.fail("no session expected"),
+        )
+        hub = _FakeHub(configs=[(200, True, None)])
+        assert stub.supervise_once(hub, _config(), {}, registered=True) is True
+        assert _stderr_lines(capsys) == [
+            "[stub] the hub's config names no PCM feed — is the hub older than this decoder?"
+        ]
+
     def test_a_failed_session_is_logged_not_raised(self, monkeypatch, capsys):
-        def _refused(hub, config):
+        def _refused(hub, config, pcm_feed):
             raise ConnectionRefusedError("no PCM listener")
 
         monkeypatch.setattr(stub, "run_session", _refused)
-        hub = _FakeHub(configs=[(200, True)])
+        hub = _FakeHub(configs=[(200, True, PCM_FEED)])
         assert stub.supervise_once(hub, _config(), {}, registered=True) is True
         assert "PCM session failed: no PCM listener" in capsys.readouterr().err
+
+
+# ── the PCM feed named in a config reply ─────────────────────────────────────
+
+
+class TestPcmFeedAddress:
+    def test_reads_host_and_port(self):
+        assert stub.pcm_feed_address(
+            {"active": True, "pcmFeed": {"host": "radio-hub", "port": 7370}}
+        ) == ("radio-hub", 7370)
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            {},
+            {"pcmFeed": None},
+            {"pcmFeed": ["radio-hub", 7370]},
+            {"pcmFeed": {"port": 7370}},
+            {"pcmFeed": {"host": "", "port": 7370}},
+            {"pcmFeed": {"host": 7, "port": 7370}},
+            {"pcmFeed": {"host": "radio-hub"}},
+            {"pcmFeed": {"host": "radio-hub", "port": "7370"}},
+            {"pcmFeed": {"host": "radio-hub", "port": 7370.0}},
+            {"pcmFeed": {"host": "radio-hub", "port": True}},
+        ],
+        ids=[
+            "no-pcm-feed",
+            "null",
+            "not-an-object",
+            "no-host",
+            "blank-host",
+            "host-not-a-string",
+            "no-port",
+            "port-a-string",
+            "port-a-float",
+            "port-a-bool",
+        ],
+    )
+    def test_anything_unusable_is_none(self, config):
+        assert stub.pcm_feed_address(config) is None

@@ -48,8 +48,8 @@ services:
       dockerfile: backend/Dockerfile
     container_name: sentinel-app
     # Internal only: browsers reach the app through the `gateway` service below,
-    # which publishes :8080. Sentinel's own containers use http://app:8000
-    # directly (decoders: whichever of app / radio-hub hosts the radio hub).
+    # which publishes :8080. Section services join core at http://app:8000
+    # directly; decoders go through the gateway (see the decoder entries).
     expose:
       - "8000"
 
@@ -281,10 +281,11 @@ services:
   # from the app's on first boot; the radios themselves stay an app setting.
   # Air, Sea, Land and the SDR section reach it over NATS.
   #
-  # Decoders connect to the hub directly (PCM over TCP, voice back over UDP),
-  # so running it here takes THREE .env lines, not two: `radio-hub` in
-  # COMPOSE_PROFILES and SENTINEL_EXTERNAL_SERVICES, plus
-  # SENTINEL_RADIO_HUB_HOST=radio-hub so the decoders below dial it instead of the app.
+  # Decoders find it wherever it runs: their HTTP goes through the gateway,
+  # and each config reply names the hub's PCM / voice-audio sockets by the
+  # address it registered (SERVICE_INTERNAL_URL below). Running it here takes
+  # the usual two .env lines, `radio-hub` in COMPOSE_PROFILES and
+  # SENTINEL_EXTERNAL_SERVICES.
   radio-hub:
     <<: *section-service
     container_name: sentinel-radio-hub
@@ -374,20 +375,17 @@ services:
     container_name: sentinel-decoder
     profiles: ["decoder", "all"]
     depends_on:
-      - app
+      - gateway
     environment:
-      - INGEST_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/decode/ingest
+      # Sentinel's gateway. Config and ingest go through it, so they reach the
+      # radio hub wherever it runs (the app or the `radio-hub` service); each
+      # config reply names the hub's PCM and voice-audio sockets, by the address the hub
+      # registered, since raw TCP/UDP can't go through the gateway.
+      - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Reads the auto-generated secret the backend wrote to the shared volume;
       # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
       - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
       - INGEST_SECRET_FILE=/run/decoder/secret
-      - IQ_PCM_HOST=${SENTINEL_RADIO_HUB_HOST:-app}
-      - IQ_PCM_PORT=7355
-      - AUDIO_UDP_HOST=${SENTINEL_RADIO_HUB_HOST:-app}
-      - AUDIO_UDP_PORT=7356
-      # Polled before each dsd-fme launch to see whether a decode session is
-      # active (the supervisor idles until one is).
-      - CONFIG_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/decode/config
     volumes:
       - decoder_secret:/run/decoder:ro
     # For a hardware AMBE dongle (license-clean alternative to software mbelib),
@@ -410,16 +408,17 @@ services:
     container_name: sentinel-aprs-decoder
     profiles: ["aprs", "all"]
     depends_on:
-      - app
+      - gateway
     environment:
-      - INGEST_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/aprs/ingest
-      - CONFIG_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/aprs/config
+      # Sentinel's gateway. Config and ingest go through it, so they reach the
+      # radio hub wherever it runs (the app or the `radio-hub` service); each
+      # config reply names the hub's PCM socket, by the address the hub
+      # registered, since raw TCP can't go through the gateway.
+      - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Reads the auto-generated secret the backend wrote to the shared volume;
       # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
       - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
       - INGEST_SECRET_FILE=/run/decoder/secret
-      - IQ_PCM_HOST=${SENTINEL_RADIO_HUB_HOST:-app}
-      - IQ_PCM_PORT=7357
     volumes:
       - decoder_secret:/run/decoder:ro
     restart: unless-stopped
@@ -447,16 +446,17 @@ services:
     container_name: sentinel-ais-decoder
     profiles: ["ais", "all"]
     depends_on:
-      - app
+      - gateway
     environment:
-      - INGEST_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/ais/ingest
-      - CONFIG_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000/api/sdr/ais/config
+      # Sentinel's gateway. Config and ingest go through it, so they reach the
+      # radio hub wherever it runs (the app or the `radio-hub` service); each
+      # config reply names the hub's PCM socket, by the address the hub
+      # registered, since raw TCP can't go through the gateway.
+      - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Reads the auto-generated secret the backend wrote to the shared volume;
       # an explicit SENTINEL_DECODER_SECRET (if set) takes precedence.
       - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
       - INGEST_SECRET_FILE=/run/decoder/secret
-      - IQ_PCM_HOST=${SENTINEL_RADIO_HUB_HOST:-app}
-      - IQ_PCM_PORT=7358
     volumes:
       - decoder_secret:/run/decoder:ro
     restart: unless-stopped
@@ -475,10 +475,14 @@ services:
     container_name: sentinel-stub-decoder
     profiles: ["decoder-stub"]
     depends_on:
-      - app
+      - gateway
     environment:
-      - HUB_URL=http://${SENTINEL_RADIO_HUB_HOST:-app}:8000
-      - PCM_HOST=${SENTINEL_RADIO_HUB_HOST:-app}
+      # Sentinel's gateway. Config and ingest go through it, so they reach the
+      # radio hub wherever it runs (the app or the `radio-hub` service); each
+      # config reply names the hub's PCM socket, by the address the hub
+      # registered, since raw TCP can't go through the gateway.
+      - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
+      # The PCM port its manifest declares (the hub listens on it).
       - PCM_PORT=7370
       - INGEST_SECRET=${SENTINEL_DECODER_SECRET:-}
       - INGEST_SECRET_FILE=/run/decoder/secret
@@ -509,7 +513,6 @@ services:
     container_name: sentinel-adsb-decoder
     profiles: ["adsb", "all"]
     depends_on:
-      - app
       - gateway
     environment:
       # Where the I/Q comes from is the operator's choice in Settings → AIR, not
@@ -517,7 +520,7 @@ services:
       # effect at the next reconnect rather than needing the container recreated.
       # Through the gateway, so it reaches Air wherever Air runs (inside the
       # app, or the `air` service) — /api/sdr/adsb/ is Air's, not the app's.
-      - CONFIG_URL=http://gateway:8080/api/sdr/adsb/config
+      - CONFIG_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}/api/sdr/adsb/config
       # Static fallback, for running this decoder standalone or before a source
       # has been picked. Leave unset to require the configured source.
       - RTL_TCP_HOST=${SENTINEL_ADSB_RTL_TCP_HOST:-}
