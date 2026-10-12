@@ -155,6 +155,10 @@ def live_hub(client, monkeypatch) -> Iterator[LiveHub]:
     rtl_tcp = asyncio.run_coroutine_threadsafe(
         asyncio.start_server(_fake_rtl_tcp, "127.0.0.1", 0), loop
     ).result(5)
+    # The in-process hub advertises core's internal URL as its address, and
+    # every decoder config reply names its PCM feed on that host: point it at
+    # this server so the stub dials the feed the hub told it about.
+    monkeypatch.setattr(settings, "core_internal_url", f"http://127.0.0.1:{port}")
     hub = LiveHub(
         url=f"http://127.0.0.1:{port}",
         loop=loop,
@@ -181,8 +185,8 @@ class StubDecoder:
 
     def __init__(self, hub: LiveHub, channels_hz: tuple[int, ...]) -> None:
         self.config = stub.StubConfig(
-            hub_url=hub.url,
-            pcm_host="127.0.0.1",
+            # No gateway here: the app serves the hub's routes itself.
+            gateway_url=hub.url,
             pcm_port=_free_port(),
             channels_hz=channels_hz,
             report_seconds=REPORT_SECONDS,
@@ -193,7 +197,7 @@ class StubDecoder:
         self._thread = threading.Thread(target=self._supervise, daemon=True)
 
     def _supervise(self) -> None:
-        hub_client = stub.HubClient(self.config.hub_url, SECRET)
+        hub_client = stub.HubClient(self.config.gateway_url, SECRET)
         manifest = stub.build_manifest(self.config)
         registered = False
         while not self._stop.is_set():
@@ -284,7 +288,10 @@ def test_the_stub_decoder_drives_the_whole_contract(live_hub, channels_hz):
             http.post("/api/sdr/decoders/stub/stop", json={"radio_id": radio_id})
             assert http.get(
                 "/api/sdr/decoders/stub/config", headers={"X-Decode-Secret": SECRET}
-            ).json() == {"active": False}
+            ).json() == {
+                "active": False,
+                "pcmFeed": {"host": "127.0.0.1", "port": decoder.config.pcm_port},
+            }
             settled = len(published)
             time.sleep(REPORT_SECONDS * 2)
             assert len(published) == settled

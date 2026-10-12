@@ -13,6 +13,7 @@ import json
 import logging
 import secrets
 
+from backend.config import settings
 from backend.database import get_db
 from backend.platform.aprs_channel import read_aprs_channel_hz
 from backend.platform.bus import bus
@@ -20,6 +21,7 @@ from backend.platform.settings_client import read_setting, write_setting
 from backend.radio_hub import radios as radio_registry
 from backend.radio_hub.services import manifest_decode, sdr_decode
 from backend.radio_hub.services import sdr as sdr_svc
+from backend.radio_hub.services.decoder_sockets import socket_endpoint
 from fastapi import APIRouter, Depends, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
@@ -119,7 +121,15 @@ async def decode_config(x_decode_secret: str = Header(default="")):
     if not secrets.compare_digest(x_decode_secret, secret):
         raise HTTPException(401, "invalid decode secret")
     bridge = sdr_decode.get_active_bridge()
-    return JSONResponse({"active": bool(bridge and bridge.running)})
+    # The supervisor polls this through the gateway, so the reply is how it finds
+    # the hub's own sockets: the PCM it reads and the port it sends voice back to.
+    return JSONResponse(
+        {
+            "active": bool(bridge and bridge.running),
+            "pcmFeed": socket_endpoint(settings.decoder_pcm_port),
+            "voiceAudioReturn": socket_endpoint(settings.decoder_audio_udp_port),
+        }
+    )
 
 
 # ── APRS decode (Direwolf sidecar) ──────────────────────────────────────────────
@@ -248,7 +258,10 @@ async def aprs_decode_config(x_decode_secret: str = Header(default="")):
     if not secrets.compare_digest(x_decode_secret, secret):
         raise HTTPException(401, "invalid decode secret")
     bridge = sdr_decode.get_active_aprs_bridge()
-    return JSONResponse({"active": bool(bridge and bridge.running)})
+    # ``pcmFeed``: where the sidecar, polling through the gateway, finds the PCM.
+    return JSONResponse(
+        {"active": bool(bridge and bridge.running), "pcmFeed": socket_endpoint(settings.aprs_decoder_pcm_port)}
+    )
 
 
 async def _start_aprs_best_effort(radios: list, radio_id: int, channel_hz: int) -> None:
@@ -521,7 +534,10 @@ async def ais_decode_config(x_decode_secret: str = Header(default="")):
     if not secrets.compare_digest(x_decode_secret, secret):
         raise HTTPException(401, "invalid decode secret")
     bridge = sdr_decode.get_active_ais_bridge()
-    return JSONResponse({"active": bool(bridge and bridge.running)})
+    # ``pcmFeed``: where the sidecar, polling through the gateway, finds the PCM.
+    return JSONResponse(
+        {"active": bool(bridge and bridge.running), "pcmFeed": socket_endpoint(settings.ais_decoder_pcm_port)}
+    )
 
 
 async def _start_ais_best_effort(radios: list, radio_id: int) -> None:

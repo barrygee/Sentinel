@@ -26,6 +26,7 @@ from backend.platform.bus import bus
 from backend.radio_hub.routers.decode import DecodeEventIn
 from backend.radio_hub.services import manifest_decode, sdr_decode
 from backend.radio_hub.services.decoder_manifest import DecoderManifest
+from backend.radio_hub.services.decoder_sockets import socket_endpoint
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi import Path as PathParam
 from fastapi.responses import JSONResponse
@@ -154,7 +155,9 @@ async def decoder_config(kind: str = _KIND, x_decode_secret: str = Header(defaul
     decoder's cue to register again.
     """
     _require_decode_secret(x_decode_secret)
-    if manifest_decode.get_manifest(kind) is None:
+    manifest = manifest_decode.get_manifest(kind)
+    if manifest is None:
         raise HTTPException(404, "Decoder kind not registered")
     bridge = manifest_decode.get_active_bridge(kind)
-    return JSONResponse({"active": bool(bridge and bridge.running)})
+    # ``pcmFeed``: where the decoder, polling through the gateway, finds the PCM.
+    return JSONResponse({"active": bool(bridge and bridge.running), "pcmFeed": socket_endpoint(manifest.pcm.port)})

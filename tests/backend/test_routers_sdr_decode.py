@@ -307,9 +307,7 @@ class _ControlBroadcaster:
 def _patch_control(monkeypatch):
     radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
     _patch_resolve(monkeypatch, _ControlBroadcaster(), radio)
-    monkeypatch.setattr(
-        sdr_svc, "get_connection", lambda host, port: _FakeConn()
-    )
+    monkeypatch.setattr(sdr_svc, "get_connection", lambda host, port: _FakeConn())
     # Neutralise the finally-block teardown so it doesn't interfere with assertions.
     monkeypatch.setattr(sdr_decode, "stop_bridge", AsyncMock())
 
@@ -320,9 +318,7 @@ class TestControlDigitalCommands:
         fake_bridge = MagicMock()
         fake_bridge.start = AsyncMock()
         get_or_create = AsyncMock(return_value=fake_bridge)
-        monkeypatch.setattr(
-            sdr_decode, "get_or_create_bridge", get_or_create
-        )
+        monkeypatch.setattr(sdr_decode, "get_or_create_bridge", get_or_create)
 
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()  # initial status
@@ -362,9 +358,7 @@ class TestControlDigitalCommands:
     def test_digital_channel_updates_active_bridge(self, client, monkeypatch):
         _patch_control(monkeypatch)
         fake_bridge = MagicMock()
-        monkeypatch.setattr(
-            sdr_decode, "get_bridge", lambda host, port: fake_bridge
-        )
+        monkeypatch.setattr(sdr_decode, "get_bridge", lambda host, port: fake_bridge)
 
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
@@ -377,9 +371,7 @@ class TestControlDigitalCommands:
 
     def test_digital_channel_noop_when_no_bridge(self, client, monkeypatch):
         _patch_control(monkeypatch)
-        monkeypatch.setattr(
-            sdr_decode, "get_bridge", lambda host, port: None
-        )
+        monkeypatch.setattr(sdr_decode, "get_bridge", lambda host, port: None)
         with client.websocket_connect("/ws/sdr/1") as ws:
             ws.receive_json()
             ws.send_json({"cmd": "digital_channel", "offset_hz": 0})
@@ -409,7 +401,24 @@ class TestDecodeConfig:
         settings.decoder_ingest_secret = "s"
         resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
         assert resp.status_code == 200
-        assert resp.json() == {"active": False}
+        assert resp.json() == {
+            "active": False,
+            "pcmFeed": {"host": "app", "port": 7355},
+            "voiceAudioReturn": {"host": "app", "port": 7356},
+        }
+
+    def test_a_hub_in_its_own_container_names_its_own_host(self, client, monkeypatch):
+        # Decoders dial these sockets directly (they can't go through the
+        # gateway), so they must name the host the hub is registered under.
+        settings.decoder_ingest_secret = "s"
+        monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000")
+        body = client.get(
+            "/api/sdr/decode/config", headers={"X-Decode-Secret": "s"}
+        ).json()
+        assert (body["pcmFeed"], body["voiceAudioReturn"]) == (
+            {"host": "radio-hub", "port": settings.decoder_pcm_port},
+            {"host": "radio-hub", "port": settings.decoder_audio_udp_port},
+        )
 
     def test_active_true_when_a_session_is_serving_pcm(self, client, monkeypatch):
         # The supervisor gates dsd-fme launch on this flag, so it must be True only

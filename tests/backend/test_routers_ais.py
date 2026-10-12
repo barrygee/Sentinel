@@ -340,7 +340,10 @@ class TestAisDecodeConfig:
     def test_inactive_when_no_bridge_is_serving_pcm(self, client):
         settings.decoder_ingest_secret = "s"
         resp = client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "s"})
-        assert resp.json() == {"active": False}
+        assert resp.json() == {
+            "active": False,
+            "pcmFeed": {"host": "app", "port": 7358},
+        }
 
     def test_active_only_once_the_bridge_is_running(self, client):
         # The sidecar gates on this: launching Direwolf with no PCM listener

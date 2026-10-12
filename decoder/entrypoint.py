@@ -9,10 +9,14 @@ the control-plane (launch + event parsing + capability report).
 
 Uses only the Python standard library so the runtime image stays minimal.
 
+Where the hub is: config and ingest go to Sentinel's gateway, which routes them
+to the radio hub wherever it runs. The PCM feed dsd-fme reads (TCP) and the
+port it sends decoded voice to (UDP) aren't HTTP, so each config reply names
+them (``pcmFeed`` / ``voiceAudioReturn``: the host the hub is registered under,
+plus the port).
+
 Environment:
-    IQ_PCM_HOST / IQ_PCM_PORT      backend PCM TCP feed dsd-fme connects to
-    AUDIO_UDP_HOST / AUDIO_UDP_PORT where dsd-fme sends decoded voice (UDP)
-    INGEST_URL                     backend decode-event ingest endpoint
+    SENTINEL_GATEWAY_URL           Sentinel's gateway (http://gateway:8080)
     INGEST_SECRET                  shared secret (explicit override)
     INGEST_SECRET_FILE             path to the auto-generated shared secret file
                                    (the backend writes it; preferred over env)
@@ -162,16 +166,30 @@ def post_event(ingest_url: str, secret: str, event: dict) -> bool:
         return False
 
 
-def build_dsd_command(config: dict | None = None) -> list[str]:
-    """Assemble the dsd-fme command line from the environment."""
-    iq_host = os.environ.get("IQ_PCM_HOST", "app")
-    iq_port = os.environ.get("IQ_PCM_PORT", "7355")
-    audio_host = os.environ.get("AUDIO_UDP_HOST", "app")
-    audio_port = os.environ.get("AUDIO_UDP_PORT", "7356")
+def socket_address(config: dict, name: str) -> tuple[str, int] | None:
+    """``(host, port)`` of one of the hub's sockets named in a config reply, or None.
+
+    None when the reply doesn't carry a usable one (``name`` missing, a blank
+    host, a port that isn't a number): there is then nothing to connect to.
+    """
+    endpoint = config.get(name)
+    if not isinstance(endpoint, dict):
+        return None
+    host = endpoint.get("host")
+    port = endpoint.get("port")
+    if not isinstance(host, str) or not host or isinstance(port, bool) or not isinstance(port, int):
+        return None
+    return host, port
+
+
+def build_dsd_command(pcm_feed: tuple[str, int], voice_audio_return: tuple[str, int]) -> list[str]:
+    """Assemble the dsd-fme command line for the hub's PCM feed and voice-audio port."""
+    pcm_host, pcm_port = pcm_feed
+    audio_host, audio_port = voice_audio_return
     command = [
         "dsd-fme",
         "-i",
-        f"tcp:{iq_host}:{iq_port}",
+        f"tcp:{pcm_host}:{pcm_port}",
         "-o",
         f"udp:{audio_host}:{audio_port}",
     ]
@@ -188,8 +206,10 @@ class HubLink:
     The supervisor polls the hub's decode config every couple of seconds, so a
     line per failed poll fills the log whenever the hub is starting or
     restarting (a `docker compose up` starts this container before the hub
-    answers). Only connection failures are quietened: an HTTP error means the
-    hub answered, so it is still logged every time.
+    answers). Only "not there" failures are quietened — no connection, the
+    gateway answering for a hub that is down, or no hub registered yet — while
+    any other HTTP error means the hub answered, so it is still logged every
+    time.
     """
 
     def __init__(self, clock=time.monotonic) -> None:
@@ -201,9 +221,9 @@ class HubLink:
         """The hub answered: say so the first time, and after every outage."""
         if self._unreachable_since is not None:
             waited = self._clock() - self._unreachable_since
-            _log_hub(f"connected to the radio hub at {_origin(url)} after {waited:.1f} s")
+            _log_hub(f"connected to the radio hub through {_origin(url)} after {waited:.1f} s")
         elif not self._connected:
-            _log_hub(f"connected to the radio hub at {_origin(url)}")
+            _log_hub(f"connected to the radio hub through {_origin(url)}")
         self._connected = True
         self._unreachable_since = None
 
@@ -212,7 +232,7 @@ class HubLink:
         if self._unreachable_since is not None:
             return
         self._unreachable_since = self._clock()
-        _log_hub(f"waiting for the radio hub at {_origin(url)} ({error}); retrying quietly")
+        _log_hub(f"waiting for the radio hub through {_origin(url)} ({error}); retrying quietly")
 
 
 def _origin(url: str) -> str:
@@ -228,26 +248,40 @@ def _log_hub(message: str) -> None:
 _hub_link = HubLink()
 
 
+# The gateway's answers for a hub that is registered but not serving: it can't
+# be dialled (502), the registry marks it unavailable (503), or it timed out (504).
+_HUB_UNAVAILABLE_STATUSES = frozenset({502, 503, 504})
+
+
 def fetch_decode_config(config_url: str, secret: str) -> dict:
-    """GET the backend's decode config (whether a session is active). {} on failure.
+    """GET the hub's decode config (is a session active, where are its sockets). {} on failure.
 
     Polled before each dsd-fme launch. Network/parse failures are non-fatal —
-    the decoder simply idles until the backend is reachable again.
+    the decoder simply idles until the hub is reachable again.
     """
     request = urllib.request.Request(config_url, headers={"X-Decode-Secret": secret}, method="GET")
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
-            _hub_link.reached(config_url)
-            if 200 <= response.status < 300:
-                return json.loads(response.read().decode("utf-8"))
+            body = response.read()
     except urllib.error.HTTPError as exc:
+        if exc.code in _HUB_UNAVAILABLE_STATUSES:
+            _hub_link.unreachable(config_url, f"HTTP {exc.code}")
+            return {}
         _hub_link.reached(config_url)
         print(f"[decoder] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
+        return {}
     except (urllib.error.URLError, OSError) as exc:
         _hub_link.unreachable(config_url, getattr(exc, "reason", exc))
-    except json.JSONDecodeError as exc:
-        print(f"[decoder] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
-    return {}
+        return {}
+    try:
+        config = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        # Not the hub answering: with no hub registered yet, the gateway hands
+        # the path to the app, whose SPA fallback replies with its HTML page.
+        _hub_link.unreachable(config_url, "no radio hub registered yet")
+        return {}
+    _hub_link.reached(config_url)
+    return config if isinstance(config, dict) else {}
 
 
 def _event_worker(ingest_url: str, secret: str, events: queue.Queue) -> None:  # pragma: no cover - thread
@@ -265,7 +299,9 @@ def _event_worker(ingest_url: str, secret: str, events: queue.Queue) -> None:  #
         post_event(ingest_url, secret, event)
 
 
-def run_dsd_once(events: queue.Queue, config: dict | None = None) -> int:  # pragma: no cover - drives a subprocess
+def run_dsd_once(
+    events: queue.Queue, pcm_feed: tuple[str, int], voice_audio_return: tuple[str, int]
+) -> int:  # pragma: no cover - drives a subprocess
     """Run dsd-fme once, echoing its output and queueing parsed events.
 
     dsd-fme's own log lines are echoed to stderr so the container log shows what
@@ -275,7 +311,7 @@ def run_dsd_once(events: queue.Queue, config: dict | None = None) -> int:  # pra
     channel repeats near-identical status lines) and surfaced as call rows. Both
     are handed to the worker queue without ever blocking the read loop.
     """
-    command = build_dsd_command(config)
+    command = build_dsd_command(pcm_feed, voice_audio_return)
     print(f"[decoder] launching: {' '.join(command)}", file=sys.stderr, flush=True)
     # dsd-fme intermixes raw (non-UTF-8) decoded-voice/control bytes into its
     # stdout, so strict decoding (the `text=True` default) raises UnicodeDecodeError
@@ -320,7 +356,9 @@ def run_dsd_once(events: queue.Queue, config: dict | None = None) -> int:  # pra
 
 
 def main() -> int:  # pragma: no cover - container entrypoint loop
-    ingest_url = os.environ.get("INGEST_URL", "http://app:8000/api/sdr/decode/ingest")
+    gateway_url = os.environ.get("SENTINEL_GATEWAY_URL", "http://gateway:8080").rstrip("/")
+    ingest_url = f"{gateway_url}/api/sdr/decode/ingest"
+    config_url = f"{gateway_url}/api/sdr/decode/config"
     secret = resolve_secret()
     if not secret:
         print(
@@ -334,8 +372,6 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
     # when full so it never backpressures dsd-fme).
     events: queue.Queue = queue.Queue(maxsize=256)
     threading.Thread(target=_event_worker, args=(ingest_url, secret, events), daemon=True).start()
-
-    config_url = os.environ.get("CONFIG_URL", "http://app:8000/api/sdr/decode/config")
 
     # Supervise dsd-fme in-process. Only run it while a decode session is actually
     # serving PCM (config["active"]): with decode OFF the backend isn't listening on
@@ -352,11 +388,22 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
         if not config.get("active"):
             time.sleep(idle_poll_seconds)
             continue
+        pcm_feed = socket_address(config, "pcmFeed")
+        voice_audio_return = socket_address(config, "voiceAudioReturn")
+        if pcm_feed is None or voice_audio_return is None:
+            print(
+                "[decoder] the hub's decode config names no PCM feed / voice-audio port — is the hub older "
+                "than this decoder?",
+                file=sys.stderr,
+                flush=True,
+            )
+            time.sleep(idle_poll_seconds)
+            continue
         # A session is up: announce the vocoder so the UI learns voice is available,
         # then run dsd-fme until the PCM feed drops (decode disabled / bounced).
         post_event(ingest_url, secret, {"type": "decode_status", "vocoder": "mbelib"})
         try:
-            run_dsd_once(events, config)
+            run_dsd_once(events, pcm_feed, voice_audio_return)
         except KeyboardInterrupt:
             return 0
         time.sleep(retry_seconds)

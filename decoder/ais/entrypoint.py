@@ -24,10 +24,12 @@ Data flow, mirroring the APRS sidecar:
 
 Uses only the Python standard library plus pyais.
 
+Where the hub is: config and ingest go to Sentinel's gateway, which routes them
+to the radio hub wherever it runs. The PCM feed isn't HTTP, so each config reply
+names it (``pcmFeed``: the host the hub is registered under, plus the port).
+
 Environment:
-    IQ_PCM_HOST / IQ_PCM_PORT   backend PCM TCP feed Direwolf's stdin is fed from
-    INGEST_URL                  backend AIS decode-event ingest endpoint
-    CONFIG_URL                  backend AIS decode-config endpoint (active gate)
+    SENTINEL_GATEWAY_URL        Sentinel's gateway (http://gateway:8080)
     INGEST_SECRET               shared secret (explicit override)
     INGEST_SECRET_FILE          path to the auto-generated shared secret file
     DIREWOLF_CONFIG             path to the Direwolf config file (see -c, below)
@@ -237,8 +239,10 @@ class HubLink:
     The supervisor polls the hub's decode config every couple of seconds, so a
     line per failed poll fills the log whenever the hub is starting or
     restarting (a `docker compose up` starts this container before the hub
-    answers). Only connection failures are quietened: an HTTP error means the
-    hub answered, so it is still logged every time.
+    answers). Only "not there" failures are quietened — no connection, the
+    gateway answering for a hub that is down, or no hub registered yet — while
+    any other HTTP error means the hub answered, so it is still logged every
+    time.
     """
 
     def __init__(self, clock=time.monotonic) -> None:
@@ -250,22 +254,22 @@ class HubLink:
         """The hub answered: say so the first time, and after every outage."""
         if self._unreachable_since is not None:
             waited = self._clock() - self._unreachable_since
-            _log_hub(f"connected to the radio hub at {_origin(url)} after {waited:.1f} s")
+            _log_hub(f"connected to the radio hub through {_origin(url)} after {waited:.1f} s")
         elif not self._connected:
-            _log_hub(f"connected to the radio hub at {_origin(url)}")
+            _log_hub(f"connected to the radio hub through {_origin(url)}")
         self._connected = True
         self._unreachable_since = None
 
     def unreachable(self, url: str, error: object) -> None:
-        """A poll couldn't connect: log the first one, then retry quietly."""
+        """A poll found no hub: log the first one, then retry quietly."""
         if self._unreachable_since is not None:
             return
         self._unreachable_since = self._clock()
-        _log_hub(f"waiting for the radio hub at {_origin(url)} ({error}); retrying quietly")
+        _log_hub(f"waiting for the radio hub through {_origin(url)} ({error}); retrying quietly")
 
 
 def _origin(url: str) -> str:
-    """scheme://host:port of a URL, the part that says which hub this is."""
+    """scheme://host:port of a URL, the part that says where the hub is reached."""
     parts = urllib.parse.urlsplit(url)
     return f"{parts.scheme}://{parts.netloc}"
 
@@ -276,28 +280,57 @@ def _log_hub(message: str) -> None:
 
 _hub_link = HubLink()
 
+# The gateway's answers for a hub that is registered but not serving: it can't
+# be dialled (502), the registry marks it unavailable (503), or it timed out (504).
+_HUB_UNAVAILABLE_STATUSES = frozenset({502, 503, 504})
+
 
 def fetch_decode_config(config_url: str, secret: str) -> dict:
-    """GET the backend's AIS decode config (``active`` gate). {} on failure.
+    """GET the hub's AIS decode config (``active`` gate, ``pcmFeed``). {} on failure.
 
-    Polled while idle so Direwolf is only launched once the backend is actually
+    Polled while idle so Direwolf is only launched once the hub is actually
     serving PCM. Network/parse failures are non-fatal — the supervisor simply
-    keeps idling until the backend is reachable.
+    keeps idling until the hub is reachable.
     """
     request = urllib.request.Request(config_url, headers={"X-Decode-Secret": secret}, method="GET")
     try:
         with urllib.request.urlopen(request, timeout=5) as response:
-            _hub_link.reached(config_url)
-            if 200 <= response.status < 300:
-                return json.loads(response.read().decode("utf-8"))
+            body = response.read()
     except urllib.error.HTTPError as exc:
+        if exc.code in _HUB_UNAVAILABLE_STATUSES:
+            _hub_link.unreachable(config_url, f"HTTP {exc.code}")
+            return {}
         _hub_link.reached(config_url)
         print(f"[ais] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
+        return {}
     except (urllib.error.URLError, OSError) as exc:
         _hub_link.unreachable(config_url, getattr(exc, "reason", exc))
-    except json.JSONDecodeError as exc:
-        print(f"[ais] decode-config fetch failed: {exc}", file=sys.stderr, flush=True)
-    return {}
+        return {}
+    try:
+        config = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        # Not the hub answering: with no hub registered yet, the gateway hands
+        # the path to the app, whose SPA fallback replies with its HTML page.
+        _hub_link.unreachable(config_url, "no radio hub registered yet")
+        return {}
+    _hub_link.reached(config_url)
+    return config if isinstance(config, dict) else {}
+
+
+def pcm_feed_address(config: dict) -> tuple[str, int] | None:
+    """``(host, port)`` of the hub's PCM feed from a config reply, or None.
+
+    None when the reply doesn't carry a usable one (no ``pcmFeed``, a blank host,
+    a port that isn't a number): there is then nothing to connect to.
+    """
+    endpoint = config.get("pcmFeed")
+    if not isinstance(endpoint, dict):
+        return None
+    host = endpoint.get("host")
+    port = endpoint.get("port")
+    if not isinstance(host, str) or not host or isinstance(port, bool) or not isinstance(port, int):
+        return None
+    return host, port
 
 
 def build_direwolf_command() -> list[str]:
@@ -458,10 +491,9 @@ def run_direwolf_once(events: queue.Queue, pcm_host: str, pcm_port: int) -> None
 
 
 def main() -> int:  # pragma: no cover - container entrypoint loop
-    ingest_url = os.environ.get("INGEST_URL", "http://app:8000/api/sdr/ais/ingest")
-    config_url = os.environ.get("CONFIG_URL", "http://app:8000/api/sdr/ais/config")
-    pcm_host = os.environ.get("IQ_PCM_HOST", "app")
-    pcm_port = int(os.environ.get("IQ_PCM_PORT", "7358"))
+    gateway_url = os.environ.get("SENTINEL_GATEWAY_URL", "http://gateway:8080").rstrip("/")
+    ingest_url = f"{gateway_url}/api/sdr/ais/ingest"
+    config_url = f"{gateway_url}/api/sdr/ais/config"
 
     secret = resolve_secret()
     if not secret:
@@ -486,8 +518,17 @@ def main() -> int:  # pragma: no cover - container entrypoint loop
         if not config.get("active"):
             time.sleep(idle_poll_seconds)
             continue
+        pcm_feed = pcm_feed_address(config)
+        if pcm_feed is None:
+            print(
+                "[ais] the hub's decode config names no PCM feed — is the hub older than this decoder?",
+                file=sys.stderr,
+                flush=True,
+            )
+            time.sleep(idle_poll_seconds)
+            continue
         try:
-            run_direwolf_once(events, pcm_host, pcm_port)
+            run_direwolf_once(events, *pcm_feed)
         except KeyboardInterrupt:
             return 0
         time.sleep(retry_seconds)

@@ -9,10 +9,11 @@ be tested end to end without `mbelib` (dsd-fme) or a real over-the-air signal
 |---|---|---|
 | Register | `POST /api/sdr/decoders/register` | manifest with `decoderKind: "stub"`, PCM on `PCM_PORT` |
 | Wait | `GET /api/sdr/decoders/stub/config` | idles until `active`; a **404** means the hub forgot the kind (it restarted), so the stub registers again |
-| Read | TCP `PCM_HOST:PCM_PORT` | 48 kHz s16 LE PCM, mono (or stereo for two absolute channels) |
+| Read | TCP `pcmFeed` from the config reply | 48 kHz s16 LE PCM, mono (or stereo for two absolute channels), on the host the hub registered |
 | Ingest | `POST /api/sdr/decoders/stub/ingest` | one `{frames, rms, peak}` summary per `REPORT_SECONDS` of PCM |
 
-All calls carry the shared decoder secret (`X-Decode-Secret`), the same one the
+HTTP goes through Sentinel's gateway, so the stub reaches the hub whether the app
+or the `radio-hub` service hosts it. All calls carry the shared decoder secret (`X-Decode-Secret`), the same one the
 voice, APRS and AIS sidecars use. The hub publishes each event on the bus as
 `decode.stub.<radioId>` and relays it to the SDR panel's `/ws/sdr/{id}/decode`
 socket.
@@ -28,18 +29,22 @@ docker compose logs -f stub-decoder
 ```
 
 Without Docker, from the repo root (the secret is whatever the backend uses —
-set `DECODER_INGEST_SECRET` on the backend to pin it):
+set `DECODER_INGEST_SECRET` on the backend to pin it). With no gateway, point the
+stub straight at the app, and start the app with `CORE_INTERNAL_URL` set to its
+own address, because that is the host the hub's config reply names for the PCM
+feed (the default, `http://app:8000`, only resolves on the compose network):
 
 ```bash
-HUB_URL=http://localhost:8080 PCM_HOST=localhost INGEST_SECRET=… python decoder/stub/entrypoint.py
+CORE_INTERNAL_URL=http://localhost:8080 uv run --project backend uvicorn backend.main:app --port 8080
+SENTINEL_GATEWAY_URL=http://localhost:8080 INGEST_SECRET=… python decoder/stub/entrypoint.py
 ```
 
 ## Configuration
 
 | Variable | Default | |
 |---|---|---|
-| `HUB_URL` | `http://app:8000` | the radio hub (today: the app) |
-| `PCM_HOST` / `PCM_PORT` | `app` / `7370` | where the hub serves this kind's PCM |
+| `SENTINEL_GATEWAY_URL` | `http://gateway:8080` | Sentinel's gateway, which routes to the radio hub |
+| `PCM_PORT` | `7370` | the PCM port the manifest declares (the hub listens on it) |
 | `STUB_CHANNELS_HZ` | empty | empty = `ownership: relative` mono; one frequency = `absolute` mono; two = `absolute` stereo |
 | `REPORT_SECONDS` | `1.0` | PCM per summary event |
 | `POLL_SECONDS` | `2.0` | config poll interval |

@@ -326,7 +326,7 @@ class TestAprsConfig:
         body = client.get(
             "/api/sdr/aprs/config", headers={"X-Decode-Secret": "s"}
         ).json()
-        assert body == {"active": False}
+        assert body == {"active": False, "pcmFeed": {"host": "app", "port": 7357}}
 
     def test_reports_active_with_running_bridge(self, client):
         settings.decoder_ingest_secret = "s"
@@ -335,7 +335,7 @@ class TestAprsConfig:
         body = client.get(
             "/api/sdr/aprs/config", headers={"X-Decode-Secret": "s"}
         ).json()
-        assert body == {"active": True}
+        assert body == {"active": True, "pcmFeed": {"host": "app", "port": 7357}}
 
 
 # ── GET /api/land/aprs/stations ───────────────────────────────────────────────
