@@ -215,6 +215,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Copy IQ captures from the radio hub instead of sharing a volume
 - Add a Record Raw IQ switch to Settings › SDR options
 - Serve NATS over TLS with a user per service (P7.4a)
+- Give every service and decoder its own HTTP credential (P7.4b)
 
 ### Bug Fixes
 
@@ -1483,6 +1484,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #458 from barrygee/fix/sdr-recording-iq-button-style
 - Merge pull request #459 from barrygee/fix/e2e-preview-no-live-proxy
 - Merge pull request #460 from barrygee/feat/p7-4a-nats-tls-users
+- Merge pull request #461 from barrygee/feat/p7-4b-service-http-credentials
 
 ### Refactoring
 
@@ -1606,6 +1608,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record P7.2 advertised URLs as built
 - Record P7.3 IQ capture copy as built
 - Document NATS TLS and per-service users (P7.4a)
+- Document per-service HTTP credentials (P7.4b)
 
 ### Tests
 
@@ -1681,6 +1684,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the Record Raw IQ option
 - Pin the preview server's empty proxy
 - Cover NATS permissions, credentials and setup (P7.4a)
+- Cover per-service HTTP credentials (P7.4b)
 
 ### Build System
 
