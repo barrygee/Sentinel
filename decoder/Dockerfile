@@ -58,11 +58,8 @@ COPY entrypoint.py /app/entrypoint.py
 USER decoder
 WORKDIR /app
 
-# Defaults wire the decoder to the backend over the internal compose network.
-ENV IQ_PCM_HOST=app \
-    IQ_PCM_PORT=7355 \
-    AUDIO_UDP_HOST=app \
-    AUDIO_UDP_PORT=7356 \
-    INGEST_URL=http://app:8000/api/sdr/decode/ingest
+# HTTP goes to the radio hub through Sentinel's gateway on the internal compose
+# network; the hub's config reply names its PCM feed and voice-audio port.
+ENV SENTINEL_GATEWAY_URL=http://gateway:8080
 
 CMD ["python3", "/app/entrypoint.py"]

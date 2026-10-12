@@ -38,13 +38,10 @@ COPY direwolf.conf /app/direwolf.conf
 USER aprs
 WORKDIR /app
 
-# Defaults wire the sidecar to the backend over the internal compose network.
-# The APRS PCM feed is on 7357 (distinct from the voice feed's 7355 so both can
-# run at once); ingest/config are the APRS-specific twins of the voice routes.
-ENV IQ_PCM_HOST=app \
-    IQ_PCM_PORT=7357 \
-    INGEST_URL=http://app:8000/api/sdr/aprs/ingest \
-    CONFIG_URL=http://app:8000/api/sdr/aprs/config \
+# HTTP goes to the radio hub through Sentinel's gateway on the internal compose
+# network; the hub's config reply names its APRS PCM feed (7357, distinct from
+# the voice feed's 7355 so both can run at once).
+ENV SENTINEL_GATEWAY_URL=http://gateway:8080 \
     INGEST_SECRET_FILE=/run/decoder/secret \
     DIREWOLF_CONFIG=/app/direwolf.conf
 
