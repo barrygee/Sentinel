@@ -211,6 +211,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the radio hub as its own service (P6.5)
 - Run the SDR section as its own service (P6.6)
 - Run backend containers unprivileged and wait on health
+- Reach the radio hub through the gateway and its advertised sockets
 
 ### Bug Fixes
 
@@ -1469,6 +1470,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #451 from barrygee/feat/p6-6-sdr-service
 - Merge pull request #452 from barrygee/fix/land-repeater-count-ring
 - Merge pull request #453 from barrygee/feat/p7-1-healthchecks-nonroot
+- Merge pull request #454 from barrygee/feat/p7-2-advertised-urls
 
 ### Refactoring
 
@@ -1589,6 +1591,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record the radio hub extraction as built (P6.5)
 - Record the SDR section extraction as built (P6.6)
 - Record P7.1 healthchecks and non-root images as built
+- Record P7.2 advertised URLs as built
 
 ### Tests
 
