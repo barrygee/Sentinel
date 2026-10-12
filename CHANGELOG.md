@@ -212,6 +212,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the SDR section as its own service (P6.6)
 - Run backend containers unprivileged and wait on health
 - Reach the radio hub through the gateway and its advertised sockets
+- Copy IQ captures from the radio hub instead of sharing a volume
 
 ### Bug Fixes
 
@@ -1473,6 +1474,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #453 from barrygee/feat/p7-1-healthchecks-nonroot
 - Merge pull request #454 from barrygee/feat/p7-2-advertised-urls
 - Merge pull request #455 from barrygee/chore/decoder-dockerfile-stale-env
+- Merge pull request #456 from barrygee/feat/p7-3-iq-capture-copy
 
 ### Refactoring
 
@@ -1594,6 +1596,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record the SDR section extraction as built (P6.6)
 - Record P7.1 healthchecks and non-root images as built
 - Record P7.2 advertised URLs as built
+- Record P7.3 IQ capture copy as built
 
 ### Tests
 
@@ -1665,6 +1668,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the standalone SDR service and the legacy file import
 - Pin the shared dark ring on repeater and Sentry group markers
 - Pin the entrypoint's privilege drop
+- Cover IQ capture staging, collection and reconcile
 
 ### Build System
 
