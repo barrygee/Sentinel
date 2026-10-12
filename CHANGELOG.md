@@ -537,6 +537,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle for feed-aware aircraft removal
 - Rebuild SPA bundle for the military-bases icon
 - Rebuild SPA bundle for band-plan label fitting
+- Drop the pre-gateway env defaults from the decoder images
 
 ### Other
 
@@ -1471,6 +1472,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #452 from barrygee/fix/land-repeater-count-ring
 - Merge pull request #453 from barrygee/feat/p7-1-healthchecks-nonroot
 - Merge pull request #454 from barrygee/feat/p7-2-advertised-urls
+- Merge pull request #455 from barrygee/chore/decoder-dockerfile-stale-env
 
 ### Refactoring
 
