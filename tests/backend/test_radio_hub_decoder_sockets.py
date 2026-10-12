@@ -4,7 +4,8 @@ tests/backend/test_radio_hub_decoder_sockets.py
 Tests for where the radio hub tells decoders to dial its PCM / voice-audio
 sockets (backend/radio_hub/services/decoder_sockets.py, section-containers P7.2):
 the host the hub is registered under — ``SERVICE_INTERNAL_URL`` for a hub in its
-own container, ``core_internal_url`` for one inside the app.
+own container, ``core_internal_url`` for one inside the app — unless
+``DECODER_SOCKETS_HOST`` names another (a hub on a radio host, P7.5).
 """
 
 import pytest
@@ -18,6 +19,7 @@ def _advertised_urls(monkeypatch):
     """Start every test from the in-app defaults; each test sets what it needs."""
     monkeypatch.setattr(settings, "service_internal_url", "")
     monkeypatch.setattr(settings, "core_internal_url", "http://app:8000")
+    monkeypatch.setattr(settings, "decoder_sockets_host", "")
 
 
 class TestAdvertisedHubUrl:
@@ -74,3 +76,26 @@ class TestSocketEndpoint:
         assert decoder_sockets.socket_endpoint(7355)["host"] == "app"
         monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000")
         assert decoder_sockets.socket_endpoint(7355)["host"] == "radio-hub"
+
+
+class TestDecoderSocketsHost:
+    """A hub behind a radio host's gateway registers that gateway's address, but
+    its decoders share its compose network: they are sent to `radio-hub`."""
+
+    def test_overrides_the_registered_host(self, monkeypatch):
+        monkeypatch.setattr(settings, "service_internal_url", "https://radio.lan:8443")
+        monkeypatch.setattr(settings, "decoder_sockets_host", "radio-hub")
+        assert decoder_sockets.advertised_hub_host() == "radio-hub"
+        assert decoder_sockets.socket_endpoint(7357) == {"host": "radio-hub", "port": 7357}
+
+    def test_leaves_the_registered_url_alone(self, monkeypatch):
+        # Only the decoders' socket host changes: core and the gateway still
+        # reach the hub at the address it registered.
+        monkeypatch.setattr(settings, "service_internal_url", "https://radio.lan:8443")
+        monkeypatch.setattr(settings, "decoder_sockets_host", "radio-hub")
+        assert decoder_sockets.advertised_hub_url() == "https://radio.lan:8443"
+
+    def test_unset_falls_back_to_the_registered_host(self, monkeypatch):
+        monkeypatch.setattr(settings, "service_internal_url", "https://radio.lan:8443")
+        assert decoder_sockets.advertised_hub_host() == "radio.lan"
+
