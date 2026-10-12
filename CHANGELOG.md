@@ -216,6 +216,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add a Record Raw IQ switch to Settings › SDR options
 - Serve NATS over TLS with a user per service (P7.4a)
 - Give every service and decoder its own HTTP credential (P7.4b)
+- Run the radio hub on a second host over TLS (P7.5a)
 
 ### Bug Fixes
 
@@ -1485,6 +1486,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #459 from barrygee/fix/e2e-preview-no-live-proxy
 - Merge pull request #460 from barrygee/feat/p7-4a-nats-tls-users
 - Merge pull request #461 from barrygee/feat/p7-4b-service-http-credentials
+- Merge pull request #462 from barrygee/feat/p7-5-radio-host
 
 ### Refactoring
 
@@ -1609,6 +1611,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record P7.3 IQ capture copy as built
 - Document NATS TLS and per-service users (P7.4a)
 - Document per-service HTTP credentials (P7.4b)
+- Document running the radio hub on a second host (P7.5a)
 
 ### Tests
 
@@ -1685,6 +1688,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin the preview server's empty proxy
 - Cover NATS permissions, credentials and setup (P7.4a)
 - Cover per-service HTTP credentials (P7.4b)
+- Cover the radio host's TLS plumbing (P7.5a)
 
 ### Build System
 
