@@ -488,6 +488,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Log a radio hub outage once instead of every poll
 - Ring repeater group markers like Sentry site groups
 - Style the recording IQ button like DOWNLOAD and label it DOWNLOAD IQ
+- Stop the preview server forwarding unmocked API calls to :8080
 
 ### Chores
 
@@ -1479,6 +1480,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #456 from barrygee/feat/p7-3-iq-capture-copy
 - Merge pull request #457 from barrygee/feat/sdr-record-raw-iq-setting
 - Merge pull request #458 from barrygee/fix/sdr-recording-iq-button-style
+- Merge pull request #459 from barrygee/fix/e2e-preview-no-live-proxy
 
 ### Refactoring
 
@@ -1674,6 +1676,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin the entrypoint's privilege drop
 - Cover IQ capture staging, collection and reconcile
 - Cover the Record Raw IQ option
+- Pin the preview server's empty proxy
 
 ### Build System
 
