@@ -32,6 +32,7 @@ from backend.database import AsyncSessionLocal, sdr_recordings_dir
 from backend.models import SdrRecording
 from backend.modules import shares_process_with
 from backend.platform.bus import bus
+from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 from sqlalchemy import select
 
@@ -92,7 +93,7 @@ async def fetch_iq_capture(download_url: str, destination: Path) -> int:
     destination.parent.mkdir(parents=True, exist_ok=True)
     copied_bytes = 0
     try:
-        async with httpx.AsyncClient(timeout=TRANSFER_TIMEOUT) as client:
+        async with httpx.AsyncClient(timeout=TRANSFER_TIMEOUT, verify=internal_verify()) as client:
             async with client.stream("GET", download_url, headers=headers) as response:
                 if not response.is_success:
                     raise IqCaptureTransferError(f"radio hub answered {response.status_code} for {download_url}")

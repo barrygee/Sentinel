@@ -29,6 +29,7 @@ from dataclasses import dataclass
 import httpx
 from backend.config import settings
 from backend.platform.bus import bus
+from backend.platform.internal_tls import internal_verify
 from backend.platform.service_manifest import ServiceManifest
 
 logger = logging.getLogger(__name__)
@@ -204,7 +205,7 @@ class ServiceRegistry:
             await self._announce(registration.manifest.id, "unavailable")
 
     async def _probe_loop(self) -> None:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(verify=internal_verify()) as client:
             while True:
                 await asyncio.sleep(settings.registry_probe_interval_s)
                 try:

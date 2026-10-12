@@ -306,6 +306,16 @@ class Settings(BaseSettings):
     # hash: `{"<sha256 hex>": "<caller>"}`, written for core and the radio hub
     # only. Empty = every internal route and decoder endpoint here answers 503.
     accepted_callers_file: str = ""
+    # The deployment's CA certificate (written by `service-credentials`), trusted
+    # on top of the public ones for HTTPS between Sentinel processes on
+    # different hosts (P7.5): a service calling core's TLS service entrypoint,
+    # core probing a hub behind a radio host's gateway, the SDR section fetching
+    # IQ captures from it. Empty trusts only the public certificate authorities.
+    internal_certificate_authority_file: str = ""
+    # Where the GATEWAY container finds that CA certificate, so it can proxy to a
+    # service registered at an `https://` address. A path inside the gateway's
+    # container, not this one's. Empty = public certificate authorities only.
+    gateway_upstream_certificate_authority_file: str = ""
 
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's
@@ -316,6 +326,12 @@ class Settings(BaseSettings):
     # The address core and the gateway reach this service on, e.g.
     # `http://space:8000` — the manifest's `internalUrl`.
     service_internal_url: str = ""
+    # The host decoders dial this radio hub's PCM / voice-audio sockets on.
+    # Empty = the host of the address above (the one the hub registers). A hub
+    # behind a radio host's gateway registers that gateway's address, so its
+    # decoders, on the hub's own compose network, are told `radio-hub` instead
+    # and no raw PCM port has to be published on the LAN (P7.5).
+    decoder_sockets_host: str = ""
     # Identifies this copy of the service to the registry. Empty uses the host
     # name, which is stable across restarts of the same container — so a
     # restart re-registers rather than waits out its own live registration.
