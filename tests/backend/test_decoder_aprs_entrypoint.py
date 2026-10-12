@@ -384,31 +384,3 @@ class TestHandleLine:
         # Must not raise even though both put_nowait calls hit a full queue.
         entrypoint.handle_line("[0] X>APRS:!y", events)
         assert events.qsize() == 1
-
-
-# ── resolve_secret ────────────────────────────────────────────────────────────
-
-
-class TestResolveSecret:
-    def test_env_override_wins(self, monkeypatch):
-        monkeypatch.setenv("INGEST_SECRET", "explicit")
-        assert entrypoint.resolve_secret() == "explicit"
-
-    def test_reads_secret_file(self, monkeypatch, tmp_path):
-        monkeypatch.delenv("INGEST_SECRET", raising=False)
-        secret_file = tmp_path / "secret"
-        secret_file.write_text("from-file")
-        monkeypatch.setenv("INGEST_SECRET_FILE", str(secret_file))
-        assert entrypoint.resolve_secret() == "from-file"
-
-    def test_no_source_returns_none(self, monkeypatch):
-        monkeypatch.delenv("INGEST_SECRET", raising=False)
-        monkeypatch.delenv("INGEST_SECRET_FILE", raising=False)
-        assert entrypoint.resolve_secret() is None
-
-    def test_missing_file_times_out_to_none(self, monkeypatch, tmp_path):
-        monkeypatch.delenv("INGEST_SECRET", raising=False)
-        monkeypatch.setenv("INGEST_SECRET_FILE", str(tmp_path / "never"))
-        # Collapse the wait so the poll loop returns immediately.
-        monkeypatch.setattr(entrypoint, "_SECRET_WAIT_SECONDS", 0)
-        assert entrypoint.resolve_secret() is None

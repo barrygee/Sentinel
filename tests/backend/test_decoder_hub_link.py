@@ -426,3 +426,56 @@ class TestVoiceSocketAddress:
             )
             is None
         )
+
+
+# ── resolve_secret: each decoder's own credential (P7.4b) ────────────────────
+
+
+@pytest.mark.parametrize(("tag", "entrypoint"), DECODERS, ids=DECODER_IDS)
+class TestResolveSecret:
+    """Each decoder reads its own credential from DECODER_CREDENTIALS_FILE.
+
+    The one-shot service-credentials job writes it before any decoder starts,
+    so there is no wait loop and no shared-secret override any more.
+    """
+
+    def _credentials(self, tmp_path: Path, contents: str) -> Path:
+        path = tmp_path / "http-credentials.json"
+        path.write_text(contents)
+        return path
+
+    def test_reads_the_token(self, tag, entrypoint, monkeypatch, tmp_path):
+        path = self._credentials(
+            tmp_path, '{"caller": "aprs-decoder", "token": "own-token"}'
+        )
+        monkeypatch.setenv("DECODER_CREDENTIALS_FILE", f"  {path}  ")
+        assert entrypoint.resolve_secret() == "own-token"
+
+    def test_none_when_the_variable_is_unset(self, tag, entrypoint, monkeypatch):
+        monkeypatch.delenv("DECODER_CREDENTIALS_FILE", raising=False)
+        assert entrypoint.resolve_secret() is None
+
+    def test_the_old_shared_secret_variables_are_ignored(
+        self, tag, entrypoint, monkeypatch
+    ):
+        monkeypatch.delenv("DECODER_CREDENTIALS_FILE", raising=False)
+        monkeypatch.setenv("INGEST_SECRET", "shared")
+        assert entrypoint.resolve_secret() is None
+
+    def test_none_when_the_file_is_missing(
+        self, tag, entrypoint, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("DECODER_CREDENTIALS_FILE", str(tmp_path / "absent.json"))
+        assert entrypoint.resolve_secret() is None
+
+    @pytest.mark.parametrize(
+        "contents",
+        ["not json", "[1, 2]", '{"caller": "x"}', '{"token": ""}', '{"token": 42}'],
+    )
+    def test_none_for_an_unusable_file(
+        self, tag, entrypoint, monkeypatch, tmp_path, contents
+    ):
+        monkeypatch.setenv(
+            "DECODER_CREDENTIALS_FILE", str(self._credentials(tmp_path, contents))
+        )
+        assert entrypoint.resolve_secret() is None

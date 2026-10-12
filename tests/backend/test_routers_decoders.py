@@ -27,11 +27,17 @@ import pytest
 
 from backend.config import settings
 from backend.platform.bus import bus
-from backend.radio_hub.services import manifest_decode, sdr_decode
+from backend.radio_hub.services import manifest_decode
 from backend.radio_hub.services.decoder_manifest import DecoderManifest
 from backend.radio_hub.services.manifest_decode import ManifestDecodeBridge
+from tests.backend.service_credentials_test_helpers import (
+    accept_callers,
+    allow_decoder,
+    decoder_header,
+)
 
-SECRET = {"X-Decode-Secret": "decoder-secret"}
+# The pocsag kind is no built-in: the fixture gives it a table entry, as a new decoder kind needs.
+SECRET = {"X-Decode-Secret": "pocsag-decoder-test-credential"}
 
 
 def _manifest_body(kind: str = "pocsag", **overrides) -> dict[str, Any]:
@@ -57,8 +63,9 @@ class _IdleBroadcaster:
 
 
 @pytest.fixture(autouse=True)
-def _decoder_state(monkeypatch) -> Iterator[None]:
-    monkeypatch.setattr(settings, "decoder_ingest_secret", "decoder-secret")
+def _decoder_state(monkeypatch, tmp_path) -> Iterator[None]:
+    allow_decoder(monkeypatch, "pocsag-decoder", "pocsag")
+    accept_callers(monkeypatch, tmp_path)
     yield
     for unsubscribers in manifest_decode._bus_unsubscribers.values():
         for unsubscribe in unsubscribers:
@@ -166,12 +173,31 @@ class TestRegisterDecoder:
         )
         assert manifest_decode.get_manifest("pocsag") is None
 
-    def test_fails_closed_without_a_secret(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+    def test_fails_closed_when_the_hub_accepts_no_callers(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.post(
             "/api/sdr/decoders/register", json=_manifest_body(), headers=SECRET
         )
         assert resp.status_code == 503
+
+    @pytest.mark.parametrize("caller", ["stub-decoder", "aprs-decoder", "sdr", "core"])
+    def test_another_callers_credential_cannot_register_the_kind(self, client, caller):
+        resp = client.post(
+            "/api/sdr/decoders/register",
+            json=_manifest_body(),
+            headers=decoder_header(caller),
+        )
+        assert resp.status_code == 403
+        assert manifest_decode.get_manifest("pocsag") is None
+
+    def test_a_kind_without_a_table_entry_cannot_register(self, client):
+        resp = client.post(
+            "/api/sdr/decoders/register",
+            json=_manifest_body("weather"),
+            headers=SECRET,
+        )
+        assert resp.status_code == 403
+        assert manifest_decode.get_manifest("weather") is None
 
 
 # ── start / stop / status ────────────────────────────────────────────────────
@@ -376,6 +402,17 @@ class TestIngest:
         assert resp.status_code == 401
         assert published == []
 
+    def test_another_kinds_decoder_cannot_post_as_this_kind(self, client, published):
+        _register()
+        _running_bridge()
+        resp = client.post(
+            "/api/sdr/decoders/pocsag/ingest",
+            json={"event": {"forged": True}},
+            headers=decoder_header("stub-decoder"),
+        )
+        assert resp.status_code == 403
+        assert published == []
+
     def test_an_oversized_event_is_refused(self, client, published):
         _register()
         _running_bridge()
@@ -424,3 +461,9 @@ class TestConfig:
     def test_needs_the_decoder_secret(self, client):
         _register()
         assert client.get("/api/sdr/decoders/pocsag/config").status_code == 401
+        assert (
+            client.get(
+                "/api/sdr/decoders/pocsag/config", headers=decoder_header("ais-decoder")
+            ).status_code
+            == 403
+        )

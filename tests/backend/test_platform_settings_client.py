@@ -34,6 +34,7 @@ from backend.platform.settings_client import (
     write_secret,
     write_setting,
 )
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
 
 @pytest.fixture
@@ -255,7 +256,6 @@ class TestRemoteWrites:
 # ── secrets (P6.4) ────────────────────────────────────────────────────────────
 
 SECRET_URL = f"{CORE_URL}/internal/settings/secrets/sea/aisstreamApiKey"
-JOIN_TOKEN = "service-join-token"
 
 
 class TestSecretsLocally:
@@ -306,19 +306,19 @@ class TestSecretsLocally:
 
 
 class TestSecretsRemotely:
-    """In a service's container they go to core's join-token-gated internal route."""
+    """In a service's container they go to core's internal route, with the service's own credential."""
 
     @pytest.fixture(autouse=True)
-    def join_token(self, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
+    def credential(self, monkeypatch, tmp_path):
+        present_credential(monkeypatch, tmp_path, "sea")
 
-    async def test_read_gets_the_internal_route_with_the_join_token(self, fake_core):
+    async def test_read_gets_the_internal_route_with_its_credential(self, fake_core):
         fake_core.secrets["sea/aisstreamApiKey"] = "abcdef0123456789"
 
         assert await read_secret(None, "sea", "aisstreamApiKey") == "abcdef0123456789"
         (request,) = fake_core.requests
         assert (request.method, str(request.url)) == ("GET", SECRET_URL)
-        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+        assert request.headers["Authorization"] == bearer("sea")["Authorization"]
 
     async def test_an_unset_secret_reads_as_empty(self, fake_core):
         assert await read_secret(None, "sea", "aisstreamApiKey") == ""
@@ -328,23 +328,25 @@ class TestSecretsRemotely:
 
         assert await read_secret(None, "sea", "aisstreamApiKey") == ""
 
-    async def test_write_puts_the_value_with_the_join_token(self, fake_core, announcements):
+    async def test_write_puts_the_value_with_its_credential(
+        self, fake_core, announcements
+    ):
         await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")
 
         (request,) = fake_core.requests
         assert (request.method, str(request.url)) == ("PUT", SECRET_URL)
-        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+        assert request.headers["Authorization"] == bearer("sea")["Authorization"]
         assert json.loads(request.content) == {"value": "abcdef0123456789"}
         assert fake_core.secrets == {"sea/aisstreamApiKey": "abcdef0123456789"}
 
-    async def test_delete_deletes_with_the_join_token(self, fake_core):
+    async def test_delete_deletes_with_its_credential(self, fake_core):
         fake_core.secrets["sea/aisstreamApiKey"] = "abcdef0123456789"
 
         await delete_secret(None, "sea", "aisstreamApiKey")
 
         (request,) = fake_core.requests
         assert (request.method, str(request.url)) == ("DELETE", SECRET_URL)
-        assert request.headers["Authorization"] == f"Bearer {JOIN_TOKEN}"
+        assert request.headers["Authorization"] == bearer("sea")["Authorization"]
         assert fake_core.secrets == {}
 
     async def test_never_uses_the_public_settings_api(self, fake_core):
@@ -363,12 +365,12 @@ class TestSecretsRemotely:
         ],
         ids=["read", "write", "delete"],
     )
-    async def test_without_a_join_token_yet_nothing_is_sent(self, fake_core, monkeypatch, call):
-        # Core writes the shared token file at start; until then there is none.
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
-        monkeypatch.setattr(settings, "sentinel_join_token_file", "")
+    async def test_without_a_credential_nothing_is_sent(
+        self, fake_core, monkeypatch, call
+    ):
+        monkeypatch.setattr(settings, "service_http_credentials_file", "")
 
-        with pytest.raises(SettingsUnavailable, match="join token"):
+        with pytest.raises(SettingsUnavailable, match="no HTTP credential"):
             await call()
         assert fake_core.requests == []
 

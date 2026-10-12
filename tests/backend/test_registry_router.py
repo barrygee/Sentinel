@@ -1,7 +1,7 @@
 """POST /internal/registry/register (backend/core/registry_router.py).
 
 The endpoint lets a service claim gateway routes and a remote the shell will
-run, so the join-token gate and every refusal are pinned here.
+run, so the credential gate and every refusal are pinned here.
 """
 
 import pytest
@@ -11,16 +11,20 @@ from backend.config import settings
 from backend.core import registry_router
 from backend.core.service_registry import ServiceRegistry
 from backend.main import app
-from backend.platform import join_token as join_token_module
 from backend.platform.service_manifest import ServiceManifest
+from tests.backend.service_credentials_test_helpers import (
+    TOKENS,
+    accept_callers,
+    bearer,
+)
 
-JOIN_TOKEN = "test-join-token"
 REGISTER_URL = "/internal/registry/register"
-AUTHORIZED = {"Authorization": f"Bearer {JOIN_TOKEN}"}
+# Core may register any id, so the registry's own behaviour is tested with its credential.
+AUTHORIZED = bearer("core")
 
 
 @pytest.fixture
-def isolated_registry(monkeypatch: pytest.MonkeyPatch) -> ServiceRegistry:
+def isolated_registry(monkeypatch: pytest.MonkeyPatch, tmp_path) -> ServiceRegistry:
     """A fresh registry holding one in-process section, swapped in for the app's."""
     registry = ServiceRegistry()
     registry.register_in_process(
@@ -38,7 +42,7 @@ def isolated_registry(monkeypatch: pytest.MonkeyPatch) -> ServiceRegistry:
         instance_id="core",
     )
     monkeypatch.setattr(registry_router, "registry", registry)
-    monkeypatch.setattr(settings, "sentinel_join_token", JOIN_TOKEN)
+    accept_callers(monkeypatch, tmp_path)
     return registry
 
 
@@ -61,11 +65,13 @@ def registration(instance_id: str = "weather-1", **manifest_overrides) -> dict:
     return {"instanceId": instance_id, "manifest": manifest}
 
 
-class TestJoinToken:
-    def test_disabled_when_no_join_token_is_configured(self, isolated_registry, client, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
+class TestCredential:
+    def test_disabled_when_core_accepts_no_callers(
+        self, isolated_registry, client, monkeypatch
+    ):
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
 
-        response = client.post(REGISTER_URL, json=registration(), headers={"Authorization": "Bearer "})
+        response = client.post(REGISTER_URL, json=registration(), headers=AUTHORIZED)
 
         assert response.status_code == 503
         assert isolated_registry.get("weather") is None
@@ -75,39 +81,73 @@ class TestJoinToken:
         [
             {},
             {"Authorization": "Bearer wrong-token"},
-            {"Authorization": JOIN_TOKEN},
-            {"Authorization": f"Basic {JOIN_TOKEN}"},
-            {"Authorization": f"bearer {JOIN_TOKEN}"},
-            {"Authorization": f"Bearer {JOIN_TOKEN}x"},
+            {"Authorization": TOKENS["core"]},
+            {"Authorization": f"Basic {TOKENS['core']}"},
+            {"Authorization": f"bearer {TOKENS['core']}"},
+            {"Authorization": f"Bearer {TOKENS['core']}x"},
             {"Authorization": "Bearer "},
         ],
     )
-    def test_refuses_a_missing_or_wrong_token(self, isolated_registry, client, headers):
+    def test_refuses_a_missing_or_wrong_credential(
+        self, isolated_registry, client, headers
+    ):
         response = client.post(REGISTER_URL, json=registration(), headers=headers)
 
         assert response.status_code == 401
-        assert response.json() == {"detail": "Invalid join token"}
+        assert response.json() == {"detail": "Invalid service credential"}
         assert isolated_registry.get("weather") is None
 
-    def test_the_error_never_echoes_the_expected_token(self, isolated_registry, client):
-        response = client.post(REGISTER_URL, json=registration(), headers={"Authorization": "Bearer x"})
+    def test_the_error_never_echoes_a_credential(self, isolated_registry, client):
+        response = client.post(
+            REGISTER_URL, json=registration(), headers={"Authorization": "Bearer x"}
+        )
 
-        assert JOIN_TOKEN not in response.text
+        assert all(token not in response.text for token in TOKENS.values())
 
+    def test_a_service_registers_its_own_id(self, isolated_registry, client):
+        response = client.post(
+            REGISTER_URL,
+            json=registration(
+                "space-1",
+                id="space",
+                routes=["/api/space/"],
+                internalUrl="http://space:8000",
+                ui=None,
+            ),
+            headers=bearer("space"),
+        )
 
-    def test_accepts_the_token_core_generated_into_the_shared_file(
-        self, isolated_registry, client, monkeypatch, tmp_path
+        assert response.status_code == 200
+        assert isolated_registry.get("space").instance_id == "space-1"
+
+    @pytest.mark.parametrize("caller", ["space", "sdr", "radio-hub", "stub-decoder"])
+    def test_a_credential_cannot_register_another_services_id(
+        self, isolated_registry, client, caller
     ):
-        monkeypatch.setattr(settings, "sentinel_join_token", "")
-        monkeypatch.setattr(settings, "sentinel_join_token_file", str(tmp_path / "join-token"))
-        monkeypatch.setattr(join_token_module, "_generated_token", None)
-        generated = join_token_module.core_join_token()
+        response = client.post(
+            REGISTER_URL, json=registration(), headers=bearer(caller)
+        )
 
-        accepted = client.post(REGISTER_URL, json=registration(), headers={"Authorization": f"Bearer {generated}"})
-        refused = client.post(REGISTER_URL, json=registration(), headers=AUTHORIZED)
+        assert response.status_code == 403
+        assert isolated_registry.get("weather") is None
 
-        assert accepted.status_code == 200
-        assert refused.status_code == 401
+    def test_another_service_cannot_take_over_a_live_section(
+        self, isolated_registry, client
+    ):
+        response = client.post(
+            REGISTER_URL,
+            json=registration(
+                "evil-1",
+                id="sea",
+                routes=["/api/sea/"],
+                internalUrl="http://evil:8000",
+                ui=None,
+            ),
+            headers=bearer("air"),
+        )
+
+        assert response.status_code == 403
+        assert isolated_registry.get("sea").instance_id == "core"
 
 
 class TestRegister:

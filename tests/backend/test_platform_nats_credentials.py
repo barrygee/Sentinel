@@ -15,7 +15,7 @@ import pytest
 
 from backend.config import settings
 from backend.platform.nats_credentials import connection_options
-from backend.scripts.generate_nats_credentials import ensure_certificate_authority
+from backend.scripts.generate_service_credentials import ensure_certificate_authority
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,7 @@ def test_nothing_configured_connects_anonymously_with_system_trust():
 def test_credentials_file_gives_the_user_password_and_its_own_inbox(
     monkeypatch, tmp_path
 ):
-    credentials = tmp_path / "credentials.json"
+    credentials = tmp_path / "nats-credentials.json"
     credentials.write_text(json.dumps({"user": "land", "password": "secret"}))
     monkeypatch.setattr(settings, "nats_credentials_file", str(credentials))
     assert connection_options() == {
@@ -49,7 +49,7 @@ def test_credentials_file_gives_the_user_password_and_its_own_inbox(
 def test_unreadable_credentials_are_logged_and_skipped(
     monkeypatch, tmp_path, caplog, content
 ):
-    credentials = tmp_path / "credentials.json"
+    credentials = tmp_path / "nats-credentials.json"
     if content is not None:
         credentials.write_text(content)
     monkeypatch.setattr(settings, "nats_credentials_file", str(credentials))

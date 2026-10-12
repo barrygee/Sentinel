@@ -173,28 +173,6 @@ class TestBuildDsdCommand:
         assert len(entrypoint.build_dsd_command(("app", 7355), ("app", 7356))) == 5
 
 
-# ── resolve_secret ──────────────────────────────────────────────────────────
-
-
-class TestResolveSecret:
-    def test_env_secret_takes_precedence(self, monkeypatch):
-        monkeypatch.setenv("INGEST_SECRET", "from-env")
-        monkeypatch.setenv("INGEST_SECRET_FILE", "/nonexistent")
-        assert entrypoint.resolve_secret() == "from-env"
-
-    def test_reads_secret_file(self, monkeypatch, tmp_path):
-        secret_file = tmp_path / "secret"
-        secret_file.write_text("from-file\n")
-        monkeypatch.delenv("INGEST_SECRET", raising=False)
-        monkeypatch.setenv("INGEST_SECRET_FILE", str(secret_file))
-        assert entrypoint.resolve_secret() == "from-file"
-
-    def test_returns_none_when_neither_set(self, monkeypatch):
-        monkeypatch.delenv("INGEST_SECRET", raising=False)
-        monkeypatch.delenv("INGEST_SECRET_FILE", raising=False)
-        assert entrypoint.resolve_secret() is None
-
-
 # ── run_dsd_once stdout decoding ──────────────────────────────────────────────
 
 

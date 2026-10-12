@@ -30,6 +30,10 @@ from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AisDecodeBridge
 from backend.services import ais_store
+from tests.backend.service_credentials_test_helpers import (
+    accept_callers,
+    decoder_header,
+)
 
 
 class _FakeBroadcaster:
@@ -43,19 +47,17 @@ class _FakeBroadcaster:
 
 
 @pytest.fixture(autouse=True)
-def _reset_decode_state():
+def _reset_decode_state(monkeypatch, tmp_path):
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
     ais_store.store.clear()
-    original_secret = settings.decoder_ingest_secret
+    accept_callers(monkeypatch, tmp_path)
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
     sdr_decode._ais_bridges.clear()
     ais_store.store.clear()
-    settings.decoder_ingest_secret = original_secret
-    sdr_decode._ingest_secret = None
 
 
 @pytest.fixture(autouse=True)
@@ -236,7 +238,7 @@ class TestAisStatus:
 
 class TestAisIngest:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.post(
             "/api/sdr/ais/ingest",
             json={"event": _position_event()},
@@ -245,7 +247,6 @@ class TestAisIngest:
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right-secret"
         _register_ais_bridge()
         resp = client.post(
             "/api/sdr/ais/ingest",
@@ -255,14 +256,12 @@ class TestAisIngest:
         assert resp.status_code == 401
 
     def test_missing_secret_header_rejected(self, client):
-        settings.decoder_ingest_secret = "right-secret"
         _register_ais_bridge()
         resp = client.post("/api/sdr/ais/ingest", json={"event": _position_event()})
         assert resp.status_code == 401
 
     def test_rejected_secret_never_reaches_the_store(self, client):
         # The gate must hold before any vessel is recorded.
-        settings.decoder_ingest_secret = "right-secret"
         _register_ais_bridge()
         client.post(
             "/api/sdr/ais/ingest",
@@ -273,21 +272,19 @@ class TestAisIngest:
 
     def test_no_active_bridge_returns_409(self, client):
         # The sidecar's expected idle response between sessions.
-        settings.decoder_ingest_secret = "s"
         resp = client.post(
             "/api/sdr/ais/ingest",
             json={"event": _position_event()},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("ais-decoder"),
         )
         assert resp.status_code == 409
 
     def test_position_lands_in_the_shared_vessel_store(self, client):
-        settings.decoder_ingest_secret = "s"
         _register_ais_bridge()
         resp = client.post(
             "/api/sdr/ais/ingest",
             json={"event": _position_event()},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("ais-decoder"),
         )
         assert resp.status_code == 200
         vessel = ais_store.store.get("227006760")
@@ -295,28 +292,26 @@ class TestAisIngest:
         assert vessel["lat"] == pytest.approx(49.475577)
 
     def test_event_is_relayed_to_websocket_subscribers(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_ais_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()  # drop the seeded status frame
         client.post(
             "/api/sdr/ais/ingest",
             json={"event": _position_event()},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("ais-decoder"),
         )
         event = queue.get_nowait()
         assert event["type"] == "ais"
         assert event["mmsi"] == "227006760"
 
     def test_a_raw_log_line_is_relayed_but_stores_no_vessel(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_ais_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()
         resp = client.post(
             "/api/sdr/ais/ingest",
             json={"event": {"type": "log", "line": "[A] !AIVDM,1,1,,A,xxxx,0*00"}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("ais-decoder"),
         )
         assert resp.status_code == 200
         assert queue.get_nowait()["type"] == "log"
@@ -328,18 +323,16 @@ class TestAisIngest:
 
 class TestAisDecodeConfig:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "x"})
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right"
         resp = client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "wrong"})
         assert resp.status_code == 401
 
     def test_inactive_when_no_bridge_is_serving_pcm(self, client):
-        settings.decoder_ingest_secret = "s"
-        resp = client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "s"})
+        resp = client.get("/api/sdr/ais/config", headers=decoder_header("ais-decoder"))
         assert resp.json() == {
             "active": False,
             "pcmFeed": {"host": "app", "port": 7358},
@@ -348,19 +341,18 @@ class TestAisDecodeConfig:
     def test_active_only_once_the_bridge_is_running(self, client):
         # The sidecar gates on this: launching Direwolf with no PCM listener
         # just fails to connect and floods ingest with rejected startup output.
-        settings.decoder_ingest_secret = "s"
         bridge = _register_ais_bridge()
         assert (
-            client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "s"}).json()[
-                "active"
-            ]
+            client.get(
+                "/api/sdr/ais/config", headers=decoder_header("ais-decoder")
+            ).json()["active"]
             is False
         )
         bridge._running = True
         assert (
-            client.get("/api/sdr/ais/config", headers={"X-Decode-Secret": "s"}).json()[
-                "active"
-            ]
+            client.get(
+                "/api/sdr/ais/config", headers=decoder_header("ais-decoder")
+            ).json()["active"]
             is True
         )
 

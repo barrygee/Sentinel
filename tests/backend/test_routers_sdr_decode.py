@@ -26,6 +26,10 @@ from backend.radio_hub.routers import decode as decode_router
 from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import DigitalDecodeBridge
+from tests.backend.service_credentials_test_helpers import (
+    accept_callers,
+    decoder_header,
+)
 
 
 class _FakeBroadcaster:
@@ -39,16 +43,14 @@ class _FakeBroadcaster:
 
 
 @pytest.fixture(autouse=True)
-def _reset_decode_state():
+def _reset_decode_state(monkeypatch, tmp_path):
     """Isolate the module-level bridge caches and the decode secret."""
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
-    original_secret = settings.decoder_ingest_secret
+    accept_callers(monkeypatch, tmp_path)
     yield
     sdr_decode._bridges.clear()
     sdr_decode._aprs_bridges.clear()
-    settings.decoder_ingest_secret = original_secret
-    sdr_decode._ingest_secret = None
 
 
 def _add_radio(client, host="h1", port=1234) -> int:
@@ -71,7 +73,7 @@ def _register_bridge(host="h1", port=1234) -> DigitalDecodeBridge:
 class TestIngest:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
         # If no secret can be resolved at all, ingestion is refused (fail closed).
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"mode": "DMR"}},
@@ -80,7 +82,6 @@ class TestIngest:
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right-secret"
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"mode": "DMR"}},
@@ -89,7 +90,6 @@ class TestIngest:
         assert resp.status_code == 401
 
     def test_missing_secret_header_rejected(self, client):
-        settings.decoder_ingest_secret = "right-secret"
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"mode": "DMR"}},
@@ -97,16 +97,14 @@ class TestIngest:
         assert resp.status_code == 401
 
     def test_no_active_bridge_returns_409(self, client):
-        settings.decoder_ingest_secret = "s"
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"mode": "DMR"}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("voice-decoder"),
         )
         assert resp.status_code == 409
 
     def test_success_publishes_event_to_active_bridge(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()  # drop the seeded status frame
@@ -114,7 +112,7 @@ class TestIngest:
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"mode": "P25", "talkgroup": 7}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("voice-decoder"),
         )
         assert resp.status_code == 200
         event = queue.get_nowait()
@@ -123,25 +121,23 @@ class TestIngest:
         assert event["talkgroup"] == 7
 
     def test_event_can_override_type(self, client):
-        settings.decoder_ingest_secret = "s"
         bridge = _register_bridge()
         queue = bridge.subscribe_events()
         queue.get_nowait()
         client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"type": "decode_status", "decoder_reachable": True}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("voice-decoder"),
         )
         event = queue.get_nowait()
         assert event["type"] == "decode_status"
 
     def test_oversized_event_rejected(self, client):
-        settings.decoder_ingest_secret = "s"
         _register_bridge()
         resp = client.post(
             "/api/sdr/decode/ingest",
             json={"event": {"blob": "x" * 5000}},
-            headers={"X-Decode-Secret": "s"},
+            headers=decoder_header("voice-decoder"),
         )
         assert resp.status_code == 422
 
@@ -386,20 +382,20 @@ class TestControlDigitalCommands:
 
 class TestDecodeConfig:
     def test_disabled_when_secret_unresolvable(self, client, monkeypatch):
-        monkeypatch.setattr(sdr_decode, "resolve_ingest_secret", lambda: "")
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
         resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "x"})
         assert resp.status_code == 503
 
     def test_bad_secret_rejected(self, client):
-        settings.decoder_ingest_secret = "right-secret"
         resp = client.get(
             "/api/sdr/decode/config", headers={"X-Decode-Secret": "wrong"}
         )
         assert resp.status_code == 401
 
     def test_reports_inactive_without_a_decode_session(self, client):
-        settings.decoder_ingest_secret = "s"
-        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
+        resp = client.get(
+            "/api/sdr/decode/config", headers=decoder_header("voice-decoder")
+        )
         assert resp.status_code == 200
         assert resp.json() == {
             "active": False,
@@ -410,10 +406,9 @@ class TestDecodeConfig:
     def test_a_hub_in_its_own_container_names_its_own_host(self, client, monkeypatch):
         # Decoders dial these sockets directly (they can't go through the
         # gateway), so they must name the host the hub is registered under.
-        settings.decoder_ingest_secret = "s"
         monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000")
         body = client.get(
-            "/api/sdr/decode/config", headers={"X-Decode-Secret": "s"}
+            "/api/sdr/decode/config", headers=decoder_header("voice-decoder")
         ).json()
         assert (body["pcmFeed"], body["voiceAudioReturn"]) == (
             {"host": "radio-hub", "port": settings.decoder_pcm_port},
@@ -423,21 +418,23 @@ class TestDecodeConfig:
     def test_active_true_when_a_session_is_serving_pcm(self, client, monkeypatch):
         # The supervisor gates dsd-fme launch on this flag, so it must be True only
         # while a bridge is actually serving PCM (started, not merely created).
-        settings.decoder_ingest_secret = "s"
         monkeypatch.setattr(
             sdr_decode,
             "get_active_bridge",
             lambda: SimpleNamespace(running=True),
         )
-        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
+        resp = client.get(
+            "/api/sdr/decode/config", headers=decoder_header("voice-decoder")
+        )
         assert resp.json()["active"] is True
 
     def test_active_false_when_bridge_not_yet_serving(self, client, monkeypatch):
-        settings.decoder_ingest_secret = "s"
         monkeypatch.setattr(
             sdr_decode,
             "get_active_bridge",
             lambda: SimpleNamespace(running=False),
         )
-        resp = client.get("/api/sdr/decode/config", headers={"X-Decode-Secret": "s"})
+        resp = client.get(
+            "/api/sdr/decode/config", headers=decoder_header("voice-decoder")
+        )
         assert resp.json()["active"] is False
