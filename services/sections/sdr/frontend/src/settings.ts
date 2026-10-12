@@ -44,7 +44,7 @@ export function registerSdrSettings(): void {
       // The options box shows names and checkboxes only, so its per-option prose
       // lives here instead — searchable without putting text back on the page.
       searchTerms:
-        'auto-center waterfall on tune snap to known frequencies show band plan display known frequencies mute audio while decoding waterfall spectrum scan search resume delay seconds hold resume',
+        'auto-center waterfall on tune snap to known frequencies show band plan display known frequencies mute audio while decoding record raw iq capture u8 recordings large files waterfall spectrum scan search resume delay seconds hold resume',
       control: { component: SdrOptionsControl, emits: ['stage', 'commit'], layout: 'half' },
       // The group heading already reads SDR OPTIONS directly above the card, so
       // the card's own title only said it twice. Kept in the registry (screen

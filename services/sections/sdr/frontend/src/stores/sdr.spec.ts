@@ -1383,6 +1383,22 @@ describe('sdr store', () => {
     })
   })
 
+  describe('record raw IQ with recordings', () => {
+    it('defaults to off: raw IQ files are large', () => {
+      expect(useSdrStore().recordRawIq).toBe(false)
+    })
+
+    it('setRecordRawIq updates state without caching it in the browser', () => {
+      localStorage.clear()
+      const store = useSdrStore()
+      store.setRecordRawIq(true)
+      expect(store.recordRawIq).toBe(true)
+      store.setRecordRawIq(false)
+      expect(store.recordRawIq).toBe(false)
+      expect(localStorage.length).toBe(0)
+    })
+  })
+
   describe('mute audio while decoding', () => {
     it('defaults to on so existing installs keep muting', () => {
       expect(useSdrStore().muteAudioWhileDecoding).toBe(true)

@@ -24,7 +24,8 @@
  * Settings control for the SDR panel's on/off options, gathered into one box.
  *
  * Replaces the separate toggle rows (auto-center, snap to known frequencies,
- * band plan, known-frequency labels, decode mute, waterfall timestamps) with a
+ * band plan, known-frequency labels, decode mute, raw IQ recording, waterfall
+ * timestamps) with a
  * single list built on
  * the domains' "Label Data Points" table — name plus the Settings panel's
  * standard toggle switch, with no column headings and no per-option prose.
@@ -91,6 +92,14 @@ const OPTIONS: SdrOption[] = [
     label: 'Mute Audio While Decoding',
     readFromStore: () => sdrStore.muteAudioWhileDecoding,
     mirrorToStore: sdrStore.setMuteAudioWhileDecoding,
+  },
+  {
+    // Raw IQ is ~4 MB per second of recording at 2.048 MS/s, so the label
+    // says so: this box has no per-option prose to warn with.
+    settingKey: 'recordRawIq',
+    label: 'Record Raw IQ with Recordings (Large Files)',
+    readFromStore: () => sdrStore.recordRawIq,
+    mirrorToStore: sdrStore.setRecordRawIq,
   },
   {
     settingKey: 'showWaterfallTimestamps',
