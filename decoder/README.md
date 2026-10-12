@@ -97,18 +97,20 @@ simply takes over the actual vocoding at runtime.)
 
 ## Security
 
-The decoder authenticates its event POSTs to the backend with a shared secret,
-so nothing else on the network can inject fake decoded calls. **You don't set
-it:** on startup the backend generates a random secret and writes it to a Docker
-volume (`decoder_secret`) that the decoder mounts read-only and reads on launch.
-To pin an explicit value instead, set `SENTINEL_DECODER_SECRET` in `.env`
-(compose passes it to both services and it takes precedence over the file).
+The decoder authenticates its config polls and event POSTs to the radio hub
+with its own credential, so nothing else on the network can inject fake decoded
+calls — not even another decoder, since the hub accepts each decoder's
+credential for its own kind only. **You don't set it:** on every `docker compose
+up` the one-shot `service-credentials` service generates it into the
+`service_credentials` volume, and the decoder mounts only its own folder
+(`services/voice-decoder/`) read-only and reads it on launch
+(`DECODER_CREDENTIALS_FILE`). The hub knows it only by its SHA-256 hash; see
+`backend/platform/service_access.py`.
 
 ## Configuration
 
 | Variable | Where | Purpose |
 |---|---|---|
-| `SENTINEL_DECODER_SECRET` | `.env` (optional) | Pin the ingest secret instead of auto-generating it |
 | `DSD_EXTRA_ARGS` | `decoder` env | Extra `dsd-fme` flags (e.g. dongle) |
 | `SENTINEL_GATEWAY_URL` | `.env` (optional) | Sentinel's gateway (default `http://gateway:8080`); config and ingest go through it |
 | `MBELIB_REF` / `DSDFME_REF` | build args | Pin the upstream git refs for reproducibility |
