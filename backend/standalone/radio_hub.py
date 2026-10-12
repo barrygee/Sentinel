@@ -20,8 +20,10 @@ reacts to core's `settings.changed.land` and `sdr.decode.radio-reassigned`.
 Decoder sidecars reach it through the gateway like everyone else; their PCM
 (TCP) and voice return (UDP) sockets are named in each decoder config reply, by
 the host this service registers (`SERVICE_INTERNAL_URL`, see
-`radio_hub/services/decoder_sockets.py`). IQ captures are written into the SDR
-section's recordings folder (`IQ_CAPTURE_DIR`), which is still on the app's volume.
+`radio_hub/services/decoder_sockets.py`). IQ captures are written into this
+service's own volume; the SDR section copies each one over HTTP when its
+recording stops (`/internal/radio-hub/iq-captures/`, P7.3), so the two need not
+share a host.
 """
 
 from __future__ import annotations
@@ -35,7 +37,7 @@ from backend.modules.radio_hub import manifest
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.sdk import create_service
 from backend.platform.sdk.legacy_import import import_legacy_tables
-from backend.radio_hub.routers import decode, decoders, radio_control, radios, sentry
+from backend.radio_hub.routers import decode, decoders, iq_captures, radio_control, radios, sentry
 
 
 async def _prepare() -> None:
@@ -48,7 +50,7 @@ app = create_service(
     # The monolith includes these interleaved with the SDR section's router to
     # keep its route order; on their own their order doesn't matter, since no
     # two of them share a path.
-    routers=[radios.router, radio_control.router, decode.router, decoders.router, sentry.router],
+    routers=[radios.router, radio_control.router, decode.router, decoders.router, sentry.router, iq_captures.router],
     # The monolith's radio hub lifecycle (ingest secret, resumed APRS/AIS
     # decode, the Sentry fleet poller; every broadcaster and bridge stopped and
     # woken on shutdown), unchanged, after this service's own schema and legacy import.

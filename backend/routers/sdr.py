@@ -32,6 +32,7 @@ from backend.platform.bus import bus
 from backend.platform.settings_client import read_namespace, read_setting
 from backend.services.sdr_data import write_sdr_frequencies_file
 from backend.services.sdr_frequencies import reconcile_sdr_frequencies
+from backend.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
@@ -231,6 +232,8 @@ def _recording_to_dict(r: SdrRecording) -> dict:
         "file_size_bytes": r.file_size_bytes,
         "has_iq_file": r.has_iq_file,
         "iq_file_size_bytes": r.iq_file_size_bytes,
+        # True while the IQ is still being copied from the radio hub (P7.3).
+        "iq_file_pending": iq_file_pending(r),
         "status": r.status,
         "created_at": r.created_at,
     }
@@ -650,6 +653,10 @@ async def stop_recording(
     row.status = "complete"
     await db.commit()
     await db.refresh(row)
+    # A radio hub in another process wrote the IQ on its own volume: copy it
+    # in the background, so this request doesn't wait on hundreds of MB (P7.3).
+    if iq_file_pending(row):
+        schedule_collect(recording_id)
     return JSONResponse(_recording_to_dict(row))
 
 
@@ -672,6 +679,8 @@ async def delete_recording(rec_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
+    # Its IQ may still be waiting on the radio hub; nobody will collect it now.
+    discard_on_hub = iq_file_pending(row)
     rdir = _recordings_dir()
     for ext in ("wav", "u8"):
         p = rdir / f"{rec_id}.{ext}"
@@ -679,6 +688,8 @@ async def delete_recording(rec_id: int, db: AsyncSession = Depends(get_db)):
             p.unlink()
     await db.delete(row)
     await db.commit()
+    if discard_on_hub:
+        await discard_hub_capture(rec_id)
 
 
 @router.get("/api/sdr/recordings/{rec_id}/file")
@@ -698,6 +709,8 @@ async def get_recording_iq(rec_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row or not row.has_iq_file:
         raise HTTPException(404, "IQ file not found")
+    if iq_file_pending(row):
+        raise HTTPException(409, "IQ file is still being copied from the radio hub")
     iq_path = _recordings_dir() / f"{rec_id}.u8"
     if not iq_path.exists():
         raise HTTPException(404, "IQ file not found on disk")

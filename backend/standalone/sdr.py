@@ -13,8 +13,9 @@ which the waterfall reads), `sdr.recordRawIq`, and the settings mirrors of its
 tables (`sdr.groups`, `sdr.frequencies`, `sdr.searchRanges`), which it rewrites
 in core after every edit so the live config file keeps showing them. Raw-IQ
 captures go through the radio hub over NATS (`hub.iq-capture.*`), so
-`NATS_URL` must be set; the hub writes `<id>.u8` straight into this service's
-recordings folder (its volume is mounted wherever the hub runs).
+`NATS_URL` must be set; the hub writes `<id>.u8` on its own volume and this
+service copies it into its recordings folder over HTTP when the recording stops
+(`services/sdr_iq_capture_transfer.py`, P7.3), so the two need not share a host.
 """
 
 from __future__ import annotations
