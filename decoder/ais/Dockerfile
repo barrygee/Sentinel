@@ -85,14 +85,10 @@ COPY direwolf.conf /app/direwolf.conf
 USER ais
 WORKDIR /app
 
-# Defaults wire the sidecar to the backend over the internal compose network.
-# The AIS PCM feed is on 7358 (distinct from voice's 7355 and APRS's 7357 so all
-# three can decode at once); ingest/config are the AIS-specific twins of the
-# voice/APRS routes.
-ENV IQ_PCM_HOST=app \
-    IQ_PCM_PORT=7358 \
-    INGEST_URL=http://app:8000/api/sdr/ais/ingest \
-    CONFIG_URL=http://app:8000/api/sdr/ais/config \
+# HTTP goes to the radio hub through Sentinel's gateway on the internal compose
+# network; the hub's config reply names its AIS PCM feed (7358, distinct from
+# voice's 7355 and APRS's 7357 so all three can decode at once).
+ENV SENTINEL_GATEWAY_URL=http://gateway:8080 \
     INGEST_SECRET_FILE=/run/decoder/secret \
     DIREWOLF_CONFIG=/app/direwolf.conf
 
