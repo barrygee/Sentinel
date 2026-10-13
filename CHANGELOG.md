@@ -1504,6 +1504,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #472 from barrygee/refactor/section-move-space
 - Merge pull request #473 from barrygee/refactor/section-move-land
 - Merge pull request #474 from barrygee/refactor/section-move-air
+- Merge pull request #475 from barrygee/refactor/section-move-sea
 
 ### Refactoring
 
@@ -1596,6 +1597,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move Space's backend into services/sections/space/backend
 - Move Land's backend into services/sections/land/backend
 - Move Air's backend into services/sections/air/backend
+- Move Sea's backend into services/sections/sea/backend
 
 ### Documentation
 
