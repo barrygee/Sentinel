@@ -1495,6 +1495,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #465 from barrygee/chore/p7-5b-bake-pins
 - Merge pull request #466 from barrygee/chore/spec-one-component-rule
 - Merge pull request #468 from barrygee/chore/playwright-1-64
+- Merge pull request #469 from barrygee/refactor/p8a-core-app-factory
 
 ### Refactoring
 
@@ -1583,6 +1584,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract @sentinel/map-kit package
 - Move the remaining shared UI sections use into packages
 - Make each section its own workspace package
+- Compose core's app in a create_core_app() factory
 
 ### Documentation
 
@@ -1620,6 +1622,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document NATS TLS and per-service users (P7.4a)
 - Document per-service HTTP credentials (P7.4b)
 - Document running the radio hub on a second host (P7.5a)
+- Point the serving model at the core app factory
 
 ### Tests
 
@@ -1697,6 +1700,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover NATS permissions, credentials and setup (P7.4a)
 - Cover per-service HTTP credentials (P7.4b)
 - Cover the radio host's TLS plumbing (P7.5a)
+- Cover create_core_app() and core's SPA serving
 
 ### Build System
 
