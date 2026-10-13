@@ -23,14 +23,14 @@ import json
 
 import httpx
 import pytest
+from backend.cache import now_ms
+from backend.config import settings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.cache import now_ms
-from backend.config import settings
-from backend.models import RepeaterCache
-from backend.services import repeaters
+from sentinel_land.models import RepeaterCache
+from sentinel_land.services import repeaters
 
 # ── CSV fixtures ─────────────────────────────────────────────────────────────
 
@@ -194,9 +194,7 @@ def _install_stub_upstream(
 @pytest.fixture()
 async def db(test_engine, db_setup) -> AsyncSession:
     """Async session on the shared in-memory test engine."""
-    session_factory = sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    session_factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:
         yield session
 
@@ -218,9 +216,7 @@ def bundled_snapshot(tmp_path, monkeypatch):
 
 
 async def _stored_row(db: AsyncSession) -> RepeaterCache | None:
-    result = await db.execute(
-        select(RepeaterCache).where(RepeaterCache.cache_key == repeaters.CACHE_KEY)
-    )
+    result = await db.execute(select(RepeaterCache).where(RepeaterCache.cache_key == repeaters.CACHE_KEY))
     return result.scalar_one_or_none()
 
 
@@ -312,18 +308,14 @@ class TestParseRepeaterCsv:
         assert [station["callsign"] for station in stations] == ["GB3AA", "GB3ZZ"]
 
     def test_callsign_is_upper_cased_and_trimmed(self):
-        stations = repeaters.parse_repeater_csv(
-            _build_csv([_csv_row_values(callsign=" gb3lo ")])
-        )
+        stations = repeaters.parse_repeater_csv(_build_csv([_csv_row_values(callsign=" gb3lo ")]))
         assert stations[0]["callsign"] == "GB3LO"
 
     def test_headings_with_surrounding_whitespace_are_still_recognised(self):
         # The export has been seen to pad a heading; stripping happens for both
         # the heading check and the per-row key lookup.
         padded_columns = [f" {name} " for name in CSV_COLUMNS]
-        stations = repeaters.parse_repeater_csv(
-            _build_csv([_csv_row_values()], padded_columns)
-        )
+        stations = repeaters.parse_repeater_csv(_build_csv([_csv_row_values()], padded_columns))
         assert stations[0]["callsign"] == "GB3LO"
 
     def test_extra_unnamed_values_on_a_row_are_ignored(self):
@@ -350,10 +342,7 @@ class TestParseRepeaterCsv:
         ],
     )
     def test_unplottable_row_is_dropped(self, unplottable):
-        assert (
-            repeaters.parse_repeater_csv(_build_csv([_csv_row_values(**unplottable)]))
-            == []
-        )
+        assert repeaters.parse_repeater_csv(_build_csv([_csv_row_values(**unplottable)])) == []
 
     @pytest.mark.parametrize(
         "boundary",
@@ -366,10 +355,7 @@ class TestParseRepeaterCsv:
     )
     def test_row_exactly_on_the_bounding_box_edge_is_kept(self, boundary):
         # The box is inclusive — an island station must not be rounded away.
-        assert (
-            len(repeaters.parse_repeater_csv(_build_csv([_csv_row_values(**boundary)])))
-            == 1
-        )
+        assert len(repeaters.parse_repeater_csv(_build_csv([_csv_row_values(**boundary)]))) == 1
 
     def test_truncated_row_is_dropped(self):
         # A row cut short (a truncated final line) leaves later columns absent
@@ -387,9 +373,7 @@ class TestParseRepeaterCsv:
         assert [station["callsign"] for station in stations] == ["GB3OK"]
 
     def test_unknown_mode_letters_are_dropped_and_duplicates_collapsed(self):
-        stations = repeaters.parse_repeater_csv(
-            _build_csv([_csv_row_values(modes="aaZM?")])
-        )
+        stations = repeaters.parse_repeater_csv(_build_csv([_csv_row_values(modes="aaZM?")]))
         assert stations[0]["channels"][0]["modes"] == ["A", "M"]
 
     def test_blank_modes_field_gives_an_empty_list(self):
@@ -406,12 +390,8 @@ class TestParseRepeaterCsv:
             ("PENDING", "UNKNOWN"),
         ],
     )
-    def test_status_is_normalised_and_unknown_values_are_flattened(
-        self, raw_status, expected
-    ):
-        stations = repeaters.parse_repeater_csv(
-            _build_csv([_csv_row_values(status=raw_status)])
-        )
+    def test_status_is_normalised_and_unknown_values_are_flattened(self, raw_status, expected):
+        stations = repeaters.parse_repeater_csv(_build_csv([_csv_row_values(status=raw_status)]))
         assert stations[0]["channels"][0]["status"] == expected
 
     def test_blank_optional_text_fields_become_null(self):
@@ -446,9 +426,7 @@ class TestParseRepeaterCsv:
         assert stations[0]["channels"][0]["erpDbw"] is None
 
     def test_fractional_integer_fields_are_truncated(self):
-        stations = repeaters.parse_repeater_csv(
-            _build_csv([_csv_row_values(magl="30.7", dmrcc="3.0")])
-        )
+        stations = repeaters.parse_repeater_csv(_build_csv([_csv_row_values(magl="30.7", dmrcc="3.0")]))
         channel = stations[0]["channels"][0]
         assert channel["heightMagl"] == 30
         assert channel["dmrColourCode"] == 3
@@ -519,9 +497,7 @@ class TestValidateStationList:
         assert [station["callsign"] for station in stations] == ["GB3AA", "GB3ZZ"]
 
     def test_integer_coordinates_are_converted_to_floats(self):
-        stations = repeaters.validate_station_list(
-            [_station_document(latitude=52, longitude=0)]
-        )
+        stations = repeaters.validate_station_list([_station_document(latitude=52, longitude=0)])
         assert isinstance(stations[0]["latitude"], float)
         assert isinstance(stations[0]["longitude"], float)
 
@@ -530,13 +506,8 @@ class TestValidateStationList:
         assert "unexpectedKey" not in repeaters.validate_station_list(document)[0]
 
     def test_unknown_channel_keys_are_dropped(self):
-        document = [
-            _station_document(channels=[_channel_document(unexpectedKey="ignored")])
-        ]
-        assert (
-            "unexpectedKey"
-            not in repeaters.validate_station_list(document)[0]["channels"][0]
-        )
+        document = [_station_document(channels=[_channel_document(unexpectedKey="ignored")])]
+        assert "unexpectedKey" not in repeaters.validate_station_list(document)[0]["channels"][0]
 
     @pytest.mark.parametrize(
         "omitted_field",
@@ -552,9 +523,7 @@ class TestValidateStationList:
 
     def test_missing_optional_channel_numbers_default_to_null(self):
         bare_channel = {"band": "2m", "txMhz": 145.6, "rxMhz": 145.0}
-        channel = repeaters.validate_station_list(
-            [_station_document(channels=[bare_channel])]
-        )[0]["channels"][0]
+        channel = repeaters.validate_station_list([_station_document(channels=[bare_channel])])[0]["channels"][0]
         assert channel["id"] is None
         assert channel["ctcssHz"] is None
         assert channel["dmrColourCode"] is None
@@ -565,24 +534,18 @@ class TestValidateStationList:
 
     def test_float_valued_integer_channel_fields_are_truncated(self):
         channel_document = _channel_document(heightMagl=30.9, dmrColourCode=3.9)
-        channel = repeaters.validate_station_list(
-            [_station_document(channels=[channel_document])]
-        )[0]["channels"][0]
+        channel = repeaters.validate_station_list([_station_document(channels=[channel_document])])[0]["channels"][0]
         assert channel["heightMagl"] == 30
         assert channel["dmrColourCode"] == 3
 
     def test_unknown_mode_codes_are_dropped(self):
         channel_document = _channel_document(modes=["A", "Z", 7, "M", "A"])
-        channel = repeaters.validate_station_list(
-            [_station_document(channels=[channel_document])]
-        )[0]["channels"][0]
+        channel = repeaters.validate_station_list([_station_document(channels=[channel_document])])[0]["channels"][0]
         assert channel["modes"] == ["A", "M"]
 
     def test_unknown_channel_status_becomes_unknown(self):
         channel_document = _channel_document(status="BROKEN")
-        channel = repeaters.validate_station_list(
-            [_station_document(channels=[channel_document])]
-        )[0]["channels"][0]
+        channel = repeaters.validate_station_list([_station_document(channels=[channel_document])])[0]["channels"][0]
         assert channel["status"] == "UNKNOWN"
 
     @pytest.mark.parametrize(
@@ -595,21 +558,12 @@ class TestValidateStationList:
         ],
     )
     def test_position_on_the_bounding_box_edge_is_accepted(self, boundary_position):
-        assert (
-            len(
-                repeaters.validate_station_list(
-                    [_station_document(**boundary_position)]
-                )
-            )
-            == 1
-        )
+        assert len(repeaters.validate_station_list([_station_document(**boundary_position)])) == 1
 
     @pytest.mark.parametrize(
         "bad_document,expected_message",
         [
-            pytest.param(
-                {"stations": []}, "stations must be a list", id="document is not a list"
-            ),
+            pytest.param({"stations": []}, "stations must be a list", id="document is not a list"),
             pytest.param(None, "stations must be a list", id="document is null"),
             pytest.param("[]", "stations must be a list", id="document is a string"),
         ],
@@ -627,9 +581,7 @@ class TestValidateStationList:
     @pytest.mark.parametrize("missing_callsign", [None, "", "   "])
     def test_station_without_a_callsign_is_refused(self, missing_callsign):
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(callsign=missing_callsign)]
-            )
+            repeaters.validate_station_list([_station_document(callsign=missing_callsign)])
         assert "station callsign is required" in str(excinfo.value)
 
     def test_duplicate_callsign_is_refused(self):
@@ -650,9 +602,7 @@ class TestValidateStationList:
     @pytest.mark.parametrize("bad_longitude", [-11.1, 3.1, None, "-0.12"])
     def test_longitude_outside_the_uk_box_is_refused(self, bad_longitude):
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(longitude=bad_longitude)]
-            )
+            repeaters.validate_station_list([_station_document(longitude=bad_longitude)])
         assert "GB3LO: longitude out of range" in str(excinfo.value)
 
     @pytest.mark.parametrize(
@@ -676,37 +626,27 @@ class TestValidateStationList:
     @pytest.mark.parametrize("bad_band", [None, "", "  ", 2])
     def test_channel_without_a_band_is_refused(self, bad_band):
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[_channel_document(band=bad_band)])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[_channel_document(band=bad_band)])])
         assert "GB3LO: channel band is required" in str(excinfo.value)
 
     @pytest.mark.parametrize("frequency_field", ["txMhz", "rxMhz"])
     @pytest.mark.parametrize("bad_frequency", [None, "145.6", float("inf")])
-    def test_channel_without_a_usable_frequency_is_refused(
-        self, frequency_field, bad_frequency
-    ):
+    def test_channel_without_a_usable_frequency_is_refused(self, frequency_field, bad_frequency):
         channel_document = _channel_document(**{frequency_field: bad_frequency})
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[channel_document])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[channel_document])])
         assert f"GB3LO: {frequency_field} must be a number" in str(excinfo.value)
 
     def test_non_list_modes_is_refused(self):
         channel_document = _channel_document(modes="AM")
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[channel_document])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[channel_document])])
         assert "GB3LO: modes must be a list" in str(excinfo.value)
 
     def test_non_integer_channel_id_is_refused(self):
         channel_document = _channel_document(id="101")
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[channel_document])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[channel_document])])
         assert "GB3LO: channel id must be an integer or null" in str(excinfo.value)
 
     @pytest.mark.parametrize(
@@ -714,14 +654,10 @@ class TestValidateStationList:
         ["ctcssHz", "erpDbw", "heightMagl", "dmrColourCode"],
     )
     @pytest.mark.parametrize("bad_number", ["94.8", float("nan"), []])
-    def test_non_numeric_optional_channel_number_is_refused(
-        self, numeric_field, bad_number
-    ):
+    def test_non_numeric_optional_channel_number_is_refused(self, numeric_field, bad_number):
         channel_document = _channel_document(**{numeric_field: bad_number})
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[channel_document])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[channel_document])])
         assert f"GB3LO: {numeric_field} must be a number or null" in str(excinfo.value)
 
     @pytest.mark.parametrize(
@@ -736,9 +672,7 @@ class TestValidateStationList:
     def test_non_string_channel_name_is_refused(self):
         channel_document = _channel_document(channel=50)
         with pytest.raises(repeaters.RepeaterDataInvalid) as excinfo:
-            repeaters.validate_station_list(
-                [_station_document(channels=[channel_document])]
-            )
+            repeaters.validate_station_list([_station_document(channels=[channel_document])])
         assert "GB3LO: channel must be a string or null" in str(excinfo.value)
 
     def test_nothing_is_returned_when_a_later_station_is_bad(self):
@@ -814,12 +748,8 @@ class TestReplaceRepeaters:
         assert settings.repeaters_manual_ttl_ms > settings.repeaters_ttl_ms
 
     async def test_overwrites_an_existing_cache_row_in_place(self, db):
-        await _store_cache_row(
-            db, [_station_document(callsign="GB3OLD")], fetched_at=1, expires_at=2
-        )
-        count = await repeaters.replace_repeaters(
-            db, [_station_document(callsign="GB3NEW")]
-        )
+        await _store_cache_row(db, [_station_document(callsign="GB3OLD")], fetched_at=1, expires_at=2)
+        count = await repeaters.replace_repeaters(db, [_station_document(callsign="GB3NEW")])
         assert count == 1
         rows = (await db.execute(select(RepeaterCache))).scalars().all()
         assert len(rows) == 1
@@ -842,9 +772,7 @@ class TestReplaceRepeaters:
         assert await _stored_row(db) is None
 
     async def test_invalid_upload_leaves_an_existing_row_untouched(self, db):
-        await _store_cache_row(
-            db, [_station_document(callsign="GB3OLD")], fetched_at=7, expires_at=8
-        )
+        await _store_cache_row(db, [_station_document(callsign="GB3OLD")], fetched_at=7, expires_at=8)
         with pytest.raises(repeaters.RepeaterDataInvalid):
             await repeaters.replace_repeaters(db, "not a list")
         row = await _stored_row(db)
@@ -856,12 +784,8 @@ class TestReplaceRepeaters:
 
 
 class TestGetRepeatersCacheHit:
-    async def test_fresh_cache_is_served_as_a_hit_without_touching_upstream(
-        self, db, monkeypatch
-    ):
-        recorder = _install_stub_upstream(
-            monkeypatch, text=_build_csv([_csv_row_values()])
-        )
+    async def test_fresh_cache_is_served_as_a_hit_without_touching_upstream(self, db, monkeypatch):
+        recorder = _install_stub_upstream(monkeypatch, text=_build_csv([_csv_row_values()]))
         fetched_at = now_ms()
         await _store_cache_row(
             db,
@@ -880,15 +804,9 @@ class TestGetRepeatersCacheHit:
 
 
 class TestGetRepeatersCacheMiss:
-    async def test_expired_cache_is_refetched_and_updated_in_place(
-        self, db, monkeypatch
-    ):
-        _install_stub_upstream(
-            monkeypatch, text=_build_csv([_csv_row_values(callsign="GB3FRESH")])
-        )
-        await _store_cache_row(
-            db, [_station_document(callsign="GB3STALE")], fetched_at=1, expires_at=2
-        )
+    async def test_expired_cache_is_refetched_and_updated_in_place(self, db, monkeypatch):
+        _install_stub_upstream(monkeypatch, text=_build_csv([_csv_row_values(callsign="GB3FRESH")]))
+        await _store_cache_row(db, [_station_document(callsign="GB3STALE")], fetched_at=1, expires_at=2)
         payload, cache_state = await repeaters.get_repeaters(db)
         assert cache_state == "MISS"
         assert payload["source"] == "online"
@@ -908,21 +826,15 @@ class TestGetRepeatersCacheMiss:
         assert json.loads(row.payload)[0]["callsign"] == "GB3LO"
 
     async def test_a_second_call_after_a_miss_is_a_hit(self, db, monkeypatch):
-        recorder = _install_stub_upstream(
-            monkeypatch, text=_build_csv([_csv_row_values()])
-        )
+        recorder = _install_stub_upstream(monkeypatch, text=_build_csv([_csv_row_values()]))
         assert (await repeaters.get_repeaters(db))[1] == "MISS"
         assert (await repeaters.get_repeaters(db))[1] == "HIT"
         assert len(recorder.requested_urls) == 1
 
-    async def test_fetch_uses_the_configured_url_timeout_and_identifying_user_agent(
-        self, db, monkeypatch
-    ):
+    async def test_fetch_uses_the_configured_url_timeout_and_identifying_user_agent(self, db, monkeypatch):
         # ukrepeater.net answers 403 to the default httpx agent, so the header is
         # load-bearing, not cosmetic.
-        recorder = _install_stub_upstream(
-            monkeypatch, text=_build_csv([_csv_row_values()])
-        )
+        recorder = _install_stub_upstream(monkeypatch, text=_build_csv([_csv_row_values()]))
         await repeaters.get_repeaters(db)
         assert recorder.requested_urls == [settings.repeaters_upstream_url]
         kwargs = recorder.client_kwargs[0]
@@ -932,9 +844,7 @@ class TestGetRepeatersCacheMiss:
 
 
 class TestGetRepeatersStale:
-    async def test_upstream_failure_serves_the_last_good_copy(
-        self, db, monkeypatch, bundled_snapshot
-    ):
+    async def test_upstream_failure_serves_the_last_good_copy(self, db, monkeypatch, bundled_snapshot):
         bundled_snapshot({"stations": [_station_document(callsign="GB3BUNDLED")]})
         _install_stub_upstream(monkeypatch, error=httpx.ConnectTimeout("timed out"))
         fetched_at = now_ms() - 1000
@@ -950,32 +860,22 @@ class TestGetRepeatersStale:
         assert payload["fetchedAt"] == fetched_at
         assert [station["callsign"] for station in payload["stations"]] == ["GB3LAST"]
 
-    async def test_http_error_status_also_falls_back_to_the_cache(
-        self, db, monkeypatch
-    ):
+    async def test_http_error_status_also_falls_back_to_the_cache(self, db, monkeypatch):
         _install_stub_upstream(monkeypatch, text="Forbidden", status_code=403)
         fetched_at = now_ms() - 1000
-        await _store_cache_row(
-            db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1
-        )
+        await _store_cache_row(db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1)
         assert (await repeaters.get_repeaters(db))[1] == "STALE"
 
-    async def test_a_page_that_is_not_the_csv_also_falls_back_to_the_cache(
-        self, db, monkeypatch
-    ):
+    async def test_a_page_that_is_not_the_csv_also_falls_back_to_the_cache(self, db, monkeypatch):
         # A captive portal answering 200 with HTML must not overwrite good data.
         _install_stub_upstream(monkeypatch, text="<html>login</html>")
         fetched_at = now_ms() - 1000
-        await _store_cache_row(
-            db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1
-        )
+        await _store_cache_row(db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1)
         payload, cache_state = await repeaters.get_repeaters(db)
         assert cache_state == "STALE"
         assert payload["stations"][0]["callsign"] == "gb3lo"
 
-    async def test_an_empty_upstream_list_does_not_replace_the_cache(
-        self, db, monkeypatch
-    ):
+    async def test_an_empty_upstream_list_does_not_replace_the_cache(self, db, monkeypatch):
         # The export answering with headings only would otherwise wipe the map.
         _install_stub_upstream(monkeypatch, text=_build_csv([]))
         fetched_at = now_ms() - 1000
@@ -989,14 +889,10 @@ class TestGetRepeatersStale:
         assert cache_state == "STALE"
         assert payload["stations"][0]["callsign"] == "GB3KEPT"
 
-    async def test_upstream_failure_is_logged_with_the_reason(
-        self, db, monkeypatch, caplog
-    ):
+    async def test_upstream_failure_is_logged_with_the_reason(self, db, monkeypatch, caplog):
         _install_stub_upstream(monkeypatch, error=httpx.ConnectTimeout("timed out"))
         fetched_at = now_ms() - 1000
-        await _store_cache_row(
-            db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1
-        )
+        await _store_cache_row(db, [_station_document()], fetched_at=fetched_at, expires_at=fetched_at + 1)
         with caplog.at_level("WARNING", logger=repeaters.logger.name):
             await repeaters.get_repeaters(db)
         assert "UK repeater list refresh failed" in caplog.text
@@ -1004,28 +900,18 @@ class TestGetRepeatersStale:
 
 
 class TestGetRepeatersBundled:
-    async def test_bundled_snapshot_is_served_when_there_is_no_cache(
-        self, db, monkeypatch, bundled_snapshot
-    ):
+    async def test_bundled_snapshot_is_served_when_there_is_no_cache(self, db, monkeypatch, bundled_snapshot):
         bundled_snapshot({"stations": [_station_document(callsign="GB3BUNDLED")]})
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         payload, cache_state = await repeaters.get_repeaters(db)
         assert cache_state == "BUNDLED"
         assert payload["source"] == "bundled"
         assert payload["fetchedAt"] is None
-        assert [station["callsign"] for station in payload["stations"]] == [
-            "GB3BUNDLED"
-        ]
+        assert [station["callsign"] for station in payload["stations"]] == ["GB3BUNDLED"]
 
-    async def test_cache_older_than_the_stale_window_falls_through_to_bundled(
-        self, db, monkeypatch, bundled_snapshot
-    ):
+    async def test_cache_older_than_the_stale_window_falls_through_to_bundled(self, db, monkeypatch, bundled_snapshot):
         bundled_snapshot({"stations": [_station_document(callsign="GB3BUNDLED")]})
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         fetched_at = now_ms() - settings.repeaters_stale_ms - 1
         await _store_cache_row(
             db,
@@ -1035,52 +921,34 @@ class TestGetRepeatersBundled:
         )
         payload, cache_state = await repeaters.get_repeaters(db)
         assert cache_state == "BUNDLED"
-        assert [station["callsign"] for station in payload["stations"]] == [
-            "GB3BUNDLED"
-        ]
+        assert [station["callsign"] for station in payload["stations"]] == ["GB3BUNDLED"]
 
-    async def test_missing_bundled_file_raises_repeater_data_unavailable(
-        self, db, monkeypatch, bundled_snapshot
-    ):
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+    async def test_missing_bundled_file_raises_repeater_data_unavailable(self, db, monkeypatch, bundled_snapshot):
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         with pytest.raises(repeaters.RepeaterDataUnavailable) as excinfo:
             await repeaters.get_repeaters(db)
         assert "no cached or bundled copy" in str(excinfo.value)
         assert isinstance(excinfo.value.__cause__, OSError)
 
-    async def test_unparseable_bundled_file_raises_repeater_data_unavailable(
-        self, db, monkeypatch, tmp_path
-    ):
+    async def test_unparseable_bundled_file_raises_repeater_data_unavailable(self, db, monkeypatch, tmp_path):
         broken_path = tmp_path / "uk_repeaters.json"
         broken_path.write_text("{not json", encoding="utf-8")
         monkeypatch.setattr(repeaters, "BUNDLED_JSON_PATH", broken_path)
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         with pytest.raises(repeaters.RepeaterDataUnavailable):
             await repeaters.get_repeaters(db)
 
-    async def test_invalid_bundled_document_raises_repeater_data_unavailable(
-        self, db, monkeypatch, bundled_snapshot
-    ):
+    async def test_invalid_bundled_document_raises_repeater_data_unavailable(self, db, monkeypatch, bundled_snapshot):
         bundled_snapshot({"stations": [_station_document(latitude=0.0)]})
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         with pytest.raises(repeaters.RepeaterDataUnavailable) as excinfo:
             await repeaters.get_repeaters(db)
         assert isinstance(excinfo.value.__cause__, repeaters.RepeaterDataInvalid)
 
-    async def test_bundled_fallback_does_not_write_a_cache_row(
-        self, db, monkeypatch, bundled_snapshot
-    ):
+    async def test_bundled_fallback_does_not_write_a_cache_row(self, db, monkeypatch, bundled_snapshot):
         # Caching the bundled copy would make the next call a HIT and stop the
         # daily refresh from ever reaching a now-reachable upstream.
         bundled_snapshot({"stations": [_station_document()]})
-        _install_stub_upstream(
-            monkeypatch, error=httpx.ConnectError("no route to host")
-        )
+        _install_stub_upstream(monkeypatch, error=httpx.ConnectError("no route to host"))
         await repeaters.get_repeaters(db)
         assert await _stored_row(db) is None

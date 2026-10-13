@@ -20,14 +20,14 @@ import json
 
 import httpx
 import pytest
+from backend.cache import now_ms
+from backend.config import settings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.cache import now_ms
-from backend.config import settings
-from backend.models import RepeaterCache
-from backend.services import repeaters
+from sentinel_land.models import RepeaterCache
+from sentinel_land.services import repeaters
 
 REPEATERS_URL = "/api/land/repeaters"
 REPEATERS_FILE_URL = "/api/land/repeaters/file"
@@ -105,9 +105,7 @@ def offline_upstream(monkeypatch):
     monkeypatch.setattr(repeaters.httpx, "AsyncClient", _UnreachableAsyncClient)
 
 
-async def _store_cache_row(
-    session_factory, stations: list[dict[str, object]], *, expires_in_ms: int
-) -> int:
+async def _store_cache_row(session_factory, stations: list[dict[str, object]], *, expires_in_ms: int) -> int:
     """Seed the cache with `stations`; returns the fetched_at stamp used."""
     fetched_at = now_ms()
     async with session_factory() as session:
@@ -126,19 +124,13 @@ async def _store_cache_row(
 async def _stored_stations(session_factory) -> list[dict[str, object]] | None:
     async with session_factory() as session:
         row = (
-            await session.execute(
-                select(RepeaterCache).where(
-                    RepeaterCache.cache_key == repeaters.CACHE_KEY
-                )
-            )
+            await session.execute(select(RepeaterCache).where(RepeaterCache.cache_key == repeaters.CACHE_KEY))
         ).scalar_one_or_none()
         return None if row is None else json.loads(row.payload)
 
 
 class TestGetRepeaters:
-    async def test_fresh_cache_is_served_with_a_hit_header(
-        self, client, session_factory
-    ):
+    async def test_fresh_cache_is_served_with_a_hit_header(self, client, session_factory):
         fetched_at = await _store_cache_row(
             session_factory,
             [_station_document(callsign="GB3CACHED")],
@@ -152,20 +144,14 @@ class TestGetRepeaters:
         assert body["fetchedAt"] == fetched_at
         assert [station["callsign"] for station in body["stations"]] == ["GB3CACHED"]
 
-    async def test_expired_cache_with_a_dead_upstream_is_served_stale(
-        self, client, session_factory
-    ):
-        await _store_cache_row(
-            session_factory, [_station_document(callsign="GB3LAST")], expires_in_ms=-1
-        )
+    async def test_expired_cache_with_a_dead_upstream_is_served_stale(self, client, session_factory):
+        await _store_cache_row(session_factory, [_station_document(callsign="GB3LAST")], expires_in_ms=-1)
         response = client.get(REPEATERS_URL)
         assert response.status_code == 200
         assert response.headers["x-cache"] == "STALE"
         assert response.json()["source"] == "cached"
 
-    async def test_no_cache_and_a_dead_upstream_serves_the_bundled_snapshot(
-        self, client
-    ):
+    async def test_no_cache_and_a_dead_upstream_serves_the_bundled_snapshot(self, client):
         response = client.get(REPEATERS_URL)
         assert response.status_code == 200
         assert response.headers["x-cache"] == "BUNDLED"
@@ -174,9 +160,7 @@ class TestGetRepeaters:
         assert body["fetchedAt"] is None
         assert [station["callsign"] for station in body["stations"]] == ["GB3BUNDLED"]
 
-    async def test_reachable_upstream_is_fetched_and_reported_as_a_miss(
-        self, client, monkeypatch
-    ):
+    async def test_reachable_upstream_is_fetched_and_reported_as_a_miss(self, client, monkeypatch):
         monkeypatch.setattr(
             repeaters,
             "_fetch_upstream",
@@ -184,9 +168,7 @@ class TestGetRepeaters:
         )
         response = client.get(REPEATERS_URL)
         assert response.headers["x-cache"] == "MISS"
-        assert [station["callsign"] for station in response.json()["stations"]] == [
-            "GB3FRESH"
-        ]
+        assert [station["callsign"] for station in response.json()["stations"]] == ["GB3FRESH"]
 
     async def test_directory_is_never_browser_cached(self, client):
         # The X-Cache state is decided server-side; a browser cache would pin a
@@ -203,9 +185,7 @@ class TestGetRepeaters:
         assert "Traceback" not in response.text
 
     async def test_stations_carry_the_full_channel_shape(self, client, session_factory):
-        await _store_cache_row(
-            session_factory, [_station_document()], expires_in_ms=60_000
-        )
+        await _store_cache_row(session_factory, [_station_document()], expires_in_ms=60_000)
         station = client.get(REPEATERS_URL).json()["stations"][0]
         assert set(station) == {
             "callsign",
@@ -234,12 +214,8 @@ class TestGetRepeaters:
 
 
 class TestGetRepeatersFile:
-    async def test_returns_the_editable_document_shape_only(
-        self, client, session_factory
-    ):
-        await _store_cache_row(
-            session_factory, [_station_document()], expires_in_ms=60_000
-        )
+    async def test_returns_the_editable_document_shape_only(self, client, session_factory):
+        await _store_cache_row(session_factory, [_station_document()], expires_in_ms=60_000)
         response = client.get(REPEATERS_FILE_URL)
         assert response.status_code == 200
         body = response.json()
@@ -251,9 +227,7 @@ class TestGetRepeatersFile:
         body = client.get(REPEATERS_FILE_URL).json()
         assert [station["callsign"] for station in body["stations"]] == ["GB3BUNDLED"]
 
-    async def test_unavailable_directory_is_503(
-        self, client, isolated_bundled_snapshot
-    ):
+    async def test_unavailable_directory_is_503(self, client, isolated_bundled_snapshot):
         isolated_bundled_snapshot.unlink()
         response = client.get(REPEATERS_FILE_URL)
         assert response.status_code == 503
@@ -266,9 +240,7 @@ class TestGetRepeatersFile:
 
 
 class TestPostRepeatersFile:
-    async def test_replaces_the_directory_and_reports_the_count(
-        self, client, session_factory
-    ):
+    async def test_replaces_the_directory_and_reports_the_count(self, client, session_factory):
         document = {
             "stations": [
                 _station_document(callsign="GB3AA"),
@@ -288,19 +260,13 @@ class TestPostRepeatersFile:
         )
         response = client.get(REPEATERS_URL)
         assert response.headers["x-cache"] == "HIT"
-        assert [station["callsign"] for station in response.json()["stations"]] == [
-            "GB3MINE"
-        ]
+        assert [station["callsign"] for station in response.json()["stations"]] == ["GB3MINE"]
 
     async def test_upload_is_held_for_the_manual_ttl(self, client, session_factory):
         client.post(REPEATERS_FILE_URL, json={"stations": [_station_document()]})
         async with session_factory() as session:
             row = (
-                await session.execute(
-                    select(RepeaterCache).where(
-                        RepeaterCache.cache_key == repeaters.CACHE_KEY
-                    )
-                )
+                await session.execute(select(RepeaterCache).where(RepeaterCache.cache_key == repeaters.CACHE_KEY))
             ).scalar_one()
         assert row.expires_at - row.fetched_at == settings.repeaters_manual_ttl_ms
 
@@ -331,14 +297,10 @@ class TestPostRepeatersFile:
             pytest.param({"repeaters": []}, id="wrong key"),
         ],
     )
-    async def test_body_without_a_stations_array_is_400(
-        self, client, body_without_stations
-    ):
+    async def test_body_without_a_stations_array_is_400(self, client, body_without_stations):
         response = client.post(REPEATERS_FILE_URL, json=body_without_stations)
         assert response.status_code == 400
-        assert response.json() == {
-            "detail": "Body must be a JSON object with a stations array"
-        }
+        assert response.json() == {"detail": "Body must be a JSON object with a stations array"}
 
     @pytest.mark.parametrize(
         "non_object_body",
@@ -348,9 +310,7 @@ class TestPostRepeatersFile:
             pytest.param(7, id="bare number"),
         ],
     )
-    async def test_body_that_is_not_a_json_object_is_rejected(
-        self, client, non_object_body
-    ):
+    async def test_body_that_is_not_a_json_object_is_rejected(self, client, non_object_body):
         # FastAPI's `dict` body model refuses these before the handler runs; the
         # handler's own isinstance check is the belt-and-braces behind it.
         assert client.post(REPEATERS_FILE_URL, json=non_object_body).status_code in (
@@ -379,9 +339,7 @@ class TestPostRepeatersFile:
                 "GB3LO: longitude out of range",
                 id="longitude outside the uk",
             ),
-            pytest.param(
-                {"callsign": ""}, "station callsign is required", id="missing callsign"
-            ),
+            pytest.param({"callsign": ""}, "station callsign is required", id="missing callsign"),
             pytest.param(
                 {"channels": []},
                 "GB3LO: at least one channel is required",
@@ -394,9 +352,7 @@ class TestPostRepeatersFile:
             ),
         ],
     )
-    async def test_invalid_station_is_400_with_the_reason_named(
-        self, client, invalid_station, expected_detail
-    ):
+    async def test_invalid_station_is_400_with_the_reason_named(self, client, invalid_station, expected_detail):
         response = client.post(
             REPEATERS_FILE_URL,
             json={"stations": [_station_document(**invalid_station)]},
@@ -405,16 +361,12 @@ class TestPostRepeatersFile:
         assert response.json() == {"detail": expected_detail}
 
     async def test_invalid_channel_is_400_with_the_station_named(self, client):
-        document = {
-            "stations": [_station_document(channels=[_channel_document(txMhz="145.6")])]
-        }
+        document = {"stations": [_station_document(channels=[_channel_document(txMhz="145.6")])]}
         response = client.post(REPEATERS_FILE_URL, json=document)
         assert response.status_code == 400
         assert response.json() == {"detail": "GB3LO: txMhz must be a number"}
 
-    async def test_rejected_upload_leaves_the_served_directory_untouched(
-        self, client, session_factory
-    ):
+    async def test_rejected_upload_leaves_the_served_directory_untouched(self, client, session_factory):
         client.post(
             REPEATERS_FILE_URL,
             json={"stations": [_station_document(callsign="GB3GOOD")]},

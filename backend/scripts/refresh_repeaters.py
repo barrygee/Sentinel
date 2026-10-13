@@ -2,7 +2,7 @@
 Refresh the bundled UK repeater directory snapshot.
 
 Fetches the RSGB ETCC CSV export from ukrepeater.net, normalises it exactly as
-the running backend does (``backend.services.repeaters``) and rewrites
+the running backend does (``sentinel_land.services.repeaters``) and rewrites
 ``backend/data/uk_repeaters.json`` — the offline fallback the Land map's
 repeater layer serves on an install that has never reached the site.
 
@@ -18,7 +18,7 @@ import sys
 
 import httpx
 from backend.config import settings
-from backend.services.repeaters import BUNDLED_JSON_PATH, USER_AGENT, parse_repeater_csv
+from sentinel_land.services.repeaters import BUNDLED_JSON_PATH, USER_AGENT, parse_repeater_csv
 
 
 def main() -> int:

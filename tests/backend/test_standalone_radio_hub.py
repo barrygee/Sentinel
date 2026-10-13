@@ -528,7 +528,7 @@ class TestWhatTheHubServiceLoads:
             "import json, sys\n"
             "import backend.standalone.radio_hub\n"
             "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.routers.'))"
-            " or m.startswith('backend.services.'))))\n"
+            " or m.startswith(('backend.services.', 'sentinel_')))))\n"
         )
 
         assert [module for module in loaded if module.startswith("backend.modules.")] == [
@@ -536,9 +536,10 @@ class TestWhatTheHubServiceLoads:
             "backend.modules.radio_hub",
         ]
         assert not [module for module in loaded if module.startswith("backend.routers.")]
+        # No moved section's package either.
+        assert not [module for module in loaded if module.startswith("sentinel_")]
         # No section's services: no APRS store, no AIS vessel store, no ADS-B.
         assert not {
-            "backend.services.aprs_store",
             "backend.services.ais_decode",
             "backend.services.ais_store",
             "backend.services.adsb_source",

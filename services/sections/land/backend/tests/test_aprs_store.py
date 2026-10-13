@@ -9,15 +9,15 @@ a per-test in-memory database).
 """
 
 import pytest
+from backend.config import settings
+from backend.database import Base
+from backend.db_helpers import upsert_setting
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.config import settings
-from backend.database import Base
-from backend.db_helpers import upsert_setting
-from backend.models import AprsStation  # noqa: F401 — register the ORM model with Base
-from backend.services import aprs_store
+from sentinel_land.models import AprsStation  # noqa: F401 — register the ORM model with Base
+from sentinel_land.services import aprs_store
 
 
 @pytest.fixture()
@@ -165,12 +165,8 @@ class TestUpsertAndSnapshot:
         assert [s["callsign"] for s in stations] == ["G7AAA"]
 
     async def test_snapshot_newest_first(self, session_factory):
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "OLD"})), 1000
-        )
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "NEW"})), 9000
-        )
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "OLD"})), 1000)
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "NEW"})), 9000)
         stations = await aprs_store.get_stations(10000)
         assert [s["callsign"] for s in stations] == ["NEW", "OLD"]
 
@@ -178,24 +174,16 @@ class TestUpsertAndSnapshot:
         ttl = settings.aprs_station_ttl_ms
         now = ttl + 10_000
         # Heard long ago (before the TTL window) → excluded from the snapshot.
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "STALE"})), 100
-        )
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 1
-        )
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "STALE"})), 100)
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 1)
         stations = await aprs_store.get_stations(now)
         assert [s["callsign"] for s in stations] == ["FRESH"]
 
     async def test_cleanup_deletes_expired_only(self, session_factory):
         ttl = settings.aprs_station_ttl_ms
         now = ttl + 10_000
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "STALE"})), 100
-        )
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 1
-        )
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "STALE"})), 100)
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 1)
         removed = await aprs_store.cleanup_expired(now)
         assert removed == 1
         # The fresh station survives; querying without a TTL cutoff confirms it.
@@ -204,12 +192,8 @@ class TestUpsertAndSnapshot:
 
     async def test_cleanup_injected_session(self, session_factory):
         async with session_factory() as session:
-            await aprs_store.upsert_station(
-                aprs_store.station_from_event(_event()), 100, db=session
-            )
-            removed = await aprs_store.cleanup_expired(
-                settings.aprs_station_ttl_ms + 10_000, db=session
-            )
+            await aprs_store.upsert_station(aprs_store.station_from_event(_event()), 100, db=session)
+            removed = await aprs_store.cleanup_expired(settings.aprs_station_ttl_ms + 10_000, db=session)
         assert removed == 1
 
     async def test_cleanup_nothing_to_remove(self, session_factory):
@@ -223,9 +207,7 @@ class TestUpsertAndSnapshot:
 class TestRetentionWindow:
     async def test_defaults_to_config_fallback_when_unset(self, session_factory):
         async with session_factory() as session:
-            assert (
-                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
-            )
+            assert await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
 
     async def test_uses_the_land_setting_in_minutes(self, session_factory):
         async with session_factory() as session:
@@ -239,33 +221,23 @@ class TestRetentionWindow:
             await upsert_setting(session, "land", "aprsRetentionMinutes", "soon")
             await session.commit()
         async with session_factory() as session:
-            assert (
-                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
-            )
+            assert await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
 
     async def test_falls_back_on_non_positive_setting(self, session_factory):
         async with session_factory() as session:
             await upsert_setting(session, "land", "aprsRetentionMinutes", 0)
             await session.commit()
         async with session_factory() as session:
-            assert (
-                await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
-            )
+            assert await aprs_store._retention_ms(session) == settings.aprs_station_ttl_ms
 
-    async def test_snapshot_and_cleanup_honour_the_configured_window(
-        self, session_factory
-    ):
+    async def test_snapshot_and_cleanup_honour_the_configured_window(self, session_factory):
         # Retention 5 min: a station last heard 6 min ago is expired, 4 min ago is fresh.
         async with session_factory() as session:
             await upsert_setting(session, "land", "aprsRetentionMinutes", 5)
             await session.commit()
         now = 100_000_000
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "STALE"})), now - 6 * 60_000
-        )
-        await aprs_store.upsert_station(
-            aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 4 * 60_000
-        )
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "STALE"})), now - 6 * 60_000)
+        await aprs_store.upsert_station(aprs_store.station_from_event(_event(**{"from": "FRESH"})), now - 4 * 60_000)
         stations = await aprs_store.get_stations(now)
         assert [s["callsign"] for s in stations] == ["FRESH"]
         removed = await aprs_store.cleanup_expired(now)

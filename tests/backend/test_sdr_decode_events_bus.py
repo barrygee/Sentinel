@@ -26,11 +26,12 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.database import Base
-from backend.models import AprsStation  # noqa: F401 — register ORM model with Base
+from sentinel_land.models import AprsStation  # noqa: F401 — register ORM model with Base
 from backend.platform.bus import bus
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
-from backend.services import ais_decode, ais_store, aprs_store
+from backend.services import ais_decode, ais_store
+from sentinel_land.services import aprs_store
 from tests.backend.service_credentials_test_helpers import (
     accept_callers,
     decoder_header,

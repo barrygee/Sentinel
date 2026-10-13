@@ -1,4 +1,4 @@
-"""The Land section as its own service (P6.2): `uvicorn backend.standalone.land:app`.
+"""The Land section as its own service (P6.2): `uvicorn sentinel_land.service:app`.
 
 Owns `aprs_stations` and `repeater_cache` in its own database (`DB_PATH`),
 copied from the monolith's on first boot (`LEGACY_DB_PATH`). Decoded APRS
@@ -11,16 +11,17 @@ radio hub (`/api/sdr/aprs/*`), which the browser calls directly.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 
 from backend.config import settings
-from backend.database import LAND_TABLES, create_land_tables
-from backend.modules.land import lifecycle as land_lifecycle
-from backend.modules.land import manifest
-from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.remote_files import remotes_dir
 from backend.platform.sdk import create_service
 from backend.platform.sdk.legacy_import import import_legacy_tables
-from backend.routers import land
+
+from sentinel_land import router as land
+from sentinel_land.database import LAND_TABLES, create_land_tables
+from sentinel_land.module import lifecycle as land_lifecycle
+from sentinel_land.module import manifest
 
 
 async def _prepare() -> None:
@@ -31,11 +32,8 @@ async def _prepare() -> None:
 app = create_service(
     manifest=manifest,
     routers=[land.router],
-    # The monolith's Land lifecycle (the daily APRS cleanup loop), unchanged,
-    # after this service's own schema and legacy import.
-    lifecycles=[
-        ModuleLifecycle(name="land-schema", prepare=_prepare),
-        land_lifecycle,
-    ],
+    # Land's own lifecycle (the daily APRS cleanup loop), with a prepare that
+    # also copies the legacy tables in once the schema exists.
+    lifecycles=[dataclasses.replace(land_lifecycle, prepare=_prepare)],
     remote_dir=remotes_dir() / "land",
 )

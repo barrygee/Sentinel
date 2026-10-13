@@ -23,7 +23,8 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as database_module
 from backend.config import settings
-from backend.models import RepeaterCache, UserSettings
+from backend.models import UserSettings
+from sentinel_land.models import RepeaterCache
 
 OBSOLETE_LAND_KEYS = [
     ("land", "sourceOverride"),

@@ -318,7 +318,8 @@ class TestWhatTheSeaServiceLoads:
         loaded = probe_fresh_interpreter(
             "import json, sys\n"
             "import backend.standalone.sea\n"
-            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub')))))\n"
+            "print(json.dumps(sorted(m for m in sys.modules"
+            " if m.startswith(('backend.modules.', 'backend.radio_hub', 'sentinel_')))))\n"
         )
 
         assert loaded == ["backend.modules.manifest", "backend.modules.sea"]

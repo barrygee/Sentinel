@@ -213,13 +213,14 @@ services:
       - land_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/sections/land/backend:/app/services/sections/land/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/land}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/land.db
       SERVICE_INTERNAL_URL: http://land:8000
-    command: uvicorn backend.standalone.land:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_land.service:app --host 0.0.0.0 --port 8000 --reload
 
   # The Air section as its own service (P6.3).
   # Same pattern as `space`/`land`: registers with the app and takes /api/air/
