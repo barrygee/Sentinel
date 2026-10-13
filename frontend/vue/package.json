@@ -47,7 +47,7 @@
     "@axe-core/playwright": "^4.11.3",
     "@eslint/js": "^10.0.1",
     "@module-federation/vite": "1.23.2",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.64.0",
     "@sentinel/web-config": "*",
     "@types/jest-axe": "^3.5.9",
     "@types/node": "^24.13.3",
