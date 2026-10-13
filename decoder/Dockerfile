@@ -11,14 +11,21 @@
 # never published. Building it is a deliberate local action that compiles mbelib
 # on YOUR machine; the resulting layers stay local. See decoder/README.md.
 
-# Pin the upstream sources for reproducibility (override at build time if needed).
-ARG MBELIB_REF=master
-ARG DSDFME_REF=audio_work
+# The upstream sources, pinned to commits so a rebuild compiles exactly what was
+# tested rather than whatever the branch holds today. To move a pin, resolve the
+# branch's current head and replace the SHA (override at build time with
+# --build-arg to try one without editing):
+#   git ls-remote https://github.com/szechyjs/mbelib.git refs/heads/master
+#   git ls-remote https://github.com/lwvmobile/dsd-fme.git refs/heads/audio_work
+# mbelib `master`, pinned 2026-10-13.
+ARG MBELIB_COMMIT=9a04ed5c78176a9965f3d43f7aa1b1f5330e771f
+# dsd-fme `audio_work`, pinned 2026-10-13.
+ARG DSDFME_COMMIT=4fe32db7f5affb0484aa0e4f8bbc50eabe3c8531
 
 # ── Stage 1: build mbelib + dsd-fme from source ───────────────────────────────
 FROM debian:bookworm-slim AS build
-ARG MBELIB_REF
-ARG DSDFME_REF
+ARG MBELIB_COMMIT
+ARG DSDFME_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates cmake build-essential pkg-config \
@@ -26,16 +33,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # mbelib (required by dsd-fme) — installs libmbe to /usr/local.
-RUN git clone https://github.com/szechyjs/mbelib.git /src/mbelib \
-    && cd /src/mbelib && git checkout "${MBELIB_REF}" \
+# Fetched by commit, shallow: `git clone --branch` takes only a branch or tag,
+# and a full clone just to check out one commit downloads the whole history.
+RUN git init -q /src/mbelib && cd /src/mbelib \
+    && git fetch -q --depth 1 https://github.com/szechyjs/mbelib.git "${MBELIB_COMMIT}" \
+    && git checkout -q FETCH_HEAD \
     && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr/local \
     && cmake --build build --parallel \
     && cmake --install build \
     && ldconfig
 
 # dsd-fme itself.
-RUN git clone https://github.com/lwvmobile/dsd-fme.git /src/dsd-fme \
-    && cd /src/dsd-fme && git checkout "${DSDFME_REF}" \
+RUN git init -q /src/dsd-fme && cd /src/dsd-fme \
+    && git fetch -q --depth 1 https://github.com/lwvmobile/dsd-fme.git "${DSDFME_COMMIT}" \
+    && git checkout -q FETCH_HEAD \
     && cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/usr/local \
     && cmake --build build --parallel \
     && cmake --install build

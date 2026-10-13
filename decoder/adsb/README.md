@@ -25,8 +25,10 @@ type, and the gain-stage count. readsb's `ifile` input expects nothing but
 samples, so those bytes are dropped; left in place they are read as I/Q and put
 a burst of nonsense at the head of the stream.
 
-readsb is built from source with `RTLSDR=no`. The dongle is on another machine,
-so linking libusb/librtlsdr would pull in drivers this container can never use.
+readsb is built from source — a pinned commit of its `dev` branch
+(`READSB_COMMIT` in the Dockerfile, which says how to move it) — with
+`RTLSDR=no`. The dongle is on another machine, so linking libusb/librtlsdr would
+pull in drivers this container can never use.
 
 ## Bandwidth
 

@@ -113,7 +113,7 @@ up` the one-shot `service-credentials` service generates it into the
 |---|---|---|
 | `DSD_EXTRA_ARGS` | `decoder` env | Extra `dsd-fme` flags (e.g. dongle) |
 | `SENTINEL_GATEWAY_URL` | `.env` (optional) | Sentinel's gateway (default `http://gateway:8080`); config and ingest go through it |
-| `MBELIB_REF` / `DSDFME_REF` | build args | Pin the upstream git refs for reproducibility |
+| `MBELIB_COMMIT` / `DSDFME_COMMIT` | build args | The upstream commits built (pinned in the Dockerfile; override to try another) |
 
 The backend ports (`DECODER_PCM_PORT` 7355, `DECODER_AUDIO_UDP_PORT` 7356) are
 set in `docker-compose.yml` and only need changing if they clash on your host.
@@ -131,8 +131,8 @@ hub: the hub's decode-config reply names both sockets (`pcmFeed`,
   `docker compose --profile voice-decoder up -d --force-recreate voice-decoder`.
 - **No voice audio but metadata appears:** the channel may be encrypted, or the
   decoder may need a hardware dongle/specific flags for that protocol.
-- **Log format yields no events:** dsd-fme's wording varies by version. Pin
-  `DSDFME_REF` and adjust the patterns in `entrypoint.py` (`parse_dsd_line`).
+- **Log format yields no events:** dsd-fme's wording varies by version. Moving
+  `DSDFME_COMMIT` can change it; adjust the patterns in `entrypoint.py` (`parse_dsd_line`).
 
 ## End-to-end verification (manual)
 

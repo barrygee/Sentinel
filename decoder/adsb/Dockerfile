@@ -19,20 +19,25 @@
 # is gated because it is a heavyweight sidecar most deployments (which use the
 # online source) do not want running.
 
-ARG READSB_REF=dev
+# readsb `dev` (the branch wiedehopf develops and releases from), pinned to a
+# commit so a rebuild compiles exactly what was tested. To move the pin:
+#   git ls-remote https://github.com/wiedehopf/readsb.git refs/heads/dev
+# Pinned 2026-10-13.
+ARG READSB_COMMIT=8afcc22de2de81be38231695285070603af78ef4
 
 # ── Stage 1: build readsb ─────────────────────────────────────────────────────
 FROM debian:bookworm-slim AS build
-ARG READSB_REF
+ARG READSB_COMMIT
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates build-essential pkg-config \
         libncurses-dev zlib1g-dev libzstd-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 --branch "${READSB_REF}" \
-        https://github.com/wiedehopf/readsb.git /src/readsb \
-    && cd /src/readsb \
+# Fetched by commit, shallow (`git clone --branch` can't take a SHA).
+RUN git init -q /src/readsb && cd /src/readsb \
+    && git fetch -q --depth 1 https://github.com/wiedehopf/readsb.git "${READSB_COMMIT}" \
+    && git checkout -q FETCH_HEAD \
     && make RTLSDR=no OPTIMIZE="-O2" -j"$(nproc)" \
     && strip readsb
 

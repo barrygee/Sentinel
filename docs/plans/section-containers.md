@@ -656,8 +656,13 @@ ADS-B decoder stays on the core host (Air reads `aircraft.json` from it). Verifi
 machine reaching each other through `host.docker.internal`: the hub connected, joined NATS and registered over TLS; the
 stub decoder registered locally; core's gateway served `/api/sdr/*` and the IQ WebSocket from the remote hub; a raw-IQ
 recording on a fake rtl_tcp was captured on the radio host and copied to the SDR section over TLS (13.3 MB, hub staging
-emptied); untrusted, unnamed and credential-less calls were refused. Walkthrough: `docs/radio-host.md`. P7.5b:
-`docker buildx bake` (amd64/arm64) and decoder upstreams pinned to commits.
+emptied); untrusted, unnamed and credential-less calls were refused. Walkthrough: `docs/radio-host.md`. **P7.5b:**
+`docker-bake.hcl` builds the backend image for linux/amd64 + linux/arm64 (`docker buildx bake`; `--push` to a registry,
+or one platform with `--load`), with the SPA stage on `$BUILDPLATFORM` so the bundle is compiled once natively, not
+under QEMU; a separate opt-in `decoders` group builds the decoder images and is never pushed or run in CI (mbelib).
+CI's `multi-arch-build` job builds the backend for both platforms without pushing. Decoder upstreams are pinned to
+commits — `MBELIB_COMMIT`, `DSDFME_COMMIT`, `READSB_COMMIT`, fetched shallow by SHA — and the Direwolf 1.8.1 source
+tarball is checked against its SHA-256 (`DIREWOLF_SOURCE_SHA256`).
 
 ---
 
