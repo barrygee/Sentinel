@@ -492,6 +492,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Ring repeater group markers like Sentry site groups
 - Style the recording IQ button like DOWNLOAD and label it DOWNLOAD IQ
 - Stop the preview server forwarding unmocked API calls to :8080
+- Reuse a Sentry host's session across clients
 
 ### Chores
 
@@ -1489,6 +1490,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #461 from barrygee/feat/p7-4b-service-http-credentials
 - Merge pull request #462 from barrygee/feat/p7-5-radio-host
 - Merge pull request #463 from barrygee/chore/rename-voice-decoder
+- Merge pull request #464 from barrygee/fix/sentry-session-reuse
 
 ### Refactoring
 
