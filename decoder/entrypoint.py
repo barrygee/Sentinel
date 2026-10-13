@@ -60,7 +60,7 @@ def resolve_secret() -> str | None:
 
 # These patterns are deliberately tolerant — dsd-fme's exact wording varies by
 # version and protocol. They extract the high-signal fields we surface in the
-# UI; pin the dsd-fme ref (Dockerfile DSDFME_REF) and adjust here if a build
+# UI; the dsd-fme commit is pinned (Dockerfile DSDFME_COMMIT) — adjust here if moving it
 # changes the log format. A line that matches nothing yields no event.
 _SYNC_LOST = re.compile(r"\b(no sync|sync\s*lost|carrier\s*lost)\b", re.IGNORECASE)
 _SYNC_OK = re.compile(r"\bsync\s*[:]?\s*[+\-]?\s*([A-Za-z0-9]+)", re.IGNORECASE)

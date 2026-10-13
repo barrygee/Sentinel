@@ -30,6 +30,10 @@
 FROM debian:bookworm-slim AS direwolf-build
 
 ARG DIREWOLF_VERSION=1.8.1
+# SHA-256 of that tag's GitHub source tarball, so a re-pointed tag or a
+# corrupted download fails the build instead of compiling something else.
+# Update it with the version: curl -fsSL <url below> | sha256sum
+ARG DIREWOLF_SOURCE_SHA256=89d5f7992ae1e74d8cf26ec6479dde74d1f480bde950043756e875a689d065d7
 
 # Build deps only. The optional gpsd/hamlib integrations are deliberately left
 # out — this container only ever demodulates a pipe.
@@ -39,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN curl -fsSL "https://github.com/wb2osz/direwolf/archive/refs/tags/${DIREWOLF_VERSION}.tar.gz" \
         -o /tmp/direwolf.tar.gz \
+    && echo "${DIREWOLF_SOURCE_SHA256}  /tmp/direwolf.tar.gz" | sha256sum -c - \
     && mkdir -p /tmp/direwolf \
     && tar -xzf /tmp/direwolf.tar.gz -C /tmp/direwolf --strip-components=1 \
     && cmake -S /tmp/direwolf -B /tmp/direwolf/build -DCMAKE_BUILD_TYPE=Release \

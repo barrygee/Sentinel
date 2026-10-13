@@ -1,5 +1,9 @@
 # ── Stage 1: Build Vue SPA ────────────────────────────────────────────────────
-FROM node:24-alpine AS spa-builder
+# Built on the BUILD machine's platform, whatever the target: the bundle is
+# plain JS/CSS, identical for every architecture, so a multi-arch build
+# (docker-bake.hcl) compiles it once natively instead of again under QEMU
+# emulation for arm64 — many times slower, for the same files.
+FROM --platform=$BUILDPLATFORM node:24-alpine AS spa-builder
 # The SPA build ends with `build:sections`, which runs scripts/web-packages.sh
 # (a bash script) to build every section's Module Federation remote; alpine
 # ships only busybox sh.

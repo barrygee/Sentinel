@@ -25,6 +25,8 @@ docker compose up --build -d      # app on http://localhost:8080
 ```
 You only need `--build` when **dependencies** change (`pyproject.toml` / `package.json`). For plain code changes the volume mounts pick up backend edits live, and `cd frontend/vue && npm run build` regenerates the served `frontend/spa-dist/` (hard-reload the browser — no Docker restart).
 
+**Multi-arch images.** `docker-bake.hcl`: `docker buildx bake` builds the backend image for linux/amd64 + arm64 (CI's `multi-arch-build` job builds it without pushing); `docker buildx bake decoders` builds the decoder images — local only, never pushed or built in CI (mbelib). The SPA stage runs on `$BUILDPLATFORM` (identical output per arch); keep it that way or arm64 builds compile the bundle under QEMU. Bake also reads `docker-compose.yml`, so its service names are targets too. Decoder upstreams are pinned to commit SHAs (`MBELIB_COMMIT`/`DSDFME_COMMIT`/`READSB_COMMIT`, fetched shallow by SHA) and Direwolf's tarball to a SHA-256 — move a pin by editing the Dockerfile ARG.
+
 Note: `frontend/spa-dist/` (the built bundle) **is committed** and is what the backend serves in production — rebuild and commit it when shipping a frontend change.
 
 ## Test & lint

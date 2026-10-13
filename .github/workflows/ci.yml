@@ -249,6 +249,31 @@ jobs:
       - name: Tests + coverage (vitest)
         run: npm run web-packages -- test:coverage
 
+  multi-arch-build:
+    name: multi-arch-build (backend amd64 + arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      # arm64 is emulated on the amd64 runner. The SPA stage runs natively
+      # ($BUILDPLATFORM in backend/Dockerfile), so only the Python stage and the
+      # pmtiles fetch pay the emulation cost.
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Build only (`default` = the backend image) — nothing is pushed or loaded.
+      # Catches an arm64-only break (a wheel without an aarch64 build, an
+      # arch-specific download) before it reaches a Pi radio host. The decoder
+      # images are never built in CI (mbelib — decoder/README.md).
+      - name: Build backend image (docker buildx bake)
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          set: |
+            *.cache-from=type=gha,scope=multi-arch-build
+            *.cache-to=type=gha,mode=max,scope=multi-arch-build
+
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)
     runs-on: ubuntu-latest

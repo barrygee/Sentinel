@@ -40,6 +40,19 @@ The build compiles the SPA and packages the backend; the SQLite database is crea
 
 Once running, open **Settings** (gear icon, bottom-right) and set **My Location**.
 
+### Multi-architecture images (amd64 + arm64)
+
+`docker-bake.hcl` builds the backend image (core, every section service and the radio hub run from it) for `linux/amd64` and `linux/arm64` at once — e.g. for a Raspberry Pi radio host built from an x86 workstation. It needs `docker buildx` (bundled with Docker Desktop) and, on Linux, QEMU binfmt for the other architecture (`docker run --privileged --rm tonistiigi/binfmt --install all`).
+
+```bash
+docker buildx bake --print                                         # show the build plan
+IMAGE_REPOSITORY=registry.lan:5000/sentinel docker buildx bake --push   # both platforms → a registry
+docker buildx bake --set '*.platform=linux/arm64' --load           # one platform → the local image store
+docker buildx bake decoders --set '*.platform=linux/arm64' --load  # decoder images, LOCAL ONLY
+```
+
+A two-platform build can't be loaded into the classic local image store, so either push it or pick one platform with `--load`. Variables: `IMAGE_REPOSITORY` (default `sentinel`), `IMAGE_TAG` (default `latest`), `IMAGE_PLATFORMS` (default `linux/amd64,linux/arm64`). The `decoders` group is opt-in and must **never be pushed to a public registry** — the voice decoder compiles `mbelib` (see [decoder/README.md](decoder/README.md)). Decoder upstreams are pinned to commits in their Dockerfiles (`MBELIB_COMMIT`, `DSDFME_COMMIT`, `READSB_COMMIT`), and the Direwolf source tarball to its SHA-256; each Dockerfile says how to move its pin. CI builds the backend for both platforms on every PR (no push).
+
 ### Local development (hot reload)
 
 Two terminals. Vite proxies `/api`, `/ws` and `/assets` to the backend on **:8080**.
