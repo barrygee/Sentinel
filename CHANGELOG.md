@@ -545,6 +545,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle for the military-bases icon
 - Rebuild SPA bundle for band-plan label fitting
 - Drop the pre-gateway env defaults from the decoder images
+- Rename the voice decoder service to voice-decoder
 
 ### Other
 
@@ -1487,6 +1488,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #460 from barrygee/feat/p7-4a-nats-tls-users
 - Merge pull request #461 from barrygee/feat/p7-4b-service-http-credentials
 - Merge pull request #462 from barrygee/feat/p7-5-radio-host
+- Merge pull request #463 from barrygee/chore/rename-voice-decoder
 
 ### Refactoring
 
