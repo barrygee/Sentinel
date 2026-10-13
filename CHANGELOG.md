@@ -217,6 +217,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Serve NATS over TLS with a user per service (P7.4a)
 - Give every service and decoder its own HTTP credential (P7.4b)
 - Run the radio hub on a second host over TLS (P7.5a)
+- Run every section and the radio hub as its own service **(breaking change)**
 
 ### Bug Fixes
 
@@ -1496,6 +1497,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #466 from barrygee/chore/spec-one-component-rule
 - Merge pull request #468 from barrygee/chore/playwright-1-64
 - Merge pull request #469 from barrygee/refactor/p8a-core-app-factory
+- Merge remote-tracking branch 'origin/main' into feat/p8c-sections-always-services
+- Merge pull request #470 from barrygee/feat/p8c-sections-always-services
 
 ### Refactoring
 
@@ -1623,6 +1626,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document per-service HTTP credentials (P7.4b)
 - Document running the radio hub on a second host (P7.5a)
 - Point the serving model at the core app factory
+- Sections always run as services; in-process is dev and tests only
 
 ### Tests
 
@@ -1751,6 +1755,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the radio hub as a service and absent
 - Run the SDR section as a service and absent
 - Run the stack as the runner and fail on a root backend container
+- Drop the monolith leg; absent = container not started
 
 ### Styling
 
