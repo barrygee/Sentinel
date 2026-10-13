@@ -21,6 +21,7 @@ from backend.radio_hub.services.sentry_client import (
     _describe_validation_errors,
     _encode_path_segment,
     _parse_error_envelope,
+    forget_sentry_sessions,
     validate_sentry_address,
     validate_sentry_port,
 )
@@ -249,6 +250,193 @@ async def test_a_wrong_password_is_not_retried_for_ever(monkeypatch):
 
     assert raised.value.status_code == 401
     assert seen.count("/api/auth/login") == 1
+
+
+# ── sessions shared across clients ────────────────────────────────────────────
+
+
+def _sessioned_handler(
+    seen: list[httpx.Request], accepted_cookies: set[str], logins_refused: list[bool] | None = None
+):
+    """A Sentry that grants `sentry_session=cookie-<password>-<n>` on the n-th login
+    and accepts only the cookies in `accepted_cookies`. While `logins_refused`
+    holds True it refuses every login instead (a mutable switch, because a
+    second mocked transport would not replace the first)."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/api/auth/login":
+            if logins_refused and logins_refused[0]:
+                return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
+            password = json.loads(request.content)["password"]
+            granted = f"cookie-{password}-{sum(r.url.path == '/api/auth/login' for r in seen)}"
+            accepted_cookies.add(granted)
+            return httpx.Response(204, headers={"set-cookie": f"sentry_session={granted}; Path=/"})
+        cookie = request.headers.get("Cookie", "").removeprefix("sentry_session=")
+        if cookie not in accepted_cookies:
+            return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
+        return httpx.Response(200, json={"ok": True})
+
+    return handler
+
+
+def _paths(seen: list[httpx.Request]) -> list[str]:
+    return [request.url.path for request in seen]
+
+
+async def test_a_new_client_for_the_same_host_reuses_the_session(monkeypatch):
+    """The live bug: the fleet poller builds a client per poll, and a cookie kept
+    on the instance meant every poll went 401 → sign in → retry."""
+    seen: list[httpx.Request] = []
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
+
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status", "/api/status"]
+    assert seen[-1].headers["Cookie"] == "sentry_session=cookie-console-password-1"
+
+
+async def test_a_different_password_never_presents_another_passwords_session(monkeypatch):
+    """A host edited to a new password must prove the new one, not ride the old session."""
+    seen: list[httpx.Request] = []
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
+
+    await SentryClient("10.0.0.5", 8000, "old-password").get_status()
+    seen.clear()
+    await SentryClient("10.0.0.5", 8000, "new-password").get_status()
+
+    assert "Cookie" not in seen[0].headers
+    assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status"]
+
+
+@pytest.mark.parametrize(("address", "port"), [("10.0.0.6", 8000), ("10.0.0.5", 8001)])
+async def test_another_host_never_receives_this_hosts_session(monkeypatch, address, port):
+    """Sessions are per Sentry: a cookie must never be sent to a different address or port."""
+    seen: list[httpx.Request] = []
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
+
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    seen.clear()
+    await SentryClient(address, port, "console-password").get_status()
+
+    assert "Cookie" not in seen[0].headers
+
+
+async def test_a_lapsed_session_is_replaced_by_the_next_sign_in(monkeypatch):
+    """Sentry drops sessions (expiry, a password change); the next client signs in
+    again and every later client uses the replacement."""
+    seen: list[httpx.Request] = []
+    accepted_cookies: set[str] = set()
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, accepted_cookies))
+
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    accepted_cookies.clear()  # Sentry forgets the session
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    seen.clear()
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    assert _paths(seen) == ["/api/status"]
+    assert seen[0].headers["Cookie"] == "sentry_session=cookie-console-password-2"
+
+
+async def test_a_refused_session_is_forgotten_when_the_sign_in_fails(monkeypatch):
+    """A session Sentry refused is never presented again, even if the new sign-in fails."""
+    seen: list[httpx.Request] = []
+    accepted_cookies: set[str] = set()
+    logins_refused = [False]
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, accepted_cookies, logins_refused))
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    accepted_cookies.clear()
+    logins_refused[0] = True
+    with pytest.raises(SentryApiError):
+        await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    seen.clear()
+    with pytest.raises(SentryApiError):
+        await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    assert "Cookie" not in seen[0].headers
+
+
+def _refusing_sentry(seen: list[httpx.Request], login_reply):
+    """A Sentry that refuses `stale-cookie` and answers login with `login_reply()`."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/api/auth/login":
+            return login_reply(request)
+        return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
+
+    return handler
+
+
+def _remember_stale_session(address: str = "10.0.0.5", port: int = 8000, password: str = "console-password"):
+    from backend.radio_hub.services import sentry_client
+
+    key = SentryClient(address, port, password)._session_key
+    sentry_client._session_cookies[key] = "stale-cookie"
+
+
+def _unreachable_login(request: httpx.Request) -> httpx.Response:
+    raise httpx.ConnectError("simulated")
+
+
+def _login_without_cookie(request: httpx.Request) -> httpx.Response:
+    return httpx.Response(204)
+
+
+@pytest.mark.parametrize(
+    ("password", "login_reply", "expected_paths"),
+    [
+        pytest.param("", _login_without_cookie, ["/api/status"], id="no-password"),
+        pytest.param(
+            "console-password",
+            _unreachable_login,
+            ["/api/status", "/api/auth/login"],
+            id="login-unreachable",
+        ),
+        pytest.param(
+            "console-password",
+            _login_without_cookie,
+            ["/api/status", "/api/auth/login"],
+            id="login-without-cookie",
+        ),
+    ],
+)
+async def test_a_sign_in_that_cannot_complete_still_drops_the_refused_session(
+    monkeypatch, password, login_reply, expected_paths
+):
+    """Every way the sign-in can fail leaves no session behind, so the next call
+    starts clean rather than presenting a cookie Sentry already refused — and a
+    failed sign-in is never followed by a retry of the request."""
+    seen: list[httpx.Request] = []
+    _install_mock_transport(monkeypatch, _refusing_sentry(seen, login_reply))
+    _remember_stale_session(password=password)
+
+    with pytest.raises(SentryApiError) as raised:
+        await SentryClient("10.0.0.5", 8000, password).get_status()
+
+    assert raised.value.status_code == 401
+    assert seen[0].headers["Cookie"] == "sentry_session=stale-cookie"
+    seen.clear()
+    with pytest.raises(SentryApiError):
+        await SentryClient("10.0.0.5", 8000, password).get_status()
+    assert "Cookie" not in seen[0].headers
+    assert _paths(seen) == expected_paths
+
+
+async def test_forget_sentry_sessions_drops_every_remembered_session(monkeypatch):
+    seen: list[httpx.Request] = []
+    _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    forget_sentry_sessions()
+    seen.clear()
+    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+
+    assert "Cookie" not in seen[0].headers
+    assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status"]
 
 
 # ── endpoint → HTTP method/path/body wiring ───────────────────────────────────

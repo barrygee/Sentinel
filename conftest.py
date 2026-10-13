@@ -67,6 +67,17 @@ def core_is_up(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_remembered_sentry_sessions():
+    """Sentry session cookies are kept per process, so one test's sign-in would
+    otherwise carry into the next and change which requests it makes."""
+    from backend.radio_hub.services.sentry_client import forget_sentry_sessions
+
+    forget_sentry_sessions()
+    yield
+    forget_sentry_sessions()
+
+
+@pytest.fixture(autouse=True)
 def isolate_sdr_data_files(tmp_path, monkeypatch):
     """Keep tests from clobbering the committed SDR seed files.
 
