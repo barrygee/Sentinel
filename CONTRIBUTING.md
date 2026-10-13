@@ -128,15 +128,15 @@ it does not run the full test suites or typecheck — do that yourself.
 ### Backend (Python)
 
 ```bash
-uv run --project backend ruff check backend         # lint (gating)
-uv run --project backend ruff format --check backend # format check (gating)
+uv run --project backend ruff check backend services/sections         # lint (gating)
+uv run --project backend ruff format --check backend services/sections # format check (gating)
 PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml   # section boundaries (gating)
 uv run --project backend pytest                      # tests
 ```
 
 - **`ruff format` is the single source of Python formatting truth** (adopted in
   the linting retrofit — see [`cliff.toml`](cliff.toml) / `backend/pyproject.toml`
-  `[tool.ruff.format]`). CI runs `ruff format --check`; run `ruff format backend`
+  `[tool.ruff.format]`). CI runs `ruff format --check`; run `ruff format backend services/sections`
   to auto-fix. The ruff *lint* ruleset is intentionally conservative (`E,F,I,UP,B`).
 - **import-linter keeps the sections apart**: core and the platform may import
   no section, and no section may import another (contracts in
