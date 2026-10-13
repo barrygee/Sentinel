@@ -1,4 +1,4 @@
-"""Characterization tests for backend.services.satellite.
+"""Characterization tests for sentinel_space.services.satellite.
 
 Pin the *structural* invariants of the SGP4-driven functions so that Phase 2D
 (service-layer dedup) can't silently change orbital math. compute_position
@@ -12,15 +12,13 @@ compute_footprint is time-independent, so its output is pinned exactly.
 
 from __future__ import annotations
 
-import math
 import pytest
 
-from backend.services.satellite import (
+from sentinel_space.services.satellite import (
     compute_footprint,
     compute_ground_track,
     compute_position,
 )
-
 
 # A well-known TLE: ISS (ZARYA) from Celestrak, captured 2024-02-15. Old enough
 # that SGP4 may report propagation errors when run far from epoch — that's OK:

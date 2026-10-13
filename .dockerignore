@@ -16,3 +16,7 @@ node_modules
 **/node_modules
 **/coverage
 frontend/assets/tiles/
+**/.ruff_cache
+**/.pytest_cache
+**/.mypy_cache
+services/sections/*/backend/tests

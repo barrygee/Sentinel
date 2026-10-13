@@ -119,8 +119,9 @@ async def replace_radio_map(db: AsyncSession, new_map: dict[str, Any]) -> dict[s
     Normalises NORAD IDs to unpadded strings, cleans each entry, persists the
     whole map to the store, applies it onto the catalogue display columns, and
     writes the file back. Returns the cleaned map."""
-    from backend.models import SatelliteCatalogue  # avoid circular import
     from sqlalchemy import select
+
+    from sentinel_space.models import SatelliteCatalogue  # avoid circular import
 
     cleaned: dict[str, dict[str, Any]] = {}
     for nid, entry in (new_map or {}).items():

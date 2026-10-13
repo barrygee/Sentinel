@@ -1,7 +1,7 @@
 {
     "tests/**/*.ts": ["eslint --fix", "prettier --write"],
     "*.{js,ts}": ["prettier --write"],
-    "backend/**/*.py": [
+    "{backend,services/sections}/**/*.py": [
         "uv run --project backend ruff check --fix",
         "uv run --project backend ruff format"
     ]

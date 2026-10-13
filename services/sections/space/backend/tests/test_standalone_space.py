@@ -1,18 +1,19 @@
-"""The Space section as its own service (backend/standalone/space.py, P6.1):
+"""The Space section as its own service (sentinel_space.service, P6.1):
 its schema, its first-boot work, and the app it serves."""
 
 import importlib
 import sys
 
 import pytest
+from backend import database
+from backend.config import settings
+from backend.platform import settings_client
 from sqlalchemy import inspect
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from backend import database
-from backend.config import settings
-from backend.platform import settings_client
+from sentinel_space import database as space_database
 
 
 @pytest.fixture
@@ -40,12 +41,12 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 class TestCreateSpaceTables:
     async def test_creates_only_the_space_tables(self, space_engine):
-        await database.create_space_tables()
+        await space_database.create_space_tables()
 
         assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, space_engine):
-        await database.create_space_tables()
+        await space_database.create_space_tables()
         space_schema = await table_columns(space_engine)
 
         monolith = create_async_engine(
@@ -58,23 +59,21 @@ class TestCreateSpaceTables:
         finally:
             await monolith.dispose()
 
-        for table in database.SPACE_TABLES:
+        for table in space_database.SPACE_TABLES:
             assert space_schema[table] == monolith_schema[table]
 
     async def test_adds_the_later_columns_to_an_old_catalogue(self, space_engine):
         async with space_engine.begin() as connection:
-            await connection.execute(
-                sa_text("CREATE TABLE satellite_catalogue (norad_id TEXT PRIMARY KEY, name TEXT)")
-            )
+            await connection.execute(sa_text("CREATE TABLE satellite_catalogue (norad_id TEXT PRIMARY KEY, name TEXT)"))
 
-        await database.create_space_tables()
+        await space_database.create_space_tables()
 
         columns = (await table_columns(space_engine))["satellite_catalogue"]
         assert {"name_source", "uplink_hz", "downlink_hz", "radio_notes"} <= columns
 
     async def test_is_idempotent(self, space_engine):
-        await database.create_space_tables()
-        await database.create_space_tables()
+        await space_database.create_space_tables()
+        await space_database.create_space_tables()
 
         assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
 
@@ -100,7 +99,7 @@ class TestBackfillSatelliteRadioStore:
 
     @pytest.fixture
     def radio_file(self, monkeypatch):
-        from backend.services import sat_radio
+        from sentinel_space.services import sat_radio
 
         file_map: dict = {}
         monkeypatch.setattr(sat_radio, "load_radio_file", lambda: file_map)
@@ -109,12 +108,12 @@ class TestBackfillSatelliteRadioStore:
     async def test_seeds_an_unset_store_from_the_file(self, store, radio_file):
         radio_file["25544"] = {"downlink_hz": 145800000}
 
-        await database.backfill_satellite_radio_store()
+        await space_database.backfill_satellite_radio_store()
 
         assert store["writes"] == [("space", "satelliteRadio", {"25544": {"downlink_hz": 145800000}})]
 
     async def test_seeds_an_unset_store_even_from_an_empty_file(self, store, radio_file):
-        await database.backfill_satellite_radio_store()
+        await space_database.backfill_satellite_radio_store()
 
         assert store["writes"] == [("space", "satelliteRadio", {})]
 
@@ -122,7 +121,7 @@ class TestBackfillSatelliteRadioStore:
         radio_file["25544"] = {"downlink_hz": 145800000}
         store["value"] = {"25544": {"downlink_hz": 145800000}}
 
-        await database.backfill_satellite_radio_store()
+        await space_database.backfill_satellite_radio_store()
 
         assert store["writes"] == []
 
@@ -130,7 +129,7 @@ class TestBackfillSatelliteRadioStore:
         radio_file["25544"] = {"downlink_hz": 145800000}
         store["value"] = {"25544": {"downlink_hz": 1}, "40069": {"beacon_hz": 137100000}}
 
-        await database.backfill_satellite_radio_store()
+        await space_database.backfill_satellite_radio_store()
 
         assert store["writes"] == [
             (
@@ -144,20 +143,20 @@ class TestBackfillSatelliteRadioStore:
         radio_file["25544"] = {"downlink_hz": 145800000}
         store["value"] = ["not", "a", "map"]
 
-        await database.backfill_satellite_radio_store()
+        await space_database.backfill_satellite_radio_store()
 
         assert store["writes"] == [("space", "satelliteRadio", {"25544": {"downlink_hz": 145800000}})]
 
 
 @pytest.fixture
 def space_service(monkeypatch):
-    """`backend.standalone.space`, imported fresh with a service's environment."""
+    """`sentinel_space.service`, imported fresh with a service's environment."""
     monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
     monkeypatch.setattr(settings, "service_internal_url", "http://space:8000")
-    monkeypatch.delitem(sys.modules, "backend.standalone.space", raising=False)
-    module = importlib.import_module("backend.standalone.space")
+    monkeypatch.delitem(sys.modules, "sentinel_space.service", raising=False)
+    module = importlib.import_module("sentinel_space.service")
     yield module
-    sys.modules.pop("backend.standalone.space", None)
+    sys.modules.pop("sentinel_space.service", None)
 
 
 class TestSpaceServiceApp:
@@ -165,11 +164,11 @@ class TestSpaceServiceApp:
         from backend.platform.sdk import ServiceMisconfigured
 
         monkeypatch.setattr(settings, "sentinel_core_url", "")
-        monkeypatch.delitem(sys.modules, "backend.standalone.space", raising=False)
+        monkeypatch.delitem(sys.modules, "sentinel_space.service", raising=False)
 
         with pytest.raises(ServiceMisconfigured):
-            importlib.import_module("backend.standalone.space")
-        sys.modules.pop("backend.standalone.space", None)
+            importlib.import_module("sentinel_space.service")
+        sys.modules.pop("sentinel_space.service", None)
 
     def test_serves_the_space_api_and_its_remote(self, space_service):
         paths = {getattr(route, "path", "") for route in space_service.app.routes}

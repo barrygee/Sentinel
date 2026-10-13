@@ -29,7 +29,8 @@ from backend.radio_hub.routers import (
     radios,
     sentry,
 )
-from backend.routers import adsb_source, air, land, offline_map, sdr, sea, space
+from backend.routers import adsb_source, air, land, offline_map, sdr, sea
+from sentinel_space import router as space
 from backend.routers import settings as settings_router
 
 # Everything in route-matching order when every service is hosted here.

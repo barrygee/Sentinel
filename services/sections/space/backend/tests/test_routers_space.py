@@ -143,7 +143,7 @@ class TestDomainUrlsReachFetchTle:
 
     def _capture_fetch_tle_urls(self, monkeypatch) -> list[tuple]:
         """Stub resolve_domain_urls + fetch_tle; return the list capturing URL args."""
-        from backend.routers import space as space_router
+        from sentinel_space import router as space_router
 
         captured: list[tuple] = []
 
@@ -159,7 +159,7 @@ class TestDomainUrlsReachFetchTle:
         return captured
 
     def test_satellite_position_passes_both_urls(self, client, monkeypatch):
-        from backend.routers import space as space_router
+        from sentinel_space import router as space_router
 
         captured = self._capture_fetch_tle_urls(monkeypatch)
         # Bypass the empty-database guard so the request reaches fetch_tle.
@@ -173,18 +173,15 @@ class TestDomainUrlsReachFetchTle:
     def test_satellite_passes_endpoint_passes_both_urls(self, client, monkeypatch):
         captured = self._capture_fetch_tle_urls(monkeypatch)
 
-        resp = client.get(
-            "/api/space/satellite/43013/passes", params={"lat": 51.5, "lon": 0.0}
-        )
+        resp = client.get("/api/space/satellite/43013/passes", params={"lat": 51.5, "lon": 0.0})
 
         assert resp.status_code == 200
         assert captured == [(self.PRIMARY_URL, self.FALLBACK_URL)]
 
-    def test_multi_satellite_passes_endpoint_passes_both_urls(
-        self, client, monkeypatch
-    ):
+    def test_multi_satellite_passes_endpoint_passes_both_urls(self, client, monkeypatch):
         from backend.database import get_db
-        from backend.models import SatelliteCatalogue
+
+        from sentinel_space.models import SatelliteCatalogue
 
         captured = self._capture_fetch_tle_urls(monkeypatch)
 

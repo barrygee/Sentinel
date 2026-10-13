@@ -18,11 +18,12 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
-from backend.models import SatelliteCatalogue, TleCache
-from backend.services import sat_radio
 from sgp4.api import Satrec
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_space.models import SatelliteCatalogue, TleCache
+from sentinel_space.services import sat_radio
 
 # Well-known NORAD IDs → (category, category_source) for auto-classification
 # when a satellite is fetched individually rather than via a categorised group feed.

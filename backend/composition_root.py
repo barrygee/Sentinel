@@ -94,7 +94,7 @@ def api_routers() -> list[APIRouter]:
     # Core notifications keep their /api/air/messages paths (B5).
     routers.append(notifications_router.router)
     if hosts_in_process("space"):
-        from backend.routers import space
+        from sentinel_space import router as space
 
         routers.append(space.router)
     if hosts_in_process("land"):

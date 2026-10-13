@@ -19,9 +19,10 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import air, core, land, radio_hub, sdr, sea, space
+from backend.modules import air, core, land, radio_hub, sdr, sea
 from backend.platform.bus import bus as process_bus
 from backend.services.ais_stream import reader as ais_reader
+from sentinel_space import module as space
 
 
 def recorder(calls: list[str], name: str, *, is_async: bool = True) -> Any:
@@ -281,10 +282,15 @@ class TestSdrIqCaptureReconcile:
 
 
 class TestSpaceModule:
-    def test_prepare_backfills_the_satellite_radio_store(self):
-        from backend.database import backfill_satellite_radio_store
+    async def test_prepare_creates_its_tables_then_backfills_the_radio_store(self, monkeypatch):
+        # Core no longer creates Space's tables, so in-process Space must.
+        calls: list[str] = []
+        monkeypatch.setattr(space, "create_space_tables", recorder(calls, "tables"))
+        monkeypatch.setattr(space, "backfill_satellite_radio_store", recorder(calls, "backfill"))
 
-        assert space.lifecycle.prepare is backfill_satellite_radio_store
+        await space.lifecycle.prepare()
+
+        assert calls == ["tables", "backfill"]
 
 
 class TestRadioHubModule:
