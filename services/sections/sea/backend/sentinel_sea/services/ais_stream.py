@@ -3,7 +3,7 @@
 AISStream (https://aisstream.io) pushes AIS messages over a WebSocket, needs a
 private API key and allows **one connection per key**, so this module keeps a
 single long-lived socket per backend process and fans the result out through
-:mod:`backend.services.ais_store` to the Sea router's snapshot endpoints.
+:mod:`sentinel_sea.services.ais_store` to the Sea router's snapshot endpoints.
 
 The connection is driven by a watchdog rather than a naive reconnect loop:
 
@@ -36,8 +36,9 @@ from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.platform.settings_client import read_secret
-from backend.services.ais_store import AisVesselStore, store
 from backend.utils import domain_settings_map, domain_urls_of, effective_mode_of
+
+from sentinel_sea.services.ais_store import AisVesselStore, store
 
 logger = logging.getLogger(__name__)
 

@@ -88,6 +88,7 @@ _MOVED_MODULES: dict[str, str] = {
     "space": "sentinel_space.module",
     "land": "sentinel_land.module",
     "air": "sentinel_air.module",
+    "sea": "sentinel_sea.module",
 }
 
 
@@ -119,7 +120,7 @@ def __getattr__(name: str) -> tuple[ModuleLifecycle, ...] | tuple[ServiceManifes
     """`MODULES` and `MANIFESTS`, composed on first use rather than at import (PEP 562).
 
     A standalone section service imports its own module from this package
-    (`backend.modules.sea`), which runs this file. Composing eagerly would then
+    (`sentinel_sea.module`), which runs this file. Composing eagerly would then
     import every other hosted module too — the radio hub's bus responders and
     the other sections' subscribers among them — so the service would answer
     `hub.*` requests itself, against its own database, instead of sending them

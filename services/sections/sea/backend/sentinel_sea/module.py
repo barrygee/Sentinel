@@ -1,4 +1,4 @@
-"""Sea section lifecycle: the AISStream reader, its warm-start snapshot, and the off-grid AIS receiver."""
+"""Sea section lifecycle: its own tables, the AISStream reader and its warm-start snapshot, the off-grid AIS receiver."""
 
 import asyncio
 import contextlib
@@ -6,8 +6,10 @@ import logging
 
 from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.services import sea_ais_receiver
-from backend.services.ais_stream import reader as ais_reader
+
+from sentinel_sea.database import create_sea_tables
+from sentinel_sea.services import sea_ais_receiver
+from sentinel_sea.services.ais_stream import reader as ais_reader
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +52,7 @@ async def _stop() -> None:
     await ais_reader.stop()
 
 
-lifecycle = ModuleLifecycle(name="sea", start=_start, stop=_stop, wake=ais_reader.wake)
+# Core no longer creates Sea's tables, so in-process Sea creates them itself.
+lifecycle = ModuleLifecycle(name="sea", prepare=create_sea_tables, start=_start, stop=_stop, wake=ais_reader.wake)
 
 manifest = section_manifest("sea", display_name="SEA", nav_order=30, routes=["/api/sea/"])

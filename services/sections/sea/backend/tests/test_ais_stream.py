@@ -1,5 +1,5 @@
 """
-tests/backend/test_ais_stream.py
+services/sections/sea/backend/tests/test_ais_stream.py
 
 The AISStream reader and its watchdog, driven with an injected clock and a
 fake socket so every state — disabled, no source, unsupported source, missing
@@ -11,14 +11,14 @@ import asyncio
 import json
 
 import pytest
+from backend.config import settings
+from backend.db_helpers import upsert_setting
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.config import settings
-from backend.db_helpers import upsert_setting
-from backend.services import ais_stream
-from backend.services.ais_store import AisVesselStore
-from backend.services.ais_stream import (
+from sentinel_sea.services import ais_stream
+from sentinel_sea.services.ais_store import AisVesselStore
+from sentinel_sea.services.ais_stream import (
     AisStreamAuthError,
     AisStreamReader,
     classify_error_text,
@@ -120,12 +120,8 @@ async def settle():
 
 
 def test_validate_bounding_boxes():
-    assert validate_bounding_boxes([[[-90, -180], [90, 180]]]) == [
-        [[-90.0, -180.0], [90.0, 180.0]]
-    ]
-    assert validate_bounding_boxes([[["1", "2"], ["3", "4"]]]) == [
-        [[1.0, 2.0], [3.0, 4.0]]
-    ]
+    assert validate_bounding_boxes([[[-90, -180], [90, 180]]]) == [[[-90.0, -180.0], [90.0, 180.0]]]
+    assert validate_bounding_boxes([[["1", "2"], ["3", "4"]]]) == [[[1.0, 2.0], [3.0, 4.0]]]
     for bad in (
         None,
         "x",
@@ -147,9 +143,7 @@ def test_classify_error_text_and_fingerprint():
     assert classify_error_text("Too many connections") == "rate"
     assert classify_error_text("kaboom") == "transport"
     assert key_fingerprint("") is None
-    assert (
-        key_fingerprint(KEY) == key_fingerprint(KEY) and len(key_fingerprint(KEY)) == 12
-    )
+    assert key_fingerprint(KEY) == key_fingerprint(KEY) and len(key_fingerprint(KEY)) == 12
     assert key_fingerprint(KEY) != key_fingerprint("other-key-000000")
 
 
@@ -167,9 +161,7 @@ class TestGateStates:
         connect = _never_connect()
         reader, _ = make_reader(live_config(mode="no-source", url=None), connect)
         assert await reader.ensure() == "no-source"
-        reader, _ = make_reader(
-            live_config(mode="unsupported-source", url="tcp://x:1"), connect
-        )
+        reader, _ = make_reader(live_config(mode="unsupported-source", url="tcp://x:1"), connect)
         assert await reader.ensure() == "unsupported-source"
         assert "tcp://x:1" in reader.error
         assert connect.calls == 0
@@ -186,9 +178,7 @@ class TestGateStates:
 
         reader.store.switch_source = record
         await reader.ensure()
-        reader._read_config = _config_returning(
-            live_config(enabled=False, source_mode="offgrid")
-        )
+        reader._read_config = _config_returning(live_config(enabled=False, source_mode="offgrid"))
         await reader.ensure()
         assert seen == ["online", "offgrid"]
 
@@ -198,11 +188,7 @@ class TestGateStates:
         assert await reader.ensure() == "missing-key"
         assert "AISSTREAM_API_KEY" in reader.error
         snapshot = reader.snapshot()
-        assert (
-            snapshot["status"] == "missing-key"
-            and snapshot["vesselCount"] == 0
-            and snapshot["silentForMs"] is None
-        )
+        assert snapshot["status"] == "missing-key" and snapshot["vesselCount"] == 0 and snapshot["silentForMs"] is None
 
 
 def _never_connect():
@@ -254,23 +240,17 @@ class TestLive:
         assert reader.next_attempt_at == clock.now + settings.sea_ais_backoff_ms[0]
 
     async def test_non_auth_error_envelope_is_logged_not_fatal(self):
-        socket = FakeSocket(
-            [json.dumps({"error": "rate limited, too many"}), json.dumps(position())]
-        )
+        socket = FakeSocket([json.dumps({"error": "rate limited, too many"}), json.dumps(position())])
         reader, _ = make_reader(live_config(), lambda url: _resolved(socket))
         await reader.ensure()
         await settle()
         assert reader.status == "live" and len(reader.store) == 1
         await reader.stop()
 
-    async def test_stop_persists_and_wake_cancels(
-        self, test_engine, db_setup, monkeypatch
-    ):
-        from backend.services import ais_store as store_module
+    async def test_stop_persists_and_wake_cancels(self, test_engine, db_setup, monkeypatch):
+        from sentinel_sea.services import ais_store as store_module
 
-        factory = sessionmaker(
-            bind=test_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
         monkeypatch.setattr(store_module, "AsyncSessionLocal", factory)
         socket = FakeSocket([])
         reader, _ = make_reader(live_config(), lambda url: _resolved(socket))
@@ -317,10 +297,7 @@ class TestFailures:
         reader, clock = make_reader(config, connect)
         await reader.ensure()
         await settle()
-        assert (
-            reader.status == "auth-failed"
-            and reader.auth_failed_fingerprint == key_fingerprint(KEY)
-        )
+        assert reader.status == "auth-failed" and reader.auth_failed_fingerprint == key_fingerprint(KEY)
         assert reader.next_attempt_at == clock.now + settings.sea_ais_auth_probe_ms
         # Ticks inside the probe window do not reconnect.
         clock.advance(1_000)
@@ -399,9 +376,7 @@ class TestSilence:
         clock.advance(settings.sea_ais_silence_report_ms)
         assert await reader.ensure() == "stale"
         assert "no AIS traffic" in reader.error
-        recycle_after = int(
-            settings.sea_ais_silence_report_ms * settings.sea_ais_recycle_ratio
-        )
+        recycle_after = int(settings.sea_ais_silence_report_ms * settings.sea_ais_recycle_ratio)
         clock.advance(recycle_after - settings.sea_ais_silence_report_ms)
         assert await reader.ensure() == "reconnecting"
         hang.set()
@@ -422,9 +397,7 @@ class TestSilence:
 
     async def test_subscription_change_recycles_the_socket(self):
         reader, clock, socket, hang = await self._live_reader()
-        reader._read_config = _config_returning(
-            live_config(bounding_boxes=[[[50, 0], [52, 2]]])
-        )
+        reader._read_config = _config_returning(live_config(bounding_boxes=[[[50, 0], [52, 2]]]))
         hang.set()
         status = await reader.ensure()
         assert status == "connecting"
@@ -433,9 +406,7 @@ class TestSilence:
 
     async def test_silence_without_any_reference_time_is_ignored(self):
         reader, _ = make_reader(live_config(), lambda url: _resolved(FakeSocket([])))
-        reader._socket_task = (
-            asyncio.get_event_loop().create_future()
-        )  # "running", never connected
+        reader._socket_task = asyncio.get_event_loop().create_future()  # "running", never connected
         reader._subscription_fingerprint = None
         # A pending never-connected task with a matching subscription is left alone.
         reader._evaluate_silence(T0)
@@ -456,9 +427,7 @@ def _config_returning(config):
 class TestReadConfig:
     @pytest.fixture(autouse=True)
     def _db(self, test_engine, db_setup, monkeypatch):
-        factory = sessionmaker(
-            bind=test_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
         monkeypatch.setattr(ais_stream, "AsyncSessionLocal", factory)
         self.factory = factory
 
@@ -467,9 +436,7 @@ class TestReadConfig:
         reader = AisStreamReader(AisVesselStore())
         config = await reader._read_config()
         assert config["enabled"] is False
-        assert (
-            config["mode"] == "aisstream" and config["url"] == settings.aisstream_ws_url
-        )
+        assert config["mode"] == "aisstream" and config["url"] == settings.aisstream_ws_url
         assert config["api_key"] == "env-key-0000000"
         assert config["bounding_boxes"] == ais_stream.WORLD_BOUNDING_BOXES
         assert config["source_mode"] == "online"
@@ -481,19 +448,14 @@ class TestReadConfig:
             await upsert_setting(db, "sea", "aisstreamApiKey", "  saved-key-000000 ")
             await upsert_setting(db, "sea", "aisBoundingBoxes", [[[50, 0], [52, 2]]])
             await upsert_setting(db, "sea", "sourceOverride", "offgrid")
-            await upsert_setting(
-                db, "sea", "offgridSource", {"url": "tcp://sentry:10110"}
-            )
+            await upsert_setting(db, "sea", "offgridSource", {"url": "tcp://sentry:10110"})
         reader = AisStreamReader(AisVesselStore())
         config = await reader._read_config()
         assert config["enabled"] is True
         assert config["api_key"] == "saved-key-000000"
         assert config["bounding_boxes"] == [[[50.0, 0.0], [52.0, 2.0]]]
         assert config["source_mode"] == "offgrid"
-        assert (
-            config["mode"] == "unsupported-source"
-            and config["url"] == "tcp://sentry:10110"
-        )
+        assert config["mode"] == "unsupported-source" and config["url"] == "tcp://sentry:10110"
 
     async def test_offgrid_without_source_is_no_source(self):
         async with self.factory() as db:

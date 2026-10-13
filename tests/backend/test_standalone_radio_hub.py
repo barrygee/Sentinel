@@ -538,12 +538,8 @@ class TestWhatTheHubServiceLoads:
         assert not [module for module in loaded if module.startswith("backend.routers.")]
         # No moved section's package either.
         assert not [module for module in loaded if module.startswith("sentinel_")]
-        # No section's services: no AIS vessel store, no SDR data (Land's and Air's are packages, above).
-        assert not {
-            "backend.services.ais_decode",
-            "backend.services.ais_store",
-            "backend.services.sdr_data",
-        } & set(loaded)
+        # No section's services: no SDR data (Land's, Air's and Sea's are packages, above).
+        assert "backend.services.sdr_data" not in loaded
 
     def test_answers_every_hub_request_itself(self):
         patterns = set(probe_fresh_interpreter(BUS_PATTERNS_PROBE))

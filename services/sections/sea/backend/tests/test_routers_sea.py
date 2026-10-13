@@ -1,5 +1,5 @@
 """
-tests/backend/test_routers_sea.py
+services/sections/sea/backend/tests/test_routers_sea.py
 
 The Sea HTTP surface:
 
@@ -17,12 +17,12 @@ import io
 import json
 
 import pytest
+from backend import database as backend_database
+from backend.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend import database as backend_database
-from backend.config import settings
-from backend.services import ais_store, ais_stream
+from sentinel_sea.services import ais_store, ais_stream
 
 KEY = "abcdefgh12345678"
 
@@ -40,7 +40,7 @@ def _fresh_store(monkeypatch):
 
     reader.ensure = ensure
     monkeypatch.setattr(ais_stream, "reader", reader)
-    from backend.routers import sea as sea_router
+    from sentinel_sea import router as sea_router
 
     monkeypatch.setattr(sea_router, "reader", reader)
     monkeypatch.setattr(settings, "aisstream_api_key", "")
@@ -86,27 +86,17 @@ class TestVessels:
         _ingest(_fresh_store, mmsi="232000001", lat=51, lon=1, at=1)
         _ingest(_fresh_store, mmsi="232000002", lat=52, lon=1, at=2)
         _ingest(_fresh_store, mmsi="232000003", lat=60, lon=1, at=3)
-        body = client.get(
-            "/api/sea/vessels", params={"bbox": "50,0,53,2", "max_rows": 1}
-        ).json()
+        body = client.get("/api/sea/vessels", params={"bbox": "50,0,53,2", "max_rows": 1}).json()
         assert [row["mmsi"] for row in body["vessels"]] == ["232000002"]
-        assert (
-            client.get("/api/sea/vessels", params={"bbox": " "}).json()["vessels"]
-            is not None
-        )
+        assert client.get("/api/sea/vessels", params={"bbox": " "}).json()["vessels"] is not None
 
-    @pytest.mark.parametrize(
-        "bbox", ["1,2,3", "a,b,c,d", "95,0,96,1", "10,0,5,1", "0,-181,1,0"]
-    )
+    @pytest.mark.parametrize("bbox", ["1,2,3", "a,b,c,d", "95,0,96,1", "10,0,5,1", "0,-181,1,0"])
     def test_malformed_bbox_is_400(self, client, bbox):
         assert client.get("/api/sea/vessels", params={"bbox": bbox}).status_code == 400
 
     @pytest.mark.parametrize("max_rows", [0, 50_001, "x"])
     def test_max_rows_out_of_range_is_422(self, client, max_rows):
-        assert (
-            client.get("/api/sea/vessels", params={"max_rows": max_rows}).status_code
-            == 422
-        )
+        assert client.get("/api/sea/vessels", params={"max_rows": max_rows}).status_code == 422
 
 
 # ── /vessels/{mmsi}/track ─────────────────────────────────────────────────────
@@ -157,25 +147,17 @@ class TestAisKey:
     def test_save_forget_round_trip(self, client, monkeypatch):
         monkeypatch.setattr(settings, "aisstream_api_key", KEY)
         saved = client.put("/api/sea/ais-key", json={"key": f"  {KEY}x  "})
-        assert saved.status_code == 200 and saved.json()[
-            "fingerprint"
-        ] == ais_stream.key_fingerprint(f"{KEY}x")
+        assert saved.status_code == 200 and saved.json()["fingerprint"] == ais_stream.key_fingerprint(f"{KEY}x")
         body = client.get("/api/sea/ais-key").json()
-        assert body["source"] == "settings" and body[
-            "fingerprint"
-        ] == ais_stream.key_fingerprint(f"{KEY}x")
+        assert body["source"] == "settings" and body["fingerprint"] == ais_stream.key_fingerprint(f"{KEY}x")
         # The generic settings API never shows it.
         assert "aisstreamApiKey" not in client.get("/api/settings/sea").json()
-        assert "aisstreamApiKey" not in client.get("/api/settings").json().get(
-            "sea", {}
-        )
+        assert "aisstreamApiKey" not in client.get("/api/settings").json().get("sea", {})
         assert client.delete("/api/sea/ais-key").status_code == 200
         assert client.get("/api/sea/ais-key").json()["source"] == "env"
         assert client.delete("/api/sea/ais-key").status_code == 200  # idempotent
 
-    @pytest.mark.parametrize(
-        "key", ["short", "x" * 129, "has spaces here", "bad$chars!!!"]
-    )
+    @pytest.mark.parametrize("key", ["short", "x" * 129, "has spaces here", "bad$chars!!!"])
     def test_invalid_keys_are_rejected(self, client, key):
         assert client.put("/api/sea/ais-key", json={"key": key}).status_code == 422
         assert client.get("/api/sea/ais-key").json()["configured"] is False
@@ -207,9 +189,7 @@ class TestAisKey:
 
 
 async def test_seeder_keeps_the_sea_source_keys(test_engine, db_setup, monkeypatch):
-    factory = sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(backend_database, "AsyncSessionLocal", factory)
     await backend_database.seed_default_settings()
     await backend_database.seed_default_settings()  # a restart must not purge them
@@ -218,9 +198,7 @@ async def test_seeder_keeps_the_sea_source_keys(test_engine, db_setup, monkeypat
     async with factory() as db:
         assert await get_setting(db, "sea", "onlineUrl") == settings.aisstream_ws_url
         assert await get_setting(db, "sea", "offgridSource") == {"url": ""}
-        assert await get_setting(db, "sea", "aisBoundingBoxes") == [
-            [[-90, -180], [90, 180]]
-        ]
+        assert await get_setting(db, "sea", "aisBoundingBoxes") == [[[-90, -180], [90, 180]]]
 
 
 # ── Off-grid source (SDR AIS decode) ──────────────────────────────────────────
@@ -270,7 +248,7 @@ class TestOffgridFeedSelection:
         assert body["mode"] == "online"
 
     def test_offgrid_never_touches_the_aisstream_reader(self, client, monkeypatch):
-        from backend.routers import sea as sea_router
+        from sentinel_sea import router as sea_router
 
         called = {"ensure": 0}
 
@@ -288,7 +266,7 @@ class TestOffgridFeedSelection:
     def test_online_mode_does_nudge_the_reader(self, client, monkeypatch):
         # The mirror of the test above: when online, the snapshot must still
         # wake the watchdog so a reconnect doesn't wait for the background tick.
-        from backend.routers import sea as sea_router
+        from sentinel_sea import router as sea_router
 
         called = {"ensure": 0}
 
@@ -300,9 +278,7 @@ class TestOffgridFeedSelection:
         client.get("/api/sea/vessels")
         assert called["ensure"] == 1
 
-    def test_switching_source_drops_the_previous_vessels(
-        self, client, test_engine, monkeypatch, _fresh_store
-    ):
+    def test_switching_source_drops_the_previous_vessels(self, client, test_engine, monkeypatch, _fresh_store):
         # The first poll after going off grid must not serve AISStream vessels
         # as if the radio had heard them — and going back online must not keep
         # the radio's either.
@@ -388,7 +364,7 @@ class TestOffgridFeedSelection:
     def test_a_sea_source_override_beats_the_global_mode(self, client, monkeypatch):
         # Global online, but SEA pinned off grid: the domain override wins, so
         # the reader must still not be dialled.
-        from backend.routers import sea as sea_router
+        from sentinel_sea import router as sea_router
 
         called = {"ensure": 0}
 

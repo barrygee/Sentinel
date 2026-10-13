@@ -1,4 +1,4 @@
-"""The Sea section as its own service (backend/standalone/sea.py, P6.4): its
+"""The Sea section as its own service (`sentinel_sea.service`, P6.4): its
 schema, its first-boot work, the app it serves, what it imports, and its
 settings — the AISStream key included — read from core over HTTP."""
 
@@ -11,18 +11,19 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.pool import StaticPool
-
 from backend import database
 from backend.config import settings
 from backend.platform import settings_client
-from backend.services import ais_stream, sea_ais_receiver
-from backend.services.ais_store import AisVesselStore
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.pool import StaticPool
 from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+from sentinel_sea import database as sea_database
+from sentinel_sea.services import ais_stream, sea_ais_receiver
+from sentinel_sea.services.ais_store import AisVesselStore
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
 CORE_URL = "http://app:8000"
 KEY = "abcdef0123456789"
 # Captured before the `core` fixture swaps httpx.AsyncClient for a fake-core client.
@@ -54,13 +55,13 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 class TestCreateSeaTables:
     async def test_creates_only_the_sea_tables(self, sea_engine):
-        await database.create_sea_tables()
+        await sea_database.create_sea_tables()
 
         # No user_settings: the AISStream key is a setting, kept in core.
         assert set(await table_columns(sea_engine)) == {"sea_vessel_cache", "sea_vessel_static"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, sea_engine):
-        await database.create_sea_tables()
+        await sea_database.create_sea_tables()
         sea_schema = await table_columns(sea_engine)
 
         monolith = create_async_engine(
@@ -73,14 +74,14 @@ class TestCreateSeaTables:
         finally:
             await monolith.dispose()
 
-        for table in database.SEA_TABLES:
+        for table in sea_database.SEA_TABLES:
             assert sea_schema[table] == monolith_schema[table]
 
     async def test_is_idempotent(self, sea_engine):
-        await database.create_sea_tables()
-        await database.create_sea_tables()
+        await sea_database.create_sea_tables()
+        await sea_database.create_sea_tables()
 
-        assert set(await table_columns(sea_engine)) == set(database.SEA_TABLES)
+        assert set(await table_columns(sea_engine)) == set(sea_database.SEA_TABLES)
 
 
 class FakeCore:
@@ -96,9 +97,7 @@ class FakeCore:
         path = request.url.path
         if path.startswith("/internal/settings/secrets/"):
             if request.headers.get("Authorization") != bearer("sea")["Authorization"]:
-                return httpx.Response(
-                    401, json={"detail": "Invalid service credential"}
-                )
+                return httpx.Response(401, json={"detail": "Invalid service credential"})
             secret_path = path.removeprefix("/internal/settings/secrets/")
             if request.method == "GET":
                 return httpx.Response(200, json={"value": self.secrets.get(secret_path, "")})
@@ -129,13 +128,13 @@ def core(monkeypatch, tmp_path) -> FakeCore:
 
 @pytest.fixture
 def sea_service(monkeypatch):
-    """`backend.standalone.sea`, imported fresh with a service's environment."""
+    """`sentinel_sea.service`, imported fresh with a service's environment."""
     monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
     monkeypatch.setattr(settings, "service_internal_url", "http://sea:8000")
-    monkeypatch.delitem(sys.modules, "backend.standalone.sea", raising=False)
-    module = importlib.import_module("backend.standalone.sea")
+    monkeypatch.delitem(sys.modules, "sentinel_sea.service", raising=False)
+    module = importlib.import_module("sentinel_sea.service")
     yield module
-    sys.modules.pop("backend.standalone.sea", None)
+    sys.modules.pop("sentinel_sea.service", None)
 
 
 class TestTheAisKeyOverHttp:
@@ -317,18 +316,20 @@ class TestWhatTheSeaServiceLoads:
     def test_loads_no_other_section_and_not_the_radio_hub(self):
         loaded = probe_fresh_interpreter(
             "import json, sys\n"
-            "import backend.standalone.sea\n"
+            "import sentinel_sea.service\n"
             "print(json.dumps(sorted(m for m in sys.modules"
             " if m.startswith(('backend.modules.', 'backend.radio_hub', 'sentinel_')))))\n"
         )
 
-        assert loaded == ["backend.modules.manifest", "backend.modules.sea"]
+        # Sea's own package, and of core's modules only the manifest helper.
+        assert [module for module in loaded if not module.startswith("sentinel_sea")] == ["backend.modules.manifest"]
+        assert "sentinel_sea.module" in loaded
 
     def test_answers_no_hub_request_itself_so_they_cross_nats(self):
         patterns = probe_fresh_interpreter(
             "import json\n"
             "from backend.platform.bus import bus\n"
-            "import backend.standalone.sea\n"
+            "import sentinel_sea.service\n"
             "print(json.dumps(sorted({s.pattern for s in bus._subscriptions})))\n"
         )
 
@@ -338,7 +339,7 @@ class TestWhatTheSeaServiceLoads:
         patterns = probe_fresh_interpreter(
             "import json\n"
             "from backend.platform.bus import bus\n"
-            "import backend.standalone.sea\n"
+            "import sentinel_sea.service\n"
             "print(json.dumps(sorted({s.pattern for s in bus._subscriptions})))\n"
         )
 
@@ -372,9 +373,10 @@ class TestSeaServiceLifecycle:
         ]
 
     async def test_runs_its_schema_then_the_sea_lifecycle_then_registration(self, monkeypatch):
-        from backend.modules import sea as sea_module
         from backend.platform.lifecycle import ModuleLifecycle
         from backend.platform.sdk.registration import ServiceRegistrar
+
+        from sentinel_sea import module as sea_module
 
         calls: list[str] = []
 
@@ -398,15 +400,14 @@ class TestSeaServiceLifecycle:
         monkeypatch.setattr(sea_module, "lifecycle", ModuleLifecycle(name="sea", start=sea_start, stop=sea_stop))
         monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
         monkeypatch.setattr(ServiceRegistrar, "stop", registrar_stop)
-        monkeypatch.delitem(sys.modules, "backend.standalone.sea", raising=False)
-        service = importlib.import_module("backend.standalone.sea")
+        monkeypatch.delitem(sys.modules, "sentinel_sea.service", raising=False)
+        service = importlib.import_module("sentinel_sea.service")
         monkeypatch.setattr(service, "create_sea_tables", create_sea_tables)
 
         try:
             async with service.app.router.lifespan_context(service.app):
                 pass
         finally:
-            sys.modules.pop("backend.standalone.sea", None)
+            sys.modules.pop("sentinel_sea.service", None)
 
         assert calls == ["schema", "sea.start", "registration.start", "registration.stop", "sea.stop"]
-

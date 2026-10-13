@@ -1,0 +1,22 @@
+# The Sea section's backend: `sentinel_sea` (routers, services, models, lifecycle, service entry point).
+# Installed editable into the backend venv as a path dependency of backend/pyproject.toml, so
+# `uv run --project backend …` and the image see it like any other package. Its third-party
+# dependencies stay declared in backend/pyproject.toml for now (one venv, one lock).
+[project]
+name = "sentinel-sea"
+version = "0.1.0"
+description = "SENTINEL Sea section backend"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.10,<0.11"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "sentinel_sea"
+module-root = ""
+
+[tool.ruff]
+# Same rules and line length as the rest of the backend.
+extend = "../../../../backend/pyproject.toml"

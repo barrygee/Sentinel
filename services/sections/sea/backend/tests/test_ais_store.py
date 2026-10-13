@@ -1,5 +1,5 @@
 """
-tests/backend/test_ais_store.py
+services/sections/sea/backend/tests/test_ais_store.py
 
 The in-memory AIS vessel store behind the Sea map: ship-type classification,
 envelope ingest (position + static merge, liveness rules, bad input), expiry
@@ -8,12 +8,12 @@ the incremental SQLite snapshot round trip.
 """
 
 import pytest
+from backend.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.config import settings
-from backend.services import ais_store
-from backend.services.ais_store import (
+from sentinel_sea.services import ais_store
+from sentinel_sea.services.ais_store import (
     AisVesselStore,
     classify_ship_type,
     parse_ais_timestamp_ms,
@@ -98,10 +98,7 @@ def test_classify_ship_type(raw, expected):
 
 
 def test_parse_ais_timestamp_handles_aisstream_format_and_fallbacks():
-    assert (
-        parse_ais_timestamp_ms("2026-09-12 08:41:03.123456789 +0000 UTC")
-        == 1789202463123
-    )
+    assert parse_ais_timestamp_ms("2026-09-12 08:41:03.123456789 +0000 UTC") == 1789202463123
     assert parse_ais_timestamp_ms("2026-09-12 08:41:03 UTC") == 1789202463000
     assert parse_ais_timestamp_ms("2026-09-12T08:41:03") == 1789202463000  # naive → UTC
     now_ish = parse_ais_timestamp_ms("not a date")
@@ -135,17 +132,11 @@ class TestIngest:
         assert store.ingest_envelope(static(), T0 + 1) is True
         row = store.get("232012345")
         assert row["typeLabel"] == "PASSENGER" and row["family"] == "passenger"
-        assert (
-            row["destination"] == "DOVER"
-            and row["imo"] == "9015266"
-            and row["callsign"] == "GBPK"
-        )
+        assert row["destination"] == "DOVER" and row["imo"] == "9015266" and row["callsign"] == "GBPK"
         # A subsequent position report keeps the static fields.
         store.ingest_envelope(position(lat=51.1), T0 + 2)
         row = store.get("232012345")
-        assert (
-            row["destination"] == "DOVER" and row["type"] == "60" and row["lat"] == 51.1
-        )
+        assert row["destination"] == "DOVER" and row["type"] == "60" and row["lat"] == 51.1
 
     def test_static_data_before_any_position_is_liveness_but_no_vessel(self):
         store = AisVesselStore()
@@ -223,16 +214,9 @@ class TestIngest:
 
     def test_not_available_sentinels_become_none(self):
         store = AisVesselStore()
-        store.ingest_envelope(
-            position(Sog=102.3, Cog=360, TrueHeading=511, NavigationalStatus=None), T0
-        )
+        store.ingest_envelope(position(Sog=102.3, Cog=360, TrueHeading=511, NavigationalStatus=None), T0)
         row = store.get("232012345")
-        assert (
-            row["sog"] is None
-            and row["cog"] is None
-            and row["heading"] is None
-            and row["navStatus"] is None
-        )
+        assert row["sog"] is None and row["cog"] is None and row["heading"] is None and row["navStatus"] is None
 
     def test_falls_back_to_message_coordinates_and_userid(self):
         store = AisVesselStore()
@@ -306,9 +290,7 @@ class TestQueries:
         store.ingest_envelope(position(mmsi=232000001, lat=51, lon=1), T0)
         store.ingest_envelope(position(mmsi=232000002, lat=-10, lon=179), T0)
         store.ingest_envelope(position(mmsi=232000003, lat=-10, lon=-179), T0)
-        assert [row["mmsi"] for row in store.vessels(10, (50, 0, 52, 2))] == [
-            "232000001"
-        ]
+        assert [row["mmsi"] for row in store.vessels(10, (50, 0, 52, 2))] == ["232000001"]
         crossing = {row["mmsi"] for row in store.vessels(10, (-20, 170, 0, -170))}
         assert crossing == {"232000002", "232000003"}
         assert store.vessels(10, (-20, 170, 0, -170))  # sanity: non-empty
@@ -360,9 +342,7 @@ class TestTracks:
 
 @pytest.fixture()
 def _patch_store_db(test_engine, db_setup, monkeypatch):
-    factory = sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(ais_store, "AsyncSessionLocal", factory)
 
 
@@ -434,21 +414,13 @@ class TestPersistence:
         assert len(store) == 0
 
     async def test_load_skips_expired_and_corrupt_rows(self, test_engine):
-        from backend.models import SeaVesselCache
+        from sentinel_sea.models import SeaVesselCache
 
-        factory = sessionmaker(
-            bind=test_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
         now = ais_store.now_ms()
         async with factory() as db:
-            db.add(
-                SeaVesselCache(mmsi="1", payload="not json", track="[]", updated_at=now)
-            )
-            db.add(
-                SeaVesselCache(
-                    mmsi="2", payload='{"mmsi": "other"}', track="[]", updated_at=now
-                )
-            )
+            db.add(SeaVesselCache(mmsi="1", payload="not json", track="[]", updated_at=now))
+            db.add(SeaVesselCache(mmsi="2", payload='{"mmsi": "other"}', track="[]", updated_at=now))
             db.add(
                 SeaVesselCache(
                     mmsi="3",
@@ -473,11 +445,9 @@ class TestPersistence:
     async def test_persist_prunes_expired_rows_from_the_table(self, test_engine):
         from sqlalchemy import select
 
-        from backend.models import SeaVesselCache
+        from sentinel_sea.models import SeaVesselCache
 
-        factory = sessionmaker(
-            bind=test_engine, class_=AsyncSession, expire_on_commit=False
-        )
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
         now = ais_store.now_ms()
         async with factory() as db:
             db.add(

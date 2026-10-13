@@ -1,7 +1,7 @@
 """
-tests/backend/test_sea_ais_receiver.py
+services/sections/sea/backend/tests/test_sea_ais_receiver.py
 
-Tests for backend/services/sea_ais_receiver.py — Sea's off-grid AIS receiver,
+Tests for sentinel_sea/services/sea_ais_receiver.py — Sea's off-grid AIS receiver,
 which keeps the designated radio decoding from the backend (startup and every
 relevant settings change) instead of waiting for someone to open the Sea page.
 
@@ -23,12 +23,13 @@ import logging
 from typing import Any
 
 import pytest
+from backend.db_helpers import upsert_setting
+from backend.platform import bus as bus_module
+from backend.services import app_config
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.db_helpers import upsert_setting
-from backend.platform import bus as bus_module
-from backend.services import app_config, sea_ais_receiver
+from sentinel_sea.services import sea_ais_receiver
 
 
 class _RecordingBus:
@@ -38,12 +39,8 @@ class _RecordingBus:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.reply: Any = {"ok": True}
 
-    async def request(
-        self, subject: str, payload: dict, timeout: float | None = 5.0
-    ) -> Any:
-        self.requests.append(
-            (subject, {key: value for key, value in payload.items() if key != "db"})
-        )
+    async def request(self, subject: str, payload: dict, timeout: float | None = 5.0) -> Any:
+        self.requests.append((subject, {key: value for key, value in payload.items() if key != "db"}))
         if isinstance(self.reply, Exception):
             raise self.reply
         return self.reply
@@ -58,9 +55,7 @@ def hub(monkeypatch) -> _RecordingBus:
 
 @pytest.fixture()
 def session_factory(test_engine, db_setup, monkeypatch):
-    factory = sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(sea_ais_receiver, "AsyncSessionLocal", factory)
     return factory
 
@@ -83,20 +78,14 @@ async def _desired(factory) -> int | None:
 
 class TestDesiredReceiver:
     async def test_the_designated_radio_when_globally_off_grid(self, session_factory):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid"
-        )
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid")
         assert await _desired(session_factory) == 2
 
     async def test_none_when_online(self, session_factory):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="online"
-        )
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="online")
         assert await _desired(session_factory) is None
 
-    async def test_none_by_default_because_the_default_mode_is_online(
-        self, session_factory
-    ):
+    async def test_none_by_default_because_the_default_mode_is_online(self, session_factory):
         await _settings(session_factory, sea__aisSdrRadioId=2)
         assert await _desired(session_factory) is None
 
@@ -116,9 +105,7 @@ class TestDesiredReceiver:
         assert await _desired(session_factory) is None
 
     @pytest.mark.parametrize("designated", [None, "2", True, 2.5])
-    async def test_no_valid_designated_radio_means_none(
-        self, session_factory, designated
-    ):
+    async def test_no_valid_designated_radio_means_none(self, session_factory, designated):
         await _settings(
             session_factory,
             sea__aisSdrRadioId=designated,
@@ -131,19 +118,13 @@ class TestDesiredReceiver:
 
 
 class TestReconcile:
-    async def test_asks_the_hub_to_decode_on_the_designated_radio(
-        self, session_factory, hub
-    ):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid"
-        )
+    async def test_asks_the_hub_to_decode_on_the_designated_radio(self, session_factory, hub):
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid")
         async with session_factory() as db:
             assert await sea_ais_receiver.reconcile(db) == {"ok": True}
         assert hub.requests == [("hub.decode.ais.start", {"radio_id": 2})]
 
-    async def test_starts_even_when_already_decoding_so_a_failed_start_recovers(
-        self, session_factory, hub
-    ):
+    async def test_starts_even_when_already_decoding_so_a_failed_start_recovers(self, session_factory, hub):
         await _settings(
             session_factory,
             sea__aisSdrRadioId=2,
@@ -154,9 +135,7 @@ class TestReconcile:
             await sea_ais_receiver.reconcile(db)
         assert hub.requests == [("hub.decode.ais.start", {"radio_id": 2})]
 
-    async def test_releases_the_decoding_radio_when_no_receiver_is_wanted(
-        self, session_factory, hub
-    ):
+    async def test_releases_the_decoding_radio_when_no_receiver_is_wanted(self, session_factory, hub):
         await _settings(
             session_factory,
             sea__aisSdrRadioId=2,
@@ -168,22 +147,14 @@ class TestReconcile:
         assert hub.requests == [("hub.decode.ais.stop", {"radio_id": 3})]
 
     @pytest.mark.parametrize("decoding", [None, True])
-    async def test_does_nothing_when_nothing_is_wanted_or_decoding(
-        self, session_factory, hub, decoding
-    ):
-        await _settings(
-            session_factory, app__connectivityMode="online", sdr__ais_radio_id=decoding
-        )
+    async def test_does_nothing_when_nothing_is_wanted_or_decoding(self, session_factory, hub, decoding):
+        await _settings(session_factory, app__connectivityMode="online", sdr__ais_radio_id=decoding)
         async with session_factory() as db:
             assert await sea_ais_receiver.reconcile(db) is None
         assert hub.requests == []
 
-    async def test_a_failed_start_is_logged_not_raised(
-        self, session_factory, hub, caplog
-    ):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid"
-        )
+    async def test_a_failed_start_is_logged_not_raised(self, session_factory, hub, caplog):
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid")
         hub.reply = {
             "ok": False,
             "reason": "connect_failed",
@@ -192,29 +163,18 @@ class TestReconcile:
         with caplog.at_level(logging.WARNING, logger=sea_ais_receiver.__name__):
             async with session_factory() as db:
                 assert (await sea_ais_receiver.reconcile(db))["ok"] is False
-        assert (
-            "could not start AIS decode on radio 2: radio connect failed: refused"
-            in caplog.text
-        )
+        assert "could not start AIS decode on radio 2: radio connect failed: refused" in caplog.text
 
 
 class TestReconcileNow:
     async def test_uses_its_own_session(self, session_factory, hub):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid"
-        )
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid")
         await sea_ais_receiver.reconcile_now()
         assert hub.requests == [("hub.decode.ais.start", {"radio_id": 2})]
 
-    async def test_never_raises_so_startup_survives_a_missing_hub(
-        self, session_factory, hub, caplog
-    ):
-        await _settings(
-            session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid"
-        )
-        hub.reply = LookupError(
-            "no responder registered for subject 'hub.decode.ais.start'"
-        )
+    async def test_never_raises_so_startup_survives_a_missing_hub(self, session_factory, hub, caplog):
+        await _settings(session_factory, sea__aisSdrRadioId=2, app__connectivityMode="offgrid")
+        hub.reply = LookupError("no responder registered for subject 'hub.decode.ais.start'")
         with caplog.at_level(logging.ERROR, logger=sea_ais_receiver.__name__):
             await sea_ais_receiver.reconcile_now()
         assert "AIS receiver reconcile failed" in caplog.text
@@ -250,13 +210,9 @@ class TestSettingsTriggers:
             ("settings.changed.app", ["connectivityMode"]),
         ],
     )
-    async def test_a_trigger_key_schedules_a_background_reconcile(
-        self, scheduled, subject, keys
-    ):
+    async def test_a_trigger_key_schedules_a_background_reconcile(self, scheduled, subject, keys):
         await bus_module.bus.publish(subject, {"keys": keys, "db": None})
-        assert (
-            len(sea_ais_receiver._background) == 1
-        )  # scheduled, not awaited by the publisher
+        assert len(sea_ais_receiver._background) == 1  # scheduled, not awaited by the publisher
         await _drain_background()
         assert scheduled == ["reconcile"]
         assert sea_ais_receiver._background == set()
@@ -302,9 +258,7 @@ class TestConfigUploadAnnouncesTriggers:
         for unsubscribe in unsubscribers:
             unsubscribe()
 
-    async def test_announces_only_the_trigger_settings_that_changed(
-        self, session_factory, scheduled, announced
-    ):
+    async def test_announces_only_the_trigger_settings_that_changed(self, session_factory, scheduled, announced):
         await _settings(
             session_factory,
             sea__aisSdrRadioId=2,
@@ -312,14 +266,10 @@ class TestConfigUploadAnnouncesTriggers:
             app__connectivityMode="online",
         )
         async with session_factory() as db:
-            await app_config.apply_config(
-                db, {"sea": {"aisSdrRadioId": 2, "sourceOverride": "offgrid"}}
-            )
+            await app_config.apply_config(db, {"sea": {"aisSdrRadioId": 2, "sourceOverride": "offgrid"}})
         assert announced == [("sea", ["sourceOverride"])]
 
-    async def test_announces_each_namespace_separately(
-        self, session_factory, scheduled, announced
-    ):
+    async def test_announces_each_namespace_separately(self, session_factory, scheduled, announced):
         async with session_factory() as db:
             await app_config.apply_config(
                 db,
@@ -330,9 +280,7 @@ class TestConfigUploadAnnouncesTriggers:
             ("sea", ["aisSdrRadioId"]),
         ]
 
-    async def test_an_upload_that_changes_none_of_them_announces_nothing(
-        self, session_factory, scheduled, announced
-    ):
+    async def test_an_upload_that_changes_none_of_them_announces_nothing(self, session_factory, scheduled, announced):
         await _settings(session_factory, sea__aisSdrRadioId=2)
         async with session_factory() as db:
             await app_config.apply_config(db, {"sea": {"aisSdrRadioId": 2}})

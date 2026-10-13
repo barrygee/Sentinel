@@ -1,7 +1,7 @@
 """
-tests/backend/test_ais_decode.py
+services/sections/sea/backend/tests/test_ais_decode.py
 
-Tests for backend/services/ais_decode.py — the adapter that maps a decoded
+Tests for sentinel_sea/services/ais_decode.py — the adapter that maps a decoded
 off-grid AIS sidecar event onto the AISStream-shaped envelope the shared vessel
 store already understands.
 
@@ -13,7 +13,7 @@ would otherwise plot a ship at the north pole.
 
 import pytest
 
-from backend.services import ais_decode, ais_store
+from sentinel_sea.services import ais_decode, ais_store
 
 
 @pytest.fixture(autouse=True)
@@ -112,9 +112,7 @@ class TestPositionMapping:
         assert report["NavigationalStatus"] is None
 
     def test_non_numeric_optional_fields_become_none(self):
-        report = ais_decode.envelope_from_event(position_event(sog="fast"))["Message"][
-            "PositionReport"
-        ]
+        report = ais_decode.envelope_from_event(position_event(sog="fast"))["Message"]["PositionReport"]
         assert report["Sog"] is None
 
     def test_missing_timestamp_falls_back_to_now(self):
@@ -146,13 +144,9 @@ class TestRejectedEvents:
         assert ais_decode.envelope_from_event(position_event(msgType="one")) is None
 
     @pytest.mark.parametrize("message_type", [4, 6, 8, 9, 21])
-    def test_rejects_message_types_carrying_neither_position_nor_static_data(
-        self, message_type
-    ):
+    def test_rejects_message_types_carrying_neither_position_nor_static_data(self, message_type):
         # Base stations, binary messages and aids-to-navigation are not vessels.
-        assert (
-            ais_decode.envelope_from_event(position_event(msgType=message_type)) is None
-        )
+        assert ais_decode.envelope_from_event(position_event(msgType=message_type)) is None
 
     def test_rejects_a_position_report_with_no_fix(self):
         event = position_event()
@@ -167,10 +161,7 @@ class TestRejectedEvents:
     def test_rejects_the_position_not_available_sentinels(self, latitude, longitude):
         # AIS uses 91/181 for "no position"; taking them literally would drop a
         # vessel at the pole or on the date line.
-        assert (
-            ais_decode.envelope_from_event(position_event(lat=latitude, lon=longitude))
-            is None
-        )
+        assert ais_decode.envelope_from_event(position_event(lat=latitude, lon=longitude)) is None
 
     def test_rejects_a_non_numeric_position(self):
         assert ais_decode.envelope_from_event(position_event(lat="north")) is None

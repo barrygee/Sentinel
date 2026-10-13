@@ -263,6 +263,7 @@ services:
       - sea_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/sections/sea/backend:/app/services/sections/sea/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/sea}}
     environment:
@@ -272,7 +273,7 @@ services:
       # The .env fallback key, used when none is saved in Settings › SEA (the
       # same variable the app reads when it hosts Sea itself). Never committed.
       AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
-    command: uvicorn backend.standalone.sea:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_sea.service:app --host 0.0.0.0 --port 8000 --reload
 
   # The radio hub as its own service (P6.5).
   # Same image and pattern as the sections above, but it is not a section: no

@@ -1,7 +1,7 @@
 """
-tests/backend/test_ais_store_static_directory.py
+services/sections/sea/backend/tests/test_ais_store_static_directory.py
 
-The AIS store's durable static-data directory (backend/services/ais_store.py +
+The AIS store's durable static-data directory (sentinel_sea/services/ais_store.py +
 the sea_vessel_static table): what a vessel has been heard to call itself — name,
 callsign, IMO, ship type — kept long after the vessel leaves the live picture.
 
@@ -17,14 +17,14 @@ carry no name), so without the directory every vessel shows as "MMSI …". Pinne
 from __future__ import annotations
 
 import pytest
+from backend.config import settings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from backend.config import settings
-from backend.models import SeaVesselCache, SeaVesselStatic
-from backend.services import ais_store
-from backend.services.ais_store import AisVesselStore
+from sentinel_sea.models import SeaVesselCache, SeaVesselStatic
+from sentinel_sea.services import ais_store
+from sentinel_sea.services.ais_store import AisVesselStore
 
 T0 = 1_000_000_000_000
 MMSI = "235040261"
@@ -40,9 +40,7 @@ def online_position(mmsi: str = MMSI, name: str = "TYNE PILOT") -> dict:
             "latitude": 55.0,
             "longitude": -1.45,
         },
-        "Message": {
-            "PositionReport": {"UserID": mmsi, "Latitude": 55.0, "Longitude": -1.45}
-        },
+        "Message": {"PositionReport": {"UserID": mmsi, "Latitude": 55.0, "Longitude": -1.45}},
     }
 
 
@@ -51,9 +49,7 @@ def offgrid_position(mmsi: str = MMSI) -> dict:
     return {
         "MessageType": "PositionReport",
         "MetaData": {"MMSI": mmsi, "latitude": 55.01, "longitude": -1.44},
-        "Message": {
-            "PositionReport": {"UserID": mmsi, "Latitude": 55.01, "Longitude": -1.44}
-        },
+        "Message": {"PositionReport": {"UserID": mmsi, "Latitude": 55.01, "Longitude": -1.44}},
     }
 
 
@@ -157,25 +153,18 @@ class TestDirectoryInMemory:
 
 @pytest.fixture()
 def session_factory(test_engine, db_setup, monkeypatch):
-    factory = sessionmaker(
-        bind=test_engine, class_=AsyncSession, expire_on_commit=False
-    )
+    factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
     monkeypatch.setattr(ais_store, "AsyncSessionLocal", factory)
     return factory
 
 
 async def _directory_rows(factory) -> dict[str, SeaVesselStatic]:
     async with factory() as db:
-        return {
-            row.mmsi: row
-            for row in (await db.execute(select(SeaVesselStatic))).scalars().all()
-        }
+        return {row.mmsi: row for row in (await db.execute(select(SeaVesselStatic))).scalars().all()}
 
 
 class TestDirectoryPersisted:
-    async def test_survives_a_restart_and_names_the_ship_off_grid(
-        self, session_factory
-    ):
+    async def test_survives_a_restart_and_names_the_ship_off_grid(self, session_factory):
         now = ais_store.now_ms()
         store = AisVesselStore()
         store.ingest_envelope(static_report(), now)
@@ -191,9 +180,7 @@ class TestDirectoryPersisted:
             "PILOT",
         )
 
-    async def test_persists_name_callsign_imo_and_type_but_never_destination(
-        self, session_factory
-    ):
+    async def test_persists_name_callsign_imo_and_type_but_never_destination(self, session_factory):
         now = ais_store.now_ms()
         store = AisVesselStore()
         store.ingest_envelope(static_report(), now)
@@ -212,21 +199,15 @@ class TestDirectoryPersisted:
         await restarted.load_snapshot(now)
         assert restarted._static[MMSI]["destination"] == ""
 
-    async def test_writes_only_entries_heard_since_the_last_snapshot(
-        self, session_factory
-    ):
+    async def test_writes_only_entries_heard_since_the_last_snapshot(self, session_factory):
         now = ais_store.now_ms()
         store = AisVesselStore()
         store.ingest_envelope(static_report(), now)
         await store.persist_snapshot()
         async with session_factory() as db:
-            await db.execute(
-                SeaVesselStatic.__table__.update().values(name="EDITED ELSEWHERE")
-            )
+            await db.execute(SeaVesselStatic.__table__.update().values(name="EDITED ELSEWHERE"))
             await db.commit()
-        store.ingest_envelope(
-            static_report(mmsi="352003880", Name="PANAMA STAR"), now + 1
-        )
+        store.ingest_envelope(static_report(mmsi="352003880", Name="PANAMA STAR"), now + 1)
         await store.persist_snapshot()
         rows = await _directory_rows(session_factory)
         assert rows[MMSI].name == "EDITED ELSEWHERE"  # not rewritten
@@ -242,9 +223,7 @@ class TestDirectoryPersisted:
         row = (await _directory_rows(session_factory))[MMSI]
         assert (row.name, row.callsign, row.updated_at) == ("RENAMED", "NEW1", now + 10)
 
-    async def test_a_source_switch_wipes_the_vessel_cache_but_not_the_directory(
-        self, session_factory
-    ):
+    async def test_a_source_switch_wipes_the_vessel_cache_but_not_the_directory(self, session_factory):
         store = AisVesselStore()
         store.ingest_envelope(online_position(), ais_store.now_ms())
         await store.persist_snapshot()
@@ -303,13 +282,9 @@ class TestDirectoryPersisted:
         await store.load_snapshot(now)
         assert set(store._static) == {"222222222", "333333333"}
         assert store._static_heard_ms["333333333"] == now - 998
-        assert (
-            await store.persist_snapshot() == 0
-        )  # loaded clean: nothing to write back
+        assert await store.persist_snapshot() == 0  # loaded clean: nothing to write back
 
-    async def test_a_restored_vessel_snapshotted_unnamed_is_named_at_load(
-        self, session_factory
-    ):
+    async def test_a_restored_vessel_snapshotted_unnamed_is_named_at_load(self, session_factory):
         now = ais_store.now_ms()
         store = AisVesselStore()
         store.ingest_envelope(offgrid_position(), now)
