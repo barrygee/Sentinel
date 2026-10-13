@@ -433,15 +433,15 @@ services:
     restart: "no"
 
   # Digital-voice decoder (dsd-fme). OPT-IN: it only builds/starts when you pass
-  # `--profile decoder`, so it is never built by default or in CI. Building it
+  # `--profile voice-decoder`, so it is never built by default or in CI. Building it
   # compiles the patent-encumbered mbelib vocoder locally (dsd-fme requires it);
   # the image stays on your machine. See decoder/README.md.
-  decoder:
+  voice-decoder:
     build:
       context: ./decoder
       dockerfile: Dockerfile
-    container_name: sentinel-decoder
-    profiles: ["decoder", "all"]
+    container_name: sentinel-voice-decoder
+    profiles: ["voice-decoder", "all"]
     depends_on:
       - gateway
     environment:

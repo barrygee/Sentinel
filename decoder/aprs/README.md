@@ -44,7 +44,7 @@ when APRS decode is actually wanted, and never built in CI.
 docker compose --profile aprs up --build -d
 
 # Concurrent voice + APRS (two dongles):
-docker compose --profile decoder --profile aprs up --build -d
+docker compose --profile voice-decoder --profile aprs up --build -d
 ```
 
 Then, in the SDR UI, enable **APRS** on the radio/dongle tuned to your local APRS

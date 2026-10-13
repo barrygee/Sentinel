@@ -58,7 +58,7 @@ DECODER_ACCESS: dict[str, CallerAccess] = {
     "ais-decoder": CallerAccess(decoder_kind="ais"),
     "stub-decoder": CallerAccess(decoder_kind="stub"),
 }
-"""Decoder sidecars, keyed by their compose service name (the voice one's is `decoder`)."""
+"""Decoder sidecars, keyed by their compose service name."""
 
 CALLER_ACCESS: dict[str, CallerAccess] = {**SERVICE_ACCESS, **DECODER_ACCESS}
 

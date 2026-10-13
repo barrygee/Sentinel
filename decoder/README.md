@@ -35,7 +35,7 @@ compiled objects "may be covered by one or more patents."
 Consequences, by design:
 
 - There is **no metadata-only build** of dsd-fme that omits mbelib.
-- This image is therefore **opt-in only**: gated behind the compose `decoder`
+- This image is therefore **opt-in only**: gated behind the compose `voice-decoder`
   profile, **never built by default, never built in CI, never published**.
 - **Building it is a deliberate local action that compiles mbelib on your own
   machine.** The resulting image layers stay local. `.gitignore` / the build
@@ -53,10 +53,10 @@ ingest secret is auto-generated (see "Security" below).
 
 ### 1. Build and start the app **with** the decoder
 
-The decoder only builds/starts when you pass `--profile decoder`:
+The decoder only builds/starts when you pass `--profile voice-decoder`:
 
 ```bash
-docker compose --profile decoder up --build -d
+docker compose --profile voice-decoder up --build -d
 ```
 
 This builds the decoder image — i.e. **compiles mbelib + dsd-fme locally** (the
@@ -73,7 +73,7 @@ normal `docker compose up --build` is unchanged and never touches the decoder.
 ### 3. Stop / revert
 
 ```bash
-docker compose --profile decoder down        # stop everything incl. decoder
+docker compose --profile voice-decoder down        # stop everything incl. decoder
 docker compose up -d                          # back to app-only (no decoder)
 ```
 
@@ -86,11 +86,11 @@ AMBE-3000 / USB-3000** dongle (ThumbDV, DVstick 30). The vocoder license lives i
 the chip, so no patented software is relied on at runtime.
 
 1. Plug the dongle in and find its device path (e.g. `/dev/ttyUSB0`).
-2. In `docker-compose.yml`, uncomment the `devices:` mapping under the `decoder`
+2. In `docker-compose.yml`, uncomment the `devices:` mapping under the `voice-decoder`
    service and point it at your dongle.
 3. Add the matching dsd-fme dongle flag via the environment, e.g.
    `DSD_EXTRA_ARGS=-D /dev/ttyUSB0` (consult `dsd-fme -h` for your version).
-4. Rebuild/restart: `docker compose --profile decoder up --build -d`.
+4. Rebuild/restart: `docker compose --profile voice-decoder up --build -d`.
 
 (Note: mbelib is still compiled because dsd-fme requires it to build; the dongle
 simply takes over the actual vocoding at runtime.)
@@ -124,10 +124,11 @@ hub: the hub's decode-config reply names both sockets (`pcmFeed`,
 ## Troubleshooting
 
 - **DIGITAL on but no decoded events / "decoder offline":** the decoder isn't
-  reachable. Confirm you started with `--profile decoder` and check
-  `docker compose --profile decoder logs decoder`. A `401` there means the secret
-  didn't sync — make sure the `app` container started (it writes the secret), then
-  `docker compose --profile decoder restart decoder`.
+  reachable. Confirm you started with `--profile voice-decoder` and check
+  `docker compose --profile voice-decoder logs voice-decoder`. A `401` or `403` there
+  means its credential doesn't match the hub's list (the `service_credentials`
+  volume was recreated after the decoder started):
+  `docker compose --profile voice-decoder up -d --force-recreate voice-decoder`.
 - **No voice audio but metadata appears:** the channel may be encrypted, or the
   decoder may need a hardware dongle/specific flags for that protocol.
 - **Log format yields no events:** dsd-fme's wording varies by version. Pin
@@ -138,6 +139,6 @@ hub: the hub's decode-config reply names both sockets (`pcmFeed`,
 Automated tests cover the backend DSP/bridge and the event parser, but a true
 end-to-end check needs a **real digital signal** and cannot run in CI:
 
-1. `docker compose --profile decoder up --build -d`
+1. `docker compose --profile voice-decoder up --build -d`
 2. Tune to a known DMR/P25 control channel, enable **DIGITAL**.
 3. Confirm decoded-event rows populate and (for unencrypted voice) audio plays.

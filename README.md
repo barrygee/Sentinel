@@ -30,7 +30,7 @@ docker compose up --build -d                  # app only, no decoders
 | Want           | Command                                                                       |
 | -------------- | ----------------------------------------------------------------------------- |
 | Everything     | `docker compose --profile all up --build -d`                                  |
-| Just one       | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `decoder`) |
+| Just one       | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `voice-decoder`) |
 | App only       | `docker compose up --build -d`                                                |
 | No flag at all | set `COMPOSE_PROFILES=all` in `.env`, then plain `docker compose up -d`       |
 
@@ -110,12 +110,12 @@ Each decoder is a separate container behind its own compose **profile** — neve
 
 ```bash
 docker compose --profile all up -d --build         # ALL decoders in one command
-docker compose --profile decoder up -d --build     # digital voice (dsd-fme)
+docker compose --profile voice-decoder up -d --build     # digital voice (dsd-fme)
 docker compose --profile aprs up -d --build        # APRS (Direwolf)
 docker compose --profile ais up -d --build         # Off Grid AIS (Direwolf)
 docker compose --profile adsb up -d --build        # Off Grid ADS-B (readsb)
-docker compose --profile decoder --profile aprs up -d --build   # or combine profiles freely
-docker compose --profile <name> logs -f <service>  # decoder · aprs-decoder · ais-decoder · adsb-decoder
+docker compose --profile voice-decoder --profile aprs up -d --build   # or combine profiles freely
+docker compose --profile <name> logs -f <service>  # voice-decoder · aprs-decoder · ais-decoder · adsb-decoder
 docker compose --profile <name> down && docker compose up -d    # back to app-only
 ```
 

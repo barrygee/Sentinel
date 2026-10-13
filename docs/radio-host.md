@@ -71,7 +71,7 @@ In the radio host's checkout, create `.env`:
 SENTINEL_CORE_ENTRYPOINT_URL=https://sentinel.lan:8443
 SENTINEL_CORE_NATS_URL=tls://sentinel.lan:4222
 SENTINEL_RADIO_HOST_URL=https://radio.lan:8443
-COMPOSE_PROFILES=aprs,ais            # the decoders you want: decoder (voice), aprs, ais, all
+COMPOSE_PROFILES=aprs,ais            # the decoders you want: voice-decoder, aprs, ais, all
 ```
 
 Then:

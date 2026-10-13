@@ -6,7 +6,7 @@
 # NOTE: the digital-decode sidecar image (decoder/Dockerfile) is intentionally
 # NEVER built here. It compiles the patent-encumbered mbelib vocoder, which must
 # not be built in CI or published; it is an opt-in local build only (compose
-# `--profile decoder`). Do not add a decoder build/publish step.
+# `--profile voice-decoder`). Do not add a decoder build/publish step.
 name: ci
 
 on:
