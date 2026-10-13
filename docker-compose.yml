@@ -95,8 +95,8 @@ services:
       - SENTINEL_EXTERNAL_SERVICES=space,land,air,sea,radio-hub,sdr
       - PYTHONUNBUFFERED=1
       # Event bus broker (the `nats` service below). Events are always delivered
-      # in-process first; NATS carries them to sections in other containers.
-      # Set NATS_URL= (empty) in .env to run without a broker. TLS, with each
+      # in-process first; NATS carries them to the sections and the radio hub,
+      # which all run in their own containers, so it is required here. TLS, with each
       # process signing in as its own NATS user (see `service-credentials` below).
       - NATS_URL=${NATS_URL-tls://nats:4222}
       - NATS_CREDENTIALS_FILE=/run/service-credentials/nats-credentials.json

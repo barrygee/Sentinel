@@ -22,7 +22,7 @@ For *what the project is* and how to run it day-to-day, see the
 
 You do **not** need a global Python or pytest install — always invoke Python
 tooling through `uv run --project backend …` so it resolves the backend venv (see
-[Two npm — and one uv — contexts](#two-npm--and-one-uv--contexts)).
+[Tooling contexts](#tooling-contexts)).
 
 **Match the CI Node version.** The repo pins Node 24–25 / npm 11 via `engines` +
 an `engine-strict` root `.npmrc`, and CI reads the version from `.nvmrc`.
@@ -64,19 +64,20 @@ Installing the root dependencies runs the `prepare` script, which installs the
 won't be active — run `npm install` (or `npx husky`) once to enable it.
 
 There are no secrets required to run the app. Backend config is read from the
-environment / an optional root `.env` (see [Configuration in the
-README](README.md#configuration)); never commit a `.env` or any secret.
+environment / an optional root `.env` (see
+[docs/configuration.md](docs/configuration.md)); never commit a `.env` or any secret.
 
 ---
 
-## Two npm — and one uv — contexts
+## Tooling contexts
 
-Sentinel has **three** distinct dependency/tooling contexts. Running a command in
-the wrong one is the most common newcomer mistake.
+Sentinel has **four** distinct tooling contexts. Running a command in the wrong
+one is the most common newcomer mistake.
 
 | Context | Location | What it is | Tooling |
 |---|---|---|---|
 | **Vue SPA** | `frontend/vue/` | The real application | Vite · Vue 3 · Pinia · vue-router · **vitest** · ESLint · Prettier · `vue-tsc` |
+| **Web packages** | `platform/web/*` · `services/sections/<id>/frontend` | Shared UI/shell/map packages and one package per section's UI, imported from source by the shell | ESLint · Prettier · `vue-tsc`/`tsc` · **vitest** (100% per package), run from the root with `npm run web-packages -- <script>` |
 | **Root tooling** | repo root `package.json` | Repo-root TypeScript — config files + the full-stack e2e specs in `tests/e2e/`; also hosts husky/lint-staged — **not** the app build | ESLint · Prettier · Playwright (full-stack e2e) |
 | **Backend** | `backend/` (`pyproject.toml`) | FastAPI Python app, managed by uv | **pytest** · **ruff** (check + format) · mypy (informational) |
 
@@ -94,14 +95,14 @@ Two rules that follow from this:
 
 ## Running the app
 
-The fast feedback loop is the README's
-[Local development (hot reload)](README.md#local-development-hot-reload) — backend
-on `:8080`, Vite dev server on `:5173`. In short:
+The fast feedback loop is two terminals: the backend on `:8080` and the Vite dev
+server on `:5173`, which proxies `/api`, `/ws` and `/assets` to it:
 
 ```bash
 # Terminal 1 — backend on :8080
 docker compose up
-#   …or without Docker, from the repo root:
+#   …or without Docker, from the repo root (dev only: one process hosts every
+#   section in-process, with no gateway or broker):
 #   uv run --project backend uvicorn backend.main:app --reload --port 8080
 
 # Terminal 2 — Vite dev server with hot module reload
@@ -129,6 +130,7 @@ it does not run the full test suites or typecheck — do that yourself.
 ```bash
 uv run --project backend ruff check backend         # lint (gating)
 uv run --project backend ruff format --check backend # format check (gating)
+PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml   # section boundaries (gating)
 uv run --project backend pytest                      # tests
 ```
 
@@ -136,6 +138,11 @@ uv run --project backend pytest                      # tests
   the linting retrofit — see [`cliff.toml`](cliff.toml) / `backend/pyproject.toml`
   `[tool.ruff.format]`). CI runs `ruff format --check`; run `ruff format backend`
   to auto-fix. The ruff *lint* ruleset is intentionally conservative (`E,F,I,UP,B`).
+- **import-linter keeps the sections apart**: core and the platform may import
+  no section, and no section may import another (contracts in
+  `backend/pyproject.toml`). Sections talk over the event bus instead. Only
+  `backend/composition_root.py` (core's app factory) and `backend/modules/`
+  may compose them.
 - **mypy is informational, not gating** (~90 known SQLAlchemy-typing errors).
   `uv run --project backend mypy backend` if you want to see it.
 
@@ -147,28 +154,50 @@ npm run lint          # ESLint + Prettier --check (gating)
 npm run typecheck     # vue-tsc --noEmit (gating)
 npm run test:coverage # vitest with the 100% coverage gate (gating)
 npm run build         # Vite production build (gating)
-npm run test:e2e      # live axe-core a11y audit in a browser (NOT gating — see below)
+npm run test:e2e      # Playwright + axe-core e2e over the built bundle (gating — see below)
 ```
 
 Use `npm run lint:fix` / `npm run format` to auto-fix lint and formatting.
 
-`npm run test:e2e` is the **live accessibility audit** (Playwright + axe-core). It
-runs the real axe engine in a browser over every domain view, catching the
+`npm run test:e2e` is the SPA's **Playwright + axe-core suite**
+(`frontend/vue/e2e/`, ~150 tests): UI structure (rail tabs, `aria-controls`
+targets, live regions), SDR audio surviving navigation, the "section
+unavailable" page, and the real axe engine over every view, catching the
 layout-dependent WCAG rules jsdom-based `jest-axe` can't (colour contrast,
 target size). It needs a browser binary (`npx playwright install chromium`, or
-`PLAYWRIGHT_CHANNEL=chrome` to use system Chrome). It **runs in CI and gates every
-PR and push to `main`** (the `frontend-vue` job installs Chromium and runs it
-after the build); run it locally first to catch failures early. Full
-instructions, including how to audit against the live backend with
-`A11Y_BASE_URL`, are in the
-[README](README.md#live-accessibility-audit-playwright--axe-core).
+`PLAYWRIGHT_CHANNEL=chrome` to use system Chrome) and serves the **committed**
+`frontend/spa-dist/`, so `npm run build` first. It **gates every PR and push to
+`main`** (the `frontend-vue / a11y` job), and UI restructuring can break it
+while every vitest spec still passes. Run it before pushing any UI change. To
+audit against a running backend, set `A11Y_BASE_URL=http://localhost:8080`.
+
+### Web packages (repo root)
+
+```bash
+npm run web-packages -- lint           # ESLint + Prettier --check, every package (gating)
+npm run web-packages -- typecheck      # vue-tsc / tsc (gating)
+npm run web-packages -- test:coverage  # vitest, 100% coverage per package (gating)
+cd services/sections/sdr/frontend && npm run test:coverage   # one package
+```
+
+A section package imports only `@sentinel/{ui,shell-api,map-kit}` and itself,
+never another section or the SPA: the `noSectionImports` lint rule fails the
+build otherwise. Only the shell's `frontend/vue/src/shell/sections.ts` (the
+composition root) and SPA specs may import `@sentinel/section-*`.
 
 ### Root tooling (repo root)
 
 ```bash
 npm run lint      # ESLint + Prettier --check (gating)
 npm run typecheck # tsc --noEmit over tsconfig.json (gating)
+npm run test:e2e:fullstack   # full-stack smoke: boots uvicorn on :8099 against a temp DB
+npm run test:e2e:gateway     # same suite + gateway checks, through a running `docker compose up` stack on :8080
 ```
+
+`test:e2e:gateway` is the gating `gateway-smoke` CI job, run once per section
+deployment (every section; only SDR; all but SDR). Set `SENTINEL_E2E_SECTIONS`
+(e.g. `space:service,sdr:absent`) to tell it which sections the stack under
+test runs.
 
 The root `tsconfig.json` covers the same surface the root lint run does — the
 repo-root config files plus the full-stack e2e specs in `tests/e2e/`. Keep its
@@ -275,10 +304,14 @@ optional body explaining the why
 | Prettier format | ✅ auto-write | ✅ `--check` |
 | ESLint | ✅ `--fix` (root `tests/`) | ✅ |
 | ruff check + format | ✅ `--fix` + format (backend) | ✅ check + `--check` |
+| import-linter (section boundaries) | — | ✅ |
 | vue-tsc typecheck | — | ✅ |
+| web packages (lint, typecheck, vitest 100%) | — | ✅ (`web-packages` job) |
 | vitest (100% coverage, incl. jest-axe) | — | ✅ |
-| live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue` job) |
+| SPA e2e + live a11y audit (Playwright + axe-core) | — | ✅ (`frontend-vue / a11y` job) |
 | pytest (backend) | — | ✅ |
+| composed stack through the gateway, 3 section deployments | — | ✅ (`gateway-smoke` matrix) |
+| backend image for amd64 + arm64 | — | ✅ (`multi-arch-build`, no push) |
 | CHANGELOG regenerate | — | ✅ (changelog workflow, push to `main` only) |
 
 The pre-commit hook is a fast mirror of the formatting/lint gates on *staged*
