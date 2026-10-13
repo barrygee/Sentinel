@@ -77,7 +77,7 @@ class ServiceRegistry:
     def register_in_process(self, manifests: list[ServiceManifest], instance_id: str) -> None:
         """Register the monolith's own sections — at import time, before any request.
 
-        Synchronous on purpose: `backend/main.py` calls it while building the
+        Synchronous on purpose: `create_core_app()` calls it while building the
         app, as it includes the routers, so the sections are listed in tests
         (which skip the lifespan) exactly as in production. There is no one to
         announce `registry.changed` to that early, so nothing is published.

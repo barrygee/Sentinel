@@ -2,7 +2,7 @@
 
 Each module in `backend/modules/` declares the manifest its service will send
 core once it runs in its own container (P6). Until then the monolith registers
-them all in-process at import (`backend/main.py`), all pointing at this process.
+them all in-process when it builds its app (`backend/composition_root.py`), all pointing at this process.
 """
 
 from __future__ import annotations

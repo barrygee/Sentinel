@@ -1,6 +1,6 @@
 """Serving a section's Module Federation remote (`/remotes/<id>/…`).
 
-Used by the monolith for the sections it hosts (`backend/main.py`) and by a
+Used by core for the sections it hosts (`backend/core/spa_serving.py`) and by a
 section running in its own container for its own remote
 (`backend/platform/sdk/`), so both answer the same way.
 """

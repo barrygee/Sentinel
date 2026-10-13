@@ -21,7 +21,7 @@ from pathlib import Path
 
 from backend.core.service_registry import ServiceRegistry, registry
 
-# RemotesStaticFiles is re-exported: the monolith mounts it at /remotes (backend/main.py).
+# RemotesStaticFiles is re-exported: core mounts it at /remotes (backend/core/spa_serving.py).
 from backend.platform.remote_files import REMOTE_ENTRY_FILENAME, RemotesStaticFiles  # noqa: F401
 from fastapi import APIRouter
 from pydantic import BaseModel
