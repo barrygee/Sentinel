@@ -10,7 +10,8 @@ are mirrored onto the host's DB row so the UI can show reachability without
 polling itself.
 
 A single process-wide `fleet_poller` instance is created here and
-started/stopped from `backend.main`'s lifespan, matching the existing
+started/stopped by the radio hub module's lifecycle
+(`backend/modules/radio_hub.py`), matching the existing
 `_daily_cleanup_loop` pattern (create the task at startup, cancel-and-await it
 at shutdown).
 """
@@ -117,7 +118,7 @@ class SentryFleetPoller:
         await self.start_host(host_id)
 
     async def stop_all(self) -> None:
-        """Cancel and await every running poller task. Called from `backend.main`'s shutdown."""
+        """Cancel and await every running poller task. Called when the radio hub module stops."""
         for host_id in list(self._tasks.keys()):
             await self.stop_host(host_id)
 
@@ -281,5 +282,5 @@ class SentryFleetPoller:
             await db.commit()
 
 
-# Process-wide singleton, started in backend.main's lifespan and cancelled on shutdown.
+# Process-wide singleton, started by the radio hub module's lifecycle and cancelled when it stops.
 fleet_poller = SentryFleetPoller()

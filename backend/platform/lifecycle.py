@@ -1,8 +1,9 @@
 """Per-module startup, shutdown and signal wake-up (section-containers plan, B8).
 
-`backend/main.py` used to start and stop every section itself, in one long
+Core's entry point (`backend/main.py`) used to start and stop every section itself, in one long
 lifespan function. Each module now declares its own `ModuleLifecycle` (see
-`backend/modules/`), and the app just runs them. When a section moves into its
+`backend/modules/`), and each composition root — `create_core_app()` (`backend/composition_root.py`) or
+`create_service()` (`backend/platform/sdk/`) — just runs them. When a section moves into its
 own container its lifecycle goes with it, unchanged.
 
 Startup has two phases, because the order across modules matters at one point:

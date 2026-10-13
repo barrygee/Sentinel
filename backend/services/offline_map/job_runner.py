@@ -1,7 +1,7 @@
 """Background job runner for offline map region downloads.
 
-One `asyncio.Queue` worker, started from FastAPI's `lifespan` (see
-`backend/main.py`), runs jobs strictly one at a time via
+One `asyncio.Queue` worker, started by the core module's lifecycle (see
+`backend/modules/core.py`), runs jobs strictly one at a time via
 `asyncio.create_subprocess_exec` — an argv list, never a shell, so nothing in
 a region's bbox/label can reach a shell interpreter. Each job runs a basemap
 extract phase then a terrain phase (as selected), writing to a `.part` file
@@ -18,7 +18,7 @@ reported differently so the region's `error` field is honest:
   - the disk-space sampler decides free space is running out: recorded as a
     failure with a specific message, files removed.
   - the SERVER is shutting down (`wake()`/`stop()`, chained from
-    SIGTERM/SIGINT in main.py's lifespan): recorded as a failure with
+    SIGTERM/SIGINT by backend/platform/lifecycle.py): recorded as a failure with
     "Interrupted by a server restart", matching the message a genuinely
     unclean shutdown gets from `region_repository.mark_stale_jobs_failed_on_startup`
     on the *next* boot — and the worker stops picking up further queued jobs.
@@ -116,7 +116,7 @@ class OfflineMapJobRunner:
         """Server is shutting down: terminate whatever subprocess is running
         and mark this a shutdown so the worker records a friendly message and
         stops picking up further work. Called from the SIGTERM/SIGINT chain
-        in main.py's lifespan (so `--reload` never hangs on a live go-pmtiles
+        by backend/platform/lifecycle.py (so `--reload` never hangs on a live go-pmtiles
         process). NOT used for a per-job cancel or the disk-space abort —
         those go through `_terminate_current_process` directly so they don't
         also flip this server-wide flag."""
@@ -477,5 +477,5 @@ class OfflineMapJobRunner:
             await self._update_region_best_effort(region_id, bytes_done=total_bytes_done)
 
 
-# Module-level singleton, started/stopped from backend.main's lifespan.
+# Module-level singleton, started/stopped by the core module's lifecycle (backend/modules/core.py).
 runner = OfflineMapJobRunner()
