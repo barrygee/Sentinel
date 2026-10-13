@@ -74,7 +74,7 @@ normal `docker compose up --build` is unchanged and never touches the decoder.
 
 ```bash
 docker compose --profile voice-decoder down        # stop everything incl. decoder
-docker compose up -d                          # back to app-only (no decoder)
+docker compose up -d                          # back to Sentinel without the decoder
 ```
 
 Because the decoder is profile-gated, plain `docker compose up` never starts it.

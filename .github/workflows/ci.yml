@@ -305,17 +305,14 @@ jobs:
   # full-stack smoke suite driven THROUGH the gateway — plus the gateway-only
   # spec (/internal/ refused, CSP, unbuffered SSE, WebSocket upgrade).
   # The composed stack (app + gateway + NATS) driven through the gateway, once
-  # per deployment of the extracted sections (section-containers plan P6: "e2e
-  # green with the section present *and* absent"):
-  #   monolith          the app hosts every section, as `docker compose up` does.
-  #   sections-service  Space, Land, Air, Sea, SDR and the radio hub run in their own
-  #                     containers and the app does NOT host them, so only the
-  #                     containers can answer.
-  #   sections-absent   the app does not host them and no container runs them —
-  #                     except SDR, kept in the app so the shell has a section to show.
-  #   sdr-absent        only SDR is gone (the app hosts the rest, the radio hub
-  #                     included): the shell boots without the SDR remote, whose
-  #                     audio engine it otherwise loads eagerly.
+  # per deployment of the sections (section-containers plan P6: "e2e green with
+  # the section present *and* absent"). The app never hosts a section under
+  # compose (P8c), so "absent" just means its container isn't started:
+  #   sections-service  every section and the radio hub, as `docker compose up` runs them.
+  #   sections-absent   only the SDR section's container, so the shell has a
+  #                     section to show: Space, Land, Air, Sea and the hub are gone.
+  #   sdr-absent        everything but the SDR section: the shell boots without
+  #                     the SDR remote, whose audio engine it otherwise loads eagerly.
   gateway-smoke:
     name: gateway-smoke (${{ matrix.deployment }})
     runs-on: ubuntu-latest
@@ -323,29 +320,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - deployment: monolith
-            external_services: ''
-            profiles: ''
-            services: app gateway nats
-            sections: ''
           - deployment: sections-service
-            external_services: space,land,air,sea,radio-hub,sdr
-            profiles: space,land,air,sea,radio-hub,sdr
             services: app gateway nats space land air sea radio-hub sdr
             sections: space:service,land:service,air:service,sea:service,radio-hub:service,sdr:service
           - deployment: sections-absent
-            external_services: space,land,air,sea,radio-hub
-            profiles: ''
-            services: app gateway nats
-            sections: space:absent,land:absent,air:absent,sea:absent,radio-hub:absent
+            services: app gateway nats sdr
+            sections: space:absent,land:absent,air:absent,sea:absent,radio-hub:absent,sdr:service
           - deployment: sdr-absent
-            external_services: sdr
-            profiles: ''
-            services: app gateway nats
-            sections: sdr:absent
+            services: app gateway nats space land air sea radio-hub
+            sections: space:service,land:service,air:service,sea:service,radio-hub:service,sdr:absent
     env:
-      SENTINEL_EXTERNAL_SERVICES: ${{ matrix.external_services }}
-      COMPOSE_PROFILES: ${{ matrix.profiles }}
       SENTINEL_E2E_SECTIONS: ${{ matrix.sections }}
     steps:
       - uses: actions/checkout@v6
@@ -430,24 +414,30 @@ jobs:
           fi
 
       # A section container serves nothing until it has registered with the app
-      # and the app has pushed its routes into the gateway.
+      # and the app has pushed its routes into the gateway. Waits for each
+      # `<id>:service` in SENTINEL_E2E_SECTIONS: a section must be listed by
+      # /api/app/sections, and every one must answer a route of its own.
       - name: Wait for the section services to register
-        if: matrix.deployment == 'sections-service'
         run: |
+          declare -A probe_path=(
+            [space]=/api/space/daynight [land]=/api/land/aprs/stations [air]=/api/air/tracking
+            [sea]=/api/sea/ais-key [sdr]=/api/sdr/groups [radio-hub]=/api/sdr/radios
+          )
+          services=$(echo "$SENTINEL_E2E_SECTIONS" | tr ',' '\n' | sed -n 's/:service$//p')
+          all_registered() {
+            sections=$(curl -fsS http://localhost:8080/api/app/sections || return 1)
+            for service in $services; do
+              # The radio hub is not a section, so it is never listed — only probed.
+              if [ "$service" != radio-hub ] && ! echo "$sections" | grep -q "\"id\":\"$service\""; then return 1; fi
+              # JSON, not the SPA's index.html, which bare paths fall through to.
+              curl -fsS "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
+            done
+          }
           for attempt in $(seq 1 90); do
-            sections=$(curl -fsS http://localhost:8080/api/app/sections || true)
-            if echo "$sections" | grep -q '"id":"space"' && echo "$sections" | grep -q '"id":"land"' \
-              && echo "$sections" | grep -q '"id":"air"' && echo "$sections" | grep -q '"id":"sea"' \
-              && curl -fsS -o /dev/null http://localhost:8080/api/space/daynight \
-              && curl -fsS -o /dev/null http://localhost:8080/api/land/aprs/stations \
-              && curl -fsS -o /dev/null http://localhost:8080/api/air/tracking \
-              && curl -fsS -o /dev/null http://localhost:8080/api/sea/ais-key \
-              && echo "$sections" | grep -q '"id":"sdr"' \
-              && curl -fsS http://localhost:8080/api/sdr/groups | grep -q '^\[' \
-              && curl -fsS http://localhost:8080/api/sdr/radios | grep -q '^\['; then exit 0; fi
+            if all_registered; then exit 0; fi
             sleep 2
           done
-          echo "::error::the section services never registered behind the gateway"
+          echo "::error::the section services ($services) never registered behind the gateway"
           exit 1
 
       - name: Full-stack smoke through the gateway

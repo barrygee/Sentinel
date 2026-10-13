@@ -21,17 +21,19 @@ It is **offline-first**: every domain has online and offline data sources with a
 ### Run with Docker
 
 ```bash
-docker compose --profile all up --build -d    # app + ALL decoders — http://localhost:8080
-docker compose up --build -d                  # app only, no decoders
+docker compose --profile all up --build -d    # Sentinel + ALL decoders — http://localhost:8080
+docker compose up --build -d                  # Sentinel, no decoders
 ```
 
-**Start here if you want the radio features.** The decoders (digital voice, APRS, off-grid AIS, off-grid ADS-B) are opt-in sidecar containers, so a bare `docker compose up` starts only the app and the map stays empty of anything an SDR would feed. `--profile all` starts every one of them in a single command.
+A bare `docker compose up` starts all of Sentinel: core (the app, the gateway on :8080 and the NATS event bus) plus each section — Space, Land, Air, Sea, SDR — and the radio hub as **its own service**, each with its own database. Sections are never hosted inside the app under compose. To leave one out, scale it to zero (`docker compose up -d --scale land=0`) and the shell simply doesn't show it. Upgrading from a single-container install needs nothing: each service copies its tables (and SDR its recordings) out of `sentinel_db` on first boot.
+
+**Start here if you want the radio features.** The decoders (digital voice, APRS, off-grid AIS, off-grid ADS-B) are opt-in sidecar containers, so a bare `docker compose up` starts none of them and the map stays empty of anything an SDR would feed. `--profile all` starts every one of them in a single command.
 
 | Want           | Command                                                                       |
 | -------------- | ----------------------------------------------------------------------------- |
 | Everything     | `docker compose --profile all up --build -d`                                  |
 | Just one       | `docker compose --profile ais up --build -d` (or `aprs` · `adsb` · `voice-decoder`) |
-| App only       | `docker compose up --build -d`                                                |
+| No decoders    | `docker compose up --build -d`                                                |
 | No flag at all | set `COMPOSE_PROFILES=all` in `.env`, then plain `docker compose up -d`       |
 
 **Each decoder needs its own dongle.** They cannot share a receiver — every one holds its own `rtl_tcp` connection and tunes it — so `--profile all` means four radios. With one stick, start the single profile you want. Details for each: [Optional decoder sidecars](#optional-decoder-sidecars).
@@ -60,7 +62,8 @@ Two terminals. Vite proxies `/api`, `/ws` and `/assets` to the backend on **:808
 ```bash
 # Terminal 1 — backend on :8080
 docker compose up                                      # Docker, backend code volume-mounted
-#   …or without Docker, from the repo root:
+#   …or without Docker, from the repo root (dev only: one process hosts every
+#   section in-process, with no gateway or broker — not a deployment mode):
 #   uv sync --project backend
 #   uv run --project backend uvicorn backend.main:app --reload --port 8080
 
@@ -129,7 +132,7 @@ docker compose --profile ais up -d --build         # Off Grid AIS (Direwolf)
 docker compose --profile adsb up -d --build        # Off Grid ADS-B (readsb)
 docker compose --profile voice-decoder --profile aprs up -d --build   # or combine profiles freely
 docker compose --profile <name> logs -f <service>  # voice-decoder · aprs-decoder · ais-decoder · adsb-decoder
-docker compose --profile <name> down && docker compose up -d    # back to app-only
+docker compose --profile <name> down && docker compose up -d    # back to no decoders
 ```
 
 To make a bare `docker compose up` start them without the flag, set

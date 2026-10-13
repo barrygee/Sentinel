@@ -16,8 +16,8 @@
 # no PCM port and no decoder credential ever leaves this machine.
 #
 # Needs (in this host's .env): SENTINEL_CORE_ENTRYPOINT_URL, SENTINEL_CORE_NATS_URL
-# and SENTINEL_RADIO_HOST_URL. On the core host: radio-hub in
-# SENTINEL_EXTERNAL_SERVICES, no radio-hub/decoder profiles, the entrypoint and
+# and SENTINEL_RADIO_HOST_URL. On the core host: SENTINEL_RADIO_HUB_REPLICAS=0
+# (so it starts no hub of its own), no decoder profiles, the entrypoint and
 # NATS published (SENTINEL_SERVICE_ENTRYPOINT_ADDRESS, NATS_PUBLISHED_ADDRESS)
 # and both hosts' names in SENTINEL_CORE_HOSTNAMES / SENTINEL_RADIO_HOST_HOSTNAMES.
 
