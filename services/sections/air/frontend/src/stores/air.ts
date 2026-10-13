@@ -120,7 +120,7 @@ export type SquawkWatchMode = 'online' | 'offgrid'
  */
 export const DEFAULT_SQUAWK_WATCH_INTERVAL_SEC = 20
 
-/** The `air` setting holding each mode's interval (backend/services/adsb_squawk.py). */
+/** The `air` setting holding each mode's interval (services/sections/air/backend/sentinel_air/services/adsb_squawk.py). */
 export const SQUAWK_WATCH_INTERVAL_SETTING: Record<SquawkWatchMode, string> = {
   online: 'squawkWatchOnlineIntervalSec',
   offgrid: 'squawkWatchOffgridIntervalSec',

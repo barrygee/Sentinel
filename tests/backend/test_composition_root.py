@@ -29,7 +29,9 @@ from backend.radio_hub.routers import (
     radios,
     sentry,
 )
-from backend.routers import adsb_source, air, offline_map, sdr, sea
+from backend.routers import offline_map, sdr, sea
+from sentinel_air import adsb_source_router as adsb_source
+from sentinel_air import router as air
 from sentinel_land import router as land
 from sentinel_space import router as space
 from backend.routers import settings as settings_router

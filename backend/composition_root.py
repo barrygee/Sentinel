@@ -87,8 +87,8 @@ def api_routers() -> list[APIRouter]:
     """
     routers: list[APIRouter] = []
     if hosts_in_process("air"):
-        from backend.routers import adsb_source as adsb_source_router  # noqa: F401 — included under /api/sdr/
-        from backend.routers import air
+        from sentinel_air import adsb_source_router  # noqa: F401 — included under /api/sdr/
+        from sentinel_air import router as air
 
         routers.append(air.router)
     # Core notifications keep their /api/air/messages paths (B5).
@@ -144,7 +144,7 @@ def _sdr_prefix_routers() -> list[APIRouter]:
         )
     if hosts_in_process("air"):
         # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
-        from backend.routers import adsb_source as adsb_source_router
+        from sentinel_air import adsb_source_router
 
         routers.append(adsb_source_router.router)
     return routers

@@ -18,12 +18,13 @@ from typing import Any
 
 import httpx
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from backend.db_helpers import upsert_setting
 from backend.platform.bus import EventBus
-from backend.services import adsb_squawk
-from backend.services.adsb_squawk import (
+from backend.services.upstream_rate_limit import UpstreamThrottledError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_air.services import adsb_squawk
+from sentinel_air.services.adsb_squawk import (
     EMERGENCY_SQUAWKS,
     FORGET_AFTER_MS,
     NOTIFICATIONS_RAISE_SUBJECT,
@@ -36,7 +37,6 @@ from backend.services.adsb_squawk import (
     watch_interval_s,
     watch_once,
 )
-from backend.services.upstream_rate_limit import UpstreamThrottledError
 
 DB = object()  # stands in for a session where nothing reads it
 
@@ -71,9 +71,7 @@ async def db(test_engine, db_setup):
         yield session
 
 
-def aircraft(
-    hex_code: str = "4ca123", squawk: str | None = "1200", **fields: Any
-) -> dict:
+def aircraft(hex_code: str = "4ca123", squawk: str | None = "1200", **fields: Any) -> dict:
     return {"hex": hex_code, "squawk": squawk, **fields}
 
 
@@ -81,15 +79,11 @@ def aircraft(
 
 
 class TestSquawkTracker:
-    async def test_a_first_sighting_with_a_normal_squawk_is_not_a_change(
-        self, published, clock
-    ):
+    async def test_a_first_sighting_with_a_normal_squawk_is_not_a_change(self, published, clock):
         await SquawkTracker().observe({"ac": [aircraft(squawk="1200")]}, DB)
         assert published == []
 
-    async def test_a_first_sighting_already_squawking_an_emergency_is_a_change(
-        self, published, clock
-    ):
+    async def test_a_first_sighting_already_squawking_an_emergency_is_a_change(self, published, clock):
         snapshot = {
             "ac": [
                 aircraft(
@@ -121,18 +115,12 @@ class TestSquawkTracker:
             )
         ]
 
-    async def test_every_later_change_is_published_with_the_previous_squawk(
-        self, published, clock
-    ):
+    async def test_every_later_change_is_published_with_the_previous_squawk(self, published, clock):
         tracker = SquawkTracker()
         await tracker.observe({"ac": [aircraft(squawk="1200")]}, DB)
         await tracker.observe({"ac": [aircraft(squawk="2000")]}, DB)
-        await tracker.observe(
-            {"ac": [aircraft(squawk="2000")]}, DB
-        )  # unchanged: nothing
-        assert [
-            (payload["previous"], payload["squawk"]) for _, payload in published
-        ] == [("1200", "2000")]
+        await tracker.observe({"ac": [aircraft(squawk="2000")]}, DB)  # unchanged: nothing
+        assert [(payload["previous"], payload["squawk"]) for _, payload in published] == [("1200", "2000")]
 
     async def test_a_missing_squawk_counts_as_blank(self, published, clock):
         tracker = SquawkTracker()
@@ -141,20 +129,14 @@ class TestSquawkTracker:
         assert published[-1][1]["squawk"] == ""
         assert published[-1][1]["previous"] == "7700"
 
-    async def test_aircraft_without_a_hex_and_empty_snapshots_are_ignored(
-        self, published, clock
-    ):
+    async def test_aircraft_without_a_hex_and_empty_snapshots_are_ignored(self, published, clock):
         tracker = SquawkTracker()
-        await tracker.observe(
-            {"ac": [{"squawk": "7700"}, {"hex": "", "squawk": "7700"}]}, DB
-        )
+        await tracker.observe({"ac": [{"squawk": "7700"}, {"hex": "", "squawk": "7700"}]}, DB)
         await tracker.observe({}, DB)
         await tracker.observe({"ac": None}, DB)
         assert published == []
 
-    async def test_every_snapshot_marks_when_the_tracker_last_saw_one(
-        self, published, clock
-    ):
+    async def test_every_snapshot_marks_when_the_tracker_last_saw_one(self, published, clock):
         tracker = SquawkTracker()
         assert tracker.last_observed_ms == 0
         clock[0] = 5_000_000
@@ -170,9 +152,7 @@ class TestSquawkTracker:
         # A poll is not a snapshot: it must not look like one was observed.
         assert tracker.last_observed_ms == 0
 
-    async def test_an_aircraft_missing_from_one_snapshot_does_not_alert_again(
-        self, published, clock
-    ):
+    async def test_an_aircraft_missing_from_one_snapshot_does_not_alert_again(self, published, clock):
         tracker = SquawkTracker()
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
         clock[0] += 60_000
@@ -181,9 +161,7 @@ class TestSquawkTracker:
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
         assert len(published) == 1
 
-    async def test_an_aircraft_unseen_for_the_whole_window_is_still_remembered(
-        self, published, clock
-    ):
+    async def test_an_aircraft_unseen_for_the_whole_window_is_still_remembered(self, published, clock):
         tracker = SquawkTracker()
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
         clock[0] += FORGET_AFTER_MS  # exactly the window: kept
@@ -191,9 +169,7 @@ class TestSquawkTracker:
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
         assert len(published) == 1
 
-    async def test_an_aircraft_unseen_for_longer_is_forgotten_and_alerts_again(
-        self, published, clock
-    ):
+    async def test_an_aircraft_unseen_for_longer_is_forgotten_and_alerts_again(self, published, clock):
         tracker = SquawkTracker()
         await tracker.observe({"ac": [aircraft(squawk="7700")]}, DB)
         clock[0] += FORGET_AFTER_MS + 1
@@ -205,15 +181,10 @@ class TestSquawkTracker:
 
 class TestCallsign:
     def test_prefers_the_flight_number_trimmed(self):
-        assert (
-            callsign_of({"hex": "4ca123", "flight": " EIN123 ", "r": "EI-ABC"})
-            == "EIN123"
-        )
+        assert callsign_of({"hex": "4ca123", "flight": " EIN123 ", "r": "EI-ABC"}) == "EIN123"
 
     def test_falls_back_to_the_registration(self):
-        assert (
-            callsign_of({"hex": "4ca123", "flight": "  ", "r": " EI-ABC "}) == "EI-ABC"
-        )
+        assert callsign_of({"hex": "4ca123", "flight": "  ", "r": " EI-ABC "}) == "EI-ABC"
 
     def test_falls_back_to_the_hex(self):
         assert callsign_of({"hex": "4ca123", "flight": None}) == "4ca123"
@@ -224,23 +195,14 @@ class TestCallsign:
 
 class TestEmergencyDetail:
     def test_airborne_with_speed(self):
-        assert (
-            emergency_detail("7700", 12000, 420.6)
-            == "SQK 7700 — General Emergency · ALT 12,000 ft · GS 421 kt"
-        )
+        assert emergency_detail("7700", 12000, 420.6) == "SQK 7700 — General Emergency · ALT 12,000 ft · GS 421 kt"
 
     def test_a_fractional_altitude(self):
-        assert (
-            emergency_detail("7600", 3500.5, None)
-            == "SQK 7600 — Radio Failure / Lost Comm · ALT 3,500.5 ft"
-        )
+        assert emergency_detail("7600", 3500.5, None) == "SQK 7600 — Radio Failure / Lost Comm · ALT 3,500.5 ft"
 
     @pytest.mark.parametrize("alt_baro", ["ground", 0, -50, None])
     def test_on_the_ground_or_unknown_altitude(self, alt_baro):
-        assert (
-            emergency_detail("7500", alt_baro, 0)
-            == "SQK 7500 — Hijacking / Unlawful Interference · ON GROUND"
-        )
+        assert emergency_detail("7500", alt_baro, 0) == "SQK 7500 — Hijacking / Unlawful Interference · ON GROUND"
 
     def test_every_emergency_code_has_a_label(self):
         assert set(EMERGENCY_SQUAWKS) == {"7700", "7600", "7500"}
@@ -303,13 +265,9 @@ class TestSquawkChangedHandler:
         from backend.models import AirMessage
         from sqlalchemy import select
 
-        await SquawkTracker().observe(
-            {"ac": [aircraft(squawk="7700", flight="EIN123")]}, db
-        )
+        await SquawkTracker().observe({"ac": [aircraft(squawk="7700", flight="EIN123")]}, db)
         rows = (await db.execute(select(AirMessage))).scalars().all()
-        assert [(row.type, row.title, row.hex) for row in rows] == [
-            ("emergency", "EIN123", "4ca123")
-        ]
+        assert [(row.type, row.title, row.hex) for row in rows] == [("emergency", "EIN123", "4ca123")]
 
 
 # ── where the watcher looks ──────────────────────────────────────────────────
@@ -351,16 +309,12 @@ class TestWatchArea:
             "not a dict",
         ],
     )
-    async def test_online_without_a_usable_location_stays_idle(
-        self, db, monkeypatch, value
-    ):
+    async def test_online_without_a_usable_location_stays_idle(self, db, monkeypatch, value):
         mode(monkeypatch, "online")
         await set_location(db, value)
         assert await watch_area(db) is None
 
-    async def test_online_with_no_location_setting_at_all_stays_idle(
-        self, db, monkeypatch
-    ):
+    async def test_online_with_no_location_setting_at_all_stays_idle(self, db, monkeypatch):
         mode(monkeypatch, "online")
         assert await watch_area(db) is None
 
@@ -370,26 +324,20 @@ class TestWatchArea:
         await set_location(db, {"latitude": "51.5", "longitude": "-0.12"})
         assert await watch_area(db) == (53.0, -2.0)
 
-    async def test_off_grid_without_a_receiver_position_uses_the_location(
-        self, db, monkeypatch
-    ):
+    async def test_off_grid_without_a_receiver_position_uses_the_location(self, db, monkeypatch):
         mode(monkeypatch, "offgrid")
         receiver(monkeypatch, None)
         await set_location(db, {"latitude": "51.5", "longitude": "-0.12"})
         assert await watch_area(db) == (51.5, -0.12)
 
     @pytest.mark.parametrize("error", [LookupError("no hub"), TimeoutError()])
-    async def test_off_grid_with_no_hub_answering_uses_the_location(
-        self, db, monkeypatch, error
-    ):
+    async def test_off_grid_with_no_hub_answering_uses_the_location(self, db, monkeypatch, error):
         mode(monkeypatch, "offgrid")
         receiver(monkeypatch, error)
         await set_location(db, {"latitude": "51.5", "longitude": "-0.12"})
         assert await watch_area(db) == (51.5, -0.12)
 
-    async def test_a_mode_passed_in_is_used_without_resolving_it_again(
-        self, db, monkeypatch
-    ):
+    async def test_a_mode_passed_in_is_used_without_resolving_it_again(self, db, monkeypatch):
         async def must_not_resolve(domain, db):
             raise AssertionError("the caller already resolved the mode")
 
@@ -414,12 +362,8 @@ def interval_defaults(monkeypatch):
 
 
 class TestWatchIntervalS:
-    @pytest.mark.parametrize(
-        ("watch_mode", "expected"), [("online", 21.0), ("offgrid", 6.0)]
-    )
-    async def test_unset_uses_that_modes_default(
-        self, db, interval_defaults, watch_mode, expected
-    ):
+    @pytest.mark.parametrize(("watch_mode", "expected"), [("online", 21.0), ("offgrid", 6.0)])
+    async def test_unset_uses_that_modes_default(self, db, interval_defaults, watch_mode, expected):
         assert await watch_interval_s(db, watch_mode) == expected
 
     async def test_each_mode_reads_its_own_setting(self, db, interval_defaults):
@@ -446,9 +390,7 @@ class TestWatchIntervalS:
             {"seconds": 30},
         ],
     )
-    async def test_anything_else_falls_back_to_the_default(
-        self, db, interval_defaults, value
-    ):
+    async def test_anything_else_falls_back_to_the_default(self, db, interval_defaults, value):
         await set_air(db, "squawkWatchOnlineIntervalSec", value)
         assert await watch_interval_s(db, "online") == 21.0
 
@@ -511,35 +453,25 @@ def fetch(monkeypatch, behaviour) -> list[tuple]:
 
 
 class TestWatchOnce:
-    async def test_fetches_the_area_and_feeds_the_tracker(
-        self, watch_setup, monkeypatch
-    ):
+    async def test_fetches_the_area_and_feeds_the_tracker(self, watch_setup, monkeypatch):
         calls = fetch(monkeypatch, lambda base_url: {"ac": ["snapshot"]})
         assert await watch_once(DB) is True
         assert calls == [(51.5, -0.12, 250, "https://primary.example/v2")]
         assert watch_setup.observed == [{"ac": ["snapshot"]}]
 
-    async def test_does_nothing_while_a_snapshot_arrived_within_the_interval(
-        self, watch_setup, monkeypatch, clock
-    ):
+    async def test_does_nothing_while_a_snapshot_arrived_within_the_interval(self, watch_setup, monkeypatch, clock):
         watch_setup.last_observed_ms = clock[0] - 19_999  # online interval: 20 s
         calls = fetch(monkeypatch, lambda base_url: {"ac": []})
         assert await watch_once(DB) is False
         assert calls == []
 
-    async def test_fetches_once_the_interval_has_passed(
-        self, watch_setup, monkeypatch, clock
-    ):
+    async def test_fetches_once_the_interval_has_passed(self, watch_setup, monkeypatch, clock):
         watch_setup.last_observed_ms = clock[0] - 20_000
         fetch(monkeypatch, lambda base_url: {"ac": []})
         assert await watch_once(DB) is True
 
-    @pytest.mark.parametrize(
-        ("watch_mode", "fetched"), [("offgrid", True), ("online", False)]
-    )
-    async def test_the_interval_is_the_current_modes(
-        self, watch_setup, monkeypatch, clock, watch_mode, fetched
-    ):
+    @pytest.mark.parametrize(("watch_mode", "fetched"), [("offgrid", True), ("online", False)])
+    async def test_the_interval_is_the_current_modes(self, watch_setup, monkeypatch, clock, watch_mode, fetched):
         # 5 s after the last snapshot: past the off-grid interval, inside the online one.
         mode(monkeypatch, watch_mode)
         watch_setup.last_observed_ms = clock[0] - 5_000
@@ -547,17 +479,13 @@ class TestWatchOnce:
         assert await watch_once(DB) is fetched
         assert watch_setup.interval_modes == [watch_mode]
 
-    async def test_hands_the_resolved_mode_to_watch_area(
-        self, watch_setup, monkeypatch
-    ):
+    async def test_hands_the_resolved_mode_to_watch_area(self, watch_setup, monkeypatch):
         mode(monkeypatch, "offgrid")
         fetch(monkeypatch, lambda base_url: {"ac": []})
         await watch_once(DB)
         assert watch_setup.area_modes == ["offgrid"]
 
-    async def test_reads_no_settings_while_a_browser_polls(
-        self, watch_setup, monkeypatch, clock
-    ):
+    async def test_reads_no_settings_while_a_browser_polls(self, watch_setup, monkeypatch, clock):
         # Idle ticks while the map is open cost nothing — in the Air service
         # every settings read is an HTTP call to core.
         async def must_not_resolve(domain, db):
@@ -568,9 +496,7 @@ class TestWatchOnce:
         assert await watch_once(DB) is False
         assert watch_setup.interval_modes == []
 
-    async def test_does_nothing_while_a_browser_polls_even_if_its_fetches_failed(
-        self, watch_setup, monkeypatch, clock
-    ):
+    async def test_does_nothing_while_a_browser_polls_even_if_its_fetches_failed(self, watch_setup, monkeypatch, clock):
         # The map's requests were answered from cache (upstream slow or
         # rate-limiting), so nothing was observed for a long time — yet the map
         # is open, and a watcher fetch now would take its rate budget.
@@ -580,9 +506,7 @@ class TestWatchOnce:
         assert await watch_once(DB) is False
         assert calls == []
 
-    async def test_fetches_once_the_browser_has_stopped_polling(
-        self, watch_setup, monkeypatch, clock
-    ):
+    async def test_fetches_once_the_browser_has_stopped_polling(self, watch_setup, monkeypatch, clock):
         watch_setup.last_observed_ms = clock[0] - 600_000
         watch_setup.last_browser_poll_ms = clock[0] - 15_000
         fetch(monkeypatch, lambda base_url: {"ac": []})
@@ -601,9 +525,7 @@ class TestWatchOnce:
         "error",
         [UpstreamThrottledError("throttled"), httpx.ConnectError("down")],
     )
-    async def test_falls_back_to_the_second_source(
-        self, watch_setup, monkeypatch, error
-    ):
+    async def test_falls_back_to_the_second_source(self, watch_setup, monkeypatch, error):
         def behaviour(base_url):
             if base_url == "https://primary.example/v2":
                 raise error
@@ -617,9 +539,7 @@ class TestWatchOnce:
         ]
         assert watch_setup.observed == [{"ac": ["from fallback"]}]
 
-    async def test_reports_nothing_observed_when_every_source_fails(
-        self, watch_setup, monkeypatch
-    ):
+    async def test_reports_nothing_observed_when_every_source_fails(self, watch_setup, monkeypatch):
         def behaviour(base_url):
             raise httpx.ConnectError("down")
 
@@ -638,9 +558,7 @@ class TestWatchOnce:
 
 
 class TestAdsbWatcher:
-    async def test_runs_a_pass_every_tick_and_survives_a_failing_one(
-        self, monkeypatch, caplog
-    ):
+    async def test_runs_a_pass_every_tick_and_survives_a_failing_one(self, monkeypatch, caplog):
         passes: list[Any] = []
         two_passes = asyncio.Event()
 
@@ -685,10 +603,8 @@ class TestWatchIntervalDefaults:
         import json
         from pathlib import Path
 
-        seeded = json.loads(
-            (
-                Path(__file__).resolve().parents[2] / "backend" / "default_config.json"
-            ).read_text()
-        )["air"]
+        seeded = json.loads((Path(__file__).resolve().parents[5] / "backend" / "default_config.json").read_text())[
+            "air"
+        ]
         assert seeded["squawkWatchOnlineIntervalSec"] == 20
         assert seeded["squawkWatchOffgridIntervalSec"] == 20

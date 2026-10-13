@@ -538,11 +538,10 @@ class TestWhatTheHubServiceLoads:
         assert not [module for module in loaded if module.startswith("backend.routers.")]
         # No moved section's package either.
         assert not [module for module in loaded if module.startswith("sentinel_")]
-        # No section's services: no APRS store, no AIS vessel store, no ADS-B.
+        # No section's services: no AIS vessel store, no SDR data (Land's and Air's are packages, above).
         assert not {
             "backend.services.ais_decode",
             "backend.services.ais_store",
-            "backend.services.adsb_source",
             "backend.services.sdr_data",
         } & set(loaded)
 

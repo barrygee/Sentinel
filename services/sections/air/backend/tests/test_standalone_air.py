@@ -1,4 +1,4 @@
-"""The Air section as its own service (backend/standalone/air.py, P6.3): its
+"""The Air section as its own service (`sentinel_air.service`, P6.3): its
 schema, its first-boot work, the app it serves, and its settings read from
 core over HTTP."""
 
@@ -10,17 +10,18 @@ from pathlib import Path
 
 import httpx
 import pytest
+from backend import database
+from backend.config import settings
+from backend.platform import settings_client
+from backend.utils import resolve_effective_mode
 from sqlalchemy import inspect
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from backend import database
-from backend.config import settings
-from backend.platform import settings_client
-from backend.services import adsb_source, adsb_squawk
-from backend.utils import resolve_effective_mode
+from sentinel_air import database as air_database
+from sentinel_air.services import adsb_source, adsb_squawk
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 
 
 @pytest.fixture
@@ -48,13 +49,13 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 class TestCreateAirTables:
     async def test_creates_only_the_air_tables_not_cores_notifications(self, air_engine):
-        await database.create_air_tables()
+        await air_database.create_air_tables()
 
         # air_messages is core's (notifications), despite the name.
         assert set(await table_columns(air_engine)) == {"adsb_cache", "air_tracking"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, air_engine):
-        await database.create_air_tables()
+        await air_database.create_air_tables()
         air_schema = await table_columns(air_engine)
 
         monolith = create_async_engine(
@@ -67,7 +68,7 @@ class TestCreateAirTables:
         finally:
             await monolith.dispose()
 
-        for table in database.AIR_TABLES:
+        for table in air_database.AIR_TABLES:
             assert air_schema[table] == monolith_schema[table]
 
 
@@ -157,13 +158,13 @@ class TestAirSettingsOverHttp:
 
 @pytest.fixture
 def air_service(monkeypatch):
-    """`backend.standalone.air`, imported fresh with a service's environment."""
+    """`sentinel_air.service`, imported fresh with a service's environment."""
     monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
     monkeypatch.setattr(settings, "service_internal_url", "http://air:8000")
-    monkeypatch.delitem(sys.modules, "backend.standalone.air", raising=False)
-    module = importlib.import_module("backend.standalone.air")
+    monkeypatch.delitem(sys.modules, "sentinel_air.service", raising=False)
+    module = importlib.import_module("sentinel_air.service")
     yield module
-    sys.modules.pop("backend.standalone.air", None)
+    sys.modules.pop("sentinel_air.service", None)
 
 
 class TestAirServiceApp:
@@ -205,8 +206,8 @@ class TestAirServiceApp:
         fresh interpreter, where nothing else has imported it."""
         probe = (
             "from backend.platform.bus import bus\n"
-            "import backend.standalone.air\n"
-            "from backend.services import adsb_squawk\n"
+            "import sentinel_air.service\n"
+            "from sentinel_air.services import adsb_squawk\n"
             "print([s.pattern for s in bus._subscriptions if s.handler is adsb_squawk._on_squawk_changed])\n"
         )
         environment = {
@@ -230,15 +231,15 @@ class TestAirServiceApp:
         monkeypatch.setattr(remote_files, "remotes_dir", lambda: tmp_path)
         monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
         monkeypatch.setattr(settings, "service_internal_url", "http://air:8000")
-        monkeypatch.delitem(sys.modules, "backend.standalone.air", raising=False)
-        service = importlib.import_module("backend.standalone.air")
+        monkeypatch.delitem(sys.modules, "sentinel_air.service", raising=False)
+        service = importlib.import_module("sentinel_air.service")
 
         try:
             transport = httpx.ASGITransport(app=service.app)
             async with httpx.AsyncClient(transport=transport, base_url="http://air:8000") as client:
                 response = await client.get("/remotes/air/remoteEntry.js")
         finally:
-            sys.modules.pop("backend.standalone.air", None)
+            sys.modules.pop("sentinel_air.service", None)
 
         assert response.text == "export const section = 'air'"
 
@@ -267,9 +268,10 @@ class TestAirServiceLifecycle:
         ]
 
     async def test_runs_its_schema_then_the_squawk_watcher_then_registration(self, monkeypatch):
-        from backend.modules import air as air_module
         from backend.platform.lifecycle import ModuleLifecycle
         from backend.platform.sdk.registration import ServiceRegistrar
+
+        from sentinel_air import module as air_module
 
         calls: list[str] = []
 
@@ -289,18 +291,20 @@ class TestAirServiceLifecycle:
         monkeypatch.setattr(settings, "service_internal_url", "http://air:8000")
         monkeypatch.setattr(settings, "nats_url", "")
         monkeypatch.setattr(settings, "legacy_db_path", "")
-        # The service composes the monolith's Air lifecycle at import, so swap it first.
-        monkeypatch.setattr(air_module, "lifecycle", ModuleLifecycle(name="air", start=watcher_start, stop=watcher_stop))
+        # The service composes Air's lifecycle at import, so swap it first.
+        monkeypatch.setattr(
+            air_module, "lifecycle", ModuleLifecycle(name="air", start=watcher_start, stop=watcher_stop)
+        )
         monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
         monkeypatch.setattr(ServiceRegistrar, "stop", registrar_stop)
-        monkeypatch.delitem(sys.modules, "backend.standalone.air", raising=False)
-        service = importlib.import_module("backend.standalone.air")
+        monkeypatch.delitem(sys.modules, "sentinel_air.service", raising=False)
+        service = importlib.import_module("sentinel_air.service")
         monkeypatch.setattr(service, "create_air_tables", create_air_tables)
 
         try:
             async with service.app.router.lifespan_context(service.app):
                 pass
         finally:
-            sys.modules.pop("backend.standalone.air", None)
+            sys.modules.pop("sentinel_air.service", None)
 
         assert calls == ["schema", "watcher.start", "registration.start", "registration.stop", "watcher.stop"]

@@ -10,10 +10,11 @@ from __future__ import annotations
 from typing import Any
 
 from backend.database import get_db
-from backend.services import adsb_source
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_air.services import adsb_source
 
 router = APIRouter(prefix="/api/sdr/adsb", tags=["adsb-source"])
 

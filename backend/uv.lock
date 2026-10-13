@@ -1049,6 +1049,11 @@ wheels = [
 ]
 
 [[package]]
+name = "sentinel-air"
+version = "0.1.0"
+source = { editable = "../services/sections/air/backend" }
+
+[[package]]
 name = "sentinel-backend"
 version = "0.1.0"
 source = { virtual = "." }
@@ -1064,6 +1069,7 @@ dependencies = [
     { name = "pmtiles" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
+    { name = "sentinel-air" },
     { name = "sentinel-land" },
     { name = "sentinel-space" },
     { name = "sgp4" },
@@ -1095,6 +1101,7 @@ requires-dist = [
     { name = "pmtiles", specifier = ">=3.8.1" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "sentinel-air", editable = "../services/sections/air/backend" },
     { name = "sentinel-land", editable = "../services/sections/land/backend" },
     { name = "sentinel-space", editable = "../services/sections/space/backend" },
     { name = "sgp4", specifier = ">=2.23" },

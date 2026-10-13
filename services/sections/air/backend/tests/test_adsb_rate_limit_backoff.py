@@ -20,13 +20,13 @@ import logging
 
 import httpx
 import pytest
-
-from backend.services import adsb as adsb_service
-from backend.services.adsb import _cooldown_seconds
 from backend.services.upstream_rate_limit import (
     MinimumIntervalRateLimiter,
     UpstreamThrottledError,
 )
+
+from sentinel_air.services import adsb as adsb_service
+from sentinel_air.services.adsb import _cooldown_seconds
 
 # Pinned rather than read from `settings`, so a `.env` on the machine running
 # the suite cannot quietly change what these tests assert.
@@ -38,9 +38,7 @@ MAX_PENALTY_MS = 600_000
 def pinned_penalty_settings(monkeypatch):
     """Fix the cooldown settings to their documented defaults for every test."""
     monkeypatch.setattr(adsb_service.settings, "adsb_rate_limit_penalty_ms", PENALTY_MS)
-    monkeypatch.setattr(
-        adsb_service.settings, "adsb_rate_limit_max_penalty_ms", MAX_PENALTY_MS
-    )
+    monkeypatch.setattr(adsb_service.settings, "adsb_rate_limit_max_penalty_ms", MAX_PENALTY_MS)
 
 
 # ── Choosing the cooldown length ──────────────────────────────────────────────
@@ -255,9 +253,7 @@ class TestFetchAircraftBacksOffOn429:
         assert calls == [1]
 
     @pytest.mark.parametrize("status_code", [403, 404, 500, 503])
-    async def test_other_error_statuses_do_not_back_off(
-        self, monkeypatch, limiter, status_code: int
-    ):
+    async def test_other_error_statuses_do_not_back_off(self, monkeypatch, limiter, status_code: int):
         """Only a 429 means "you are going too fast" — a 403 must not mute the feed."""
 
         def behaviour():
@@ -305,8 +301,7 @@ class TestRouterLogsRateLimiting:
         return "\n".join(
             record.getMessage()
             for record in caplog.records
-            if record.name == "backend.routers.air"
-            and record.levelno >= logging.WARNING
+            if record.name == "sentinel_air.router" and record.levelno >= logging.WARNING
         )
 
     def test_a_429_warns_and_names_the_host(self, client, monkeypatch, caplog):
@@ -315,22 +310,18 @@ class TestRouterLogsRateLimiting:
         async def fake_fetch(lat, lon, radius, base_url):
             request = httpx.Request("GET", base_url)
             response = httpx.Response(429, request=request)
-            raise httpx.HTTPStatusError(
-                "rate limited", request=request, response=response
-            )
+            raise httpx.HTTPStatusError("rate limited", request=request, response=response)
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             client.get(self.POINT)
 
         warnings = self._air_warnings(caplog)
         assert "online.example" in warnings
         assert "429" in warnings
 
-    def test_a_successful_fetch_logs_no_rate_limit_warning(
-        self, client, monkeypatch, caplog
-    ):
+    def test_a_successful_fetch_logs_no_rate_limit_warning(self, client, monkeypatch, caplog):
         client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
 
         async def fake_fetch(lat, lon, radius, base_url):
@@ -338,7 +329,7 @@ class TestRouterLogsRateLimiting:
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             client.get(self.POINT)
 
         assert "rate limited" not in self._air_warnings(caplog)
