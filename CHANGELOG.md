@@ -1503,6 +1503,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #471 from barrygee/docs/p8b-section-containers
 - Merge pull request #472 from barrygee/refactor/section-move-space
 - Merge pull request #473 from barrygee/refactor/section-move-land
+- Merge pull request #474 from barrygee/refactor/section-move-air
 
 ### Refactoring
 
@@ -1594,6 +1595,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Compose core's app in a create_core_app() factory
 - Move Space's backend into services/sections/space/backend
 - Move Land's backend into services/sections/land/backend
+- Move Air's backend into services/sections/air/backend
 
 ### Documentation
 
