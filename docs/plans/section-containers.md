@@ -1,6 +1,6 @@
 # Sentinel — Section Containers Plan
 
-**Status:** accepted (rev 2, after architecture review; owner decisions resolved 2026-09-30) · **Date:** 2026-09-30 · **Cut against:** `main` @ `99325502`
+**Status:** complete — P0–P8 delivered 2026-09-30 → 2026-10-13; decision record [ADR 0006](../adr/0006-section-containers.md), operator guide [docs/operations.md](../operations.md) (rev 2, after architecture review; owner decisions resolved 2026-09-30) · **Date:** 2026-09-30 · **Cut against:** `main` @ `99325502`
 **Scope:** code-structure and deployment change only — **zero functional or UI change**. Public API paths, WebSocket
 protocols, settings keys and the `sentinel_config.json` shape all stay byte-identical.
 
@@ -682,6 +682,17 @@ P1 and P2 can run in parallel. Each phase is a PR series, keeps every gate green
 | **P7 Multi-host + hardening** | Distribution | Advertised URLs, NATS TLS/leaf, `compose.radio-host.yaml`, bake, SHA-pinned decoders, healthchecks, non-root images | Hub + decoders on a second host drive the UI |
 | **P8 Cleanup + docs** | Retire the monolith | Remove `backend/main.py` composition root; README, CONTRIBUTING, CLAUDE.md (also fix its stale "10 e2e specs"), ADR 0006 | ADR accepted |
 
+*As built (P8):* **P8a** (#469) replaced `backend/main.py`'s inline wiring with `create_core_app()` in
+`backend/composition_root.py` (outside `backend.core`, which the import-linter contract keeps section-free) plus
+`backend/core/spa_serving.py`; `main.py` is now only core's uvicorn target. **P8c** (#470) made separate services the
+only deployment mode (owner decision 2026-10-13, see §8 item 5): no compose profiles for the sections or the hub, the
+app's `SENTINEL_EXTERNAL_SERVICES` fixed to all six, `--scale <service>=0` to leave one out,
+`SENTINEL_RADIO_HUB_REPLICAS=0` on a radio-host core, and the `monolith` gateway-smoke leg dropped. **P8b** wrote
+[ADR 0006](../adr/0006-section-containers.md) (accepted), [docs/operations.md](../operations.md) and refreshed the
+README, CONTRIBUTING and CLAUDE.md. **Deferred:** moving each section's backend into
+`services/sections/<id>/backend` (§4.2) with its own tests, after which in-process hosting — today only the backend
+test suite's app and the non-Docker dev loop — can be deleted.
+
 ### 5.1 CI shape (target)
 - **Per-package jobs, path-filtered:**
   - Python services: ruff, ruff format, pytest.
@@ -718,9 +729,13 @@ P1 and P2 can run in parallel. Each phase is a PR series, keeps every gate green
 
 ## 8. Owner decisions (resolved 2026-09-30 — all accepted as recommended)
 1. **Stop committing `frontend/spa-dist`** — yes. UI bundles are built inside images; CI gates on the build.
+   *Outcome:* images build the SPA themselves, but `spa-dist` is **still committed** — the volume-mounted dev/live
+   flow and the SPA e2e suite serve it. Not retired.
 2. **P0 parity tests before refactoring** — yes; an explicit exception to the tests-at-commit-time rule, for P0 only.
 3. **Hub placement default** — the core host (today's data path) until measured on the dongle host.
 4. **NATS as a core container** — yes (NATS core; JetStream deferred).
 5. **Keep `dev-all`** — yes (all-in-one composer for dev and low-RAM hosts).
+   *Revised 2026-10-13 (P8c):* separate services are the only deployment mode; in-process hosting remains only as the
+   test suite's app and the non-Docker dev loop. No `services/dev-all/` composer was ever built.
 6. **NestJS plan** — superseded as a deployment model; its module inventory remains a reference.
 7. **F9 (stale aircraft click handler)** — fixed separately ahead of P2 on `fix/air-alert-click-handler`.
