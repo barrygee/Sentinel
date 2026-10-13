@@ -141,10 +141,10 @@ SECTION_CODE = {
         "sentinel_space.services.sat_radio",
     },
     "land": {
-        "backend.routers.land",
-        "backend.modules.land",
-        "backend.services.aprs_store",
-        "backend.services.repeaters",
+        "sentinel_land.router",
+        "sentinel_land.module",
+        "sentinel_land.services.aprs_store",
+        "sentinel_land.services.repeaters",
     },
     "air": {
         "backend.routers.air",

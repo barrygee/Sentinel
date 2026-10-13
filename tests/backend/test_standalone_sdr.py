@@ -644,7 +644,7 @@ class TestWhatTheSdrServiceLoads:
             "import json, sys\n"
             "import backend.standalone.sdr\n"
             "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub',"
-            " 'backend.routers.')))))\n"
+            " 'backend.routers.', 'sentinel_')))))\n"
         )
 
         assert loaded == [

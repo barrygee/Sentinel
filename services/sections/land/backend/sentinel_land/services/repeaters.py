@@ -27,15 +27,16 @@ import io
 import json
 import logging
 import math
-from pathlib import Path
 from typing import Any
 
 import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
-from backend.models import RepeaterCache
+from backend.services.json_store import DATA_DIR
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_land.models import RepeaterCache
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,8 @@ CACHE_KEY = "uk"
 # ukrepeater.net answers 403 to the default `python-httpx/…` agent (a generic
 # bot filter); an identifying agent naming the project is let through.
 USER_AGENT = "Sentinel/1.0 (+https://github.com/barrygee/Sentinel)"
-BUNDLED_JSON_PATH = Path(__file__).resolve().parent.parent / "data" / "uk_repeaters.json"
+# Kept with the other bundled data in backend/data (refreshed by backend/scripts/refresh_repeaters.py).
+BUNDLED_JSON_PATH = DATA_DIR / "uk_repeaters.json"
 
 # Column headings as the export names them (`csvcreate8.php`). The export has a
 # trailing comma on every line, so the reader also yields one unnamed empty

@@ -15,10 +15,11 @@ live waterfall panels use the existing per-radio decode WebSocket instead.
 
 from backend.cache import now_ms
 from backend.database import get_db
-from backend.services import aprs_store, repeaters
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_land.services import aprs_store, repeaters
 
 router = APIRouter(prefix="/api/land", tags=["land"])
 

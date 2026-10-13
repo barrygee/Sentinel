@@ -82,6 +82,7 @@ ENV UV_HTTP_TIMEOUT=120 \
 # section packages are installed below, once their code is in the image.
 COPY backend/pyproject.toml backend/uv.lock ./backend/
 # The lock check reads each section package's metadata from its pyproject.toml.
+COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/space/backend/pyproject.toml ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --project backend --locked --no-dev --no-install-project --no-install-local
@@ -98,6 +99,7 @@ COPY --chown=sentinel:sentinel backend/ ./backend/
 # Each section's backend package (services/sections/<id>/backend), installed
 # editable into the venv like in a checkout. Only the backend folders: the
 # frontend packages are compiled into spa-dist by the stage above.
+COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
 COPY --chown=sentinel:sentinel services/sections/space/backend/ ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --project backend --locked --no-dev --no-install-project

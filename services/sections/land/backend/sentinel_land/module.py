@@ -1,4 +1,4 @@
-"""Land section lifecycle: the daily APRS-station cleanup loop."""
+"""Land section lifecycle: its own tables, then the daily APRS-station cleanup loop."""
 
 import asyncio
 import logging
@@ -6,7 +6,9 @@ import time
 
 from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.services import aprs_store
+
+from sentinel_land.database import create_land_tables
+from sentinel_land.services import aprs_store
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +54,7 @@ async def _stop() -> None:
     _cleanup_task = None
 
 
-lifecycle = ModuleLifecycle(name="land", start=_start, stop=_stop)
+# Core no longer creates Land's tables, so in-process Land creates them itself.
+lifecycle = ModuleLifecycle(name="land", prepare=create_land_tables, start=_start, stop=_stop)
 
 manifest = section_manifest("land", display_name="LAND", nav_order=40, routes=["/api/land/"])

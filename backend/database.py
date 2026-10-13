@@ -58,7 +58,6 @@ class Base(DeclarativeBase):
 
 
 # The tables each extracted section owns — all its service's own database holds.
-LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
@@ -93,11 +92,6 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
-
-
-async def create_land_tables() -> None:
-    """The Land service's schema (P6.2). Neither table has gained a column since its first release."""
-    await create_section_tables(LAND_TABLES)
 
 
 async def create_air_tables() -> None:

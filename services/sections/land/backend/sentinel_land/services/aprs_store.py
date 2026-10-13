@@ -17,11 +17,12 @@ from __future__ import annotations
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.models import AprsStation
 from backend.platform.bus import bus
 from backend.platform.settings_client import read_setting
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_land.models import AprsStation
 
 
 async def _retention_ms(db: AsyncSession) -> int:

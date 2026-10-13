@@ -19,9 +19,10 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import air, core, land, radio_hub, sdr, sea
+from backend.modules import air, core, radio_hub, sdr, sea
 from backend.platform.bus import bus as process_bus
 from backend.services.ais_stream import reader as ais_reader
+from sentinel_land import module as land
 from sentinel_space import module as space
 
 
@@ -511,11 +512,14 @@ class TestComposedLazily:
     def test_importing_one_module_loads_no_other(self):
         loaded = self.probe(
             "import json, sys\n"
-            "import backend.modules.land\n"
-            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub')))))\n"
+            "import sentinel_land.module\n"
+            "print(json.dumps(sorted(m for m in sys.modules"
+            " if m.startswith(('backend.modules.', 'backend.radio_hub', 'sentinel_')))))\n"
         )
 
-        assert loaded == ["backend.modules.land", "backend.modules.manifest"]
+        # Land's own package, and of core's modules only the manifest helper.
+        assert [module for module in loaded if not module.startswith("sentinel_land")] == ["backend.modules.manifest"]
+        assert "sentinel_land.module" in loaded
 
     def test_asking_for_modules_composes_every_hosted_one(self):
         loaded = self.probe(

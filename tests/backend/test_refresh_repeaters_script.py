@@ -20,7 +20,7 @@ import pytest
 
 from backend.config import settings
 from backend.scripts import refresh_repeaters
-from backend.services import repeaters
+from sentinel_land.services import repeaters
 
 MODULE_NAME = "backend.scripts.refresh_repeaters"
 
