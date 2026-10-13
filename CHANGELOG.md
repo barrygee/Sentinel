@@ -547,6 +547,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SPA bundle for band-plan label fitting
 - Drop the pre-gateway env defaults from the decoder images
 - Rename the voice decoder service to voice-decoder
+- Allow several components per spec file
 
 ### Other
 
@@ -1492,6 +1493,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #463 from barrygee/chore/rename-voice-decoder
 - Merge pull request #464 from barrygee/fix/sentry-session-reuse
 - Merge pull request #465 from barrygee/chore/p7-5b-bake-pins
+- Merge pull request #466 from barrygee/chore/spec-one-component-rule
 
 ### Refactoring
 
