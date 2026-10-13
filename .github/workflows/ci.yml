@@ -37,10 +37,10 @@ jobs:
           enable-cache: true
 
       - name: Lint (ruff check)
-        run: uv run --project backend ruff check backend
+        run: uv run --project backend ruff check backend services/sections
 
       - name: Format check (ruff format)
-        run: uv run --project backend ruff format --check backend
+        run: uv run --project backend ruff format --check backend services/sections
 
       - name: Import boundaries (import-linter)
         # Sections may not import each other; core/platform may import no

@@ -72,12 +72,19 @@ RUN groupadd --gid "${SENTINEL_RUNTIME_GROUP_ID}" sentinel \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY --from=pmtiles-fetcher /usr/local/bin/pmtiles /usr/local/bin/pmtiles
 
-# uv's own setting (the name is uv's): how long a package download may take.
-ENV UV_HTTP_TIMEOUT=120
+# uv's own settings (the names are uv's): how long a package download may take,
+# and where the venv goes. The project file sits in backend/ as in the repo, so
+# its path dependencies (../services/sections/<id>/backend) resolve the same.
+ENV UV_HTTP_TIMEOUT=120 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
-COPY backend/pyproject.toml backend/uv.lock ./
+# Third-party dependencies first, cached until the lockfile changes; the
+# section packages are installed below, once their code is in the image.
+COPY backend/pyproject.toml backend/uv.lock ./backend/
+# The lock check reads each section package's metadata from its pyproject.toml.
+COPY services/sections/space/backend/pyproject.toml ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --no-dev --no-install-project
+    uv sync --project backend --locked --no-dev --no-install-project --no-install-local
 
 # uv only builds the venv; the containers run its programs directly. `uv run`
 # re-syncs before starting and so installed the dev dependency group into the
@@ -88,6 +95,12 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # backend/ is owned by the runtime user: the app writes the live config file
 # (backend/data/sentinel_config.json) when no bind mount replaces it.
 COPY --chown=sentinel:sentinel backend/ ./backend/
+# Each section's backend package (services/sections/<id>/backend), installed
+# editable into the venv like in a checkout. Only the backend folders: the
+# frontend packages are compiled into spa-dist by the stage above.
+COPY --chown=sentinel:sentinel services/sections/space/backend/ ./services/sections/space/backend/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --project backend --locked --no-dev --no-install-project
 COPY frontend/assets/ ./frontend/assets/
 COPY --from=spa-builder /repo/frontend/spa-dist/ ./frontend/spa-dist/
 COPY --chmod=0755 backend/docker-entrypoint.sh /usr/local/bin/sentinel-entrypoint

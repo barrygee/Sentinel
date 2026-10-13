@@ -1064,6 +1064,7 @@ dependencies = [
     { name = "pmtiles" },
     { name = "pydantic-settings" },
     { name = "python-multipart" },
+    { name = "sentinel-space" },
     { name = "sgp4" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
@@ -1093,6 +1094,7 @@ requires-dist = [
     { name = "pmtiles", specifier = ">=3.8.1" },
     { name = "pydantic-settings", specifier = ">=2.13.1" },
     { name = "python-multipart", specifier = ">=0.0.9" },
+    { name = "sentinel-space", editable = "../services/sections/space/backend" },
     { name = "sgp4", specifier = ">=2.23" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.41.0" },
@@ -1108,6 +1110,11 @@ dev = [
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.7" },
 ]
+
+[[package]]
+name = "sentinel-space"
+version = "0.1.0"
+source = { editable = "../services/sections/space/backend" }
 
 [[package]]
 name = "sgp4"

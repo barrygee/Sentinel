@@ -2,7 +2,7 @@
 
 The order is load-bearing — see `backend/platform/lifecycle.py`:
   prepare: core (schema, migrations, settings seed) → sdr (frequency + band-plan
-           seed) → space (satellite radio backfill)
+           seed) → space (its tables, satellite radio backfill)
   start:   bus (NATS, when configured — so every later module publishes onto a
            connected bus) → core (config file sync, offline maps) → radio hub (decode secret,
            resumed APRS/AIS decode, Sentry poller) → land → sea → air (squawk
@@ -82,8 +82,13 @@ def shares_process_with(service_id: str) -> bool:
     return not settings.sentinel_core_url and hosts_in_process(service_id)
 
 
+# Modules whose section has moved into its own package (services/sections/<id>/backend);
+# every other one is still `backend.modules.<name>`.
+_MOVED_MODULES: dict[str, str] = {"space": "sentinel_space.module"}
+
+
 def _module(module_name: str) -> ModuleType:
-    return importlib.import_module(f"backend.modules.{module_name}")
+    return importlib.import_module(_MOVED_MODULES.get(module_name, f"backend.modules.{module_name}"))
 
 
 _SERVICE_OF_MODULE = dict(_MODULE_ORDER)

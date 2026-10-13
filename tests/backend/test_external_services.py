@@ -113,7 +113,7 @@ def import_main(external: str) -> dict:
         "  'manifests': [manifest.id for manifest in MANIFESTS],\n"
         "  'registered': [registration.manifest.id for registration in registry.services()],\n"
         "  'withheld_remotes': sorted(next(r.app.withheld for r in app.routes if getattr(r, 'path', '') == '/remotes')),\n"
-        "  'imported': sorted(name for name in sys.modules if name.startswith('backend.')),\n"
+        "  'imported': sorted(name for name in sys.modules if name.startswith(('backend.', 'sentinel_'))),\n"
         "}))\n"
     )
     environment = {**os.environ, "SENTINEL_EXTERNAL_SERVICES": external, "PYTHONPATH": str(REPO_ROOT)}
@@ -133,12 +133,12 @@ def import_main(external: str) -> dict:
 # never be imported by the app, since importing it subscribes it to bus events.
 SECTION_CODE = {
     "space": {
-        "backend.routers.space",
-        "backend.modules.space",
-        "backend.services.tle",
-        "backend.services.satellite",
-        "backend.services.daynight",
-        "backend.services.sat_radio",
+        "sentinel_space.router",
+        "sentinel_space.module",
+        "sentinel_space.services.tle",
+        "sentinel_space.services.satellite",
+        "sentinel_space.services.daynight",
+        "sentinel_space.services.sat_radio",
     },
     "land": {
         "backend.routers.land",

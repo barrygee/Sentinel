@@ -57,26 +57,7 @@ class Base(DeclarativeBase):
     pass
 
 
-# Columns added to satellite_catalogue after its first release. SQLite's
-# create_all never adds a column to an existing table, so each is ALTERed in
-# (a duplicate is an OperationalError, ignored). Shared by the monolith's
-# create_tables() and the Space service's create_space_tables().
-SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
-    "ALTER TABLE satellite_catalogue ADD COLUMN name_source TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN uplink_hz INTEGER",
-    "ALTER TABLE satellite_catalogue ADD COLUMN uplink_mode TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN downlink_hz INTEGER",
-    "ALTER TABLE satellite_catalogue ADD COLUMN downlink_mode TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN ctcss_hz REAL",
-    "ALTER TABLE satellite_catalogue ADD COLUMN transponder_type TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN beacon_hz INTEGER",
-    "ALTER TABLE satellite_catalogue ADD COLUMN packet_info TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN radio_status TEXT",
-    "ALTER TABLE satellite_catalogue ADD COLUMN radio_notes TEXT",
-)
-
 # The tables each extracted section owns — all its service's own database holds.
-SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
 LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
@@ -112,11 +93,6 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
-
-
-async def create_space_tables() -> None:
-    """The Space service's schema (P6.1)."""
-    await create_section_tables(SPACE_TABLES, SATELLITE_CATALOGUE_ADDED_COLUMNS)
 
 
 async def create_land_tables() -> None:
@@ -176,7 +152,6 @@ async def create_tables():
         from backend import models  # noqa: F401 — import triggers model registration with Base
 
         await conn.run_sync(Base.metadata.create_all)
-        await _add_columns(conn, SATELLITE_CATALOGUE_ADDED_COLUMNS)
         for col_sql in [
             "ALTER TABLE sdr_radios ADD COLUMN bandwidth INTEGER",
             "ALTER TABLE sdr_radios ADD COLUMN rf_gain REAL",
@@ -591,37 +566,6 @@ async def seed_sdr_bandplan_from_file() -> None:
         if await read_setting(session, "sdr", "bandPlan") is not None:
             return
         await write_setting(session, "sdr", "bandPlan", load_sdr_bandplan_file())
-
-
-async def backfill_satellite_radio_store() -> None:
-    """Reconcile the on-disk satellite_radio.json source of truth into the
-    persistent store (UserSettings space/satelliteRadio) on every startup.
-
-    The file is authoritative for the entries it defines: its values are merged
-    into the store, overwriting per-NORAD entries the file specifies. Entries
-    that exist only in the store (e.g. a UI edit for a sat the file doesn't
-    mention) are preserved. Hand-edits to the file therefore take effect on the
-    next restart, while UI write-through keeps the file and store in sync.
-
-    No-ops when nothing changes, so it's cheap to run on every boot.
-    """
-    # Deferred to avoid a circular import. Through the settings client, because
-    # the store is core's: a Space service in its own container reaches it over
-    # HTTP (`backend/platform/settings_client.py`).
-    from backend.platform.settings_client import read_setting, write_setting
-    from backend.services.sat_radio import load_radio_file
-
-    file_map = load_radio_file()
-
-    async with AsyncSessionLocal() as session:
-        stored = await read_setting(session, "space", "satelliteRadio")
-        store = stored if isinstance(stored, dict) else {}
-
-        merged = {**store, **file_map}  # file wins per-key it defines
-        if stored is not None and merged == store:
-            return  # already in sync — nothing to write
-
-        await write_setting(session, "space", "satelliteRadio", merged)
 
 
 async def resolve_retired_auto_modes() -> None:

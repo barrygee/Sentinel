@@ -26,6 +26,8 @@ from backend.config import settings
 settings.__init__(_env_file=None)
 
 from backend import models  # noqa: E402,F401 — register ORM models with Base
+# Each moved section's tables, so `db_setup` builds the whole schema.
+import sentinel_space.models  # noqa: E402,F401
 from backend.database import Base, get_db  # noqa: E402
 from backend.main import app  # noqa: E402
 

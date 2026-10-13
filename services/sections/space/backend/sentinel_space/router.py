@@ -23,16 +23,17 @@ import httpx
 from backend.cache import now_ms
 from backend.database import get_db
 from backend.error_handlers import handle_service_errors, handle_unexpected_errors
-from backend.models import SatelliteCatalogue, TleCache
-from backend.services import daynight as dn_service
-from backend.services import sat_radio
-from backend.services import satellite as sat_service
-from backend.services import tle as tle_service
 from backend.utils import resolve_domain_urls
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_space.models import SatelliteCatalogue, TleCache
+from sentinel_space.services import daynight as dn_service
+from sentinel_space.services import sat_radio
+from sentinel_space.services import satellite as sat_service
+from sentinel_space.services import tle as tle_service
 
 router = APIRouter(prefix="/api/space", tags=["space"])
 

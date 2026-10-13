@@ -178,7 +178,8 @@ services:
   # The Space section as its own service (section-containers plan P6.1).
   # Started by a plain `docker compose up`, like every section below; leave
   # one out with `--scale <service>=0`. Same image as the app, run with the
-  # standalone Space entry point (backend/standalone/space.py). On start it
+  # standalone Space entry point (sentinel_space.service, in
+  # services/sections/space/backend). On start it
   # registers with the app, which hands it /api/space/ and /remotes/space/ in
   # the gateway — no gateway edit. It keeps its tables (TLEs, the satellite
   # catalogue) in its own database on the space_data volume, copied from the
@@ -190,13 +191,14 @@ services:
       - space_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/sections/space/backend:/app/services/sections/space/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/space}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/space.db
       SERVICE_INTERNAL_URL: http://space:8000
-    command: uvicorn backend.standalone.space:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_space.service:app --host 0.0.0.0 --port 8000 --reload
 
   # The Land section as its own service (P6.2).
   # Same pattern as `space`: registers with the app and takes /api/land/ and

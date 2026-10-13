@@ -19,7 +19,12 @@ dependencies = [
     "websockets>=13",
     "pmtiles>=3.8.1",
     "nats-py>=2.9",
+    # Each section's backend package (services/sections/<id>/backend), installed editable.
+    "sentinel-space",
 ]
+
+[tool.uv.sources]
+sentinel-space = { path = "../services/sections/space/backend", editable = true }
 
 [dependency-groups]
 dev = [
@@ -85,7 +90,8 @@ ignore_missing_imports = true
 # until the per-service DB split (P6). Each ignore_imports entry is a known
 # crossing with the phase that removes it — delete the entry when it goes.
 [tool.importlinter]
-root_package = "backend"
+# Core plus each section package that has moved out of backend/ (services/sections/<id>/backend).
+root_packages = ["backend", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core and platform import no section"
@@ -103,8 +109,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
@@ -122,8 +127,7 @@ source_modules = [
     "backend.services.adsb_squawk", "backend.modules.air", "backend.standalone.air",
 ]
 forbidden_modules = [
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
@@ -137,8 +141,7 @@ name = "Space imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space", "backend.standalone.space",
+    "sentinel_space",
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
@@ -160,8 +163,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
@@ -178,8 +180,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
@@ -198,8 +199,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
@@ -215,8 +215,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "backend.routers.air", "backend.routers.adsb_source", "backend.services.adsb", "backend.services.adsb_source",
-    "backend.routers.space", "backend.services.satellite", "backend.services.tle", "backend.services.daynight",
-    "backend.services.sat_radio", "backend.modules.space",
+    "sentinel_space",
     "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
     "backend.modules.sea",
     "backend.routers.land", "backend.services.aprs_store", "backend.services.repeaters", "backend.modules.land",
