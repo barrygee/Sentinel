@@ -1,5 +1,3 @@
-/* eslint-disable vue/one-component-per-file -- this spec defines several tiny
-   stub components to stand in for App.vue's child components. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'

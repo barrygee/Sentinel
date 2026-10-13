@@ -3,9 +3,8 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h, type PropType } from 'vue'
 import { useDocumentEvent } from './useDocumentEvent'
 
-// A single reusable harness so the whole file declares just one component
-// (keeps eslint's vue/one-component-per-file happy). It wires the composable
-// from props so each test can pass a different event name / handler / options.
+// A single reusable harness: it wires the composable from props so each test
+// can pass a different event name / handler / options.
 const DocumentEventHarness = defineComponent({
   props: {
     eventName: { type: String, required: true },
