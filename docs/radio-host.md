@@ -31,9 +31,9 @@ so no PCM port is published.
 Add to the core host's `.env` (see `.env.example`):
 
 ```bash
-# The hub runs on the radio host, not here.
-SENTINEL_EXTERNAL_SERVICES=radio-hub          # plus any sections you already run as services
-# COMPOSE_PROFILES must NOT include radio-hub or any decoder profile.
+# The hub runs on the radio host, not here: don't start this host's own.
+SENTINEL_RADIO_HUB_REPLICAS=0
+# COMPOSE_PROFILES must NOT include any decoder profile.
 
 # Names other hosts reach this one by, and the name core reaches the radio host by.
 SENTINEL_CORE_HOSTNAMES=sentinel.lan
@@ -103,8 +103,7 @@ add them again under Settings.
   `services/<caller>/` folder on the `service_credentials` volume, run
   `docker compose up -d` on the core host, then re-export and re-import.
 - **Moving the hub back:** stop the radio host (`docker compose -f compose.radio-host.yaml down`),
-  remove `radio-hub` from `SENTINEL_EXTERNAL_SERVICES` on the core host (or add the
-  `radio-hub` profile) and `docker compose up -d`.
+  remove `SENTINEL_RADIO_HUB_REPLICAS=0` from the core host's `.env` and `docker compose up -d`.
 
 ## Troubleshooting
 
