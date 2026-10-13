@@ -25,7 +25,7 @@ concurrency:
 jobs:
   backend:
     name: backend (ruff + pytest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
 
@@ -63,7 +63,7 @@ jobs:
   # than rebuilding it.
   frontend-vue-quality:
     name: frontend-vue / quality (eslint + vue-tsc)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: frontend/vue
@@ -88,7 +88,7 @@ jobs:
 
   frontend-vue-test:
     name: frontend-vue / test (vitest + coverage)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: frontend/vue
@@ -113,7 +113,7 @@ jobs:
 
   frontend-vue-build:
     name: frontend-vue / build (Vite)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: frontend/vue
@@ -171,7 +171,7 @@ jobs:
 
   frontend-vue-a11y:
     name: frontend-vue / a11y (Playwright + axe-core)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: frontend-vue-build
     defaults:
       run:
@@ -224,7 +224,7 @@ jobs:
 
   web-packages:
     name: web-packages (eslint + typecheck + vitest)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
 
@@ -251,7 +251,7 @@ jobs:
 
   multi-arch-build:
     name: multi-arch-build (backend amd64 + arm64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
 
@@ -276,7 +276,7 @@ jobs:
 
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
 
@@ -318,7 +318,7 @@ jobs:
   #                     audio engine it otherwise loads eagerly.
   gateway-smoke:
     name: gateway-smoke (${{ matrix.deployment }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
