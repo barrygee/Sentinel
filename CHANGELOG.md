@@ -1491,6 +1491,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #462 from barrygee/feat/p7-5-radio-host
 - Merge pull request #463 from barrygee/chore/rename-voice-decoder
 - Merge pull request #464 from barrygee/fix/sentry-session-reuse
+- Merge pull request #465 from barrygee/chore/p7-5b-bake-pins
 
 ### Refactoring
 
@@ -1725,6 +1726,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the committed SPA bundle
 - Rebuild the committed SPA bundle
 - Rebuild the committed SPA bundle
+- Multi-arch docker bake and decoder upstreams pinned to commits
 
 ### Continuous Integration
 
