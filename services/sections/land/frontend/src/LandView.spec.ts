@@ -1,6 +1,5 @@
-/* eslint-disable vue/one-component-per-file, vue/require-prop-types -- this spec
-   defines tiny stub components (with untyped capture props) to stand in for
-   LandView's children. */
+/* eslint-disable vue/require-prop-types -- this spec's stub components stand in
+   for LandView's children and take untyped capture props. */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'

@@ -60,6 +60,17 @@ export const sentinelEslintBase = tseslint.config(
       ],
     },
   },
+
+  // Specs define throwaway stand-in components inline (a fake section item, an
+  // echo of a prop) to drive the component under test. The one-component-per-
+  // file rule guards real component modules; in a spec it only flags that
+  // deliberate pattern.
+  {
+    files: ['**/*.spec.ts'],
+    rules: {
+      'vue/one-component-per-file': 'off',
+    },
+  },
 )
 
 const NO_SECTION_IMPORTS = {

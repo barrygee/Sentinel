@@ -1,5 +1,3 @@
-/* eslint-disable vue/one-component-per-file -- this spec defines a couple of
-   tiny stub components to stand in for App.vue's child components. */
 /**
  * Focused spec for App.vue's `v-if="persistentRadioPane"` false branch: when
  * no section engine has loaded (no sdr section, or its engine still on its

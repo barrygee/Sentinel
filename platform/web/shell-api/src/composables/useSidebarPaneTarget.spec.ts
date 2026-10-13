@@ -4,8 +4,7 @@ import { defineComponent, h, type PropType } from 'vue'
 import { useSidebarPaneTarget } from './useSidebarPaneTarget'
 import { SIDEBAR_PANE_IDS, type SidebarPaneId } from '../constants/sidebarPanes'
 
-// Single reusable harness (keeps eslint's vue/one-component-per-file happy):
-// exposes `ready` so each test can assert on it.
+// Single reusable harness: exposes `ready` so each test can assert on it.
 const SidebarPaneTargetHarness = defineComponent({
   props: {
     paneId: { type: String as PropType<SidebarPaneId>, required: true },
