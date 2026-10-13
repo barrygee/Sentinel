@@ -19,6 +19,7 @@ Security notes:
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import re
 from dataclasses import dataclass
@@ -45,6 +46,20 @@ alongside the paths and payload shapes this module already hard-codes.
 """
 
 API_VERSION_HEADER = "X-Sentry-Api-Version"
+
+# Session cookies outlive the clients that obtained them. A client is built per
+# call (see `SentryClient`), so a cookie held only on the instance was thrown
+# away after every poll: each one went 401 → sign in → retry, a login against
+# the Sentry every few seconds for as long as the hub ran. Keyed by a digest of
+# the password as well as the address, so a host edited to a new password never
+# presents the session its old one earned.
+_session_cookies: dict[tuple[str, int, str], str] = {}
+
+
+def forget_sentry_sessions() -> None:
+    """Drop every remembered Sentry session cookie (tests, and nothing else needs it)."""
+    _session_cookies.clear()
+
 
 # RFC-1123-ish hostname: labels of 1-63 alphanumerics/hyphens/underscores (no
 # leading/trailing hyphen), dot-separated, 253 characters overall. Deliberately
@@ -165,7 +180,11 @@ class SentryClient:
         self._address = validate_sentry_address(address)
         self._port = validate_sentry_port(port)
         self._console_password = console_password
-        self._session_cookie: str | None = None
+        self._session_key = (
+            self._address,
+            self._port,
+            hashlib.sha256(console_password.encode()).hexdigest(),
+        )
         connect = connect_timeout_s if connect_timeout_s is not None else settings.sentry_connect_timeout_s
         read = read_timeout_s if read_timeout_s is not None else settings.sentry_read_timeout_s
         self._timeout = httpx.Timeout(connect=connect, read=read, write=read, pool=read)
@@ -180,11 +199,13 @@ class SentryClient:
 
         The cookie is set by hand rather than by an `httpx` cookie jar: a client
         is constructed per request here (see the class docstring), so a jar would
-        be discarded before it could ever be reused.
+        be discarded before it could ever be reused. It comes from the
+        process-wide `_session_cookies` for the same reason.
         """
         headers = {"Accept": "application/json"}
-        if self._session_cookie:
-            headers["Cookie"] = f"{SESSION_COOKIE_NAME}={self._session_cookie}"
+        session_cookie = _session_cookies.get(self._session_key)
+        if session_cookie:
+            headers["Cookie"] = f"{SESSION_COOKIE_NAME}={session_cookie}"
         return headers
 
     async def _sign_in(self) -> bool:
@@ -194,6 +215,8 @@ class SentryClient:
         failure identically on purpose, so there is nothing here to distinguish
         a wrong password from a password that was since changed.
         """
+        # Whatever happens next, the remembered session was just refused.
+        _session_cookies.pop(self._session_key, None)
         if not self._console_password:
             return False
         url = f"{self.base_url}/api/auth/login"
@@ -207,7 +230,7 @@ class SentryClient:
         cookie = response.cookies.get(SESSION_COOKIE_NAME)
         if not cookie:
             return False
-        self._session_cookie = cookie
+        _session_cookies[self._session_key] = cookie
         return True
 
     async def _request(

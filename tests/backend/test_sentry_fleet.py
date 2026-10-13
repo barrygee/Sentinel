@@ -581,6 +581,36 @@ async def test_auth_token_never_appears_in_log_record_on_poll_failure(
     assert "ULTRA-SECRET-TOKEN" not in (host_row.last_error or "")
 
 
+async def test_consecutive_polls_sign_in_to_the_sentry_only_once(session_factory, monkeypatch):
+    """Each poll builds a fresh SentryClient; the session must outlive it, or every
+    poll is 401 → sign in → retry — a login against the Sentry every few seconds."""
+    host_id = await _create_host(session_factory, auth_token="console-password")
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        if request.url.path == "/api/auth/login":
+            return httpx.Response(204, headers={"set-cookie": "sentry_session=granted; Path=/"})
+        if request.headers.get("Cookie") != "sentry_session=granted":
+            return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
+        return httpx.Response(200, json={"generated_at": 1, "sdrs": []})
+
+    class _MockedAsyncClient(httpx.AsyncClient):
+        def __init__(self, *args, **kwargs) -> None:
+            kwargs["transport"] = httpx.MockTransport(handler)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _MockedAsyncClient)
+    poller = sentry_fleet.SentryFleetPoller()
+
+    assert await poller._poll_once(host_id) is True
+    assert await poller._poll_once(host_id) is True
+    assert await poller._poll_once(host_id) is True
+
+    assert seen.count("/api/auth/login") == 1
+    assert seen.count("/api/status") == 4  # the first poll's 401 and retry, then one each
+
+
 async def test_update_host_row_tolerates_the_host_being_deleted_mid_poll(
     session_factory,
 ):
