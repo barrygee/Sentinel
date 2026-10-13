@@ -494,6 +494,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Style the recording IQ button like DOWNLOAD and label it DOWNLOAD IQ
 - Stop the preview server forwarding unmocked API calls to :8080
 - Reuse a Sentry host's session across clients
+- Repair the radio-hub replicas block spliced mid-comment
 
 ### Chores
 
@@ -1499,6 +1500,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #469 from barrygee/refactor/p8a-core-app-factory
 - Merge remote-tracking branch 'origin/main' into feat/p8c-sections-always-services
 - Merge pull request #470 from barrygee/feat/p8c-sections-always-services
+- Merge pull request #471 from barrygee/docs/p8b-section-containers
 
 ### Refactoring
 
@@ -1627,6 +1629,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Document running the radio hub on a second host (P7.5a)
 - Point the serving model at the core app factory
 - Sections always run as services; in-process is dev and tests only
+- Accept ADR 0006 section services; mark the plan complete
+- Slim the README to basics and move the detail into docs/
 
 ### Tests
 
