@@ -123,7 +123,7 @@ def create_service(
 
     Raises `ServiceMisconfigured` when the environment can't place the service.
     """
-    # The monolith configures logging in backend/main.py; a service has no other entry.
+    # Core configures logging in its entry point (backend/main.py); a service has no other entry.
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     advertised = advertised_manifest(manifest)
     registrar = ServiceRegistrar(advertised)

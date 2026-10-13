@@ -7,7 +7,7 @@ or reorder the SPA catch-all ahead of `/api/**` and this file would never
 notice. The route inventory golden below covers the whole `app.routes` list
 (REST, WebSocket, and static mounts) precisely so that gap doesn't exist.
 
-Route *order* matters here (see backend/main.py's module docstring: `/api/**`
+Route *order* matters here (see backend/core/spa_serving.py: `/api/**`
 must be matched before the SPA catch-all), so the inventory is compared in
 `app.routes` iteration order rather than sorted — a reordering is a real
 regression this test must catch.
@@ -111,7 +111,7 @@ class TestRouteInventory:
     def test_catch_all_spa_route_is_registered_last(self):
         """The SPA catch-all must stay after every `/api/**` route and static
         mount, or vue-router's client routes would swallow the API — see
-        backend/main.py's Serving model docstring. This is exactly the kind of
+        backend/core/spa_serving.py. This is exactly the kind of
         ordering regression sorted comparisons would hide."""
         inventory = build_route_inventory()
         assert inventory[-1]["path"] == "/{full_path:path}"

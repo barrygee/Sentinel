@@ -10,7 +10,7 @@ The order is load-bearing — see `backend/platform/lifecycle.py`:
   stop:    the reverse.
 
 `MANIFESTS` are the services this process hosts, registered in-process with the
-service registry at import (`backend/main.py`, plan §3.2).
+service registry when core builds its app (`backend/composition_root.py`, plan §3.2).
 
 A service listed in `SENTINEL_EXTERNAL_SERVICES` runs in its own container
 (P6), so its lifecycle and manifest are left out here — `hosts_in_process`
@@ -27,7 +27,7 @@ from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
 # The services that have a standalone entry point (`backend/standalone/`) and
-# whose routers `backend/main.py` can leave out: since P6.6, every one but
+# whose routers core (`backend/composition_root.py`) can leave out: since P6.6, every one but
 # bus and core.
 EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio-hub", "sdr"})
 
@@ -115,7 +115,7 @@ def __getattr__(name: str) -> tuple[ModuleLifecycle, ...] | tuple[ServiceManifes
     the other sections' subscribers among them — so the service would answer
     `hub.*` requests itself, against its own database, instead of sending them
     to the hub over NATS. Only the monolith's composition root
-    (`backend/main.py`) asks for these.
+    (`backend/composition_root.py`) asks for these.
     """
     if name in _COMPOSED:
         composed = _COMPOSED[name]()
