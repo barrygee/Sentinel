@@ -58,7 +58,6 @@ class Base(DeclarativeBase):
 
 
 # The tables each extracted section owns — all its service's own database holds.
-AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
 # Parents before children: a legacy import copies them in this order.
@@ -92,14 +91,6 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
-
-
-async def create_air_tables() -> None:
-    """The Air service's schema (P6.3). Neither table has gained a column since its first release.
-
-    `air_messages` is not Air's: notifications are core's, despite the path.
-    """
-    await create_section_tables(AIR_TABLES)
 
 
 async def create_sea_tables() -> None:

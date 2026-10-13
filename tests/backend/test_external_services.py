@@ -147,12 +147,12 @@ SECTION_CODE = {
         "sentinel_land.services.repeaters",
     },
     "air": {
-        "backend.routers.air",
-        "backend.routers.adsb_source",
-        "backend.modules.air",
-        "backend.services.adsb",
-        "backend.services.adsb_source",
-        "backend.services.adsb_squawk",
+        "sentinel_air.router",
+        "sentinel_air.adsb_source_router",
+        "sentinel_air.module",
+        "sentinel_air.services.adsb",
+        "sentinel_air.services.adsb_source",
+        "sentinel_air.services.adsb_squawk",
     },
     "sea": {
         "backend.routers.sea",

@@ -7,11 +7,11 @@ import logging
 
 import httpx
 import pytest
-
 from backend.config import settings
-from backend.routers import air as air_router
-from backend.services import adsb as adsb_service
 from backend.services.upstream_rate_limit import UpstreamThrottledError
+
+from sentinel_air import router as air_router
+from sentinel_air.services import adsb as adsb_service
 
 # ── /api/air/messages ─────────────────────────────────────────────────────────
 
@@ -193,8 +193,7 @@ class TestAdsbUpstreamFailover:
         return "\n".join(
             record.getMessage()
             for record in caplog.records
-            if record.name == "backend.routers.air"
-            and record.levelno >= logging.WARNING
+            if record.name == "sentinel_air.router" and record.levelno >= logging.WARNING
         )
 
     def _patch_fetch(self, monkeypatch, behaviour):
@@ -220,7 +219,7 @@ class TestAdsbUpstreamFailover:
 
         calls = self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
         # Failed over rather than surfacing the error to the client.
@@ -243,7 +242,7 @@ class TestAdsbUpstreamFailover:
 
         self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
         # No cached row exists, so an all-sources failure is a 503.
@@ -251,9 +250,7 @@ class TestAdsbUpstreamFailover:
         # The "returned HTTP" warning belongs to the non-429 branch only.
         assert "returned HTTP" not in self._air_warnings(caplog)
 
-    def test_transport_error_warns_with_exception_name(
-        self, client, monkeypatch, caplog
-    ):
+    def test_transport_error_warns_with_exception_name(self, client, monkeypatch, caplog):
         """An unreachable host is the other way this silently produced a blank map."""
         self._configure_sources(client)
 
@@ -262,7 +259,7 @@ class TestAdsbUpstreamFailover:
 
         self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
         assert resp.status_code == 503
@@ -273,15 +270,13 @@ class TestAdsbUpstreamFailover:
         assert "online.example" in warnings
         assert "offgrid.example" in warnings
 
-    def test_successful_primary_short_circuits_and_stays_quiet(
-        self, client, monkeypatch, caplog
-    ):
+    def test_successful_primary_short_circuits_and_stays_quiet(self, client, monkeypatch, caplog):
         """The happy path must not touch the fallback or log anything."""
         self._configure_sources(client)
         payload = {"ac": [], "total": 0}
         calls = self._patch_fetch(monkeypatch, lambda base_url: payload)
 
-        with caplog.at_level(logging.WARNING, logger="backend.routers.air"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
         assert resp.status_code == 200
@@ -434,9 +429,7 @@ class TestAdsbNearbyCacheFallback:
         self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
         # Jump the router's clock past the stale window since the row was cached.
         real_now = air_router.now_ms()
-        monkeypatch.setattr(
-            air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms + 1_000
-        )
+        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms + 1_000)
 
         resp = client.get(self._point(54.3, -1.5))
 
@@ -474,14 +467,10 @@ class TestAdsbOffgridDecoderDefault:
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
         return calls
 
-    def test_reads_the_configured_decoder_when_no_url_is_stored(
-        self, client, monkeypatch
-    ):
+    def test_reads_the_configured_decoder_when_no_url_is_stored(self, client, monkeypatch):
         monkeypatch.setattr(settings, "adsb_offgrid_url", self.DECODER)
         client.put("/api/settings/app/connectivityMode", json={"value": "offgrid"})
-        client.put(
-            "/api/settings/air/offgridDataSourceURL", json={"value": {"url": ""}}
-        )
+        client.put("/api/settings/air/offgridDataSourceURL", json={"value": {"url": ""}})
         calls = self._patch_fetch(monkeypatch)
 
         resp = client.get(self.POINT)
@@ -526,7 +515,7 @@ class TestAdsbFeedsSquawkAlerts:
     POINT = "/api/air/adsb/point/54.0/-1.5/100"
 
     def test_a_fresh_snapshot_with_an_emergency_squawk_raises_an_alert(self, client, monkeypatch):
-        from backend.services.adsb_squawk import tracker
+        from sentinel_air.services.adsb_squawk import tracker
 
         monkeypatch.setattr(tracker, "_squawks", {})
         snapshot = {"ac": [{"hex": "4ca123", "flight": "EIN123", "squawk": "7700", "alt_baro": 9000, "gs": 300}]}
@@ -543,7 +532,7 @@ class TestAdsbFeedsSquawkAlerts:
         ]
 
     def test_a_cache_hit_is_not_fed_again(self, client, monkeypatch):
-        from backend.services.adsb_squawk import tracker
+        from sentinel_air.services.adsb_squawk import tracker
 
         monkeypatch.setattr(tracker, "_squawks", {})
         observed: list[dict] = []
@@ -694,7 +683,7 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
     POINT = "/api/air/adsb/point/54.0/-1.5/100"
 
     def test_a_cache_hit_still_counts_as_a_browser_poll(self, client, monkeypatch):
-        from backend.services.adsb_squawk import tracker
+        from sentinel_air.services.adsb_squawk import tracker
 
         async def fake_fetch(lat, lon, radius, base_url):
             return {"ac": []}
@@ -709,7 +698,7 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
         assert tracker.last_browser_poll_ms > 0
 
     def test_a_poll_that_fails_outright_still_counts(self, client, monkeypatch):
-        from backend.services.adsb_squawk import tracker
+        from sentinel_air.services.adsb_squawk import tracker
 
         async def failing_fetch(lat, lon, radius, base_url):
             raise httpx.ConnectError("down")

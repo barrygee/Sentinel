@@ -236,6 +236,7 @@ services:
       - air_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/sections/air/backend:/app/services/sections/air/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/air}}
     environment:
@@ -244,7 +245,7 @@ services:
       SERVICE_INTERNAL_URL: http://air:8000
       # Where Off Grid AIR reads decoded aircraft (same default as the app's).
       ADSB_OFFGRID_URL: ${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
-    command: uvicorn backend.standalone.air:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_air.service:app --host 0.0.0.0 --port 8000 --reload
 
   # The Sea section as its own service (P6.4).
   # Same pattern as the sections above: registers with the app and takes

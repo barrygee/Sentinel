@@ -25,11 +25,12 @@ from backend.config import settings
 from backend.database import AsyncSessionLocal
 from backend.platform.bus import EventPayload, bus
 from backend.platform.settings_client import read_setting
-from backend.services import adsb as adsb_service
-from backend.services import adsb_source
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_air.services import adsb as adsb_service
+from sentinel_air.services import adsb_source
 
 logger = logging.getLogger(__name__)
 

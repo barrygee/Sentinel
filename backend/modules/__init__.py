@@ -84,7 +84,11 @@ def shares_process_with(service_id: str) -> bool:
 
 # Modules whose section has moved into its own package (services/sections/<id>/backend);
 # every other one is still `backend.modules.<name>`.
-_MOVED_MODULES: dict[str, str] = {"space": "sentinel_space.module", "land": "sentinel_land.module"}
+_MOVED_MODULES: dict[str, str] = {
+    "space": "sentinel_space.module",
+    "land": "sentinel_land.module",
+    "air": "sentinel_air.module",
+}
 
 
 def _module(module_name: str) -> ModuleType:

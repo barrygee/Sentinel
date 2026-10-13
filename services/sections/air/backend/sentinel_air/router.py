@@ -20,10 +20,6 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import get_db
-from backend.models import AdsbCache, AirTracking
-from backend.services import adsb as adsb_service
-from backend.services import adsb_source
-from backend.services.adsb_squawk import tracker as squawk_tracker
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException
@@ -32,6 +28,11 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_air.models import AdsbCache, AirTracking
+from sentinel_air.services import adsb as adsb_service
+from sentinel_air.services import adsb_source
+from sentinel_air.services.adsb_squawk import tracker as squawk_tracker
 
 logger = logging.getLogger(__name__)
 

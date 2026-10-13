@@ -19,9 +19,10 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import air, core, radio_hub, sdr, sea
+from backend.modules import core, radio_hub, sdr, sea
 from backend.platform.bus import bus as process_bus
 from backend.services.ais_stream import reader as ais_reader
+from sentinel_air import module as air
 from sentinel_land import module as land
 from sentinel_space import module as space
 

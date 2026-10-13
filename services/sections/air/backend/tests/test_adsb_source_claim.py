@@ -29,7 +29,7 @@ from typing import Any
 import httpx
 import pytest
 
-from backend.services import adsb_source
+from sentinel_air.services import adsb_source
 
 HOST_BODY = {
     "name": "Attic Pi",
@@ -41,9 +41,7 @@ HOST_BODY = {
 DEVICE_ID = "serial:97710286"
 
 
-def _install_sentry(
-    monkeypatch: pytest.MonkeyPatch, handler: Any
-) -> list[httpx.Request]:
+def _install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
     """Route every outbound Sentry call to `handler`, recording the requests."""
     seen: list[httpx.Request] = []
 
@@ -65,9 +63,7 @@ def _install_sentry(
 def sentry_ok(request: httpx.Request) -> httpx.Response:
     """A Sentry that signs us in, grants the claim and accepts the tuning."""
     if request.url.path == "/api/auth/login":
-        return httpx.Response(
-            204, headers={"set-cookie": "sentry_session=granted; Path=/"}
-        )
+        return httpx.Response(204, headers={"set-cookie": "sentry_session=granted; Path=/"})
     if request.url.path.endswith("/reservation"):
         if request.method == "DELETE":
             return httpx.Response(204)
@@ -113,9 +109,7 @@ class TestChoosingTheSource:
             "sentry_device_id": DEVICE_ID,
         }
 
-    def test_accepts_a_device_without_checking_it_exists(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_accepts_a_device_without_checking_it_exists(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # A dongle can be unplugged without the operator's choice becoming
         # wrong. Reachability is the claim's problem, reported in terms of
         # something they just tried to do.
@@ -135,9 +129,7 @@ class TestChoosingTheSource:
 class TestClearingTheSource:
     """The picker's "Not set" option — it used to be impossible to reach."""
 
-    def test_clearing_reports_and_persists_no_source(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_clearing_reports_and_persists_no_source(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
 
@@ -155,9 +147,7 @@ class TestClearingTheSource:
         # config document rather than vanishing from it.
         assert client.get("/api/settings/air").json()["offgridSdrSource"] is None
 
-    def test_gives_the_device_back_before_forgetting_it(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_gives_the_device_back_before_forgetting_it(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         seen = _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
         client.post("/api/sdr/adsb/claim", json={})
@@ -167,16 +157,12 @@ class TestClearingTheSource:
         # Once the source is cleared nothing remembers which device to release,
         # so the release has to have gone out for *that* device.
         releases = [
-            request
-            for request in seen
-            if request.method == "DELETE" and request.url.path.endswith("/reservation")
+            request for request in seen if request.method == "DELETE" and request.url.path.endswith("/reservation")
         ]
         assert len(releases) == 1
         assert DEVICE_ID in releases[0].url.path
 
-    def test_still_clears_when_the_sentry_is_unreachable(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_still_clears_when_the_sentry_is_unreachable(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def unreachable(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("gone")
 
@@ -202,9 +188,7 @@ class TestClaimingAndTuning:
         assert response.status_code == 409
         assert response.json()["detail"]["code"] == "no_source"
 
-    def test_claims_then_tunes_to_1090(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_claims_then_tunes_to_1090(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         seen = _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
 
@@ -219,9 +203,7 @@ class TestClaimingAndTuning:
         assert body["center_hz"] == 1_090_000_000
         assert body["sample_rate"] == 2_400_000
 
-    def test_uses_a_fixed_maximum_gain_rather_than_agc(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_uses_a_fixed_maximum_gain_rather_than_agc(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # AGC cannot track a 0.5 microsecond pulse. It settles for the silence
         # between messages — which is to say it settles low — and the pulses
         # that matter arrive under the noise floor.
@@ -236,9 +218,7 @@ class TestClaimingAndTuning:
         assert body["gain_auto"] is False
         assert body["gain_db"] == adsb_source.ADSB_GAIN_DB
 
-    def test_the_claim_precedes_the_tuning(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_the_claim_precedes_the_tuning(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Tuning a device we have not claimed would be the very thing the lease
         # exists to stop somebody else doing.
         seen = _install_sentry(monkeypatch, sentry_ok)
@@ -246,16 +226,10 @@ class TestClaimingAndTuning:
 
         client.post("/api/sdr/adsb/claim", json={})
 
-        methods = [
-            r.method
-            for r in seen
-            if r.url.path.endswith("/reservation") or r.method == "PATCH"
-        ]
+        methods = [r.method for r in seen if r.url.path.endswith("/reservation") or r.method == "PATCH"]
         assert methods.index("POST") < methods.index("PATCH")
 
-    def test_the_patch_proves_we_hold_the_lease(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_the_patch_proves_we_hold_the_lease(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Without the header Sentry would refuse our own tuning under our own
         # lock — the lock would lock us out.
         seen = _install_sentry(monkeypatch, sentry_ok)
@@ -266,9 +240,7 @@ class TestClaimingAndTuning:
         patch = next(r for r in seen if r.method == "PATCH")
         assert patch.headers["X-Sentry-Reservation-Holder"].startswith("sentinel:")
 
-    def test_tells_the_caller_when_to_renew(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_tells_the_caller_when_to_renew(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
 
@@ -276,9 +248,7 @@ class TestClaimingAndTuning:
 
         assert body["renew_within_seconds"] == adsb_source.RENEWAL_INTERVAL_SECONDS
 
-    def test_renewing_reuses_the_same_holder(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_renewing_reuses_the_same_holder(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         seen = _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
 
@@ -294,9 +264,7 @@ class TestClaimingAndTuning:
         }
         assert len(holders) == 1
 
-    def test_retunes_on_every_renewal(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_retunes_on_every_renewal(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Self-healing: a replugged dongle or a hand-retuned one comes back to
         # 1090 MHz on the next tick rather than leaving a quietly empty map.
         seen = _install_sentry(monkeypatch, sentry_ok)
@@ -309,14 +277,10 @@ class TestClaimingAndTuning:
 
 
 class TestFailuresAnOperatorCanAct_On:
-    def test_a_device_someone_else_holds_reports_who(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_a_device_someone_else_holds_reports_who(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def busy(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(
-                    204, headers={"set-cookie": "sentry_session=g; Path=/"}
-                )
+                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
             return httpx.Response(
                 409,
                 json={
@@ -353,9 +317,7 @@ class TestFailuresAnOperatorCanAct_On:
         assert response.status_code == 502
         assert response.json()["detail"]["code"] == "unauthenticated"
 
-    def test_an_unreachable_sentry_says_so(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_an_unreachable_sentry_says_so(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def unreachable(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("no route to host")
 
@@ -385,9 +347,7 @@ class TestFailuresAnOperatorCanAct_On:
 class TestHubFailuresInOperatorWords:
     """Air asks the hub's reservation proxy and words the failure itself (B6)."""
 
-    def test_a_deleted_host_asks_for_a_new_source(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_a_deleted_host_asks_for_a_new_source(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         seen = _install_sentry(monkeypatch, sentry_ok)
         host_id = register_host(client)
         set_source(client, host_id)
@@ -400,9 +360,7 @@ class TestHubFailuresInOperatorWords:
         assert "Pick a source again" in detail["message"]
         assert seen == []
 
-    def test_a_disabled_host_is_named_in_the_message(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_a_disabled_host_is_named_in_the_message(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_sentry(monkeypatch, sentry_ok)
         host_id = register_host(client)
         client.put(f"/api/sdr/sentry-hosts/{host_id}", json={"enabled": False})
@@ -429,9 +387,7 @@ class TestHubFailuresInOperatorWords:
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
 
         assert detail["code"] == "bad_rate"
-        assert detail["message"] == (
-            "The device was claimed but could not be tuned: Unsupported rate."
-        )
+        assert detail["message"] == ("The device was claimed but could not be tuned: Unsupported rate.")
 
     def test_claimed_but_not_tuned_with_an_empty_code_falls_back_to_tuning_failed(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
@@ -454,9 +410,7 @@ class TestHubFailuresInOperatorWords:
     ) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(
-                    204, headers={"set-cookie": "sentry_session=g; Path=/"}
-                )
+                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
             return httpx.Response(503, json={"detail": {"code": "", "message": "Down."}})
 
         _install_sentry(monkeypatch, broken)
@@ -467,17 +421,11 @@ class TestHubFailuresInOperatorWords:
         assert detail["code"] == "sentry_error"
         assert detail["message"] == "Down."
 
-    def test_another_sentry_error_passes_its_code_through(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_another_sentry_error_passes_its_code_through(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(
-                    204, headers={"set-cookie": "sentry_session=g; Path=/"}
-                )
-            return httpx.Response(
-                503, json={"detail": {"code": "usb_reset", "message": "Dongle resetting."}}
-            )
+                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
+            return httpx.Response(503, json={"detail": {"code": "usb_reset", "message": "Dongle resetting."}})
 
         _install_sentry(monkeypatch, broken)
         set_source(client, register_host(client))
@@ -489,9 +437,7 @@ class TestHubFailuresInOperatorWords:
 
 
 class TestReleasing:
-    def test_release_sends_a_delete(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_release_sends_a_delete(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         seen = _install_sentry(monkeypatch, sentry_ok)
         set_source(client, register_host(client))
         client.post("/api/sdr/adsb/claim", json={})
@@ -501,9 +447,7 @@ class TestReleasing:
         assert response.status_code == 204
         assert any(r.method == "DELETE" for r in seen)
 
-    def test_release_never_fails_the_caller(
-        self, client: Any, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_release_never_fails_the_caller(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Leaving a view must not raise an error about hardware; the lease
         # expires on its own regardless.
         def unreachable(request: httpx.Request) -> httpx.Response:
