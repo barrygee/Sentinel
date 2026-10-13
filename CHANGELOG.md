@@ -1494,6 +1494,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #464 from barrygee/fix/sentry-session-reuse
 - Merge pull request #465 from barrygee/chore/p7-5b-bake-pins
 - Merge pull request #466 from barrygee/chore/spec-one-component-rule
+- Merge pull request #468 from barrygee/chore/playwright-1-64
 
 ### Refactoring
 
@@ -1803,3 +1804,4 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 
 - Patch three high-severity transitive advisories
 - Bump vue-tsc to v3 to drop a vulnerable brace-expansion path (#263)
+- Upgrade Playwright to 1.64 for the root and SPA suites
