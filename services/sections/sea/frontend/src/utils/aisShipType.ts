@@ -2,7 +2,7 @@
  * Presentation of AIS vessel families on the Sea map.
  *
  * The backend classifies each vessel's ITU-R M.1371 ship-type code into a
- * family (see `backend/services/ais_store.py`); this module maps that family to
+ * family (see `sentinel_sea/services/ais_store.py`); this module maps that family to
  * the colour its chevron and label chip take. The hues follow the source
  * project's palette so tankers, cargo, passenger and fishing vessels read the
  * same way an analyst used to God's Eye View expects — except military, which

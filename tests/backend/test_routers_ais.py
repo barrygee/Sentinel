@@ -29,7 +29,7 @@ from backend.radio_hub.routers import decode as decode_router
 from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AisDecodeBridge
-from backend.services import ais_store
+from sentinel_sea.services import ais_store
 from tests.backend.service_credentials_test_helpers import (
     accept_callers,
     decoder_header,

@@ -487,7 +487,7 @@ async def ingest_ais_event(body: DecodeEventIn, x_decode_secret: str = Header(de
     # golden pins byte-for-byte) even though the vessel-store write below has
     # moved: this endpoint keeps the ingest gate (the 409 below) but now
     # publishes the decoded event on decode.ais.<radio_id> (B2) instead of
-    # calling ais_decode.ingest_event directly — backend/services/ais_decode.py
+    # calling ais_decode.ingest_event directly — sentinel_sea/services/ais_decode.py
     # subscribes and performs the exact same ingest this router used to do.
     require_decoder(x_decode_secret, "ais")
     bridge = sdr_decode.get_active_ais_bridge()

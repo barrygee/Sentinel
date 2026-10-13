@@ -22,12 +22,14 @@ dependencies = [
     # Each section's backend package (services/sections/<id>/backend), installed editable.
     "sentinel-air",
     "sentinel-land",
+    "sentinel-sea",
     "sentinel-space",
 ]
 
 [tool.uv.sources]
 sentinel-air = { path = "../services/sections/air/backend", editable = true }
 sentinel-land = { path = "../services/sections/land/backend", editable = true }
+sentinel-sea = { path = "../services/sections/sea/backend", editable = true }
 sentinel-space = { path = "../services/sections/space/backend", editable = true }
 
 [dependency-groups]
@@ -95,7 +97,7 @@ ignore_missing_imports = true
 # crossing with the phase that removes it — delete the entry when it goes.
 [tool.importlinter]
 # Core plus each section package that has moved out of backend/ (services/sections/<id>/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_space"]
+root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core and platform import no section"
@@ -114,8 +116,7 @@ source_modules = [
 forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "sentinel_land",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
@@ -131,8 +132,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "sentinel_space",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "sentinel_land",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
@@ -148,8 +148,7 @@ source_modules = [
 ]
 forbidden_modules = [
     "sentinel_air",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "sentinel_land",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
@@ -161,8 +160,7 @@ name = "Sea imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.services.sea_ais_receiver", "backend.modules.sea", "backend.standalone.sea",
+    "sentinel_sea",
 ]
 forbidden_modules = [
     "sentinel_air",
@@ -183,8 +181,7 @@ source_modules = [
 forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
@@ -202,8 +199,7 @@ source_modules = [
 forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "sentinel_land",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
@@ -218,8 +214,7 @@ source_modules = [
 forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
-    "backend.routers.sea", "backend.services.ais_stream", "backend.services.ais_store", "backend.services.ais_decode",
-    "backend.modules.sea",
+    "sentinel_sea",
     "sentinel_land",
     "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
     "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",

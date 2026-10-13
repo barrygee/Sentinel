@@ -9,10 +9,10 @@ Endpoints:
   PUT    /api/sea/ais-key                 — Save / replace the AISStream key from Settings › SEA
   DELETE /api/sea/ais-key                 — Forget the saved key (the .env key, if any, applies again)
 
-The vessel picture is owned by :mod:`backend.services.ais_store` and fed by
+The vessel picture is owned by :mod:`sentinel_sea.services.ais_store` and fed by
 EITHER source, depending on the domain's connectivity mode: online by
-:mod:`backend.services.ais_stream` (AISStream.io), off grid by the SDR AIS
-decode bridge via :mod:`backend.services.ais_decode`. This router only reads the
+:mod:`sentinel_sea.services.ais_stream` (AISStream.io), off grid by the SDR AIS
+decode bridge via :mod:`sentinel_sea.services.ais_decode`. This router only reads the
 store, so its responses are identical either way apart from the ``source`` field
 in the feed status. Every snapshot request also nudges the *active* feed so a
 reconnect never has to wait for the background tick when someone is looking —
@@ -28,21 +28,21 @@ from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.platform.bus import bus
 from backend.platform.settings_client import delete_secret, read_secret, write_secret
-
-# Imported for its side effect (B2): registers the decode.ais.* bus subscriber
-# that upserts off-grid AIS events into ais_store, at module-import time so it
-# is in place even in tests, which skip the app lifespan. This router never
-# calls ais_decode directly — it only reads ais_store.
-from backend.services import (
-    ais_decode,  # noqa: F401
-    ais_store,
-)
-from backend.services.ais_stream import key_fingerprint, reader
 from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# Imported for its side effect (B2): registers the decode.ais.* bus subscriber
+# that upserts off-grid AIS events into ais_store, at module-import time so it
+# is in place even in tests, which skip the app lifespan. This router never
+# calls ais_decode directly — it only reads ais_store.
+from sentinel_sea.services import (
+    ais_decode,  # noqa: F401
+    ais_store,
+)
+from sentinel_sea.services.ais_stream import key_fingerprint, reader
 
 router = APIRouter(prefix="/api/sea", tags=["sea"])
 

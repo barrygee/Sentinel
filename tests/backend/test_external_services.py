@@ -155,12 +155,12 @@ SECTION_CODE = {
         "sentinel_air.services.adsb_squawk",
     },
     "sea": {
-        "backend.routers.sea",
-        "backend.modules.sea",
-        "backend.services.ais_stream",
-        "backend.services.ais_store",
-        "backend.services.ais_decode",
-        "backend.services.sea_ais_receiver",
+        "sentinel_sea.router",
+        "sentinel_sea.module",
+        "sentinel_sea.services.ais_stream",
+        "sentinel_sea.services.ais_store",
+        "sentinel_sea.services.ais_decode",
+        "sentinel_sea.services.sea_ais_receiver",
     },
     # Every module of the hub: importing any of them registers its `hub.*`
     # responders, which would then answer here instead of in its container.

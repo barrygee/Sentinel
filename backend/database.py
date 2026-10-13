@@ -58,7 +58,6 @@ class Base(DeclarativeBase):
 
 
 # The tables each extracted section owns — all its service's own database holds.
-SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
 # Parents before children: a legacy import copies them in this order.
 SDR_TABLES: tuple[str, ...] = (
@@ -91,15 +90,6 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
-
-
-async def create_sea_tables() -> None:
-    """The Sea service's schema (P6.4): the vessel warm-start snapshot and static data.
-
-    Neither table has gained a column since its first release. The AISStream
-    key is not Sea's to store: it is a setting, kept in core (secret).
-    """
-    await create_section_tables(SEA_TABLES)
 
 
 async def create_radio_hub_tables() -> None:

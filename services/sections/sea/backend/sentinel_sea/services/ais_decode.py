@@ -2,7 +2,7 @@
 
 The Sea domain has two sources of vessels and exactly one picture of them:
 
-  * **online** — :mod:`backend.services.ais_stream` reads AISStream.io envelopes
+  * **online** — :mod:`sentinel_sea.services.ais_stream` reads AISStream.io envelopes
     over a WebSocket;
   * **off grid** — the ``ais-decoder`` sidecar (Direwolf's AIS modem, fed by
     :class:`~backend.radio_hub.services.sdr_decode.AisDecodeBridge`) decodes AIVDM
@@ -26,7 +26,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 from backend.platform.bus import bus
-from backend.services import ais_store
+
+from sentinel_sea.services import ais_store
 
 # AIVDM message types that carry a position (ITU-R M.1371):
 #   1–3   Position Report Class A

@@ -7,7 +7,7 @@ gate, but now publish the decoded event on `decode.aprs.<radio_id>` /
 `decode.ais.<radio_id>` instead of writing straight into the stores:
 
     backend/services/aprs_store.py `_on_decode_event`  — decode.aprs.* subscriber
-    backend/services/ais_decode.py `_on_decode_event`   — decode.ais.* subscriber
+    sentinel_sea/services/ais_decode.py `_on_decode_event`   — decode.ais.* subscriber
     backend/radio_hub/routers/decode.py ingest_aprs_event/ingest_ais_event — gate + publish
     backend/radio_hub/services/sdr_decode.py `_on_ais_status_request`  — hub.decode.ais.status
         responder Sea's off-grid status reads instead of importing sdr_decode
@@ -30,7 +30,7 @@ from sentinel_land.models import AprsStation  # noqa: F401 — register ORM mode
 from backend.platform.bus import bus
 from backend.radio_hub.services import sdr_decode
 from backend.radio_hub.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
-from backend.services import ais_decode, ais_store
+from sentinel_sea.services import ais_decode, ais_store
 from sentinel_land.services import aprs_store
 from tests.backend.service_credentials_test_helpers import (
     accept_callers,
@@ -184,11 +184,11 @@ class TestAisDecodeEventSubscriber:
         assert len(ais_store.store) == 0
 
     async def test_the_subscriber_is_registered_through_the_sea_router_import(self):
-        # routers/sea.py imports ais_decode purely for this subscription side
+        # sentinel_sea/router.py imports ais_decode purely for this subscription side
         # effect (it never calls ais_decode directly) — guard against that
         # import silently becoming a copy of the module rather than the real
         # one the bus handler closed over.
-        from backend.routers import sea as sea_router
+        from sentinel_sea import router as sea_router
 
         assert sea_router.ais_decode is ais_decode
         await bus.publish(

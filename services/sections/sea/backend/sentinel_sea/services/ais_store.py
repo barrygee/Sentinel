@@ -1,6 +1,6 @@
 """In-memory store of live AIS vessels for the Sea domain.
 
-Fed by :mod:`backend.services.ais_stream` (AISStream.io envelopes) and read by the
+Fed by :mod:`sentinel_sea.services.ais_stream` (AISStream.io envelopes) and read by the
 Sea router's snapshot endpoints. Mirrors the model the Land map uses for APRS —
 a backend-owned feed exposed as a REST snapshot the map polls — but the AIS
 message rate (hundreds per second worldwide) rules out a SQLite write per
@@ -30,9 +30,10 @@ from typing import Any
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.models import SeaVesselCache, SeaVesselStatic
 from sqlalchemy import delete, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+from sentinel_sea.models import SeaVesselCache, SeaVesselStatic
 
 logger = logging.getLogger(__name__)
 

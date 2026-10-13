@@ -21,7 +21,7 @@ import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
  * Switching Sea back online therefore releases the radio.
  *
  * **The backend is the authority now.** Sea's AIS receiver
- * (`backend/services/sea_ais_receiver.py`) starts and stops decode itself at
+ * (`sentinel_sea/services/sea_ais_receiver.py`) starts and stops decode itself at
  * startup and on every change to these settings, so decoding no longer waits
  * for this page. This composable remains as a prompt on entering Sea; starting
  * the radio already decoding is a no-op server-side.

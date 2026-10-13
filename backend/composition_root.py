@@ -102,7 +102,7 @@ def api_routers() -> list[APIRouter]:
 
         routers.append(land.router)
     if hosts_in_process("sea"):
-        from backend.routers import sea
+        from sentinel_sea import router as sea
 
         routers.append(sea.router)
     routers.append(settings_router.router)
