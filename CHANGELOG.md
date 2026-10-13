@@ -1502,6 +1502,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #470 from barrygee/feat/p8c-sections-always-services
 - Merge pull request #471 from barrygee/docs/p8b-section-containers
 - Merge pull request #472 from barrygee/refactor/section-move-space
+- Merge pull request #473 from barrygee/refactor/section-move-land
 
 ### Refactoring
 
@@ -1592,6 +1593,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make each section its own workspace package
 - Compose core's app in a create_core_app() factory
 - Move Space's backend into services/sections/space/backend
+- Move Land's backend into services/sections/land/backend
 
 ### Documentation
 
@@ -1634,6 +1636,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Accept ADR 0006 section services; mark the plan complete
 - Slim the README to basics and move the detail into docs/
 - Document the section backend package pattern and new lint paths
+- Note that Land has moved too
 
 ### Tests
 
