@@ -2,7 +2,7 @@
 tests/backend/test_platform_lifecycle.py
 
 Unit tests for backend/platform/lifecycle.py — the runner that replaced the
-monolithic lifespan in backend/main.py (section-containers plan, B8).
+monolithic lifespan that was in backend/main.py (section-containers plan, B8).
 
 What matters here is ordering and the signal wake chain:
   * every module's `prepare` runs before any module's `start` (the config file

@@ -1,4 +1,4 @@
-"""The shell document's Content-Security-Policy (backend/core/spa_csp.py, served by backend/main.py)."""
+"""The shell document's Content-Security-Policy (backend/core/spa_csp.py, served by backend/core/spa_serving.py)."""
 
 import base64
 import hashlib
@@ -90,7 +90,7 @@ class TestPolicyForIndex:
 class TestServedShell:
     @pytest.mark.parametrize("path", ["/", "/sea/", "/sdr/some/deep/link"])
     def test_every_spa_route_carries_the_policy_for_the_committed_index(self, client, path):
-        from backend.main import SPA_DIR
+        from backend.core.app_sections import SPA_DIR
 
         response = client.get(path)
 

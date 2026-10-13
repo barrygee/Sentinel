@@ -1,7 +1,7 @@
 """Sections the monolith leaves to their own containers (SENTINEL_EXTERNAL_SERVICES, P6).
 
 `backend/modules/__init__.py` decides which services this process hosts, and
-`backend/main.py` builds the app from that at import — so the end-to-end cases
+`backend/composition_root.py` builds the app from that when `backend.main` is imported — so the end-to-end cases
 import it in a fresh interpreter with the variable set.
 """
 

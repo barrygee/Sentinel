@@ -3,7 +3,7 @@ tests/backend/test_modules_lifecycle.py
 
 Tests for backend/modules/ — each module's lifecycle hooks (B8), which took
 over the startup/shutdown sequence that used to live inline in
-backend/main.py's lifespan.
+core's lifespan (backend/composition_root.py).
 
 The order inside each hook is behaviour (e.g. prune stale settings before the
 seeders, release Sentry pollers before tearing down broadcasters), so each
