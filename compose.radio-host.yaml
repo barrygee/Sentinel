@@ -76,7 +76,7 @@ services:
       INTERNAL_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
-    command: uvicorn backend.standalone.radio_hub:app --host 0.0.0.0 --port 8000
+    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000
     restart: unless-stopped
     networks:
       - radio-host

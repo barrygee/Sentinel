@@ -21,7 +21,7 @@ from backend.config import settings
 from backend.core import app_sections, notifications, registry_router, settings_secrets
 from backend.core.service_registry import ServiceRegistry
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.radio_hub.routers import (
+from sentinel_radio.routers import (
     decode,
     decoders,
     iq_captures,

@@ -8,8 +8,8 @@ gate, but now publish the decoded event on `decode.aprs.<radio_id>` /
 
     backend/services/aprs_store.py `_on_decode_event`  — decode.aprs.* subscriber
     sentinel_sea/services/ais_decode.py `_on_decode_event`   — decode.ais.* subscriber
-    backend/radio_hub/routers/decode.py ingest_aprs_event/ingest_ais_event — gate + publish
-    backend/radio_hub/services/sdr_decode.py `_on_ais_status_request`  — hub.decode.ais.status
+    sentinel_radio/routers/decode.py ingest_aprs_event/ingest_ais_event — gate + publish
+    sentinel_radio/services/sdr_decode.py `_on_ais_status_request`  — hub.decode.ais.status
         responder Sea's off-grid status reads instead of importing sdr_decode
 
 Sea's `/api/sea/ais/status` HTTP surface (no-source/live/down/stale shapes) is
@@ -28,8 +28,8 @@ from sqlalchemy.pool import StaticPool
 from backend.database import Base
 from sentinel_land.models import AprsStation  # noqa: F401 — register ORM model with Base
 from backend.platform.bus import bus
-from backend.radio_hub.services import sdr_decode
-from backend.radio_hub.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
+from sentinel_radio.services import sdr_decode
+from sentinel_radio.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
 from sentinel_sea.services import ais_decode, ais_store
 from sentinel_land.services import aprs_store
 from tests.backend.service_credentials_test_helpers import (
@@ -197,7 +197,7 @@ class TestAisDecodeEventSubscriber:
         assert ais_store.store.get("351759000") is not None
 
 
-# ── ingest endpoints: gate + publish (radio_hub/routers/decode.py) ────────────
+# ── ingest endpoints: gate + publish (sentinel_radio/routers/decode.py) ────────────
 
 
 class TestAprsIngestPublishesOnTheBus:

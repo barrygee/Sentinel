@@ -57,10 +57,6 @@ class Base(DeclarativeBase):
     pass
 
 
-# The tables each extracted section owns — all its service's own database holds.
-RADIO_HUB_TABLES: tuple[str, ...] = ("sentry_hosts",)
-
-
 async def _add_columns(conn, alter_statements) -> None:
     for alter_statement in alter_statements:
         try:
@@ -82,16 +78,6 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
-
-
-async def create_radio_hub_tables() -> None:
-    """The radio hub service's schema (P6.5): the Sentry hosts it polls and claims dongles through.
-
-    `sentry_hosts` has not gained a column since its first release. The radios
-    themselves (`sdr.radios`) are not the hub's to store: they are a setting,
-    kept in core.
-    """
-    await create_section_tables(RADIO_HUB_TABLES)
 
 
 async def create_tables():

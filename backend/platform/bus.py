@@ -18,7 +18,7 @@ to change, only what sits behind `bus.publish`/`bus.subscribe`.
 Scope: **low-rate control/state-change events only** (e.g. "a setting
 changed", "a radio was reassigned"). Never route FFT/IQ/PCM streams through
 this bus — those are high-rate binary data with their own fan-out path
-(`radio_hub/services/sdr.py`'s per-radio broadcaster) and would swamp every handler.
+(`sentinel_radio/services/sdr.py`'s per-radio broadcaster) and would swamp every handler.
 
 Synchronous-by-design: `publish()` awaits every matching handler, in the
 order it was subscribed, before returning — this preserves the exact
@@ -150,7 +150,7 @@ class EventBus:
 
         Returns an `unsubscribe()` callable. Registration is synchronous and
         has no dependency on the app lifespan — call it at module import time
-        (see `radio_hub/routers/decode.py`) so it also takes effect in tests, which skip
+        (see `sentinel_radio/routers/decode.py`) so it also takes effect in tests, which skip
         the lifespan.
         """
         return self._register(Subscription(pattern, handler, is_responder=False))

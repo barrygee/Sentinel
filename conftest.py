@@ -26,9 +26,11 @@ from backend.config import settings
 settings.__init__(_env_file=None)
 
 from backend import models  # noqa: E402,F401 — register ORM models with Base
+
 # Each moved section's tables, so `db_setup` builds the whole schema.
 import sentinel_air.models  # noqa: E402,F401
 import sentinel_land.models  # noqa: E402,F401
+import sentinel_radio.models  # noqa: E402,F401
 import sentinel_sdr.models  # noqa: E402,F401
 import sentinel_sea.models  # noqa: E402,F401
 import sentinel_space.models  # noqa: E402,F401
@@ -76,7 +78,7 @@ def core_is_up(monkeypatch):
 def no_remembered_sentry_sessions():
     """Sentry session cookies are kept per process, so one test's sign-in would
     otherwise carry into the next and change which requests it makes."""
-    from backend.radio_hub.services.sentry_client import forget_sentry_sessions
+    from sentinel_radio.services.sentry_client import forget_sentry_sessions
 
     forget_sentry_sessions()
     yield

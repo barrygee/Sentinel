@@ -120,12 +120,12 @@ def _sdr_prefix_routers() -> list[APIRouter]:
     routers: list[APIRouter] = []
     hosts_radio_hub = hosts_in_process("radio-hub")
     if hosts_radio_hub:
-        from backend.radio_hub.routers import decode as hub_decode_router
-        from backend.radio_hub.routers import decoders as hub_decoders_router
-        from backend.radio_hub.routers import iq_captures as hub_iq_captures_router
-        from backend.radio_hub.routers import radio_control as hub_radio_control_router
-        from backend.radio_hub.routers import radios as hub_radios_router
-        from backend.radio_hub.routers import sentry as sentry_router
+        from sentinel_radio.routers import decode as hub_decode_router
+        from sentinel_radio.routers import decoders as hub_decoders_router
+        from sentinel_radio.routers import iq_captures as hub_iq_captures_router
+        from sentinel_radio.routers import radio_control as hub_radio_control_router
+        from sentinel_radio.routers import radios as hub_radios_router
+        from sentinel_radio.routers import sentry as sentry_router
 
         routers.append(hub_radios_router.router)
     if hosts_in_process("sdr"):

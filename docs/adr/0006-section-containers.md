@@ -27,7 +27,7 @@ record keeps the decisions and why they were made.
 and the live config file, notifications, offline maps, the service registry),
 `gateway` (Caddy, the only origin browsers use) and `nats` (the event bus).
 Space, Land, Air, Sea, SDR and the **radio hub** each run as their own service
-from the same backend image (`uvicorn backend.standalone.<id>:app`, built by
+from the same backend image (`uvicorn sentinel_<id>.service:app`, built by
 `create_service()` in `backend/platform/sdk/`). A service registers its
 manifest with core. Core pushes the service's path prefixes into the gateway,
 and the shell loads its UI. No gateway or shell edit is needed to add a section.

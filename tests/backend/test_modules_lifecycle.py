@@ -19,10 +19,11 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import core, radio_hub
+from backend.modules import core
 from backend.platform.bus import bus as process_bus
 from sentinel_air import module as air
 from sentinel_land import module as land
+from sentinel_radio import module as radio_hub
 from sentinel_sea import module as sea
 from sentinel_sdr import module as sdr
 from sentinel_sea.services.ais_stream import reader as ais_reader
@@ -76,7 +77,9 @@ class TestBusModule:
         assert bus_module._transport is None
         await bus_module.lifecycle.stop()  # nothing to stop: a no-op
 
-    async def test_with_a_nats_url_it_starts_then_stops_the_transport(self, monkeypatch):
+    async def test_with_a_nats_url_it_starts_then_stops_the_transport(
+        self, monkeypatch
+    ):
         calls: list[Any] = []
 
         class FakeTransport:
@@ -92,7 +95,16 @@ class TestBusModule:
         monkeypatch.setattr(bus_module.settings, "nats_url", "nats://nats:4222")
         monkeypatch.setattr(bus_module, "NatsTransport", FakeTransport)
         await bus_module.lifecycle.start()
-        assert calls == [("init", process_bus, "nats://nats:4222", "sentinel-app", AsyncSessionLocal), "start"]
+        assert calls == [
+            (
+                "init",
+                process_bus,
+                "nats://nats:4222",
+                "sentinel-app",
+                AsyncSessionLocal,
+            ),
+            "start",
+        ]
         assert isinstance(bus_module._transport, FakeTransport)
         await bus_module.lifecycle.stop()
         assert calls[-1] == "stop"
@@ -151,30 +163,50 @@ class TestCoreModule:
 
         assert calls == ["offline.stop", "config.stop"]
 
-    def test_wake_wakes_the_offline_map_runner_and_ends_alert_streams(self, monkeypatch):
+    def test_wake_wakes_the_offline_map_runner_and_ends_alert_streams(
+        self, monkeypatch
+    ):
         calls: list[str] = []
-        monkeypatch.setattr(core.offline_map_job_runner, "wake", recorder(calls, "offline.wake", is_async=False))
-        monkeypatch.setattr(core.notifications.streams, "wake", recorder(calls, "streams.wake", is_async=False))
+        monkeypatch.setattr(
+            core.offline_map_job_runner,
+            "wake",
+            recorder(calls, "offline.wake", is_async=False),
+        )
+        monkeypatch.setattr(
+            core.notifications.streams,
+            "wake",
+            recorder(calls, "streams.wake", is_async=False),
+        )
         core.lifecycle.wake()
         assert calls == ["offline.wake", "streams.wake"]
 
-    async def test_start_reopens_alert_streams_closed_by_a_previous_wake(self, monkeypatch):
+    async def test_start_reopens_alert_streams_closed_by_a_previous_wake(
+        self, monkeypatch
+    ):
         for name in ("start",):
             monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
             monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
-        monkeypatch.setattr(core.registry, "start", recorder([], "registry", is_async=False))
+        monkeypatch.setattr(
+            core.registry, "start", recorder([], "registry", is_async=False)
+        )
         core.notifications.streams.wake()
         await core.lifecycle.start()
         assert core.notifications.streams._closing is False
 
-    async def test_starts_the_gateway_sync_after_the_registry_and_stops_it_first(self, monkeypatch):
+    async def test_starts_the_gateway_sync_after_the_registry_and_stops_it_first(
+        self, monkeypatch
+    ):
         calls: list[str] = []
         for name in ("start", "stop"):
             monkeypatch.setattr(core.app_config_file.sync, name, recorder([], name))
             monkeypatch.setattr(core.offline_map_job_runner, name, recorder([], name))
-        monkeypatch.setattr(core.registry, "start", recorder(calls, "registry.start", is_async=False))
+        monkeypatch.setattr(
+            core.registry, "start", recorder(calls, "registry.start", is_async=False)
+        )
         monkeypatch.setattr(core.registry, "stop", recorder(calls, "registry.stop"))
-        monkeypatch.setattr(core.gateway_sync, "start", recorder(calls, "gateway.start", is_async=False))
+        monkeypatch.setattr(
+            core.gateway_sync, "start", recorder(calls, "gateway.start", is_async=False)
+        )
         monkeypatch.setattr(core.gateway_sync, "stop", recorder(calls, "gateway.stop"))
 
         await core.lifecycle.start()
@@ -193,7 +225,9 @@ class TestCoreModule:
 class TestAirModule:
     async def test_start_starts_the_squawk_watcher_and_stop_stops_it(self, monkeypatch):
         calls: list[str] = []
-        monkeypatch.setattr(air.watcher, "start", recorder(calls, "watcher.start", is_async=False))
+        monkeypatch.setattr(
+            air.watcher, "start", recorder(calls, "watcher.start", is_async=False)
+        )
         monkeypatch.setattr(air.watcher, "stop", recorder(calls, "watcher.stop"))
         await air.lifecycle.start()
         await air.lifecycle.stop()
@@ -206,7 +240,9 @@ class TestAirModule:
 
 
 class TestSdrModule:
-    async def test_prepare_creates_its_tables_then_seeds_frequencies_then_the_band_plan(self, monkeypatch):
+    async def test_prepare_creates_its_tables_then_seeds_frequencies_then_the_band_plan(
+        self, monkeypatch
+    ):
         calls: list[str] = []
         monkeypatch.setattr(sdr, "create_sdr_tables", recorder(calls, "tables"))
         monkeypatch.setattr(
@@ -227,20 +263,30 @@ class TestSdrRecordingsReconcile:
     @pytest.fixture(autouse=True)
     def hub_elsewhere(self, monkeypatch):
         monkeypatch.setattr(sdr, "_reconcile_task", None)
-        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: True)
+        monkeypatch.setattr(
+            sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: True
+        )
 
         async def no_abandoned_recordings() -> list[int]:
             return []
 
-        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", no_abandoned_recordings)
+        monkeypatch.setattr(
+            sdr.abandoned_recordings,
+            "finalise_abandoned_recordings",
+            no_abandoned_recordings,
+        )
 
-    async def test_start_reconciles_at_once_and_stop_cancels_the_loop(self, monkeypatch):
+    async def test_start_reconciles_at_once_and_stop_cancels_the_loop(
+        self, monkeypatch
+    ):
         ran = asyncio.Event()
 
         async def reconcile() -> None:
             ran.set()
 
-        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+        monkeypatch.setattr(
+            sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile
+        )
 
         await sdr.lifecycle.start()
         task = sdr._reconcile_task
@@ -260,14 +306,20 @@ class TestSdrRecordingsReconcile:
             ended.set()
             return []
 
-        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: False)
-        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise)
+        monkeypatch.setattr(
+            sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: False
+        )
+        monkeypatch.setattr(
+            sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise
+        )
 
         await sdr.lifecycle.start()
         await asyncio.wait_for(ended.wait(), timeout=1)
         await sdr.lifecycle.stop()
 
-    async def test_a_failed_run_is_logged_and_the_loop_runs_again(self, monkeypatch, caplog):
+    async def test_a_failed_run_is_logged_and_the_loop_runs_again(
+        self, monkeypatch, caplog
+    ):
         outcomes = iter([RuntimeError("database is locked"), None])
         runs: list[str] = []
         sleeps: list[float] = []
@@ -283,17 +335,24 @@ class TestSdrRecordingsReconcile:
             if len(sleeps) == 2:
                 raise asyncio.CancelledError
 
-        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+        monkeypatch.setattr(
+            sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile
+        )
         monkeypatch.setattr(sdr.asyncio, "sleep", record_sleep)
 
-        with caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"), pytest.raises(asyncio.CancelledError):
+        with (
+            caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"),
+            pytest.raises(asyncio.CancelledError),
+        ):
             await sdr._reconcile_recordings_loop()
 
         assert runs == ["run", "run"]
         assert sleeps == [sdr.sdr_iq_capture_transfer.RECONCILE_INTERVAL_S] * 2
         assert "IQ capture reconcile failed" in caplog.text
 
-    async def test_a_failed_finalise_is_logged_and_the_iq_reconcile_still_runs(self, monkeypatch, caplog):
+    async def test_a_failed_finalise_is_logged_and_the_iq_reconcile_still_runs(
+        self, monkeypatch, caplog
+    ):
         runs: list[str] = []
 
         async def finalise() -> list[int]:
@@ -306,11 +365,18 @@ class TestSdrRecordingsReconcile:
         async def stop_after_one_pass(seconds: float) -> None:
             raise asyncio.CancelledError
 
-        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise)
-        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+        monkeypatch.setattr(
+            sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise
+        )
+        monkeypatch.setattr(
+            sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile
+        )
         monkeypatch.setattr(sdr.asyncio, "sleep", stop_after_one_pass)
 
-        with caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"), pytest.raises(asyncio.CancelledError):
+        with (
+            caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"),
+            pytest.raises(asyncio.CancelledError),
+        ):
             await sdr._reconcile_recordings_loop()
 
         assert runs == ["finalise", "reconcile"]
@@ -323,11 +389,15 @@ class TestSdrRecordingsReconcile:
 
 
 class TestSpaceModule:
-    async def test_prepare_creates_its_tables_then_backfills_the_radio_store(self, monkeypatch):
+    async def test_prepare_creates_its_tables_then_backfills_the_radio_store(
+        self, monkeypatch
+    ):
         # Core no longer creates Space's tables, so in-process Space must.
         calls: list[str] = []
         monkeypatch.setattr(space, "create_space_tables", recorder(calls, "tables"))
-        monkeypatch.setattr(space, "backfill_satellite_radio_store", recorder(calls, "backfill"))
+        monkeypatch.setattr(
+            space, "backfill_satellite_radio_store", recorder(calls, "backfill")
+        )
 
         await space.lifecycle.prepare()
 
@@ -335,6 +405,17 @@ class TestSpaceModule:
 
 
 class TestRadioHubModule:
+    async def test_prepare_creates_its_table(self, monkeypatch):
+        # Core no longer creates sentry_hosts, so an in-process hub must.
+        calls: list[str] = []
+        monkeypatch.setattr(
+            radio_hub, "create_radio_hub_tables", recorder(calls, "tables")
+        )
+
+        await radio_hub.lifecycle.prepare()
+
+        assert calls == ["tables"]
+
     async def test_start_resumes_decodes_then_starts_the_poller(self, monkeypatch):
         calls: list[str] = []
         monkeypatch.setattr(
@@ -543,9 +624,18 @@ class TestComposedLazily:
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[2]
-        environment = {**os.environ, "PYTHONPATH": str(repo_root), "SENTINEL_EXTERNAL_SERVICES": ""}
+        environment = {
+            **os.environ,
+            "PYTHONPATH": str(repo_root),
+            "SENTINEL_EXTERNAL_SERVICES": "",
+        }
         result = subprocess.run(
-            [sys.executable, "-c", code], cwd=repo_root, env=environment, capture_output=True, text=True, check=True
+            [sys.executable, "-c", code],
+            cwd=repo_root,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         return json.loads(result.stdout.strip().splitlines()[-1])
 
@@ -554,11 +644,13 @@ class TestComposedLazily:
             "import json, sys\n"
             "import sentinel_land.module\n"
             "print(json.dumps(sorted(m for m in sys.modules"
-            " if m.startswith(('backend.modules.', 'backend.radio_hub', 'sentinel_')))))\n"
+            " if m.startswith(('backend.modules.', 'sentinel_radio', 'sentinel_')))))\n"
         )
 
         # Land's own package, and of core's modules only the manifest helper.
-        assert [module for module in loaded if not module.startswith("sentinel_land")] == ["backend.modules.manifest"]
+        assert [
+            module for module in loaded if not module.startswith("sentinel_land")
+        ] == ["backend.modules.manifest"]
         assert "sentinel_land.module" in loaded
 
     def test_asking_for_modules_composes_every_hosted_one(self):
@@ -568,7 +660,16 @@ class TestComposedLazily:
             "print(json.dumps([module.name for module in MODULES]))\n"
         )
 
-        assert loaded == ["bus", "core", "sdr", "space", "radio-hub", "land", "sea", "air"]
+        assert loaded == [
+            "bus",
+            "core",
+            "sdr",
+            "space",
+            "radio-hub",
+            "land",
+            "sea",
+            "air",
+        ]
 
     def test_is_composed_once_and_cached(self):
         assert modules.MODULES is modules.MODULES
@@ -627,7 +728,9 @@ class TestLandModule:
 
         assert "APRS station cleanup failed" in caplog.text
 
-    async def test_a_failed_cleanup_is_retried_after_a_minute_not_a_day(self, monkeypatch):
+    async def test_a_failed_cleanup_is_retried_after_a_minute_not_a_day(
+        self, monkeypatch
+    ):
         """When Land runs in its own container its first run can fall while
         core (which holds the retention setting) is still starting."""
         outcomes = iter([RuntimeError("core not up yet"), None, None])

@@ -4,7 +4,7 @@ The radio hub writes a recording's raw IQ (`<id>.u8`). When the SDR section
 shares its process (the monolith) the hub writes it straight into the
 recordings folder and there is nothing to do here. Otherwise the hub keeps it
 in its own staging folder, and this module copies it over HTTP and has the hub
-delete it (`backend/radio_hub/services/iq_capture.py`):
+delete it (`sentinel_radio/services/iq_capture.py`):
 
 - `schedule_collect` starts the copy in the background when a recording stops,
   so the stop request doesn't wait on it (a minute of IQ is ~300 MB). Until it

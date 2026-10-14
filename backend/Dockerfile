@@ -81,7 +81,8 @@ ENV UV_HTTP_TIMEOUT=120 \
 # Third-party dependencies first, cached until the lockfile changes; the
 # section packages are installed below, once their code is in the image.
 COPY backend/pyproject.toml backend/uv.lock ./backend/
-# The lock check reads each section package's metadata from its pyproject.toml.
+# The lock check reads each section package's (and the radio hub's) metadata from its pyproject.toml.
+COPY services/radio/backend/pyproject.toml ./services/radio/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
@@ -99,9 +100,11 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # backend/ is owned by the runtime user: the app writes the live config file
 # (backend/data/sentinel_config.json) when no bind mount replaces it.
 COPY --chown=sentinel:sentinel backend/ ./backend/
-# Each section's backend package (services/sections/<id>/backend), installed
-# editable into the venv like in a checkout. Only the backend folders: the
+# Each section's backend package (services/sections/<id>/backend) and the
+# radio hub's (services/radio/backend), installed editable into the venv
+# like in a checkout. Only the backend folders: the
 # frontend packages are compiled into spa-dist by the stage above.
+COPY --chown=sentinel:sentinel services/radio/backend/ ./services/radio/backend/
 COPY --chown=sentinel:sentinel services/sections/air/backend/ ./services/sections/air/backend/
 COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
 COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/sections/sdr/backend/

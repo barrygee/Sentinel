@@ -20,3 +20,4 @@ frontend/assets/tiles/
 **/.pytest_cache
 **/.mypy_cache
 services/sections/*/backend/tests
+services/radio/backend/tests
