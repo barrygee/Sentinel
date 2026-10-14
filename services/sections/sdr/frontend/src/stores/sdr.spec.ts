@@ -253,6 +253,59 @@ describe('sdr store', () => {
     })
   })
 
+  // ── recording length limit (numeric, backend-only) ─────────────────────────
+  describe('recordingMaxDurationMinutes', () => {
+    it('defaults to six hours', () => {
+      expect(useSdrStore().recordingMaxDurationMinutes).toBe(360)
+    })
+    it('floors a valid value on set', () => {
+      const store = useSdrStore()
+      store.setRecordingMaxDurationMinutes(90.7)
+      expect(store.recordingMaxDurationMinutes).toBe(90)
+    })
+    it.each([
+      ['zero', 0],
+      ['below one minute', 0.5],
+      ['negative', -10],
+      ['not finite', Number.POSITIVE_INFINITY],
+    ])('falls back to the default for a value that is %s', (_case, minutes) => {
+      const store = useSdrStore()
+      store.setRecordingMaxDurationMinutes(45)
+      store.setRecordingMaxDurationMinutes(minutes)
+      expect(store.recordingMaxDurationMinutes).toBe(360)
+    })
+    it('keeps nothing in localStorage: only the backend acts on it', () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem')
+      useSdrStore().setRecordingMaxDurationMinutes(45)
+      expect(setItem).not.toHaveBeenCalled()
+    })
+    it('hydrates a valid value from the DB', async () => {
+      stubFetch({ recordingMaxDurationMinutes: 120 })
+      const store = useSdrStore()
+      await store.hydrateRecordingMaxDurationFromDb()
+      expect(store.recordingMaxDurationMinutes).toBe(120)
+    })
+    it.each([
+      ['not a number', '120'],
+      ['below one minute', 0],
+      ['missing', undefined],
+    ])('ignores a DB value that is %s', async (_case, minutes) => {
+      stubFetch({ recordingMaxDurationMinutes: minutes })
+      const store = useSdrStore()
+      await store.hydrateRecordingMaxDurationFromDb()
+      expect(store.recordingMaxDurationMinutes).toBe(360)
+    })
+    it('ignores a non-ok response and a failed request', async () => {
+      const store = useSdrStore()
+      stubFetch({ recordingMaxDurationMinutes: 120 }, false)
+      await store.hydrateRecordingMaxDurationFromDb()
+      expect(store.recordingMaxDurationMinutes).toBe(360)
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      await expect(store.hydrateRecordingMaxDurationFromDb()).resolves.toBeUndefined()
+      expect(store.recordingMaxDurationMinutes).toBe(360)
+    })
+  })
+
   // ── view settings ──────────────────────────────────────────────────────────
   describe('waterfall timestamps', () => {
     it('is on unless it was switched off before', () => {

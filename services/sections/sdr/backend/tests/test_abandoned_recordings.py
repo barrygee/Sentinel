@@ -4,7 +4,7 @@ Regression: a recording only ends when the browser sends stop, so one whose
 browser went away stayed "recording" for ever — hidden from the recordings
 list, and with raw IQ on its hub capture was kept as wanted and written until
 the hub restarted (two of them reached 83 GB each). Pinned here:
-  * only "recording" rows older than `sdr_recording_max_duration_s` end, as
+  * only "recording" rows older than the `sdr.recordingMaxDurationMinutes` limit end, as
     `status="error"` with an end time and no IQ file;
   * their capture is discarded on the hub when it runs elsewhere, or stopped
     and deleted from the recordings folder when it shares this process;
@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from backend.config import settings
+from backend.platform import recording_limits
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -50,7 +51,11 @@ class RecordingBus:
 @pytest.fixture(autouse=True)
 def recording_limit(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "sdr.db"))
-    monkeypatch.setattr(settings, "sdr_recording_max_duration_s", MAX_DURATION_S)
+
+    async def configured_limit(db) -> float:
+        return MAX_DURATION_S
+
+    monkeypatch.setattr(recording_limits, "recording_max_duration_seconds", configured_limit)
     monkeypatch.setattr(abandoned_recordings, "now_ms", lambda: NOW_MS)
 
 

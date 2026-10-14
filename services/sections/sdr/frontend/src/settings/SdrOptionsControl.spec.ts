@@ -297,8 +297,9 @@ describe('SdrOptionsControl', () => {
       const wrapper = mount(SdrOptionsControl)
       await flushPromises()
       const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
-      expect(labels[ROW.showWaterfallTimestamps]).toBe('Show Waterfall Timestamps')
-      expect(labels[ROW.showWaterfallTimestamps + 1]).toBe('Waterfall Timestamp Interval (Seconds)')
+      const showRow = labels.indexOf('Show Waterfall Timestamps')
+      expect(showRow).toBeGreaterThan(-1)
+      expect(labels[showRow + 1]).toBe('Waterfall Timestamp Interval (Seconds)')
     })
 
     it('re-emits the interval control staged write, which persists the new value', async () => {
@@ -381,6 +382,64 @@ describe('SdrOptionsControl', () => {
       await flushPromises()
 
       await delayInput(wrapper).trigger('keydown.enter')
+      expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+  })
+
+  describe('max recording length row', () => {
+    /** The number field the recording-length row contributes to the options table. */
+    function lengthInput(wrapper: ReturnType<typeof mount>) {
+      return wrapper.get<HTMLInputElement>(
+        'input[aria-label="Maximum recording length in minutes"]',
+      )
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ recordingMaxDurationMinutes: 240 }),
+        }),
+      )
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('renders the stored length as a number field, not another toggle', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      expect(switches(wrapper)).toHaveLength(7)
+      expect(lengthInput(wrapper).element.value).toBe('240')
+    })
+
+    it('sits directly under the raw IQ row it protects', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
+      const rawIqRow = labels.indexOf('Record Raw IQ with Recordings (Large Files)')
+      expect(rawIqRow).toBeGreaterThan(-1)
+      expect(labels[rawIqRow + 1]).toBe('Max Recording Length (Minutes)')
+    })
+
+    it('re-emits the length control staged write, which persists the new value', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await lengthInput(wrapper).setValue('90')
+      expect(useSdrStore().recordingMaxDurationMinutes).toBe(90)
+
+      await runStagedWrite(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'recordingMaxDurationMinutes', 90)
+    })
+
+    it('re-emits commit when Enter is pressed in the length field', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await lengthInput(wrapper).trigger('keydown.enter')
       expect(wrapper.emitted('commit')).toHaveLength(1)
     })
   })
