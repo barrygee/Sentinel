@@ -68,7 +68,7 @@ and the shell loads its UI. No gateway or shell edit is needed to add a section.
   plan's "keep `dev-all`"). Under compose, a bare `docker compose up` starts all
   six services. The app's `SENTINEL_EXTERNAL_SERVICES` is fixed to all six, so
   it never hosts a section itself. A section is left out with `--scale
-  <service>=0`. A radio-host core sets `SENTINEL_RADIO_HUB_REPLICAS=0`.
+  <service>=0`. A radio-host core sets `SENTINEL_RADIO_REPLICAS=0`.
   In-process hosting (`create_core_app()` in `backend/composition_root.py`
   including the sections `SENTINEL_EXTERNAL_SERVICES` doesn't list) survives
   only as the backend test suite's app and the non-Docker

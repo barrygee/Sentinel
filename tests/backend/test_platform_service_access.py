@@ -19,7 +19,7 @@ from backend.platform.service_access import (
     may_use_secret,
 )
 
-SECTION_SERVICES = ["radio-hub", "space", "land", "air", "sea", "sdr"]
+SECTION_SERVICES = ["radio", "space", "land", "air", "sea", "sdr"]
 
 
 class TestTheTable:
@@ -31,7 +31,7 @@ class TestTheTable:
         assert CALLER_ACCESS == {**SERVICE_ACCESS, **DECODER_ACCESS}
 
     def test_core_and_the_radio_hub_are_the_verifiers(self):
-        assert VERIFYING_SERVICES == ("core", "radio-hub")
+        assert VERIFYING_SERVICES == ("core", "radio")
 
     def test_each_decoder_owns_a_distinct_kind(self):
         kinds = [access.decoder_kind for access in DECODER_ACCESS.values()]

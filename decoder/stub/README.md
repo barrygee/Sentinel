@@ -13,7 +13,7 @@ be tested end to end without `mbelib` (dsd-fme) or a real over-the-air signal
 | Ingest | `POST /api/sdr/decoders/stub/ingest` | one `{frames, rms, peak}` summary per `REPORT_SECONDS` of PCM |
 
 HTTP goes through Sentinel's gateway, so the stub reaches the hub whether the app
-or the `radio-hub` service hosts it. All calls carry the shared decoder secret (`X-Decode-Secret`), the same one the
+or the `radio` service hosts it. All calls carry the shared decoder secret (`X-Decode-Secret`), the same one the
 voice, APRS and AIS sidecars use. The hub publishes each event on the bus as
 `decode.stub.<radioId>` and relays it to the SDR panel's `/ws/sdr/{id}/decode`
 socket.
@@ -38,10 +38,10 @@ resolves on the compose network):
 ```bash
 uv run --project backend python -m backend.scripts.generate_service_credentials /tmp/sentinel-credentials
 CORE_INTERNAL_URL=http://localhost:8080 \
-  ACCEPTED_CALLERS_FILE=/tmp/sentinel-credentials/services/core/accepted-callers.json \
+  ACCEPTED_CALLERS_FILE=/tmp/sentinel-credentials/credentials/core/accepted-callers.json \
   uv run --project backend uvicorn backend.main:app --port 8080
 SENTINEL_GATEWAY_URL=http://localhost:8080 \
-  DECODER_CREDENTIALS_FILE=/tmp/sentinel-credentials/services/stub-decoder/http-credentials.json \
+  DECODER_CREDENTIALS_FILE=/tmp/sentinel-credentials/credentials/stub-decoder/http-credentials.json \
   python decoder/stub/entrypoint.py
 ```
 

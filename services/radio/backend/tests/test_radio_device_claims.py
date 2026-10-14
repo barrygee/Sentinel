@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_device_claims.py
+services/radio/backend/tests/test_radio_device_claims.py
 
 "The ADS-B claim wins a shared dongle" — sentinel_radio/services/device_claims.py
 and the three places that honour it:

@@ -23,7 +23,7 @@
                                     "handler": "reverse_proxy",
                                     "upstreams": [
                                         {
-                                            "dial": "radio-hub:8000"
+                                            "dial": "radio:8000"
                                         }
                                     ]
                                 }

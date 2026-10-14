@@ -118,7 +118,7 @@ def api_routers() -> list[APIRouter]:
 def _sdr_prefix_routers() -> list[APIRouter]:
     """Every hosted router under /api/sdr/: radio hub, SDR section and Air's ADS-B source."""
     routers: list[APIRouter] = []
-    hosts_radio_hub = hosts_in_process("radio-hub")
+    hosts_radio_hub = hosts_in_process("radio")
     if hosts_radio_hub:
         from sentinel_radio.routers import decode as hub_decode_router
         from sentinel_radio.routers import decoders as hub_decoders_router

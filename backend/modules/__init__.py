@@ -29,7 +29,7 @@ from backend.platform.service_manifest import ServiceManifest
 # The services that have a standalone entry point (`sentinel_<id>.service`) and
 # whose routers core (`backend/composition_root.py`) can leave out: since P6.6, every one but
 # bus and core.
-EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio-hub", "sdr"})
+EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio", "sdr"})
 
 # Every module, in lifecycle order (see above), with the service it belongs
 # to. bus and core are this process itself and never run elsewhere.
@@ -38,7 +38,7 @@ _MODULE_ORDER: tuple[tuple[str, str], ...] = (
     ("core", "core"),
     ("sdr", "sdr"),
     ("space", "space"),
-    ("radio_hub", "radio-hub"),
+    ("radio_hub", "radio"),
     ("land", "land"),
     ("sea", "sea"),
     ("air", "air"),

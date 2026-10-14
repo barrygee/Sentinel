@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_decoder_manifest.py
+services/radio/backend/tests/test_radio_decoder_manifest.py
 
 Tests for sentinel_radio/services/decoder_manifest.py — what a decoder
 container may declare when it registers a new kind with the radio hub

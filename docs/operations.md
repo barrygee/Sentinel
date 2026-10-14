@@ -17,7 +17,7 @@ A bare `docker compose up -d` starts all of these:
 | `app` | Core: the shell UI, settings + `sentinel_config.json`, notifications, offline maps, the service registry | `sentinel_db` (`sentinel.db`, offline map regions) |
 | `gateway` | Caddy: publishes **:8080** for browsers and the TLS service entrypoint on 127.0.0.1:8443 | — |
 | `space` `land` `air` `sea` `sdr` | One service per section | `<id>_data` (`<id>.db`; SDR also `recordings/`) |
-| `radio-hub` | Everything that touches a radio: rtl_tcp/Sentry, the spectrum WebSockets, decode bridges, IQ capture | `radio_hub_data` (Sentry hosts) |
+| `radio` | Everything that touches a radio: rtl_tcp/Sentry, the spectrum WebSockets, decode bridges, IQ capture | `radio_data` (Sentry hosts) |
 
 The decoders (`voice-decoder`, `aprs-decoder`, `ais-decoder`, `adsb-decoder`)
 are opt-in compose profiles. See [decoders.md](decoders.md).
@@ -38,7 +38,7 @@ docker compose restart sea                 # restart one service; the others kee
 
 - **Leaving a section out persistently.** Pass the same `--scale` on later `up`
   commands too, or compose starts it again. To leave out the radio hub because
-  it runs on a radio host, set `SENTINEL_RADIO_HUB_REPLICAS=0` in `.env`
+  it runs on a radio host, set `SENTINEL_RADIO_REPLICAS=0` in `.env`
   instead.
 - **After `git pull`.** Backend code is volume-mounted and runs under
   `uvicorn --reload`, but a pull doesn't always trigger a reload, so run
@@ -69,7 +69,7 @@ registration: <id> registered with core at http://app:8000
 ```
 
 The app logs `registry: section <id> registered from http://<id>:8000` for each
-section and `registry: radio-hub radio-hub registered from …` for the hub.
+section and `registry: radio radio registered from …` for the hub.
 Decoders log `[<kind>] connected to the radio hub through http://gateway:8080`.
 If the hub isn't up yet, they log one
 `waiting for the radio hub through … ; retrying quietly` first.
@@ -85,7 +85,7 @@ If the hub isn't up yet, they log one
 | Nav entry greyed, "section unavailable" page | The service registered but failed 3 health probes in a row (every 10 s) | `docker compose ps`, then that service's logs |
 | Its API paths answer `503 {"detail": "<id> is unavailable"}` | Same: the gateway stops dialling an unavailable service | as above |
 | No nav entry at all, and its API paths return the SPA's `index.html` (200, text/html) | The service never registered (not started, or scaled to 0) | `docker compose ps -a`; a JSON 503 would mean it registered and then stopped |
-| SDR audio and waterfall stop, but frequencies and recordings still work | `radio-hub` is down (frequencies and recordings belong to `sdr`) | `docker compose logs radio-hub` |
+| SDR audio and waterfall stop, but frequencies and recordings still work | `radio` is down (frequencies and recordings belong to `sdr`) | `docker compose logs radio` |
 | A section restarted but data looks old | Expected after a rollback: data made while it ran as a service is only in `<id>_data` | — |
 
 ## Internal credentials and the bus
@@ -105,14 +105,14 @@ design, not a fault.
 
 - **Adding a service or decoder kind.** Give it a row in
   `backend/platform/service_access.py` and a compose mount of its
-  `services/<caller>/` folder on `service_credentials`, or it can't
+  `credentials/<caller>/` folder on `service_credentials`, or it can't
   authenticate.
 - **Adding a bus subject.** Add it to `backend/platform/nats_permissions.py`,
   then `docker compose up -d` (which rewrites `nats.conf`) and
   `docker compose restart nats`. The broker reads its config only at start.
   Until then the publisher logs a NATS **permissions violation**, and the event
   stays inside its own process.
-- **Rotating a credential.** Delete its `services/<caller>/` folder on the
+- **Rotating a credential.** Delete its `credentials/<caller>/` folder on the
   volume and run `docker compose up -d`. If a radio host is involved,
   re-export its bundle ([radio-host.md](radio-host.md)).
 

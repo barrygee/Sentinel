@@ -36,7 +36,7 @@ import { isDeployed } from './support/sectionDeployment';
 // cleanly absent instead.
 const spaceIsAbsent = !isDeployed('space');
 // Radios belong to the radio hub (P6.5); a stack without one has no radio API.
-const radioHubIsAbsent = !isDeployed('radio-hub');
+const radioHubIsAbsent = !isDeployed('radio');
 // Frequency groups and the band plan are the SDR section's (P6.6).
 const sdrIsAbsent = !isDeployed('sdr');
 

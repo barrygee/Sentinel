@@ -189,9 +189,9 @@ class TestRegister:
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("sdr")], instance_id="core")
 
-        await registry.register(make_manifest("radio-hub", kind="radio-hub", routes=["/api/sdr/radios"]), "hub-1")
+        await registry.register(make_manifest("radio", kind="radio", routes=["/api/sdr/radios"]), "hub-1")
 
-        assert registry.get("radio-hub") is not None
+        assert registry.get("radio") is not None
 
     async def test_a_service_may_keep_its_own_routes_when_re_registering(self):
         registry = ServiceRegistry()

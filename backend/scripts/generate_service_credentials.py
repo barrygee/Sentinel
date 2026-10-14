@@ -19,15 +19,15 @@ The output directory (default `/run/service-credentials`, the
 
     certificate-authority/  the CA's certificate and private key — never mounted
     server/                 mounted into `nats`: nats.conf, its certificate and key
-    services/<caller>/      mounted into one service or decoder:
+    credentials/<caller>/      mounted into one service or decoder:
         http-credentials.json   its internal HTTP token (every caller)
         nats-credentials.json   its NATS user (services only; decoders don't use the bus)
         certificate-authority.pem   the CA certificate (services only)
         accepted-callers.json   the tokens it accepts, as SHA-256 hashes (core and the radio hub)
-    services/gateway/       core's TLS service entrypoint: its certificate, key and the CA
-    services/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
+    credentials/gateway/    core's TLS service entrypoint: its certificate, key and the CA
+    credentials/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
 
-A second host (P7.5) gets a copy of its own `services/<caller>/` folders
+A second host (P7.5) gets a copy of its own `credentials/<caller>/` folders
 (`backend/scripts/service_credentials_bundle.py`). The broker's and the service
 entrypoint's certificates must name the address other hosts dial this one by
 (`SENTINEL_CORE_HOSTNAMES`), and a radio host's gateway certificate the address
@@ -61,10 +61,14 @@ BUILT_IN_SERVER_HOSTNAMES = ("nats", "localhost")
 BUILT_IN_ENTRYPOINT_HOSTNAMES = ("gateway", "localhost")
 """Core's TLS service entrypoint is a listener on the `gateway` container."""
 BUILT_IN_RADIO_HOST_GATEWAY_HOSTNAMES = ("radio-host-gateway", "localhost")
+CALLER_FOLDERS_DIRECTORY = "credentials"
+"""`credentials/<caller>/`: one folder per service or decoder, each mounted into that caller only.
+
+Not `services/`, so no folder on the volume shares a name with a repo folder."""
 GATEWAY_FOLDER = "gateway"
-"""`services/gateway/`: the service entrypoint's certificate and key, and the CA it trusts upstream."""
+"""`credentials/gateway/`: the service entrypoint's certificate and key, and the CA it trusts upstream."""
 RADIO_HOST_GATEWAY_FOLDER = "radio-host-gateway"
-"""`services/radio-host-gateway/`: the second host's TLS gateway, copied there with its hub's folders."""
+"""`credentials/radio-host-gateway/`: the second host's TLS gateway, copied there with its hub's folders."""
 CLIENT_PORT = 4222
 MONITORING_PORT = 8222
 CERTIFICATE_FILE = "certificate.pem"
@@ -276,9 +280,9 @@ def generate(output_directory: Path) -> None:
     authority_certificate, authority_key = ensure_certificate_authority(output_directory / "certificate-authority")
     server_directory = output_directory / "server"
     ensure_server_certificate(server_directory, server_hostnames(), authority_certificate, authority_key)
-    services_directory = output_directory / "services"
+    callers_directory = output_directory / CALLER_FOLDERS_DIRECTORY
     ensure_gateway_certificate(
-        services_directory / GATEWAY_FOLDER,
+        callers_directory / GATEWAY_FOLDER,
         entrypoint_hostnames(),
         authority_certificate,
         authority_key,
@@ -288,21 +292,21 @@ def generate(output_directory: Path) -> None:
     # gateway's certificate is issued here and copied there with the bundle.
     if radio_host_hostnames := radio_host_gateway_hostnames():
         ensure_gateway_certificate(
-            services_directory / RADIO_HOST_GATEWAY_FOLDER,
+            callers_directory / RADIO_HOST_GATEWAY_FOLDER,
             radio_host_hostnames,
             authority_certificate,
             authority_key,
             "radio host gateway",
         )
     passwords = {
-        user: ensure_service_credentials(services_directory / user, user, authority_certificate)
+        user: ensure_service_credentials(callers_directory / user, user, authority_certificate)
         for user in SERVICE_PERMISSIONS
     }
-    tokens = {caller: ensure_http_credentials(services_directory / caller, caller) for caller in CALLER_ACCESS}
+    tokens = {caller: ensure_http_credentials(callers_directory / caller, caller) for caller in CALLER_ACCESS}
     # Rewritten every run (cheap, and a verifier re-reads it when it changes):
     # core and the hub accept every caller; what each may do is service_access.py's.
     for verifier in VERIFYING_SERVICES:
-        _write_private(services_directory / verifier / ACCEPTED_CALLERS_FILE, accepted_callers(tokens))
+        _write_private(callers_directory / verifier / ACCEPTED_CALLERS_FILE, accepted_callers(tokens))
     print(f"service-credentials: {len(tokens)} HTTP callers accepted by {', '.join(VERIFYING_SERVICES)}")
     config_path, config = server_directory / SERVER_CONFIG_FILE, server_config(passwords)
     if config_path.exists() and config_path.read_text() == config:

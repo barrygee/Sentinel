@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_iq_captures_router.py
+services/radio/backend/tests/test_radio_iq_captures_router.py
 
 Tests for sentinel_radio/routers/iq_captures.py — where the SDR section
 downloads a finished IQ capture from the radio hub and then deletes it
@@ -69,7 +69,7 @@ class TestCredential:
         assert client.get(f"{URL}/5", headers=AUTHORIZED).status_code == 503
 
     @pytest.mark.parametrize("method", ["get", "delete"])
-    @pytest.mark.parametrize("caller", ["sea", "space", "land", "air", "radio-hub", "stub-decoder"])
+    @pytest.mark.parametrize("caller", ["sea", "space", "land", "air", "radio", "stub-decoder"])
     def test_refuses_every_other_caller(self, client, staged, method, caller):
         # Raw IQ is for the service that keeps the recordings only.
         assert getattr(client, method)(f"{URL}/5", headers=bearer(caller)).status_code == 403

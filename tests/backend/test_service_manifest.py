@@ -50,10 +50,10 @@ class TestValidManifest:
         assert manifest.health == "/health"
 
     def test_keeps_plan_fields_the_registry_does_not_act_on_yet(self):
-        manifest = validate(requires=["radio-hub"], settings={"namespace": "weather"})
+        manifest = validate(requires=["radio"], settings={"namespace": "weather"})
 
         wire = manifest.to_wire()
-        assert wire["requires"] == ["radio-hub"]
+        assert wire["requires"] == ["radio"]
         assert wire["settings"] == {"namespace": "weather"}
 
     def test_to_wire_uses_the_camel_case_names_and_drops_unset_optionals(self):
@@ -68,7 +68,7 @@ class TestValidManifest:
     def test_strips_a_trailing_slash_from_the_internal_url(self):
         assert validate(internalUrl="https://wx.lan:9000/").internal_url == "https://wx.lan:9000"
 
-    @pytest.mark.parametrize("kind", ["section", "radio-hub", "decoder"])
+    @pytest.mark.parametrize("kind", ["section", "radio", "decoder"])
     def test_accepts_each_service_kind(self, kind: str):
         assert validate(kind=kind).kind == kind
 
@@ -93,9 +93,11 @@ class TestRejectedManifest:
         with pytest.raises(ValidationError, match="id must be"):
             validate(id=bad_id, ui=None)
 
-    def test_rejects_an_unknown_kind(self):
+    @pytest.mark.parametrize("kind", ["plugin", "radio-hub"])
+    def test_rejects_an_unknown_kind(self, kind: str):
+        # `radio-hub` was the hub's kind before it was renamed `radio`.
         with pytest.raises(ValidationError):
-            validate(kind="plugin")
+            validate(kind=kind)
 
     @pytest.mark.parametrize("contracts", ["^2", "2.0", "^0.9", ">=1", "^1.2.3.4"])
     def test_rejects_any_other_contracts_major(self, contracts: str):

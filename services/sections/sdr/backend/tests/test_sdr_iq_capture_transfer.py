@@ -32,7 +32,7 @@ from tests.backend.service_credentials_test_helpers import bearer, present_crede
 from sentinel_sdr.models import SdrRecording
 from sentinel_sdr.services import sdr_iq_capture_transfer as transfer
 
-DOWNLOAD_URL = "http://radio-hub:8000/internal/radio-hub/iq-captures/{}"
+DOWNLOAD_URL = "http://radio:8000/internal/radio-hub/iq-captures/{}"
 LOCATE = "hub.iq-capture.locate"
 STOP = "hub.iq-capture.stop"
 LIST = "hub.iq-capture.list"

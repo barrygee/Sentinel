@@ -67,7 +67,7 @@ ROUTERS_OF_SERVICE = {
     "land": [land.router],
     "sea": [sea.router],
     "sdr": [sdr.router],
-    "radio-hub": [
+    "radio": [
         radios.router,
         radio_control.router,
         decode.router,

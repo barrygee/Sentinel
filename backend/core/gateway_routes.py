@@ -2,7 +2,7 @@
 
 Caddy is the one browser origin. Its static config (`gateway/caddy.json`) only
 knows three things: `/internal/` is never routed, everything unmatched goes to
-core, and proxy failures become a JSON 503. Every section, radio-hub and remote
+core, and proxy failures become a JSON 503. Every section, radio hub and remote
 route is pushed into it at runtime from the registry (`gateway_sync.py`), so
 moving a section into its own container (P6) is just that service registering
 with a different `internalUrl` — no gateway edit.

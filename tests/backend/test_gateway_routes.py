@@ -70,7 +70,7 @@ class TestRoutingTable:
         table = routing_table(
             [
                 make_registration("sdr", routes=["/api/sdr/"]),
-                make_registration("radio-hub", routes=["/api/sdr/radios"]),
+                make_registration("radio", routes=["/api/sdr/radios"]),
             ],
             CORE_URL,
         )
@@ -90,7 +90,7 @@ class TestRoutingTable:
 
     def test_adds_the_remote_prefix_only_for_a_service_with_a_ui(self):
         table = routing_table(
-            [make_registration("sea", ui=True), make_registration("radio-hub", routes=["/api/sdr/radios"])],
+            [make_registration("sea", ui=True), make_registration("radio", routes=["/api/sdr/radios"])],
             CORE_URL,
         )
 
@@ -111,7 +111,7 @@ class TestCaddyRoutes:
         assert route["match"] == [{"path": ["/api/sea/*"]}]
 
     def test_a_bare_prefix_matches_the_exact_path_and_below_it(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio-hub", CORE_URL, True)])
+        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio", CORE_URL, True)])
 
         assert route["match"] == [{"path": ["/api/sdr/radios", "/api/sdr/radios/*"]}]
 
@@ -149,7 +149,7 @@ class TestCaddyRoutes:
         monkeypatch.setattr(
             settings, "gateway_upstream_certificate_authority_file", "/run/service-credentials/certificate-authority.pem"
         )
-        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio-hub", "https://radio.lan:8443", True)])
+        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio", "https://radio.lan:8443", True)])
 
         assert route["handle"] == [
             {
@@ -207,15 +207,15 @@ class TestTheMonolithsRoutes:
             ("/api/air/aircraft", "air"),
             # Air's Sentry dongle sits inside the SDR section's prefix (plan §4.4).
             ("/api/sdr/adsb/source", "air"),
-            ("/api/sdr/radios", "radio-hub"),
-            ("/api/sdr/radios/3", "radio-hub"),
-            ("/api/sdr/connect", "radio-hub"),
-            ("/api/sdr/status/3", "radio-hub"),
-            ("/api/sdr/aprs/start", "radio-hub"),
-            ("/api/sdr/ais/status/3", "radio-hub"),
-            ("/api/sdr/decoders/register", "radio-hub"),
-            ("/api/sdr/sentry-hosts/locations", "radio-hub"),
-            ("/ws/sdr/3/iq", "radio-hub"),
+            ("/api/sdr/radios", "radio"),
+            ("/api/sdr/radios/3", "radio"),
+            ("/api/sdr/connect", "radio"),
+            ("/api/sdr/status/3", "radio"),
+            ("/api/sdr/aprs/start", "radio"),
+            ("/api/sdr/ais/status/3", "radio"),
+            ("/api/sdr/decoders/register", "radio"),
+            ("/api/sdr/sentry-hosts/locations", "radio"),
+            ("/ws/sdr/3/iq", "radio"),
             ("/api/sdr/groups", "sdr"),
             ("/api/sdr/data/bandplan", "sdr"),
             ("/api/space/tle/list", "space"),

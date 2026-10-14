@@ -57,7 +57,7 @@ def _config(**overrides):
 
 
 # Where the hub's config reply says its PCM feed is.
-PCM_FEED = ("radio-hub", 7370)
+PCM_FEED = ("radio", 7370)
 
 
 def _pcm(*samples: int) -> bytes:
@@ -231,7 +231,7 @@ class TestHubClient:
 
     def test_config_reads_active_and_the_pcm_feed(self, hub_calls):
         calls, responses = hub_calls
-        pcm_feed = {"host": "radio-hub", "port": 7370}
+        pcm_feed = {"host": "radio", "port": 7370}
         responses.extend(
             [
                 (200, {"active": True, "pcmFeed": pcm_feed}),
@@ -240,8 +240,8 @@ class TestHubClient:
             ]
         )
         client = stub.HubClient("http://hub:8000", "s3cret")
-        assert client.config() == (200, True, ("radio-hub", 7370))
-        assert client.config() == (200, False, ("radio-hub", 7370))
+        assert client.config() == (200, True, ("radio", 7370))
+        assert client.config() == (200, False, ("radio", 7370))
         assert client.config() == (200, True, None)
         assert (calls[0].get_method(), calls[0].full_url) == (
             "GET",
@@ -436,9 +436,9 @@ class TestHubClientLogging:
     def test_without_a_link_it_makes_one_for_its_hub(self, hub_calls, capsys):
         _, responses = hub_calls
         responses.append((200, {"active": False}))
-        stub.HubClient("http://radio-hub:8000", "s").config()
+        stub.HubClient("http://radio:8000", "s").config()
         assert _stderr_lines(capsys) == [
-            "[stub] connected to the radio hub through http://radio-hub:8000"
+            "[stub] connected to the radio hub through http://radio:8000"
         ]
 
 
@@ -557,7 +557,7 @@ class TestRunSession:
         accepted, connected, pcm_socket = self._run(
             hub, [_pcm(1000) * 48 * 2 + _pcm(1000) * 10, _pcm(1000) * 38]
         )
-        assert connected == [(("radio-hub", 7370), 5.0)]
+        assert connected == [(("radio", 7370), 5.0)]
         assert pcm_socket.timeouts == [10.0]
         assert accepted == 3
         assert (
@@ -699,22 +699,22 @@ class TestSuperviseOnce:
 class TestPcmFeedAddress:
     def test_reads_host_and_port(self):
         assert stub.pcm_feed_address(
-            {"active": True, "pcmFeed": {"host": "radio-hub", "port": 7370}}
-        ) == ("radio-hub", 7370)
+            {"active": True, "pcmFeed": {"host": "radio", "port": 7370}}
+        ) == ("radio", 7370)
 
     @pytest.mark.parametrize(
         "config",
         [
             {},
             {"pcmFeed": None},
-            {"pcmFeed": ["radio-hub", 7370]},
+            {"pcmFeed": ["radio", 7370]},
             {"pcmFeed": {"port": 7370}},
             {"pcmFeed": {"host": "", "port": 7370}},
             {"pcmFeed": {"host": 7, "port": 7370}},
-            {"pcmFeed": {"host": "radio-hub"}},
-            {"pcmFeed": {"host": "radio-hub", "port": "7370"}},
-            {"pcmFeed": {"host": "radio-hub", "port": 7370.0}},
-            {"pcmFeed": {"host": "radio-hub", "port": True}},
+            {"pcmFeed": {"host": "radio"}},
+            {"pcmFeed": {"host": "radio", "port": "7370"}},
+            {"pcmFeed": {"host": "radio", "port": 7370.0}},
+            {"pcmFeed": {"host": "radio", "port": True}},
         ],
         ids=[
             "no-pcm-feed",

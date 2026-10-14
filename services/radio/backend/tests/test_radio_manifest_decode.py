@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_manifest_decode.py
+services/radio/backend/tests/test_radio_manifest_decode.py
 
 Tests for sentinel_radio/services/manifest_decode.py — the generic decode
 bridges the radio hub runs for decoder kinds declared by a manifest

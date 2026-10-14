@@ -63,7 +63,7 @@ on restart.
 
 The PCM feed's host and port aren't configured here: each config reply names
 them (`pcmFeed`), using the address the radio hub registered with Sentinel, so
-the decoder follows the hub whether the app or the `radio-hub` service hosts it.
+the decoder follows the hub whether the app or the `radio` service hosts it.
 
 ## Troubleshooting
 

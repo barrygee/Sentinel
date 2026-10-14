@@ -33,9 +33,10 @@ class TestExternalServices:
         assert hosts_in_process("space") is False
         assert hosts_in_process("air") is True
 
-    @pytest.mark.parametrize("service", ["core", "bus", "nonsense"])
+    @pytest.mark.parametrize("service", ["core", "bus", "nonsense", "radio-hub"])
     def test_refuses_a_service_that_cannot_run_on_its_own(self, monkeypatch, service):
-        # Leaving core or the bus out would silently drop it, not move it.
+        # Leaving core or the bus out would silently drop it, not move it; and the
+        # hub's old id fails loudly rather than leaving a stale .env's hub in the app.
         monkeypatch.setattr(settings, "sentinel_external_services", f"space,{service}")
 
         with pytest.raises(ValueError, match=service):
@@ -47,7 +48,7 @@ class TestExternalServices:
             "land",
             "air",
             "sea",
-            "radio-hub",
+            "radio",
             "sdr",
         }
 
@@ -56,13 +57,13 @@ class TestExternalServices:
 
         assert external_services() == frozenset({"sdr"})
         assert hosts_in_process("sdr") is False
-        assert hosts_in_process("radio-hub") is True
+        assert hosts_in_process("radio") is True
 
     def test_the_radio_hub_can_be_external_alongside_the_sections(self, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_external_services", "space,land,air,sea,radio-hub")
+        monkeypatch.setattr(settings, "sentinel_external_services", "space,land,air,sea,radio")
 
-        assert external_services() == frozenset({"space", "land", "air", "sea", "radio-hub"})
-        assert hosts_in_process("radio-hub") is False
+        assert external_services() == frozenset({"space", "land", "air", "sea", "radio"})
+        assert hosts_in_process("radio") is False
         assert hosts_in_process("sdr") is True
 
     def test_land_can_be_external_alongside_space(self, monkeypatch):
@@ -82,13 +83,13 @@ class TestSharesProcessWith:
 
     def test_the_monolith_shares_its_process_with_every_service(self):
         assert shares_process_with("sdr") is True
-        assert shares_process_with("radio-hub") is True
+        assert shares_process_with("radio") is True
 
     def test_the_app_does_not_share_it_with_a_service_it_leaves_out(self, monkeypatch):
         monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
 
         assert shares_process_with("sdr") is False
-        assert shares_process_with("radio-hub") is True
+        assert shares_process_with("radio") is True
 
     def test_a_standalone_service_shares_it_with_nothing_whatever_the_list_says(self, monkeypatch):
         # The radio hub's container hosts only the hub: with no
@@ -97,7 +98,7 @@ class TestSharesProcessWith:
 
         assert hosts_in_process("sdr") is True
         assert shares_process_with("sdr") is False
-        assert shares_process_with("radio-hub") is False
+        assert shares_process_with("radio") is False
 
 
 def import_main(external: str) -> dict:
@@ -164,7 +165,7 @@ SECTION_CODE = {
     },
     # Every module of the hub: importing any of them registers its `hub.*`
     # responders, which would then answer here instead of in its container.
-    "radio-hub": {
+    "radio": {
         "sentinel_radio.module",
         "sentinel_radio",
         "sentinel_radio.radios",
@@ -207,7 +208,7 @@ SECTION_PATHS = {
     "land": {"/api/land/repeaters", "/api/land/aprs/stations"},
     "air": {"/api/air/tracking", "/api/sdr/adsb/source", "/api/sdr/adsb/config"},
     "sea": {"/api/sea/vessels", "/api/sea/status", "/api/sea/ais-key"},
-    "radio-hub": {
+    "radio": {
         "/api/sdr/radios",
         "/api/sdr/connect",
         "/api/sdr/status/{radio_id}",
@@ -246,21 +247,21 @@ def deployments(monolith) -> dict[str, dict]:
         "space,land,air": import_main("space,land,air"),
         "sea": import_main("sea"),
         "space,land,air,sea": import_main("space,land,air,sea"),
-        "radio-hub": import_main("radio-hub"),
-        "space,land,air,sea,radio-hub": import_main("space,land,air,sea,radio-hub"),
+        "radio": import_main("radio"),
+        "space,land,air,sea,radio": import_main("space,land,air,sea,radio"),
         "sdr": import_main("sdr"),
-        "radio-hub,sdr": import_main("radio-hub,sdr"),
-        "space,land,air,sea,radio-hub,sdr": import_main("space,land,air,sea,radio-hub,sdr"),
+        "radio,sdr": import_main("radio,sdr"),
+        "space,land,air,sea,radio,sdr": import_main("space,land,air,sea,radio,sdr"),
     }
 
 
 class TestTheMonolithHostsEverythingByDefault:
     def test_hosts_every_section_in_lifecycle_order(self, monolith):
-        assert monolith["modules"] == ["bus", "core", "sdr", "space", "radio-hub", "land", "sea", "air"]
-        assert monolith["manifests"] == ["air", "space", "sea", "land", "sdr", "radio-hub"]
+        assert monolith["modules"] == ["bus", "core", "sdr", "space", "radio", "land", "sea", "air"]
+        assert monolith["manifests"] == ["air", "space", "sea", "land", "sdr", "radio"]
         assert monolith["withheld_remotes"] == []
 
-    @pytest.mark.parametrize("section", ["space", "land", "air", "sea", "radio-hub", "sdr"])
+    @pytest.mark.parametrize("section", ["space", "land", "air", "sea", "radio", "sdr"])
     def test_hosts_and_imports_each_extractable_section(self, monolith, section):
         assert SECTION_PATHS[section] <= set(monolith["routes"])
         assert section in monolith["registered"]
@@ -277,11 +278,11 @@ class TestTheMonolithHostsEverythingByDefault:
         "space,land,air",
         "sea",
         "space,land,air,sea",
-        "radio-hub",
-        "space,land,air,sea,radio-hub",
+        "radio",
+        "space,land,air,sea,radio",
         "sdr",
-        "radio-hub,sdr",
-        "space,land,air,sea,radio-hub,sdr",
+        "radio,sdr",
+        "space,land,air,sea,radio,sdr",
     ],
 )
 class TestTheMonolithWithoutASection:
@@ -324,23 +325,23 @@ class TestTheMonolithWithoutTheRadioHub:
     """What the app keeps under /api/sdr/ once the hub runs in its own container."""
 
     def test_keeps_the_sdr_sections_routes_in_their_monolith_order(self, monolith, deployments):
-        hub_paths = SECTION_PATHS["radio-hub"]
+        hub_paths = SECTION_PATHS["radio"]
 
         def sdr_section_routes(routes: list[str]) -> list[str]:
             return [path for path in routes if path.startswith("/api/sdr/") and path not in hub_paths]
 
-        without_hub = sdr_section_routes(deployments["radio-hub"]["routes"])
+        without_hub = sdr_section_routes(deployments["radio"]["routes"])
         # The hub's routes are interleaved with the SDR section's in the
         # monolith; leaving them out must not reorder what is left.
         assert without_hub == [path for path in sdr_section_routes(monolith["routes"]) if path in set(without_hub)]
         assert SDR_SECTION_PATHS <= set(without_hub)
 
     def test_leaves_no_websocket_route_behind(self, deployments):
-        assert not [path for path in deployments["radio-hub"]["routes"] if path.startswith("/ws/")]
+        assert not [path for path in deployments["radio"]["routes"] if path.startswith("/ws/")]
 
     def test_keeps_airs_adsb_routes_under_sdr(self, deployments):
         # Air's /api/sdr/adsb/ sits beside the hub's prefixes and is not the hub's.
-        assert {"/api/sdr/adsb/source", "/api/sdr/adsb/config"} <= set(deployments["radio-hub"]["routes"])
+        assert {"/api/sdr/adsb/source", "/api/sdr/adsb/config"} <= set(deployments["radio"]["routes"])
 
 
 class TestTheMonolithWithoutTheSdrSection:
@@ -356,12 +357,12 @@ class TestTheMonolithWithoutTheSdrSection:
         # The SDR section's routes are interleaved with the hub's in the
         # monolith; leaving them out must not reorder what is left.
         assert without_sdr == [path for path in hub_routes(monolith["routes"]) if path in set(without_sdr)]
-        assert SECTION_PATHS["radio-hub"] <= set(without_sdr)
+        assert SECTION_PATHS["radio"] <= set(without_sdr)
 
     def test_keeps_airs_adsb_routes_under_sdr(self, deployments):
         assert {"/api/sdr/adsb/source", "/api/sdr/adsb/config"} <= set(deployments["sdr"]["routes"])
 
     def test_leaves_nothing_of_the_sdr_section_under_sdr_with_the_hub_gone_too(self, deployments):
         # Only Air's ADS-B routes are left under /api/sdr/, and no socket.
-        left = [path for path in deployments["radio-hub,sdr"]["routes"] if path.startswith(("/api/sdr/", "/ws/sdr/"))]
+        left = [path for path in deployments["radio,sdr"]["routes"] if path.startswith(("/api/sdr/", "/ws/sdr/"))]
         assert left and all(path.startswith("/api/sdr/adsb/") for path in left)

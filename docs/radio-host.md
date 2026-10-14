@@ -7,10 +7,10 @@ Sentinel (the **core host**: app, gateway, NATS and the sections) stays where it
 The browser keeps using the core host's address; nothing changes for it.
 
 ```
- browser ──http──▶ core host :8080 (gateway) ──TLS──▶ radio host :8443 (radio-host-gateway) ──▶ radio-hub
+ browser ──http──▶ core host :8080 (gateway) ──TLS──▶ radio host :8443 (radio-host-gateway) ──▶ radio
                                                                                                   ▲
- radio-hub ──TLS──▶ core host :8443 (service entrypoint: register, settings, secrets)             │
- radio-hub ──TLS──▶ core host :4222 (NATS, its own user)                     decoders ───────────┘
+ radio ──TLS──▶ core host :8443 (service entrypoint: register, settings, secrets)             │
+ radio ──TLS──▶ core host :4222 (NATS, its own user)                     decoders ───────────┘
                                                                          (radio host's compose network only)
 ```
 
@@ -32,7 +32,7 @@ Add to the core host's `.env` (see `.env.example`):
 
 ```bash
 # The hub runs on the radio host, not here: don't start this host's own.
-SENTINEL_RADIO_HUB_REPLICAS=0
+SENTINEL_RADIO_REPLICAS=0
 # COMPOSE_PROFILES must NOT include any decoder profile.
 
 # Names other hosts reach this one by, and the name core reaches the radio host by.
@@ -83,9 +83,9 @@ docker compose -f compose.radio-host.yaml up -d --build
 ```
 
 The hub logs `connected to core at https://sentinel.lan:8443`, `event bus connected to
-NATS` and `radio-hub registered with core`; each decoder logs `connected to the radio
-hub through http://radio-hub:8000`. On the core host, `docker compose logs app` shows
-`registry: radio-hub … registered from https://radio.lan:8443`, and SDR, APRS and AIS
+NATS` and `radio registered with core`; each decoder logs `connected to the radio
+hub through http://radio:8000`. On the core host, `docker compose logs app` shows
+`registry: radio … registered from https://radio.lan:8443`, and SDR, APRS and AIS
 work in the browser as before.
 
 Radios are configured in Settings exactly as before. Their address is now as seen from
@@ -100,10 +100,10 @@ add them again under Settings.
   `docker compose restart nats gateway` on the core host. The certificates are
   reissued, so export a fresh bundle and import it on the radio host.
 - **Credentials:** created once and kept. To rotate one, delete its
-  `services/<caller>/` folder on the `service_credentials` volume, run
+  `credentials/<caller>/` folder on the `service_credentials` volume, run
   `docker compose up -d` on the core host, then re-export and re-import.
 - **Moving the hub back:** stop the radio host (`docker compose -f compose.radio-host.yaml down`),
-  remove `SENTINEL_RADIO_HUB_REPLICAS=0` from the core host's `.env` and `docker compose up -d`.
+  remove `SENTINEL_RADIO_REPLICAS=0` from the core host's `.env` and `docker compose up -d`.
 
 ## Troubleshooting
 
@@ -113,4 +113,4 @@ add them again under Settings.
 | Hub logs `waiting for core to answer (… Connection refused …)` | `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS` still binds 127.0.0.1, or a firewall blocks 8443 |
 | Hub never says `event bus connected` | `NATS_PUBLISHED_ADDRESS` not opened, or NATS not restarted after the host names changed |
 | SDR pages show the hub unavailable | Core can't reach `SENTINEL_RADIO_HOST_URL`: check port 8443 on the radio host and that its name is in `SENTINEL_RADIO_HOST_HOSTNAMES` |
-| `registration: core refused radio-hub (401)` | The bundle's credentials no longer match core's (the volume was recreated): export and import again |
+| `registration: core refused radio (401)` | The bundle's credentials no longer match core's (the volume was recreated): export and import again |

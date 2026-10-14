@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_iq_capture.py
+services/radio/backend/tests/test_radio_iq_capture.py
 
 Tests for sentinel_radio/services/iq_capture.py — the radio hub's raw-IQ
 capture API (section-containers plan, B12). The SDR section no longer touches a
@@ -116,7 +116,7 @@ class TestCaptureDir:
     def test_is_the_staging_folder_in_the_hubs_own_container(self, monkeypatch, tmp_path):
         # A standalone hub hosts only itself, though no external list says so.
         monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
-        monkeypatch.setattr(settings, "db_path", str(tmp_path / "hub" / "radio-hub.db"))
+        monkeypatch.setattr(settings, "db_path", str(tmp_path / "hub" / "radio.db"))
 
         assert iq_capture.iq_capture_dir() == tmp_path / "hub" / "iq-captures"
 
@@ -129,8 +129,8 @@ class TestDownloadUrl:
         assert iq_capture.download_url(7) == "http://app:8000/internal/radio-hub/iq-captures/7"
 
     def test_uses_the_hubs_own_service_url_without_doubling_a_slash(self, monkeypatch):
-        monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000/")
-        assert iq_capture.download_url(7) == "http://radio-hub:8000/internal/radio-hub/iq-captures/7"
+        monkeypatch.setattr(settings, "service_internal_url", "http://radio:8000/")
+        assert iq_capture.download_url(7) == "http://radio:8000/internal/radio-hub/iq-captures/7"
 
 
 class TestStart:

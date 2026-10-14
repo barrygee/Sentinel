@@ -148,13 +148,13 @@ class TestPostEvent:
 class TestBuildDsdCommand:
     def test_dials_the_sockets_the_hub_named(self, monkeypatch):
         monkeypatch.delenv("DSD_EXTRA_ARGS", raising=False)
-        command = entrypoint.build_dsd_command(("radio-hub", 7355), ("radio-hub", 7356))
+        command = entrypoint.build_dsd_command(("radio", 7355), ("radio", 7356))
         assert command == [
             "dsd-fme",
             "-i",
-            "tcp:radio-hub:7355",
+            "tcp:radio:7355",
             "-o",
-            "udp:radio-hub:7356",
+            "udp:radio:7356",
         ]
 
     def test_the_two_sockets_can_differ(self, monkeypatch):

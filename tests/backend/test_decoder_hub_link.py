@@ -174,7 +174,7 @@ class TestOrigin:
     @pytest.mark.parametrize(
         ("url", "origin"),
         [
-            ("http://radio-hub:8000/api/sdr/decode/config", "http://radio-hub:8000"),
+            ("http://radio:8000/api/sdr/decode/config", "http://radio:8000"),
             ("http://app:8000/api/sdr/ais/config?x=1#frag", "http://app:8000"),
             ("https://hub.example", "https://hub.example"),
         ],
@@ -202,7 +202,7 @@ class TestFetchDecodeConfigLogging:
         assert "decode-config fetch failed" not in "\n".join(lines)
 
     def test_an_unresolvable_host_counts_as_unreachable(self, decoder, capsys):
-        # A decoder pointed at `radio-hub` while that container isn't running.
+        # A decoder pointed at `radio` while that container isn't running.
         tag, module, _ = decoder
         error = urllib.error.URLError(socket.gaierror(-2, "Name or service not known"))
         with patch.object(module.urllib.request, "urlopen", side_effect=error):
@@ -344,13 +344,13 @@ class TestFetchDecodeConfigLogging:
 
     def test_the_socket_endpoints_come_back_with_the_config(self, decoder):
         _, module, _ = decoder
-        body = b'{"active": true, "pcmFeed": {"host": "radio-hub", "port": 7357}}'
+        body = b'{"active": true, "pcmFeed": {"host": "radio", "port": 7357}}'
         with patch.object(
             module.urllib.request, "urlopen", return_value=_response(200, body)
         ):
             assert module.fetch_decode_config(CONFIG_URL, "secret") == {
                 "active": True,
-                "pcmFeed": {"host": "radio-hub", "port": 7357},
+                "pcmFeed": {"host": "radio", "port": 7357},
             }
 
 
@@ -369,8 +369,8 @@ class TestPcmFeedAddress:
         _, module, _ = decoder
         parse = _socket_parser(module)
         assert parse(
-            {"active": True, "pcmFeed": {"host": "radio-hub", "port": 7357}}
-        ) == ("radio-hub", 7357)
+            {"active": True, "pcmFeed": {"host": "radio", "port": 7357}}
+        ) == ("radio", 7357)
 
     @pytest.mark.parametrize(
         "config",
@@ -378,14 +378,14 @@ class TestPcmFeedAddress:
             {},
             {"active": True},
             {"pcmFeed": None},
-            {"pcmFeed": ["radio-hub", 7357]},
+            {"pcmFeed": ["radio", 7357]},
             {"pcmFeed": {"port": 7357}},
             {"pcmFeed": {"host": "", "port": 7357}},
             {"pcmFeed": {"host": 7, "port": 7357}},
-            {"pcmFeed": {"host": "radio-hub"}},
-            {"pcmFeed": {"host": "radio-hub", "port": "7357"}},
-            {"pcmFeed": {"host": "radio-hub", "port": 7357.0}},
-            {"pcmFeed": {"host": "radio-hub", "port": True}},
+            {"pcmFeed": {"host": "radio"}},
+            {"pcmFeed": {"host": "radio", "port": "7357"}},
+            {"pcmFeed": {"host": "radio", "port": 7357.0}},
+            {"pcmFeed": {"host": "radio", "port": True}},
         ],
         ids=[
             "empty",
@@ -412,17 +412,17 @@ class TestVoiceSocketAddress:
     def test_reads_each_named_socket(self):
         voice = DECODERS[0][1]
         config = {
-            "pcmFeed": {"host": "radio-hub", "port": 7355},
-            "voiceAudioReturn": {"host": "radio-hub", "port": 7356},
+            "pcmFeed": {"host": "radio", "port": 7355},
+            "voiceAudioReturn": {"host": "radio", "port": 7356},
         }
-        assert voice.socket_address(config, "pcmFeed") == ("radio-hub", 7355)
-        assert voice.socket_address(config, "voiceAudioReturn") == ("radio-hub", 7356)
+        assert voice.socket_address(config, "pcmFeed") == ("radio", 7355)
+        assert voice.socket_address(config, "voiceAudioReturn") == ("radio", 7356)
 
     def test_a_missing_name_is_none(self):
         voice = DECODERS[0][1]
         assert (
             voice.socket_address(
-                {"pcmFeed": {"host": "radio-hub", "port": 7355}}, "voiceAudioReturn"
+                {"pcmFeed": {"host": "radio", "port": 7355}}, "voiceAudioReturn"
             )
             is None
         )

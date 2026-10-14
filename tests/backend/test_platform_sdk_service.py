@@ -144,11 +144,11 @@ class TestServedRoutes:
 
     async def test_a_service_without_ui_serves_no_remote(self, tmp_path):
         (tmp_path / "remoteEntry.js").write_text("export const entry = 1")
-        manifest = make_manifest(id="radio-hub", kind="radio-hub", ui=None, routes=["/api/sdr/radios"])
+        manifest = make_manifest(id="radio", kind="radio", ui=None, routes=["/api/sdr/radios"])
         app = create_service(manifest=manifest, routers=[], lifecycles=[], remote_dir=tmp_path)
 
         async with client_for(app) as client:
-            assert (await client.get("/remotes/radio-hub/remoteEntry.js")).status_code == 404
+            assert (await client.get("/remotes/radio/remoteEntry.js")).status_code == 404
 
     def test_registers_the_advertised_manifest(self):
         app = create_service(manifest=make_manifest(), routers=[], lifecycles=[])

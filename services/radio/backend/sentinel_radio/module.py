@@ -45,14 +45,14 @@ def _wake() -> None:
     manifest_decode.wake_all()
 
 
-lifecycle = ModuleLifecycle(name="radio-hub", prepare=_prepare, start=_start, stop=_stop, wake=_wake)
+lifecycle = ModuleLifecycle(name="radio", prepare=_prepare, start=_start, stop=_stop, wake=_wake)
 
 # Everything that touches a physical radio. These prefixes sit inside the SDR
 # section's `/api/sdr/`; the gateway's longest-prefix match sends them here.
 # No UI remote: the radio panes are part of the SDR section's.
 manifest = ServiceManifest(
-    id="radio-hub",
-    kind="radio-hub",
+    id="radio",
+    kind="radio",
     version=MONOLITH_VERSION,
     displayName="RADIO HUB",
     internalUrl=settings.core_internal_url,

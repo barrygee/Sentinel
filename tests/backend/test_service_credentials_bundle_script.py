@@ -67,12 +67,12 @@ def _mode(path: Path) -> int:
 class TestResolveFolders:
     def test_the_radio_host_group_is_the_hub_every_decoder_and_its_gateway(self):
         assert resolve_folders(["radio-host"]) == [
-            "radio-hub", "voice-decoder", "aprs-decoder", "ais-decoder", "stub-decoder", "radio-host-gateway",
+            "radio", "voice-decoder", "aprs-decoder", "ais-decoder", "stub-decoder", "radio-host-gateway",
         ]  # fmt: skip
 
     def test_names_and_groups_combine_without_duplicates(self):
-        assert resolve_folders(["sdr", "radio-hub", "radio-host"])[:3] == ["sdr", "radio-hub", "voice-decoder"]
-        assert resolve_folders(["sdr", "radio-hub", "radio-host"]).count("radio-hub") == 1
+        assert resolve_folders(["sdr", "radio", "radio-host"])[:3] == ["sdr", "radio", "voice-decoder"]
+        assert resolve_folders(["sdr", "radio", "radio-host"]).count("radio") == 1
 
     @pytest.mark.parametrize("name", ["core", "gateway"])
     def test_core_identity_is_refused(self, name):
@@ -92,12 +92,12 @@ class TestResolveFolders:
 class TestExport:
     def test_writes_exactly_the_radio_host_files(self, core_credentials):
         members = _members(_export(core_credentials, ["radio-host"]))
-        assert "services/radio-hub/http-credentials.json" in members
-        assert "services/radio-hub/nats-credentials.json" in members
-        assert "services/radio-hub/accepted-callers.json" in members
-        assert "services/radio-host-gateway/private-key.pem" in members
-        assert "services/aprs-decoder/http-credentials.json" in members
-        assert all(member.startswith("services/") and member.count("/") == 2 for member in members)
+        assert "credentials/radio/http-credentials.json" in members
+        assert "credentials/radio/nats-credentials.json" in members
+        assert "credentials/radio/accepted-callers.json" in members
+        assert "credentials/radio-host-gateway/private-key.pem" in members
+        assert "credentials/aprs-decoder/http-credentials.json" in members
+        assert all(member.startswith("credentials/") and member.count("/") == 2 for member in members)
 
     def test_never_carries_core_the_ca_key_or_the_broker(self, core_credentials):
         members = _members(_export(core_credentials, ["radio-host"]))
@@ -106,16 +106,16 @@ class TestExport:
 
     def test_a_single_caller(self, core_credentials):
         assert sorted(_members(_export(core_credentials, ["space"]))) == [
-            "services/space/certificate-authority.pem",
-            "services/space/http-credentials.json",
-            "services/space/nats-credentials.json",
+            "credentials/space/certificate-authority.pem",
+            "credentials/space/http-credentials.json",
+            "credentials/space/nats-credentials.json",
         ]
 
     def test_skips_files_it_does_not_know(self, core_credentials, tmp_path):
-        stray = core_credentials / "services" / "space" / "notes.txt"
+        stray = core_credentials / "credentials" / "space" / "notes.txt"
         stray.write_text("not a credential")
         try:
-            assert "services/space/notes.txt" not in _members(_export(core_credentials, ["space"]))
+            assert "credentials/space/notes.txt" not in _members(_export(core_credentials, ["space"]))
         finally:
             stray.unlink()
 
@@ -125,7 +125,7 @@ class TestExport:
             _export(tmp_path, ["radio-host"])
 
     def test_a_missing_caller_folder_is_refused_before_anything_is_written(self, tmp_path):
-        (tmp_path / "services").mkdir()
+        (tmp_path / "credentials").mkdir()
         output = io.BytesIO()
         with pytest.raises(BundleError, match="no credentials for 'space'"):
             export_bundle(tmp_path, ["space"], output)
@@ -136,21 +136,21 @@ class TestImport:
     def test_round_trip_keeps_contents_and_sets_modes(self, core_credentials, tmp_path):
         folders = import_bundle(io.BytesIO(_export(core_credentials, ["radio-host"])), tmp_path)
         assert folders == resolve_folders(["radio-host"])
-        services = tmp_path / "services"
-        for path in (core_credentials / "services" / "radio-hub").iterdir():
-            assert (services / "radio-hub" / path.name).read_bytes() == path.read_bytes()
-        assert _mode(services / "radio-hub" / "http-credentials.json") == 0o600
-        assert _mode(services / "radio-hub" / "nats-credentials.json") == 0o600
-        assert _mode(services / "radio-host-gateway" / "private-key.pem") == 0o600
-        assert _mode(services / "radio-hub" / "certificate-authority.pem") == 0o644
-        assert _mode(services / "radio-host-gateway" / "certificate.pem") == 0o644
+        callers = tmp_path / "credentials"
+        for path in (core_credentials / "credentials" / "radio").iterdir():
+            assert (callers / "radio" / path.name).read_bytes() == path.read_bytes()
+        assert _mode(callers / "radio" / "http-credentials.json") == 0o600
+        assert _mode(callers / "radio" / "nats-credentials.json") == 0o600
+        assert _mode(callers / "radio-host-gateway" / "private-key.pem") == 0o600
+        assert _mode(callers / "radio" / "certificate-authority.pem") == 0o644
+        assert _mode(callers / "radio-host-gateway" / "certificate.pem") == 0o644
         # Decoders run as their own image's user.
-        assert _mode(services / "aprs-decoder" / "http-credentials.json") == 0o644
+        assert _mode(callers / "aprs-decoder" / "http-credentials.json") == 0o644
 
     def test_reimporting_replaces_the_files(self, core_credentials, tmp_path):
         data = _export(core_credentials, ["space"])
         import_bundle(io.BytesIO(data), tmp_path)
-        target = tmp_path / "services" / "space" / "http-credentials.json"
+        target = tmp_path / "credentials" / "space" / "http-credentials.json"
         target.write_text(json.dumps({"caller": "space", "token": "stale"}))
         import_bundle(io.BytesIO(data), tmp_path)
         assert json.loads(target.read_text())["token"] != "stale"
@@ -160,26 +160,30 @@ class TestImport:
         [
             "../escape.json",
             "/etc/passwd",
-            "services/core/http-credentials.json",
-            "services/gateway/private-key.pem",
-            "services/radio-hub/../../escape.json",
-            "services/radio-hub/notes.txt",
-            "services/radio-hub",
+            "credentials/core/http-credentials.json",
+            "credentials/gateway/private-key.pem",
+            "credentials/radio/../../escape.json",
+            "credentials/radio/notes.txt",
+            "credentials/radio",
             "server/nats.conf",
             "certificate-authority/private-key.pem",
-            "services/radio-hub/sub/http-credentials.json",
+            "credentials/radio/sub/http-credentials.json",
+            # The layout before caller folders moved to credentials/.
+            "services/space/http-credentials.json",
+            # The hub's folder before it was renamed `radio`.
+            "credentials/radio-hub/http-credentials.json",
         ],
     )
     def test_refuses_an_entry_outside_the_known_layout(self, tmp_path, name):
-        hostile = _tar([("services/space/http-credentials.json", b"{}", tarfile.REGTYPE), (name, b"x", tarfile.REGTYPE)])
+        hostile = _tar([("credentials/space/http-credentials.json", b"{}", tarfile.REGTYPE), (name, b"x", tarfile.REGTYPE)])
         with pytest.raises(BundleError, match="refusing unexpected bundle entry"):
             import_bundle(hostile, tmp_path)
         # Checked before writing anything: not even the good entry lands.
-        assert not (tmp_path / "services").exists()
+        assert not (tmp_path / "credentials").exists()
 
     @pytest.mark.parametrize("kind", [tarfile.SYMTYPE, tarfile.DIRTYPE])
     def test_refuses_anything_but_regular_files(self, tmp_path, kind):
-        hostile = _tar([("services/radio-hub/http-credentials.json", None, kind)])
+        hostile = _tar([("credentials/radio/http-credentials.json", None, kind)])
         with pytest.raises(BundleError, match="refusing unexpected bundle entry"):
             import_bundle(hostile, tmp_path)
 
@@ -194,21 +198,21 @@ class TestCommandLine:
         monkeypatch.setattr(bundle, "DEFAULT_OUTPUT_DIRECTORY", core_credentials)
         assert bundle.main(["export", "space"]) == 0
         captured = capsysbinary.readouterr()
-        assert "services/space/http-credentials.json" in _members(captured.out)
+        assert "credentials/space/http-credentials.json" in _members(captured.out)
         assert b"exported space" in captured.err
 
     def test_import_reads_stdin_into_the_directory_given(self, core_credentials, monkeypatch, tmp_path, capsys):
         data = _export(core_credentials, ["space"])
         monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(data)))
         assert bundle.main(["import", str(tmp_path)]) == 0
-        assert (tmp_path / "services" / "space" / "http-credentials.json").exists()
+        assert (tmp_path / "credentials" / "space" / "http-credentials.json").exists()
         assert "imported space" in capsys.readouterr().err
 
     def test_import_defaults_to_the_credentials_volume(self, core_credentials, monkeypatch, tmp_path):
         monkeypatch.setattr(bundle, "DEFAULT_OUTPUT_DIRECTORY", tmp_path)
         monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(_export(core_credentials, ["land"]))))
         assert bundle.main(["import"]) == 0
-        assert (tmp_path / "services" / "land" / "http-credentials.json").exists()
+        assert (tmp_path / "credentials" / "land" / "http-credentials.json").exists()
 
     def test_a_refused_bundle_is_exit_1_with_the_reason(self, capsys):
         assert bundle.main(["export", "core"]) == 1
