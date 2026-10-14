@@ -299,6 +299,7 @@ import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
+import { refreshSettingsFromBackend } from '@/shell/applySettings'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer
 // importing from '@sentinel/shell-api/types/settings' directly in new code.
@@ -435,15 +436,11 @@ async function commitAll(): Promise<void> {
     return
   }
   pending.value.clear()
+  // Bring the whole running app in line with what was just saved, in place of
+  // a page reload: the same apply as boot, then every control, map and store
+  // that loads its own setting re-reads it. Settings stays open where it was.
+  await refreshSettingsFromBackend()
   showApplyStatus('SAVED', false)
-  // Hold long enough for the SAVED confirmation to be clearly visible before the
-  // page reloads (the reload re-hydrates settings that need a fresh app start).
-  setTimeout(() => {
-    try {
-      sessionStorage.setItem('sentinel_settings_reopen', activeSection.value)
-    } catch {}
-    location.reload()
-  }, 1200)
 }
 
 // A settings URL picked while the panel is open (`/settings/<key>`) switches to
@@ -463,13 +460,6 @@ watch(
       if (store.activeSection) {
         activeSection.value = store.activeSection
       }
-      try {
-        const reopenSection = sessionStorage.getItem('sentinel_settings_reopen')
-        if (reopenSection) {
-          sessionStorage.removeItem('sentinel_settings_reopen')
-          activeSection.value = reopenSection
-        }
-      } catch {}
       // Report the section that opened, so the URL names it.
       store.activeSection = activeSection.value
     } else {

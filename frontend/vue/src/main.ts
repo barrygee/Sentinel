@@ -33,8 +33,8 @@ import { startSectionEngines } from './shell/sectionEngines'
 // container can provide each one a section remote uses (sections never carry
 // their own copies — @sentinel/web-config/federation). Empty in dev and tests.
 import 'virtual:sentinel-shared-package-modules'
-import { runSettingsHydrators } from '@sentinel/shell-api/shell/settingsHydration'
-import { getEnabledSectionIds } from '@sentinel/shell-api/shell/sectionRegistry'
+import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
+import { applySettingsPayload } from './shell/applySettings'
 
 maplibregl.setWorkerUrl(maplibreWorkerUrl)
 
@@ -58,10 +58,11 @@ try {
   if (savedMode) appStore.setConnectivityMode(savedMode)
 } catch {}
 
-const basemapStore = useBasemapStore()
-const settingsStore = useSettingsStore()
-const themeStore = useThemeStore()
-
+// Created before anything mounts (the theme store publishes the map palette
+// as it is created), whether or not the settings below can be read.
+useBasemapStore()
+useSettingsStore()
+useThemeStore()
 ;(async () => {
   // Fetch the settings and load the sections at the same time. Sections must
   // have registered before the settings are applied (their enabled defaults and
@@ -79,47 +80,9 @@ const themeStore = useThemeStore()
   try {
     const res = await settingsResponse
     if (res?.ok) {
-      const data = (await res.json()) as Record<string, Record<string, unknown>>
-      // Seed the settings store from this same payload so reads like
-      // sdr.bandPlan (waterfall band strip)
-      // resolve to the persisted values instead of their fallbacks. Nothing
-      // else calls loadAll(), so without this the store stays empty.
-      settingsStore.allSettings = data
-      // Per-section enabled state: a stored `<id>.enabled` wins, else each
-      // registered section's own default (Air/Space/SDR on, Sea/Land off).
-      const enabled = getEnabledSectionIds(data)
-      if (enabled.length > 0) appStore.setEnabledDomains(enabled)
-
-      // Sync connectivity mode from backend — backend is authoritative so a mode
-      // set from another session doesn't get overridden by a stale localStorage value.
-      const backendMode = asSourceMode(data.app?.connectivityMode)
-      if (backendMode) {
-        try {
-          localStorage.setItem(APP_MODE_STORAGE_KEY, backendMode)
-        } catch {}
-        appStore.setConnectivityMode(backendMode)
-      }
-
-      // Theme — the backend is authoritative, so a choice made on another
-      // device wins over this browser's localStorage. Absent means dark.
-      // No defaulting here: a config written before the map got its own
-      // control has neither key, and falling back would drag the basemap away
-      // from the palette the operator is looking at. An absent value leaves
-      // the seeded one alone; the boolean is the pre-COLOUR form.
-      themeStore.hydrateMapTheme(data.app?.mapTheme, data.app?.lightMapTheme)
-
-      // Notification blip sound — default OFF when absent from the DB.
-      const soundOn = data.app?.notificationSound
-      appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
-
-      // The shared base-map layers — adopt the config so a choice made in the
-      // app-config JSON or on another device is what the maps draw from the
-      // first frame.
-      basemapStore.hydrateLayers(data.app?.mapLayers)
-
-      // Each section's own stored settings (Air's map layers and label fields,
-      // Land's APRS label fields…) — registered by the section (F1).
-      runSettingsHydrators(data)
+      // The same routine a settings refresh uses (APPLY CHANGES, a config-file
+      // edit), so a refresh leaves the app as this boot does.
+      applySettingsPayload((await res.json()) as AllSettings)
     }
   } catch {}
   await enginesReady
