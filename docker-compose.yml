@@ -580,8 +580,10 @@ services:
       - HTTP_PORT=8080
     # Published so the decoder can be checked from a browser and pointed at from
     # outside the compose network; Sentinel itself reaches it as `adsb-decoder`.
+    # On 127.0.0.1 only unless SENTINEL_ADSB_DECODER_ADDRESS opens it to the LAN
+    # (e.g. 0.0.0.0:8090) — it serves raw aircraft positions with no sign-in.
     ports:
-      - "8090:8080"
+      - "${SENTINEL_ADSB_DECODER_ADDRESS:-127.0.0.1:8090}:8080"
     restart: unless-stopped
     networks:
       - sentinel

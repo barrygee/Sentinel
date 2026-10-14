@@ -55,6 +55,6 @@ Decodes 1090 MHz locally with **readsb** fed raw I/Q from a Sentry Pi's `rtl_tcp
 2. **Settings › AIR › Off Grid ADS-B SDR** — pick the dongle.
 3. Switch to **Off Grid** and open **AIR**.
 
-AIR reads aircraft from the `adsb-decoder` sidecar automatically. If the decoder runs outside the compose network, set `ADSB_OFFGRID_URL` in `.env` (e.g. `http://<host>:8090/data/aircraft.json`).
+AIR reads aircraft from the `adsb-decoder` sidecar automatically. If the decoder runs outside the compose network, set `ADSB_OFFGRID_URL` in `.env` (e.g. `http://<host>:8090/data/aircraft.json`). Port 8090 is published on 127.0.0.1 only; set `SENTINEL_ADSB_DECODER_ADDRESS=0.0.0.0:8090` to reach it from another machine.
 
 Opening AIR claims the dongle, tunes it to 1090 MHz and holds a TTL lease that self-heals after a replug or Sentry restart and releases when the tab closes. If the map stays empty, the notice at the top of AIR says why. Details: [`decoder/adsb/README.md`](../decoder/adsb/README.md), [ADR 0003](adr/0003-sentry-sdr-lock-and-tune.md).
