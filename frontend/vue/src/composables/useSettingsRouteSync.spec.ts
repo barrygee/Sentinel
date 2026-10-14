@@ -14,7 +14,7 @@ vi.mock('@sentinel/shell-api/shell/settingsRegistry', async () => {
 })
 
 import { createAppRouter } from '@/router'
-import { settingsBackground } from '@/router/settingsRoute'
+import { settingsReturn } from '@/router/settingsRoute'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSettingsRouteSync } from './useSettingsRouteSync'
@@ -201,7 +201,7 @@ describe('useSettingsRouteSync', () => {
       expect(window.history.state?.forward).toBe('/settings/sdr')
     })
 
-    it('closes a directly opened link onto the page under it, in place', async () => {
+    it('closes a directly opened link onto its section, in place', async () => {
       const router = createAppRouter()
       await router.push('/settings/sdr')
       mountSync(router)
@@ -214,12 +214,12 @@ describe('useSettingsRouteSync', () => {
       expect(window.history.state?.back).toBeNull()
     })
 
-    it('closes home when no page underneath is known', async () => {
+    it('closes home when nowhere to return to is known', async () => {
       const router = createAppRouter()
       await router.push('/settings/app')
       mountSync(router)
       await flushPromises()
-      settingsBackground.reset()
+      settingsReturn.reset()
 
       useSettingsStore().closePanel()
       await settleHistory()

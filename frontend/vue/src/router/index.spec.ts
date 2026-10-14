@@ -3,7 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { RouterView } from 'vue-router'
-import { FIXTURE_SETTINGS_SECTIONS, loadedViews } from '@/test/settingsRouteFixtures'
+import { FIXTURE_SETTINGS_SECTIONS } from '@/test/settingsRouteFixtures'
 
 vi.mock('@sentinel/shell-api/shell/sectionRegistry', async () => {
   const fixtures = await import('@/test/settingsRouteFixtures')
@@ -13,13 +13,9 @@ vi.mock('@sentinel/shell-api/shell/settingsRegistry', async () => {
   const fixtures = await import('@/test/settingsRouteFixtures')
   return { getSettingsSections: () => fixtures.FIXTURE_SETTINGS_SECTIONS }
 })
-const viewRoutePaths = vi.hoisted(() => [] as Array<string | null>)
-vi.mock('@sentinel/shell-api/shell/viewRoute', () => ({
-  setViewRoutePath: (path: string | null) => viewRoutePaths.push(path),
-}))
 
 import { createAppRouter } from './index'
-import { settingsBackground } from './settingsRoute'
+import { settingsReturn } from './settingsRoute'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 function domainChanges(): Array<{ domain: string; prev: string }> {
@@ -36,18 +32,15 @@ describe('createAppRouter', () => {
     useAppStore().setEnabledDomains(['air', 'space', 'sdr'])
     window.history.replaceState(null, '', '/')
     delete document.body.dataset.domain
-    viewRoutePaths.length = 0
-    loadedViews.length = 0
   })
 
   describe('section routes', () => {
-    it('redirects / to the first section and records it as the page on screen', async () => {
+    it('redirects / to the first section and records it as where Settings returns to', async () => {
       const router = createAppRouter()
       await router.push('/')
       expect(router.currentRoute.value.path).toBe('/air/')
       expect(document.body.dataset.domain).toBe('air')
-      expect(viewRoutePaths.at(-1)).toBe('/air/')
-      expect(settingsBackground.path).toBe('/air/')
+      expect(settingsReturn.path).toBe('/air/')
     })
 
     it('sends a disabled section to the first enabled one', async () => {
@@ -73,7 +66,7 @@ describe('createAppRouter', () => {
   })
 
   describe('settings routes', () => {
-    it('opens over the page it was opened from, which stays the page on screen', async () => {
+    it('leaves the section for the Settings page, remembering it to return to', async () => {
       const router = createAppRouter()
       await router.push('/sdr/')
       const changes = domainChanges()
@@ -81,39 +74,35 @@ describe('createAppRouter', () => {
       await router.push('/settings/air')
 
       expect(router.currentRoute.value.name).toBe('settings')
-      expect(settingsBackground.path).toBe('/sdr/')
-      expect(viewRoutePaths.at(-1)).toBe('/sdr/')
-      // Nothing behind the panel changes: same domain, no domain-changed event.
+      expect(settingsReturn.path).toBe('/sdr/')
+      // The Settings page keeps the section's domain: nothing section-wide reacts.
       expect(document.body.dataset.domain).toBe('sdr')
       expect(changes).toEqual([])
     })
 
-    it('keeps the page underneath across section switches inside Settings', async () => {
+    it('keeps the section to return to across section switches inside Settings', async () => {
       const router = createAppRouter()
       await router.push('/space/')
       await router.push('/settings/app')
       await router.replace('/settings/sdr')
-      expect(settingsBackground.path).toBe('/space/')
+      expect(settingsReturn.path).toBe('/space/')
       expect(document.body.dataset.domain).toBe('space')
     })
 
-    it('opens a direct link to a domain section over that section, its view loaded first', async () => {
+    it('returns a direct link to a domain section to that section', async () => {
       const router = createAppRouter()
       await router.push('/settings/sdr')
-      expect(settingsBackground.path).toBe('/sdr/')
-      expect(loadedViews).toContain('sdr')
-      expect(document.body.dataset.domain).toBe('sdr')
-      expect(viewRoutePaths.at(-1)).toBe('/sdr/')
+      expect(settingsReturn.path).toBe('/sdr/')
     })
 
-    it('opens a direct link to App Settings over the first enabled section', async () => {
+    it('returns a direct link to App Settings to the first enabled section', async () => {
       useAppStore().setEnabledDomains(['space', 'sdr'])
       const router = createAppRouter()
       await router.push('/settings/app')
-      expect(settingsBackground.path).toBe('/space/')
+      expect(settingsReturn.path).toBe('/space/')
     })
 
-    it('opens a direct link to an enabled section with no page of its own over the first enabled one', async () => {
+    it('returns a direct link to an enabled section with no page of its own to the first enabled one', async () => {
       // 'land' is offered in Settings here but has no route among the fixtures.
       useAppStore().setEnabledDomains(['air', 'land'])
       const router = createAppRouter()
@@ -127,7 +116,18 @@ describe('createAppRouter', () => {
       await router.push('/settings/land')
 
       expect(router.currentRoute.value.path).toBe('/settings/land')
-      expect(settingsBackground.path).toBe('/air/')
+      expect(settingsReturn.path).toBe('/air/')
+    })
+
+    it('announces the domain change when Settings returns to another section', async () => {
+      const router = createAppRouter()
+      await router.push('/air/')
+      await router.push('/settings/app')
+      const changes = domainChanges()
+
+      await router.push('/space/')
+
+      expect(changes.at(-1)).toEqual({ domain: 'space', prev: 'air' })
     })
 
     it.each([
@@ -163,14 +163,14 @@ describe('createAppRouter', () => {
       wrapper.unmount()
     })
 
-    it('starts each new router with no page underneath', async () => {
+    it('starts each new router with nowhere to return to', async () => {
       const first = createAppRouter()
       await first.push('/sdr/')
-      expect(settingsBackground.path).toBe('/sdr/')
+      expect(settingsReturn.path).toBe('/sdr/')
 
       createAppRouter()
 
-      expect(settingsBackground.path).toBeNull()
+      expect(settingsReturn.path).toBeNull()
     })
   })
 })

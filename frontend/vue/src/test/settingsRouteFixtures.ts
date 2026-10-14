@@ -3,20 +3,16 @@ import { defineComponent, h } from 'vue'
 /**
  * Stand-in section routes and Settings sections for the router specs, so they
  * exercise the real vue-router without loading the real section views (maps).
- * Each view is lazy, like a real section's, and records when it was loaded.
+ * Each view is lazy, like a real section's.
  */
-export const loadedViews: string[] = []
-
 function lazyView(domain: string) {
-  return () => {
-    loadedViews.push(domain)
-    return Promise.resolve(
+  return () =>
+    Promise.resolve(
       defineComponent({
         name: `${domain}-view`,
         setup: () => () => h('div', { class: `${domain}-view` }),
       }),
     )
-  }
 }
 
 export const FIXTURE_SECTION_ROUTES = ['air', 'space', 'sdr'].map((domain) => ({
