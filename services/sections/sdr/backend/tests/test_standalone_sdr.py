@@ -480,7 +480,8 @@ class TestRawIqOverHttp:
         )
 
         assert hub_requests == []
-        assert core.reads() == ["/api/settings/sdr"]
+        # One read for the recordings folder, one for whether to record raw IQ.
+        assert core.reads() == ["/api/settings/sdr", "/api/settings/sdr"]
 
 
 class TestTheSeedersOverHttp:
