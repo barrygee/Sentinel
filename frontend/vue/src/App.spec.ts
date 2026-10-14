@@ -11,7 +11,7 @@ const shared = vi.hoisted(() => ({
   hydrateFromConfig: null as null | ReturnType<typeof vi.fn>,
   airStart: null as null | ReturnType<typeof vi.fn>,
   spaceStart: null as null | ReturnType<typeof vi.fn>,
-  route: null as null | { path: string; meta: { domain?: string } },
+  route: null as null | { path: string; name?: string; meta: { domain?: string } },
 }))
 
 // Controllable route so isSdrRoute (and its watch) can be driven. A section
@@ -22,6 +22,8 @@ function setRoute(path: string): void {
   const sectionIds = ['air', 'space', 'sea', 'land', 'sdr']
   shared.route!.path = path
   shared.route!.meta = section && sectionIds.includes(section) ? { domain: section } : {}
+  // The Settings page is the named `settings` route, as in router/index.ts.
+  shared.route!.name = section === 'settings' ? 'settings' : undefined
 }
 
 vi.mock('vue-router', () => ({
@@ -30,6 +32,10 @@ vi.mock('vue-router', () => ({
     return shared.route
   },
 }))
+
+// The Settings page ↔ panel sync is tested on its own (useSettingsRouteSync.spec).
+const settingsRouteSync = vi.hoisted(() => vi.fn())
+vi.mock('@/composables/useSettingsRouteSync', () => ({ useSettingsRouteSync: settingsRouteSync }))
 
 vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
@@ -586,6 +592,30 @@ describe('App', () => {
       setRoute('/')
       await nextTick()
       expect(document.title).toBe('SENTINEL')
+    })
+
+    it('keeps the Settings page and the settings panel in step from setup', () => {
+      mountApp()
+      expect(settingsRouteSync).toHaveBeenCalledTimes(1)
+    })
+
+    it('titles the Settings page', async () => {
+      mountApp()
+      setRoute('/settings/sdr')
+      await nextTick()
+      expect(document.title).toBe('SENTINEL — SETTINGS')
+    })
+
+    it('leaves focus to the settings panel when navigating to the Settings page', async () => {
+      const wrapper = mountApp({ attach: true })
+      const main = wrapper.get('#main').element
+
+      setRoute('/settings/app')
+      await nextTick()
+      await nextTick()
+
+      // The panel is a dialog that focuses itself; main must not pull focus away.
+      expect(document.activeElement).not.toBe(main)
     })
 
     it('does not move focus on initial mount but moves it to main on navigation', async () => {

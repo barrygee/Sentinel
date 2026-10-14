@@ -13,6 +13,7 @@ import { defineComponent, h, reactive } from 'vue'
 vi.mock('vue-router', () => ({
   useRoute: () => reactive({ path: '/air/', meta: { domain: 'air' } }),
 }))
+vi.mock('@/composables/useSettingsRouteSync', () => ({ useSettingsRouteSync: () => undefined }))
 
 vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({

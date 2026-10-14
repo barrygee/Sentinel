@@ -47,6 +47,18 @@ describe('useDialog', () => {
       expect(document.activeElement).toBe(trigger)
     })
 
+    it('takes focus when it is already open as it is set up (opened by a link before it mounted)', async () => {
+      const container = makeContainer('<button id="first">A</button>')
+      const onClose = vi.fn()
+
+      const { onKeydown } = useDialog({ isOpen: ref(true), container: ref(container), onClose })
+      await flushPromises()
+
+      expect(document.activeElement).toBe(container.querySelector('#first'))
+      onKeydown(new KeyboardEvent('keydown', { key: 'Escape' }))
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
     it('falls back to the first focusable descendant when no initial target is given', async () => {
       const container = makeContainer('<button id="first">A</button><button id="second">B</button>')
       const isOpen = ref(false)

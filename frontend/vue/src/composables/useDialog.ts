@@ -41,18 +41,25 @@ export function useDialog(options: UseDialogOptions): {
     return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR))
   }
 
-  watch(isOpen, (open) => {
-    if (open) {
-      previouslyFocused = document.activeElement as HTMLElement | null
-      void nextTick(() => {
-        const target = initialFocus?.() ?? focusableElements()[0] ?? container.value
-        target?.focus()
-      })
-    } else {
-      previouslyFocused?.focus()
-      previouslyFocused = null
-    }
-  })
+  watch(
+    isOpen,
+    (open) => {
+      if (open) {
+        previouslyFocused = document.activeElement as HTMLElement | null
+        void nextTick(() => {
+          const target = initialFocus?.() ?? focusableElements()[0] ?? container.value
+          target?.focus()
+        })
+      } else {
+        previouslyFocused?.focus()
+        previouslyFocused = null
+      }
+      // Immediate: a dialog can already be open when it mounts (a Settings link
+      // opens the panel before it renders), and must still take focus — else
+      // Escape and the Tab trap never reach it.
+    },
+    { immediate: true },
+  )
 
   function onKeydown(event: KeyboardEvent): void {
     if (event.key === 'Escape') {

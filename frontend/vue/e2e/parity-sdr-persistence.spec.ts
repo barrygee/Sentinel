@@ -1,8 +1,8 @@
-import { test, expect, type Page } from '@playwright/test'
-import { waitForShellHydration } from './support/hydrationGate'
+import { test, expect } from '@playwright/test'
 import { installDefaultMocks } from './support/mockApi'
 import { clearPersistedState } from './support/seedStore'
 import { installFakeSdr, type FakeSdrRecorder } from './support/fakeSdr'
+import { snapshotAudioContexts, startSdrPlayback, trackAudioContexts } from './support/sdrPlayback'
 
 /**
  * Parity baseline (P0): SDR audio playback and tuning must survive navigating
@@ -20,81 +20,6 @@ import { installFakeSdr, type FakeSdrRecorder } from './support/fakeSdr'
  * click handler, which some CI Chromium builds still gate.
  */
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } })
-
-/** Snapshot of the window's tracked AudioContexts (installed via addInitScript below). */
-interface AudioContextSnapshot {
-  count: number
-  state: AudioContextState | undefined
-  currentTime: number | undefined
-}
-
-async function snapshotAudioContexts(page: Page): Promise<AudioContextSnapshot> {
-  return page.evaluate(() => {
-    const contexts = (window as unknown as { __sentinelAudioContexts?: AudioContext[] })
-      .__sentinelAudioContexts
-    const first = contexts?.[0]
-    return {
-      count: contexts?.length ?? 0,
-      state: first?.state,
-      currentTime: first?.currentTime,
-    }
-  })
-}
-
-/**
- * Wrap `window.AudioContext` (and the webkit-prefixed alias) so every
- * instance the app constructs is recorded on `window.__sentinelAudioContexts`.
- * The wrapper only observes — it forwards straight to the native constructor
- * via `super(...args)`, so app behaviour is unchanged.
- */
-async function trackAudioContexts(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    ;(window as unknown as { __sentinelAudioContexts: AudioContext[] }).__sentinelAudioContexts = []
-    const NativeAudioContext = (
-      window as unknown as {
-        AudioContext?: typeof AudioContext
-        webkitAudioContext?: typeof AudioContext
-      }
-    ).AudioContext
-    if (!NativeAudioContext) return
-    class TrackedAudioContext extends NativeAudioContext {
-      constructor(...args: ConstructorParameters<typeof AudioContext>) {
-        super(...args)
-        ;(
-          window as unknown as { __sentinelAudioContexts: AudioContext[] }
-        ).__sentinelAudioContexts.push(this)
-      }
-    }
-    ;(window as unknown as { AudioContext: typeof AudioContext }).AudioContext =
-      TrackedAudioContext as unknown as typeof AudioContext
-    if ((window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext) {
-      ;(window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext =
-        TrackedAudioContext as unknown as typeof AudioContext
-    }
-  })
-}
-
-/** Drive the real UI to select the (auto-selected, single) radio and start playback. */
-async function startSdrPlayback(page: Page, frequencyMhz: string): Promise<void> {
-  await page.goto('/sdr/')
-  await waitForShellHydration(page)
-  await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
-  await expect(page.locator('#msb-pane-radio')).toBeVisible()
-
-  // Exactly one enabled radio in the fixture auto-selects (see
-  // useSdrRadioSelection.ts populateRadios) and opens the control socket,
-  // enabling the Tune button — no manual device-combobox interaction needed.
-  const tuneButton = page.getByRole('button', { name: /^tune$/i })
-  await expect(tuneButton).toBeEnabled({ timeout: 10_000 })
-
-  const freqInput = page.getByRole('textbox', { name: /tuned frequency in MHz/i })
-  await freqInput.fill(frequencyMhz)
-  await tuneButton.click()
-
-  // Tune both sends the hardware tune command AND starts audio (initAudio +
-  // openIqSocket) — confirm the Stop button reflects "now playing".
-  await expect(page.getByRole('button', { name: /stop audio/i })).toBeEnabled()
-}
 
 test.describe('SDR playback survives cross-section navigation (P0 parity)', () => {
   let recorder: FakeSdrRecorder

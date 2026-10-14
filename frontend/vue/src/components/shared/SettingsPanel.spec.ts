@@ -457,6 +457,99 @@ describe('SettingsPanel', () => {
     })
   })
 
+  describe('the section the store names (the settings URL follows it)', () => {
+    function activeNavTooltip(wrapper: ReturnType<typeof mountPanel>): string | undefined {
+      return wrapper.find('.settings-nav-item.active').attributes('data-tooltip')
+    }
+
+    it('names a section picked in the nav, so the URL can follow it', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      const sdrNav = wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === 'SDR')!
+
+      await sdrNav.trigger('click')
+
+      expect(store.activeSection).toBe('sdr')
+    })
+
+    it('names the section it opened on when opened without one', async () => {
+      const store = useSettingsStore()
+      mountPanel()
+      store.openPanel()
+      await flushPromises()
+
+      expect(store.activeSection).toBe('app')
+    })
+
+    it('names the reopen section after an APPLY reload, not the stale stored one', async () => {
+      const store = useSettingsStore()
+      sessionStorage.setItem('sentinel_settings_reopen', 'space')
+      mountPanel()
+      store.openPanel('air')
+      await flushPromises()
+
+      expect(store.activeSection).toBe('space')
+    })
+
+    it('opens on the store section when the panel mounts already open (a settings link)', async () => {
+      const store = useSettingsStore()
+      store.openPanel('sdr')
+
+      const wrapper = mountPanel()
+      await flushPromises()
+
+      expect(activeNavTooltip(wrapper)).toBe('SDR')
+    })
+
+    it('switches when the store names another section while open, like a nav click', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      await wrapper.find('#settings-search-input').setValue('source')
+
+      store.activeSection = 'air'
+      await flushPromises()
+
+      expect(activeNavTooltip(wrapper)).toBe('AIR')
+      // Like a nav click, the switch drops the search (and anything staged).
+      expect((wrapper.find('#settings-search-input').element as HTMLInputElement).value).toBe('')
+    })
+
+    it('ignores a section named while closed until it opens', async () => {
+      const store = useSettingsStore()
+      const wrapper = mountPanel()
+      await flushPromises()
+
+      store.activeSection = 'sdr'
+      await flushPromises()
+      expect(activeNavTooltip(wrapper)).toBe('App Settings')
+
+      store.openPanel()
+      await flushPromises()
+      expect(activeNavTooltip(wrapper)).toBe('SDR')
+    })
+
+    it('ignores the store naming the section already shown, so nothing staged is lost', async () => {
+      const store = useSettingsStore()
+      store.openPanel('app')
+      const wrapper = mountPanel()
+      await flushPromises()
+      await wrapper.find('#settings-search-input').setValue('source')
+
+      store.activeSection = 'app'
+      await flushPromises()
+
+      expect((wrapper.find('#settings-search-input').element as HTMLInputElement).value).toBe(
+        'source',
+      )
+    })
+  })
+
   describe('dialog semantics & focus', () => {
     it('exposes the panel as a labelled modal dialog', () => {
       const wrapper = mountPanel()

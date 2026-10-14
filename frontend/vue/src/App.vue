@@ -155,8 +155,13 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import { isSettingsRoute } from '@/router/settingsRoute'
+import { useSettingsRouteSync } from '@/composables/useSettingsRouteSync'
 
 const route = useRoute()
+// Settings is a page of its own (`/settings/<section>`); this keeps the panel
+// and its URL in step.
+useSettingsRouteSync()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
@@ -314,6 +319,7 @@ const mainRef = ref<HTMLElement | null>(null)
 /** Per-view document title (WCAG 2.4.2): "SENTINEL — AIR" etc., or "SENTINEL". */
 function titleForPath(path: string): string {
   const segment = path.split('/').filter(Boolean)[0] ?? ''
+  if (segment === 'settings') return 'SENTINEL — SETTINGS'
   const entry = ALL_NAV_DOMAINS.find(([domain]) => domain === segment)
   return entry ? `SENTINEL — ${entry[1]}` : 'SENTINEL'
 }
@@ -325,7 +331,9 @@ watch(
   () => route.path,
   (path, previousPath) => {
     document.title = titleForPath(path)
-    if (previousPath !== undefined) {
+    // The Settings page is the Settings panel, a dialog that takes focus
+    // itself; moving it to the (empty) main region would pull it out again.
+    if (previousPath !== undefined && !isSettingsRoute(route)) {
       nextTick(() => mainRef.value?.focus())
     }
   },
