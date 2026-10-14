@@ -1517,6 +1517,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #478 from barrygee/feat/settings-routes
 - Merge pull request #479 from barrygee/feat/settings-apply-no-reload
 - Merge pull request #480 from barrygee/fix/light-map-location-dot-lime
+- Merge pull request #481 from barrygee/refactor/section-move-radio-hub
 
 ### Refactoring
 
@@ -1611,6 +1612,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move Air's backend into services/sections/air/backend
 - Move Sea's backend into services/sections/sea/backend
 - Move the SDR section's backend into services/sections/sdr/backend
+- Move the radio hub's backend into services/radio/backend
 
 ### Documentation
 
@@ -1741,6 +1743,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - A dialog already open as it mounts takes focus
 - Cover applying settings in place
 - Pick the LIGHT map palette by its radio role in the APPLY e2e
+- Cover the hub creating its own table
 
 ### Build System
 
