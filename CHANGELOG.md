@@ -218,6 +218,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give every service and decoder its own HTTP credential (P7.4b)
 - Run the radio hub on a second host over TLS (P7.5a)
 - Run every section and the radio hub as its own service **(breaking change)**
+- Give each Settings section its own URL
+- Make /settings/<section> a page of its own
 
 ### Bug Fixes
 
@@ -497,6 +499,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Repair the radio-hub replicas block spliced mid-comment
 - End recordings the browser never stopped, and cap IQ captures
 - Make the recording length limit a Settings › SDR setting
+- Focus the Settings page when a link opens it
 
 ### Chores
 
@@ -1509,6 +1512,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #475 from barrygee/refactor/section-move-sea
 - Merge pull request #476 from barrygee/refactor/section-move-sdr
 - Merge pull request #477 from barrygee/fix/sdr-abandoned-recordings
+- Merge pull request #478 from barrygee/feat/settings-routes
 
 ### Refactoring
 
@@ -1727,6 +1731,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the SDR section's schema upgrades
 - Cover ending abandoned recordings and the IQ capture limit
 - Cover the recording length setting
+- Cover Settings URLs and SDR playback through them
+- Open Settings from the footer button by id in the e2e spec
+- Cover Settings as a page of its own
+- A dialog already open as it mounts takes focus
 
 ### Build System
 
