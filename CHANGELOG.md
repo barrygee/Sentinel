@@ -220,6 +220,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run every section and the radio hub as its own service **(breaking change)**
 - Give each Settings section its own URL
 - Make /settings/<section> a page of its own
+- Apply settings in place instead of reloading the page
 
 ### Bug Fixes
 
@@ -1513,6 +1514,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #476 from barrygee/refactor/section-move-sdr
 - Merge pull request #477 from barrygee/fix/sdr-abandoned-recordings
 - Merge pull request #478 from barrygee/feat/settings-routes
+- Merge pull request #479 from barrygee/feat/settings-apply-no-reload
 
 ### Refactoring
 
@@ -1735,6 +1737,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Open Settings from the footer button by id in the e2e spec
 - Cover Settings as a page of its own
 - A dialog already open as it mounts takes focus
+- Cover applying settings in place
+- Pick the LIGHT map palette by its radio role in the APPLY e2e
 
 ### Build System
 
