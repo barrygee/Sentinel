@@ -165,6 +165,7 @@
         "waterfallTimestampIntervalSec": 5,
         "resumeDelaySec": 0,
         "recordRawIq": false,
+        "recordingMaxDurationMinutes": 360,
         "radios": [],
         "aprs_radio_id": null,
         "ais_radio_id": null

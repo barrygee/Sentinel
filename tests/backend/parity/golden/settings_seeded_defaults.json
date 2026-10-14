@@ -124,6 +124,7 @@
     "onlineUrl": "https://",
     "radios": [],
     "recordRawIq": false,
+    "recordingMaxDurationMinutes": 360,
     "resumeDelaySec": 0,
     "searchRanges": [],
     "showBandPlan": true,

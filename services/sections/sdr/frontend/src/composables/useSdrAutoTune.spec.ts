@@ -493,6 +493,33 @@ describe('useSdrAutoTune — LOS restore', () => {
     expect(harness.sendCmd).toHaveBeenCalledTimes(2) // only the AOS tune+mode, no restore
   })
 
+  // Regression: the scan/search bail used to return before the recording stop,
+  // so the pass clip never ended and its row stayed "recording" on the server.
+  it.each([
+    ['a scan', 'scanActive'],
+    ['a search', 'searchActive'],
+  ] as const)(
+    'finalises an auto-started recording at LOS while %s is running, without restoring the radio',
+    async (_activity, activeFlag) => {
+      const harness = createHarness({
+        playing: ref(true),
+        selectedRadioId: ref<number | null>(1),
+        scanActive: ref(false),
+        searchActive: ref(false),
+      })
+      harness.autoTune.onExternalTune(
+        tuneRequest({ hz: 137_100_000, satName: 'NOAA 19', token: 'p1', record: true }),
+      )
+      await flushPromises()
+      harness.sendCmd.mockClear()
+      harness.options[activeFlag].value = true
+      harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))
+      expect(harness.stopRecordingIfActive).toHaveBeenCalledTimes(1)
+      expect(harness.sendCmd).not.toHaveBeenCalled()
+      expect(harness.stop).not.toHaveBeenCalled()
+    },
+  )
+
   it('never stops a manual recording the user began (startedRecording unset)', () => {
     const harness = tunedFromPlayingHarness()
     harness.autoTune.onExternalTuneRestore(restoreRequest({ token: 'p1' }))

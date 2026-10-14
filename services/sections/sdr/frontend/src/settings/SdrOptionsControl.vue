@@ -14,6 +14,11 @@
         @stage="emit('stage', $event)"
         @commit="emit('commit')"
       />
+      <SdrRecordingMaxDurationControl
+        v-else-if="row.key === 'recordingMaxDurationMinutes'"
+        @stage="emit('stage', $event)"
+        @commit="emit('commit')"
+      />
       <SdrResumeDelayControl v-else @stage="emit('stage', $event)" @commit="emit('commit')" />
     </template>
   </LabelFieldsTable>
@@ -40,6 +45,7 @@ import LabelFieldsTable, {
   type LabelFieldColumn,
   type LabelFieldRow,
 } from '@sentinel/ui/base/LabelFieldsTable.vue'
+import SdrRecordingMaxDurationControl from './SdrRecordingMaxDurationControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTimestampIntervalControl from './SdrTimestampIntervalControl.vue'
 import { useSdrStore } from '../stores/sdr'
@@ -120,6 +126,14 @@ const TIMESTAMP_INTERVAL_ROW: LabelFieldRow = {
   control: 'custom',
 }
 
+// The recording length limit sits under the raw-IQ row: it is what keeps a
+// recording whose browser went away (and its large IQ file) from running on.
+const RECORDING_MAX_DURATION_ROW: LabelFieldRow = {
+  key: 'recordingMaxDurationMinutes',
+  label: 'Max Recording Length (Minutes)',
+  control: 'custom',
+}
+
 // The resume delay rides along as a final row rather than a card of its own:
 // it is another thing the SDR panel does while scanning, and a whole card for
 // one number sat oddly beside the option list it belongs with. It is not a
@@ -133,7 +147,9 @@ const RESUME_DELAY_ROW: LabelFieldRow = {
 const OPTION_ROWS: LabelFieldRow[] = [
   ...OPTIONS.flatMap((option) => {
     const row: LabelFieldRow = { key: option.settingKey, label: option.label }
-    return option.settingKey === 'showWaterfallTimestamps' ? [row, TIMESTAMP_INTERVAL_ROW] : [row]
+    if (option.settingKey === 'showWaterfallTimestamps') return [row, TIMESTAMP_INTERVAL_ROW]
+    if (option.settingKey === 'recordRawIq') return [row, RECORDING_MAX_DURATION_ROW]
+    return [row]
   }),
   RESUME_DELAY_ROW,
 ]

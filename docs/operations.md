@@ -149,6 +149,16 @@ server's user, read `/proc/1/status`.
   every 60 s, and logs `IQ captures: radio hub reachable again`. If the hub no
   longer has the file, you'll see
   `Radio hub no longer holds the IQ of recording N; it is lost`.
+- **Recordings that are never stopped.** A recording ends only when the browser
+  sends stop. If the tab is closed or reloaded mid-recording, nothing would end
+  it. Once a recording is older than **Settings › SDR › Max Recording Length**
+  (`sdr.recordingMaxDurationMinutes`, default 360 minutes), `sdr` marks it
+  failed and deletes its raw IQ, logging
+  `Recording N was never stopped (started …); marked it failed and dropped its IQ capture`.
+  The hub also stops any IQ capture that reaches that limit
+  (`IQ capture N reached the … s recording limit without a stop; stopped it`),
+  so a lost stop can't fill the disk: raw IQ grows about 4 MB/s at 2.048 MS/s.
+  Raise the limit if you record for longer.
 - **Off Grid ADS-B: "no ADS-B source configured"** in the `adsb-decoder` log.
   Either no dongle is chosen in Settings › AIR › Off Grid ADS-B SDR, or the
   chosen device id no longer appears in the Sentry host's SDR list (unplugged,

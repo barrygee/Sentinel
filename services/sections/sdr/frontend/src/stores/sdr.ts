@@ -436,6 +436,36 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
+  // Longest a recording may run, in minutes, before the backend treats it as
+  // abandoned (its browser never sent stop): the SDR section marks it failed and
+  // the radio hub stops its raw-IQ capture. Only the backend acts on it, so it
+  // has no localStorage cache — the Settings control hydrates it from the DB.
+  const RECORDING_MAX_DURATION_DEFAULT_MINUTES = 360
+  const recordingMaxDurationMinutes = ref<number>(RECORDING_MAX_DURATION_DEFAULT_MINUTES)
+  function setRecordingMaxDurationMinutes(minutes: number) {
+    recordingMaxDurationMinutes.value =
+      isFinite(minutes) && minutes >= 1
+        ? Math.floor(minutes)
+        : RECORDING_MAX_DURATION_DEFAULT_MINUTES
+  }
+  async function hydrateRecordingMaxDurationFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const minutes = data?.recordingMaxDurationMinutes
+      if (
+        typeof minutes === 'number' &&
+        minutes >= 1 &&
+        minutes !== recordingMaxDurationMinutes.value
+      ) {
+        setRecordingMaxDurationMinutes(minutes)
+      }
+    } catch {
+      /* offline / transient */
+    }
+  }
+
   // Waterfall view settings (Zoom / Max / Min sliders in SdrWaterfall). These
   // live in the store — not as plain local refs in the component — so they
   // survive the component being torn down and rebuilt when the user navigates
@@ -1302,6 +1332,9 @@ export const useSdrStore = defineStore('sdr', () => {
     resumeDelaySec,
     setResumeDelaySec,
     hydrateResumeDelaySecFromDb,
+    recordingMaxDurationMinutes,
+    setRecordingMaxDurationMinutes,
+    hydrateRecordingMaxDurationFromDb,
     viewZoom,
     viewZmin,
     viewZmax,

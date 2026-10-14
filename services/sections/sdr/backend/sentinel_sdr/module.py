@@ -1,4 +1,4 @@
-"""SDR section lifecycle: its own tables, seeding stored frequencies and the band plan, collecting IQ captures from the radio hub."""
+"""SDR section lifecycle: its own tables, seeding frequencies and the band plan, ending abandoned recordings, collecting IQ captures."""
 
 import asyncio
 import contextlib
@@ -8,7 +8,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_sdr.database import create_sdr_tables, seed_sdr_bandplan_from_file, seed_sdr_data_from_files
-from sentinel_sdr.services import sdr_iq_capture_transfer
+from sentinel_sdr.services import abandoned_recordings, sdr_iq_capture_transfer
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +27,20 @@ async def _prepare() -> None:
     await seed()
 
 
-async def _reconcile_iq_captures_loop() -> None:
-    """Retry pending IQ copies and clear the hub's uncollected captures, at startup and then periodically."""
+async def _reconcile_recordings_loop() -> None:
+    """At startup and then periodically: end recordings never stopped, retry pending IQ copies, clear stray captures."""
     while True:
         try:
+            await abandoned_recordings.finalise_abandoned_recordings()
+        except Exception:
+            # One bad run (e.g. the database busy) must not end the loop for good.
+            logger.exception(
+                "Ending abandoned recordings failed; retrying in %.0f s", sdr_iq_capture_transfer.RECONCILE_INTERVAL_S
+            )
+        try:
+            # A no-op when the radio hub shares this process: its captures are written in place.
             await sdr_iq_capture_transfer.reconcile_iq_captures()
         except Exception:
-            # One bad run (e.g. the database busy) must not end collection for good.
             logger.exception(
                 "IQ capture reconcile failed; retrying in %.0f s", sdr_iq_capture_transfer.RECONCILE_INTERVAL_S
             )
@@ -42,9 +49,7 @@ async def _reconcile_iq_captures_loop() -> None:
 
 async def _start() -> None:
     global _reconcile_task
-    # With the radio hub in this process its captures are written in place.
-    if sdr_iq_capture_transfer.copies_iq_from_hub():
-        _reconcile_task = asyncio.create_task(_reconcile_iq_captures_loop(), name="sdr-iq-capture-reconcile")
+    _reconcile_task = asyncio.create_task(_reconcile_recordings_loop(), name="sdr-recordings-reconcile")
 
 
 async def _stop() -> None:

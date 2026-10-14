@@ -20,6 +20,7 @@ own loop, which would never let it flush). Pinned here:
 
 from __future__ import annotations
 
+import asyncio
 import struct
 from collections.abc import Iterator
 from pathlib import Path
@@ -71,8 +72,13 @@ def broadcaster(monkeypatch, tmp_path) -> Iterator[sdr_svc.RadioBroadcaster]:
         lambda host, port: radio_broadcaster if (host, port) == (RADIO["host"], RADIO["port"]) else None,
     )
     monkeypatch.setattr(iq_capture, "_FLUSH_GRACE_S", 0.01)
+    # A limit no test reaches unless it sets its own; never a real settings read.
+    _limit_captures_to(monkeypatch, 3600.0)
     yield radio_broadcaster
     iq_capture._active_captures.clear()
+    for time_limit in iq_capture._capture_time_limits.values():
+        time_limit.cancel()
+    iq_capture._capture_time_limits.clear()
 
 
 def _start(capture_id: int, radio_id: int = RADIO["id"]):
@@ -200,6 +206,87 @@ class TestStop:
         await _start(3)
         assert await _stop(3) == {"ok": True}
         assert await _stop(3) == {"ok": False, "reason": "not_active"}
+
+
+def _limit_captures_to(monkeypatch, seconds: float) -> None:
+    async def configured_limit(db) -> float:
+        return seconds
+
+    monkeypatch.setattr(iq_capture, "recording_max_duration_seconds", configured_limit)
+
+
+class TestTimeLimit:
+    """Regression: a capture whose stop never came wrote ~4 MB/s until the hub restarted (83 GB each)."""
+
+    async def test_stops_a_capture_that_reaches_the_recording_limit_and_keeps_its_file(
+        self, broadcaster, monkeypatch, caplog
+    ):
+        _limit_captures_to(monkeypatch, 0.05)
+        await _start(6)
+        _, queue = iq_capture._active_captures[6]
+        await queue.put(_broadcast(b"\x06\x07"))
+
+        with caplog.at_level("WARNING", logger=iq_capture.__name__):
+            await asyncio.sleep(0.2)
+
+        assert 6 not in iq_capture._active_captures
+        assert 6 not in iq_capture._capture_time_limits
+        assert broadcaster._iq_subscribers == []
+        # Kept, so the SDR section still collects or discards it like any other.
+        assert (iq_capture.iq_capture_dir() / "6.u8").read_bytes() == b"\x06\x07"
+        assert "IQ capture 6 reached the 0 s recording limit without a stop" in caplog.text
+        # The late stop the SDR section may still send is answered as usual.
+        assert await _stop(6) == {"ok": False, "reason": "not_active"}
+
+    async def test_a_capture_younger_than_the_limit_keeps_running(self, broadcaster):
+        await _start(6)
+
+        await asyncio.sleep(0.05)
+
+        assert 6 in iq_capture._active_captures
+        await _stop(6)
+
+    async def test_the_limit_is_the_configured_recording_length(self, broadcaster, monkeypatch):
+        asked_with: list[object] = []
+
+        async def configured_limit(db) -> float:
+            asked_with.append(db)
+            return 1234.0
+
+        monkeypatch.setattr(iq_capture, "recording_max_duration_seconds", configured_limit)
+        loop = asyncio.get_running_loop()
+
+        await _start(6)
+
+        # Read with the start request's own session, as the hub reads its other settings.
+        assert asked_with == [None]
+
+        assert iq_capture._capture_time_limits[6].when() - loop.time() == pytest.approx(1234.0, abs=1.0)
+        await _stop(6)
+
+    async def test_stop_cancels_the_limit(self, broadcaster):
+        await _start(6)
+        time_limit = iq_capture._capture_time_limits[6]
+
+        await _stop(6)
+
+        assert time_limit.cancelled()
+        assert 6 not in iq_capture._capture_time_limits
+
+    async def test_discard_cancels_the_limit(self, broadcaster, sdr_elsewhere):
+        await _start(6)
+        time_limit = iq_capture._capture_time_limits[6]
+
+        await _discard(6)
+
+        assert time_limit.cancelled()
+        assert 6 not in iq_capture._capture_time_limits
+
+    async def test_a_limit_firing_after_the_capture_ended_does_nothing(self, broadcaster, caplog):
+        with caplog.at_level("WARNING", logger=iq_capture.__name__):
+            iq_capture._stop_at_time_limit(404, 60.0)
+
+        assert caplog.text == ""
 
 
 class TestLocate:
