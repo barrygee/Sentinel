@@ -503,6 +503,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Focus the Settings page when a link opens it
 - Use the app lime for your location dot on the light map
 - Restore the radio hub container name sentinel-radio-hub
+- Publish the adsb-decoder on 127.0.0.1 by default
 
 ### Chores
 
@@ -1520,6 +1521,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #480 from barrygee/fix/light-map-location-dot-lime
 - Merge pull request #481 from barrygee/refactor/section-move-radio-hub
 - Merge pull request #482 from barrygee/fix/radio-hub-container-name
+- Merge pull request #483 from barrygee/refactor/radio-runtime-rename
+- Merge pull request #484 from barrygee/fix/adsb-decoder-loopback-port
+- Merge pull request #485 from barrygee/refactor/remove-in-process-hosting
 
 ### Refactoring
 
@@ -1615,6 +1619,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move Sea's backend into services/sections/sea/backend
 - Move the SDR section's backend into services/sections/sdr/backend
 - Move the radio hub's backend into services/radio/backend
+- Rename the hub's runtime names to radio and its credentials folder **(breaking change)**
+- Stop hosting sections in-process
 
 ### Documentation
 
@@ -1746,6 +1752,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover applying settings in place
 - Pick the LIGHT map palette by its radio role in the APPLY e2e
 - Cover the hub creating its own table
+- Pin the radio id and kind and the credentials folder layout
+- Pin the in-process test app and core's remote refusal
 
 ### Build System
 
