@@ -16,6 +16,7 @@
 // ref/reactive — and every IControl receives Pinia stores, never window globals.
 // Mirrors AirMap.vue: the same style, connectivity restyle and control wiring,
 // so the Sea map reads and behaves exactly like the Air map.
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
 import { basemapStyleUrl, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
@@ -180,6 +181,10 @@ function _clearLocationVisuals(): void {
   _locationMarker.remove()
 }
 
+// Re-seed the default layers when the settings change under the app (APPLY
+// CHANGES, a config upload or file edit), as the page reload that once followed did.
+useDocumentEvent('sentinel:config-uploaded', () => void seaStore.hydrateDefaultLayers())
+
 onMounted(() => {
   window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
   watch(
@@ -224,8 +229,10 @@ onMounted(() => {
     () => basemapStore.layers.roads,
     (on) => roadsControl?.setVisible(on),
   )
-  // Seed the overlays from the default-layers config once it is known. The
-  // store only honours it until the operator has made a choice of their own.
+  // Seed the overlays from the default-layers config once it is known (and
+  // again when the settings change under the app — APPLY CHANGES, a config
+  // upload). The store only honours it until the operator has made a choice
+  // of their own.
   void seaStore.hydrateDefaultLayers()
   watch(
     () => seaStore.defaultLayers,

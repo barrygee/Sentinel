@@ -169,9 +169,16 @@ const { hydrateFromConfig: hydrateRingOriginFromConfig } = useRangeRingOrigin()
 const notificationsStore = useNotificationsStore()
 const offlineMapsStore = useOfflineMapsStore()
 
-// A hand-edit of the live sentinel_config.json reloads the app so every
-// setting it changed is what the UI shows.
+// A hand-edit of the live sentinel_config.json refreshes the app's settings in
+// place, so every setting it changed is what the UI shows.
 useConfigFileSync()
+
+// The location and range-ring origin are read from the config once on mount;
+// re-read them whenever the settings change underneath the app (APPLY CHANGES,
+// a config upload or file edit), as the page reload that once followed did.
+useDocumentEvent('sentinel:config-uploaded', () => {
+  void hydrateFromConfig().then(() => hydrateRingOriginFromConfig())
+})
 
 onMounted(async () => {
   // Reconcile with the config first: a valid config location seeds the

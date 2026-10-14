@@ -5,6 +5,8 @@ import { CONFIG_FILE_POLL_INTERVAL_MS, useConfigFileSync } from './useConfigFile
 
 vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ getConfigFileStatus: vi.fn() }))
 import { getConfigFileStatus } from '@sentinel/shell-api/services/settingsApi'
+const refreshSettings = vi.hoisted(() => vi.fn(async () => true))
+vi.mock('@/shell/applySettings', () => ({ refreshSettingsFromBackend: refreshSettings }))
 
 function status(externalEditAt: number) {
   return {
@@ -14,7 +16,7 @@ function status(externalEditAt: number) {
   }
 }
 
-/** Mount a component using the composable; no `reload` means its default. */
+/** Mount a component using the composable; no handler means its default (refresh in place). */
 function mountSync(reload?: () => void) {
   const Harness = defineComponent({
     setup() {
@@ -42,7 +44,7 @@ describe('useConfigFileSync', () => {
     vi.useRealTimers()
   })
 
-  it('takes the first reading as the baseline without reloading', async () => {
+  it('takes the first reading as the baseline without acting', async () => {
     vi.mocked(getConfigFileStatus).mockResolvedValue(status(1000))
     const reload = vi.fn()
     const wrapper = mountSync(reload)
@@ -53,7 +55,7 @@ describe('useConfigFileSync', () => {
     wrapper.unmount()
   })
 
-  it('reloads once the file is edited after the baseline', async () => {
+  it('acts once the file is edited after the baseline', async () => {
     vi.mocked(getConfigFileStatus).mockResolvedValueOnce(status(0)).mockResolvedValue(status(5000))
     const reload = vi.fn()
     const wrapper = mountSync(reload)
@@ -63,7 +65,7 @@ describe('useConfigFileSync', () => {
     wrapper.unmount()
   })
 
-  it('adopts a stamp that went backwards (backend restart) instead of reloading', async () => {
+  it('adopts a stamp that went backwards (backend restart) instead of acting', async () => {
     vi.mocked(getConfigFileStatus)
       .mockResolvedValueOnce(status(5000))
       .mockResolvedValueOnce(status(0))
@@ -102,15 +104,37 @@ describe('useConfigFileSync', () => {
     expect(getConfigFileStatus).toHaveBeenCalledTimes(callsAtUnmount)
   })
 
-  it('reloads the page by default', async () => {
+  it('refreshes the settings in place by default, never reloading the page', async () => {
     vi.mocked(getConfigFileStatus).mockResolvedValueOnce(status(0)).mockResolvedValue(status(9000))
+    refreshSettings.mockClear()
     const reloadSpy = vi.fn()
     vi.stubGlobal('location', { ...window.location, reload: reloadSpy })
     const wrapper = mountSync()
     await flushPromises()
     await nextPoll()
-    expect(reloadSpy).toHaveBeenCalledOnce()
+    expect(refreshSettings).toHaveBeenCalledOnce()
+    expect(reloadSpy).not.toHaveBeenCalled()
     wrapper.unmount()
     vi.unstubAllGlobals()
+  })
+
+  it('acts once per edit: the stamp it acted on becomes the baseline', async () => {
+    // A reload used to reset the baseline; refreshing in place must advance it,
+    // or every later poll would see the same edit again.
+    vi.mocked(getConfigFileStatus)
+      .mockResolvedValueOnce(status(0))
+      .mockResolvedValueOnce(status(5000))
+      .mockResolvedValueOnce(status(5000))
+      .mockResolvedValue(status(8000))
+    const onEdit = vi.fn()
+    const wrapper = mountSync(onEdit)
+    await flushPromises()
+    await nextPoll()
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    await nextPoll()
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    await nextPoll()
+    expect(onEdit).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
   })
 })

@@ -21,6 +21,11 @@ import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 // Each section's Settings nav entry and items, as its register() adds them at boot.
+// APPLY refreshes the running app's settings in place (shell/applySettings,
+// tested there); here it only has to be called, after the writes.
+const refreshSettings = vi.hoisted(() => vi.fn(async () => true))
+vi.mock('@/shell/applySettings', () => ({ refreshSettingsFromBackend: refreshSettings }))
+
 registerAirSettings()
 registerSpaceSettings()
 registerSeaSettings()
@@ -44,6 +49,8 @@ describe('SettingsPanel', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     reload.mockClear()
+    refreshSettings.mockClear()
+    refreshSettings.mockImplementation(async () => true)
     // jsdom's location.reload throws "not implemented"; swap in a spy.
     Object.defineProperty(window, 'location', {
       configurable: true,
@@ -137,11 +144,10 @@ describe('SettingsPanel', () => {
     })
 
     it('falls back to the raw key when the heading section is unknown', async () => {
-      // A stale reopen value points at a section that no longer exists.
-      sessionStorage.setItem('sentinel_settings_reopen', 'ghost')
+      // A section that no longer exists (e.g. an old link).
       const store = useSettingsStore()
       const wrapper = mountPanel()
-      store.openPanel()
+      store.openPanel('ghost')
       await flushPromises()
       expect(wrapper.find('#settings-section-heading').text()).toBe('ghost')
     })
@@ -359,10 +365,19 @@ describe('SettingsPanel', () => {
       expect(status.classes()).toContain('settings-apply-status--ok')
     })
 
-    it('awaits async stages, then saves, stashes the reopen section and reloads', async () => {
+    it('awaits async stages, then refreshes the app in place and reports SAVED — no reload', async () => {
       vi.useFakeTimers()
-      const asyncStage = vi.fn().mockResolvedValue(undefined)
+      const order: string[] = []
+      const asyncStage = vi.fn(async () => {
+        order.push('stage')
+      })
       const syncStage = vi.fn() // returns undefined → treated as immediate
+      refreshSettings.mockImplementation(async () => {
+        order.push('refresh')
+        return true
+      })
+      const store = useSettingsStore()
+      store.openPanel('app')
       const wrapper = mountPanel()
       const rows = wrapper.findAllComponents(SettingRow)
       rows[0]!.vm.$emit('stage', 'a', asyncStage)
@@ -370,13 +385,38 @@ describe('SettingsPanel', () => {
 
       await wrapper.find('#settings-apply-btn').trigger('click')
       await flushPromises()
+
       expect(asyncStage).toHaveBeenCalledOnce()
       expect(syncStage).toHaveBeenCalledOnce()
+      // The writes land first, then the app re-reads what they saved.
+      expect(order).toEqual(['stage', 'refresh'])
       expect(wrapper.find('#settings-apply-status').text()).toBe('SAVED')
-
+      // Settings stays open where it was; nothing reloads, now or later.
+      expect(store.open).toBe(true)
       vi.runAllTimers()
-      expect(sessionStorage.getItem('sentinel_settings_reopen')).toBe('app')
-      expect(reload).toHaveBeenCalledOnce()
+      expect(reload).not.toHaveBeenCalled()
+      expect(sessionStorage.getItem('sentinel_settings_reopen')).toBeNull()
+    })
+
+    it('does not refresh when a stage fails, so nothing half-saved is applied', async () => {
+      const wrapper = mountPanel()
+      wrapper
+        .findComponent(SettingRow)
+        .vm.$emit('stage', 'a', () => Promise.reject(new Error('no')))
+      await wrapper.find('#settings-apply-btn').trigger('click')
+      await flushPromises()
+      expect(refreshSettings).not.toHaveBeenCalled()
+    })
+
+    it('clears what was staged once saved, so a second APPLY reports NO CHANGES', async () => {
+      const wrapper = mountPanel()
+      wrapper.findComponent(SettingRow).vm.$emit('stage', 'a', vi.fn())
+      await wrapper.find('#settings-apply-btn').trigger('click')
+      await flushPromises()
+      await wrapper.find('#settings-apply-btn').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('#settings-apply-status').text()).toBe('NO CHANGES')
+      expect(refreshSettings).toHaveBeenCalledTimes(1)
     })
 
     it('reports ERROR when a stage throws synchronously', async () => {
@@ -433,17 +473,17 @@ describe('SettingsPanel', () => {
       expect(sdrNav.classes()).toContain('active')
     })
 
-    it('a stale reopen section overrides the stored activeSection', async () => {
+    it('ignores a leftover reopen key from before APPLY stopped reloading', async () => {
       const store = useSettingsStore()
       sessionStorage.setItem('sentinel_settings_reopen', 'space')
       const wrapper = mountPanel()
       store.openPanel('air')
       await flushPromises()
-      const spaceNav = wrapper
+      const airNav = wrapper
         .findAll('.settings-nav-item')
-        .find((node) => node.attributes('data-tooltip') === 'SPACE')!
-      expect(spaceNav.classes()).toContain('active')
-      expect(sessionStorage.getItem('sentinel_settings_reopen')).toBeNull()
+        .find((node) => node.attributes('data-tooltip') === 'AIR')!
+      expect(airNav.classes()).toContain('active')
+      sessionStorage.removeItem('sentinel_settings_reopen')
     })
 
     it('clears the search and staged changes when closed', async () => {
@@ -485,14 +525,13 @@ describe('SettingsPanel', () => {
       expect(store.activeSection).toBe('app')
     })
 
-    it('names the reopen section after an APPLY reload, not the stale stored one', async () => {
+    it('names the section it was asked to open on', async () => {
       const store = useSettingsStore()
-      sessionStorage.setItem('sentinel_settings_reopen', 'space')
       mountPanel()
       store.openPanel('air')
       await flushPromises()
 
-      expect(store.activeSection).toBe('space')
+      expect(store.activeSection).toBe('air')
     })
 
     it('opens on the store section when the panel mounts already open (a settings link)', async () => {

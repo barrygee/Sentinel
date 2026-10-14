@@ -399,6 +399,18 @@ describe('SeaMap', () => {
     })
   })
 
+  describe('settings refreshed in place', () => {
+    it('re-seeds the default layers when the settings change under the app', async () => {
+      mountMap()
+      await flushPromises()
+      const hydrate = vi.spyOn(useSeaStore(), 'hydrateDefaultLayers').mockResolvedValue()
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+
+      expect(hydrate).toHaveBeenCalledOnce()
+    })
+  })
+
   describe('store-driven overlays', () => {
     it('keeps the range rings in step with the store flag', async () => {
       const map = makeFakeMap()

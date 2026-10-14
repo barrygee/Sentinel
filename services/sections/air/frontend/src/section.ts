@@ -1,3 +1,4 @@
+import { useAirStore } from './stores/air'
 import { getActivePinia } from 'pinia'
 import { registerBackgroundService } from '@sentinel/shell-api/shell/backgroundServices'
 import {
@@ -49,6 +50,11 @@ export default function register(shell: ShellContext): void {
   registerNotificationSubscriptionSource(aircraftBellSubscriptions)
   registerNotificationSubscriptionSource(overheadAlertSubscriptions)
   registerBackgroundService({ id: 'air-alerts', start: () => useAirAlertsService().start() })
+  // The overhead-alert zones it watches come from the config: re-read them when
+  // the settings change under the app (APPLY CHANGES, a config upload or edit).
+  document.addEventListener('sentinel:config-uploaded', () => {
+    void useAirStore().loadOverheadAlertsFromConfig()
+  })
 
   // Applies its stored settings to its stores at boot, before the first render (F1).
   registerSettingsHydrator('air', hydrateAirFromSettings)

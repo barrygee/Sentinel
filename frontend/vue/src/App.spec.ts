@@ -248,6 +248,27 @@ describe('App', () => {
     })
   })
 
+  describe('settings refreshed in place', () => {
+    it('re-reads the location, then the ring origin, when the settings change under the app', async () => {
+      mountApp()
+      await flushPromises()
+      shared.hydrateFromConfig!.mockClear()
+      hydrateRingOrigin.mockClear()
+      const order: string[] = []
+      shared.hydrateFromConfig!.mockImplementation(async () => {
+        order.push('location')
+      })
+      hydrateRingOrigin.mockImplementation(async () => {
+        order.push('ring origin')
+      })
+
+      document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+      await flushPromises()
+
+      expect(order).toEqual(['location', 'ring origin'])
+    })
+  })
+
   describe('nav logo', () => {
     it('serves the white artwork — the chrome is dark, always', () => {
       expect(mountApp().get('#logo-img').attributes('src')).toBe('/assets/logo.svg')
