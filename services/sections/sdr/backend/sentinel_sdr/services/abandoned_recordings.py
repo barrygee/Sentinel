@@ -8,8 +8,8 @@ restart swallows the request — nothing else would end it: the row stayed
 complete ones), and the reconcile loop kept its raw-IQ capture as wanted, so
 the hub went on writing it (~4 MB/s) until it restarted.
 
-`finalise_abandoned_recordings` ends every recording older than
-`settings.sdr_recording_max_duration_s`: the row becomes `status="error"` with
+`finalise_abandoned_recordings` ends every recording older than the
+`sdr.recordingMaxDurationMinutes` setting (`backend/platform/recording_limits.py`): the row becomes `status="error"` with
 no IQ file, and its capture is stopped and deleted — on the hub when it runs
 in another process, in the recordings folder when it shares this one. The SDR
 lifecycle runs it every `RECONCILE_INTERVAL_S`.
@@ -21,8 +21,8 @@ import datetime
 import logging
 
 from backend.cache import now_ms
-from backend.config import settings
 from backend.database import AsyncSessionLocal
+from backend.platform import recording_limits
 from backend.platform.bus import bus
 from sqlalchemy import select
 
@@ -34,8 +34,10 @@ logger = logging.getLogger(__name__)
 
 async def finalise_abandoned_recordings() -> list[int]:
     """Mark recordings past the maximum duration as failed and drop their IQ captures; returns their ids."""
-    oldest_allowed_ms = now_ms() - int(settings.sdr_recording_max_duration_s * 1000)
     async with AsyncSessionLocal() as db:
+        # Looked up at call time, so tests can patch the limit.
+        max_duration_seconds = await recording_limits.recording_max_duration_seconds(db)
+        oldest_allowed_ms = now_ms() - int(max_duration_seconds * 1000)
         abandoned = (
             (
                 await db.execute(

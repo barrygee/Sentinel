@@ -44,6 +44,7 @@ from typing import Any
 from backend.config import settings
 from backend.modules import shares_process_with
 from backend.platform.bus import EventPayload, bus
+from backend.platform.recording_limits import recording_max_duration_seconds
 from backend.radio_hub import radios as radio_registry
 from backend.radio_hub.services import sdr as sdr_svc
 from backend.radio_hub.services.decoder_sockets import advertised_hub_url
@@ -61,7 +62,7 @@ _FLUSH_GRACE_S = 0.2
 
 # capture_id → the broadcaster it taps and its recording queue.
 _active_captures: dict[int, tuple[sdr_svc.RadioBroadcaster, asyncio.Queue]] = {}
-# capture_id → the timer that stops it at `settings.sdr_recording_max_duration_s`.
+# capture_id → the timer that stops it at the recording limit (`sdr.recordingMaxDurationMinutes`).
 _capture_time_limits: dict[int, asyncio.TimerHandle] = {}
 
 
@@ -126,24 +127,26 @@ async def _on_start(payload: EventPayload) -> dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 - a failed capture must not fail the recording
         logger.warning("Could not start IQ capture %s: %s", capture_id, exc)
         return {"ok": False, "reason": "error"}
+    # Read before the capture is registered, so a slow settings read can't race a stop.
+    time_limit_seconds = await recording_max_duration_seconds(payload["db"])
     _active_captures[capture_id] = (broadcaster, queue)
     # The SDR section asks for stop when its recording ends, but a recording
     # whose browser went away never ends: without a limit the capture would
     # write ~4 MB/s until the hub restarts. The file is kept, so the SDR
     # section still collects (or discards) it like any other.
     _capture_time_limits[capture_id] = asyncio.get_running_loop().call_later(
-        settings.sdr_recording_max_duration_s, _stop_at_time_limit, capture_id
+        time_limit_seconds, _stop_at_time_limit, capture_id, time_limit_seconds
     )
     return {"ok": True}
 
 
-def _stop_at_time_limit(capture_id: int) -> None:
+def _stop_at_time_limit(capture_id: int, time_limit_seconds: float) -> None:
     _capture_time_limits.pop(capture_id, None)
     if _stop_capture(capture_id):
         logger.warning(
             "IQ capture %s reached the %.0f s recording limit without a stop; stopped it",
             capture_id,
-            settings.sdr_recording_max_duration_s,
+            time_limit_seconds,
         )
 
 

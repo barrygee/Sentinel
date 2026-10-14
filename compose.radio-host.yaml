@@ -69,8 +69,6 @@ services:
       SERVICE_INTERNAL_URL: ${SENTINEL_RADIO_HOST_URL:?set SENTINEL_RADIO_HOST_URL, e.g. https://radio.lan:8443}
       # Its decoders are on this compose network: they dial `radio-hub`.
       DECODER_SOCKETS_HOST: radio-hub
-      # It stops any raw-IQ capture this old; keep it equal to core's (docs/operations.md).
-      SDR_RECORDING_MAX_DURATION_S: ${SDR_RECORDING_MAX_DURATION_S:-21600}
       SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json
       ACCEPTED_CALLERS_FILE: /run/service-credentials/accepted-callers.json
       NATS_CREDENTIALS_FILE: /run/service-credentials/nats-credentials.json
