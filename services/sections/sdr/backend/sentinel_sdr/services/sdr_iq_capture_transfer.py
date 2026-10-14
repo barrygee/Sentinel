@@ -1,10 +1,7 @@
 """Collect finished IQ captures from the radio hub into the SDR section's recordings (plan P7.3).
 
-The radio hub writes a recording's raw IQ (`<id>.u8`). When the SDR section
-shares its process (the monolith) the hub writes it straight into the
-recordings folder and there is nothing to do here. Otherwise the hub keeps it
-in its own staging folder, and this module copies it over HTTP and has the hub
-delete it (`sentinel_radio/services/iq_capture.py`):
+The radio hub writes a recording's raw IQ (`<id>.u8`) into its own staging
+folder, and this module copies it over HTTP and has the hub delete it (`sentinel_radio/services/iq_capture.py`):
 
 - `schedule_collect` starts the copy in the background when a recording stops,
   so the stop request doesn't wait on it (a minute of IQ is ~300 MB). Until it
@@ -29,7 +26,6 @@ from pathlib import Path
 
 import httpx
 from backend.database import AsyncSessionLocal
-from backend.modules import shares_process_with
 from backend.platform.bus import bus
 from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
@@ -64,11 +60,6 @@ class IqCaptureTransferError(Exception):
     """The capture could not be copied from the radio hub."""
 
 
-def copies_iq_from_hub() -> bool:
-    """True when the radio hub runs in another process, so captures are copied rather than written in place."""
-    return not shares_process_with("radio")
-
-
 def iq_path(recording_id: int) -> Path:
     """Where recording `recording_id`'s IQ lives once the SDR section holds it."""
     return sdr_recordings_dir() / f"{recording_id}.u8"
@@ -76,7 +67,7 @@ def iq_path(recording_id: int) -> Path:
 
 def iq_file_pending(recording: SdrRecording) -> bool:
     """True while a recording's IQ is still on the radio hub, waiting to be copied."""
-    return bool(recording.has_iq_file) and copies_iq_from_hub() and not iq_path(recording.id).exists()
+    return bool(recording.has_iq_file) and not iq_path(recording.id).exists()
 
 
 async def fetch_iq_capture(download_url: str, destination: Path) -> int:
@@ -184,8 +175,6 @@ async def discard_hub_capture(recording_id: int) -> None:
 async def reconcile_iq_captures() -> None:
     """Bring the hub's staged captures and the recordings' IQ files back into line (see the module docstring)."""
     global _hub_reachable
-    if not copies_iq_from_hub():
-        return
     try:
         held = (await bus.request("hub.iq-capture.list", {})).get("capture_ids", [])
     except Exception as error:  # noqa: BLE001 - hub, NATS or the hub's reply may be down

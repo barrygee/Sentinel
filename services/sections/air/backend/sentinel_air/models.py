@@ -1,7 +1,7 @@
 """The Air section's tables: the ADS-B response cache and the aircraft the user is tracking.
 
 They live in the Air service's own database (`air.db`). They share core's
-declarative `Base`, so the in-process app and the test suite create them with
+declarative `Base`, so the test suite's in-process app creates them with
 the rest of the schema once this module is imported. `air_messages` is not
 Air's: notifications are core's, despite the path.
 """

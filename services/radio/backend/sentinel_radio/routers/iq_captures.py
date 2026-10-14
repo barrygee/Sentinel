@@ -50,8 +50,5 @@ async def download_capture(capture_id: int = _CaptureId, authorization: str | No
 async def delete_capture(capture_id: int = _CaptureId, authorization: str | None = Header(default=None)):
     """Delete the hub's copy once the SDR section holds its own."""
     require_permission(may_fetch_iq_captures(require_caller(authorization)))
-    if not iq_capture.holds_staged_captures():
-        # The file is the SDR section's own recording, in the same process.
-        raise HTTPException(status_code=409, detail="IQ captures are written into the SDR section's recordings here")
     _finished_capture(capture_id).unlink(missing_ok=True)
     return Response(status_code=204)

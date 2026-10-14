@@ -14,33 +14,44 @@ from pathlib import Path
 from backend.core import spa_csp
 from backend.core.app_sections import SPA_DIR
 from backend.platform.remote_files import RemotesStaticFiles
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 FRONTEND_ASSETS_DIR = SPA_DIR.parent / "assets"
 
 
-def mount_spa(app: FastAPI, *, withheld_remotes: frozenset[str]) -> None:
+def mount_spa(app: FastAPI, *, serve_section_remotes: bool) -> None:
     """Mount the static trees and the SPA catch-all on `app`.
 
-    `withheld_remotes` are sections running in their own containers (or not
-    deployed): their remotes are a 404 here, so the shell can only ever load
-    them from the service that actually serves their API.
+    Without `serve_section_remotes`, `/remotes/**` is a 404: each section serves
+    its own remote from its container, so the shell can only ever load it from
+    the service that actually serves its API. Only the test suite's in-process
+    app serves them.
     """
     _add_favicon(app)
     # Map tiles, PMTiles archives, sprites, fonts, favicons.
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_ASSETS_DIR)), name="assets")
     _mount_shell_bundle(app)
-    # Mounted even before the remotes are built (check_dir=False), so a rebuild
-    # is served without a restart — and a missing remote file is a 404, never
-    # the SPA's index.html, which the shell would otherwise run as a remote entry.
-    app.mount(
-        "/remotes",
-        RemotesStaticFiles(directory=str(SPA_DIR / "remotes"), check_dir=False, withheld=withheld_remotes),
-        name="remotes",
-    )
+    if serve_section_remotes:
+        # Mounted even before the remotes are built (check_dir=False), so a rebuild
+        # is served without a restart — and a missing remote file is a 404, never
+        # the SPA's index.html, which the shell would otherwise run as a remote entry.
+        app.mount(
+            "/remotes",
+            RemotesStaticFiles(directory=str(SPA_DIR / "remotes"), check_dir=False),
+            name="remotes",
+        )
+    else:
+        _refuse_section_remotes(app)
     _add_spa_fallback(app, SPA_DIR / "index.html")
+
+
+def _refuse_section_remotes(app: FastAPI) -> None:
+    # Before the catch-all, which would otherwise answer with index.html.
+    @app.api_route("/remotes/{remote_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
+    async def section_remote_not_here(remote_path: str):
+        raise HTTPException(status_code=404)
 
 
 def _add_favicon(app: FastAPI) -> None:

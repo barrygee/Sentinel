@@ -1,22 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
-import os from 'os';
-import path from 'path';
 
 /**
  * Playwright config for the full-stack integration smoke suite.
  *
- * Unlike the mocked UI suite in frontend/vue/e2e/ (PR #97), this suite boots
- * the REAL FastAPI backend against an ephemeral, isolated SQLite database file
- * and drives a real Playwright browser against the running stack. The goal is
- * to prove that the frontend and backend actually integrate — not to achieve
- * breadth (that is the UI suite's job).
+ * Unlike the mocked UI suite in frontend/vue/e2e/, this suite drives a real,
+ * running Sentinel stack — the gateway, core, NATS and the section services —
+ * with a real browser. The goal is to prove the frontend and the services
+ * actually integrate, not breadth (that is the UI suite's job).
  *
- * DB isolation:
- *   A temporary SQLite file is created under the OS temp directory for each
- *   test run. The `DB_PATH` environment variable is forwarded to uvicorn so
- *   pydantic-settings picks it up as `Settings.db_path`. This is the only
- *   supported seam: no source files are modified. The file is removed after the
- *   run by the `globalTeardown` script.
+ * The stack is the composed one: no server is started here. Bring one up,
+ * then point the suite at its gateway (SENTINEL_E2E_BASE_URL, default
+ * http://localhost:8080):
+ *
+ *   docker compose up -d --wait
+ *   PLAYWRIGHT_CHANNEL=chrome npm run test:e2e:gateway
+ *
+ * The suite writes to that stack's databases (it creates and deletes a radio,
+ * toggles settings and restores them), so point it at a throwaway stack.
  *
  * Browser:
  *   No bundled Chromium is downloaded in this project — instead we reuse
@@ -24,47 +24,23 @@ import path from 'path';
  *   approach as frontend/vue/playwright.config.ts). Set this env var to "chrome"
  *   to use system Chrome, or install a bundled browser with:
  *     npx playwright install chromium
- *
- * To run locally:
- *   PLAYWRIGHT_CHANNEL=chrome npm run test:e2e:fullstack
- *
- *   Or without the env var if chromium is already installed:
- *   npm run test:e2e:fullstack
- *
- * Composed stack (gateway + app + NATS, section-containers plan P5):
- *   docker compose up -d
- *   PLAYWRIGHT_CHANNEL=chrome npm run test:e2e:gateway
- *
- *   `test:e2e:gateway` sets SENTINEL_E2E_BASE_URL (default
- *   http://localhost:8080): no server is started — the suite drives the stack
- *   already running there, through the Caddy gateway — and the gateway-only
- *   spec (gateway-smoke.spec.ts) runs too. That stack's database is the
- *   deployment's own, not a temp file, so point it at a throwaway stack.
  */
-
-const TEST_PORT = 8099;
-
-/** Absolute path to the temporary SQLite DB for this run, stored in OS temp. */
-export const TEMP_DB_PATH = path.join(os.tmpdir(), `sentinel-e2e-smoke-${Date.now()}.db`);
 
 const channel = process.env.PLAYWRIGHT_CHANNEL;
 
-/** Set to drive an already-running stack (the composed one) instead of starting uvicorn. */
-const externalBaseUrl = process.env.SENTINEL_E2E_BASE_URL;
+/** The gateway of the running stack under test. */
+const baseURL = process.env.SENTINEL_E2E_BASE_URL ?? 'http://localhost:8080';
 
 export default defineConfig({
     testDir: './tests/e2e',
-    // The gateway spec asserts what only Caddy does (/internal/ refused, …);
-    // against bare uvicorn those paths behave differently by design.
-    testIgnore: externalBaseUrl ? [] : ['**/gateway-smoke.spec.ts'],
-    fullyParallel: false, // sequential: tests share the one real server
+    fullyParallel: false, // sequential: tests share the one real stack
     forbidOnly: Boolean(process.env.CI),
     retries: 0, // smoke suite must be deterministic — no flake budget
     workers: 1, // single worker: shared DB state; tests run sequentially
     reporter: [['list'], ['html', { open: 'never', outputFolder: 'tests/e2e/playwright-report' }]],
     timeout: 30_000,
     use: {
-        baseURL: externalBaseUrl ?? `http://localhost:${TEST_PORT}`,
+        baseURL,
         trace: 'on-first-retry',
     },
     projects: [
@@ -76,28 +52,4 @@ export default defineConfig({
             },
         },
     ],
-    globalTeardown: './tests/e2e/globalTeardown.ts',
-    webServer: externalBaseUrl
-        ? undefined
-        : {
-              /**
-               * Start the real FastAPI backend on the test port.
-               *
-               * Key env vars forwarded to the server process:
-               *   DB_PATH — points uvicorn at the isolated temp SQLite file so the test
-               *             run never touches the developer's real backend/sentinel.db.
-               *
-               * `reuseExistingServer: false` forces a fresh server on every run so
-               * CI always starts from a clean state.
-               */
-              command: `DB_PATH=${TEMP_DB_PATH} uv run --project backend uvicorn backend.main:app --port ${TEST_PORT} --log-level warning`,
-              url: `http://localhost:${TEST_PORT}/health`,
-              reuseExistingServer: false,
-              timeout: 60_000,
-              stdout: 'pipe',
-              stderr: 'pipe',
-              env: {
-                  DB_PATH: TEMP_DB_PATH,
-              },
-          },
 });

@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from backend.config import settings
 from backend.core import registry_router
 from backend.core.service_registry import ServiceRegistry
-from backend.main import app
+from tests.in_process_app import app
 from backend.platform.service_manifest import ServiceManifest
 from tests.backend.service_credentials_test_helpers import (
     TOKENS,

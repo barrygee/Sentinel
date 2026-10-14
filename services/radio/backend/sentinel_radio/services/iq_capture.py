@@ -16,18 +16,13 @@ a real NATS request/reply: ``{"ok": True, ...}`` on success, otherwise
 ``not_streaming`` (no broadcaster is running for the radio, so there is no IQ
 to capture), ``error`` (the capture could not be opened), ``not_active`` (stop
 of a capture that isn't running), ``capturing`` (locate of one still being
-written), ``not_found`` (locate of one the hub doesn't hold) or
-``shared_folder`` (discard while the SDR section shares this process: the file
-is then the recording's own, and only the SDR section deletes it).
+written) or ``not_found`` (locate of one the hub doesn't hold).
 
 `db` rides in the start payload, as on every in-process subject (see
 `backend/platform/bus.py`).
 
-Where the file goes depends on whether the SDR section shares this process.
-When it does (the monolith), the capture is written straight into its
-recordings folder and is in place the moment stop replies. Otherwise it goes
-into the hub's own staging folder, ``iq-captures/`` next to its database, and
-the SDR section copies it over HTTP from ``download_url``
+The capture goes into the hub's own staging folder, ``iq-captures/`` next to
+its database, and the SDR section copies it over HTTP from ``download_url``
 (``/internal/radio-hub/iq-captures/<capture_id>`` at the hub's registered
 address, `routers/iq_captures.py`), then deletes it. That folder holds nothing
 but captures waiting to be collected, which is what makes `list` and `discard`
@@ -42,7 +37,6 @@ from pathlib import Path
 from typing import Any
 
 from backend.config import settings
-from backend.modules import shares_process_with
 from backend.platform.bus import EventPayload, bus
 from backend.platform.recording_limits import recording_max_duration_seconds
 
@@ -68,16 +62,11 @@ _capture_time_limits: dict[int, asyncio.TimerHandle] = {}
 
 
 def iq_capture_dir() -> Path:
-    """Where capture files are written: ``<capture dir>/<capture_id>.u8``.
+    """Where capture files are written: the hub's staging folder, ``<capture dir>/<capture_id>.u8``.
 
-    The SDR section's own recordings folder when it runs in this process (the
-    same path as `sentinel_sdr.database.sdr_recordings_dir`, so nothing is copied);
-    otherwise the hub's staging folder, which holds only uncollected captures.
+    It holds only captures the SDR section hasn't collected yet.
     """
-    data_dir = Path(settings.db_path).parent
-    if shares_process_with("sdr"):
-        return data_dir / "recordings"
-    return data_dir / "iq-captures"
+    return Path(settings.db_path).parent / "iq-captures"
 
 
 def capture_path(capture_id: int) -> Path:
@@ -88,11 +77,6 @@ def capture_path(capture_id: int) -> Path:
 def is_capturing(capture_id: int) -> bool:
     """True while capture `capture_id` is still being written."""
     return capture_id in _active_captures
-
-
-def holds_staged_captures() -> bool:
-    """True when this hub's capture folder is its own staging area, not the SDR section's recordings."""
-    return not shares_process_with("sdr")
 
 
 def download_url(capture_id: int) -> str:
@@ -171,16 +155,13 @@ async def _on_locate(payload: EventPayload) -> dict[str, Any]:
 async def _on_list(_payload: EventPayload) -> dict[str, Any]:
     held = set(_active_captures)
     capture_dir = iq_capture_dir()
-    # A shared folder is the SDR section's recordings: none of it is the hub's to report.
-    if holds_staged_captures() and capture_dir.is_dir():
+    if capture_dir.is_dir():
         held.update(int(path.stem) for path in capture_dir.glob("*.u8") if path.stem.isdigit())
     return {"ok": True, "capture_ids": sorted(held)}
 
 
 async def _on_discard(payload: EventPayload) -> dict[str, Any]:
     capture_id = payload["capture_id"]
-    if not holds_staged_captures():
-        return {"ok": False, "reason": "shared_folder"}
     if _stop_capture(capture_id):
         await asyncio.sleep(_FLUSH_GRACE_S)
     capture_path(capture_id).unlink(missing_ok=True)

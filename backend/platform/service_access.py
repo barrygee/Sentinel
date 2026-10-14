@@ -39,8 +39,9 @@ class CallerAccess:
 
 
 SERVICE_ACCESS: dict[str, CallerAccess] = {
-    # The app hosts any section (and the hub) in-process, so whatever a section
-    # may do, core may too; `may_*` below lets it through every check.
+    # Core is the trusted centre (and the test suite's in-process app, which
+    # hosts every section, runs as core): whatever a section may do, core may
+    # too; `may_*` below lets it through every check.
     CORE_USER: CallerAccess(),
     "radio": CallerAccess(registers_as="radio"),
     "space": CallerAccess(registers_as="space"),

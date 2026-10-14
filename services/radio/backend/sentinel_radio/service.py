@@ -48,9 +48,9 @@ async def _prepare() -> None:
 
 app = create_service(
     manifest=manifest,
-    # The monolith includes these interleaved with the SDR section's router to
-    # keep its route order; on their own their order doesn't matter, since no
-    # two of them share a path.
+    # The test suite's in-process app interleaves these with the SDR section's
+    # router to keep the original route order; on their own their order
+    # doesn't matter, since no two of them share a path.
     routers=[radios.router, radio_control.router, decode.router, decoders.router, sentry.router, iq_captures.router],
     # The radio hub's own lifecycle (resumed APRS/AIS decode, the Sentry fleet
     # poller; every broadcaster and bridge stopped and woken on shutdown), with

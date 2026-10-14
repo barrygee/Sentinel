@@ -1,7 +1,7 @@
 """The Space section's schema and startup data work.
 
 `create_space_tables()` builds Space's own tables (its service database, or the
-shared one when core hosts Space in-process); `backfill_satellite_radio_store()`
+test suite's shared one); `backfill_satellite_radio_store()`
 reconciles `backend/data/satellite_radio.json` into core's settings.
 """
 

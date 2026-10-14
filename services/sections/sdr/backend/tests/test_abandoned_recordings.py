@@ -6,8 +6,7 @@ list, and with raw IQ on its hub capture was kept as wanted and written until
 the hub restarted (two of them reached 83 GB each). Pinned here:
   * only "recording" rows older than the `sdr.recordingMaxDurationMinutes` limit end, as
     `status="error"` with an end time and no IQ file;
-  * their capture is discarded on the hub when it runs elsewhere, or stopped
-    and deleted from the recordings folder when it shares this process;
+  * their capture is discarded on the hub (which stops it if still running);
   * an unreachable hub never keeps a row "recording".
 """
 
@@ -30,7 +29,6 @@ from sentinel_sdr.services import sdr_iq_capture_transfer as transfer
 NOW_MS = 1_800_000_000_000
 MAX_DURATION_S = 3600.0
 OLDEST_ALLOWED_MS = NOW_MS - int(MAX_DURATION_S * 1000)
-STOP = "hub.iq-capture.stop"
 DISCARD = "hub.iq-capture.discard"
 
 
@@ -68,29 +66,11 @@ def sessions(test_engine, db_setup, monkeypatch):
 
 
 @pytest.fixture()
-def section_bus(monkeypatch) -> RecordingBus:
-    """The bus this module sends stop on (hub in this process)."""
-    fake_bus = RecordingBus()
-    monkeypatch.setattr(abandoned_recordings, "bus", fake_bus)
-    return fake_bus
-
-
-@pytest.fixture()
 def hub_bus(monkeypatch) -> RecordingBus:
-    """The bus the transfer module sends discard on (hub in another process)."""
+    """The bus the transfer module sends discard on."""
     fake_bus = RecordingBus()
     monkeypatch.setattr(transfer, "bus", fake_bus)
     return fake_bus
-
-
-@pytest.fixture()
-def hub_elsewhere(monkeypatch):
-    monkeypatch.setattr(transfer, "copies_iq_from_hub", lambda: True)
-
-
-@pytest.fixture()
-def hub_in_process(monkeypatch):
-    monkeypatch.setattr(transfer, "copies_iq_from_hub", lambda: False)
 
 
 async def add_recording(
@@ -124,7 +104,7 @@ async def load_recording(sessions, recording_id: int) -> SdrRecording:
 
 
 class TestWhichRecordingsEnd:
-    async def test_ends_a_recording_older_than_the_limit_as_failed(self, sessions, hub_elsewhere, hub_bus):
+    async def test_ends_a_recording_older_than_the_limit_as_failed(self, sessions, hub_bus):
         await add_recording(sessions, 19, created_at=OLDEST_ALLOWED_MS - 1)
 
         ended = await abandoned_recordings.finalise_abandoned_recordings()
@@ -134,13 +114,13 @@ class TestWhichRecordingsEnd:
         assert recording.status == "error"
         assert recording.ended_at.endswith("Z") and recording.ended_at.startswith("20")
 
-    async def test_leaves_a_recording_exactly_at_the_limit_running(self, sessions, hub_elsewhere, hub_bus):
+    async def test_leaves_a_recording_exactly_at_the_limit_running(self, sessions, hub_bus):
         await add_recording(sessions, 19, created_at=OLDEST_ALLOWED_MS)
 
         assert await abandoned_recordings.finalise_abandoned_recordings() == []
         assert (await load_recording(sessions, 19)).status == "recording"
 
-    async def test_leaves_a_recording_younger_than_the_limit_running(self, sessions, hub_elsewhere, hub_bus):
+    async def test_leaves_a_recording_younger_than_the_limit_running(self, sessions, hub_bus):
         await add_recording(sessions, 19, created_at=NOW_MS - 1000, has_iq_file=True)
 
         assert await abandoned_recordings.finalise_abandoned_recordings() == []
@@ -149,7 +129,7 @@ class TestWhichRecordingsEnd:
         assert hub_bus.requests == []
 
     @pytest.mark.parametrize("status", ["complete", "error"])
-    async def test_never_touches_a_finished_recording_however_old(self, sessions, hub_elsewhere, hub_bus, status):
+    async def test_never_touches_a_finished_recording_however_old(self, sessions, hub_bus, status):
         await add_recording(sessions, 18, created_at=0, status=status, has_iq_file=True)
 
         assert await abandoned_recordings.finalise_abandoned_recordings() == []
@@ -157,7 +137,7 @@ class TestWhichRecordingsEnd:
         assert (recording.status, recording.ended_at, recording.has_iq_file) == (status, "", True)
         assert hub_bus.requests == []
 
-    async def test_ends_every_abandoned_recording_in_one_run(self, sessions, hub_elsewhere, hub_bus):
+    async def test_ends_every_abandoned_recording_in_one_run(self, sessions, hub_bus):
         await add_recording(sessions, 1, created_at=0)
         await add_recording(sessions, 2, created_at=OLDEST_ALLOWED_MS - 1)
         await add_recording(sessions, 3, created_at=NOW_MS)
@@ -165,10 +145,10 @@ class TestWhichRecordingsEnd:
         assert sorted(await abandoned_recordings.finalise_abandoned_recordings()) == [1, 2]
         assert (await load_recording(sessions, 3)).status == "recording"
 
-    async def test_nothing_to_end_is_a_no_op(self, sessions, hub_elsewhere, hub_bus):
+    async def test_nothing_to_end_is_a_no_op(self, sessions, hub_bus):
         assert await abandoned_recordings.finalise_abandoned_recordings() == []
 
-    async def test_logs_each_recording_it_ends(self, sessions, hub_elsewhere, hub_bus, caplog):
+    async def test_logs_each_recording_it_ends(self, sessions, hub_bus, caplog):
         await add_recording(sessions, 19, created_at=0)
 
         with caplog.at_level(logging.WARNING, logger=abandoned_recordings.__name__):
@@ -177,28 +157,25 @@ class TestWhichRecordingsEnd:
         assert "Recording 19 was never stopped (started 2026-10-13T08:15:30Z)" in caplog.text
 
 
-class TestWithTheHubElsewhere:
-    async def test_discards_the_capture_on_the_hub_and_drops_the_iq_file(
-        self, sessions, hub_elsewhere, hub_bus, section_bus
-    ):
+class TestDroppingTheCapture:
+    async def test_discards_the_capture_on_the_hub_and_drops_the_iq_file(self, sessions, hub_bus):
         await add_recording(sessions, 19, created_at=0, has_iq_file=True)
 
         await abandoned_recordings.finalise_abandoned_recordings()
 
         recording = await load_recording(sessions, 19)
         assert (recording.has_iq_file, recording.iq_file_size_bytes) == (False, 0)
-        assert hub_bus.requests == [(DISCARD, {"capture_id": 19})]
         # Discard stops a running capture itself: no separate stop.
-        assert section_bus.requests == []
+        assert hub_bus.requests == [(DISCARD, {"capture_id": 19})]
 
-    async def test_sends_nothing_for_a_recording_without_iq(self, sessions, hub_elsewhere, hub_bus, section_bus):
+    async def test_sends_nothing_for_a_recording_without_iq(self, sessions, hub_bus):
         await add_recording(sessions, 19, created_at=0, has_iq_file=False)
 
         await abandoned_recordings.finalise_abandoned_recordings()
 
-        assert hub_bus.requests == section_bus.requests == []
+        assert hub_bus.requests == []
 
-    async def test_an_unreachable_hub_still_ends_the_recording(self, sessions, hub_elsewhere, hub_bus):
+    async def test_an_unreachable_hub_still_ends_the_recording(self, sessions, hub_bus):
         hub_bus.failure = TimeoutError()
         await add_recording(sessions, 19, created_at=0, has_iq_file=True)
 
@@ -207,42 +184,3 @@ class TestWithTheHubElsewhere:
         # The row no longer wants the capture, so the reconcile loop discards it later.
         recording = await load_recording(sessions, 19)
         assert (recording.status, recording.has_iq_file) == ("error", False)
-
-
-class TestWithTheHubInThisProcess:
-    async def test_stops_the_capture_then_deletes_its_file_from_the_recordings(
-        self, sessions, hub_in_process, section_bus, hub_bus
-    ):
-        iq_file = transfer.iq_path(19)
-        iq_file.parent.mkdir(parents=True)
-        iq_file.write_bytes(b"\x7f" * 8)
-        await add_recording(sessions, 19, created_at=0, has_iq_file=True)
-
-        await abandoned_recordings.finalise_abandoned_recordings()
-
-        assert section_bus.requests == [(STOP, {"capture_id": 19})]
-        assert not iq_file.exists()
-        # The shared folder is the recording's own: nothing to discard on the hub.
-        assert hub_bus.requests == []
-        assert (await load_recording(sessions, 19)).has_iq_file is False
-
-    async def test_a_capture_file_already_gone_is_fine(self, sessions, hub_in_process, section_bus):
-        await add_recording(sessions, 19, created_at=0, has_iq_file=True)
-
-        assert await abandoned_recordings.finalise_abandoned_recordings() == [19]
-
-    async def test_a_failed_stop_is_logged_and_the_file_still_deleted(
-        self, sessions, hub_in_process, section_bus, caplog
-    ):
-        section_bus.failure = RuntimeError("no responder")
-        iq_file = transfer.iq_path(19)
-        iq_file.parent.mkdir(parents=True)
-        iq_file.write_bytes(b"\x7f")
-        await add_recording(sessions, 19, created_at=0, has_iq_file=True)
-
-        with caplog.at_level(logging.WARNING, logger=abandoned_recordings.__name__):
-            assert await abandoned_recordings.finalise_abandoned_recordings() == [19]
-
-        assert "Could not stop IQ capture 19: no responder" in caplog.text
-        assert not iq_file.exists()
-        assert (await load_recording(sessions, 19)).status == "error"

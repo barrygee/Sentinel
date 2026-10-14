@@ -23,5 +23,5 @@ async def _stop() -> None:
     await watcher.stop()
 
 
-# Core no longer creates Air's tables, so in-process Air creates them itself.
+# Core never creates Air's tables; Air does, in whatever database its process uses.
 lifecycle = ModuleLifecycle(name="air", prepare=create_air_tables, start=_start, stop=_stop)

@@ -69,10 +69,15 @@ and the shell loads its UI. No gateway or shell edit is needed to add a section.
   six services. The app's `SENTINEL_EXTERNAL_SERVICES` is fixed to all six, so
   it never hosts a section itself. A section is left out with `--scale
   <service>=0`. A radio-host core sets `SENTINEL_RADIO_REPLICAS=0`.
-  In-process hosting (`create_core_app()` in `backend/composition_root.py`
-  including the sections `SENTINEL_EXTERNAL_SERVICES` doesn't list) survives
-  only as the backend test suite's app and the non-Docker
-  `uvicorn backend.main:app` dev loop.
+- **Core never hosts a section** (P8, 2026-10-14). `create_core_app()`
+  (`backend/core/app.py`) builds core only, and all of `backend` is barred from
+  importing a section by import-linter. `SENTINEL_EXTERNAL_SERVICES` is gone, as
+  is the non-Docker `uvicorn backend.main:app` dev loop: `docker compose up`
+  (with live reload) is the only way to run Sentinel. The radio hub always
+  stages IQ captures for the SDR section to collect over HTTP. Only the backend
+  test suite still composes every section in one process
+  (`tests/in_process_app.py`), so the route-order and OpenAPI goldens keep
+  pinning the whole API.
 
 ## Consequences
 
@@ -89,11 +94,9 @@ and the shell loads its UI. No gateway or shell edit is needed to add a section.
   permission table, and a new service or decoder to the access table plus its
   compose credential mount, or it is refused. The route-order and OpenAPI
   goldens fail on any accidental path change.
-- **Two composition roots for now.** `create_core_app()` still carries "host it
-  here unless it runs elsewhere" branches, and code is kept out of the app
-  process by not importing it (sections subscribe to the bus at import). Moving
-  each section's backend into `services/sections/<id>/backend`, and with it the
-  per-service tests, is the follow-up that lets in-process hosting be deleted.
+- **No non-Docker dev loop.** Running Sentinel needs Docker (compose brings
+  NATS, the gateway and the credentials the services authenticate with). The
+  backend tests need neither: they run every section in one process.
 - **Not done from the plan:** `frontend/spa-dist/` is still committed. Images
   build the SPA themselves, but the volume-mounted dev/live flow and the SPA e2e
   suite serve the committed bundle.

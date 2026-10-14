@@ -17,18 +17,24 @@ test.describe('parseSectionDeployments', () => {
         );
     });
 
-    test('an unset or empty value lists nothing (everything in-process)', () => {
+    test('an unset or empty value lists nothing (every section a service)', () => {
         expect(parseSectionDeployments(undefined).size).toBe(0);
         expect(parseSectionDeployments('').size).toBe(0);
     });
 
     test('ignores blank entries and surrounding spaces', () => {
-        expect(parseSectionDeployments(' space : in-process , ,')).toEqual(
-            new Map([['space', 'in-process']]),
+        expect(parseSectionDeployments(' space : absent , ,')).toEqual(
+            new Map([['space', 'absent']]),
         );
     });
 
-    for (const badValue of ['space:servce', 'space', ':service', 'space:service:extra']) {
+    for (const badValue of [
+        'space:servce',
+        'space:in-process',
+        'space',
+        ':service',
+        'space:service:extra',
+    ]) {
         test(`refuses ${JSON.stringify(badValue)}`, () => {
             expect(() => parseSectionDeployments(badValue)).toThrow(/SENTINEL_E2E_SECTIONS/);
         });

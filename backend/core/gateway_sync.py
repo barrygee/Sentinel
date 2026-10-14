@@ -9,8 +9,8 @@ differs from what the registry says, so the copy heals by itself:
 - a restarted gateway comes back with only its static config, which the next
   periodic pass notices and fills in (plan §6: "dynamic ones are re-pushed").
 
-Disabled when `gateway_admin_url` is empty — the all-in-one app (dev-all, the
-tests, `uvicorn` on a laptop) has no gateway in front of it.
+Disabled when `gateway_admin_url` is empty — the test suite's in-process app
+has no gateway in front of it.
 
 The admin API is internal-network only (plan §4.5); nothing here is reachable
 from a browser.

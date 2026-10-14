@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from backend.modules import EXTRACTABLE_SERVICES
 from backend.platform.nats_permissions import (
     CORE_USER,
     EVERY_SUBJECT,
@@ -23,7 +22,7 @@ from backend.platform.nats_permissions import (
 class TestTable:
     def test_every_extractable_service_and_core_has_a_user(self):
         # A service missing here would get no credentials and could never join the bus.
-        assert set(SERVICE_PERMISSIONS) == {CORE_USER, *EXTRACTABLE_SERVICES}
+        assert set(SERVICE_PERMISSIONS) == {CORE_USER, "space", "land", "air", "sea", "radio", "sdr"}
 
     def test_only_core_may_use_every_subject(self):
         unrestricted = [

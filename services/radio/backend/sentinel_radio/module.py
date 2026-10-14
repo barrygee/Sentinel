@@ -1,7 +1,7 @@
 """Radio hub lifecycle: its own table, decode bridges, resumed background decodes, the Sentry fleet poller, IQ broadcasters."""
 
 from backend.config import settings
-from backend.modules.manifest import MONOLITH_VERSION
+from backend.modules.manifest import SENTINEL_VERSION
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
@@ -14,7 +14,7 @@ from sentinel_radio.services.sentry_fleet import fleet_poller
 
 
 async def _prepare() -> None:
-    # Core no longer creates the hub's table, so an in-process hub creates it itself.
+    # Core never creates the hub's table; the hub does, in whatever database its process uses.
     await create_radio_hub_tables()
 
 
@@ -53,7 +53,7 @@ lifecycle = ModuleLifecycle(name="radio", prepare=_prepare, start=_start, stop=_
 manifest = ServiceManifest(
     id="radio",
     kind="radio",
-    version=MONOLITH_VERSION,
+    version=SENTINEL_VERSION,
     displayName="RADIO HUB",
     internalUrl=settings.core_internal_url,
     routes=[

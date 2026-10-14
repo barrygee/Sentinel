@@ -22,7 +22,7 @@ async def seed() -> None:
 
 
 async def _prepare() -> None:
-    # Core no longer creates the SDR section's tables, so in-process SDR creates them itself.
+    # Core never creates the SDR section's tables; it does, in whatever database its process uses.
     await create_sdr_tables()
     await seed()
 

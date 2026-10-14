@@ -18,10 +18,10 @@ from sqlalchemy.pool import StaticPool
 from backend.config import settings
 
 # Run against the code's defaults, not the developer's `.env`. backend/config.py
-# loads the repo's `.env`, which on a live machine holds deployment keys such as
-# SENTINEL_EXTERNAL_SERVICES; read when backend.main is imported below, that
-# would change which sections the app hosts — and so the parity goldens —
-# depending on whose checkout runs the suite. Real environment variables still
+# loads the repo's `.env`, which on a live machine holds deployment keys (the
+# gateway, NATS, credentials files); read when the app is imported below, they
+# would change how it behaves — and so the parity goldens — depending on whose
+# checkout runs the suite. Real environment variables still
 # apply, as in CI. Must run before anything below imports the app.
 settings.__init__(_env_file=None)
 
@@ -35,7 +35,7 @@ import sentinel_sdr.models  # noqa: E402,F401
 import sentinel_sea.models  # noqa: E402,F401
 import sentinel_space.models  # noqa: E402,F401
 from backend.database import Base, get_db  # noqa: E402
-from backend.main import app  # noqa: E402
+from tests.in_process_app import app  # noqa: E402
 
 
 @pytest.fixture()

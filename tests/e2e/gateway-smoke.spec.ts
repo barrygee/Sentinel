@@ -3,10 +3,9 @@ import { isDeployed } from './support/sectionDeployment';
 
 /**
  * Gateway smoke suite — what the Caddy gateway in front of the composed stack
- * must guarantee (section-containers plan §4.4, §4.5). Runs only against a
- * running stack (`npm run test:e2e:gateway`, see playwright.fullstack.config.ts);
- * the rest of the fullstack suite runs through the gateway alongside it, which
- * is the "same UX through Caddy" half of the P5 exit.
+ * must guarantee (section-containers plan §4.4, §4.5), run with the rest of
+ * the full-stack suite against the running stack (`npm run test:e2e:gateway`,
+ * see playwright.fullstack.config.ts).
  *
  * Test inventory:
  *   1. /internal/ is never routed — registration is unreachable from a browser.

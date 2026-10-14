@@ -14,9 +14,10 @@ bus for whoever wants to react to them.
 Nothing is persisted: services re-register when they (or core) restart, so the
 registry is always rebuilt from what is actually running.
 
-In-process registrations are the monolith's own sections (`backend/modules/`):
-they live and die with this process, so they are never probed, and their UI
-remote is served from this process's SPA build.
+In-process registrations are the sections the test suite's in-process app
+hosts itself (`tests/in_process_app.py`): they live and die with this process,
+so they are never probed, and their UI remote is served from this process's SPA
+build. No deployment registers any — every service registers over HTTP.
 """
 
 from __future__ import annotations
@@ -75,14 +76,15 @@ class ServiceRegistry:
     # ── Registration ────────────────────────────────────────────────────────
 
     def register_in_process(self, manifests: list[ServiceManifest], instance_id: str) -> None:
-        """Register the monolith's own sections — at import time, before any request.
+        """Register the sections this process hosts itself — at import time, before any request.
 
-        Synchronous on purpose: `create_core_app()` calls it while building the
-        app, as it includes the routers, so the sections are listed in tests
-        (which skip the lifespan) exactly as in production. There is no one to
-        announce `registry.changed` to that early, so nothing is published.
+        Only the test suite's in-process app does (`tests/in_process_app.py`).
+        Synchronous on purpose: it registers while building the app, so the
+        sections are listed in tests (which skip the lifespan) as a deployment
+        lists the registered services. There is no one to announce
+        `registry.changed` to that early, so nothing is published.
 
-        Raises `RegistrationConflict` when two of the monolith's own manifests
+        Raises `RegistrationConflict` when two of those manifests
         clash — a programming error that must fail the build, not a request.
         """
         for manifest in manifests:
@@ -100,8 +102,8 @@ class ServiceRegistry:
         Re-registering from the same instance replaces its manifest — a service
         restarting with a new version does exactly that. A *different* instance
         may only take an id over once the current holder has failed its probes;
-        a live id is never stolen (plan §3.2.1). The exception is the
-        monolith's in-process copy, which always yields to the real service.
+        a live id is never stolen (plan §3.2.1). The exception is an
+        in-process copy, which always yields to the real service.
 
         Raises `RegistrationConflict` when the id is held by another live
         instance, or a route prefix is already another service's.
@@ -135,8 +137,8 @@ class ServiceRegistry:
 
     def _check_conflicts(self, manifest: ServiceManifest, instance_id: str) -> None:
         current = self._services.get(manifest.id)
-        # The monolith's own copy of a section yields to that section running in
-        # its own container (P6): moving a section out is just starting it.
+        # An in-process copy of a section yields to that section running in its
+        # own container (P6).
         holder_is_live_elsewhere = (
             current is not None and not current.in_process and current.instance_id != instance_id and current.available
         )
@@ -235,5 +237,5 @@ class ServiceRegistry:
 
 
 # Process-wide singleton: the registration endpoint, the section list and the
-# monolith's own registrations must all see the same registry.
+# gateway sync must all see the same registry.
 registry = ServiceRegistry()

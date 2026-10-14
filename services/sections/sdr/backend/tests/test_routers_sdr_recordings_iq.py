@@ -152,8 +152,7 @@ class TestStopAsksTheHub:
 
 @pytest.fixture()
 def hub_elsewhere(monkeypatch) -> dict[str, list[int]]:
-    """The radio hub in its own container; records what the router hands the transfer service."""
-    monkeypatch.setattr(settings, "sentinel_external_services", "radio")
+    """Records what the router hands the transfer service (the hub is always another service)."""
     handed: dict[str, list[int]] = {"collect": [], "discard": []}
     monkeypatch.setattr(sdr_section_router, "schedule_collect", handed["collect"].append)
 
@@ -242,18 +241,3 @@ class TestIqCopiedFromAHubElsewhere:
         assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
         assert hub_elsewhere["discard"] == []
         assert not (tmp_path / "recordings" / f"{recording_id}.u8").exists()
-
-
-class TestIqWrittenInPlaceByAHubInThisProcess:
-    def test_never_pending_nor_copied(self, client, fake_bus, monkeypatch):
-        collected: list[int] = []
-        monkeypatch.setattr(sdr_section_router, "schedule_collect", collected.append)
-        _enable_raw_iq(client)
-        recording_id = _start(client)
-
-        body = _stop(client, recording_id).json()
-
-        assert body["iq_file_pending"] is False
-        assert collected == []
-        # A file that never arrived is simply missing, as before P7.3.
-        assert client.get(f"/api/sdr/recordings/{recording_id}/iq").status_code == 404

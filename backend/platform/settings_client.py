@@ -9,8 +9,8 @@ skips the announcement, which is exactly the hidden coupling the
 section-containers plan removes (B7, B10).
 
 Two modes, chosen by `SENTINEL_CORE_URL`:
-  - unset (the monolith, which is core): the same database helpers the settings
-    router uses, through the caller's session.
+  - unset (core itself, or the test suite's in-process app): the same database
+    helpers the settings router uses, through the caller's session.
   - set (a service in its own container, P6): core's settings API over HTTP —
     `PUT` there stores, announces and mirrors the value to the config file
     exactly as a browser's write does. The `db` argument is then unused; call
@@ -191,7 +191,7 @@ async def delete_secret(db: AsyncSession, namespace: str, key: str) -> None:
     if settings_are_remote():
         await _core_request("DELETE", _secret_url(namespace, key), headers=_credential_header())
         return
-    # Deferred, like read_namespace's: only the monolith touches the table.
+    # Deferred, like read_namespace's: only core touches the table.
     from backend.models import UserSettings
     from sqlalchemy import delete
 

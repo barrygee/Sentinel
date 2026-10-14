@@ -9,8 +9,8 @@ from sentinel_space.database import backfill_satellite_radio_store, create_space
 async def prepare() -> None:
     """Space's schema, then reconcile its radio data file into core's settings.
 
-    Core no longer creates Space's tables, so a core hosting Space in-process
-    needs this as much as Space's own service (`sentinel_space.service`).
+    Core never creates Space's tables: Space's own service
+    (`sentinel_space.service`) and the test suite's in-process app need this.
     """
     await create_space_tables()
     await backfill_satellite_radio_store()

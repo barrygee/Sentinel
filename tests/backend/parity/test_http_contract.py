@@ -20,7 +20,7 @@ import json
 import pytest
 from starlette.routing import Mount, Route, WebSocketRoute
 
-from backend.main import app
+from tests.in_process_app import app
 from tests.backend.parity.conftest import assert_golden, render_json
 
 

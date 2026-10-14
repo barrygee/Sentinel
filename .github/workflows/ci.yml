@@ -137,8 +137,8 @@ jobs:
       #
       # Every other gate here builds its own bundle and tests that, so a stale
       # committed bundle passes all of them and only surfaces at runtime — the
-      # backend serves the committed directory in production (backend/main.py
-      # SPA_DIR), and docker compose bind-mounts it. That gap already shipped
+      # backend serves the committed directory in production (SPA_DIR,
+      # backend/core/app_sections.py), and docker compose bind-mounts it. That gap already shipped
       # twice: #238's dB-label fix was merged without a rebuild and had to be
       # re-released as #241, and #239 landed with its CSS change absent from the
       # bundle.

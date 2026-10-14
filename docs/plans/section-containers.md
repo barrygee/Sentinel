@@ -1,6 +1,6 @@
 # Sentinel — Section Containers Plan
 
-**Status:** complete — P0–P8 delivered 2026-09-30 → 2026-10-13; decision record [ADR 0006](../adr/0006-section-containers.md), operator guide [docs/operations.md](../operations.md) (rev 2, after architecture review; owner decisions resolved 2026-09-30) · **Date:** 2026-09-30 · **Cut against:** `main` @ `99325502`
+**Status:** complete — P0–P8 delivered 2026-09-30 → 2026-10-13, then the section-code moves and in-process hosting deleted (2026-10-14: core never hosts a section; `dev-all` and the non-Docker dev loop are gone — see the ADR); decision record [ADR 0006](../adr/0006-section-containers.md), operator guide [docs/operations.md](../operations.md) (rev 2, after architecture review; owner decisions resolved 2026-09-30) · **Date:** 2026-09-30 · **Cut against:** `main` @ `99325502`
 **Scope:** code-structure and deployment change only — **zero functional or UI change**. Public API paths, WebSocket
 protocols, settings keys and the `sentinel_config.json` shape all stay byte-identical.
 
