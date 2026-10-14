@@ -293,7 +293,7 @@ services:
   # SENTINEL_RADIO_HUB_REPLICAS=0 in this host's .env so core doesn't start one.
   radio-hub:
     <<: *section-service
-    container_name: sentinel-radio
+    container_name: sentinel-radio-hub
     deploy:
       replicas: ${SENTINEL_RADIO_HUB_REPLICAS:-1}
     # It dials rtl_tcp and Sentry hosts: same reason as the app's entry above.
