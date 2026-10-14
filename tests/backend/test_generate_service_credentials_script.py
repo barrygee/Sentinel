@@ -80,7 +80,7 @@ class TestGenerate:
             server / "certificate.pem"
         )
         for user in SERVICE_PERMISSIONS:
-            folder = tmp_path / "services" / user
+            folder = tmp_path / "credentials" / user
             credentials = json.loads((folder / "nats-credentials.json").read_text())
             assert credentials["user"] == user
             assert len(credentials["password"]) >= 40
@@ -94,13 +94,23 @@ class TestGenerate:
                 "http-credentials.json",
                 "nats-credentials.json",
             ]
-            if user in ("core", "radio-hub"):
+            if user in ("core", "radio"):
                 expected.insert(0, "accepted-callers.json")
             assert sorted(path.name for path in folder.iterdir()) == expected
         # Nothing left over from issuing the certificate.
         assert sorted(path.name for path in server.iterdir()) == [
             "certificate.pem", "hostnames.txt", "nats.conf", "private-key.pem",
         ]  # fmt: skip
+
+    def test_caller_folders_live_under_credentials_not_services(self, tmp_path):
+        # `services/` would share its name with the repo's services/ folder.
+        setup.generate(tmp_path)
+        assert setup.CALLER_FOLDERS_DIRECTORY == "credentials"
+        assert sorted(path.name for path in tmp_path.iterdir()) == [
+            "certificate-authority", "credentials", "server",
+        ]  # fmt: skip
+        assert (tmp_path / "credentials" / "radio" / "http-credentials.json").exists()
+        assert not (tmp_path / "credentials" / "radio-hub").exists()
 
     def test_config_requires_tls_and_gives_each_user_its_password_and_permissions(
         self, tmp_path
@@ -118,7 +128,7 @@ class TestGenerate:
         assert set(users) == set(SERVICE_PERMISSIONS)
         for user, entry in users.items():
             credentials = json.loads(
-                (tmp_path / "services" / user / "nats-credentials.json").read_text()
+                (tmp_path / "credentials" / user / "nats-credentials.json").read_text()
             )
             assert entry["password"] == credentials["password"]
             assert entry["permissions"] == server_permissions(user)
@@ -145,7 +155,7 @@ class TestGenerate:
     ):
         setup.generate(tmp_path)
         password = json.loads(
-            (tmp_path / "services" / "land" / "nats-credentials.json").read_text()
+            (tmp_path / "credentials" / "land" / "nats-credentials.json").read_text()
         )["password"]
         monkeypatch.setitem(SERVICE_PERMISSIONS, "land", SERVICE_PERMISSIONS["sdr"])
         capsys.readouterr()
@@ -218,7 +228,7 @@ class TestGenerate:
         after = tmp_path / "certificate-authority" / "certificate.pem"
         assert after.read_bytes() != before
         assert (
-            tmp_path / "services" / "air" / "certificate-authority.pem"
+            tmp_path / "credentials" / "air" / "certificate-authority.pem"
         ).read_bytes() == after.read_bytes()
 
     @pytest.mark.parametrize(
@@ -232,7 +242,7 @@ class TestGenerate:
     )
     def test_unusable_credentials_get_a_new_password(self, tmp_path, content):
         setup.generate(tmp_path)
-        credentials = tmp_path / "services" / "air" / "nats-credentials.json"
+        credentials = tmp_path / "credentials" / "air" / "nats-credentials.json"
         credentials.write_text(content)
         setup.generate(tmp_path)
         rewritten = json.loads(credentials.read_text())
@@ -248,7 +258,7 @@ class TestGenerate:
 
 def _http_credentials(output: Path, caller: str) -> dict:
     return json.loads(
-        (output / "services" / caller / "http-credentials.json").read_text()
+        (output / "credentials" / caller / "http-credentials.json").read_text()
     )
 
 
@@ -270,7 +280,7 @@ class TestHttpCredentials:
         for caller in CALLER_ACCESS:
             expected = 0o644 if caller in DECODER_ACCESS else 0o600
             assert (
-                _mode(tmp_path / "services" / caller / "http-credentials.json")
+                _mode(tmp_path / "credentials" / caller / "http-credentials.json")
                 == expected
             ), caller
 
@@ -278,13 +288,13 @@ class TestHttpCredentials:
         # Decoders don't use the bus: no NATS user, no CA.
         setup.generate(tmp_path)
         for caller in DECODER_ACCESS:
-            folder = tmp_path / "services" / caller
+            folder = tmp_path / "credentials" / caller
             assert [path.name for path in folder.iterdir()] == ["http-credentials.json"]
 
-    @pytest.mark.parametrize("verifier", ["core", "radio-hub"])
+    @pytest.mark.parametrize("verifier", ["core", "radio"])
     def test_verifiers_accept_every_caller_by_hash_only(self, tmp_path, verifier):
         setup.generate(tmp_path)
-        accepted_path = tmp_path / "services" / verifier / "accepted-callers.json"
+        accepted_path = tmp_path / "credentials" / verifier / "accepted-callers.json"
         accepted = json.loads(accepted_path.read_text())
         assert _mode(accepted_path) == 0o600
         assert accepted == {
@@ -301,7 +311,7 @@ class TestHttpCredentials:
     @pytest.mark.parametrize("caller", ["space", "sdr", "stub-decoder"])
     def test_other_services_get_no_accepted_callers_list(self, tmp_path, caller):
         setup.generate(tmp_path)
-        assert not (tmp_path / "services" / caller / "accepted-callers.json").exists()
+        assert not (tmp_path / "credentials" / caller / "accepted-callers.json").exists()
 
     @pytest.mark.parametrize(
         "content",
@@ -316,7 +326,7 @@ class TestHttpCredentials:
         self, tmp_path, content, capsys
     ):
         setup.generate(tmp_path)
-        credentials = tmp_path / "services" / "sea" / "http-credentials.json"
+        credentials = tmp_path / "credentials" / "sea" / "http-credentials.json"
         credentials.write_text(content)
         capsys.readouterr()
         setup.generate(tmp_path)
@@ -324,7 +334,7 @@ class TestHttpCredentials:
         token = _http_credentials(tmp_path, "sea")["token"]
         assert len(token) >= 40
         accepted = json.loads(
-            (tmp_path / "services" / "core" / "accepted-callers.json").read_text()
+            (tmp_path / "credentials" / "core" / "accepted-callers.json").read_text()
         )
         assert accepted[credential_hash(token)] == "sea"
 
@@ -347,11 +357,11 @@ class TestHttpCredentials:
         setup.generate(tmp_path)
         token = _http_credentials(tmp_path, "pocsag-decoder")["token"]
         accepted = json.loads(
-            (tmp_path / "services" / "radio-hub" / "accepted-callers.json").read_text()
+            (tmp_path / "credentials" / "radio" / "accepted-callers.json").read_text()
         )
         assert accepted[credential_hash(token)] == "pocsag-decoder"
         assert (
-            _mode(tmp_path / "services" / "pocsag-decoder" / "http-credentials.json")
+            _mode(tmp_path / "credentials" / "pocsag-decoder" / "http-credentials.json")
             == 0o644
         )
 
@@ -372,7 +382,7 @@ class TestGatewayCertificates:
 
     def test_the_service_entrypoint_gets_a_certificate_from_the_deployment_ca(self, tmp_path):
         setup.generate(tmp_path)
-        folder = tmp_path / "services" / "gateway"
+        folder = tmp_path / "credentials" / "gateway"
         authority = tmp_path / "certificate-authority" / "certificate.pem"
         assert sorted(path.name for path in folder.iterdir()) == [
             "certificate-authority.pem", "certificate.pem", "hostnames.txt", "private-key.pem",
@@ -386,7 +396,7 @@ class TestGatewayCertificates:
     def test_core_hostnames_cover_the_entrypoint_and_the_broker_alike(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SENTINEL_CORE_HOSTNAMES", "sentinel.lan,192.168.5.10")
         setup.generate(tmp_path)
-        entrypoint = _subject_alternative_names(tmp_path / "services" / "gateway" / "certificate.pem")
+        entrypoint = _subject_alternative_names(tmp_path / "credentials" / "gateway" / "certificate.pem")
         broker = _subject_alternative_names(tmp_path / "server" / "certificate.pem")
         assert "DNS:gateway, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in entrypoint
         assert "DNS:nats, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in broker
@@ -394,19 +404,19 @@ class TestGatewayCertificates:
     def test_the_common_name_is_the_first_host_name(self, tmp_path):
         setup.generate(tmp_path)
         subject = subprocess.run(
-            ["openssl", "x509", "-noout", "-subject", "-in", str(tmp_path / "services" / "gateway" / "certificate.pem")],
+            ["openssl", "x509", "-noout", "-subject", "-in", str(tmp_path / "credentials" / "gateway" / "certificate.pem")],
             check=True, capture_output=True, text=True,
         ).stdout  # fmt: skip
         assert "CN=gateway" in subject.replace(" ", "")
 
     def test_no_radio_host_certificate_unless_one_is_named(self, tmp_path):
         setup.generate(tmp_path)
-        assert not (tmp_path / "services" / "radio-host-gateway").exists()
+        assert not (tmp_path / "credentials" / "radio-host-gateway").exists()
 
     def test_a_named_radio_host_gets_its_gateway_certificate(self, tmp_path, monkeypatch, capsys):
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", " radio.lan, 10.0.0.9 ")
         setup.generate(tmp_path)
-        folder = tmp_path / "services" / "radio-host-gateway"
+        folder = tmp_path / "credentials" / "radio-host-gateway"
         certificate = folder / "certificate.pem"
         assert _verifies_against(certificate, tmp_path / "certificate-authority" / "certificate.pem")
         names = _subject_alternative_names(certificate)
@@ -417,12 +427,12 @@ class TestGatewayCertificates:
     def test_renaming_the_radio_host_reissues_only_its_certificate(self, tmp_path, monkeypatch):
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan")
         setup.generate(tmp_path)
-        entrypoint_before = (tmp_path / "services" / "gateway" / "certificate.pem").read_bytes()
-        radio_before = (tmp_path / "services" / "radio-host-gateway" / "certificate.pem").read_bytes()
+        entrypoint_before = (tmp_path / "credentials" / "gateway" / "certificate.pem").read_bytes()
+        radio_before = (tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem").read_bytes()
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio2.lan")
         setup.generate(tmp_path)
-        assert (tmp_path / "services" / "gateway" / "certificate.pem").read_bytes() == entrypoint_before
-        radio_after = tmp_path / "services" / "radio-host-gateway" / "certificate.pem"
+        assert (tmp_path / "credentials" / "gateway" / "certificate.pem").read_bytes() == entrypoint_before
+        radio_after = tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem"
         assert radio_after.read_bytes() != radio_before
         assert "DNS:radio2.lan" in _subject_alternative_names(radio_after)
 
@@ -432,7 +442,7 @@ class TestGatewayCertificates:
         setup.generate(tmp_path)
         monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES")
         setup.generate(tmp_path)
-        assert (tmp_path / "services" / "radio-host-gateway" / "certificate.pem").exists()
+        assert (tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem").exists()
 
 
 class TestHostnameLists:

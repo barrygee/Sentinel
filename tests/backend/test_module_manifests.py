@@ -9,7 +9,7 @@ from backend.platform.service_manifest import route_is_reserved
 
 
 def test_the_monolith_hosts_every_section_and_the_radio_hub():
-    assert [manifest.id for manifest in MANIFESTS] == ["air", "space", "sea", "land", "sdr", "radio-hub"]
+    assert [manifest.id for manifest in MANIFESTS] == ["air", "space", "sea", "land", "sdr", "radio"]
 
 
 def test_sections_are_in_the_shell_registration_order():
@@ -39,8 +39,14 @@ def test_the_manifests_register_together_without_a_conflict():
     ServiceRegistry().register_in_process(list(MANIFESTS), instance_id="core")
 
 
+def test_the_radio_hub_registers_as_radio_of_kind_radio():
+    hub = next(manifest for manifest in MANIFESTS if manifest.kind != "section")
+
+    assert (hub.id, hub.kind) == ("radio", "radio")
+
+
 def test_the_radio_hub_prefixes_all_sit_inside_the_sdr_section():
-    hub = next(manifest for manifest in MANIFESTS if manifest.id == "radio-hub")
+    hub = next(manifest for manifest in MANIFESTS if manifest.id == "radio")
 
     for route in hub.routes:
         assert route.startswith(("/api/sdr/", "/ws/sdr/")), route
