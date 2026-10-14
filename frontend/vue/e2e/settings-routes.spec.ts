@@ -14,6 +14,9 @@ import { snapshotAudioContexts, startSdrPlayback, trackAudioContexts } from './s
 test.use({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required'] } })
 
 const dialog = '#settings-panel.settings-panel-visible'
+// The footer's Settings button, by id: the SDR panel has a SETTINGS accordion
+// of its own, so a role/name locator matches two buttons on the SDR page.
+const footerSettingsButton = '#settings-btn'
 
 test.describe('Settings URLs', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,7 +48,7 @@ test.describe('Settings URLs', () => {
     await page.goto('/space/')
     await waitForShellHydration(page)
 
-    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator(footerSettingsButton).click()
     await expect(page.locator(dialog)).toBeVisible()
     await expect(page).toHaveURL(/\/settings\/app$/)
 
@@ -62,7 +65,7 @@ test.describe('Settings URLs', () => {
   test('Back closes the panel and Forward reopens it on the same section', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
-    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator(footerSettingsButton).click()
     await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="SPACE"]').click()
     await expect(page).toHaveURL(/\/settings\/space$/)
 
@@ -96,7 +99,7 @@ test.describe('Settings URLs leave SDR playback alone', () => {
     expect(before).toMatchObject({ count: 1, state: 'running' })
     const countByCmd = (cmd: string) => recorder.controlCommands.filter((c) => c.cmd === cmd).length
 
-    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator(footerSettingsButton).click()
     await expect(page).toHaveURL(/\/settings\/app$/)
     await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="SDR"]').click()
     await expect(page).toHaveURL(/\/settings\/sdr$/)
