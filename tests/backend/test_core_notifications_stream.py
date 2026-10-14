@@ -169,7 +169,7 @@ class TestStreamEndpoint:
         await response.body_iterator.aclose()
 
     def test_is_routed_under_the_messages_path(self):
-        from backend.main import app
+        from tests.in_process_app import app
 
         paths = {route.path for route in app.routes}
         assert "/api/air/messages/stream" in paths

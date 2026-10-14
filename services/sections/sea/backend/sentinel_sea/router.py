@@ -213,8 +213,8 @@ async def get_feed_status(db: AsyncSession = Depends(get_db)):
 # API (which is exported as config JSON): the settings router redacts this key
 # on read and refuses it on write, and these endpoints are the only way in.
 # It is still stored in core's user_settings: the settings client's secret calls
-# reach it directly in the monolith and over core's /internal/settings/secrets/
-# routes, with Sea's own credential, when Sea runs in its own container (P6.4).
+# reach it over core's /internal/settings/secrets/ routes, with Sea's own
+# credential (P6.4) — or directly, in the test suite's in-process app.
 
 
 @router.get("/ais-key")

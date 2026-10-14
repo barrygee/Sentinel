@@ -1,7 +1,7 @@
 """The radio hub's schema: `create_radio_hub_tables()` builds its one table.
 
-That is its service database's whole schema, or its share of the shared one
-when core hosts the hub in-process.
+That is its service database's whole schema (or its share of the test suite's
+shared one).
 """
 
 from backend.database import create_section_tables

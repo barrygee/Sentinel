@@ -1,7 +1,7 @@
 """The Sea section's tables: the vessel warm-start snapshot and the static-data directory.
 
 They live in the Sea service's own database (`sea.db`). They share core's
-declarative `Base`, so the in-process app and the test suite create them with
+declarative `Base`, so the test suite's in-process app creates them with
 the rest of the schema once this module is imported. The AISStream key is not
 Sea's to store: it is a secret setting, kept in core.
 """

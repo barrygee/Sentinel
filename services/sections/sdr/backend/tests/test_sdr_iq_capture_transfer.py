@@ -99,10 +99,9 @@ class FakeHubHttp:
 
 @pytest.fixture(autouse=True)
 def sdr_section_elsewhere(monkeypatch, tmp_path):
-    """The SDR section in its own container: the hub is in another process; SDR has its own credential."""
+    """The SDR section in its own container, with its own credential."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "sdr.db"))
     monkeypatch.setattr(settings, "sentinel_core_url", "http://app:8000")
-    monkeypatch.setattr(settings, "sentinel_external_services", "")
     present_credential(monkeypatch, tmp_path, "sdr")
     monkeypatch.setattr(transfer, "_hub_reachable", True)
     transfer._collecting.clear()
@@ -170,13 +169,6 @@ def recording_object(recording_id: int, *, has_iq_file: bool = True) -> SdrRecor
 
 
 class TestWhereTheIqLives:
-    def test_copies_when_the_hub_runs_in_another_process(self):
-        assert transfer.copies_iq_from_hub() is True
-
-    def test_does_not_copy_when_the_hub_shares_this_process(self, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_core_url", "")
-        assert transfer.copies_iq_from_hub() is False
-
     def test_iq_path_is_in_the_recordings_folder(self, tmp_path):
         assert transfer.iq_path(3) == tmp_path / "recordings" / "3.u8"
 
@@ -190,11 +182,6 @@ class TestWhereTheIqLives:
 
     def test_not_pending_without_an_iq_capture(self):
         assert transfer.iq_file_pending(recording_object(3, has_iq_file=False)) is False
-
-    def test_never_pending_with_the_hub_in_this_process(self, monkeypatch):
-        # Then a missing file is lost, not on its way.
-        monkeypatch.setattr(settings, "sentinel_core_url", "")
-        assert transfer.iq_file_pending(recording_object(3)) is False
 
 
 class TestFetchIqCapture:
@@ -441,13 +428,6 @@ class TestDiscardHubCapture:
 
 
 class TestReconcile:
-    async def test_does_nothing_when_the_hub_shares_this_process(self, hub_bus, monkeypatch):
-        monkeypatch.setattr(settings, "sentinel_core_url", "")
-
-        await transfer.reconcile_iq_captures()
-
-        assert hub_bus.requests == []
-
     async def test_collects_a_finished_recording_still_waiting_for_its_iq(self, hub_bus, hub_http, sessions, tmp_path):
         await add_recording(sessions, 3)
         hub_bus.replies[LIST] = {"ok": True, "capture_ids": [3]}

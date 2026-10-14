@@ -54,7 +54,7 @@ async def _stop() -> None:
     _cleanup_task = None
 
 
-# Core no longer creates Land's tables, so in-process Land creates them itself.
+# Core never creates Land's tables; Land does, in whatever database its process uses.
 lifecycle = ModuleLifecycle(name="land", prepare=create_land_tables, start=_start, stop=_stop)
 
 manifest = section_manifest("land", display_name="LAND", nav_order=40, routes=["/api/land/"])

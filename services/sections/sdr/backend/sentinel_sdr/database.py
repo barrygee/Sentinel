@@ -1,7 +1,7 @@
 """The SDR section's schema and startup data work.
 
 `create_sdr_tables()` builds the SDR section's own tables (its service
-database, or the shared one when core hosts the section in-process), ALTERs in
+database, or the test suite's shared one), ALTERs in
 the columns added since their first release and backfills them. The seeders
 fill the frequency tables from `backend/data/sdr_frequencies.json` and the band
 plan setting from `sdr_bandplan.json` on first run; the `sync_*` helpers mirror

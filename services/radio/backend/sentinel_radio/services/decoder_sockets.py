@@ -18,9 +18,9 @@ from backend.config import settings
 def advertised_hub_url() -> str:
     """The base URL this radio hub is registered under.
 
-    A hub in its own container advertises ``SERVICE_INTERNAL_URL``; a hub inside
-    the app is registered in-process at ``core_internal_url``. Either way it is
-    the address the gateway already reaches the hub on.
+    The hub's container advertises ``SERVICE_INTERNAL_URL``, the address the
+    gateway already reaches it on. Only the test suite's in-process app, which
+    leaves it unset, registers the hub at ``core_internal_url``.
     """
     return settings.service_internal_url or settings.core_internal_url
 

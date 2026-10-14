@@ -106,18 +106,18 @@ ignore_missing_imports = true
 root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
-name = "Core and platform import no section"
+name = "Core imports no section"
 type = "forbidden"
 allow_indirect_imports = true
+# All of backend: sections and the radio hub run as services of their own, and
+# only the test suite's in-process app (tests/in_process_app.py) imports them.
 source_modules = [
-    "backend.core",
-    "backend.platform",
-    "backend.modules.core",
-    "backend.routers.settings",
-    "backend.routers.offline_map",
-    "backend.services.app_config",
-    "backend.services.app_config_file",
-    "backend.services.offline_map",
+    "backend",
+]
+# A developer script, never imported by the app: it regenerates Land's bundled
+# repeater list (backend/data/uk_repeaters.json) with Land's own parser.
+ignore_imports = [
+    "backend.scripts.refresh_repeaters -> sentinel_land.services.repeaters",
 ]
 forbidden_modules = [
     "sentinel_air",

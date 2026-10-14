@@ -19,7 +19,7 @@ from dataclasses import dataclass
 
 CORE_USER = "core"
 """The app. It is the deployment's root of trust (it holds every setting and
-secret) and can host any section in-process, so it may use every subject."""
+secret), so it may use every subject."""
 
 EVERY_SUBJECT = ">"
 

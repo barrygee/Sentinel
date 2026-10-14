@@ -32,11 +32,10 @@ URL = "/internal/radio-hub/iq-captures"
 
 @pytest.fixture(autouse=True)
 def deployment(monkeypatch, tmp_path):
-    """Credentials, and the app hosting the hub with the SDR section elsewhere (staged captures)."""
+    """Credentials, and the hub's staging folder under a temporary data directory."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "sentinel.db"))
     accept_callers(monkeypatch, tmp_path)
     monkeypatch.setattr(settings, "sentinel_core_url", "")
-    monkeypatch.setattr(settings, "sentinel_external_services", "sdr")
 
 
 @pytest.fixture()
@@ -116,20 +115,10 @@ class TestDelete:
         assert client.delete(f"{URL}/5", headers=AUTHORIZED).status_code == 409
         assert staged.exists()
 
-    def test_refuses_while_the_sdr_section_shares_this_process(self, client, monkeypatch, tmp_path):
-        # Then the "capture" is the recording's own IQ in the SDR recordings folder.
-        monkeypatch.setattr(settings, "sentinel_external_services", "")
-        recordings = tmp_path / "recordings"
-        recordings.mkdir()
-        (recordings / "5.u8").write_bytes(b"recording")
-
-        assert client.delete(f"{URL}/5", headers=AUTHORIZED).status_code == 409
-        assert (recordings / "5.u8").read_bytes() == b"recording"
-
 
 class TestNotPublic:
     def test_is_left_out_of_the_openapi_schema(self):
-        from backend.main import app
+        from tests.in_process_app import app
 
         assert not any(path.startswith(URL) for path in app.openapi()["paths"])
 

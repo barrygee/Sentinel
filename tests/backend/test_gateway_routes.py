@@ -17,7 +17,7 @@ from backend.core.gateway_routes import (
     routing_table,
 )
 from backend.core.service_registry import RegisteredService
-from backend.modules import MANIFESTS
+from tests.in_process_app import IN_PROCESS_MANIFESTS as MANIFESTS
 from backend.platform.service_manifest import RESERVED_ROUTE_PREFIXES, ServiceManifest
 
 CORE_URL = "http://app:8000"

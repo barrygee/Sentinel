@@ -50,14 +50,14 @@ def build_spa(frontend: Path, *, with_fonts: bool = True) -> Path:
     return spa_dir
 
 
-def serve(withheld: frozenset[str] = frozenset()) -> tuple[FastAPI, TestClient]:
+def serve(serve_section_remotes: bool = True) -> tuple[FastAPI, TestClient]:
     app = FastAPI()
 
     @app.get("/api/ping")
     async def ping():
         return {"pong": True}
 
-    spa_serving.mount_spa(app, withheld_remotes=withheld)
+    spa_serving.mount_spa(app, serve_section_remotes=serve_section_remotes)
     return app, TestClient(app)
 
 
@@ -108,15 +108,22 @@ class TestBuiltSpa:
         assert client.get("/assets/sprite.png").content == b"png"
         assert client.get("/assets/missing.png").status_code == 404
 
-    def test_serves_hosted_remotes_and_withholds_external_ones(self, frontend):
+    def test_serves_built_section_remotes_when_asked(self, frontend):
         build_spa(frontend)
-        _app, client = serve(withheld=frozenset({"space"}))
+        _app, client = serve()
 
         assert client.get(f"/remotes/sea/{REMOTE_ENTRY_FILENAME}").status_code == 200
+
+    def test_otherwise_refuses_a_built_section_remote(self, frontend):
+        # Core's own app: each section serves its remote from its container.
+        build_spa(frontend)
+        app, client = serve(serve_section_remotes=False)
+
+        refused = client.get(f"/remotes/sea/{REMOTE_ENTRY_FILENAME}")
         # A 404, never index.html, which the shell would try to run as a remote entry.
-        withheld = client.get(f"/remotes/space/{REMOTE_ENTRY_FILENAME}")
-        assert withheld.status_code == 404
-        assert "content-security-policy" not in withheld.headers
+        assert refused.status_code == 404
+        assert "content-security-policy" not in refused.headers
+        assert "remotes" not in mounted_names(app)
 
     def test_skips_the_fonts_mount_when_the_build_has_no_fonts(self, frontend):
         build_spa(frontend, with_fonts=False)
@@ -147,6 +154,14 @@ class TestUnbuiltSpa:
         assert client.get(f"/remotes/sea/{REMOTE_ENTRY_FILENAME}").status_code == 404
         build_spa(frontend)
         assert client.get(f"/remotes/sea/{REMOTE_ENTRY_FILENAME}").status_code == 200
+
+    def test_a_refused_section_remote_is_a_404_not_the_unbuilt_notice(self, frontend):
+        _app, client = serve(serve_section_remotes=False)
+
+        response = client.get(f"/remotes/sea/{REMOTE_ENTRY_FILENAME}")
+
+        assert response.status_code == 404
+        assert response.json() == {"detail": "Not Found"}
 
     def test_a_partial_build_without_index_html_is_still_unbuilt(self, frontend):
         (build_spa(frontend) / "index.html").unlink()

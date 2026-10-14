@@ -1,7 +1,7 @@
 """The Land section's tables: APRS stations heard on air, and the cached UK repeater directory.
 
 They live in the Land service's own database (`land.db`). They share core's
-declarative `Base`, so the in-process app and the test suite create them with
+declarative `Base`, so the test suite's in-process app creates them with
 the rest of the schema once this module is imported.
 """
 

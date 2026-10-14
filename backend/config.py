@@ -257,15 +257,8 @@ class Settings(BaseSettings):
     offline_progress_sample_s: float = 1.0
 
     # ── Service registry (section-containers plan §3.2) ──────────────────────
-    # Services the monolith must NOT host in-process, comma-separated (e.g.
-    # `space`), because they run in their own containers (P6). Their routers,
-    # lifecycles and in-process registrations are left out. A service that
-    # registers over HTTP takes its id over from the in-process copy anyway;
-    # listing it here also skips the copy's startup work and keeps it gone
-    # when the container is stopped (the "section absent" deployment).
-    sentinel_external_services: str = ""
-    # Where core reaches this process's own sections. The monolith registers
-    # every section in-process with this URL; the gateway (P5.3) routes to it.
+    # Where the gateway (P5.3) reaches core itself, for the prefixes core
+    # serves. The test suite's in-process app also registers every section at it.
     core_internal_url: str = "http://app:8000"
     # Seconds between health probes of each registered service, and how many
     # failed probes in a row mark it unavailable (3 x 10 s, as the plan sets).
@@ -275,7 +268,7 @@ class Settings(BaseSettings):
     # ── Gateway (section-containers plan §4.4) ───────────────────────────────
     # Caddy's admin API, e.g. `http://gateway:2019`, which core pushes the
     # registry's routes into. Empty (the default) means no gateway fronts this
-    # process — the all-in-one app serves every path itself.
+    # process — the test suite's in-process app serves every path itself.
     gateway_admin_url: str = ""
     # Seconds between checks that the gateway still holds the registry's routes
     # (a restarted gateway comes back with only its static config). Registry
@@ -284,7 +277,8 @@ class Settings(BaseSettings):
 
     # ── Event bus (section-containers plan §3.3) ─────────────────────────────
     # NATS server the event bus forwards to, e.g. `nats://nats:4222`. Empty keeps
-    # the bus in-process only — the all-in-one app needs no broker.
+    # the bus in-process only — only the test suite's in-process app, which
+    # hosts every service itself, runs that way.
     nats_url: str = ""
     # This process's NATS user: a JSON file `{"user", "password"}` written by the
     # `service-credentials` compose service
@@ -319,9 +313,9 @@ class Settings(BaseSettings):
 
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's
-    # address on the internal network, e.g. `http://app:8000`. Empty (the
-    # monolith) means this process IS core: settings are read from the local
-    # database rather than over HTTP.
+    # address on the internal network, e.g. `http://app:8000`. Empty means this
+    # process IS core (or the test suite's in-process app): settings are read
+    # from the local database rather than over HTTP.
     sentinel_core_url: str = ""
     # The address core and the gateway reach this service on, e.g.
     # `http://space:8000` — the manifest's `internalUrl`.

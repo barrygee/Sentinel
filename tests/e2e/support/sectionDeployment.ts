@@ -1,19 +1,17 @@
 /**
  * Which deployment each extracted section has in the stack under test
  * (section-containers plan P6), read from SENTINEL_E2E_SECTIONS, e.g.
- * `space:service,land:absent`. A section not listed is `in-process` — how
- * `npm run test:e2e:fullstack` boots the monolith.
+ * `space:service,land:absent`. A section not listed is a `service`, as
+ * `docker compose up` runs every one.
  *
- *   in-process  the app hosts the section itself.
- *   service     the section runs in its own container and the app does not
- *               host it (SENTINEL_EXTERNAL_SERVICES), so only the container
+ *   service     the section runs in its own container, the only place that
  *               can answer for it.
- *   absent      the app does not host it and no container runs it.
+ *   absent      no container runs it (`--scale <service>=0`).
  */
 
-export type SectionDeployment = 'in-process' | 'service' | 'absent';
+export type SectionDeployment = 'service' | 'absent';
 
-const DEPLOYMENTS: readonly SectionDeployment[] = ['in-process', 'service', 'absent'];
+const DEPLOYMENTS: readonly SectionDeployment[] = ['service', 'absent'];
 
 /** Parses SENTINEL_E2E_SECTIONS; throws on a typo so a CI leg can't silently test the wrong thing. */
 export function parseSectionDeployments(value: string | undefined): Map<string, SectionDeployment> {
@@ -39,7 +37,7 @@ const sectionDeployments = parseSectionDeployments(process.env.SENTINEL_E2E_SECT
 
 /** How `sectionId` is deployed in the stack under test. */
 export function deploymentOf(sectionId: string): SectionDeployment {
-    return sectionDeployments.get(sectionId) ?? 'in-process';
+    return sectionDeployments.get(sectionId) ?? 'service';
 }
 
 /** True unless `sectionId` is deployed nowhere. */

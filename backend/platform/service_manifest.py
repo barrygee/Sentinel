@@ -2,9 +2,9 @@
 
 Every Sentinel service (a section, the radio hub, a decoder) registers one of
 these with core on start (plan §3.1, §3.2). Core then lists it to the shell,
-routes its path prefixes through the gateway, and health-probes it. Today the
-monolith registers a manifest per section in-process (`backend/modules/`); once
-a section runs in its own container (P6) it sends the same manifest over HTTP.
+routes its path prefixes through the gateway, and health-probes it. Each
+service sends it over HTTP from its own container (`backend/platform/sdk/`); the
+test suite's in-process app registers the same manifests directly.
 
 The model lives in `platform` rather than `core` because both sides use it:
 core validates what arrives, and each service builds its own.

@@ -2,9 +2,8 @@ import { test, expect, type APIRequestContext, type Page } from '@playwright/tes
 import { deploymentOf, isDeployed } from './support/sectionDeployment';
 
 /**
- * Section deployment suite — each extracted section works the same whether
- * core hosts it in-process, it runs in its own container, or it is not
- * deployed at all (section-containers plan P6: "e2e green with the section
+ * Section deployment suite — each section works when it runs in its own
+ * container, and the rest keep working when it is not deployed at all (section-containers plan P6: "e2e green with the section
  * present *and* absent"). SENTINEL_E2E_SECTIONS says which deployment each
  * section has (see support/sectionDeployment.ts); the gateway-smoke CI job
  * runs this spec once per deployment.

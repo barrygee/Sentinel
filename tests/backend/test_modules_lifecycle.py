@@ -3,7 +3,7 @@ tests/backend/test_modules_lifecycle.py
 
 Tests for backend/modules/ — each module's lifecycle hooks (B8), which took
 over the startup/shutdown sequence that used to live inline in
-core's lifespan (backend/composition_root.py).
+core's lifespan (backend/core/app.py).
 
 The order inside each hook is behaviour (e.g. prune stale settings before the
 seeders, release Sentry pollers before tearing down broadcasters), so each
@@ -16,7 +16,6 @@ from typing import Any
 
 import pytest
 
-from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
 from backend.modules import core
@@ -28,6 +27,8 @@ from sentinel_sea import module as sea
 from sentinel_sdr import module as sdr
 from sentinel_sea.services.ais_stream import reader as ais_reader
 from sentinel_space import module as space
+
+from tests.in_process_app import IN_PROCESS_LIFECYCLES
 
 
 def recorder(calls: list[str], name: str, *, is_async: bool = True) -> Any:
@@ -49,7 +50,7 @@ class TestModuleOrder:
         # prepare: core's schema/settings before section seeders; start: the
         # config file sync (core) before anything resumes radios; the bus
         # connects before (and disconnects after) everything that publishes.
-        assert [module.name for module in modules.MODULES] == [
+        assert [module.name for module in IN_PROCESS_LIFECYCLES] == [
             "bus",
             "core",
             "sdr",
@@ -235,7 +236,7 @@ class TestAirModule:
 
     def test_air_starts_after_the_radio_hub(self):
         # The watcher asks the hub where the off-grid receiver is.
-        order = [module.name for module in modules.MODULES]
+        order = [module.name for module in IN_PROCESS_LIFECYCLES]
         assert order.index("radio") < order.index("air")
 
 
@@ -258,14 +259,11 @@ class TestSdrModule:
 
 
 class TestSdrRecordingsReconcile:
-    """The SDR section ends recordings never stopped and, with the radio hub elsewhere, collects its IQ captures."""
+    """The SDR section ends recordings never stopped and collects the radio hub's IQ captures."""
 
     @pytest.fixture(autouse=True)
-    def hub_elsewhere(self, monkeypatch):
+    def no_reconcile_running(self, monkeypatch):
         monkeypatch.setattr(sdr, "_reconcile_task", None)
-        monkeypatch.setattr(
-            sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: True
-        )
 
         async def no_abandoned_recordings() -> list[int]:
             return []
@@ -297,25 +295,6 @@ class TestSdrRecordingsReconcile:
 
         assert task.cancelled()
         assert sdr._reconcile_task is None
-
-    async def test_starts_even_when_the_hub_writes_in_place(self, monkeypatch):
-        # Abandoned recordings need ending wherever the hub runs.
-        ended = asyncio.Event()
-
-        async def finalise() -> list[int]:
-            ended.set()
-            return []
-
-        monkeypatch.setattr(
-            sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: False
-        )
-        monkeypatch.setattr(
-            sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise
-        )
-
-        await sdr.lifecycle.start()
-        await asyncio.wait_for(ended.wait(), timeout=1)
-        await sdr.lifecycle.stop()
 
     async def test_a_failed_run_is_logged_and_the_loop_runs_again(
         self, monkeypatch, caplog
@@ -502,7 +481,7 @@ class TestSeaModule:
 
     def test_sea_starts_after_the_radio_hub(self):
         # The receiver asks the hub to decode, so the hub must be up first.
-        order = [module.name for module in modules.MODULES]
+        order = [module.name for module in IN_PROCESS_LIFECYCLES]
         assert order.index("radio") < order.index("sea")
 
 
@@ -611,10 +590,9 @@ class TestReconcileNowReportsFailure:
         assert "AIS receiver reconcile failed" in caplog.text
 
 
-class TestComposedLazily:
-    """MODULES and MANIFESTS are composed on first use, not at import (P6.4):
-    a standalone service imports its own backend.modules.<id>, and composing at
-    import would load every other module — the radio hub's responders too."""
+class TestImportedAlone:
+    """A section service imports its own module, which must load no other
+    section's — the radio hub's responders above all (P6.4)."""
 
     def probe(self, code: str) -> list[str]:
         import json
@@ -627,7 +605,6 @@ class TestComposedLazily:
         environment = {
             **os.environ,
             "PYTHONPATH": str(repo_root),
-            "SENTINEL_EXTERNAL_SERVICES": "",
         }
         result = subprocess.run(
             [sys.executable, "-c", code],
@@ -652,33 +629,6 @@ class TestComposedLazily:
             module for module in loaded if not module.startswith("sentinel_land")
         ] == ["backend.modules.manifest"]
         assert "sentinel_land.module" in loaded
-
-    def test_asking_for_modules_composes_every_hosted_one(self):
-        loaded = self.probe(
-            "import json, sys\n"
-            "from backend.modules import MODULES\n"
-            "print(json.dumps([module.name for module in MODULES]))\n"
-        )
-
-        assert loaded == [
-            "bus",
-            "core",
-            "sdr",
-            "space",
-            "radio",
-            "land",
-            "sea",
-            "air",
-        ]
-
-    def test_is_composed_once_and_cached(self):
-        assert modules.MODULES is modules.MODULES
-        assert modules.MANIFESTS is modules.MANIFESTS
-        assert "MODULES" in vars(modules) and "MANIFESTS" in vars(modules)
-
-    def test_an_unknown_attribute_still_raises(self):
-        with pytest.raises(AttributeError, match="NOT_A_THING"):
-            modules.NOT_A_THING  # noqa: B018 — the lookup is the test
 
 
 class TestLandModule:

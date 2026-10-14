@@ -12,9 +12,10 @@ be tested end to end without `mbelib` (dsd-fme) or a real over-the-air signal
 | Read | TCP `pcmFeed` from the config reply | 48 kHz s16 LE PCM, mono (or stereo for two absolute channels), on the host the hub registered |
 | Ingest | `POST /api/sdr/decoders/stub/ingest` | one `{frames, rms, peak}` summary per `REPORT_SECONDS` of PCM |
 
-HTTP goes through Sentinel's gateway, so the stub reaches the hub whether the app
-or the `radio` service hosts it. All calls carry the shared decoder secret (`X-Decode-Secret`), the same one the
-voice, APRS and AIS sidecars use. The hub publishes each event on the bus as
+HTTP goes through Sentinel's gateway, so the stub reaches the hub wherever the
+`radio` service runs. All calls carry the stub's own decoder credential
+(`X-Decode-Secret`), which the hub accepts for the `stub` kind only, as the
+voice, APRS and AIS sidecars carry theirs. The hub publishes each event on the bus as
 `decode.stub.<radioId>` and relays it to the SDR panel's `/ws/sdr/{id}/decode`
 socket.
 
@@ -28,21 +29,12 @@ curl -X POST localhost:8080/api/sdr/decoders/stub/start \
 docker compose logs -f stub-decoder
 ```
 
-Without Docker, from the repo root: generate the credentials into a local
-folder, give the app the callers it accepts and the stub its own credential.
-With no gateway, point the stub straight at the app, and start the app with
-`CORE_INTERNAL_URL` set to its own address, because that is the host the hub's
-config reply names for the PCM feed (the default, `http://app:8000`, only
-resolves on the compose network):
+Without Docker, `tests/backend/test_decoder_stub_contract.py` runs the stub
+against the test suite's in-process app (no radio, no mbelib); CI runs it on
+every PR:
 
 ```bash
-uv run --project backend python -m backend.scripts.generate_service_credentials /tmp/sentinel-credentials
-CORE_INTERNAL_URL=http://localhost:8080 \
-  ACCEPTED_CALLERS_FILE=/tmp/sentinel-credentials/credentials/core/accepted-callers.json \
-  uv run --project backend uvicorn backend.main:app --port 8080
-SENTINEL_GATEWAY_URL=http://localhost:8080 \
-  DECODER_CREDENTIALS_FILE=/tmp/sentinel-credentials/credentials/stub-decoder/http-credentials.json \
-  python decoder/stub/entrypoint.py
+uv run --project backend pytest tests/backend/test_decoder_stub_contract.py
 ```
 
 ## Configuration

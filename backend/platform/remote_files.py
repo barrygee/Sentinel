@@ -1,18 +1,16 @@
 """Serving a section's Module Federation remote (`/remotes/<id>/…`).
 
-Used by core for the sections it hosts (`backend/core/spa_serving.py`) and by a
-section running in its own container for its own remote
-(`backend/platform/sdk/`), so both answer the same way.
+Used by a section running in its own container for its own remote
+(`backend/platform/sdk/`), and by the test suite's in-process app for every
+section (`backend/core/spa_serving.py`), so both answer the same way.
 """
 
 from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
 
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException
 from starlette.responses import Response
 from starlette.types import Scope
 
@@ -26,24 +24,7 @@ class RemotesStaticFiles(StaticFiles):
     like the SPA's index.html, it must never be cached, or a browser keeps
     loading a section's previous build after an upgrade. The chunks themselves
     stay cacheable.
-
-    `withheld` names sections whose remotes this process must not serve even
-    though their files are in the build: the monolith withholds a section that
-    runs in its own container (or isn't deployed), so its remote can only ever
-    come from the service that actually serves its API — never a stale copy.
     """
-
-    def __init__(self, *args: Any, withheld: frozenset[str] = frozenset(), **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.withheld = withheld
-
-    def get_path(self, scope: Scope) -> str:
-        path = super().get_path(scope)
-        section_id = Path(path).parts[0] if Path(path).parts else ""
-        if section_id in self.withheld:
-            # Raised as Starlette does for any missing file: a plain 404.
-            raise HTTPException(status_code=404)
-        return path
 
     async def check_config(self) -> None:
         # Before the SPA is built there is no remotes/ directory, and Starlette

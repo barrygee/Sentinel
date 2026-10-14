@@ -1,10 +1,10 @@
-"""The manifests the monolith registers for itself (backend/modules/)."""
+"""The manifests each service registers, as the test suite's in-process app registers them (tests/in_process_app.py)."""
 
 from backend.config import settings
 from backend.core.service_registry import ServiceRegistry, registry
-from backend.main import app  # noqa: F401 — importing the app registers the manifests
-from backend.modules import MANIFESTS
-from backend.modules.manifest import MONOLITH_VERSION, SECTION_EXPOSES, section_manifest
+from tests.in_process_app import app  # noqa: F401 — importing the app registers the manifests
+from tests.in_process_app import IN_PROCESS_MANIFESTS as MANIFESTS
+from backend.modules.manifest import SENTINEL_VERSION, SECTION_EXPOSES, section_manifest
 from backend.platform.service_manifest import route_is_reserved
 
 
@@ -23,7 +23,7 @@ def test_sections_are_in_the_shell_registration_order():
 
 def test_every_manifest_points_at_this_process():
     assert {manifest.internal_url for manifest in MANIFESTS} == {settings.core_internal_url}
-    assert {manifest.version for manifest in MANIFESTS} == {MONOLITH_VERSION}
+    assert {manifest.version for manifest in MANIFESTS} == {SENTINEL_VERSION}
 
 
 def test_each_section_has_a_remote_and_the_radio_hub_has_none():

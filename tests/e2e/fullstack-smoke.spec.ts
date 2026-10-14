@@ -4,10 +4,9 @@ import { isDeployed } from './support/sectionDeployment';
 /**
  * Full-stack integration smoke suite for Sentinel.
  *
- * These tests boot the REAL FastAPI backend against an ephemeral SQLite
- * database (see playwright.fullstack.config.ts for the isolation approach),
- * serve the committed SPA bundle via the FastAPI catch-all route, and drive
- * a real browser against the running stack.
+ * These tests drive a real browser against a running composed stack (see
+ * playwright.fullstack.config.ts): the gateway, core serving the committed SPA
+ * bundle via its catch-all route, and the section services.
  *
  * Scope: deterministic integration paths only — no live ADS-B upstream, no
  * Celestrak TLE fetch, no rtl_tcp SDR hardware. The point is to prove that

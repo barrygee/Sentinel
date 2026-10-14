@@ -3,7 +3,7 @@
 `create_service()` turns a section's routers, lifecycle and manifest into a
 standalone app that:
   - runs the section's own lifecycle, with the SIGTERM/SIGINT wake chain
-    (`backend/platform/lifecycle.py`) exactly as the monolith does;
+    (`backend/platform/lifecycle.py`) exactly as core does;
   - connects the event bus to NATS when `NATS_URL` is set;
   - registers its manifest with core and keeps it registered
     (`registration.py`), advertising `SERVICE_INTERNAL_URL`;
@@ -13,10 +13,10 @@ standalone app that:
 Settings stay in core: with `SENTINEL_CORE_URL` set, the settings client reads
 and writes them over HTTP (`backend/platform/settings_client.py`). The service's
 own data lives in its own SQLite file (`DB_PATH`); `legacy_import.py` copies it
-out of the monolith's database on first boot.
+out of the pre-split database (`sentinel.db`) on first boot.
 
-The section's code is the same code the monolith runs in-process — moved, not
-rewritten — so the two composition roots can't drift apart.
+The test suite's in-process app (`tests/in_process_app.py`) runs the very same
+routers and lifecycles, so what the tests exercise is what a service runs.
 """
 
 from __future__ import annotations
@@ -165,7 +165,7 @@ def create_service(
         )
 
     if advertised.ui is not None and remote_dir is not None:
-        # Same caching rules as the monolith's /remotes mount; a missing build is a 404.
+        # Same caching rules as the test app's /remotes mount; a missing build is a 404.
         app.mount(
             f"/remotes/{advertised.id}",
             RemotesStaticFiles(directory=str(remote_dir), check_dir=False),

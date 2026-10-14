@@ -18,7 +18,7 @@ For *what the project is* and how to run it day-to-day, see the
 | [uv](https://docs.astral.sh/uv/) | latest | Python/backend dependency + venv management |
 | Python | 3.12+ | Backend (managed by uv) |
 | Node.js | 24–25 (`nvm use` — see `.nvmrc`) | Frontend SPA + root helper tests; CI pins Node 24 |
-| Docker + Docker Compose | latest | Containerised run/build (optional for local dev) |
+| Docker + Docker Compose | latest | **Required to run Sentinel** — core, every section, the radio hub, NATS and the gateway all run as containers (the backend tests don't need it) |
 
 You do **not** need a global Python or pytest install — always invoke Python
 tooling through `uv run --project backend …` so it resolves the backend venv (see
@@ -99,11 +99,9 @@ The fast feedback loop is two terminals: the backend on `:8080` and the Vite dev
 server on `:5173`, which proxies `/api`, `/ws` and `/assets` to it:
 
 ```bash
-# Terminal 1 — backend on :8080
+# Terminal 1 — the backend services on :8080 (core, every section, the radio
+# hub, NATS and the gateway), with backend code live-reloaded
 docker compose up
-#   …or without Docker, from the repo root (dev only: one process hosts every
-#   section in-process, with no gateway or broker):
-#   uv run --project backend uvicorn backend.main:app --reload --port 8080
 
 # Terminal 2 — Vite dev server with hot module reload
 cd frontend/vue && npm run dev    # http://localhost:5173
@@ -138,11 +136,18 @@ uv run --project backend pytest                      # tests
   the linting retrofit — see [`cliff.toml`](cliff.toml) / `backend/pyproject.toml`
   `[tool.ruff.format]`). CI runs `ruff format --check`; run `ruff format backend services/sections services/radio`
   to auto-fix. The ruff *lint* ruleset is intentionally conservative (`E,F,I,UP,B`).
-- **import-linter keeps the sections apart**: core and the platform may import
-  no section, and no section may import another (contracts in
-  `backend/pyproject.toml`). Sections talk over the event bus instead. Only
-  `backend/composition_root.py` (core's app factory) and `backend/modules/`
-  may compose them.
+- **The backend tests need no Docker.** They run against one all-in-one app,
+  `tests/in_process_app.py`: core's own factory (`create_core_app()`,
+  `backend/core/app.py`) given every section's and the radio hub's routers,
+  lifecycles and manifests, in the original route order (the parity goldens pin
+  it). No deployment runs that app — under compose each section and the hub is
+  its own service — so a new section must be added there too, or its routes
+  are untested.
+- **import-linter keeps the sections apart**: no part of `backend` may import a
+  section, and no section may import another (contracts in
+  `backend/pyproject.toml`). Sections talk over the event bus instead. Each
+  runs as its own service; only the test suite's in-process app imports them
+  all.
 - **mypy is informational, not gating** (~90 known SQLAlchemy-typing errors).
   `uv run --project backend mypy backend` if you want to see it.
 
@@ -190,14 +195,18 @@ composition root) and SPA specs may import `@sentinel/section-*`.
 ```bash
 npm run lint      # ESLint + Prettier --check (gating)
 npm run typecheck # tsc --noEmit over tsconfig.json (gating)
-npm run test:e2e:fullstack   # full-stack smoke: boots uvicorn on :8099 against a temp DB
-npm run test:e2e:gateway     # same suite + gateway checks, through a running `docker compose up` stack on :8080
+npm run test:e2e:gateway     # full-stack smoke + gateway checks, through a running `docker compose up` stack on :8080
 ```
 
 `test:e2e:gateway` is the gating `gateway-smoke` CI job, run once per section
-deployment (every section; only SDR; all but SDR). Set `SENTINEL_E2E_SECTIONS`
-(e.g. `space:service,sdr:absent`) to tell it which sections the stack under
-test runs.
+deployment (every section; only SDR; all but SDR). It starts no server: bring a
+stack up first (`docker compose up -d --wait`) and point the suite at its
+gateway with `SENTINEL_E2E_BASE_URL` (default `http://localhost:8080`). It
+writes to that stack's databases, so use a throwaway one. Set
+`SENTINEL_E2E_SECTIONS` (e.g. `space:service,sdr:absent`) to tell it which
+sections the stack under test runs; an unlisted section is a `service`. Add
+`PLAYWRIGHT_CHANNEL=chrome` to use your installed Chrome instead of
+downloading Playwright's browser.
 
 The root `tsconfig.json` covers the same surface the root lint run does — the
 repo-root config files plus the full-stack e2e specs in `tests/e2e/`. Keep its

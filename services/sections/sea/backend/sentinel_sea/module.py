@@ -52,7 +52,7 @@ async def _stop() -> None:
     await ais_reader.stop()
 
 
-# Core no longer creates Sea's tables, so in-process Sea creates them itself.
+# Core never creates Sea's tables; Sea does, in whatever database its process uses.
 lifecycle = ModuleLifecycle(name="sea", prepare=create_sea_tables, start=_start, stop=_stop, wake=ais_reader.wake)
 
 manifest = section_manifest("sea", display_name="SEA", nav_order=30, routes=["/api/sea/"])

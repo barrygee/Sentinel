@@ -1,7 +1,7 @@
 """The SDR section's tables: frequency groups, stored frequencies, their group links, scanner search ranges, recordings.
 
 They live in the SDR service's own database (`sdr.db`). They share core's
-declarative `Base`, so the in-process app and the test suite create them with
+declarative `Base`, so the test suite's in-process app creates them with
 the rest of the schema once this module is imported. The radios themselves are
 not the SDR section's: they are a core setting (`sdr.radios`), and the legacy
 `sdr_radios` table they were migrated out of stays in core.

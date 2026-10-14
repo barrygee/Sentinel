@@ -10,8 +10,7 @@ the hub went on writing it (~4 MB/s) until it restarted.
 
 `finalise_abandoned_recordings` ends every recording older than the
 `sdr.recordingMaxDurationMinutes` setting (`backend/platform/recording_limits.py`): the row becomes `status="error"` with
-no IQ file, and its capture is stopped and deleted — on the hub when it runs
-in another process, in the recordings folder when it shares this one. The SDR
+no IQ file, and the hub stops and deletes its capture. The SDR
 lifecycle runs it every `RECONCILE_INTERVAL_S`.
 """
 
@@ -23,7 +22,6 @@ import logging
 from backend.cache import now_ms
 from backend.database import AsyncSessionLocal
 from backend.platform import recording_limits
-from backend.platform.bus import bus
 from sqlalchemy import select
 
 from sentinel_sdr.models import SdrRecording
@@ -69,16 +67,6 @@ async def finalise_abandoned_recordings() -> list[int]:
 
 async def _drop_iq_capture(recording_id: int) -> None:
     """Stop and delete an abandoned recording's IQ capture, best effort."""
-    # Module lookups at call time, so tests can place the hub in or out of process.
-    if sdr_iq_capture_transfer.copies_iq_from_hub():
-        # Discard stops a running capture as well. If the hub is unreachable the
-        # reconcile loop discards it later: the row no longer wants it.
-        await sdr_iq_capture_transfer.discard_hub_capture(recording_id)
-        return
-    # The hub shares this process and writes into the recordings folder, so the
-    # file is the recording's own: stop the capture, then delete it here.
-    try:
-        await bus.request("hub.iq-capture.stop", {"capture_id": recording_id})
-    except Exception as error:  # noqa: BLE001 - a missing responder must not keep the row "recording"
-        logger.warning("Could not stop IQ capture %d: %s", recording_id, error)
-    sdr_iq_capture_transfer.iq_path(recording_id).unlink(missing_ok=True)
+    # Discard stops a running capture as well. If the hub is unreachable the
+    # reconcile loop discards it later: the row no longer wants it.
+    await sdr_iq_capture_transfer.discard_hub_capture(recording_id)
