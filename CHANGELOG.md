@@ -495,6 +495,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop the preview server forwarding unmocked API calls to :8080
 - Reuse a Sentry host's session across clients
 - Repair the radio-hub replicas block spliced mid-comment
+- End recordings the browser never stopped, and cap IQ captures
+- Make the recording length limit a Settings › SDR setting
 
 ### Chores
 
@@ -1506,6 +1508,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #474 from barrygee/refactor/section-move-air
 - Merge pull request #475 from barrygee/refactor/section-move-sea
 - Merge pull request #476 from barrygee/refactor/section-move-sdr
+- Merge pull request #477 from barrygee/fix/sdr-abandoned-recordings
 
 ### Refactoring
 
@@ -1722,6 +1725,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the radio host's TLS plumbing (P7.5a)
 - Cover create_core_app() and core's SPA serving
 - Cover the SDR section's schema upgrades
+- Cover ending abandoned recordings and the IQ capture limit
+- Cover the recording length setting
 
 ### Build System
 
