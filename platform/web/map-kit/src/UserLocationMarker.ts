@@ -2,7 +2,7 @@ import * as maplibregl from 'maplibre-gl'
 
 /**
  * The dot colour of the operator's own position: the map palette's
- * `--map-location-dot` (lime on the dark map, green on the light one).
+ * `--map-location-dot` (the app lime on both map palettes).
  */
 export const LOCATION_MARKER_DOT_COLOR = 'var(--map-location-dot)'
 

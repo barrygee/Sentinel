@@ -525,7 +525,7 @@ function escapeHtml(value: string): string {
  *
  * On the dark map it is the off-white the settings panel is built on, against
  * the lime dot of the operator's own location marker; on the light map both
- * marks go dark (black, against a green dot). Either way the two are
+ * rings go dark and this dot goes black, against the lime one. Either way the two are
  * unmistakable side by side, and this one reads as a fixed installation rather
  * than a live position. A CSS variable, not a hex, so a marker already on the
  * map follows a palette switch. The ring is shared with the location marker —
