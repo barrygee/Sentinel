@@ -385,6 +385,8 @@ function selectSection(key: string): void {
   activeSection.value = key
   searchQuery.value = ''
   pending.value.clear()
+  // The store names the section too, so the URL follows it (`/settings/<key>`).
+  store.activeSection = key
 }
 
 function clearSearch(): void {
@@ -444,6 +446,15 @@ async function commitAll(): Promise<void> {
   }, 1200)
 }
 
+// A settings URL picked while the panel is open (`/settings/<key>`) switches to
+// it, just as clicking that section in the nav does.
+watch(
+  () => store.activeSection,
+  (section) => {
+    if (store.open && section && section !== activeSection.value) selectSection(section)
+  },
+)
+
 watch(
   () => store.open,
   (isOpen) => {
@@ -459,10 +470,14 @@ watch(
           activeSection.value = reopenSection
         }
       } catch {}
+      // Report the section that opened, so the URL names it.
+      store.activeSection = activeSection.value
     } else {
       searchQuery.value = ''
       pending.value.clear()
     }
   },
+  // Immediate: a settings URL opens the panel before it has mounted.
+  { immediate: true },
 )
 </script>

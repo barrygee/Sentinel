@@ -111,7 +111,7 @@
   </nav>
 
   <main id="main" ref="mainRef" tabindex="-1">
-    <RouterView />
+    <RouterView :route="viewRoute" />
   </main>
 
   <aside class="app-sidebar-region" aria-label="Map controls">
@@ -140,7 +140,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
@@ -155,8 +154,13 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import { useViewRoute } from '@/router/settingsRoute'
+import { useSettingsRouteSync } from '@/composables/useSettingsRouteSync'
 
-const route = useRoute()
+// The page on screen. Under a settings URL that is the page Settings opened
+// over, so the panel opening changes nothing behind it (router/settingsRoute.ts).
+const viewRoute = useViewRoute()
+useSettingsRouteSync()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
 const { locationUnavailable, start: startGps, hydrateFromConfig } = useUserLocation()
@@ -263,24 +267,24 @@ watch(menuOpen, (open) => {
 
 // Close mobile nav overlay on route change
 watch(
-  () => route.path,
+  () => viewRoute.value.path,
   () => {
     menuOpen.value = false
   },
 )
 
-const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
+const isSdrRoute = computed(() => viewRoute.value.path.startsWith('/sdr'))
 // The section on screen (each section route carries its id as `meta.domain`),
 // for the footer's registered items.
-const activeSectionId = computed(() => (route.meta.domain as string | undefined) ?? '')
+const activeSectionId = computed(() => (viewRoute.value.meta.domain as string | undefined) ?? '')
 
 // Air, Space and Sea render a right-edge controls rail (#side-menu /
 // #space-side-menu / #sea-side-menu); the footer's side-menu toggle keys off this.
 const hasRightSideMenu = computed(
   () =>
-    route.path.startsWith('/air') ||
-    route.path.startsWith('/space') ||
-    route.path.startsWith('/sea'),
+    viewRoute.value.path.startsWith('/air') ||
+    viewRoute.value.path.startsWith('/space') ||
+    viewRoute.value.path.startsWith('/sea'),
 )
 
 watch(isSdrRoute, (isSdr) => {
@@ -322,7 +326,7 @@ function titleForPath(path: string): string {
 // on an actual route change (not the initial load) move focus to the main region
 // so the change isn't silent. WCAG 2.4.2 Page Titled / 2.4.3 Focus Order.
 watch(
-  () => route.path,
+  () => viewRoute.value.path,
   (path, previousPath) => {
     document.title = titleForPath(path)
     if (previousPath !== undefined) {
