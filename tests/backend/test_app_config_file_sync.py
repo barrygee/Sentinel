@@ -23,7 +23,8 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as db
 from backend.config import resolved_app_config_path, settings
-from backend.models import SdrSearchRange, UserSettings
+from backend.models import UserSettings
+from sentinel_sdr.models import SdrSearchRange
 from backend.services import app_config_file
 from backend.services.app_config_file import (
     FILE_COMMENT,

@@ -36,6 +36,7 @@ from backend.config import settings as app_settings
 from backend.models import UserSettings
 from backend.services.app_config import apply_config, build_config_snapshot
 from sentinel_space import database as space_database
+from sentinel_sdr import database as sdr_database
 from tests.backend.parity.conftest import assert_golden, render_json
 
 # Fixed overrides for the settings whose defaults `_build_default_settings()`
@@ -74,8 +75,8 @@ async def _run_fresh_install_seeders() -> None:
     await database_module.migrate_sdr_radios_to_settings()
     await database_module.seed_default_settings()
     await database_module.resolve_retired_auto_modes()
-    await database_module.seed_sdr_data_from_files()
-    await database_module.seed_sdr_bandplan_from_file()
+    await sdr_database.seed_sdr_data_from_files()
+    await sdr_database.seed_sdr_bandplan_from_file()
     await space_database.backfill_satellite_radio_store()
 
 

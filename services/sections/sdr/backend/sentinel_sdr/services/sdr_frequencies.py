@@ -70,12 +70,13 @@ async def reconcile_sdr_frequencies(db: AsyncSession, payload: list, catalogue: 
     or hand-written config that omits sdr.groups) this is relaxed: slugs
     referenced by a frequency are auto-created so such imports are not wiped.
     All existing frequencies are always rebuilt from the payload."""
-    from backend.models import (
+    from backend.utils import InvalidGroupName, clean_group_name, slugify
+
+    from sentinel_sdr.models import (
         SdrFrequencyGroup,
         SdrFrequencyGroupLink,
         SdrStoredFrequency,
     )
-    from backend.utils import InvalidGroupName, clean_group_name, slugify
 
     existing_groups = (await db.execute(select(SdrFrequencyGroup))).scalars().all()
     by_slug: dict[str, SdrFrequencyGroup] = {g.slug: g for g in existing_groups if g.slug}

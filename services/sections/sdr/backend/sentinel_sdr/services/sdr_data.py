@@ -87,8 +87,9 @@ async def reconcile_search_ranges(db: AsyncSession, ranges: list) -> None:
     rows with the supplied list. Skips malformed/invalid entries (low<high,
     step>0) rather than aborting. Does not commit (caller commits)."""
     from backend.cache import now_ms
-    from backend.models import SdrSearchRange
     from sqlalchemy import delete
+
+    from sentinel_sdr.models import SdrSearchRange
 
     await db.execute(delete(SdrSearchRange))
     ts = now_ms()

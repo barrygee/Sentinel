@@ -89,6 +89,7 @@ _MOVED_MODULES: dict[str, str] = {
     "land": "sentinel_land.module",
     "air": "sentinel_air.module",
     "sea": "sentinel_sea.module",
+    "sdr": "sentinel_sdr.module",
 }
 
 

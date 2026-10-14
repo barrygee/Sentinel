@@ -29,6 +29,7 @@ from backend import models  # noqa: E402,F401 — register ORM models with Base
 # Each moved section's tables, so `db_setup` builds the whole schema.
 import sentinel_air.models  # noqa: E402,F401
 import sentinel_land.models  # noqa: E402,F401
+import sentinel_sdr.models  # noqa: E402,F401
 import sentinel_sea.models  # noqa: E402,F401
 import sentinel_space.models  # noqa: E402,F401
 from backend.database import Base, get_db  # noqa: E402
@@ -94,7 +95,7 @@ def isolate_sdr_data_files(tmp_path, monkeypatch):
     (e.g. a single test frequency). Redirect both paths into a per-test tmp dir;
     monkeypatch reverts them afterwards.
     """
-    from backend.services import sdr_data
+    from sentinel_sdr.services import sdr_data
 
     monkeypatch.setattr(sdr_data, "FREQUENCIES_FILE", tmp_path / "sdr_frequencies.json")
     monkeypatch.setattr(sdr_data, "BANDPLAN_FILE", tmp_path / "sdr_bandplan.json")

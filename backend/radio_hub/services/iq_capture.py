@@ -67,7 +67,7 @@ def iq_capture_dir() -> Path:
     """Where capture files are written: ``<capture dir>/<capture_id>.u8``.
 
     The SDR section's own recordings folder when it runs in this process (the
-    same path as `backend.database.sdr_recordings_dir`, so nothing is copied);
+    same path as `sentinel_sdr.database.sdr_recordings_dir`, so nothing is copied);
     otherwise the hub's staging folder, which holds only uncollected captures.
     """
     data_dir = Path(settings.db_path).parent

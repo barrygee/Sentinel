@@ -129,7 +129,7 @@ def _sdr_prefix_routers() -> list[APIRouter]:
 
         routers.append(hub_radios_router.router)
     if hosts_in_process("sdr"):
-        from backend.routers import sdr as sdr_router
+        from sentinel_sdr import router as sdr_router
 
         routers.append(sdr_router.router)
     if hosts_radio_hub:

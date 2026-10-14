@@ -22,6 +22,7 @@ dependencies = [
     # Each section's backend package (services/sections/<id>/backend), installed editable.
     "sentinel-air",
     "sentinel-land",
+    "sentinel-sdr",
     "sentinel-sea",
     "sentinel-space",
 ]
@@ -29,6 +30,7 @@ dependencies = [
 [tool.uv.sources]
 sentinel-air = { path = "../services/sections/air/backend", editable = true }
 sentinel-land = { path = "../services/sections/land/backend", editable = true }
+sentinel-sdr = { path = "../services/sections/sdr/backend", editable = true }
 sentinel-sea = { path = "../services/sections/sea/backend", editable = true }
 sentinel-space = { path = "../services/sections/space/backend", editable = true }
 
@@ -97,7 +99,7 @@ ignore_missing_imports = true
 # crossing with the phase that removes it — delete the entry when it goes.
 [tool.importlinter]
 # Core plus each section package that has moved out of backend/ (services/sections/<id>/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_sea", "sentinel_space"]
+root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_sdr", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core and platform import no section"
@@ -118,8 +120,7 @@ forbidden_modules = [
     "sentinel_space",
     "sentinel_sea",
     "sentinel_land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -134,8 +135,7 @@ forbidden_modules = [
     "sentinel_space",
     "sentinel_sea",
     "sentinel_land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -150,8 +150,7 @@ forbidden_modules = [
     "sentinel_air",
     "sentinel_sea",
     "sentinel_land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -166,8 +165,7 @@ forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
     "sentinel_land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -182,8 +180,7 @@ forbidden_modules = [
     "sentinel_air",
     "sentinel_space",
     "sentinel_sea",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
     "backend.radio_hub", "backend.modules.radio_hub",
 ]
 
@@ -192,9 +189,7 @@ name = "SDR section imports no other section"
 type = "forbidden"
 allow_indirect_imports = true
 source_modules = [
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
-    "backend.standalone.sdr",
+    "sentinel_sdr",
 ]
 forbidden_modules = [
     "sentinel_air",
@@ -216,6 +211,5 @@ forbidden_modules = [
     "sentinel_space",
     "sentinel_sea",
     "sentinel_land",
-    "backend.routers.sdr", "backend.services.sdr_data", "backend.services.sdr_frequencies",
-    "backend.services.sdr_iq_capture_transfer", "backend.modules.sdr",
+    "sentinel_sdr",
 ]

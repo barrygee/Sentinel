@@ -84,6 +84,7 @@ COPY backend/pyproject.toml backend/uv.lock ./backend/
 # The lock check reads each section package's metadata from its pyproject.toml.
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
+COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
 COPY services/sections/sea/backend/pyproject.toml ./services/sections/sea/backend/
 COPY services/sections/space/backend/pyproject.toml ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -103,6 +104,7 @@ COPY --chown=sentinel:sentinel backend/ ./backend/
 # frontend packages are compiled into spa-dist by the stage above.
 COPY --chown=sentinel:sentinel services/sections/air/backend/ ./services/sections/air/backend/
 COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
+COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/sections/sdr/backend/
 COPY --chown=sentinel:sentinel services/sections/sea/backend/ ./services/sections/sea/backend/
 COPY --chown=sentinel:sentinel services/sections/space/backend/ ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
