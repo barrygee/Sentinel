@@ -1,7 +1,7 @@
 """SDR section router — frequency storage, band plan and recordings.
 
 Radios, connections, the spectrum/IQ WebSockets and decode live in the radio
-hub (`backend/radio_hub/`); this router keeps what belongs to the SDR section.
+hub (`sentinel_radio/`); this router keeps what belongs to the SDR section.
 
   GET    /api/sdr/groups                  — list frequency groups (with frequencies)
   POST   /api/sdr/groups                  — create a group

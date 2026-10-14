@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from backend.radio_hub.services.decoder_manifest import DecoderManifest
+from sentinel_radio.services.decoder_manifest import DecoderManifest
 
 _ENTRYPOINT_PATH = (
     Path(__file__).resolve().parents[2] / "decoder" / "stub" / "entrypoint.py"

@@ -24,11 +24,11 @@ from sqlalchemy.orm import sessionmaker
 
 from backend import database as backend_database
 from backend.config import settings
-from backend.radio_hub import radios as radio_registry
-from backend.radio_hub.routers import decode as decode_router
-from backend.radio_hub.services import sdr as sdr_svc
-from backend.radio_hub.services import sdr_decode
-from backend.radio_hub.services.sdr_decode import AisDecodeBridge
+from sentinel_radio import radios as radio_registry
+from sentinel_radio.routers import decode as decode_router
+from sentinel_radio.services import sdr as sdr_svc
+from sentinel_radio.services import sdr_decode
+from sentinel_radio.services.sdr_decode import AisDecodeBridge
 from sentinel_sea.services import ais_store
 from tests.backend.service_credentials_test_helpers import (
     accept_callers,

@@ -8,7 +8,7 @@ Where the ADS-B query is centred (owner's rule, 2026-10-05):
     operator's own receiver, which only hears what is around it, so a
     map-centred area hid its aircraft once the map was panned away.
 
-Covers the hub's ``hub.sentry.host.location`` reply (backend/radio_hub/services/
+Covers the hub's ``hub.sentry.host.location`` reply (sentinel_radio/services/
 sentry_reservations.py), Air's ``adsb_source.receiver_location`` and the swap in
 ``GET /api/air/adsb/point/{lat}/{lon}/{radius}`` (backend/routers/air.py). The
 upstream fetch is replaced by a recorder, and the Sentry fleet snapshot by a stub.
@@ -21,7 +21,7 @@ from types import SimpleNamespace
 import pytest
 from backend.db_helpers import upsert_setting
 from backend.platform.bus import bus
-from backend.radio_hub.services import sentry_reservations
+from sentinel_radio.services import sentry_reservations
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 

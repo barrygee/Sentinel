@@ -226,7 +226,7 @@ class TestApplyConfig:
             calls.append((previous, following))
 
         monkeypatch.setattr(
-            "backend.radio_hub.routers.decode.reconcile_ais_decode", fake_reconcile
+            "sentinel_radio.routers.decode.reconcile_ais_decode", fake_reconcile
         )
         async with session_factory() as session:
             await apply_config(session, {"sdr": {"ais_radio_id": 4}})

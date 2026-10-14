@@ -37,8 +37,8 @@ import uvicorn
 from backend.config import settings
 from backend.main import app
 from backend.platform.bus import bus
-from backend.radio_hub.services import manifest_decode
-from backend.radio_hub.services import sdr as sdr_svc
+from sentinel_radio.services import manifest_decode
+from sentinel_radio.services import sdr as sdr_svc
 from tests.backend.service_credentials_test_helpers import TOKENS, accept_callers
 
 # The stub decoder's own credential: the hub accepts it for the `stub` kind only.

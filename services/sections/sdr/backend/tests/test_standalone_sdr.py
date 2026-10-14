@@ -644,7 +644,7 @@ class TestWhatTheSdrServiceLoads:
         loaded = probe_fresh_interpreter(
             "import json, sys\n"
             "import sentinel_sdr.service\n"
-            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub',"
+            "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'sentinel_radio',"
             " 'backend.routers.', 'sentinel_')))))\n"
         )
 

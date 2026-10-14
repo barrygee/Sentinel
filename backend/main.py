@@ -1,8 +1,8 @@
 """Core's uvicorn entry point: `uvicorn backend.main:app`.
 
 The app itself is composed by `create_core_app()` (`backend/composition_root.py`);
-each section running in its own container has its own entry point under
-`backend/standalone/`.
+each service running in its own container has its own entry point in its
+package (`sentinel_<id>.service`, `sentinel_radio.service`).
 """
 
 import logging

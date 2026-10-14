@@ -34,11 +34,11 @@ import asyncio
 import pytest
 from starlette.websockets import WebSocketDisconnect as StarletteWSDisconnect
 
-from backend.radio_hub import radios as radio_registry
-from backend.radio_hub.routers import decode as decode_router
-from backend.radio_hub.services import sdr as sdr_svc
-from backend.radio_hub.services import sdr_decode
-from backend.radio_hub.services.sdr import compute_fft_frame
+from sentinel_radio import radios as radio_registry
+from sentinel_radio.routers import decode as decode_router
+from sentinel_radio.services import sdr as sdr_svc
+from sentinel_radio.services import sdr_decode
+from sentinel_radio.services.sdr import compute_fft_frame
 from tests.backend.parity.conftest import assert_golden, render_json
 
 # ── Shared fakes (same shape as test_routers_sdr_decode.py's) ────────────────
@@ -129,7 +129,7 @@ def _type_shape(value):
 
 # ── Accepted control commands ─────────────────────────────────────────────────
 
-# The `cmd` values backend/radio_hub/routers/radio_control.py's `sdr_websocket._read_commands`
+# The `cmd` values sentinel_radio/routers/radio_control.py's `sdr_websocket._read_commands`
 # recognises. Kept as an explicit golden-backed list (rather than parsed from
 # source) so a silently dropped/renamed command is caught by a plain text diff.
 ACCEPTED_CONTROL_COMMANDS = sorted(

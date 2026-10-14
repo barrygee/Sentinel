@@ -26,7 +26,7 @@ from backend.config import settings
 from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.service_manifest import ServiceManifest
 
-# The services that have a standalone entry point (`backend/standalone/`) and
+# The services that have a standalone entry point (`sentinel_<id>.service`) and
 # whose routers core (`backend/composition_root.py`) can leave out: since P6.6, every one but
 # bus and core.
 EXTRACTABLE_SERVICES = frozenset({"space", "land", "air", "sea", "radio-hub", "sdr"})
@@ -82,14 +82,16 @@ def shares_process_with(service_id: str) -> bool:
     return not settings.sentinel_core_url and hosts_in_process(service_id)
 
 
-# Modules whose section has moved into its own package (services/sections/<id>/backend);
-# every other one is still `backend.modules.<name>`.
+# Modules that have moved into their own package (each section's
+# services/sections/<id>/backend, the radio hub's services/radio/backend);
+# bus and core are still `backend.modules.<name>`.
 _MOVED_MODULES: dict[str, str] = {
     "space": "sentinel_space.module",
     "land": "sentinel_land.module",
     "air": "sentinel_air.module",
     "sea": "sentinel_sea.module",
     "sdr": "sentinel_sdr.module",
+    "radio_hub": "sentinel_radio.module",
 }
 
 

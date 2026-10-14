@@ -20,7 +20,7 @@ export function formatBwHz(hz: number): string {
 
 /**
  * The frequencies any supported tuner can reach — the backend enforces the same
- * range (`MIN_TUNE_HZ`/`MAX_TUNE_HZ` in radio_hub/services/sdr.py): 500 kHz (HF
+ * range (`MIN_TUNE_HZ`/`MAX_TUNE_HZ` in sentinel_radio/services/sdr.py): 500 kHz (HF
  * on an RTL-SDR Blog V4) to 2.2 GHz (the E4000's ceiling). A 7.812 GHz tune from
  * an accidental digit-wheel scroll once wedged a dongle.
  */

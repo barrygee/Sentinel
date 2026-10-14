@@ -281,7 +281,7 @@ class TestConfigUpload:
     # ── APRS decoder follows sdr.aprs_radio_id ────────────────────────────────
 
     def test_reconciles_aprs_decoder_when_radio_changes(self, client, monkeypatch):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         reconcile = AsyncMock()
         monkeypatch.setattr(decode_router, "reconcile_aprs_decode", reconcile)
@@ -294,7 +294,7 @@ class TestConfigUpload:
         assert (previous_radio_id, next_radio_id) == (1, 2)
 
     def test_reconciles_aprs_decoder_when_radio_cleared(self, client, monkeypatch):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         reconcile = AsyncMock()
         monkeypatch.setattr(decode_router, "reconcile_aprs_decode", reconcile)
@@ -306,7 +306,7 @@ class TestConfigUpload:
         assert (previous_radio_id, next_radio_id) == (1, None)
 
     def test_leaves_aprs_decoder_alone_when_radio_unchanged(self, client, monkeypatch):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         reconcile = AsyncMock()
         monkeypatch.setattr(decode_router, "reconcile_aprs_decode", reconcile)
@@ -322,7 +322,7 @@ class TestConfigUpload:
     def test_applies_an_uploaded_aprs_channel_when_radio_unchanged(
         self, client, monkeypatch
     ):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         apply_channel = AsyncMock()
         monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)
@@ -336,7 +336,7 @@ class TestConfigUpload:
         self, client, monkeypatch
     ):
         from backend.config import settings as app_settings
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         apply_channel = AsyncMock()
         monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)
@@ -348,7 +348,7 @@ class TestConfigUpload:
     def test_upload_without_aprs_channel_does_not_touch_the_bridge(
         self, client, monkeypatch
     ):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         apply_channel = AsyncMock()
         monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)
@@ -583,7 +583,7 @@ class TestSettingCoercionHelpers:
 
 class TestAprsChannelSetting:
     def test_valid_channel_is_stored_and_applied(self, client, monkeypatch):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         apply_channel = AsyncMock()
         monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)
@@ -595,7 +595,7 @@ class TestAprsChannelSetting:
         apply_channel.assert_awaited_once_with(144390000)
 
     def test_numeric_string_is_normalised_to_int_hz(self, client, monkeypatch):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         monkeypatch.setattr(decode_router, "apply_aprs_channel", AsyncMock())
         client.put("/api/settings/land/aprsChannelHz", json={"value": "144800000"})
@@ -605,7 +605,7 @@ class TestAprsChannelSetting:
     def test_invalid_channel_is_rejected_and_not_stored(
         self, client, monkeypatch, value
     ):
-        from backend.radio_hub.routers import decode as decode_router
+        from sentinel_radio.routers import decode as decode_router
 
         apply_channel = AsyncMock()
         monkeypatch.setattr(decode_router, "apply_aprs_channel", apply_channel)

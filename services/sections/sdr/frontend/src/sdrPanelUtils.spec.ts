@@ -120,7 +120,7 @@ describe('isTunableHz', () => {
     expect(isTunableHz(hz)).toBe(false)
   })
 
-  it('matches the backend range (radio_hub/services/sdr.py MIN_TUNE_HZ / MAX_TUNE_HZ)', () => {
+  it('matches the backend range (sentinel_radio/services/sdr.py MIN_TUNE_HZ / MAX_TUNE_HZ)', () => {
     expect([SDR_MIN_TUNE_HZ, SDR_MAX_TUNE_HZ]).toEqual([500_000, 2_200_000_000])
   })
 })

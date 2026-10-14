@@ -318,7 +318,7 @@ class TestWhatTheSeaServiceLoads:
             "import json, sys\n"
             "import sentinel_sea.service\n"
             "print(json.dumps(sorted(m for m in sys.modules"
-            " if m.startswith(('backend.modules.', 'backend.radio_hub', 'sentinel_')))))\n"
+            " if m.startswith(('backend.modules.', 'sentinel_radio', 'sentinel_')))))\n"
         )
 
         # Sea's own package, and of core's modules only the manifest helper.

@@ -293,7 +293,7 @@ services:
   # SENTINEL_RADIO_HUB_REPLICAS=0 in this host's .env so core doesn't start one.
   radio-hub:
     <<: *section-service
-    container_name: sentinel-radio-hub
+    container_name: sentinel-radio
     deploy:
       replicas: ${SENTINEL_RADIO_HUB_REPLICAS:-1}
     # It dials rtl_tcp and Sentry hosts: same reason as the app's entry above.
@@ -303,6 +303,7 @@ services:
       - radio_hub_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/radio/backend:/app/services/radio/backend  # live-reload hub code
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/radio-hub}}
       # IQ captures are written to recordings/ on radio_hub_data; the SDR
       # section copies each one over HTTP when its recording stops (P7.3), so
@@ -315,7 +316,7 @@ services:
       # hub; it knows them by hash. The PCM and voice ports keep the app's
       # defaults (7355–7358).
       ACCEPTED_CALLERS_FILE: /run/service-credentials/accepted-callers.json
-    command: uvicorn backend.standalone.radio_hub:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --reload
 
   # The SDR section as its own service (P6.6).
   # Same pattern as the sections above: registers with the app and takes
