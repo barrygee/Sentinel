@@ -231,9 +231,10 @@ test.describe('Settings panel', () => {
         writes.push(new URL(request.url()).pathname)
     })
 
+    // The map palette is a radio group (DARK / LIGHT), not buttons.
     await page
       .locator('#settings-panel')
-      .getByRole('button', { name: /^light$/i })
+      .getByRole('radio', { name: /^light$/i })
       .click()
     await page.locator('#settings-apply-btn').click()
 
