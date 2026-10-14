@@ -128,6 +128,14 @@ class Settings(BaseSettings):
     # How long to wait (seconds) for the relay to confirm a claim/ownership state
     # before treating the attempt as "not owner" and the channel probe as absent.
     sdr_relay_control_timeout_s: float = 2.0
+    # Longest an SDR recording may run (seconds). A recording only finishes when
+    # the browser sends stop, so one whose browser went away (tab closed, page
+    # reloaded, a stop lost in a restart) would otherwise stay "recording" for
+    # ever: past this age the SDR section marks it failed and has its raw-IQ
+    # capture discarded, and the radio hub stops any IQ capture that reaches it,
+    # so a lost stop can't fill the disk (~4 MB/s at 2.048 MS/s). Long enough
+    # for back-to-back satellite passes.
+    sdr_recording_max_duration_s: float = 6 * 3600
 
     # ── APRS-decode sidecar (Direwolf) ────────────────────────────────────────
     # APRS packet decode shares the backend's FM-demod PCM spine but runs its own

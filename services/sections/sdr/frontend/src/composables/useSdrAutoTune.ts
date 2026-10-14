@@ -366,19 +366,20 @@ export function useSdrAutoTune(options: UseSdrAutoTuneOptions) {
     const satName = detail.satName || 'SATELLITE'
     const noradId = detail.noradId
 
+    // Finalise an auto-started recording at LOS no matter what — "record the pass"
+    // means the recording ends when the pass ends, even if the user retuned away,
+    // scanned or searched mid-pass (their new activity carries on, just not
+    // recording). Only stops a recording WE began; a manual REC the user started
+    // never set startedRecording, so it's untouched. Runs before every bail below,
+    // which only govern whether we put the *radio* back — a recording left running
+    // here is never stopped and stays "recording" on the server.
+    if (snap.startedRecording) void stopRecordingIfActive()
+
     // Bail if the user has taken manual control (retuned, scanned, searched, or
     // stopped) since the auto-tune — respect their state over the restore. Note
     // _isAutoTuneLockHeld reads _autoTunePrevState, which we cleared above, so
     // re-check against the captured snapshot directly here.
     if (scanActive.value || searchActive.value) return
-
-    // Finalise an auto-started recording at LOS no matter what — "record the pass"
-    // means the recording ends when the pass ends, even if the user retuned away mid-pass
-    // (their new tune keeps playing, just not recording). Only stops a recording WE
-    // began; a manual REC the user started never set startedRecording, so it's
-    // untouched. Runs before the onTunedFreq bail below, which only governs whether
-    // we put the *radio* back — not whether our recording should end.
-    if (snap.startedRecording) void stopRecordingIfActive()
 
     const onTunedFreq =
       playing.value &&

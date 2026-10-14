@@ -61,6 +61,8 @@ _FLUSH_GRACE_S = 0.2
 
 # capture_id → the broadcaster it taps and its recording queue.
 _active_captures: dict[int, tuple[sdr_svc.RadioBroadcaster, asyncio.Queue]] = {}
+# capture_id → the timer that stops it at `settings.sdr_recording_max_duration_s`.
+_capture_time_limits: dict[int, asyncio.TimerHandle] = {}
 
 
 def iq_capture_dir() -> Path:
@@ -98,6 +100,9 @@ def download_url(capture_id: int) -> str:
 
 def _stop_capture(capture_id: int) -> bool:
     """Stop writing capture `capture_id`; False when it wasn't running."""
+    time_limit = _capture_time_limits.pop(capture_id, None)
+    if time_limit is not None:
+        time_limit.cancel()
     capture = _active_captures.pop(capture_id, None)
     if capture is None:
         return False
@@ -122,7 +127,24 @@ async def _on_start(payload: EventPayload) -> dict[str, Any]:
         logger.warning("Could not start IQ capture %s: %s", capture_id, exc)
         return {"ok": False, "reason": "error"}
     _active_captures[capture_id] = (broadcaster, queue)
+    # The SDR section asks for stop when its recording ends, but a recording
+    # whose browser went away never ends: without a limit the capture would
+    # write ~4 MB/s until the hub restarts. The file is kept, so the SDR
+    # section still collects (or discards) it like any other.
+    _capture_time_limits[capture_id] = asyncio.get_running_loop().call_later(
+        settings.sdr_recording_max_duration_s, _stop_at_time_limit, capture_id
+    )
     return {"ok": True}
+
+
+def _stop_at_time_limit(capture_id: int) -> None:
+    _capture_time_limits.pop(capture_id, None)
+    if _stop_capture(capture_id):
+        logger.warning(
+            "IQ capture %s reached the %.0f s recording limit without a stop; stopped it",
+            capture_id,
+            settings.sdr_recording_max_duration_s,
+        )
 
 
 async def _on_stop(payload: EventPayload) -> dict[str, Any]:

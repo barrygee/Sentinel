@@ -38,6 +38,9 @@ x-section-env: &section-env
   # The unprivileged user the process runs as (see the app's entry below).
   SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
   SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
+  # Longest an SDR recording may run before it counts as abandoned: the SDR
+  # section ends it and the radio hub stops its raw-IQ capture (docs/operations.md).
+  SDR_RECORDING_MAX_DURATION_S: ${SDR_RECORDING_MAX_DURATION_S:-21600}
 
 # Mounts every section service shares. The app's database is read once on
 # first boot to copy the section's tables out (legacy import, opened read-only
