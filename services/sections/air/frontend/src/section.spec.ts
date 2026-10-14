@@ -96,6 +96,16 @@ describe('components/air/section', () => {
     ])
   })
 
+  it('re-reads its overhead-alert zones when the settings change under the app', async () => {
+    await registerOnce()
+    const { useAirStore } = await import('./stores/air')
+    const load = vi.spyOn(useAirStore(), 'loadOverheadAlertsFromConfig').mockResolvedValue()
+
+    document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
+
+    expect(load).toHaveBeenCalledOnce()
+  })
+
   it('hydrates its stores from the boot settings', async () => {
     const { hydrateAirFromSettings } = await import('./airSettingsHydration')
     await registerOnce()

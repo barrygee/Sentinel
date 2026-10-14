@@ -214,4 +214,39 @@ test.describe('Settings panel', () => {
     await expect(page.locator('#settings-apply-btn')).toBeVisible()
     await expect(page.locator('#settings-apply-btn')).toContainText(/apply changes/i)
   })
+
+  test('APPLY CHANGES saves in place: no page reload, Settings stays open on its section', async ({
+    page,
+  }) => {
+    await page.goto('/settings/app')
+    await waitForShellHydration(page)
+    await expect(page.locator('#settings-panel.settings-panel-visible')).toBeVisible()
+    // A marker on window survives only if the page is not reloaded.
+    await page.evaluate(() => {
+      ;(window as unknown as { __noReload: string }).__noReload = 'kept'
+    })
+    const writes: string[] = []
+    page.on('request', (request) => {
+      if (request.method() === 'PUT' && request.url().includes('/api/settings/'))
+        writes.push(new URL(request.url()).pathname)
+    })
+
+    await page
+      .locator('#settings-panel')
+      .getByRole('button', { name: /^light$/i })
+      .click()
+    await page.locator('#settings-apply-btn').click()
+
+    await expect(page.locator('#settings-apply-status')).toHaveText('SAVED')
+    expect(writes).toContain('/api/settings/app/mapTheme')
+    // The change is live, without a reload.
+    await expect(page.locator('html')).toHaveAttribute('data-map-theme', 'light')
+    await expect(page).toHaveURL(/\/settings\/app$/)
+    await expect(page.locator('#settings-panel.settings-panel-visible')).toBeVisible()
+    // Give a reload (the old behaviour, after ~1.2 s) every chance to happen.
+    await page.waitForTimeout(2000)
+    expect(
+      await page.evaluate(() => (window as unknown as { __noReload?: string }).__noReload),
+    ).toBe('kept')
+  })
 })
