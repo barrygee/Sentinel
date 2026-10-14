@@ -1,16 +1,11 @@
-import { computed, reactive, type ComputedRef } from 'vue'
-import {
-  useRoute,
-  useRouter,
-  type RouteLocationNormalized,
-  type RouteLocationNormalizedLoaded,
-} from 'vue-router'
+import { reactive } from 'vue'
+import type { RouteLocationNormalized } from 'vue-router'
 
 /**
- * Settings URLs (`/settings/<section>`), so a link can open a settings page
- * directly. Settings stays a panel over the page you were on: while a settings
- * URL is active the shell keeps rendering that page (`useViewRoute`), so its
- * map and the SDR audio carry on, and the panel opens over it.
+ * Settings URLs (`/settings/<section>`): Settings is a page of its own, so a
+ * link can open a settings page directly. Like switching sections, going to it
+ * leaves the section you were on (its view unmounts; the SDR engine, outside
+ * the routed view, plays on); closing it returns there.
  */
 
 /** Name of the `/settings/:section` route. */
@@ -35,29 +30,13 @@ export function settingsPath(section: string): string {
 }
 
 /**
- * The page under Settings: the last non-settings route, or — when a settings
- * link was the first thing opened — the page the router chose for it. Reactive,
- * so the view route follows it.
+ * Where closing Settings returns to: the last section page visited, or — when
+ * a settings link was the first thing opened — the page the router chose for it.
  */
-export const settingsBackground = reactive({
+export const settingsReturn = reactive({
   path: null as string | null,
-  /** Forget it (a new router starts with no page underneath). */
+  /** Forget it (a new router starts with nowhere to return to). */
   reset(): void {
-    settingsBackground.path = null
+    settingsReturn.path = null
   },
 })
-
-/**
- * The route whose page is on screen: under Settings, the page it opened over;
- * otherwise the current route. App renders `<RouterView :route>` from it and
- * lays out by it, so opening Settings changes nothing behind the panel.
- */
-export function useViewRoute(): ComputedRef<RouteLocationNormalizedLoaded> {
-  const route = useRoute()
-  const router = useRouter()
-  return computed(() =>
-    isSettingsRoute(route) && settingsBackground.path
-      ? (router.resolve(settingsBackground.path) as RouteLocationNormalizedLoaded)
-      : route,
-  )
-}

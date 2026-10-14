@@ -3,7 +3,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import {
   isSettingsRoute,
-  settingsBackground,
+  settingsReturn,
   settingsPath,
   settingsSectionOf,
 } from '@/router/settingsRoute'
@@ -16,9 +16,10 @@ import {
  * marker's MORE) works as before and now also moves the URL:
  * - URL → panel: a `/settings/<section>` URL opens the panel on that section;
  *   leaving it (Back, a link) closes the panel.
- * - panel → URL: opening the panel pushes `/settings/<section>`, switching
- *   section replaces it, and closing returns to the page underneath — by going
- *   back when the panel was opened from it, so Back and close agree.
+ * - panel → URL: opening the panel pushes `/settings/<section>` (leaving the
+ *   section, as a section link does), switching section replaces it, and
+ *   closing returns to the section it came from — by going back when it was
+ *   opened from it, so Back and close agree.
  *
  * Call once, from App.
  */
@@ -50,9 +51,9 @@ export function useSettingsRouteSync(): void {
         if (route.path === target) return
         void (onSettings ? router.replace(target) : router.push(target))
       } else if (onSettings) {
-        const background = settingsBackground.path ?? '/'
-        if ((window.history.state as { back?: unknown } | null)?.back === background) router.back()
-        else void router.replace(background)
+        const returnPath = settingsReturn.path ?? '/'
+        if ((window.history.state as { back?: unknown } | null)?.back === returnPath) router.back()
+        else void router.replace(returnPath)
       }
     },
   )

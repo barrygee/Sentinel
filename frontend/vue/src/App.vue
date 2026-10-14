@@ -111,7 +111,7 @@
   </nav>
 
   <main id="main" ref="mainRef" tabindex="-1">
-    <RouterView :route="viewRoute" />
+    <RouterView />
   </main>
 
   <aside class="app-sidebar-region" aria-label="Map controls">
@@ -140,6 +140,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
@@ -154,12 +155,12 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
-import { useViewRoute } from '@/router/settingsRoute'
+import { isSettingsRoute } from '@/router/settingsRoute'
 import { useSettingsRouteSync } from '@/composables/useSettingsRouteSync'
 
-// The page on screen. Under a settings URL that is the page Settings opened
-// over, so the panel opening changes nothing behind it (router/settingsRoute.ts).
-const viewRoute = useViewRoute()
+const route = useRoute()
+// Settings is a page of its own (`/settings/<section>`); this keeps the panel
+// and its URL in step.
 useSettingsRouteSync()
 const appStore = useAppStore()
 const settingsStore = useSettingsStore()
@@ -267,24 +268,24 @@ watch(menuOpen, (open) => {
 
 // Close mobile nav overlay on route change
 watch(
-  () => viewRoute.value.path,
+  () => route.path,
   () => {
     menuOpen.value = false
   },
 )
 
-const isSdrRoute = computed(() => viewRoute.value.path.startsWith('/sdr'))
+const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 // The section on screen (each section route carries its id as `meta.domain`),
 // for the footer's registered items.
-const activeSectionId = computed(() => (viewRoute.value.meta.domain as string | undefined) ?? '')
+const activeSectionId = computed(() => (route.meta.domain as string | undefined) ?? '')
 
 // Air, Space and Sea render a right-edge controls rail (#side-menu /
 // #space-side-menu / #sea-side-menu); the footer's side-menu toggle keys off this.
 const hasRightSideMenu = computed(
   () =>
-    viewRoute.value.path.startsWith('/air') ||
-    viewRoute.value.path.startsWith('/space') ||
-    viewRoute.value.path.startsWith('/sea'),
+    route.path.startsWith('/air') ||
+    route.path.startsWith('/space') ||
+    route.path.startsWith('/sea'),
 )
 
 watch(isSdrRoute, (isSdr) => {
@@ -318,6 +319,7 @@ const mainRef = ref<HTMLElement | null>(null)
 /** Per-view document title (WCAG 2.4.2): "SENTINEL — AIR" etc., or "SENTINEL". */
 function titleForPath(path: string): string {
   const segment = path.split('/').filter(Boolean)[0] ?? ''
+  if (segment === 'settings') return 'SENTINEL — SETTINGS'
   const entry = ALL_NAV_DOMAINS.find(([domain]) => domain === segment)
   return entry ? `SENTINEL — ${entry[1]}` : 'SENTINEL'
 }
@@ -326,10 +328,12 @@ function titleForPath(path: string): string {
 // on an actual route change (not the initial load) move focus to the main region
 // so the change isn't silent. WCAG 2.4.2 Page Titled / 2.4.3 Focus Order.
 watch(
-  () => viewRoute.value.path,
+  () => route.path,
   (path, previousPath) => {
     document.title = titleForPath(path)
-    if (previousPath !== undefined) {
+    // The Settings page is the Settings panel, a dialog that takes focus
+    // itself; moving it to the (empty) main region would pull it out again.
+    if (previousPath !== undefined && !isSettingsRoute(route)) {
       nextTick(() => mainRef.value?.focus())
     }
   },

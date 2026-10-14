@@ -592,7 +592,7 @@
 import './SdrPanel.css'
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useViewRoutePath } from '@sentinel/shell-api/shell/viewRoute'
+import { useRoute } from 'vue-router'
 import { useSdrAudio } from './composables/useSdrAudio'
 import { useSdrDecode } from './composables/useSdrDecode'
 import { useSdrAutoTune } from './composables/useSdrAutoTune'
@@ -706,10 +706,8 @@ function switchSdrTab(tab: SdrTab) {
   } catch {}
 }
 
-// The page on screen, not the URL: under a settings URL it is the page Settings
-// opened over, so the panel keeps its layout behind the Settings panel.
-const viewRoutePath = useViewRoutePath()
-const isSdrRoute = computed(() => viewRoutePath.value.startsWith('/sdr'))
+const route = useRoute()
+const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
 const sidebarOpen = ref<boolean>(_readSidebarOpen())
 function _readSidebarOpen(): boolean {
   try {

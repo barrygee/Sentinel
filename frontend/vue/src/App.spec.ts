@@ -31,16 +31,6 @@ vi.mock('vue-router', () => ({
   },
 }))
 
-// App lays out by the view route (the page on screen, which under a settings
-// URL is the page Settings opened over — router/settingsRoute.ts, tested
-// there). Here it is the controllable route, so setRoute drives the page.
-const settingsRouteSync = vi.hoisted(() => vi.fn())
-vi.mock('@/router/settingsRoute', async () => {
-  const { computed } = await import('vue')
-  return { useViewRoute: () => computed(() => shared.route) }
-})
-vi.mock('@/composables/useSettingsRouteSync', () => ({ useSettingsRouteSync: settingsRouteSync }))
-
 vi.mock('@sentinel/map-kit/composables/useUserLocation', async () => {
   const { ref: vueRef } = await import('vue')
   const locationUnavailable = vueRef(false)
@@ -146,19 +136,6 @@ const AppFooterStub = defineComponent({
 })
 
 const InertStub = defineComponent({ name: 'InertStub', setup: () => () => h('div') })
-// Records the route App hands the routed view, so a spec can check it renders
-// the view route rather than whatever the URL says.
-let routerViewRoute: unknown = null
-const RouterViewStub = defineComponent({
-  name: 'RouterViewStub',
-  props: { route: { type: Object, default: null } },
-  setup(props) {
-    return () => {
-      routerViewRoute = props.route
-      return h('div', { class: 'router-view-stub' })
-    }
-  },
-})
 
 // RouterLink stub: renders an anchor carrying the resolved attrs App sets so the
 // v-for over navDomains is assertable.
@@ -211,7 +188,7 @@ function mountApp(options: { attach?: boolean } = {}) {
         SettingsPanel: InertStub,
         SdrTabPanel: InertStub,
         RouterLink: RouterLinkStub,
-        RouterView: RouterViewStub,
+        RouterView: InertStub,
       },
     },
   })
@@ -372,19 +349,6 @@ describe('App', () => {
       await wrapper.find('.nav-overlay-settings-btn').trigger('click')
       expect(wrapper.find('#nav-overlay').classes()).not.toContain('nav-overlay-open')
       expect(openSpy).toHaveBeenCalled()
-    })
-  })
-
-  describe('settings URLs', () => {
-    it('keeps the settings panel and its URL in step from setup', () => {
-      mountApp()
-      expect(settingsRouteSync).toHaveBeenCalledTimes(1)
-    })
-
-    it('renders the view route in the routed view, not the URL route', async () => {
-      mountApp()
-      await flushPromises()
-      expect(routerViewRoute).toBe(shared.route)
     })
   })
 

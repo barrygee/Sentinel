@@ -4,7 +4,6 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSdrStore } from './stores/sdr'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
-import { setViewRoutePath } from '@sentinel/shell-api/shell/viewRoute'
 
 // ── useSdrAudio mock (the audio pipeline is its own 100%-covered unit) ──────────
 const audioMock = vi.hoisted(() => ({
@@ -215,7 +214,6 @@ beforeEach(() => {
     )
   searchApi.deleteSearchRange.mockReset().mockResolvedValue(undefined)
   routeMock.path = '/sdr'
-  setViewRoutePath(null)
 
   vi.stubGlobal('WebSocket', makeFakeSocketClass())
   global.fetch = vi.fn((url: string | URL | Request, opts?: RequestInit) => {
@@ -316,34 +314,6 @@ describe('SdrPanel — mount', () => {
 })
 
 // =============================================================================
-describe('SdrPanel — page layout under a settings URL', () => {
-  // The SDR rail shows on the SDR page. Under `/settings/<section>` the page on
-  // screen is the one Settings opened over, so the rail follows that page, not
-  // the URL — opening Settings must change nothing behind the panel.
-  // The rail is teleported out of the panel, so it is found in the document.
-  function railVisible(): boolean {
-    const rail = document.querySelector<HTMLElement>('#sdr-sidebar-rail')
-    expect(rail).not.toBeNull()
-    return rail!.style.display !== 'none'
-  }
-
-  it('keeps the SDR rail when Settings opens over the SDR page', async () => {
-    routeMock.path = '/settings/app'
-    setViewRoutePath('/sdr/')
-    mountPanel()
-    await flushPromises()
-    expect(railVisible()).toBe(true)
-  })
-
-  it('keeps the rail hidden when Settings opens over another page, even at /settings/sdr', async () => {
-    routeMock.path = '/settings/sdr'
-    setViewRoutePath('/air/')
-    mountPanel()
-    await flushPromises()
-    expect(railVisible()).toBe(false)
-  })
-})
-
 describe('SdrPanel — control socket lifecycle', () => {
   it('auto-selects the sole enabled radio and opens a control socket', async () => {
     await mountReady()
