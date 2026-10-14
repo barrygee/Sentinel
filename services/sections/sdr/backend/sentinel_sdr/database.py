@@ -44,6 +44,8 @@ SDR_ADDED_COLUMNS: tuple[str, ...] = (
     "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmin REAL NOT NULL DEFAULT 0.0",
     "ALTER TABLE sdr_stored_frequencies ADD COLUMN zmax REAL NOT NULL DEFAULT 0.0",
     "ALTER TABLE sdr_stored_frequencies ADD COLUMN favourite INTEGER NOT NULL DEFAULT 0",
+    # Where each recording's files are; "" for those saved before it existed.
+    "ALTER TABLE sdr_recordings ADD COLUMN directory TEXT NOT NULL DEFAULT ''",
 )
 
 
@@ -104,7 +106,8 @@ async def _backfill_added_columns(conn) -> None:
 
 
 def sdr_recordings_dir() -> Path:
-    """The folder the SDR section keeps recordings in (`<id>.wav`, and the IQ `<id>.u8`): next to the database."""
+    """`recordings/` next to the database: the default recordings root, and where every recording saved
+    before the recordings-folder settings lives (`services/recording_folders.py`)."""
     return Path(settings.db_path).parent / "recordings"
 
 

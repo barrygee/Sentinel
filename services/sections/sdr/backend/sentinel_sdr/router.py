@@ -23,7 +23,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-from pathlib import Path
 
 from backend.cache import now_ms
 from backend.database import get_db
@@ -35,7 +34,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sentinel_sdr.database import sdr_recordings_dir, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
+from sentinel_sdr.database import sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from sentinel_sdr.models import (
     SdrFrequencyGroup,
     SdrFrequencyGroupLink,
@@ -43,6 +42,7 @@ from sentinel_sdr.models import (
     SdrSearchRange,
     SdrStoredFrequency,
 )
+from sentinel_sdr.services.recording_folders import folder_for_new_recording, iq_path, wav_path
 from sentinel_sdr.services.sdr_data import write_sdr_frequencies_file
 from sentinel_sdr.services.sdr_frequencies import reconcile_sdr_frequencies
 from sentinel_sdr.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
@@ -245,10 +245,6 @@ def _recording_to_dict(r: SdrRecording) -> dict:
         "status": r.status,
         "created_at": r.created_at,
     }
-
-
-def _recordings_dir() -> Path:
-    return sdr_recordings_dir()
 
 
 # ── Group CRUD ────────────────────────────────────────────────────────────────
@@ -591,6 +587,8 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
         iq_file_size_bytes=0,
         status="recording",
         created_at=now_ms(),
+        # Fixed now, so changing the recordings folder later never strands it.
+        directory=str(await folder_for_new_recording(db)),
     )
     db.add(rec)
     await db.commit()
@@ -600,8 +598,9 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
     record_iq = await read_setting(db, "sdr", "recordRawIq", default=False) is True
 
     if record_iq and body.radio_id is not None:
-        # The radio hub taps the radio's IQ and writes <rec.id>.u8 into the
-        # recordings folder (B12); it declines when no broadcaster is running.
+        # The radio hub taps the radio's IQ and stages <rec.id>.u8 (B12), which
+        # is copied into this recording's folder when it stops; the hub
+        # declines when no broadcaster is running.
         try:
             reply = await bus.request(
                 "hub.iq-capture.start", {"capture_id": rec.id, "radio_id": body.radio_id, "db": db}
@@ -637,18 +636,17 @@ async def stop_recording(
             logger.warning("Error stopping IQ recording %d: %s", recording_id, exc)
 
     # Save WAV file
-    rdir = _recordings_dir()
-    rdir.mkdir(parents=True, exist_ok=True)
+    audio_path = wav_path(row)
+    audio_path.parent.mkdir(parents=True, exist_ok=True)
     content = await file.read()
-    wav_path = rdir / f"{recording_id}.wav"
-    wav_path.write_bytes(content)
+    audio_path.write_bytes(content)
 
     # Update IQ file size if it was recorded
     iq_file_size = 0
     if row.has_iq_file:
-        iq_path = rdir / f"{recording_id}.u8"
-        if iq_path.exists():
-            iq_file_size = iq_path.stat().st_size
+        raw_iq_path = iq_path(row)
+        if raw_iq_path.exists():
+            iq_file_size = raw_iq_path.stat().st_size
 
     if not ended_at:
         ended_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -689,11 +687,8 @@ async def delete_recording(rec_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "Recording not found")
     # Its IQ may still be waiting on the radio hub; nobody will collect it now.
     discard_on_hub = iq_file_pending(row)
-    rdir = _recordings_dir()
-    for ext in ("wav", "u8"):
-        p = rdir / f"{rec_id}.{ext}"
-        if p.exists():
-            p.unlink()
+    wav_path(row).unlink(missing_ok=True)
+    iq_path(row).unlink(missing_ok=True)
     await db.delete(row)
     await db.commit()
     if discard_on_hub:
@@ -705,11 +700,11 @@ async def get_recording_wav(rec_id: int, db: AsyncSession = Depends(get_db)):
     row = (await db.execute(select(SdrRecording).where(SdrRecording.id == rec_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
-    wav_path = _recordings_dir() / f"{rec_id}.wav"
-    if not wav_path.exists():
+    audio_path = wav_path(row)
+    if not audio_path.exists():
         raise HTTPException(404, "WAV file not found on disk")
     safe = "".join(c for c in row.name if c.isalnum() or c in " _-").strip() or f"recording_{rec_id}"
-    return FileResponse(str(wav_path), media_type="audio/wav", filename=f"{safe}.wav")
+    return FileResponse(str(audio_path), media_type="audio/wav", filename=f"{safe}.wav")
 
 
 @router.get("/api/sdr/recordings/{rec_id}/iq")
@@ -719,8 +714,8 @@ async def get_recording_iq(rec_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(404, "IQ file not found")
     if iq_file_pending(row):
         raise HTTPException(409, "IQ file is still being copied from the radio hub")
-    iq_path = _recordings_dir() / f"{rec_id}.u8"
-    if not iq_path.exists():
+    raw_iq_path = iq_path(row)
+    if not raw_iq_path.exists():
         raise HTTPException(404, "IQ file not found on disk")
     safe = "".join(c for c in row.name if c.isalnum() or c in " _-").strip() or f"recording_{rec_id}"
-    return FileResponse(str(iq_path), media_type="application/octet-stream", filename=f"{safe}.u8")
+    return FileResponse(str(raw_iq_path), media_type="application/octet-stream", filename=f"{safe}.u8")

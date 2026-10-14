@@ -166,6 +166,7 @@
         "resumeDelaySec": 0,
         "recordRawIq": false,
         "recordingMaxDurationMinutes": 360,
+        "recordingsFolder": "",
         "radios": [],
         "aprs_radio_id": null,
         "ais_radio_id": null

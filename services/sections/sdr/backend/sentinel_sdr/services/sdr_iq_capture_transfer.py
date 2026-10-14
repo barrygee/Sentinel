@@ -31,8 +31,8 @@ from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 from sqlalchemy import select
 
-from sentinel_sdr.database import sdr_recordings_dir
 from sentinel_sdr.models import SdrRecording
+from sentinel_sdr.services.recording_folders import iq_path
 
 logger = logging.getLogger(__name__)
 
@@ -60,14 +60,9 @@ class IqCaptureTransferError(Exception):
     """The capture could not be copied from the radio hub."""
 
 
-def iq_path(recording_id: int) -> Path:
-    """Where recording `recording_id`'s IQ lives once the SDR section holds it."""
-    return sdr_recordings_dir() / f"{recording_id}.u8"
-
-
 def iq_file_pending(recording: SdrRecording) -> bool:
     """True while a recording's IQ is still on the radio hub, waiting to be copied."""
-    return bool(recording.has_iq_file) and not iq_path(recording.id).exists()
+    return bool(recording.has_iq_file) and not iq_path(recording).exists()
 
 
 async def fetch_iq_capture(download_url: str, destination: Path) -> int:
@@ -119,22 +114,31 @@ async def collect_capture(recording_id: int) -> None:
         return
     _collecting.add(recording_id)
     try:
+        async with AsyncSessionLocal() as db:
+            recording = (
+                await db.execute(select(SdrRecording).where(SdrRecording.id == recording_id))
+            ).scalar_one_or_none()
+        if recording is None:
+            # Deleted before the copy began: nobody will collect it.
+            await discard_hub_capture(recording_id)
+            return
+        # Into the folder the recording was saved in (services/recording_folders.py).
+        destination = iq_path(recording)
         location = await bus.request("hub.iq-capture.locate", {"capture_id": recording_id})
         if location.get("ok"):
-            await fetch_iq_capture(location["download_url"], iq_path(recording_id))
+            await fetch_iq_capture(location["download_url"], destination)
         elif location.get("reason") == "capturing":
             # The recording finished but its stop never reached the hub: stop
             # it now; the next run collects the file.
             await bus.request("hub.iq-capture.stop", {"capture_id": recording_id})
             return
-        await _settle_recording(recording_id)
+        await _settle_recording(recording_id, destination)
     finally:
         _collecting.discard(recording_id)
 
 
-async def _settle_recording(recording_id: int) -> None:
-    """Record the outcome of a collect on the recording's row."""
-    path = iq_path(recording_id)
+async def _settle_recording(recording_id: int, path: Path) -> None:
+    """Record the outcome of a collect into `path` on the recording's row."""
     async with AsyncSessionLocal() as db:
         recording = (await db.execute(select(SdrRecording).where(SdrRecording.id == recording_id))).scalar_one_or_none()
         if recording is None or not recording.has_iq_file:
@@ -205,7 +209,7 @@ async def reconcile_iq_captures() -> None:
         # yet: the row is written before the capture starts, `has_iq_file` only
         # once the hub has replied.
         still_wanted = recording is not None and (
-            recording.status == "recording" or (recording.has_iq_file and not iq_path(capture_id).exists())
+            recording.status == "recording" or (recording.has_iq_file and not iq_path(recording).exists())
         )
         # A capture collected just now had its hub copy deleted by the copy
         # itself; if that delete failed, the next run discards it.

@@ -16,7 +16,7 @@ A bare `docker compose up -d` starts all of these:
 | `nats` | Event bus (TLS only, one user per service) | — |
 | `app` | Core: the shell UI, settings + `sentinel_config.json`, notifications, offline maps, the service registry | `sentinel_db` (`sentinel.db`, offline map regions) |
 | `gateway` | Caddy: publishes **:8080** for browsers and the TLS service entrypoint on 127.0.0.1:8443 | — |
-| `space` `land` `air` `sea` `sdr` | One service per section | `<id>_data` (`<id>.db`; SDR also `recordings/`) |
+| `space` `land` `air` `sea` `sdr` | One service per section | `<id>_data` (`<id>.db`; SDR also older recordings in `recordings/`); SDR also `sdr_recordings` or your own folder (see [Where recordings are saved](#where-recordings-are-saved)) |
 | `radio` | Everything that touches a radio: rtl_tcp/Sentry, the spectrum WebSockets, decode bridges, IQ capture | `radio_data` (Sentry hosts) |
 
 The decoders (`voice-decoder`, `aprs-decoder`, `ais-decoder`, `adsb-decoder`)
@@ -142,8 +142,43 @@ server's user, read `/proc/1/status`.
 
 ## Radios and decoders
 
+### Where recordings are saved
+
+Each recording is a WAV file (`<id>.wav`) and, with **Record Raw IQ** on, a
+raw IQ file (`<id>.u8`), saved together in one folder:
+
+1. **The recordings root.** By default the `sdr_recordings` Docker volume. To
+   save to a folder on this machine instead, set it in `.env` and restart the
+   SDR service:
+
+   ```bash
+   SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
+   docker compose up -d sdr
+   ```
+
+   Docker creates the folder if it doesn't exist. On Linux, also set
+   `SENTINEL_RUNTIME_USER_ID` / `SENTINEL_RUNTIME_GROUP_ID` to your own ids
+   (`id -u` / `id -g`), so the files are yours.
+2. **The recordings folder.** **Settings › SDR › Recordings Folder** (or
+   `sdr.recordingsFolder` in `sentinel_config.json`) picks a subfolder of the
+   root, e.g. `satellites/noaa`; it is created when the next recording starts.
+   Leave it empty to save to the root. It can't leave the root: a full path,
+   `.` or `..`, or a backslash is refused in Settings, and if one reaches the
+   backend (a hand-edited config file) the recording goes to the root and the
+   `sdr` log says `Ignoring sdr.recordingsFolder (…); saving to …`.
+
+Changing either only affects **new** recordings. Every recording remembers the
+folder it was saved in, so older ones keep playing, downloading and deleting
+from where they are, and nothing is moved. Recordings made before this setting
+existed stay in `recordings/` on the `sdr_data` volume. If you point
+`SENTINEL_RECORDINGS_DIRECTORY` at a different folder later, recordings saved
+under the old one show as missing until you copy them across (same subfolders).
+
+### Radio hub and decoder issues
+
 - **IQ recordings.** The hub writes the raw IQ, and when a recording stops,
-  the `sdr` service copies the file over in the background. The recording shows
+  the `sdr` service copies the file into the recording's folder in the
+  background. The recording shows
   "COPYING IQ…" until the copy lands. If the hub is unreachable, `sdr` logs
   `IQ captures: radio hub unreachable, pending copies wait for it`, retries
   every 60 s, and logs `IQ captures: radio hub reachable again`. If the hub no

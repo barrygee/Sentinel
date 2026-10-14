@@ -18,7 +18,7 @@ Settings are Pydantic (`backend/config.py`), overridable via environment variabl
 | `NATS_URL`                                                 | _(empty)_; Docker: `tls://nats:4222`     | Event-bus broker; required — every section talks over it (see below)                                                   |
 | `GATEWAY_ADMIN_URL`                                        | _(empty)_; Docker: `http://gateway:2019` | Caddy admin API the service registry's routes are pushed into; empty = no gateway (see below)                          |
 
-Decoder ports (`DECODER_*`, `APRS_DECODER_*`, `AIS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables have working defaults and rarely need changing — see `backend/config.py`. Deployment-shape settings (`SENTINEL_RADIO_REPLICAS`, the radio-host addresses, `SENTINEL_RUNTIME_USER_ID`/`_GROUP_ID` for Linux hosts) are documented in `.env.example`.
+Decoder ports (`DECODER_*`, `APRS_DECODER_*`, `AIS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables have working defaults and rarely need changing — see `backend/config.py`. Where SDR recordings are saved (`SENTINEL_RECORDINGS_DIRECTORY` plus **Settings › SDR › Recordings Folder**) is covered in [operations.md](operations.md#where-recordings-are-saved). Deployment-shape settings (`SENTINEL_RADIO_REPLICAS`, the radio-host addresses, `SENTINEL_RUNTIME_USER_ID`/`_GROUP_ID` for Linux hosts) are documented in `.env.example`.
 
 `docker compose up` also starts `nats`, the event-bus broker. It carries low-rate control events (settings changes, decode events, radio hub requests) between Sentinel's services, so it is required. If the broker is down, every service starts anyway and connects when it comes up.
 

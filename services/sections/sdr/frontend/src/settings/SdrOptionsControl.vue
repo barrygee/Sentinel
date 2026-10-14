@@ -19,6 +19,11 @@
         @stage="emit('stage', $event)"
         @commit="emit('commit')"
       />
+      <SdrRecordingsFolderControl
+        v-else-if="row.key === 'recordingsFolder'"
+        @stage="emit('stage', $event)"
+        @commit="emit('commit')"
+      />
       <SdrResumeDelayControl v-else @stage="emit('stage', $event)" @commit="emit('commit')" />
     </template>
   </LabelFieldsTable>
@@ -46,6 +51,7 @@ import LabelFieldsTable, {
   type LabelFieldRow,
 } from '@sentinel/ui/base/LabelFieldsTable.vue'
 import SdrRecordingMaxDurationControl from './SdrRecordingMaxDurationControl.vue'
+import SdrRecordingsFolderControl from './SdrRecordingsFolderControl.vue'
 import SdrResumeDelayControl from './SdrResumeDelayControl.vue'
 import SdrTimestampIntervalControl from './SdrTimestampIntervalControl.vue'
 import { useSdrStore } from '../stores/sdr'
@@ -134,6 +140,14 @@ const RECORDING_MAX_DURATION_ROW: LabelFieldRow = {
   control: 'custom',
 }
 
+// Where new recordings (audio and raw IQ) are saved: a folder inside the
+// recordings root, set beside the other recording rows.
+const RECORDINGS_FOLDER_ROW: LabelFieldRow = {
+  key: 'recordingsFolder',
+  label: 'Recordings Folder',
+  control: 'custom',
+}
+
 // The resume delay rides along as a final row rather than a card of its own:
 // it is another thing the SDR panel does while scanning, and a whole card for
 // one number sat oddly beside the option list it belongs with. It is not a
@@ -148,7 +162,8 @@ const OPTION_ROWS: LabelFieldRow[] = [
   ...OPTIONS.flatMap((option) => {
     const row: LabelFieldRow = { key: option.settingKey, label: option.label }
     if (option.settingKey === 'showWaterfallTimestamps') return [row, TIMESTAMP_INTERVAL_ROW]
-    if (option.settingKey === 'recordRawIq') return [row, RECORDING_MAX_DURATION_ROW]
+    if (option.settingKey === 'recordRawIq')
+      return [row, RECORDING_MAX_DURATION_ROW, RECORDINGS_FOLDER_ROW]
     return [row]
   }),
   RESUME_DELAY_ROW,
