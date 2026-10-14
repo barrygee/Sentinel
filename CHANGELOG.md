@@ -501,6 +501,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - End recordings the browser never stopped, and cap IQ captures
 - Make the recording length limit a Settings › SDR setting
 - Focus the Settings page when a link opens it
+- Use the app lime for your location dot on the light map
 
 ### Chores
 
@@ -1515,6 +1516,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #477 from barrygee/fix/sdr-abandoned-recordings
 - Merge pull request #478 from barrygee/feat/settings-routes
 - Merge pull request #479 from barrygee/feat/settings-apply-no-reload
+- Merge pull request #480 from barrygee/fix/light-map-location-dot-lime
 
 ### Refactoring
 
