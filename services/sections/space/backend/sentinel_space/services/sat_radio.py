@@ -13,7 +13,7 @@ TLE (re)import, the map is applied back onto the catalogue rows
 (see `store_tle_bulk`), repopulating the display columns.
 
 This mirrors the SDR pattern (table mirrored into UserSettings, restored on
-re-import) — see backend/database.py:sync_sdr_groups_to_config.
+re-import) — see sentinel_sdr.database.sync_sdr_groups_to_config.
 
 The store is core's (settings are central), so it is read and written through
 the settings client: in-process in the monolith, over HTTP when Space runs in

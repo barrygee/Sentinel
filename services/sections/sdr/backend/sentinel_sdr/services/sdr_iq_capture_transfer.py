@@ -28,13 +28,15 @@ import logging
 from pathlib import Path
 
 import httpx
-from backend.database import AsyncSessionLocal, sdr_recordings_dir
-from backend.models import SdrRecording
+from backend.database import AsyncSessionLocal
 from backend.modules import shares_process_with
 from backend.platform.bus import bus
 from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 from sqlalchemy import select
+
+from sentinel_sdr.database import sdr_recordings_dir
+from sentinel_sdr.models import SdrRecording
 
 logger = logging.getLogger(__name__)
 

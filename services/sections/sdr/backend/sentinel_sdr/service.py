@@ -1,4 +1,4 @@
-"""The SDR section as its own service (P6.6): `uvicorn backend.standalone.sdr:app`.
+"""The SDR section as its own service (P6.6): `uvicorn sentinel_sdr.service:app`.
 
 Owns the stored frequencies, frequency groups, scanner search ranges and
 recordings in its own database (`DB_PATH`), copied from the monolith's on first
@@ -15,24 +15,26 @@ in core after every edit so the live config file keeps showing them. Raw-IQ
 captures go through the radio hub over NATS (`hub.iq-capture.*`), so
 `NATS_URL` must be set; the hub writes `<id>.u8` on its own volume and this
 service copies it into its recordings folder over HTTP when the recording stops
-(`services/sdr_iq_capture_transfer.py`, P7.3), so the two need not share a host.
+(`sentinel_sdr.services.sdr_iq_capture_transfer`, P7.3), so the two need not share a host.
 """
 
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import sqlite3
 from pathlib import Path
 
 from backend.config import settings
-from backend.database import SDR_TABLES, create_sdr_tables, sdr_recordings_dir
-from backend.modules.sdr import lifecycle as sdr_lifecycle
-from backend.modules.sdr import manifest
-from backend.platform.lifecycle import ModuleLifecycle
 from backend.platform.remote_files import remotes_dir
 from backend.platform.sdk import create_service
 from backend.platform.sdk.legacy_import import import_legacy_files, import_legacy_tables
-from backend.routers import sdr
+
+from sentinel_sdr import module as sdr_module
+from sentinel_sdr import router as sdr
+from sentinel_sdr.database import SDR_TABLES, create_sdr_tables, sdr_recordings_dir
+from sentinel_sdr.module import lifecycle as sdr_lifecycle
+from sentinel_sdr.module import manifest
 
 
 def _recording_file_names(db_path: str) -> list[str]:
@@ -65,18 +67,17 @@ def _import_legacy() -> None:
 async def _prepare() -> None:
     await create_sdr_tables()
     await asyncio.to_thread(_import_legacy)
+    # Seeds only after the legacy import, so an imported catalogue is never
+    # re-seeded from the file. Looked up at call time, so tests can patch it.
+    await sdr_module.seed()
 
 
 app = create_service(
     manifest=manifest,
     routers=[sdr.router],
-    # The monolith's SDR lifecycle (seed the frequency tables and the band plan
-    # from their data files, then mirror the tables into core's settings),
-    # unchanged, after this service's own schema and legacy import — so an
-    # imported catalogue is never re-seeded from the file.
-    lifecycles=[
-        ModuleLifecycle(name="sdr-schema", prepare=_prepare),
-        sdr_lifecycle,
-    ],
+    # The SDR section's own lifecycle (collecting IQ captures from the radio
+    # hub), with a prepare that also copies the legacy tables and recordings in
+    # once the schema exists, before seeding.
+    lifecycles=[dataclasses.replace(sdr_lifecycle, prepare=_prepare)],
     remote_dir=remotes_dir() / "sdr",
 )

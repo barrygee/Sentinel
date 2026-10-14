@@ -186,10 +186,10 @@ SECTION_CODE = {
         "backend.radio_hub.services.sentry_reservations",
     },
     "sdr": {
-        "backend.routers.sdr",
-        "backend.modules.sdr",
-        "backend.services.sdr_data",
-        "backend.services.sdr_frequencies",
+        "sentinel_sdr.router",
+        "sentinel_sdr.module",
+        "sentinel_sdr.services.sdr_data",
+        "sentinel_sdr.services.sdr_frequencies",
     },
 }
 # The SDR section's own routes, which share /api/sdr/ with the radio hub's

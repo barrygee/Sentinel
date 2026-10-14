@@ -26,18 +26,26 @@ import logging
 from pathlib import Path
 
 from backend.cache import now_ms
-from backend.database import get_db, sdr_recordings_dir, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
-from backend.models import SdrFrequencyGroup, SdrFrequencyGroupLink, SdrRecording, SdrSearchRange, SdrStoredFrequency
+from backend.database import get_db
 from backend.platform.bus import bus
 from backend.platform.settings_client import read_namespace, read_setting
-from backend.services.sdr_data import write_sdr_frequencies_file
-from backend.services.sdr_frequencies import reconcile_sdr_frequencies
-from backend.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from sentinel_sdr.database import sdr_recordings_dir, sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
+from sentinel_sdr.models import (
+    SdrFrequencyGroup,
+    SdrFrequencyGroupLink,
+    SdrRecording,
+    SdrSearchRange,
+    SdrStoredFrequency,
+)
+from sentinel_sdr.services.sdr_data import write_sdr_frequencies_file
+from sentinel_sdr.services.sdr_frequencies import reconcile_sdr_frequencies
+from sentinel_sdr.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
 
 logger = logging.getLogger(__name__)
 
@@ -512,7 +520,7 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
 
     Reconciles into the dedicated tables (reusing the same logic as the config
     upload), then re-derives the snapshot and writes sdr_frequencies.json."""
-    from backend.services.sdr_data import reconcile_search_ranges
+    from sentinel_sdr.services.sdr_data import reconcile_search_ranges
 
     if not isinstance(body, dict):
         raise HTTPException(400, "Body must be a JSON object")
@@ -531,7 +539,7 @@ async def set_sdr_data_frequencies(body: dict, db: AsyncSession = Depends(get_db
 @router.get("/api/sdr/data/bandplan")
 async def get_sdr_data_bandplan(db: AsyncSession = Depends(get_db)):
     """Return {bandPlan} as the textarea source."""
-    from backend.services.sdr_data import get_bandplan
+    from sentinel_sdr.services.sdr_data import get_bandplan
 
     return JSONResponse({"bandPlan": await get_bandplan(db)})
 
@@ -539,7 +547,7 @@ async def get_sdr_data_bandplan(db: AsyncSession = Depends(get_db)):
 @router.post("/api/sdr/data/bandplan")
 async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
     """Replace the band plan from an edited JSON object {bandPlan: [...]}."""
-    from backend.services.sdr_data import set_bandplan
+    from sentinel_sdr.services.sdr_data import set_bandplan
 
     if not isinstance(body, dict) or not isinstance(body.get("bandPlan"), list):
         raise HTTPException(400, "Body must be a JSON object with a bandPlan array")

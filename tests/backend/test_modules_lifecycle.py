@@ -19,11 +19,12 @@ import pytest
 from backend import modules
 from backend.database import AsyncSessionLocal
 from backend.modules import bus as bus_module
-from backend.modules import core, radio_hub, sdr
+from backend.modules import core, radio_hub
 from backend.platform.bus import bus as process_bus
 from sentinel_air import module as air
 from sentinel_land import module as land
 from sentinel_sea import module as sea
+from sentinel_sdr import module as sdr
 from sentinel_sea.services.ais_stream import reader as ais_reader
 from sentinel_space import module as space
 
@@ -205,8 +206,9 @@ class TestAirModule:
 
 
 class TestSdrModule:
-    async def test_prepare_seeds_frequencies_then_the_band_plan(self, monkeypatch):
+    async def test_prepare_creates_its_tables_then_seeds_frequencies_then_the_band_plan(self, monkeypatch):
         calls: list[str] = []
+        monkeypatch.setattr(sdr, "create_sdr_tables", recorder(calls, "tables"))
         monkeypatch.setattr(
             sdr, "seed_sdr_data_from_files", recorder(calls, "frequencies")
         )
@@ -216,7 +218,7 @@ class TestSdrModule:
 
         await sdr.lifecycle.prepare()
 
-        assert calls == ["frequencies", "bandplan"]
+        assert calls == ["tables", "frequencies", "bandplan"]
 
 
 class TestSdrIqCaptureReconcile:
@@ -271,7 +273,7 @@ class TestSdrIqCaptureReconcile:
         monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
         monkeypatch.setattr(sdr.asyncio, "sleep", record_sleep)
 
-        with caplog.at_level(logging.ERROR, logger="backend.modules.sdr"), pytest.raises(asyncio.CancelledError):
+        with caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"), pytest.raises(asyncio.CancelledError):
             await sdr._reconcile_iq_captures_loop()
 
         assert runs == ["run", "run"]

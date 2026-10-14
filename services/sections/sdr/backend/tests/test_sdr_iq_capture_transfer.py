@@ -1,7 +1,7 @@
 """
-tests/backend/test_sdr_iq_capture_transfer.py
+services/sections/sdr/backend/tests/test_sdr_iq_capture_transfer.py
 
-Tests for backend/services/sdr_iq_capture_transfer.py — how the SDR section
+Tests for sentinel_sdr.services.sdr_iq_capture_transfer — how the SDR section
 collects IQ captures the radio hub staged in another process (section-containers
 plan P7.3). The hub is faked on both channels it is reached by: a recording bus
 for `hub.iq-capture.*` and an httpx MockTransport for the download. Pinned here:
@@ -23,14 +23,14 @@ from typing import Any
 
 import httpx
 import pytest
+from backend.config import settings
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-
-from backend.config import settings
-from backend.models import SdrRecording
-from backend.services import sdr_iq_capture_transfer as transfer
 from tests.backend.service_credentials_test_helpers import bearer, present_credential
+
+from sentinel_sdr.models import SdrRecording
+from sentinel_sdr.services import sdr_iq_capture_transfer as transfer
 
 DOWNLOAD_URL = "http://radio-hub:8000/internal/radio-hub/iq-captures/{}"
 LOCATE = "hub.iq-capture.locate"
@@ -208,33 +208,22 @@ class TestFetchIqCapture:
         assert destination.read_bytes() == b"\x01\x02\x03\x04"
         assert not (tmp_path / "recordings" / "3.u8.part").exists()
         assert hub_http.methods() == ["GET", "DELETE"]
-        assert all(
-            str(request.url) == DOWNLOAD_URL.format(3) for request in hub_http.requests
-        )
+        assert all(str(request.url) == DOWNLOAD_URL.format(3) for request in hub_http.requests)
 
     async def test_presents_the_sdr_sections_own_credential(self, hub_http, tmp_path):
         hub_http.files[3] = b"x"
         await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8")
 
-        assert {request.headers["Authorization"] for request in hub_http.requests} == {
-            bearer("sdr")["Authorization"]
-        }
+        assert {request.headers["Authorization"] for request in hub_http.requests} == {bearer("sdr")["Authorization"]}
 
-    async def test_copies_a_capture_larger_than_one_chunk_intact(
-        self, hub_http, tmp_path, monkeypatch
-    ):
+    async def test_copies_a_capture_larger_than_one_chunk_intact(self, hub_http, tmp_path, monkeypatch):
         monkeypatch.setattr(transfer, "_CHUNK_BYTES", 3)
         hub_http.files[3] = bytes(range(10))
 
-        assert (
-            await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8")
-            == 10
-        )
+        assert await transfer.fetch_iq_capture(DOWNLOAD_URL.format(3), tmp_path / "3.u8") == 10
         assert (tmp_path / "3.u8").read_bytes() == bytes(range(10))
 
-    async def test_refuses_without_a_credential_and_asks_nothing(
-        self, hub_http, tmp_path, monkeypatch
-    ):
+    async def test_refuses_without_a_credential_and_asks_nothing(self, hub_http, tmp_path, monkeypatch):
         monkeypatch.setattr(settings, "service_http_credentials_file", "")
 
         with pytest.raises(transfer.IqCaptureTransferError, match="no HTTP credential"):
@@ -459,9 +448,7 @@ class TestReconcile:
 
         assert hub_bus.requests == []
 
-    async def test_collects_a_finished_recording_still_waiting_for_its_iq(
-        self, hub_bus, hub_http, sessions, tmp_path
-    ):
+    async def test_collects_a_finished_recording_still_waiting_for_its_iq(self, hub_bus, hub_http, sessions, tmp_path):
         await add_recording(sessions, 3)
         hub_bus.replies[LIST] = {"ok": True, "capture_ids": [3]}
         hub_http.files[3] = b"iq"

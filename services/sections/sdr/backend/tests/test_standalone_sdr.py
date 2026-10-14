@@ -1,4 +1,4 @@
-"""The SDR section as its own service (backend/standalone/sdr.py, P6.6): its
+"""The SDR section as its own service (sentinel_sdr.service, P6.6): its
 schema and recordings folder, its first-boot import of the tables and the
 recordings' files, the app it serves, what it imports and hears on the bus,
 and the settings it reads and writes in core over HTTP — the band plan,
@@ -14,19 +14,20 @@ from pathlib import Path
 
 import httpx
 import pytest
+from backend import database
+from backend.config import settings
+from backend.database import get_db
+from backend.platform import settings_client
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend import database
-from backend.config import settings
-from backend.database import get_db
-from backend.models import SdrRecording
-from backend.platform import settings_client
-from backend.services import sdr_data
+from sentinel_sdr import database as sdr_database
+from sentinel_sdr.models import SdrRecording
+from sentinel_sdr.services import sdr_data
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[5]
 CORE_URL = "http://app:8000"
 SDR_URL = "http://sdr:8000"
 # Captured before the `core` fixture swaps httpx.AsyncClient for a fake-core client.
@@ -62,7 +63,7 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 class TestCreateSdrTables:
     async def test_creates_only_the_sdr_tables(self, sdr_engine):
-        await database.create_sdr_tables()
+        await sdr_database.create_sdr_tables()
 
         # No user_settings: the band plan and the mirrors are settings, kept in core.
         assert set(await table_columns(sdr_engine)) == {
@@ -74,7 +75,7 @@ class TestCreateSdrTables:
         }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, sdr_engine):
-        await database.create_sdr_tables()
+        await sdr_database.create_sdr_tables()
         sdr_schema = await table_columns(sdr_engine)
 
         monolith = create_async_engine(
@@ -89,33 +90,33 @@ class TestCreateSdrTables:
         finally:
             await monolith.dispose()
 
-        for table in database.SDR_TABLES:
+        for table in sdr_database.SDR_TABLES:
             assert sdr_schema[table] == monolith_schema[table]
 
     async def test_lists_parents_before_the_tables_that_refer_to_them(self):
-        order = list(database.SDR_TABLES)
+        order = list(sdr_database.SDR_TABLES)
 
         # A legacy import copies them in this order.
         assert order.index("sdr_frequency_groups") < order.index("sdr_frequency_group_links")
         assert order.index("sdr_stored_frequencies") < order.index("sdr_frequency_group_links")
 
     async def test_makes_the_recordings_folder_next_to_the_database(self, sdr_engine, tmp_path):
-        await database.create_sdr_tables()
+        await sdr_database.create_sdr_tables()
 
         assert (tmp_path / "data" / "recordings").is_dir()
 
     async def test_is_idempotent(self, sdr_engine):
-        await database.create_sdr_tables()
-        await database.create_sdr_tables()
+        await sdr_database.create_sdr_tables()
+        await sdr_database.create_sdr_tables()
 
-        assert set(await table_columns(sdr_engine)) == set(database.SDR_TABLES)
+        assert set(await table_columns(sdr_engine)) == set(sdr_database.SDR_TABLES)
 
 
 class TestSdrRecordingsDir:
     def test_is_the_recordings_folder_beside_the_database(self, monkeypatch):
         monkeypatch.setattr(settings, "db_path", "/app/data/sdr.db")
 
-        assert database.sdr_recordings_dir() == Path("/app/data/recordings")
+        assert sdr_database.sdr_recordings_dir() == Path("/app/data/recordings")
 
 
 # ── first boot: the legacy import ─────────────────────────────────────────────
@@ -126,7 +127,7 @@ def make_sdr_db(path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     engine = create_engine(f"sqlite:///{path}")
     try:
-        tables = [database.Base.metadata.tables[name] for name in database.SDR_TABLES]
+        tables = [database.Base.metadata.tables[name] for name in sdr_database.SDR_TABLES]
         database.Base.metadata.create_all(engine, tables=tables)
     finally:
         engine.dispose()
@@ -163,13 +164,13 @@ def recording_ids(path: Path) -> list[int]:
 
 @pytest.fixture
 def sdr_service(monkeypatch):
-    """`backend.standalone.sdr`, imported fresh with a service's environment."""
+    """`sentinel_sdr.service`, imported fresh with a service's environment."""
     monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
     monkeypatch.setattr(settings, "service_internal_url", SDR_URL)
-    monkeypatch.delitem(sys.modules, "backend.standalone.sdr", raising=False)
-    module = importlib.import_module("backend.standalone.sdr")
+    monkeypatch.delitem(sys.modules, "sentinel_sdr.service", raising=False)
+    module = importlib.import_module("sentinel_sdr.service")
     yield module
-    sys.modules.pop("backend.standalone.sdr", None)
+    sys.modules.pop("sentinel_sdr.service", None)
 
 
 class TestRecordingFileNames:
@@ -264,7 +265,7 @@ class TestImportLegacy:
 
         sdr_service._import_legacy()
 
-        assert imported == [(str(boot["service_db"]), settings.legacy_db_path, database.SDR_TABLES)]
+        assert imported == [(str(boot["service_db"]), settings.legacy_db_path, sdr_database.SDR_TABLES)]
 
 
 # ── a fake core ───────────────────────────────────────────────────────────────
@@ -446,7 +447,7 @@ class TestTheBandPlanOverHttp:
 class TestRawIqOverHttp:
     @pytest.fixture
     def hub_requests(self, monkeypatch) -> list:
-        from backend.routers import sdr as sdr_router
+        from sentinel_sdr import router as sdr_router
 
         requests: list = []
 
@@ -487,7 +488,7 @@ class TestTheSeedersOverHttp:
         monkeypatch.setattr(database, "AsyncSessionLocal", session_factory)
         monkeypatch.setattr(sdr_data, "load_sdr_bandplan_file", lambda: [{"name": "seeded"}])
 
-        await database.seed_sdr_bandplan_from_file()
+        await sdr_database.seed_sdr_bandplan_from_file()
 
         assert core.namespaces["sdr"]["bandPlan"] == [{"name": "seeded"}]
 
@@ -496,7 +497,7 @@ class TestTheSeedersOverHttp:
         monkeypatch.setattr(database, "AsyncSessionLocal", session_factory)
         monkeypatch.setattr(sdr_data, "load_sdr_bandplan_file", lambda: [{"name": "seeded"}])
 
-        await database.seed_sdr_bandplan_from_file()
+        await sdr_database.seed_sdr_bandplan_from_file()
 
         assert core.written_keys() == []
         assert core.namespaces["sdr"]["bandPlan"] == [{"name": "edited"}]
@@ -519,7 +520,7 @@ class TestTheSeedersOverHttp:
             )
         )
 
-        await database.seed_sdr_data_from_files()
+        await sdr_database.seed_sdr_data_from_files()
 
         assert [entry["label"] for entry in core.namespaces["sdr"]["searchRanges"]] == ["Airband"]
 
@@ -546,8 +547,8 @@ class TestTheMirrorsInProcess:
         from backend.db_helpers import get_setting
 
         async with session_factory() as session:
-            await database.sync_sdr_groups_to_config(session)
-            await database.sync_sdr_search_ranges_to_config(session)
+            await sdr_database.sync_sdr_groups_to_config(session)
+            await sdr_database.sync_sdr_search_ranges_to_config(session)
 
             assert await get_setting(session, "sdr", "groups") == []
             assert await get_setting(session, "sdr", "searchRanges") == []
@@ -642,22 +643,20 @@ class TestWhatTheSdrServiceLoads:
     def test_loads_no_other_section_and_not_the_radio_hub(self):
         loaded = probe_fresh_interpreter(
             "import json, sys\n"
-            "import backend.standalone.sdr\n"
+            "import sentinel_sdr.service\n"
             "print(json.dumps(sorted(m for m in sys.modules if m.startswith(('backend.modules.', 'backend.radio_hub',"
             " 'backend.routers.', 'sentinel_')))))\n"
         )
 
-        assert loaded == [
-            "backend.modules.manifest",
-            "backend.modules.sdr",
-            "backend.routers.sdr",
-        ]
+        # The SDR section's own package, and of core's modules only the manifest helper.
+        assert [module for module in loaded if not module.startswith("sentinel_sdr")] == ["backend.modules.manifest"]
+        assert {"sentinel_sdr.module", "sentinel_sdr.router"} <= set(loaded)
 
     def test_answers_no_hub_request_itself_so_iq_captures_cross_nats(self):
         patterns = probe_fresh_interpreter(
             "import json\n"
             "from backend.platform.bus import bus\n"
-            "import backend.standalone.sdr\n"
+            "import sentinel_sdr.service\n"
             "print(json.dumps(sorted({s.pattern for s in bus._subscriptions})))\n"
         )
 
@@ -668,28 +667,39 @@ class TestWhatTheSdrServiceLoads:
 
 
 class TestSdrServiceLifecycle:
-    async def test_prepare_builds_the_schema_then_imports_the_legacy_data(self, sdr_service, monkeypatch):
+    async def test_prepare_builds_the_schema_then_imports_the_legacy_data_then_seeds(self, sdr_service, monkeypatch):
         calls: list[str] = []
 
         async def create_sdr_tables():
             calls.append("create_sdr_tables")
 
+        async def seed():
+            calls.append("seed")
+
         monkeypatch.setattr(sdr_service, "create_sdr_tables", create_sdr_tables)
         monkeypatch.setattr(sdr_service, "_import_legacy", lambda: calls.append("import_legacy"))
+        monkeypatch.setattr(sdr_service.sdr_module, "seed", seed)
 
         await sdr_service._prepare()
 
-        assert calls == ["create_sdr_tables", "import_legacy"]
+        assert calls == ["create_sdr_tables", "import_legacy", "seed"]
 
-    async def test_runs_its_schema_then_the_sdr_lifecycle_then_registration(self, monkeypatch):
-        from backend.modules import sdr as sdr_module
+    async def test_runs_its_schema_and_seeds_then_the_sdr_lifecycle_then_registration(self, monkeypatch):
         from backend.platform.lifecycle import ModuleLifecycle
         from backend.platform.sdk.registration import ServiceRegistrar
+
+        from sentinel_sdr import module as sdr_module
 
         calls: list[str] = []
 
         async def sdr_prepare():
-            calls.append("sdr.prepare")
+            calls.append("sdr.prepare")  # replaced by the service's own prepare: never runs
+
+        async def sdr_start():
+            calls.append("sdr.start")
+
+        async def seed():
+            calls.append("seed")
 
         async def schema_prepare():
             calls.append("schema")
@@ -700,12 +710,13 @@ class TestSdrServiceLifecycle:
         monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
         monkeypatch.setattr(settings, "service_internal_url", SDR_URL)
         monkeypatch.setattr(settings, "nats_url", "")
-        # The service composes the monolith's SDR lifecycle (the seeders) at import, so swap it first.
-        monkeypatch.setattr(sdr_module, "lifecycle", ModuleLifecycle(name="sdr", prepare=sdr_prepare))
+        # The service composes the SDR lifecycle at import, so swap it first.
+        monkeypatch.setattr(sdr_module, "lifecycle", ModuleLifecycle(name="sdr", prepare=sdr_prepare, start=sdr_start))
+        monkeypatch.setattr(sdr_module, "seed", seed)
         monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
         monkeypatch.setattr(ServiceRegistrar, "stop", registrar_stop)
-        monkeypatch.delitem(sys.modules, "backend.standalone.sdr", raising=False)
-        service = importlib.import_module("backend.standalone.sdr")
+        monkeypatch.delitem(sys.modules, "sentinel_sdr.service", raising=False)
+        service = importlib.import_module("sentinel_sdr.service")
         monkeypatch.setattr(service, "create_sdr_tables", schema_prepare)
         monkeypatch.setattr(service, "_import_legacy", lambda: calls.append("import"))
 
@@ -713,13 +724,14 @@ class TestSdrServiceLifecycle:
             async with service.app.router.lifespan_context(service.app):
                 pass
         finally:
-            sys.modules.pop("backend.standalone.sdr", None)
+            sys.modules.pop("sentinel_sdr.service", None)
 
         # The seeders run after the import, so an imported catalogue is never re-seeded.
         assert calls == [
             "schema",
             "import",
-            "sdr.prepare",
+            "seed",
+            "sdr.start",
             "registration.start",
             "registration.stop",
         ]

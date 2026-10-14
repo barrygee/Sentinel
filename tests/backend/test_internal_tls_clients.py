@@ -12,7 +12,7 @@ import pytest
 from backend.core import service_registry
 from backend.platform import settings_client
 from backend.platform.sdk import registration
-from backend.services import sdr_iq_capture_transfer
+from sentinel_sdr.services import sdr_iq_capture_transfer
 from tests.backend.service_credentials_test_helpers import present_credential
 from tests.backend.test_platform_sdk_registration import make_manifest
 

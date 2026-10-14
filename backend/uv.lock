@@ -1071,6 +1071,7 @@ dependencies = [
     { name = "python-multipart" },
     { name = "sentinel-air" },
     { name = "sentinel-land" },
+    { name = "sentinel-sdr" },
     { name = "sentinel-sea" },
     { name = "sentinel-space" },
     { name = "sgp4" },
@@ -1104,6 +1105,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "sentinel-air", editable = "../services/sections/air/backend" },
     { name = "sentinel-land", editable = "../services/sections/land/backend" },
+    { name = "sentinel-sdr", editable = "../services/sections/sdr/backend" },
     { name = "sentinel-sea", editable = "../services/sections/sea/backend" },
     { name = "sentinel-space", editable = "../services/sections/space/backend" },
     { name = "sgp4", specifier = ">=2.23" },
@@ -1126,6 +1128,11 @@ dev = [
 name = "sentinel-land"
 version = "0.1.0"
 source = { editable = "../services/sections/land/backend" }
+
+[[package]]
+name = "sentinel-sdr"
+version = "0.1.0"
+source = { editable = "../services/sections/sdr/backend" }
 
 [[package]]
 name = "sentinel-sea"

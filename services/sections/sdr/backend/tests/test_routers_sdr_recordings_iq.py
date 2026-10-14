@@ -1,7 +1,7 @@
 """
-tests/backend/test_routers_sdr_recordings_iq.py
+services/sections/sdr/backend/tests/test_routers_sdr_recordings_iq.py
 
-Tests for how the SDR section's recording endpoints (backend/routers/sdr.py) ask
+Tests for how the SDR section's recording endpoints (sentinel_sdr.router) ask
 the radio hub for raw-IQ capture over the bus (section-containers plan, B12).
 The hub side — the file itself — is covered in test_radio_hub_iq_capture.py.
 
@@ -22,9 +22,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-
 from backend.config import settings
-from backend.routers import sdr as sdr_section_router
+
+from sentinel_sdr import router as sdr_section_router
 
 START = "hub.iq-capture.start"
 STOP = "hub.iq-capture.stop"
@@ -37,9 +37,7 @@ class _RecordingBus:
         self.requests: list[tuple[str, dict[str, Any]]] = []
         self.replies: dict[str, Any] = {START: {"ok": True}, STOP: {"ok": True}}
 
-    async def request(
-        self, subject: str, payload: dict[str, Any], timeout: float | None = 5.0
-    ) -> Any:
+    async def request(self, subject: str, payload: dict[str, Any], timeout: float | None = 5.0) -> Any:
         self.requests.append((subject, payload))
         reply = self.replies[subject]
         if isinstance(reply, Exception):
@@ -59,10 +57,7 @@ def fake_bus(monkeypatch, tmp_path) -> _RecordingBus:
 
 
 def _enable_raw_iq(client, enabled: bool = True) -> None:
-    assert (
-        client.put("/api/settings/sdr/recordRawIq", json={"value": enabled}).status_code
-        == 200
-    )
+    assert client.put("/api/settings/sdr/recordRawIq", json={"value": enabled}).status_code == 200
 
 
 def _start(client, **overrides) -> int:
@@ -126,9 +121,7 @@ class TestStartAsksTheHub:
 
 
 class TestStopAsksTheHub:
-    def test_stops_the_capture_and_reports_the_file_the_hub_wrote(
-        self, client, fake_bus, tmp_path
-    ):
+    def test_stops_the_capture_and_reports_the_file_the_hub_wrote(self, client, fake_bus, tmp_path):
         _enable_raw_iq(client)
         recording_id = _start(client)
         recordings_dir = tmp_path / "recordings"
@@ -191,9 +184,7 @@ class TestIqCopiedFromAHubElsewhere:
         assert body["status"] == "complete"
         assert hub_elsewhere["collect"] == [recording_id]
 
-    def test_a_pending_iq_shows_in_the_list_and_cannot_be_downloaded_yet(
-        self, client, fake_bus, hub_elsewhere
-    ):
+    def test_a_pending_iq_shows_in_the_list_and_cannot_be_downloaded_yet(self, client, fake_bus, hub_elsewhere):
         _enable_raw_iq(client)
         recording_id = _start(client)
         _stop(client, recording_id)

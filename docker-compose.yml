@@ -334,13 +334,14 @@ services:
       - sdr_data:/app/data
       - *legacy-db
       - *backend-code
+      - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/sdr}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/sdr.db
       SERVICE_INTERNAL_URL: http://sdr:8000
-    command: uvicorn backend.standalone.sdr:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
