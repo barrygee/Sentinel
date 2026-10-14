@@ -502,6 +502,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make the recording length limit a Settings › SDR setting
 - Focus the Settings page when a link opens it
 - Use the app lime for your location dot on the light map
+- Restore the radio hub container name sentinel-radio-hub
 
 ### Chores
 
@@ -1518,6 +1519,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #479 from barrygee/feat/settings-apply-no-reload
 - Merge pull request #480 from barrygee/fix/light-map-location-dot-lime
 - Merge pull request #481 from barrygee/refactor/section-move-radio-hub
+- Merge pull request #482 from barrygee/fix/radio-hub-container-name
 
 ### Refactoring
 
