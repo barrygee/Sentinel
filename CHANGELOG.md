@@ -1505,6 +1505,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #473 from barrygee/refactor/section-move-land
 - Merge pull request #474 from barrygee/refactor/section-move-air
 - Merge pull request #475 from barrygee/refactor/section-move-sea
+- Merge pull request #476 from barrygee/refactor/section-move-sdr
 
 ### Refactoring
 
@@ -1598,6 +1599,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move Land's backend into services/sections/land/backend
 - Move Air's backend into services/sections/air/backend
 - Move Sea's backend into services/sections/sea/backend
+- Move the SDR section's backend into services/sections/sdr/backend
 
 ### Documentation
 
@@ -1719,6 +1721,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover per-service HTTP credentials (P7.4b)
 - Cover the radio host's TLS plumbing (P7.5a)
 - Cover create_core_app() and core's SPA serving
+- Cover the SDR section's schema upgrades
 
 ### Build System
 
