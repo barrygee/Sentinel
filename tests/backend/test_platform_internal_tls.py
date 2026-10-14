@@ -32,7 +32,7 @@ def deployment(tmp_path_factory) -> Path:
     """A CA and core's service-entrypoint certificate (covers `localhost`)."""
     output = tmp_path_factory.mktemp("credentials")
     setup.generate(output)
-    return output / "services" / setup.GATEWAY_FOLDER
+    return output / "credentials" / setup.GATEWAY_FOLDER
 
 
 async def _serve_tls(certificate_folder: Path):

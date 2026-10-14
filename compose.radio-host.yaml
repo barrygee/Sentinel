@@ -16,7 +16,7 @@
 # no PCM port and no decoder credential ever leaves this machine.
 #
 # Needs (in this host's .env): SENTINEL_CORE_ENTRYPOINT_URL, SENTINEL_CORE_NATS_URL
-# and SENTINEL_RADIO_HOST_URL. On the core host: SENTINEL_RADIO_HUB_REPLICAS=0
+# and SENTINEL_RADIO_HOST_URL. On the core host: SENTINEL_RADIO_REPLICAS=0
 # (so it starts no hub of its own), no decoder profiles, the entrypoint and
 # NATS published (SENTINEL_SERVICE_ENTRYPOINT_ADDRESS, NATS_PUBLISHED_ADDRESS)
 # and both hosts' names in SENTINEL_CORE_HOSTNAMES / SENTINEL_RADIO_HOST_HOSTNAMES.
@@ -26,7 +26,7 @@ name: sentinel-radio-host
 x-decoder-credentials-env: &decoder-env
   # The hub, straight over this host's compose network (it serves the decoder
   # endpoints itself), rather than core's gateway across the LAN.
-  SENTINEL_GATEWAY_URL: http://radio-hub:8000
+  SENTINEL_GATEWAY_URL: http://radio:8000
   DECODER_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json
 
 services:
@@ -50,7 +50,7 @@ services:
       disable: true
     restart: "no"
 
-  radio-hub:
+  radio:
     build:
       context: .
       dockerfile: backend/Dockerfile
@@ -58,17 +58,17 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - radio_hub_data:/app/data
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/radio-hub}}
+      - radio_data:/app/data
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/radio}}
     environment:
       PYTHONUNBUFFERED: "1"
-      DB_PATH: /app/data/radio-hub.db
+      DB_PATH: /app/data/radio.db
       SENTINEL_CORE_URL: ${SENTINEL_CORE_ENTRYPOINT_URL:?set SENTINEL_CORE_ENTRYPOINT_URL, e.g. https://core.lan:8443}
       NATS_URL: ${SENTINEL_CORE_NATS_URL:?set SENTINEL_CORE_NATS_URL, e.g. tls://core.lan:4222}
       # What it registers: core's gateway and the SDR section reach it here.
       SERVICE_INTERNAL_URL: ${SENTINEL_RADIO_HOST_URL:?set SENTINEL_RADIO_HOST_URL, e.g. https://radio.lan:8443}
-      # Its decoders are on this compose network: they dial `radio-hub`.
-      DECODER_SOCKETS_HOST: radio-hub
+      # Its decoders are on this compose network: they dial `radio`.
+      DECODER_SOCKETS_HOST: radio
       SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json
       ACCEPTED_CALLERS_FILE: /run/service-credentials/accepted-callers.json
       NATS_CREDENTIALS_FILE: /run/service-credentials/nats-credentials.json
@@ -90,14 +90,14 @@ services:
       - "${SENTINEL_RADIO_HOST_GATEWAY_ADDRESS:-8443}:8443"
     volumes:
       - ./gateway/radio-host-caddy.json:/etc/caddy/caddy.json:ro
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/radio-host-gateway}}
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/radio-host-gateway}}
     user: "${SENTINEL_RUNTIME_USER_ID:-1000}:${SENTINEL_RUNTIME_GROUP_ID:-1000}"
     read_only: true
     tmpfs:
       - /data:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
       - /config:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
     depends_on:
-      - radio-hub
+      - radio
     restart: unless-stopped
     networks:
       - radio-host
@@ -110,9 +110,9 @@ services:
     profiles: ["voice-decoder", "all"]
     environment: *decoder-env
     volumes:
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/voice-decoder}}
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/voice-decoder}}
     depends_on:
-      - radio-hub
+      - radio
     restart: unless-stopped
     networks:
       - radio-host
@@ -124,9 +124,9 @@ services:
     profiles: ["aprs", "all"]
     environment: *decoder-env
     volumes:
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/aprs-decoder}}
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/aprs-decoder}}
     depends_on:
-      - radio-hub
+      - radio
     restart: unless-stopped
     networks:
       - radio-host
@@ -138,9 +138,9 @@ services:
     profiles: ["ais", "all"]
     environment: *decoder-env
     volumes:
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/ais-decoder}}
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/ais-decoder}}
     depends_on:
-      - radio-hub
+      - radio
     restart: unless-stopped
     networks:
       - radio-host
@@ -154,15 +154,15 @@ services:
       <<: *decoder-env
       PCM_PORT: "7370"
     volumes:
-      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/stub-decoder}}
+      - {type: volume, source: radio_host_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/stub-decoder}}
     depends_on:
-      - radio-hub
+      - radio
     restart: unless-stopped
     networks:
       - radio-host
 
 volumes:
-  radio_hub_data:
+  radio_data:
   radio_host_credentials:
 
 networks:

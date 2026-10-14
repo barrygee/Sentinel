@@ -194,8 +194,8 @@ for (const section of EXTRACTED_SECTIONS) {
     });
 }
 
-test.describe(`radio-hub (${deploymentOf('radio-hub')})`, () => {
-    const deployed = isDeployed('radio-hub');
+test.describe(`radio (${deploymentOf('radio')})`, () => {
+    const deployed = isDeployed('radio');
 
     test('its radio API answers with JSON when deployed, and is not served when absent', async ({
         request,

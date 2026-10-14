@@ -3,7 +3,7 @@ services/sections/sdr/backend/tests/test_routers_sdr_recordings_iq.py
 
 Tests for how the SDR section's recording endpoints (sentinel_sdr.router) ask
 the radio hub for raw-IQ capture over the bus (section-containers plan, B12).
-The hub side — the file itself — is covered in test_radio_hub_iq_capture.py.
+The hub side — the file itself — is covered in test_radio_iq_capture.py.
 
 The section's `bus` is swapped for a recorder, so each test can force the hub's
 reply (ok, declined, unreachable) and see exactly which requests were sent:
@@ -153,7 +153,7 @@ class TestStopAsksTheHub:
 @pytest.fixture()
 def hub_elsewhere(monkeypatch) -> dict[str, list[int]]:
     """The radio hub in its own container; records what the router hands the transfer service."""
-    monkeypatch.setattr(settings, "sentinel_external_services", "radio-hub")
+    monkeypatch.setattr(settings, "sentinel_external_services", "radio")
     handed: dict[str, list[int]] = {"collect": [], "discard": []}
     monkeypatch.setattr(sdr_section_router, "schedule_collect", handed["collect"].append)
 

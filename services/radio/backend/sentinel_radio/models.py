@@ -1,6 +1,6 @@
 """The radio hub's table: the Sentry hosts it polls and claims dongles through.
 
-It lives in the radio hub service's own database (`radio-hub.db`). It shares
+It lives in the radio hub service's own database (`radio.db`). It shares
 core's declarative `Base`, so the in-process app and the test suite create it
 with the rest of the schema once this module is imported. The radios themselves
 are not the hub's to store: they are a core setting (`sdr.radios`).

@@ -6,7 +6,7 @@ kinds declared by a manifest (section-containers plan §3.4): registration, the
 start/stop/status controls, and the decoder-facing ingest/config pair.
 
 The bridges themselves (sockets, demod, retune) are covered in
-test_radio_hub_manifest_decode.py. Here the registry is real and a bridge is
+test_radio_manifest_decode.py. Here the registry is real and a bridge is
 placed in it directly, because each TestClient request runs on its own event
 loop and could not keep a real PCM server alive between requests. Pinned:
   * register/ingest/config are secret-gated and fail closed, like every other

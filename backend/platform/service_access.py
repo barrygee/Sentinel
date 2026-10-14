@@ -42,7 +42,7 @@ SERVICE_ACCESS: dict[str, CallerAccess] = {
     # The app hosts any section (and the hub) in-process, so whatever a section
     # may do, core may too; `may_*` below lets it through every check.
     CORE_USER: CallerAccess(),
-    "radio-hub": CallerAccess(registers_as="radio-hub"),
+    "radio": CallerAccess(registers_as="radio"),
     "space": CallerAccess(registers_as="space"),
     "land": CallerAccess(registers_as="land"),
     "air": CallerAccess(registers_as="air"),
@@ -62,7 +62,7 @@ DECODER_ACCESS: dict[str, CallerAccess] = {
 
 CALLER_ACCESS: dict[str, CallerAccess] = {**SERVICE_ACCESS, **DECODER_ACCESS}
 
-VERIFYING_SERVICES: tuple[str, ...] = (CORE_USER, "radio-hub")
+VERIFYING_SERVICES: tuple[str, ...] = (CORE_USER, "radio")
 """The processes that serve internal routes, so get the list of accepted callers."""
 
 assert set(SERVICE_ACCESS) == set(SERVICE_PERMISSIONS), "every NATS user needs an HTTP entry, and back"

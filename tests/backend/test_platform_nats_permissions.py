@@ -39,12 +39,12 @@ class TestTable:
             for user, rules in SERVICE_PERMISSIONS.items()
             if rules.answers_requests
         }
-        assert responders == {CORE_USER, "radio-hub"}
+        assert responders == {CORE_USER, "radio"}
 
     @pytest.mark.parametrize(
         ("user", "subject"),
         [
-            ("radio-hub", "decode.aprs.radio-1"),
+            ("radio", "decode.aprs.radio-1"),
             ("air", "notifications.raise"),
             ("air", "hub.sentry.reservation.acquire"),
             ("sea", "hub.decode.ais.start"),
@@ -58,9 +58,9 @@ class TestTable:
     @pytest.mark.parametrize(
         ("user", "subject"),
         [
-            ("radio-hub", "hub.iq-capture.stop"),
-            ("radio-hub", "settings.changed.land"),
-            ("radio-hub", "sdr.decode.radio-reassigned"),
+            ("radio", "hub.iq-capture.stop"),
+            ("radio", "settings.changed.land"),
+            ("radio", "sdr.decode.radio-reassigned"),
             ("air", "air.squawk.changed"),
             ("sea", "decode.ais.radio-1"),
             ("sea", "settings.changed.app"),
@@ -107,7 +107,7 @@ class TestServerPermissions:
         assert server_permissions("probe")["subscribe"] == {"allow": ["_INBOX.probe.>"]}
 
     def test_a_responder_may_answer_the_requests_it_receives(self):
-        assert server_permissions("radio-hub")["allow_responses"] is True
+        assert server_permissions("radio")["allow_responses"] is True
         assert "allow_responses" not in server_permissions("sdr")
 
     def test_core_is_unrestricted(self):

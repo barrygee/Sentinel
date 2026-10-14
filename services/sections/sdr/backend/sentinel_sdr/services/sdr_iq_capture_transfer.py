@@ -66,7 +66,7 @@ class IqCaptureTransferError(Exception):
 
 def copies_iq_from_hub() -> bool:
     """True when the radio hub runs in another process, so captures are copied rather than written in place."""
-    return not shares_process_with("radio-hub")
+    return not shares_process_with("radio")
 
 
 def iq_path(recording_id: int) -> Path:

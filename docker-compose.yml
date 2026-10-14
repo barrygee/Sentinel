@@ -77,7 +77,7 @@ services:
       - ./frontend/assets:/app/frontend/assets:ro  # tiles, sprites, fonts
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       # Its own credentials (`core`) and the callers it accepts, from service-credentials.
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/core}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/core}}
     environment:
       - DB_PATH=/app/data/sentinel.db
       # Internal routes (section-containers plan §4.5, P7.4b): services in their
@@ -92,7 +92,7 @@ services:
       # <service>=0`, or a radio hub on a radio host) is simply absent. Their
       # settings — decoder ports, the AISStream key, the Off Grid ADS-B URL —
       # are set on those services, not here.
-      - SENTINEL_EXTERNAL_SERVICES=space,land,air,sea,radio-hub,sdr
+      - SENTINEL_EXTERNAL_SERVICES=space,land,air,sea,radio,sdr
       - PYTHONUNBUFFERED=1
       # Event bus broker (the `nats` service below). Events are always delivered
       # in-process first; NATS carries them to the sections and the radio hub,
@@ -127,7 +127,7 @@ services:
   # The gateway (section-containers plan §4.4): Caddy, the one origin browsers
   # use. Its static config (gateway/caddy.json) never routes /internal/, sends
   # everything unmatched to the app, and turns an unreachable upstream into a
-  # JSON 503. Every section / radio-hub / remote prefix is pushed into it at
+  # JSON 503. Every section / radio hub / remote prefix is pushed into it at
   # runtime by the app from the service registry (backend/core/gateway_sync.py),
   # so moving a section into its own container needs no gateway edit. The
   # admin API (:2019) is reachable on the compose network only — never published.
@@ -150,7 +150,7 @@ services:
       - ./gateway/caddy.json:/etc/caddy/caddy.json:ro
       # The entrypoint's certificate and key, and the CA it trusts when
       # proxying to a service registered at an https:// address.
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/gateway}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/gateway}}
     # Nothing to persist (its certificate comes from the volume above, and the
     # dynamic routes are re-pushed by the app), so run unprivileged on a
     # read-only filesystem with scratch space for Caddy's data/config dirs,
@@ -193,7 +193,7 @@ services:
       - *backend-code
       - ./services/sections/space/backend:/app/services/sections/space/backend  # live-reload section code
       - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/space}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/space}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/space.db
@@ -215,7 +215,7 @@ services:
       - *backend-code
       - ./services/sections/land/backend:/app/services/sections/land/backend  # live-reload section code
       - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/land}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/land}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/land.db
@@ -238,7 +238,7 @@ services:
       - *backend-code
       - ./services/sections/air/backend:/app/services/sections/air/backend  # live-reload section code
       - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/air}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/air}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/air.db
@@ -265,7 +265,7 @@ services:
       - *backend-code
       - ./services/sections/sea/backend:/app/services/sections/sea/backend  # live-reload section code
       - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/sea}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sea}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/sea.db
@@ -282,7 +282,7 @@ services:
   # connect/status, all four /ws/sdr/* sockets, the decode bridges and their
   # PCM ports, IQ capture and the Sentry fleet — and takes those prefixes over
   # from the app in the gateway when it registers. Its one table (the Sentry
-  # hosts and their tokens) lives in its own database on radio_hub_data, copied
+  # hosts and their tokens) lives in its own database on radio_data, copied
   # from the app's on first boot; the radios themselves stay an app setting.
   # Air, Sea, Land and the SDR section reach it over NATS.
   #
@@ -290,28 +290,28 @@ services:
   # and each config reply names the hub's PCM / voice-audio sockets by the
   # address it registered (SERVICE_INTERNAL_URL below). When the hub runs on a
   # radio host instead (compose.radio-host.yaml, docs/radio-host.md), set
-  # SENTINEL_RADIO_HUB_REPLICAS=0 in this host's .env so core doesn't start one.
-  radio-hub:
+  # SENTINEL_RADIO_REPLICAS=0 in this host's .env so core doesn't start one.
+  radio:
     <<: *section-service
-    container_name: sentinel-radio-hub
+    container_name: sentinel-radio
     deploy:
-      replicas: ${SENTINEL_RADIO_HUB_REPLICAS:-1}
+      replicas: ${SENTINEL_RADIO_REPLICAS:-1}
     # It dials rtl_tcp and Sentry hosts: same reason as the app's entry above.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - radio_hub_data:/app/data
+      - radio_data:/app/data
       - *legacy-db
       - *backend-code
       - ./services/radio/backend:/app/services/radio/backend  # live-reload hub code
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/radio-hub}}
-      # IQ captures are written to recordings/ on radio_hub_data; the SDR
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/radio}}
+      # IQ captures are written to recordings/ on radio_data; the SDR
       # section copies each one over HTTP when its recording stops (P7.3), so
       # no volume is shared with it.
     environment:
       <<: *section-env
-      DB_PATH: /app/data/radio-hub.db
-      SERVICE_INTERNAL_URL: http://radio-hub:8000
+      DB_PATH: /app/data/radio.db
+      SERVICE_INTERNAL_URL: http://radio:8000
       # The decoders and the SDR section present their own credentials to the
       # hub; it knows them by hash. The PCM and voice ports keep the app's
       # defaults (7355–7358).
@@ -337,7 +337,7 @@ services:
       - *backend-code
       - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/sdr}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/sdr.db
@@ -387,7 +387,7 @@ services:
   # created when missing. nats.conf and the accepted-callers lists are
   # regenerated each time, but the broker reads its config only at start:
   # after a permissions change, `docker compose restart nats`. Each service
-  # and decoder mounts only its own services/<name>/ folder; the CA's private
+  # and decoder mounts only its own credentials/<name>/ folder; the CA's private
   # key is never mounted elsewhere. See
   # backend/scripts/generate_service_credentials.py.
   service-credentials:
@@ -432,14 +432,14 @@ services:
       - gateway
     environment:
       # Sentinel's gateway. Config and ingest go through it, so they reach the
-      # radio hub wherever it runs (this host's `radio-hub` or a radio host's); each
+      # radio hub wherever it runs (this host's `radio` or a radio host's); each
       # config reply names the hub's PCM and voice-audio sockets, by the address the hub
       # registered, since raw TCP/UDP can't go through the gateway.
       - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Its own credential, which the hub accepts for its kind only.
       - DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json
     volumes:
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/voice-decoder}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/voice-decoder}}
     # For a hardware AMBE dongle (license-clean alternative to software mbelib),
     # pass it through and add the matching dsd-fme flag via DSD_EXTRA_ARGS:
     # devices:
@@ -463,14 +463,14 @@ services:
       - gateway
     environment:
       # Sentinel's gateway. Config and ingest go through it, so they reach the
-      # radio hub wherever it runs (this host's `radio-hub` or a radio host's); each
+      # radio hub wherever it runs (this host's `radio` or a radio host's); each
       # config reply names the hub's PCM socket, by the address the hub
       # registered, since raw TCP can't go through the gateway.
       - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Its own credential, which the hub accepts for its kind only.
       - DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json
     volumes:
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/aprs-decoder}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/aprs-decoder}}
     restart: unless-stopped
     networks:
       - sentinel
@@ -499,14 +499,14 @@ services:
       - gateway
     environment:
       # Sentinel's gateway. Config and ingest go through it, so they reach the
-      # radio hub wherever it runs (this host's `radio-hub` or a radio host's); each
+      # radio hub wherever it runs (this host's `radio` or a radio host's); each
       # config reply names the hub's PCM socket, by the address the hub
       # registered, since raw TCP can't go through the gateway.
       - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
       # Its own credential, which the hub accepts for its kind only.
       - DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json
     volumes:
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/ais-decoder}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/ais-decoder}}
     restart: unless-stopped
     networks:
       - sentinel
@@ -526,7 +526,7 @@ services:
       - gateway
     environment:
       # Sentinel's gateway. Config and ingest go through it, so they reach the
-      # radio hub wherever it runs (this host's `radio-hub` or a radio host's); each
+      # radio hub wherever it runs (this host's `radio` or a radio host's); each
       # config reply names the hub's PCM socket, by the address the hub
       # registered, since raw TCP can't go through the gateway.
       - SENTINEL_GATEWAY_URL=${SENTINEL_GATEWAY_URL:-http://gateway:8080}
@@ -535,7 +535,7 @@ services:
       # Its own credential, which the hub accepts for the `stub` kind only.
       - DECODER_CREDENTIALS_FILE=/run/service-credentials/http-credentials.json
     volumes:
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: services/stub-decoder}}
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/stub-decoder}}
     restart: unless-stopped
     networks:
       - sentinel
@@ -605,7 +605,7 @@ volumes:
   land_data:
   air_data:
   sea_data:
-  radio_hub_data:
+  radio_data:
   sdr_data:
 
 networks:

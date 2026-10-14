@@ -329,7 +329,7 @@ class Settings(BaseSettings):
     # The host decoders dial this radio hub's PCM / voice-audio sockets on.
     # Empty = the host of the address above (the one the hub registers). A hub
     # behind a radio host's gateway registers that gateway's address, so its
-    # decoders, on the hub's own compose network, are told `radio-hub` instead
+    # decoders, on the hub's own compose network, are told `radio` instead
     # and no raw PCM port has to be published on the LAN (P7.5).
     decoder_sockets_host: str = ""
     # Identifies this copy of the service to the registry. Empty uses the host

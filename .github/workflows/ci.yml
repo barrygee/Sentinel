@@ -321,14 +321,14 @@ jobs:
       matrix:
         include:
           - deployment: sections-service
-            services: app gateway nats space land air sea radio-hub sdr
-            sections: space:service,land:service,air:service,sea:service,radio-hub:service,sdr:service
+            services: app gateway nats space land air sea radio sdr
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service
           - deployment: sections-absent
             services: app gateway nats sdr
-            sections: space:absent,land:absent,air:absent,sea:absent,radio-hub:absent,sdr:service
+            sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:service
           - deployment: sdr-absent
-            services: app gateway nats space land air sea radio-hub
-            sections: space:service,land:service,air:service,sea:service,radio-hub:service,sdr:absent
+            services: app gateway nats space land air sea radio
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:absent
     env:
       SENTINEL_E2E_SECTIONS: ${{ matrix.sections }}
     steps:
@@ -421,14 +421,14 @@ jobs:
         run: |
           declare -A probe_path=(
             [space]=/api/space/daynight [land]=/api/land/aprs/stations [air]=/api/air/tracking
-            [sea]=/api/sea/ais-key [sdr]=/api/sdr/groups [radio-hub]=/api/sdr/radios
+            [sea]=/api/sea/ais-key [sdr]=/api/sdr/groups [radio]=/api/sdr/radios
           )
           services=$(echo "$SENTINEL_E2E_SECTIONS" | tr ',' '\n' | sed -n 's/:service$//p')
           all_registered() {
             sections=$(curl -fsS http://localhost:8080/api/app/sections || return 1)
             for service in $services; do
               # The radio hub is not a section, so it is never listed — only probed.
-              if [ "$service" != radio-hub ] && ! echo "$sections" | grep -q "\"id\":\"$service\""; then return 1; fi
+              if [ "$service" != radio ] && ! echo "$sections" | grep -q "\"id\":\"$service\""; then return 1; fi
               # JSON, not the SPA's index.html, which bare paths fall through to.
               curl -fsS "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
             done

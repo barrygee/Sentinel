@@ -1,5 +1,5 @@
 """
-tests/backend/test_radio_hub_ais_bus.py
+services/radio/backend/tests/test_radio_ais_bus.py
 
 Tests for the radio hub's ``hub.decode.ais.{start,stop}`` bus responders
 (sentinel_radio/routers/decode.py) — how Sea's AIS receiver asks the hub to

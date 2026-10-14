@@ -114,7 +114,7 @@ class TestDeployedSections:
 
     async def test_skips_services_that_are_not_sections_with_a_ui(self, tmp_path: Path):
         service_registry = ServiceRegistry()
-        await service_registry.register(make_manifest("radio-hub", kind="radio-hub", with_ui=False), "hub-1")
+        await service_registry.register(make_manifest("radio", kind="radio", with_ui=False), "hub-1")
         await service_registry.register(make_manifest("headless", with_ui=False), "headless-1")
         await service_registry.register(make_manifest("ais", kind="decoder"), "ais-1")
 

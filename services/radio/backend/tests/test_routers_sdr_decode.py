@@ -398,11 +398,11 @@ class TestDecodeConfig:
     def test_a_hub_in_its_own_container_names_its_own_host(self, client, monkeypatch):
         # Decoders dial these sockets directly (they can't go through the
         # gateway), so they must name the host the hub is registered under.
-        monkeypatch.setattr(settings, "service_internal_url", "http://radio-hub:8000")
+        monkeypatch.setattr(settings, "service_internal_url", "http://radio:8000")
         body = client.get("/api/sdr/decode/config", headers=decoder_header("voice-decoder")).json()
         assert (body["pcmFeed"], body["voiceAudioReturn"]) == (
-            {"host": "radio-hub", "port": settings.decoder_pcm_port},
-            {"host": "radio-hub", "port": settings.decoder_audio_udp_port},
+            {"host": "radio", "port": settings.decoder_pcm_port},
+            {"host": "radio", "port": settings.decoder_audio_udp_port},
         )
 
     def test_active_true_when_a_session_is_serving_pcm(self, client, monkeypatch):

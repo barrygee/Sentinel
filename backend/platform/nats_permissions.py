@@ -40,7 +40,7 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     CORE_USER: SubjectPermissions(publish=(EVERY_SUBJECT,), subscribe=(EVERY_SUBJECT,), answers_requests=True),
     # Owns the radios: answers every hub.* request, publishes what its
     # decoders hear, and follows the APRS channel and decoder radio moves.
-    "radio-hub": SubjectPermissions(
+    "radio": SubjectPermissions(
         publish=("decode.>",),
         subscribe=("hub.>", "settings.changed.land", "sdr.decode.radio-reassigned"),
         answers_requests=True,

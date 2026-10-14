@@ -1,7 +1,7 @@
 """This process's internal HTTP credential, and who presented one (plan §4.5, P7.4b).
 
 The one-shot `service-credentials` compose service gives every service and
-decoder its own random token (`services/<caller>/http-credentials.json`) and
+decoder its own random token (`credentials/<caller>/http-credentials.json`) and
 writes core and the radio hub the list of tokens they accept — as SHA-256
 hashes, so neither holds anyone else's credential (`accepted-callers.json`).
 What an identified caller may then do is `service_access.py`'s business.

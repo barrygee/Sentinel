@@ -120,7 +120,7 @@ class TestCredential:
         assert response.status_code == 200
         assert isolated_registry.get("space").instance_id == "space-1"
 
-    @pytest.mark.parametrize("caller", ["space", "sdr", "radio-hub", "stub-decoder"])
+    @pytest.mark.parametrize("caller", ["space", "sdr", "radio", "stub-decoder"])
     def test_a_credential_cannot_register_another_services_id(
         self, isolated_registry, client, caller
     ):

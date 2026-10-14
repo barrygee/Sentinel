@@ -28,7 +28,7 @@ from sentinel_radio.routers import decode
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CORE_URL = "http://app:8000"
-HUB_URL = "http://radio-hub:8000"
+HUB_URL = "http://radio:8000"
 RADIO = {"id": 4, "name": "Shack dongle", "host": "dongle.local", "port": 1234}
 # Captured before the `core` fixture swaps httpx.AsyncClient for a fake-core client.
 RealAsyncClient = httpx.AsyncClient
@@ -102,7 +102,7 @@ class TestCreateRadioHubTables:
     def test_registers_its_model_itself_in_a_fresh_interpreter(self, tmp_path):
         # Core's backend.models no longer defines SentryHost, so nothing else
         # registers the table with Base before the hub's prepare runs.
-        database_file = tmp_path / "radio-hub.db"
+        database_file = tmp_path / "radio.db"
         probe = (
             "import asyncio, json, sqlite3, sys\n"
             "from sentinel_radio.database import create_radio_hub_tables\n"
@@ -520,7 +520,7 @@ class TestRadioHubServiceApp:
 
         manifest = hub_service.app.state.registrar.manifest
 
-        assert (manifest.id, manifest.kind) == ("radio-hub", "radio-hub")
+        assert (manifest.id, manifest.kind) == ("radio", "radio")
         assert manifest.internal_url == HUB_URL
         assert manifest.routes == monolith_manifest.routes
         assert manifest.ui is None
@@ -607,7 +607,7 @@ class TestRadioHubServiceLifecycle:
             calls.append(("import", target, legacy, tuple(tables)))
             return {}
 
-        monkeypatch.setattr(settings, "db_path", "/data/radio-hub.db")
+        monkeypatch.setattr(settings, "db_path", "/data/radio.db")
         monkeypatch.setattr(settings, "legacy_db_path", "/legacy/sentinel.db")
         monkeypatch.setattr(hub_service, "create_radio_hub_tables", create_radio_hub_tables)
         monkeypatch.setattr(hub_service, "import_legacy_tables", import_legacy_tables)
@@ -616,7 +616,7 @@ class TestRadioHubServiceLifecycle:
 
         assert calls == [
             "create_radio_hub_tables",
-            ("import", "/data/radio-hub.db", "/legacy/sentinel.db", ("sentry_hosts",)),
+            ("import", "/data/radio.db", "/legacy/sentinel.db", ("sentry_hosts",)),
         ]
 
     async def test_runs_its_schema_then_the_hub_lifecycle_then_registration(self, monkeypatch):
@@ -628,10 +628,10 @@ class TestRadioHubServiceLifecycle:
         calls: list[str] = []
 
         async def hub_start():
-            calls.append("radio-hub.start")
+            calls.append("radio.start")
 
         async def hub_stop():
-            calls.append("radio-hub.stop")
+            calls.append("radio.stop")
 
         async def create_radio_hub_tables():
             calls.append("schema")
@@ -645,7 +645,7 @@ class TestRadioHubServiceLifecycle:
         monkeypatch.setattr(settings, "legacy_db_path", "")
         # The service composes the monolith's hub lifecycle at import, so swap it first.
         monkeypatch.setattr(
-            radio_hub_module, "lifecycle", ModuleLifecycle(name="radio-hub", start=hub_start, stop=hub_stop)
+            radio_hub_module, "lifecycle", ModuleLifecycle(name="radio", start=hub_start, stop=hub_stop)
         )
         monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
         monkeypatch.setattr(ServiceRegistrar, "stop", registrar_stop)
@@ -659,4 +659,4 @@ class TestRadioHubServiceLifecycle:
         finally:
             sys.modules.pop("sentinel_radio.service", None)
 
-        assert calls == ["schema", "radio-hub.start", "registration.start", "registration.stop", "radio-hub.stop"]
+        assert calls == ["schema", "radio.start", "registration.start", "registration.stop", "radio.stop"]

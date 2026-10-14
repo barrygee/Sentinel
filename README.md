@@ -19,7 +19,7 @@ Sentinel is a small **core** plus **one service per section**, all built from on
 ```
 Browser ──► :8080 gateway (Caddy) ──┬──► app          core: shell UI, settings, notifications, offline maps
                                     ├──► space · land · air · sea · sdr     one service + database each
-                                    └──► radio-hub ──► your radios (rtl_tcp / Sentry)
+                                    └──► radio ──► your radios (rtl_tcp / Sentry)
             nats (event bus) connects them all; optional decoders attach to the radio hub
 ```
 
@@ -44,7 +44,7 @@ Open **http://localhost:8080**, then **Settings** (gear icon, bottom-right) › 
 
 ```bash
 docker compose up -d gateway sea                 # core + Sea only
-docker compose up -d gateway sdr radio-hub       # core + SDR (it needs the radio hub for live radios)
+docker compose up -d gateway sdr radio           # core + SDR (it needs the radio hub for live radios)
 docker compose up -d --scale land=0              # everything except Land
 ```
 

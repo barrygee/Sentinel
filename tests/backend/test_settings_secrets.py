@@ -125,7 +125,7 @@ class TestRefusals:
         assert self.request(client, method, headers=AUTHORIZED).status_code == 503
 
     @pytest.mark.parametrize(
-        "caller", ["space", "land", "air", "sdr", "radio-hub", "ais-decoder"]
+        "caller", ["space", "land", "air", "sdr", "radio", "ais-decoder"]
     )
     def test_with_another_services_credential(self, client, method, caller):
         # Before P7.4b any service holding the join token could read Sea's key.

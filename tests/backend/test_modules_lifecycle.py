@@ -54,7 +54,7 @@ class TestModuleOrder:
             "core",
             "sdr",
             "space",
-            "radio-hub",
+            "radio",
             "land",
             "sea",
             "air",
@@ -236,7 +236,7 @@ class TestAirModule:
     def test_air_starts_after_the_radio_hub(self):
         # The watcher asks the hub where the off-grid receiver is.
         order = [module.name for module in modules.MODULES]
-        assert order.index("radio-hub") < order.index("air")
+        assert order.index("radio") < order.index("air")
 
 
 class TestSdrModule:
@@ -503,7 +503,7 @@ class TestSeaModule:
     def test_sea_starts_after_the_radio_hub(self):
         # The receiver asks the hub to decode, so the hub must be up first.
         order = [module.name for module in modules.MODULES]
-        assert order.index("radio-hub") < order.index("sea")
+        assert order.index("radio") < order.index("sea")
 
 
 class TestSeaReceiverRetry:
@@ -665,7 +665,7 @@ class TestComposedLazily:
             "core",
             "sdr",
             "space",
-            "radio-hub",
+            "radio",
             "land",
             "sea",
             "air",
