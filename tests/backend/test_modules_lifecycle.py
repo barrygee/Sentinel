@@ -405,6 +405,17 @@ class TestSpaceModule:
 
 
 class TestRadioHubModule:
+    async def test_prepare_creates_its_table(self, monkeypatch):
+        # Core no longer creates sentry_hosts, so an in-process hub must.
+        calls: list[str] = []
+        monkeypatch.setattr(
+            radio_hub, "create_radio_hub_tables", recorder(calls, "tables")
+        )
+
+        await radio_hub.lifecycle.prepare()
+
+        assert calls == ["tables"]
+
     async def test_start_resumes_decodes_then_starts_the_poller(self, monkeypatch):
         calls: list[str] = []
         monkeypatch.setattr(

@@ -92,6 +92,34 @@ class TestCreateRadioHubTables:
 
         assert set(await table_columns(hub_engine)) == {"sentry_hosts"}
 
+    async def test_the_hub_lifecycle_prepare_builds_it_on_an_empty_database(self, hub_engine):
+        from sentinel_radio import module as radio_hub_module
+
+        await radio_hub_module.lifecycle.prepare()
+
+        assert set(await table_columns(hub_engine)) == {"sentry_hosts"}
+
+    def test_registers_its_model_itself_in_a_fresh_interpreter(self, tmp_path):
+        # Core's backend.models no longer defines SentryHost, so nothing else
+        # registers the table with Base before the hub's prepare runs.
+        database_file = tmp_path / "radio-hub.db"
+        probe = (
+            "import asyncio, json, sqlite3, sys\n"
+            "from sentinel_radio.database import create_radio_hub_tables\n"
+            "assert 'sentinel_radio.models' not in sys.modules\n"
+            "asyncio.run(create_radio_hub_tables())\n"
+            f"connection = sqlite3.connect({str(database_file)!r})\n"
+            "print(json.dumps(sorted(row[0] for row in connection.execute("
+            "\"SELECT name FROM sqlite_master WHERE type = 'table'\"))))\n"
+        )
+        environment = {**os.environ, "PYTHONPATH": str(REPO_ROOT), "DB_PATH": str(database_file)}
+
+        result = subprocess.run(
+            [sys.executable, "-c", probe], cwd=REPO_ROOT, env=environment, capture_output=True, text=True, check=True
+        )
+
+        assert json.loads(result.stdout.strip().splitlines()[-1]) == ["sentry_hosts"]
+
 
 # ── a fake core ───────────────────────────────────────────────────────────────
 
