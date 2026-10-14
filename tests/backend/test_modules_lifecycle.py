@@ -221,13 +221,18 @@ class TestSdrModule:
         assert calls == ["tables", "frequencies", "bandplan"]
 
 
-class TestSdrIqCaptureReconcile:
-    """With the radio hub in another process the SDR section collects its IQ captures (P7.3)."""
+class TestSdrRecordingsReconcile:
+    """The SDR section ends recordings never stopped and, with the radio hub elsewhere, collects its IQ captures."""
 
     @pytest.fixture(autouse=True)
     def hub_elsewhere(self, monkeypatch):
         monkeypatch.setattr(sdr, "_reconcile_task", None)
         monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: True)
+
+        async def no_abandoned_recordings() -> list[int]:
+            return []
+
+        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", no_abandoned_recordings)
 
     async def test_start_reconciles_at_once_and_stop_cancels_the_loop(self, monkeypatch):
         ran = asyncio.Event()
@@ -247,12 +252,20 @@ class TestSdrIqCaptureReconcile:
         assert task.cancelled()
         assert sdr._reconcile_task is None
 
-    async def test_does_not_start_when_the_hub_writes_in_place(self, monkeypatch):
+    async def test_starts_even_when_the_hub_writes_in_place(self, monkeypatch):
+        # Abandoned recordings need ending wherever the hub runs.
+        ended = asyncio.Event()
+
+        async def finalise() -> list[int]:
+            ended.set()
+            return []
+
         monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "copies_iq_from_hub", lambda: False)
+        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise)
 
         await sdr.lifecycle.start()
-
-        assert sdr._reconcile_task is None
+        await asyncio.wait_for(ended.wait(), timeout=1)
+        await sdr.lifecycle.stop()
 
     async def test_a_failed_run_is_logged_and_the_loop_runs_again(self, monkeypatch, caplog):
         outcomes = iter([RuntimeError("database is locked"), None])
@@ -274,11 +287,34 @@ class TestSdrIqCaptureReconcile:
         monkeypatch.setattr(sdr.asyncio, "sleep", record_sleep)
 
         with caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"), pytest.raises(asyncio.CancelledError):
-            await sdr._reconcile_iq_captures_loop()
+            await sdr._reconcile_recordings_loop()
 
         assert runs == ["run", "run"]
         assert sleeps == [sdr.sdr_iq_capture_transfer.RECONCILE_INTERVAL_S] * 2
         assert "IQ capture reconcile failed" in caplog.text
+
+    async def test_a_failed_finalise_is_logged_and_the_iq_reconcile_still_runs(self, monkeypatch, caplog):
+        runs: list[str] = []
+
+        async def finalise() -> list[int]:
+            runs.append("finalise")
+            raise RuntimeError("database is locked")
+
+        async def reconcile() -> None:
+            runs.append("reconcile")
+
+        async def stop_after_one_pass(seconds: float) -> None:
+            raise asyncio.CancelledError
+
+        monkeypatch.setattr(sdr.abandoned_recordings, "finalise_abandoned_recordings", finalise)
+        monkeypatch.setattr(sdr.sdr_iq_capture_transfer, "reconcile_iq_captures", reconcile)
+        monkeypatch.setattr(sdr.asyncio, "sleep", stop_after_one_pass)
+
+        with caplog.at_level(logging.ERROR, logger="sentinel_sdr.module"), pytest.raises(asyncio.CancelledError):
+            await sdr._reconcile_recordings_loop()
+
+        assert runs == ["finalise", "reconcile"]
+        assert "Ending abandoned recordings failed" in caplog.text
 
     async def test_stop_without_start_is_a_no_op(self):
         await sdr.lifecycle.stop()
