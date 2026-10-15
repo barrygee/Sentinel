@@ -1,60 +1,97 @@
-# Decoder sidecars
+# Install and run decoders
 
-Each decoder is a separate container behind its own compose **profile** — never built by default or in CI. They can all run at once, but **each needs its own dongle**: Sentinel takes an enforced lease on the receiver it is using. No configuration is needed: on every `docker compose up` the one-shot `service-credentials` service gives each decoder its own credential, which the radio hub accepts for that decoder's kind only.
+This page is about installing and running the decoder containers. To use a decoder once it runs, see [Decode digital signals](use/sdr/decode.md). To see how decoding works inside Sentinel, see [Decoding](architecture/decoding.md).
 
-They can't share a receiver: every one holds its own `rtl_tcp` connection and tunes it, so `--profile all` means four radios. With one stick, start the single profile you want. The first `--profile all` build takes several minutes, because it compiles `mbelib` for the voice decoder and Direwolf from source for AIS.
+A **decoder** turns a digital radio signal into something Sentinel can show or play. Each one is an optional container in its own [compose profile](reference/glossary.md#developer-terms) (a named group of optional containers), so it starts only when you ask for it.
+
+| Decoder | Profile | What you get | Program inside |
+|---|---|---|---|
+| Digital voice | `voice-decoder` | DMR, P25, NXDN, D-STAR, YSF and M17 voice and call details in the SDR panel | dsd-fme |
+| APRS | `aprs` | APRS stations on the Land map | Direwolf |
+| AIS | `ais` | Ships on the Sea map with no internet | Direwolf 1.8 |
+| ADS-B | `adsb` | Aircraft on the Air map with no internet | readsb |
+
+## Before you start
+
+- **One dongle per decoder.** Each decoder holds its own connection to its dongle and tunes it, so they can't share. `--profile all` means four dongles. What to buy is in [Choose radios and hardware](hardware.md).
+- **A radio added to Sentinel** for each decoder ([Add a radio](use/sdr/add-a-radio.md)). For ADS-B it must be a Sentry dongle.
+- **Time for the first build.** Building every decoder takes several minutes the first time, because the voice decoder compiles its vocoder library and the AIS decoder compiles Direwolf.
+
+Decoders need no passwords or keys: Sentinel gives each one its own login when it starts.
+
+## Start decoders
+
+Start the ones you want:
 
 ```bash
-docker compose --profile all up -d --build         # ALL decoders in one command
-docker compose --profile voice-decoder up -d --build     # digital voice (dsd-fme)
-docker compose --profile aprs up -d --build        # APRS (Direwolf)
-docker compose --profile ais up -d --build         # Off Grid AIS (Direwolf)
-docker compose --profile adsb up -d --build        # Off Grid ADS-B (readsb)
-docker compose --profile voice-decoder --profile aprs up -d --build   # or combine profiles freely
-docker compose --profile <name> logs -f <service>  # voice-decoder · aprs-decoder · ais-decoder · adsb-decoder
-docker compose --profile <name> down && docker compose up -d    # back to no decoders
+docker compose --profile aprs up -d --build                         # one
+docker compose --profile aprs --profile ais up -d --build           # several
+docker compose --profile all up -d --build                          # all four
 ```
 
-To make a bare `docker compose up` start them without the flag, set
-`COMPOSE_PROFILES=all` in your `.env` (see `.env.example`) — it applies to every
-compose command in the project, including `down` and `logs`.
+The profile names are `voice-decoder`, `aprs`, `ais` and `adsb`.
 
-## On a second host (radio host)
+Each decoder logs one line when it reaches the radio hub. Check it with:
 
-The radio hub and the voice, APRS and AIS decoders can run on another machine next to
-the dongles, while the browser keeps using this one: `compose.radio-host.yaml`. All
-traffic between the hosts is TLS with a CA generated for your deployment. The steps
-(core host `.env`, exporting the radio host's credentials, starting it) are in
-[docs/radio-host.md](radio-host.md).
+```bash
+docker compose --profile all logs aprs-decoder
+```
 
-## Digital voice decoding
+You should see `[aprs] connected to the radio hub through http://gateway:8080`. If the hub is still starting, you'll first see one `waiting for the radio hub through …; retrying quietly`.
 
-P25, DMR, NXDN, D-STAR, YSF, M17 via **`dsd-fme`**. Opt-in because it compiles the patent-encumbered **`mbelib`** vocoder on your machine; the first build takes several minutes. In the SDR view: start a radio, tune a digital channel, select **DMR** under **DIGITAL MODE** — call metadata appears in the decode panel and voice plays (the button decodes every mode above, not only DMR). Using it: [Decode digital signals](use/sdr/decode.md). "No sync" with nothing tuned in is expected. Details: [`decoder/README.md`](../decoder/README.md).
+## Start them every time
 
-## APRS decoding
+A decoder started with `--profile` is left out the next time you run a plain `docker compose up -d`. To start decoders every time, set them in `.env`:
 
-1200-baud AFSK/AX.25 via **Direwolf** (144.800 MHz Europe, 144.390 MHz North America). Pick the radio in **Settings › LAND › Off Grid APRS SDR**; it is tuned to the APRS channel (**Settings › LAND › APRS Channel**) and stations plot on the Land map (Land must be switched on: see [Land](use/land.md#switch-land-on)). Decode keeps running in the background and resumes on restart. Details: [`decoder/aprs/README.md`](../decoder/aprs/README.md).
+```bash
+COMPOSE_PROFILES=aprs,ais        # or all
+```
 
-## Off Grid AIS
+This applies to every compose command, including `down` and `logs`, so you no longer need `--profile`. See [Environment variables](configuration.md#choose-what-starts).
 
-Decodes ship AIS off the air with **Direwolf**, so the Sea map works with no internet connection — the off-grid alternative to AISStream.io. Vessels land in the same store as the online feed, so the map, tracks, ship-type icons and warm-start cache behave identically either way.
+## Give each decoder its radio
 
-Both AIS channels are decoded at once. Ships alternate between **A (161.975 MHz)** and **B (162.025 MHz)**, so the backend parks the dongle on their midpoint, demodulates each channel from the same I/Q and interleaves them as stereo into a two-channel Direwolf — decoding one would lose roughly half the traffic.
+Once a decoder runs, tell Sentinel which radio it uses: **Off Grid APRS SDR** in Settings › LAND, **Off Grid AIS SDR** in Settings › SEA, **Off Grid ADS-B SDR** in Settings › AIR, or the **DMR** button in the SDR panel for digital voice. What each one then does is in [Decode digital signals](use/sdr/decode.md).
 
-1. **Settings › SEA › Off Grid AIS SDR** — pick the radio on your marine antenna.
-2. Switch SEA off grid (globally, or via the SEA source override).
-3. Open **SEA**. The radio is tuned and decoding starts; it keeps running in the background and resumes on restart.
+## Update or rebuild a decoder
 
-Needs a VHF marine antenna and line of sight — AIS is line-of-sight, so height beats gain. Note this container **builds Direwolf from source**: the AIS modem only works correctly from 1.8 onward, and Debian's 1.6 package decodes nothing. Details: [`decoder/ais/README.md`](../decoder/ais/README.md).
+After an upgrade, rebuild only the decoders, without restarting the rest of Sentinel:
 
-## Off Grid ADS-B
+```bash
+docker compose up -d --build --no-deps aprs-decoder ais-decoder
+```
 
-Decodes 1090 MHz locally with **readsb** fed raw I/Q from a Sentry Pi's `rtl_tcp` — roughly **38 Mbps sustained** on your LAN, so not for constrained links. Setup:
+Without `--no-deps`, `--build` rebuilds and restarts the app too, and for a few seconds the sections log errors for requests that needed it.
 
-1. **Settings › SDR** — add the Sentry host with its console password.
-2. **Settings › AIR › Off Grid ADS-B SDR** — pick the dongle.
-3. Switch to **Off Grid** and open **AIR**.
+## Stop decoders
 
-AIR reads aircraft from the `adsb-decoder` sidecar automatically. If the decoder runs outside the compose network, set `ADSB_OFFGRID_URL` in `.env` (e.g. `http://<host>:8090/data/aircraft.json`). Port 8090 is published on 127.0.0.1 only; set `SENTINEL_ADSB_DECODER_ADDRESS=0.0.0.0:8090` to reach it from another machine.
+Stop one, and leave the rest of Sentinel running:
 
-Opening AIR claims the dongle, tunes it to 1090 MHz and holds a TTL lease that self-heals after a replug or Sentry restart and releases when the tab closes. If the map stays empty, the notice at the top of AIR says why. Details: [`decoder/adsb/README.md`](../decoder/adsb/README.md), [ADR 0003](adr/0003-sentry-sdr-lock-and-tune.md).
+```bash
+docker compose stop aprs-decoder
+```
+
+It starts again with the next `docker compose --profile aprs up -d`, or with every `docker compose up -d` if `COMPOSE_PROFILES` names it; remove it from `COMPOSE_PROFILES` to keep it stopped.
+
+## On a second computer
+
+The radio hub and the voice, APRS and AIS decoders can run on a computer next to the antennas, while the browser keeps using this one. See [Run the radios on a second machine](radio-host.md). The ADS-B decoder stays on the main computer.
+
+A decoder you run outside Docker, or on a computer of its own, needs `SENTINEL_GATEWAY_URL` set to `http://<sentinel-host>:8080`. Off-grid Air then needs `ADSB_OFFGRID_URL`; see [Environment variables](configuration.md#data-sources).
+
+## Troubleshooting
+
+These are problems with the decoder containers themselves. If a decoder runs but its map stays empty, see that section's page: [Air](use/air.md#troubleshooting), [Sea](use/sea.md#troubleshooting) or [Land](use/land.md#troubleshooting).
+
+| What you see | What to do |
+|---|---|
+| The decoder log repeats `waiting for the radio hub` | The radio hub isn't running: `docker compose ps radio`. |
+| `decode-config fetch failed: HTTP Error 401` on every poll | The decoder's login is out of date, usually after credentials were recreated. Restart it, for example `docker compose restart aprs-decoder`. |
+| ADS-B log: `no ADS-B source configured` | No dongle is chosen in **Off Grid ADS-B SDR**, or the chosen one no longer appears on the Sentry host (unplugged, or its id changed). Choose it again. |
+| A radio reads **RESERVED** in the SDR panel | A decoder holds it. That is on purpose, so the decoder isn't knocked off its channel. |
+
+## For developers
+
+More on each decoder's container: [`decoder/README.md`](../decoder/README.md) (voice), [`decoder/aprs/README.md`](../decoder/aprs/README.md), [`decoder/ais/README.md`](../decoder/ais/README.md), [`decoder/adsb/README.md`](../decoder/adsb/README.md).
+
+**Never push the decoder images to a public registry.** The voice decoder's image includes a patent-encumbered library (mbelib), so it is built on the computer that uses it.

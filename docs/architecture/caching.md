@@ -2,7 +2,7 @@
 
 Sentinel caches what it fetches so it keeps showing something useful when a feed is slow, rate-limited or gone. This page explains the general pattern and each cache.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Fresh, stale, gone
 

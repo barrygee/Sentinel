@@ -2,7 +2,7 @@
 
 This page explains how decoders turn radio signals into data inside Sentinel. To use decoders, see [Decode digital signals](../use/sdr/decode.md); to install them, see [Install and run decoders](../decoders.md).
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## The idea
 

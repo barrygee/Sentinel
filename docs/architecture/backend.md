@@ -2,7 +2,7 @@
 
 This page explains how the Python backend is organised: the packages, the rules about who may import whom, how a process is put together, and how its modules start and stop. Read [System overview](overview.md) first.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## The packages
 

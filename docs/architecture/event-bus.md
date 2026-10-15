@@ -2,7 +2,7 @@
 
 Sections never import or call each other. When one needs to tell another something, or ask it to do something, it goes through the **event bus**: `backend/platform/bus.py`, carried between processes by [NATS](https://nats.io). This page explains how it works and how to add an event.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Publish, subscribe, request
 

@@ -59,10 +59,13 @@
       "key": "set-up-and-run",
       "title": "Set up and run",
       "pages": [
-        { "path": "operations", "title": "Check logs, health and backups" },
-        { "path": "configuration", "title": "Environment variables" },
+        { "path": "configuration", "title": "Environment variables (.env)" },
+        { "path": "hardware", "title": "Choose radios and hardware" },
         { "path": "decoders", "title": "Install and run decoders" },
-        { "path": "radio-host", "title": "Run the radios on a second machine" }
+        { "path": "radio-host", "title": "Run the radios on a second machine" },
+        { "path": "operations", "title": "Check logs, health and backups" },
+        { "path": "troubleshooting", "title": "Troubleshooting" },
+        { "path": "upgrading", "title": "Upgrade Sentinel" }
       ]
     },
     {
@@ -89,27 +92,40 @@
       "key": "develop",
       "title": "Develop",
       "pages": [
+        { "path": "development/setup", "title": "Set up for development" },
+        { "path": "development/code-map", "title": "Find your way around the code" },
+        { "path": "development/testing", "title": "Run tests and quality checks" },
+        { "path": "development/how-to", "title": "How to…" },
         { "path": "contributing", "title": "Contributing", "file": "CONTRIBUTING.md" },
         {
           "title": "Design decisions",
           "pages": [
-            {
-              "path": "adr/0001-webapp-standards-retrofit",
-              "title": "0001 Retrofit to the webapp standards"
-            },
-            { "path": "adr/0002-base-component-dedupe", "title": "0002 Shared base components" },
+            { "path": "adr/0006-section-containers", "title": "0006 Section containers" },
+            { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },
+            { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
             {
               "path": "adr/0003-sentry-sdr-lock-and-tune",
               "title": "0003 Sentry SDR lock and tune"
             },
-            { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
-            { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },
-            { "path": "adr/0006-section-containers", "title": "0006 Section containers" }
+            { "path": "adr/0002-base-component-dedupe", "title": "0002 Shared base components" },
+            {
+              "path": "adr/0001-webapp-standards-retrofit",
+              "title": "0001 Retrofit to the webapp standards"
+            }
           ]
         }
       ]
     },
-    { "key": "reference", "title": "Reference", "pages": [] }
+    {
+      "key": "reference",
+      "title": "Reference",
+      "pages": [
+        { "path": "reference/glossary", "title": "Glossary" },
+        { "path": "reference/ports-and-services", "title": "Ports and services" },
+        { "path": "reference/commands", "title": "Commands cheat sheet" },
+        { "path": "reference/whats-new", "title": "What's new" }
+      ]
+    }
   ],
   "synonyms": {
     "plane": ["Air", "aircraft", "ADS-B"],

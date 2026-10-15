@@ -2,7 +2,7 @@
 
 This page explains how Sentinel's databases are set up, filled with their starting data, changed when the code changes, edited, and backed up. [Data stores](data-stores.md) has the list of what each one holds.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## One SQLite file per service
 
@@ -114,26 +114,7 @@ Don't edit a live database by hand: the service caches some data in memory and w
 
 ## Backing up and restoring
 
-All data is on Docker volumes. To back one up, stop Sentinel first so every database is closed and its WAL file folded back in, then archive the volume:
-
-```bash
-docker compose down
-docker run --rm -v sentinel_sdr_data:/data -v "$PWD":/backup alpine \
-  tar czf /backup/sdr_data.tgz -C /data .
-```
-
-Repeat for each volume you want (`docker volume ls` lists them; Compose prefixes each with the project name, usually `sentinel_`).
-
-To restore, with Sentinel stopped, extract the archive into the volume. The volume should be empty, or freshly created:
-
-```bash
-docker compose down
-docker run --rm -v sentinel_sdr_data:/data -v "$PWD":/backup alpine \
-  tar xzf /backup/sdr_data.tgz -C /data
-docker compose up -d
-```
-
-For settings alone, **Settings › App Settings › Export All Configuration** is simpler.
+Every database is on a Docker volume. Stop Sentinel before copying one, so each database is closed and its write-ahead log (WAL) file is folded back in. The steps, and which volumes are worth keeping, are in [Check logs, health and backups](../operations.md#what-to-back-up).
 
 ## In tests
 

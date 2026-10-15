@@ -2,7 +2,7 @@
 
 The gateway is [Caddy](https://caddyserver.com), and it is the only address a browser uses. This page explains how it knows where to send each request, and why nobody edits its configuration when a section is added or moved.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Two kinds of route
 

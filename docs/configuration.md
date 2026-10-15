@@ -1,32 +1,89 @@
-# Configuration
+# Environment variables (.env)
 
-Settings are Pydantic (`backend/config.py`), overridable via environment variables or a git-ignored `.env` in the repo root — copy `.env.example`. Everything has a working default; no secrets are required to run.
+`.env` holds the settings about **how Sentinel runs on this computer**: which optional containers start, where files are saved, and how a second computer connects. Everything you change while using Sentinel (your location, radios, map look) is in Settings and the [config file](use/config-file.md) instead.
 
-| Variable                                                   | Default                                  | Purpose                                                                                                                |
-| ---------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `DB_PATH`                                                  | `backend/sentinel.db`                    | SQLite file (Docker sets `/app/data/sentinel.db`)                                                                      |
-| `ADSB_TTL_MS` / `ADSB_STALE_MS`                            | `10000` / `60000`                        | ADS-B cache fresh window / stale window                                                                                |
-| `ADSB_UPSTREAM_BASE`                                       | `https://api.adsb.lol/v2`                | ADS-B upstream                                                                                                         |
-| `TLE_TTL_MS` / `TLE_STALE_MS`                              | 6 h / 12 h                               | TLE cache windows                                                                                                      |
-| `TLE_MANUAL_TTL_MS`                                        | 30 d                                     | TTL for manually uploaded TLEs                                                                                         |
-| `CELESTRAK_ISS_URL`                                        | Celestrak active-satellites feed         | Default TLE source                                                                                                     |
-| `AISSTREAM_API_KEY`                                        | _(empty)_                                | [AISStream.io](https://aisstream.io) key for SEA (Settings › SEA takes precedence)                                     |
-| `AISSTREAM_WS_URL`                                         | `wss://stream.aisstream.io/v0/stream`    | AISStream endpoint                                                                                                     |
-| `SEA_AIS_STALE_MS` / `SEA_AIS_CACHE_MAX`                   | 30 min / `50000`                         | Vessel retention / in-memory cap                                                                                       |
-| `SEA_VESSEL_STATIC_RETENTION_MS` / `SEA_VESSEL_STATIC_MAX` | 90 d / `250000`                          | How long vessel names/callsigns/types are remembered after last heard (so position-only reports are still named) / cap |
-| `REPEATERS_UPSTREAM_URL`                                   | `https://ukrepeater.net/csvcreate8.php`  | UK repeater register; refreshed daily, stale copy served for 30 d                                                      |
-| `NATS_URL`                                                 | _(empty)_; Docker: `tls://nats:4222`     | Event-bus broker; required — every section talks over it (see below)                                                   |
-| `GATEWAY_ADMIN_URL`                                        | _(empty)_; Docker: `http://gateway:2019` | Caddy admin API the service registry's routes are pushed into; empty = no gateway (see below)                          |
+You don't need a `.env` at all: every variable has a working default.
 
-Decoder ports (`DECODER_*`, `APRS_DECODER_*`, `AIS_DECODER_*`), Sentry (`SENTRY_*`) and AIS watchdog tunables have working defaults and rarely need changing — see `backend/config.py`. Where SDR recordings are saved (`SENTINEL_RECORDINGS_DIRECTORY` plus **Settings › SDR › Recordings Folder**) is covered in [Record what you hear](use/sdr/record.md#where-recordings-are-saved). Deployment-shape settings (`SENTINEL_RADIO_REPLICAS`, the radio-host addresses, `SENTINEL_RUNTIME_USER_ID`/`_GROUP_ID` for Linux hosts) are documented in `.env.example`.
+## How it works
 
-`docker compose up` also starts `nats`, the event-bus broker. It carries low-rate control events (settings changes, decode events, radio hub requests) between Sentinel's services, so it is required. If the broker is down, every service starts anyway and connects when it comes up.
+- `.env` sits in the folder you installed Sentinel in, next to `docker-compose.yml`. `cp .env.example .env` gives you one with every variable listed and commented out.
+- Docker Compose reads it when you run a `docker compose` command, and passes the variables below to the containers that need them.
+- After changing it, run `docker compose up -d`. Compose restarts only the containers the change affects.
+- **Never commit it.** It can hold keys, so it is listed in `.gitignore`.
 
-It also starts `gateway` — [Caddy](https://caddyserver.com), the one address browsers use. **It is what publishes :8080**; the app itself is internal-only (`app:8000` on the compose network). The gateway's static config (`gateway/caddy.json`) refuses `/internal/`, sends everything else to the app, and turns an unreachable service into a JSON 503; the app pushes each registered service's path prefixes into it at runtime, so a section moved into its own container is routed there just by registering. The gateway also serves a TLS **service entrypoint** on :8443 for Sentinel processes on another host (a [radio host](radio-host.md)); it is published on 127.0.0.1 only unless `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS` opens it.
+[`.env.example`](../.env.example) is the full list, with a comment on each variable. This page groups them by what you'd want to do.
+
+## Choose what starts
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `COMPOSE_PROFILES` | none | You want decoders to start with a plain `docker compose up`. `all` for every decoder, or a list such as `aprs,ais`. It applies to every compose command, including `down` and `logs`. See [Install and run decoders](decoders.md). |
+| `SENTINEL_RADIO_REPLICAS` | `1` | The radio hub runs on [a second computer](radio-host.md). Set it to `0` so this one doesn't start its own. |
+
+To leave out a section instead, see [Quick start](install.md#start-some-sections).
+
+## Choose where files go
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `SENTINEL_RECORDINGS_DIRECTORY` | the `sdr_recordings` Docker volume | You want SDR recordings in a folder on this computer, such as `~/SentinelRecordings`, to open them in other software or back them up. Then run `docker compose up -d sdr`. See [Record what you hear](use/sdr/record.md#where-recordings-are-saved). |
+| `SENTINEL_RUNTIME_USER_ID` / `SENTINEL_RUNTIME_GROUP_ID` | `1000` / `1000` | You're on Linux and your user isn't 1000 (check with `id -u` and `id -g`). Sentinel's containers run as this user, so set them to your own ids, or Sentinel can't save the config file and your recordings belong to someone else. |
+
+## Data sources
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `AISSTREAM_API_KEY` | empty | You'd rather install the AISStream key than type it into **Settings › SEA › AIS Data API Key**. A key saved in Settings wins. See [Sea](use/sea.md#add-your-aisstream-key). |
+| `ADSB_OFFGRID_URL` | the `adsb-decoder` container | The ADS-B decoder runs somewhere other than this computer's Docker, for example `http://<decoder-host>:8090/data/aircraft.json`. |
+
+## The ADS-B decoder
+
+These only matter when the `adsb` profile runs.
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `SENTINEL_ADSB_DECODER_ADDRESS` | `127.0.0.1:8090` | Another computer reads the decoded aircraft. `0.0.0.0:8090` opens it to your network. It has no password, so only do this on a network you trust. |
+| `SENTINEL_ADSB_RTL_TCP_HOST` / `SENTINEL_ADSB_RTL_TCP_PORT` | empty / `2345` | You run the decoder before choosing a dongle in **Settings › AIR › Off Grid ADS-B SDR**. Normally the decoder asks Sentinel which dongle to use. |
+| `SENTINEL_ADSB_SENTRY_API` | a fixed example address | Set it to your Sentry host, such as `http://<sentry-host>:8000`. At start, the decoder asks it what the dongle is tuned to and logs the answer, so a dongle on the wrong frequency shows in the log instead of as an empty map. |
+
+## Decoders outside Docker
+
+| Variable | Default | Set it when |
+|---|---|---|
+| `SENTINEL_GATEWAY_URL` | `http://gateway:8080` | A decoder runs outside this computer's Docker network: set it to `http://<sentinel-host>:8080`. Decoders reach the radio hub through the gateway, so they find it wherever it runs. |
+
+## A second computer
+
+These are only for running the radio hub on [a second computer](radio-host.md). That page says which to set on which computer, with the values.
+
+| Variable | What it does |
+|---|---|
+| `SENTINEL_CORE_HOSTNAMES` | The names or addresses the radio host reaches the main computer by. Sentinel's certificates cover them. |
+| `SENTINEL_RADIO_HOST_HOSTNAMES` | The name the main computer reaches the radio host by. Sentinel issues the radio host's certificate for it. |
+| `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS` | Where the TLS service entrypoint is published. Default `127.0.0.1:8443`, this computer only. |
+| `NATS_PUBLISHED_ADDRESS` | Where the event bus is published. Default `127.0.0.1:4222`, this computer only. |
+| `SENTINEL_CORE_ENTRYPOINT_URL`, `SENTINEL_CORE_NATS_URL`, `SENTINEL_RADIO_HOST_URL`, `SENTINEL_RADIO_HOST_GATEWAY_ADDRESS` | Set on the radio host: where it reaches the main computer, and where the main computer reaches it. |
+
+## Leave these alone
+
+`NATS_URL` (the event bus) and `GATEWAY_ADMIN_URL` (the gateway's admin API) connect Sentinel's own containers. Compose sets them; changing them breaks the connection between services.
+
+## Everything else
+
+Sentinel has more settings with built-in defaults (developers: `backend/config.py`): cache times, the addresses of the online sources (adsb.lol, CelesTrak, ukrepeater.net, Protomaps), timeouts and decoder ports. You rarely need them.
+
+Compose passes only the variables on this page from `.env` to the containers, so putting one of these in `.env` does nothing. To change one, put it in a **compose override file**: a file called `docker-compose.override.yml` next to `docker-compose.yml`, which Compose reads automatically. Set the variable on the service that uses it, in upper case. For example, to keep ADS-B data fresh for 5 seconds instead of 10:
+
+```yaml
+services:
+  air:
+    environment:
+      ADSB_TTL_MS: "5000"
+```
+
+Then run `docker compose up -d`. Check what a service will receive with `docker compose config air`. The override file is yours, so keep it out of Git.
 
 ## Example .env files
-
-`.env` sits in the folder you installed Sentinel in, next to `docker-compose.yml`. Every line is optional: an empty `.env` (or none) runs Sentinel with working defaults. `.env.example` lists and explains every variable. After changing `.env`, run `docker compose up -d` so the affected containers restart with it.
 
 **Everything on one computer, recordings in your home folder, decoders always on:**
 
@@ -42,24 +99,8 @@ SENTINEL_RUNTIME_USER_ID=1000
 SENTINEL_RUNTIME_GROUP_ID=1000
 ```
 
-**An AISStream key set by the installer rather than in Settings** (Settings takes precedence once a key is saved there):
+**An AISStream key set when installing, rather than in Settings:**
 
 ```bash
 AISSTREAM_API_KEY=<your-aisstream-key>
 ```
-
-**The main computer, when the radios run on a second machine** ([Run the radios on a second machine](radio-host.md) has the full steps):
-
-```bash
-# Names and addresses the radio host will use to reach this computer.
-SENTINEL_CORE_HOSTNAMES=sentinel.lan,192.168.1.10
-# Issue a certificate for the radio host's own gateway.
-SENTINEL_RADIO_HOST_HOSTNAMES=radio.lan
-# Let the radio host reach the service entrypoint and the event bus over the LAN.
-SENTINEL_SERVICE_ENTRYPOINT_ADDRESS=0.0.0.0:8443
-NATS_PUBLISHED_ADDRESS=0.0.0.0:4222
-# The radio hub runs on the radio host, so don't start one here.
-SENTINEL_RADIO_REPLICAS=0
-```
-
-Never commit `.env`: it is listed in `.gitignore` because it can hold keys.

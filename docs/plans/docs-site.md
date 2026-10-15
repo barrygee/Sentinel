@@ -187,6 +187,8 @@ setting: what it does and when to change it) → **Troubleshooting**.
 | Commands cheat sheet | `reference/commands.md` |
 | What's new | link to `CHANGELOG.md` on GitHub, labelled "(online only)" |
 
+Built in D5 (2026-10-15): **What's new** is a one-paragraph page (`reference/whats-new.md`) linking the changelog, because the nav can't hold external links. The glossary moved out of `architecture/overview.md` into `reference/glossary.md`, the ports and profiles tables out of `architecture/docker.md` and `operations.md` into `reference/ports-and-services.md`, and the backup steps out of `architecture/databases.md` into `operations.md`, so each has one owner. Building images for other architectures moved into `hardware.md`.
+
 **Not shown in `/doc`:** `docs/plans/*` (working design notes). `sections.md`
 is replaced by the **Use Sentinel** pages. `README.md` stays the short GitHub
 landing page: what Sentinel is, two commands to start, the recordings section,
