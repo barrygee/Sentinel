@@ -27,14 +27,8 @@
    ============================================================ */
 
 #settings-panel {
-  /* The app's light greys were restacked so the chrome, rails and panel read
-     as three layers; this panel keeps the palette it was designed against —
-     it is a fixed light island, not part of that stack. */
-  --canvas-rgb: 246, 246, 244;
-  --surface: #e8eaed;
-  --surface-sunken: #f1efe9;
-  --surface-sunken-hover: #e6e2d9;
-  --surface-pressed: #dcdfe3;
+  /* The light-island palette (--canvas-rgb, --surface…) comes from the shared
+     `light-island` class on the panel root (assets/lightIsland.css). */
   /* Local alias for the shared hairline — a handful of settings components
      (BaseNumberSetting, OverheadAlertsControl) already consume this name. */
   --settings-field-line: var(--rule);
@@ -107,6 +101,13 @@
    src/components/base/BaseIconButton.vue); the classname remains on the
    rendered button purely so tests can still target it. */
 
+/* The Docs entry sits at the foot of the rail, set off by a hairline. It is a
+   link out of Settings, not one of its sections. */
+.settings-nav-docs {
+  margin-top: auto;
+  border-top: 1px solid var(--rail-border);
+}
+
 .settings-nav-icon-wrap {
   display: flex;
   align-items: center;
@@ -164,61 +165,9 @@
   display: none;
 }
 
+/* The field itself is the shared BaseSearchField; only its place in the grid is Settings'. */
 #settings-search-inner {
   grid-column: span 2;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  /* Kept in step with .settings-item's card shadow below. */
-  box-shadow: 0 1px 2px rgba(var(--shadow-rgb), 0.025);
-  padding: 13px 18px;
-}
-
-#settings-search-inner svg {
-  flex-shrink: 0;
-  color: rgba(var(--ink-rgb), 0.5);
-}
-
-#settings-search-input {
-  flex: 1;
-  background: none;
-  border: none;
-  outline: none;
-  color: var(--ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  caret-color: var(--ink-strong);
-  min-width: 0;
-}
-
-#settings-search-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.38);
-  letter-spacing: 0.14em;
-}
-
-#settings-search-clear {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.45);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.15s;
-  flex-shrink: 0;
-}
-
-#settings-search-clear.settings-search-clear-visible {
-  display: flex;
-}
-
-#settings-search-clear:hover {
-  color: rgba(var(--ink-rgb), 0.85);
 }
 
 #settings-body {

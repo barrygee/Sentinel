@@ -13,11 +13,12 @@
     "scripts": {
         "build:spa": "npm run build --prefix frontend/vue",
         "typecheck": "tsc --noEmit",
+        "check:doc-links": "node scripts/check-doc-links.mts",
         "test:e2e:gateway": "SENTINEL_E2E_BASE_URL=${SENTINEL_E2E_BASE_URL:-http://localhost:8080} playwright test -c playwright.fullstack.config.ts",
-        "lint": "eslint . && prettier --check \"tests/**/*.ts\" \"*.{js,ts}\"",
-        "lint:fix": "eslint . --fix && prettier --write \"tests/**/*.ts\" \"*.{js,ts}\"",
-        "format": "prettier --write \"tests/**/*.ts\" \"*.{js,ts}\"",
-        "format:check": "prettier --check \"tests/**/*.ts\" \"*.{js,ts}\"",
+        "lint": "eslint . && prettier --check \"tests/**/*.ts\" \"scripts/**/*.{ts,mts}\" \"*.{js,ts}\"",
+        "lint:fix": "eslint . --fix && prettier --write \"tests/**/*.ts\" \"scripts/**/*.{ts,mts}\" \"*.{js,ts}\"",
+        "format": "prettier --write \"tests/**/*.ts\" \"scripts/**/*.{ts,mts}\" \"*.{js,ts}\"",
+        "format:check": "prettier --check \"tests/**/*.ts\" \"scripts/**/*.{ts,mts}\" \"*.{js,ts}\"",
         "prepare": "husky",
         "web-packages": "bash scripts/web-packages.sh"
     },

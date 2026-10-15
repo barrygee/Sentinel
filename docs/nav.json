@@ -1,0 +1,80 @@
+{
+  "groups": [
+    {
+      "key": "get-started",
+      "title": "Get started",
+      "pages": [{ "path": "index", "title": "Welcome to Sentinel" }]
+    },
+    { "key": "things-you-can-do", "title": "Things you can do", "pages": [] },
+    {
+      "key": "use-sentinel",
+      "title": "Use Sentinel",
+      "pages": [
+        { "path": "sections", "title": "What each section does" },
+        { "path": "offline-maps", "title": "Download maps for offline use" }
+      ]
+    },
+    {
+      "key": "set-up-and-run",
+      "title": "Set up and run",
+      "pages": [
+        { "path": "operations", "title": "Check logs, health and backups" },
+        { "path": "configuration", "title": "Environment variables" },
+        { "path": "decoders", "title": "Install and run decoders" },
+        { "path": "radio-host", "title": "Run the radios on a second machine" }
+      ]
+    },
+    { "key": "how-it-works", "title": "How it works", "pages": [] },
+    {
+      "key": "develop",
+      "title": "Develop",
+      "pages": [
+        { "path": "contributing", "title": "Contributing", "file": "CONTRIBUTING.md" },
+        {
+          "title": "Design decisions",
+          "pages": [
+            {
+              "path": "adr/0001-webapp-standards-retrofit",
+              "title": "0001 Retrofit to the webapp standards"
+            },
+            {
+              "path": "adr/0002-base-component-dedupe",
+              "title": "0002 Shared base components"
+            },
+            {
+              "path": "adr/0003-sentry-sdr-lock-and-tune",
+              "title": "0003 Sentry SDR lock and tune"
+            },
+            { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
+            {
+              "path": "adr/0005-sea-ais-vessel-tracking",
+              "title": "0005 Sea AIS vessel tracking"
+            },
+            { "path": "adr/0006-section-containers", "title": "0006 Section containers" }
+          ]
+        }
+      ]
+    },
+    { "key": "reference", "title": "Reference", "pages": [] }
+  ],
+  "synonyms": {
+    "plane": ["Air", "aircraft", "ADS-B"],
+    "planes": ["Air", "aircraft", "ADS-B"],
+    "aeroplane": ["Air", "aircraft", "ADS-B"],
+    "aircraft": ["Air", "ADS-B"],
+    "flight": ["Air", "aircraft", "ADS-B"],
+    "ship": ["Sea", "vessel", "AIS"],
+    "ships": ["Sea", "vessel", "AIS"],
+    "boat": ["Sea", "vessel", "AIS"],
+    "vessel": ["Sea", "AIS"],
+    "satellite": ["Space", "orbit", "pass"],
+    "satellites": ["Space", "orbit", "pass"],
+    "ham": ["Land", "SDR", "APRS"],
+    "radio": ["SDR", "rtl_tcp", "dongle"],
+    "dongle": ["SDR", "rtl_tcp", "radio"],
+    "offline": ["Off Grid", "tiles", "pmtiles"],
+    "map": ["tiles", "pmtiles"],
+    "password": ["credentials", "secret"],
+    "env": ["environment", "configuration"]
+  }
+}

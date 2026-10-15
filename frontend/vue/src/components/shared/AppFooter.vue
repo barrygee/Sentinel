@@ -102,6 +102,7 @@ import { computed } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { getFooterItems } from '@sentinel/shell-api/shell/footerRegistry'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useDocsStore } from '@/docs/docsStore'
 
 const props = defineProps<{
   sidebarOpen?: boolean
@@ -117,6 +118,7 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const docsStore = useDocsStore()
 const footerItems = getFooterItems()
 const appStore = useAppStore()
 
@@ -136,18 +138,25 @@ const sidebarOpen = computed(() => props.sidebarOpen ?? false)
 /* v8 ignore stop */
 
 // The footer's side-panel button is shared: while the settings panel is open it
-// shows/hides the settings left rail; otherwise it shows/hides the map sidebar.
-const sidePanelOpen = computed(() =>
-  settingsStore.open ? settingsStore.sidebarOpen : sidebarOpen.value,
-)
+// shows/hides the settings left rail; while the docs page is up it shows/hides
+// the docs navigation; otherwise it shows/hides the map sidebar.
+const sidePanelOpen = computed(() => {
+  if (settingsStore.open) return settingsStore.sidebarOpen
+  if (docsStore.active) return docsStore.sidebarOpen
+  return sidebarOpen.value
+})
 
-const sidebarToggleLabel = computed(() =>
-  settingsStore.open ? 'Toggle settings sidebar' : 'Toggle map sidebar',
-)
+const sidebarToggleLabel = computed(() => {
+  if (settingsStore.open) return 'Toggle settings sidebar'
+  if (docsStore.active) return 'Toggle docs navigation'
+  return 'Toggle map sidebar'
+})
 
 function onToggleSidePanel(): void {
   if (settingsStore.open) {
     settingsStore.toggleSidebar()
+  } else if (docsStore.active) {
+    docsStore.toggleSidebar()
   } else {
     emit('toggle-sidebar')
   }

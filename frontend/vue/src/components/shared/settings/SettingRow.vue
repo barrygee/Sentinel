@@ -11,6 +11,7 @@
     <div class="settings-item-info">
       <div class="settings-item-label" :class="{ 'sr-only': item.hideLabel }">{{ item.label }}</div>
       <div v-if="item.desc" class="settings-item-desc">{{ item.desc }}</div>
+      <DocLink v-if="item.docPath" :doc-path="item.docPath" :setting-label="item.label" />
     </div>
     <!-- The control the owning section registered for this item (F3). Only the
          panel events it declares are listened for: `stage` hands APPLY CHANGES
@@ -21,6 +22,7 @@
 
 <script setup lang="ts">
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
+import DocLink from '@sentinel/shell-api/settings/DocLink.vue'
 
 const props = defineProps<{
   item: SettingItem

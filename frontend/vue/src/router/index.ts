@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type Router } from 'vue-router'
 import { getSectionRoutes } from '@sentinel/shell-api/shell/sectionRegistry'
 import { getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { DOCS_ROUTE_NAME, docsReturn, isDocsRoute } from './docsRoute'
 import {
   DEFAULT_SETTINGS_SECTION,
   SETTINGS_ROUTE_NAME,
@@ -30,6 +31,7 @@ export function createAppRouter(): Router {
   // "/" redirects to the first registered section (AIR, in nav order).
   const defaultSectionPath = sectionRoutes[0]?.path ?? '/air/'
   settingsReturn.reset()
+  docsReturn.reset()
 
   const router = createRouter({
     history: createWebHistory(),
@@ -39,6 +41,14 @@ export function createAppRouter(): Router {
       // The Settings page. It renders no view of its own: the Settings panel
       // (App) is shown full-screen for it by `useSettingsRouteSync`.
       { path: '/settings/:section?', name: SETTINGS_ROUTE_NAME, component: { render: () => null } },
+      // The documentation. Loaded on demand: it carries the bundled markdown
+      // and renderer, which nothing else needs. The parameter is optional so both
+      // `/doc` and `/doc/` land on the welcome page.
+      {
+        path: '/doc/:docPath(.*)?',
+        name: DOCS_ROUTE_NAME,
+        component: () => import('@/docs/DocsPage.vue'),
+      },
       { path: '/:pathMatch(.*)*', redirect: '/' },
     ],
   })
@@ -54,7 +64,19 @@ export function createAppRouter(): Router {
     return `/${appStore.firstEnabledDomain()}/`
   }
 
-  router.beforeEach((to) => {
+  router.beforeEach((to, from) => {
+    if (isDocsRoute(to)) {
+      if (!isDocsRoute(from)) {
+        // On a cold load nothing opened Docs and focus is on <body>: keep no
+        // opener, so closing falls back to the main region.
+        const opener = document.activeElement
+        docsReturn.opener =
+          opener instanceof HTMLElement && opener !== document.body ? opener : null
+      }
+      // A docs link opened first: close lands on the first enabled section.
+      if (!docsReturn.path) docsReturn.path = `/${useAppStore().firstEnabledDomain()}/`
+      return
+    }
     if (isSettingsRoute(to)) {
       const section = settingsSectionOf(to)
       if (!isSettingsSectionOffered(section)) {
@@ -74,6 +96,10 @@ export function createAppRouter(): Router {
   })
 
   router.afterEach((to) => {
+    // Docs keeps the domain of the section it came from, as Settings does.
+    if (isDocsRoute(to)) return
+    // Docs closes back to whatever came before it, a Settings page included.
+    docsReturn.path = to.fullPath
     // The Settings page keeps the domain of the section it came from, as the
     // section it returns to: nothing section-wide (the map sidebar's per-section
     // tab memory) reacts to a visit to Settings.

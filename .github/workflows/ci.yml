@@ -300,6 +300,12 @@ jobs:
       - name: Typecheck (tsc)
         run: npm run typecheck
 
+      # Relative links and #anchors in docs/**, CONTRIBUTING.md and README.md,
+      # plus every page docs/nav.json lists. The in-app docs (/doc) bundle these
+      # files, so a dead link here is a dead link in the app.
+      - name: Documentation links
+        run: npm run check:doc-links
+
   # The composed stack (section-containers plan P5 exit): Caddy gateway + app +
   # NATS, built and started with docker compose exactly as deployed, then the
   # full-stack smoke suite driven THROUGH the gateway — plus the gateway-only

@@ -3,6 +3,8 @@
 .github
 .claude
 *.md
+# ...except the one the SPA build bundles into the in-app docs (/doc).
+!CONTRIBUTING.md
 __pycache__
 **/__pycache__
 *.pyc

@@ -1,0 +1,16 @@
+/* The light island: a surface that stays light in BOTH app themes, sitting
+   inside the dark chrome (nav bar, footer, rails). Shared by the Settings panel
+   and the docs page so the two read as one family.
+
+   Add `class="theme-light light-island"` to the island's root. `.theme-light`
+   pins the light palette; this adds the greys the island was designed against
+   — the app's own light greys were restacked so chrome, rails and panel read as
+   three layers, and an island is not part of that stack. The two-class selector
+   beats `.theme-light` regardless of stylesheet order. */
+.theme-light.light-island {
+  --canvas-rgb: 246, 246, 244;
+  --surface: #e8eaed;
+  --surface-sunken: #f1efe9;
+  --surface-sunken-hover: #e6e2d9;
+  --surface-pressed: #dcdfe3;
+}

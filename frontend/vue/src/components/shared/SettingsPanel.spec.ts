@@ -1,5 +1,5 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
+import { mount, flushPromises, enableAutoUnmount, RouterLinkStub } from '@vue/test-utils'
 
 // appSettings imports ExportAllControl, which causes a v8 coverage merge artifact
 // when ExportAllControl is loaded in this worker (where it's never exercised) AND
@@ -37,7 +37,7 @@ registerSdrSettings()
 function mountPanel({ attach = false }: { attach?: boolean } = {}) {
   return mount(SettingsPanel, {
     attachTo: attach ? document.body : undefined,
-    global: { stubs: { SettingRow: true } },
+    global: { stubs: { SettingRow: true, RouterLink: RouterLinkStub } },
   })
 }
 
@@ -176,6 +176,24 @@ describe('SettingsPanel', () => {
     })
   })
 
+  describe('docs entry in the rail', () => {
+    it('is a link to /doc/ named "Docs (documentation)", not a toggle', () => {
+      const wrapper = mountPanel()
+      const docs = wrapper.find('.settings-nav-docs')
+      expect(docs.exists()).toBe(true)
+      expect(docs.element.tagName).toBe('A')
+      expect(docs.attributes('aria-label')).toBe('Docs (documentation)')
+      expect(docs.attributes('aria-pressed')).toBeUndefined()
+      expect(docs.attributes('data-tooltip')).toBe('DOCS')
+    })
+
+    it('never takes the active section bar', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('.settings-nav-docs').trigger('click')
+      expect(wrapper.find('.settings-nav-docs').classes()).not.toContain('ba-btn--active')
+    })
+  })
+
   describe('search', () => {
     it('shows SEARCH RESULTS heading and groups matches by section', async () => {
       const wrapper = mountPanel()
@@ -185,6 +203,34 @@ describe('SettingsPanel', () => {
       // "source" matches across multiple domains.
       expect(sectionLabels.length).toBeGreaterThan(1)
       expect(wrapper.findAllComponents(SettingRow).length).toBeGreaterThan(0)
+    })
+
+    /** Labels of the setting rows currently listed (SettingRow is stubbed). */
+    function listedLabels(wrapper: ReturnType<typeof mountPanel>): string[] {
+      return wrapper
+        .findAllComponents({ name: 'SettingRow' })
+        .map((row) => (row.props('item') as { label: string }).label)
+    }
+
+    it('finds a setting when every word appears, in any order and not as a phrase', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('#settings-search-input').setValue('alert')
+      expect(listedLabels(wrapper)).toContain('Alert Sound')
+      await wrapper.find('#settings-search-input').setValue('sound alert')
+      expect(listedLabels(wrapper)).toContain('Alert Sound')
+    })
+
+    it('needs every word: one missing word hides the setting', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('#settings-search-input').setValue('alert zzzznotaword')
+      expect(listedLabels(wrapper)).toEqual([])
+      expect(wrapper.find('.settings-empty').text()).toBe('No results found')
+    })
+
+    it('ignores surrounding and repeated spaces and letter case', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('#settings-search-input').setValue('   SOUND    alert  ')
+      expect(listedLabels(wrapper)).toContain('Alert Sound')
     })
 
     it('shows a no-results message when nothing matches', async () => {

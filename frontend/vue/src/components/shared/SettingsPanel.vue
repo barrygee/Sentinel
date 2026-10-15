@@ -2,7 +2,7 @@
   <div
     id="settings-panel"
     ref="panelRef"
-    class="theme-light"
+    class="theme-light light-island"
     role="dialog"
     aria-modal="true"
     aria-labelledby="settings-section-heading"
@@ -156,6 +156,41 @@
           <RadioIcon v-else class="settings-nav-icon" />
         </span>
       </BaseIconButton>
+
+      <!-- Docs: the only way into /doc. A link, not a section button: it leaves
+           Settings for another page (the route change closes this panel), so it
+           never takes the active bar. Pinned to the foot of the rail. -->
+      <RouterLink v-slot="{ href, navigate }" to="/doc/" custom>
+        <BaseIconLink
+          class="settings-nav-docs"
+          :href="href"
+          :bordered="true"
+          tooltip-side="right"
+          tooltip="DOCS"
+          accessible-name="Docs (documentation)"
+          @click="navigate"
+        >
+          <span class="settings-nav-icon-wrap">
+            <svg
+              class="settings-nav-icon"
+              width="19"
+              height="19"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 6.5C10.4 5 7.6 4.5 4 4.5v13c3.6 0 6.4.5 8 2 1.6-1.5 4.4-2 8-2v-13c-3.6 0-6.4.5-8 2z"
+              />
+              <line x1="12" y1="6.5" x2="12" y2="19.5" />
+            </svg>
+          </span>
+        </BaseIconLink>
+      </RouterLink>
     </div>
 
     <div id="settings-content">
@@ -168,58 +203,16 @@
         id="settings-search-wrap"
         :class="{ 'settings-search-wrap--hidden': activeSection !== 'app' && !searchQuery }"
       >
-        <div id="settings-search-inner">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2" />
-            <line
-              x1="9.5"
-              y1="9.5"
-              x2="13"
-              y2="13"
-              stroke="currentColor"
-              stroke-width="1.2"
-              stroke-linecap="round"
-            />
-          </svg>
-          <input
-            id="settings-search-input"
-            ref="searchInputRef"
-            v-model="searchQuery"
-            type="text"
-            aria-label="Search settings"
-            placeholder="SEARCH SETTINGS"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <BaseIconAction
-            id="settings-search-clear"
-            accessible-name="Clear search"
-            :active="searchQuery.length > 0"
-            active-class="settings-search-clear-visible"
-            @click="clearSearch"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <line
-                x1="2"
-                y1="2"
-                x2="10"
-                y2="10"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-              />
-              <line
-                x1="10"
-                y1="2"
-                x2="2"
-                y2="10"
-                stroke="currentColor"
-                stroke-width="1.4"
-                stroke-linecap="round"
-              />
-            </svg>
-          </BaseIconAction>
-        </div>
+        <BaseSearchField
+          id="settings-search-inner"
+          v-model="searchQuery"
+          input-id="settings-search-input"
+          input-type="text"
+          clear-id="settings-search-clear"
+          label="Search settings"
+          placeholder="SEARCH SETTINGS"
+          :landmark="false"
+        />
       </div>
 
       <div id="settings-body">
@@ -286,6 +279,7 @@
 </template>
 
 <script setup lang="ts">
+import '@/assets/lightIsland.css'
 import './SettingsPanel.css'
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { ref, computed, watch } from 'vue'
@@ -297,9 +291,11 @@ import SettingRow from './settings/SettingRow.vue'
 import './settings/appSettings'
 import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BaseSearchField from '@sentinel/ui/base/BaseSearchField.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
+import BaseIconLink from '@sentinel/ui/base/BaseIconLink.vue'
 import { refreshSettingsFromBackend } from '@/shell/applySettings'
+import { createSearchRecord, searchRecords } from '@/search/textSearch'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer
 // importing from '@sentinel/shell-api/types/settings' directly in new code.
@@ -310,7 +306,6 @@ const appStore = useAppStore()
 
 const activeSection = ref('app')
 const searchQuery = ref('')
-const searchInputRef = ref<HTMLInputElement | null>(null)
 const panelRef = ref<HTMLElement | null>(null)
 
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
@@ -340,46 +335,54 @@ const domainSectionKeys = new Set(
 function isSectionOffered(key: string): boolean {
   return !domainSectionKeys.has(key) || appStore.enabledDomains.includes(key)
 }
-const visibleSections = computed(() => navSections.filter((s) => isSectionOffered(s.key)))
+const visibleSections = computed(() =>
+  navSections.filter((section) => isSectionOffered(section.key)),
+)
 
 const sectionHeading = computed(() => {
   if (searchQuery.value.trim()) return 'SEARCH RESULTS'
-  const s = navSections.find((n) => n.key === activeSection.value)
-  if (!s) return activeSection.value
-  return s.key === 'app' ? s.label : s.label + ' SETTINGS'
+  const section = navSections.find((candidate) => candidate.key === activeSection.value)
+  if (!section) return activeSection.value
+  return section.key === 'app' ? section.label : section.label + ' SETTINGS'
 })
 
 const currentSectionItems = computed(() =>
-  allSettings.filter((s) => s.section === activeSection.value),
+  allSettings.filter((setting) => setting.section === activeSection.value),
+)
+
+// Prepared once: the shared matcher lower-cases each field up front.
+const settingRecords = allSettings.map((setting) =>
+  createSearchRecord(setting, [
+    { name: 'label', text: setting.label, weight: 1 },
+    { name: 'desc', text: setting.desc, weight: 1 },
+    { name: 'searchTerms', text: setting.searchTerms ?? '', weight: 1 },
+    { name: 'sectionLabel', text: setting.sectionLabel, weight: 1 },
+  ]),
 )
 
 const searchResults = computed<SettingItem[]>(() => {
-  const q = searchQuery.value.trim().toLowerCase()
+  const query = searchQuery.value.trim()
   /* v8 ignore start -- searchResults is only read while a search query is active
-     (it sits behind v-if="searchQuery.trim()"), so q is never empty here */
-  if (!q) return []
+     (it sits behind v-if="searchQuery.trim()"), so query is never empty here */
+  if (!query) return []
   /* v8 ignore stop */
-  return allSettings.filter(
-    (s) =>
-      isSectionOffered(s.section) &&
-      (s.label.toLowerCase().includes(q) ||
-        s.desc.toLowerCase().includes(q) ||
-        (s.searchTerms?.toLowerCase().includes(q) ?? false) ||
-        s.sectionLabel.toLowerCase().includes(q)),
-  )
+  // Settings order, not relevance order: no ranking, no synonyms.
+  return searchRecords(settingRecords, query, { rank: false })
+    .map((match) => match.item)
+    .filter((setting) => isSectionOffered(setting.section))
 })
 
 const searchResultGroups = computed(() => {
   const groups: Record<string, { section: string; sectionLabel: string; items: SettingItem[] }> = {}
-  const order: string[] = []
+  const sectionOrder: string[] = []
   searchResults.value.forEach((item) => {
     if (!groups[item.section]) {
       groups[item.section] = { section: item.section, sectionLabel: item.sectionLabel, items: [] }
-      order.push(item.section)
+      sectionOrder.push(item.section)
     }
     groups[item.section].items.push(item)
   })
-  return order.map((k) => groups[k])
+  return sectionOrder.map((sectionKey) => groups[sectionKey])
 })
 
 function selectSection(key: string): void {
@@ -388,11 +391,6 @@ function selectSection(key: string): void {
   pending.value.clear()
   // The store names the section too, so the URL follows it (`/settings/<key>`).
   store.activeSection = key
-}
-
-function clearSearch(): void {
-  searchQuery.value = ''
-  searchInputRef.value?.focus()
 }
 
 function stagePending(id: string, fn: () => Promise<unknown> | void): void {

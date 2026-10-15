@@ -10,6 +10,7 @@ import {
   resetFooterRegistryForTests,
 } from '@sentinel/shell-api/shell/footerRegistry'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useDocsStore } from '@/docs/docsStore'
 
 describe('AppFooter', () => {
   beforeEach(() => {
@@ -60,6 +61,60 @@ describe('AppFooter', () => {
     store.toggleSidebar()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('#map-sidebar-btn').classes()).not.toContain('msb-btn-active')
+  })
+
+  describe('while the docs page is showing', () => {
+    it('targets the docs navigation, with its label and open state', async () => {
+      const wrapper = mount(AppFooter)
+      const docsStore = useDocsStore()
+      docsStore.setActive(true)
+      await wrapper.vm.$nextTick()
+      const button = wrapper.find('#map-sidebar-btn')
+      expect(button.attributes('aria-label')).toBe('Toggle docs navigation')
+      expect(button.classes()).toContain('msb-btn-active')
+    })
+
+    it('shows the button inactive once the docs navigation is hidden', async () => {
+      const wrapper = mount(AppFooter, { props: { sidebarOpen: true } })
+      const docsStore = useDocsStore()
+      docsStore.setActive(true)
+      docsStore.toggleSidebar()
+      await wrapper.vm.$nextTick()
+      // The map sidebar being open must not leak through.
+      expect(wrapper.find('#map-sidebar-btn').classes()).not.toContain('msb-btn-active')
+    })
+
+    it('toggles the docs navigation, not the map sidebar', async () => {
+      const wrapper = mount(AppFooter)
+      const docsStore = useDocsStore()
+      docsStore.setActive(true)
+      await wrapper.find('#map-sidebar-btn').trigger('click')
+      expect(docsStore.sidebarOpen).toBe(false)
+      expect(wrapper.emitted('toggle-sidebar')).toBeUndefined()
+      await wrapper.find('#map-sidebar-btn').trigger('click')
+      expect(docsStore.sidebarOpen).toBe(true)
+    })
+
+    it('goes back to the map sidebar when the docs page is gone', async () => {
+      const wrapper = mount(AppFooter)
+      const docsStore = useDocsStore()
+      docsStore.setActive(true)
+      docsStore.setActive(false)
+      await wrapper.find('#map-sidebar-btn').trigger('click')
+      expect(wrapper.emitted('toggle-sidebar')).toHaveLength(1)
+      expect(docsStore.sidebarOpen).toBe(true)
+      expect(wrapper.find('#map-sidebar-btn').attributes('aria-label')).toBe('Toggle map sidebar')
+    })
+
+    it('lets the settings panel keep the button when both are flagged', async () => {
+      const wrapper = mount(AppFooter)
+      useDocsStore().setActive(true)
+      useSettingsStore().openPanel()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('#map-sidebar-btn').attributes('aria-label')).toBe(
+        'Toggle settings sidebar',
+      )
+    })
   })
 
   it('toggles the settings panel when the settings button is clicked', async () => {

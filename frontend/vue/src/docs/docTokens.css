@@ -1,0 +1,27 @@
+/* Docs page tokens. Scoped under .doc-page, so the app's global type scale is
+   untouched: Settings' 12.5px body suits one-line descriptions, but long
+   reading wants a larger size and a longer line height. */
+.doc-page {
+  --doc-text-body: 15px;
+  --doc-line: 1.65;
+  /* About 75 characters of 15px Barlow per line. */
+  --doc-measure: 720px;
+}
+
+/* The global focus ring is the lime accent, which has no contrast on this light
+   island. Use the palette's own ring colour instead (#5a8a00 here, lime again
+   inside the dark rail, which re-pins the dark palette). The global rule is
+   !important, so this must be too; the extra class wins on specificity. */
+.doc-page :focus-visible {
+  outline: 2px solid var(--focus-ring) !important;
+  outline-offset: 2px !important;
+}
+
+/* The arrow after an external link. The renderer adds it inside prose and table
+   cells alike, so it is styled here rather than inside either component. */
+.doc-page .doc-external-glyph {
+  display: inline-block;
+  margin-left: 2px;
+  font-size: 10px;
+  text-decoration: none;
+}

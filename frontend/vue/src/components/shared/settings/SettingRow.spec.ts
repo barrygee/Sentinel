@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, RouterLinkStub } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
@@ -25,7 +25,10 @@ function mountRow(item: Partial<SettingItem> = {}, control: Partial<SettingContr
     ...item,
     control: { component: StandInControl, ...control },
   }
-  return mount(SettingRow, { props: { item: fullItem, pending: new Map() } })
+  return mount(SettingRow, {
+    props: { item: fullItem, pending: new Map() },
+    global: { stubs: { RouterLink: RouterLinkStub } },
+  })
 }
 
 function cardClasses(wrapper: ReturnType<typeof mountRow>): string[] {
@@ -59,6 +62,29 @@ describe('SettingRow', () => {
       'sr-only',
     )
     expect(mountRow().find('.settings-item-label').classes()).not.toContain('sr-only')
+  })
+
+  describe('docs link', () => {
+    it('shows LEARN MORE, named after the setting, when the item has a docPath', () => {
+      const wrapper = mountRow({ label: 'Recordings folder', docPath: 'operations#folder' })
+      const link = wrapper.find('a.doc-link')
+      expect(link.exists()).toBe(true)
+      expect(link.attributes('aria-label')).toBe('Learn more about Recordings folder')
+    })
+
+    it('puts the link inside the info column, after the description', () => {
+      const wrapper = mountRow({ desc: 'Where files go', docPath: 'operations' })
+      const children = Array.from(wrapper.find('.settings-item-info').element.children)
+      expect(children.map((child) => child.className.split(' ')[0])).toEqual([
+        'settings-item-label',
+        'settings-item-desc',
+        'doc-link',
+      ])
+    })
+
+    it('shows no link without a docPath', () => {
+      expect(mountRow().find('a.doc-link').exists()).toBe(false)
+    })
   })
 
   describe('panel events', () => {
