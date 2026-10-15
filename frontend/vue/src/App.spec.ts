@@ -23,7 +23,7 @@ function setRoute(path: string): void {
   shared.route!.path = path
   shared.route!.meta = section && sectionIds.includes(section) ? { domain: section } : {}
   // The Settings page is the named `settings` route, as in router/index.ts.
-  shared.route!.name = section === 'settings' ? 'settings' : undefined
+  shared.route!.name = section === 'settings' ? 'settings' : section === 'doc' ? 'doc' : undefined
 }
 
 vi.mock('vue-router', () => ({
@@ -625,6 +625,43 @@ describe('App', () => {
       setRoute('/settings/sdr')
       await nextTick()
       expect(document.title).toBe('SENTINEL — SETTINGS')
+    })
+
+    it('titles the docs page with a bare "DOCS" until the page sets its own', async () => {
+      mountApp()
+      setRoute('/doc/operations')
+      await nextTick()
+      expect(document.title).toBe('SENTINEL — DOCS')
+    })
+
+    it('leaves focus to the docs page when navigating to it', async () => {
+      const wrapper = mountApp({ attach: true })
+      const main = wrapper.get('#main').element
+      setRoute('/doc/operations')
+      await nextTick()
+      await nextTick()
+      expect(document.activeElement).not.toBe(main)
+    })
+
+    it('makes the map controls inert while the docs page covers the map, and only then', async () => {
+      const wrapper = mountApp()
+      const aside = () => wrapper.get('aside[aria-label="Map controls"]')
+      expect(aside().attributes('inert')).toBeUndefined()
+
+      setRoute('/doc/')
+      await nextTick()
+      expect(aside().attributes('inert')).toBeDefined()
+
+      setRoute('/sdr/')
+      await nextTick()
+      expect(aside().attributes('inert')).toBeUndefined()
+    })
+
+    it('does not make the map controls inert on the Settings page', async () => {
+      const wrapper = mountApp()
+      setRoute('/settings/app')
+      await nextTick()
+      expect(wrapper.get('aside[aria-label="Map controls"]').attributes('inert')).toBeUndefined()
     })
 
     it('leaves focus to the settings panel when navigating to the Settings page', async () => {

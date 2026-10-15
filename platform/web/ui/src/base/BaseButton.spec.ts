@@ -102,6 +102,59 @@ describe('BaseButton', () => {
     )
   })
 
+  describe('as a link (href)', () => {
+    it('renders an <a> with the href instead of a <button>', () => {
+      const wrapper = mount(BaseButton, {
+        props: { href: '/doc/operations' },
+        slots: { default: 'Operations' },
+      })
+      expect(wrapper.find('button').exists()).toBe(false)
+      const link = wrapper.get('a')
+      expect(link.attributes('href')).toBe('/doc/operations')
+      expect(link.text()).toBe('Operations')
+    })
+
+    it('keeps the variant, active and bordered styling of a button', () => {
+      const wrapper = mount(BaseButton, {
+        props: { href: '/doc/', variant: 'rail', active: true, bordered: true },
+      })
+      expect(wrapper.get('a').classes()).toEqual(
+        expect.arrayContaining(['ba-btn', 'ba-btn--rail', 'ba-btn--active', 'ba-btn--bordered']),
+      )
+    })
+
+    it('drops type and disabled, which do not apply to a link', () => {
+      const wrapper = mount(BaseButton, {
+        props: { href: '/doc/', type: 'submit', disabled: true },
+      })
+      const link = wrapper.get('a')
+      expect(link.attributes('type')).toBeUndefined()
+      expect(link.attributes('disabled')).toBeUndefined()
+    })
+
+    it('still fires a forwarded click handler', async () => {
+      const handler = vi.fn()
+      const wrapper = mount(BaseButton, { props: { href: '/doc/' }, attrs: { onClick: handler } })
+      await wrapper.get('a').trigger('click')
+      expect(handler).toHaveBeenCalledOnce()
+    })
+
+    it('has no href attribute when rendered as a button', () => {
+      const wrapper = mount(BaseButton, { slots: { default: 'Go' } })
+      expect(wrapper.get('button').attributes('href')).toBeUndefined()
+    })
+
+    it('has no accessibility violations as a link', async () => {
+      const wrapper = mount(BaseButton, {
+        props: { href: '/doc/operations' },
+        slots: { default: 'Operations' },
+      })
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
+  })
+
   it('has no accessibility violations with visible text content', async () => {
     const wrapper = mount(BaseButton, { slots: { default: 'Apply changes' } })
     expect(

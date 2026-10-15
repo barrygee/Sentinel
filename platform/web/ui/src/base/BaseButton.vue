@@ -87,6 +87,12 @@ interface BaseButtonProps {
   active?: boolean
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
+  /**
+   * Renders the same look as a link (`<a href>`) instead of a `<button>` — for
+   * a rail entry that navigates (e.g. the docs rail) rather than toggling
+   * something. `type` and `disabled` do not apply to a link and are dropped.
+   */
+  href?: string
 }
 
 withDefaults(defineProps<BaseButtonProps>(), {
@@ -95,27 +101,32 @@ withDefaults(defineProps<BaseButtonProps>(), {
   active: false,
   disabled: false,
   type: 'button',
+  href: undefined,
 })
 </script>
 
 <template>
-  <button
+  <component
+    :is="href === undefined ? 'button' : 'a'"
     class="ba-btn"
     :class="[
       `ba-btn--${variant}`,
       { 'ba-btn--active': active, 'ba-btn--bordered': bordered && variant === 'rail' },
     ]"
-    :type="type"
-    :disabled="disabled"
+    :href="href"
+    :type="href === undefined ? type : undefined"
+    :disabled="href === undefined ? disabled : undefined"
   >
     <slot />
-  </button>
+  </component>
 </template>
 
 <style scoped>
 .ba-btn {
   cursor: pointer;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  /* Only matters for the link form (`href`); a <button> has none. */
+  text-decoration: none;
 }
 
 .ba-btn:disabled {

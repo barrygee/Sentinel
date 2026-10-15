@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
@@ -9,6 +9,9 @@ vi.mock('@sentinel/shell-api/shell/sectionRegistry', async () => {
   const fixtures = await import('@/test/settingsRouteFixtures')
   return { getSectionRoutes: () => fixtures.FIXTURE_SECTION_ROUTES }
 })
+// The real docs page bundles all the markdown and the renderer; the router
+// only needs something to show.
+vi.mock('@/docs/DocsPage.vue', () => ({ default: { render: () => null } }))
 vi.mock('@sentinel/shell-api/shell/settingsRegistry', async () => {
   const fixtures = await import('@/test/settingsRouteFixtures')
   return { getSettingsSections: () => fixtures.FIXTURE_SETTINGS_SECTIONS }
@@ -16,6 +19,7 @@ vi.mock('@sentinel/shell-api/shell/settingsRegistry', async () => {
 
 import { createAppRouter } from './index'
 import { settingsReturn } from './settingsRoute'
+import { docsReturn } from './docsRoute'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 function domainChanges(): Array<{ domain: string; prev: string }> {
@@ -32,6 +36,7 @@ describe('createAppRouter', () => {
     useAppStore().setEnabledDomains(['air', 'space', 'sdr'])
     window.history.replaceState(null, '', '/')
     delete document.body.dataset.domain
+    docsReturn.reset()
   })
 
   describe('section routes', () => {
@@ -171,6 +176,159 @@ describe('createAppRouter', () => {
       createAppRouter()
 
       expect(settingsReturn.path).toBeNull()
+    })
+  })
+
+  describe('docs routes', () => {
+    it.each([
+      ['/doc', ''],
+      ['/doc/', ''],
+      ['/doc/operations', 'operations'],
+      ['/doc/adr/0006-section-containers', 'adr/0006-section-containers'],
+    ])('resolves %s to the docs route', async (path, docPath) => {
+      const router = createAppRouter()
+      await router.push(path)
+      expect(router.currentRoute.value.name).toBe('doc')
+      expect(router.currentRoute.value.params.docPath ?? '').toBe(docPath)
+    })
+
+    it('does not send an unknown docs path home: the docs page shows its own not-found', async () => {
+      const router = createAppRouter()
+      await router.push('/doc/nowhere/at/all')
+      expect(router.currentRoute.value.name).toBe('doc')
+    })
+
+    it('remembers the section it was opened from as where closing returns to', async () => {
+      const router = createAppRouter()
+      await router.push('/sdr/')
+      await router.push('/doc/operations')
+      expect(docsReturn.path).toBe('/sdr/')
+    })
+
+    it('returns to a Settings page when Docs was opened from the Settings rail', async () => {
+      const router = createAppRouter()
+      await router.push('/air/')
+      await router.push('/settings/sdr')
+      await router.push('/doc/')
+      expect(docsReturn.path).toBe('/settings/sdr')
+    })
+
+    it('keeps the return path across docs pages and searches', async () => {
+      const router = createAppRouter()
+      await router.push('/space/')
+      await router.push('/doc/operations')
+      await router.push('/doc/sections#sdr')
+      await router.replace('/doc/sections?q=radio')
+      expect(docsReturn.path).toBe('/space/')
+    })
+
+    it('follows the reader when they leave Docs for another section', async () => {
+      const router = createAppRouter()
+      await router.push('/air/')
+      await router.push('/doc/')
+      await router.push('/sdr/')
+      await router.push('/doc/')
+      expect(docsReturn.path).toBe('/sdr/')
+    })
+
+    it('returns a cold-loaded docs link to the first enabled section', async () => {
+      useAppStore().setEnabledDomains(['space', 'sdr'])
+      const router = createAppRouter()
+      await router.push('/doc/operations')
+      expect(docsReturn.path).toBe('/space/')
+    })
+
+    it('is available even when no domain is enabled for it (it is not a section)', async () => {
+      useAppStore().setEnabledDomains(['sdr'])
+      const router = createAppRouter()
+      await router.push('/doc/')
+      expect(router.currentRoute.value.path).toBe('/doc/')
+    })
+
+    it('keeps the body domain of the section it came from and announces no domain change', async () => {
+      const router = createAppRouter()
+      await router.push('/sdr/')
+      const changes = domainChanges()
+      await router.push('/doc/operations')
+      expect(document.body.dataset.domain).toBe('sdr')
+      expect(changes).toEqual([])
+    })
+
+    it('does not move where Settings returns to', async () => {
+      const router = createAppRouter()
+      await router.push('/space/')
+      await router.push('/doc/')
+      expect(settingsReturn.path).toBe('/space/')
+    })
+
+    describe('the control that opened it', () => {
+      afterEach(() => {
+        document.body.innerHTML = ''
+      })
+
+      it('is the focused control when Docs is opened from a section', async () => {
+        const router = createAppRouter()
+        await router.push('/air/')
+        const opener = document.createElement('button')
+        document.body.appendChild(opener)
+        opener.focus()
+        await router.push('/doc/')
+        expect(docsReturn.opener).toBe(opener)
+      })
+
+      it('is nothing on a cold load, when focus is on <body>', async () => {
+        const router = createAppRouter()
+        ;(document.activeElement as HTMLElement | null)?.blur()
+        expect(document.activeElement).toBe(document.body)
+        await router.push('/doc/')
+        expect(docsReturn.opener).toBeNull()
+      })
+
+      it('is nothing when the focused element is not an HTML element', async () => {
+        const router = createAppRouter()
+        await router.push('/air/')
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+        svg.setAttribute('tabindex', '0')
+        document.body.appendChild(svg)
+        svg.focus()
+        expect(document.activeElement).toBe(svg)
+        await router.push('/doc/')
+        expect(docsReturn.opener).toBeNull()
+      })
+
+      it('is not replaced by whatever has focus when moving between docs pages', async () => {
+        const router = createAppRouter()
+        await router.push('/air/')
+        const opener = document.createElement('button')
+        const linkInDocs = document.createElement('a')
+        linkInDocs.href = '#'
+        document.body.append(opener, linkInDocs)
+        opener.focus()
+        await router.push('/doc/')
+        linkInDocs.focus()
+        await router.push('/doc/operations')
+        expect(docsReturn.opener).toBe(opener)
+      })
+
+      it('is not taken from the <body> element itself', async () => {
+        const router = createAppRouter()
+        await router.push('/air/')
+        document.body.tabIndex = -1
+        document.body.focus()
+        await router.push('/doc/')
+        document.body.removeAttribute('tabindex')
+        expect(docsReturn.opener).toBeNull()
+      })
+    })
+
+    it('starts each new router with nowhere to return to', async () => {
+      const first = createAppRouter()
+      await first.push('/sdr/')
+      await first.push('/doc/')
+      expect(docsReturn.path).toBe('/sdr/')
+      createAppRouter()
+      expect(docsReturn.path).toBeNull()
+      expect(docsReturn.opener).toBeNull()
     })
   })
 })

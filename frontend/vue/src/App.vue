@@ -114,7 +114,9 @@
     <RouterView />
   </main>
 
-  <aside class="app-sidebar-region" aria-label="Map controls">
+  <!-- inert while Docs covers the map: its controls are behind the docs page,
+       and keyboard focus must not wander onto them (WCAG 2.4.11). -->
+  <aside class="app-sidebar-region" aria-label="Map controls" :inert="isDocsPage || undefined">
     <MapSidebar ref="sidebarRef" :hide-tabs="isSdrRoute">
       <template #radio>
         <component :is="persistentRadioPane" v-if="persistentRadioPane" />
@@ -156,6 +158,7 @@ import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { isSettingsRoute } from '@/router/settingsRoute'
+import { isDocsRoute } from '@/router/docsRoute'
 import { useSettingsRouteSync } from '@/composables/useSettingsRouteSync'
 
 const route = useRoute()
@@ -282,6 +285,7 @@ watch(
 )
 
 const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
+const isDocsPage = computed(() => isDocsRoute(route))
 // The section on screen (each section route carries its id as `meta.domain`),
 // for the footer's registered items.
 const activeSectionId = computed(() => (route.meta.domain as string | undefined) ?? '')
@@ -327,6 +331,8 @@ const mainRef = ref<HTMLElement | null>(null)
 function titleForPath(path: string): string {
   const segment = path.split('/').filter(Boolean)[0] ?? ''
   if (segment === 'settings') return 'SENTINEL — SETTINGS'
+  // The docs page sets its own, more specific title once it has rendered.
+  if (segment === 'doc') return 'SENTINEL — DOCS'
   const entry = ALL_NAV_DOMAINS.find(([domain]) => domain === segment)
   return entry ? `SENTINEL — ${entry[1]}` : 'SENTINEL'
 }
@@ -340,7 +346,8 @@ watch(
     document.title = titleForPath(path)
     // The Settings page is the Settings panel, a dialog that takes focus
     // itself; moving it to the (empty) main region would pull it out again.
-    if (previousPath !== undefined && !isSettingsRoute(route)) {
+    // The docs page likewise focuses its own heading.
+    if (previousPath !== undefined && !isSettingsRoute(route) && !isDocsRoute(route)) {
       nextTick(() => mainRef.value?.focus())
     }
   },

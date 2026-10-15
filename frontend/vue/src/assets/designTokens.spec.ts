@@ -405,7 +405,8 @@ describe('semantic theme tokens', () => {
       ).toBeDefined()
     }
 
-    expect(settingsPanelVue).toContain('class="theme-light"')
+    // The light-island class travels with it (assets/lightIsland.css).
+    expect(settingsPanelVue).toContain('class="theme-light light-island"')
     // The SDR page pins the dark island — the class may sit alongside others.
     expect(
       readFileSync(

@@ -24,6 +24,11 @@ WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./
 # template.css is imported via ../../../../frontend/assets/template.css
 COPY frontend/assets/ /repo/frontend/assets/
+# The in-app docs (/doc) bundle the repo's markdown at build time: docs/**/*.md
+# (docs/plans is left out by the glob) and the root CONTRIBUTING.md, resolved
+# from src/docs/ as ../../../../docs and ../../../../CONTRIBUTING.md.
+COPY docs/ /repo/docs/
+COPY CONTRIBUTING.md /repo/CONTRIBUTING.md
 # outDir is ../../frontend/spa-dist — resolves to /repo/frontend/spa-dist
 RUN npm run build
 

@@ -195,6 +195,7 @@ composition root) and SPA specs may import `@sentinel/section-*`.
 ```bash
 npm run lint      # ESLint + Prettier --check (gating)
 npm run typecheck # tsc --noEmit over tsconfig.json (gating)
+npm run check:doc-links      # every link and #anchor in the in-app docs resolves (gating)
 npm run test:e2e:gateway     # full-stack smoke + gateway checks, through a running `docker compose up` stack on :8080
 ```
 
@@ -213,6 +214,18 @@ repo-root config files plus the full-stack e2e specs in `tests/e2e/`. Keep its
 `include` in step with the `lint` script's globs so a file can't be linted but
 never type-checked. Nothing is emitted from this context (`noEmit`); the app
 build is `build:spa`.
+
+### Editing the docs
+
+The markdown in `docs/` (except `docs/plans/`) and this file are also the
+in-app docs at `/doc`, opened from **Docs** at the bottom of the Settings menu.
+
+- A new page needs an entry in `docs/nav.json`, or it has no place in the menu.
+- Run `npm run check:doc-links` after editing: it fails on a link to a missing
+  page or `#heading`.
+- The docs are bundled into the app, so a docs change needs
+  `cd frontend/vue && npm run build` and the rebuilt `frontend/spa-dist/`
+  committed, like any frontend change.
 
 ---
 
@@ -321,6 +334,7 @@ optional body explaining the why
 | pytest (backend) | — | ✅ |
 | composed stack through the gateway, 3 section deployments | — | ✅ (`gateway-smoke` matrix) |
 | backend image for amd64 + arm64 | — | ✅ (`multi-arch-build`, no push) |
+| in-app doc links and anchors | — | ✅ (`npm run check:doc-links`) |
 | CHANGELOG regenerate | — | ✅ (changelog workflow, push to `main` only) |
 
 The pre-commit hook is a fast mirror of the formatting/lint gates on *staged*
