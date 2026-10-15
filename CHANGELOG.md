@@ -506,6 +506,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Use the app lime for your location dot on the light map
 - Restore the radio hub container name sentinel-radio-hub
 - Publish the adsb-decoder on 127.0.0.1 by default
+- Point source notices at the real settings labels
+- Pass the offline map sources from .env and drop the LAN Sentry default
 
 ### Chores
 
@@ -1535,6 +1537,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #488 from barrygee/docs/site-content-plan
 - Merge pull request #489 from barrygee/feat/docs-page
 - Merge pull request #490 from barrygee/docs/get-started-and-use
+- Merge pull request #491 from barrygee/fix/sea-source-notice-wording
+- Merge pull request #493 from barrygee/fix/env-passthrough
 
 ### Refactoring
 
@@ -1806,6 +1810,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Multi-arch docker bake and decoder upstreams pinned to commits
 - Rebuild the bundle with the /doc page
 - Rebuild the bundle with the new docs pages
+- Rebuild the bundle with the Sea notice wording
 
 ### Continuous Integration
 
