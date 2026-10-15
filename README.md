@@ -52,11 +52,34 @@ docker compose up -d --scale land=0              # everything except Land
 
 **Stop:** `docker compose down`. Your data stays in Docker volumes.
 
+## SDR recordings
+
+The **Record** button (●) in the SDR radio panel saves what you're listening
+to: a WAV of the audio and, with **Settings › SDR › Record Raw IQ with
+Recordings** on, a raw IQ file of the whole band the radio was receiving. Play,
+download and delete them from the panel's **RECORDINGS** tab.
+
+By default they're kept inside Docker, in the `sdr_recordings` volume, where
+you can only reach them through the app. To save them to a folder on this
+computer instead (to open them in other software, keep them on a bigger disk,
+or back them up), set the folder in `.env` and restart the SDR service:
+
+```bash
+SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
+docker compose up -d sdr
+```
+
+To sort recordings into subfolders such as `satellites/noaa`, set
+**Settings › SDR › Recordings Folder**. Changing either setting affects only
+new recordings, and nothing already saved is moved. The details are in
+[docs/operations.md](docs/operations.md#where-recordings-are-saved).
+
 ## Documentation
 
 | Topic | Where |
 |---|---|
 | Logs, health, troubleshooting, upgrades, other architectures | [docs/operations.md](docs/operations.md) |
+| Where SDR recordings are saved | [docs/operations.md](docs/operations.md#where-recordings-are-saved) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) · [`.env.example`](.env.example) |
 | Decoder sidecars | [docs/decoders.md](docs/decoders.md) |
 | Offline maps (bundled tiles, in-app downloads) | [docs/offline-maps.md](docs/offline-maps.md) |
