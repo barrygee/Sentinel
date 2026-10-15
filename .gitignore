@@ -45,3 +45,6 @@ decoder/build/
 
 # A venv symlink (as a worktree leaves behind) is a file, which `.venv/` alone misses
 .venv
+
+# Your own compose overrides (docs/configuration.md)
+docker-compose.override.yml
