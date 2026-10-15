@@ -1534,6 +1534,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #487 from barrygee/docs/recordings-folder-readme
 - Merge pull request #488 from barrygee/docs/site-content-plan
 - Merge pull request #489 from barrygee/feat/docs-page
+- Merge pull request #490 from barrygee/docs/get-started-and-use
 
 ### Refactoring
 
@@ -1677,6 +1678,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Explain what recordings and their save location are for
 - Give SENTINEL_RECORDINGS_DIRECTORY an empty placeholder in .env.example
 - Add the content plan for the in-app /doc documentation site
+- Add Get started, Things you can do, Use Sentinel and How it works
 
 ### Tests
 
@@ -1768,6 +1770,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin the radio id and kind and the credentials folder layout
 - Pin the in-process test app and core's remote refusal
 - Pin recording folders, their validation and the folder setting
+- Add an opt-in script that retakes the docs screenshots
 
 ### Build System
 
@@ -1802,6 +1805,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the committed SPA bundle
 - Multi-arch docker bake and decoder upstreams pinned to commits
 - Rebuild the bundle with the /doc page
+- Rebuild the bundle with the new docs pages
 
 ### Continuous Integration
 
