@@ -221,6 +221,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give each Settings section its own URL
 - Make /settings/<section> a page of its own
 - Apply settings in place instead of reloading the page
+- Let users choose where recordings are saved
 
 ### Bug Fixes
 
@@ -1524,6 +1525,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #483 from barrygee/refactor/radio-runtime-rename
 - Merge pull request #484 from barrygee/fix/adsb-decoder-loopback-port
 - Merge pull request #485 from barrygee/refactor/remove-in-process-hosting
+- Merge pull request #486 from barrygee/feat/recordings-folder
 
 ### Refactoring
 
@@ -1754,6 +1756,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the hub creating its own table
 - Pin the radio id and kind and the credentials folder layout
 - Pin the in-process test app and core's remote refusal
+- Pin recording folders, their validation and the folder setting
 
 ### Build System
 
