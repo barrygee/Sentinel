@@ -222,6 +222,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make /settings/<section> a page of its own
 - Apply settings in place instead of reloading the page
 - Let users choose where recordings are saved
+- Add the in-app /doc docs page
 
 ### Bug Fixes
 
@@ -1531,6 +1532,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #485 from barrygee/refactor/remove-in-process-hosting
 - Merge pull request #486 from barrygee/feat/recordings-folder
 - Merge pull request #487 from barrygee/docs/recordings-folder-readme
+- Merge pull request #488 from barrygee/docs/site-content-plan
+- Merge pull request #489 from barrygee/feat/docs-page
 
 ### Refactoring
 
@@ -1673,6 +1676,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Note that Land has moved too
 - Explain what recordings and their save location are for
 - Give SENTINEL_RECORDINGS_DIRECTORY an empty placeholder in .env.example
+- Add the content plan for the in-app /doc documentation site
 
 ### Tests
 
@@ -1797,6 +1801,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the committed SPA bundle
 - Rebuild the committed SPA bundle
 - Multi-arch docker bake and decoder upstreams pinned to commits
+- Rebuild the bundle with the /doc page
 
 ### Continuous Integration
 
