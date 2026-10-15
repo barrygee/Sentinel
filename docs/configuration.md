@@ -35,6 +35,8 @@ To leave out a section instead, see [Quick start](install.md#start-some-sections
 |---|---|---|
 | `AISSTREAM_API_KEY` | empty | You'd rather install the AISStream key than type it into **Settings › SEA › AIS Data API Key**. A key saved in Settings wins. See [Sea](use/sea.md#add-your-aisstream-key). |
 | `ADSB_OFFGRID_URL` | the `adsb-decoder` container | The ADS-B decoder runs somewhere other than this computer's Docker, for example `http://<decoder-host>:8090/data/aircraft.json`. |
+| `OFFLINE_BASEMAP_SOURCE_URL` | empty: the newest Protomaps world build, found automatically | You want map downloads cut from one particular build, such as a copy you host yourself. Protomaps deletes each dated build after about a week, so don't point it at one of theirs. |
+| `OFFLINE_TERRAIN_SOURCE_URL` | Mapterhorn's world terrain | You want terrain downloads from another Terrarium-format `.pmtiles` archive. |
 
 ## The ADS-B decoder
 
@@ -44,7 +46,7 @@ These only matter when the `adsb` profile runs.
 |---|---|---|
 | `SENTINEL_ADSB_DECODER_ADDRESS` | `127.0.0.1:8090` | Another computer reads the decoded aircraft. `0.0.0.0:8090` opens it to your network. It has no password, so only do this on a network you trust. |
 | `SENTINEL_ADSB_RTL_TCP_HOST` / `SENTINEL_ADSB_RTL_TCP_PORT` | empty / `2345` | You run the decoder before choosing a dongle in **Settings › AIR › Off Grid ADS-B SDR**. Normally the decoder asks Sentinel which dongle to use. |
-| `SENTINEL_ADSB_SENTRY_API` | a fixed example address | Set it to your Sentry host, such as `http://<sentry-host>:8000`. At start, the decoder asks it what the dongle is tuned to and logs the answer, so a dongle on the wrong frequency shows in the log instead of as an empty map. |
+| `SENTINEL_ADSB_SENTRY_API` | empty: no check | You use a Sentry host: set it to that host, such as `http://<sentry-host>:8000`. At start, the decoder asks it what the dongle is tuned to and logs the answer, so a dongle on the wrong frequency shows in the log instead of as an empty map. |
 
 ## Decoders outside Docker
 
@@ -70,7 +72,7 @@ These are only for running the radio hub on [a second computer](radio-host.md). 
 
 ## Everything else
 
-Sentinel has more settings with built-in defaults (developers: `backend/config.py`): cache times, the addresses of the online sources (adsb.lol, CelesTrak, ukrepeater.net, Protomaps), timeouts and decoder ports. You rarely need them.
+Sentinel has more settings with built-in defaults (developers: `backend/config.py`): cache times, the addresses of the online sources (adsb.lol, CelesTrak, ukrepeater.net), timeouts and decoder ports. You rarely need them.
 
 Compose passes only the variables on this page from `.env` to the containers, so putting one of these in `.env` does nothing. To change one, put it in a **compose override file**: a file called `docker-compose.override.yml` next to `docker-compose.yml`, which Compose reads automatically. Set the variable on the service that uses it, in upper case. For example, to keep ADS-B data fresh for 5 seconds instead of 10:
 
@@ -81,7 +83,7 @@ services:
       ADSB_TTL_MS: "5000"
 ```
 
-Then run `docker compose up -d`. Check what a service will receive with `docker compose config air`. The override file is yours, so keep it out of Git.
+Then run `docker compose up -d`. Check what a service will receive with `docker compose config air`. The override file is yours; Git ignores it.
 
 ## Example .env files
 
