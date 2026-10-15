@@ -83,7 +83,7 @@ const message = computed(() => {
   // Off grid, only SEA can still be missing a source: AIR reads the bundled
   // decoder, and space/land never gate on a URL. Every other case is online.
   if (_effectiveMode() === 'offgrid') {
-    return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › AIS › Off Grid AIS SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
+    return 'Off Grid mode is active but SEA has no off-grid source. Either choose an AIS receiver under Settings › SEA › Off Grid AIS SDR, or set an Off Grid Data Source URL — or switch connectivity mode to continue.'
   }
   return `Online mode is active but no Online Data Source URL has been set for ${props.domain.toUpperCase()}. Configure a URL in settings or switch connectivity mode to continue.`
 })

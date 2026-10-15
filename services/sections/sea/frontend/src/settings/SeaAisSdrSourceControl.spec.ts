@@ -7,7 +7,7 @@ import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
 import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 
 /**
- * Settings › SEA › AIS › Off Grid AIS SDR. The control records which radio is the
+ * Settings › SEA › Off Grid AIS SDR. The control records which radio is the
  * off-grid AIS receiver: a plain `sea.aisSdrRadioId` setting staged into APPLY
  * CHANGES. The tests guard the one thing that is easy to get wrong in this
  * shape — reading the stored value back must not look like an operator's edit
