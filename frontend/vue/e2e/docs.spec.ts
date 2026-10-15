@@ -131,9 +131,9 @@ test.describe('Docs', () => {
       const hrefs = await page
         .locator('.doc-search-result a')
         .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''))
-      const bothWords = hrefs.indexOf('/doc/operations#where-recordings-are-saved')
-      const onlyOneWord = hrefs.findIndex((href) => href.startsWith('/doc/adr/'))
-      // Any word is enough to be listed (the design notes mention only "recordings")...
+      const bothWords = hrefs.indexOf('/doc/use/sdr/record#where-recordings-are-saved')
+      const onlyOneWord = hrefs.findIndex((href) => href.startsWith('/doc/use/sdr/add-a-radio'))
+      // Any word is enough to be listed (Add a radio mentions only "recordings")...
       expect(onlyOneWord).toBeGreaterThanOrEqual(0)
       // ...but the section about both comes first, well ahead of them.
       expect(bothWords).toBeGreaterThanOrEqual(0)
@@ -223,14 +223,20 @@ test.describe('Docs', () => {
       page,
     }) => {
       await page.setViewportSize({ width: 320, height: 640 })
-      for (const path of ['/doc/', '/doc/operations', '/doc/offline-maps', '/doc/configuration']) {
+      for (const path of [
+        '/doc/',
+        '/doc/operations',
+        '/doc/use/offline-maps',
+        '/doc/configuration',
+        '/doc/tasks/track-ships-off-grid',
+      ]) {
         await page.goto(path)
         await waitForShellHydration(page)
         await expect(page.locator(docsPage)).toBeVisible()
         expect(await pageScrollsSideways(page), path).toBe(false)
       }
       // The nested code block scrolls inside its own focusable group instead.
-      await page.goto('/doc/operations')
+      await page.goto('/doc/tasks/track-ships-off-grid')
       await waitForShellHydration(page)
       await expect(page.locator('.doc-nested-scroll').first()).toHaveAttribute('tabindex', '0')
     })

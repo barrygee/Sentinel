@@ -2,7 +2,7 @@
 
 How a Docker Compose deployment fits together, what a healthy start looks like
 in the logs, and what to check when something is missing. For installing and
-first run, see the [README](../README.md). For putting the radio hub on a
+first run, see [Quick start](install.md). For putting the radio hub on a
 second machine, see [radio-host.md](radio-host.md). For why it's built this
 way, see [ADR 0006](adr/0006-section-containers.md).
 
@@ -16,7 +16,7 @@ A bare `docker compose up -d` starts all of these:
 | `nats` | Event bus (TLS only, one user per service) | — |
 | `app` | Core: the shell UI, settings + `sentinel_config.json`, notifications, offline maps, the service registry | `sentinel_db` (`sentinel.db`, offline map regions) |
 | `gateway` | Caddy: publishes **:8080** for browsers and the TLS service entrypoint on 127.0.0.1:8443 | — |
-| `space` `land` `air` `sea` `sdr` | One service per section | `<id>_data` (`<id>.db`; SDR also older recordings in `recordings/`); SDR also `sdr_recordings` or your own folder (see [Where recordings are saved](#where-recordings-are-saved)) |
+| `space` `land` `air` `sea` `sdr` | One service per section | `<id>_data` (`<id>.db`; SDR also older recordings in `recordings/`); SDR also `sdr_recordings` or your own folder (see [Where recordings are saved](use/sdr/record.md#where-recordings-are-saved)) |
 | `radio` | Everything that touches a radio: rtl_tcp/Sentry, the spectrum WebSockets, decode bridges, IQ capture | `radio_data` (Sentry hosts) |
 
 The decoders (`voice-decoder`, `aprs-decoder`, `ais-decoder`, `adsb-decoder`)
@@ -144,63 +144,10 @@ server's user, read `/proc/1/status`.
 
 ### Where recordings are saved
 
-The **Record** button in the SDR radio panel saves up to two files per
-recording, together in one folder and named after the recording's number
-(the frequency, mode, sample rate and notes are kept with the recording and
-shown in the **RECORDINGS** tab, not in the file name):
-
-- **`<id>.wav`, the audio.** Exactly what you heard after demodulation. Play
-  it anywhere, edit it in an audio editor, or feed it to a decoder that takes
-  audio (a NOAA APT image decoder, for example).
-- **`<id>.u8`, the raw IQ.** Saved only with **Settings › SDR › Record Raw IQ
-  with Recordings (Large Files)** on. It's the radio's raw signal: the whole
-  band it was receiving, as unsigned 8-bit I/Q pairs straight from the dongle,
-  at the recording's sample rate. Open it in SDR software (SDR++, GQRX,
-  Universal Radio Hacker, GNU Radio) to tune to a different signal in the same
-  band, try another mode, or decode it again later. It is large: about 4 MB a
-  second (some 250 MB a minute) at the default 2.048 MHz sample rate, against
-  about 100 KB a second for the WAV.
-
-Two settings decide where the files go. The **recordings root** is where on
-disk they are (a machine choice, made once in `.env`). The **recordings
-folder** is how they're organised inside it (an everyday choice, made in
-Settings):
-
-1. **The recordings root.** By default the `sdr_recordings` Docker volume,
-   which keeps recordings safe across rebuilds but only reachable through the
-   app. Point it at a folder on this machine when you want the files
-   themselves: to open them in other software, keep them on a bigger or
-   external disk, back them up, or share the folder. Set it in `.env` and
-   restart the SDR service:
-
-   ```bash
-   SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
-   docker compose up -d sdr
-   ```
-
-   Docker creates the folder if it doesn't exist. Files saved there are
-   ordinary files: open them straight from Finder or a file manager. On Linux, also set
-   `SENTINEL_RUNTIME_USER_ID` / `SENTINEL_RUNTIME_GROUP_ID` to your own ids
-   (`id -u` / `id -g`), so the files are yours.
-2. **The recordings folder.** **Settings › SDR › Recordings Folder** (or
-   `sdr.recordingsFolder` in `sentinel_config.json`) picks a subfolder of the
-   root, e.g. `satellites/noaa`; it is created when the next recording starts.
-   Use it to keep recordings sorted by what you're working on: set
-   `satellites/noaa` before a weather-satellite pass and `airband` afterwards,
-   and each session's files land in their own folder. Leave it empty to save
-   to the root. Because it only names a folder *inside* the root, anyone
-   using Settings can organise recordings but can't make the app write
-   anywhere else on the machine. It can't leave the root: a full path,
-   `.` or `..`, or a backslash is refused in Settings, and if one reaches the
-   backend (a hand-edited config file) the recording goes to the root and the
-   `sdr` log says `Ignoring sdr.recordingsFolder (…); saving to …`.
-
-Changing either only affects **new** recordings. Every recording remembers the
-folder it was saved in, so older ones keep playing, downloading and deleting
-from where they are, and nothing is moved. Recordings made before this setting
-existed stay in `recordings/` on the `sdr_data` volume. If you point
-`SENTINEL_RECORDINGS_DIRECTORY` at a different folder later, recordings saved
-under the old one show as missing until you copy them across (same subfolders).
+Where SDR recordings go, how to save them to a folder on this machine
+(`SENTINEL_RECORDINGS_DIRECTORY`) and how to sort them into subfolders
+(**Settings › SDR › SDR Options › Recordings Folder**) is in
+[Record what you hear](use/sdr/record.md#where-recordings-are-saved).
 
 ### Radio hub and decoder issues
 

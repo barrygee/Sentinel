@@ -43,8 +43,8 @@ and in the app.
 | Fact | Owning page | Others |
 |---|---|---|
 | Starting the whole app | `install.md` | README keeps the two commands and links here; CONTRIBUTING and CLAUDE.md link here |
-| Starting one section | that section page's **Start it** block | `run-some-sections.md` is a table that links to each; `development/setup.md` links too |
-| Day-one expectations (what works with no set-up) | `install.md` | Welcome links to it |
+| Starting one section | `install.md` (the commands) and that section page's **Start it** block | `development/setup.md` links to them |
+| First settings to make | `install.md` | Welcome links to it |
 | Development set-up and dev loop | `development/setup.md` | CONTRIBUTING links to it |
 | Tests and quality gates | `development/testing.md` | CONTRIBUTING and CLAUDE.md link to it (CLAUDE.md may keep a command summary for the AI assistant) |
 | Branches, commits, PRs | `CONTRIBUTING.md` | — |
@@ -90,20 +90,13 @@ else is new.
 
 | Title | File | Contents |
 |---|---|---|
-| Welcome to Sentinel | `index.md` | What Sentinel is, the five sections in one line each, what you can do with it (links to **Things you can do**), where to start as a user or a developer. Hero screenshot. |
-| Install and start Sentinel | `install.md` | **Before you start** (Docker; radios optional), numbered steps, then **What works straight away** (table below), first-run steps: set **My Location**, choose sections, add a radio. Stop and restart. Screenshots: first-run screen, the "no data source" overlay, **My Location**. |
-| Run only the sections you need | `run-some-sections.md` | Table: section → what it needs (internet, radio, decoder, key) → link to its **Start it** block. |
-| Find your way around the screen | `interface.md` | Annotated screenshot with numbered callouts matching a numbered list: section rail, sidebar panes, map controls, footer, alerts, Settings (and **Docs** inside it). Keyboard use. Phone layout. |
+| Welcome to Sentinel | `index.md` | A short overview: what Sentinel is and the five sections, one line each. |
+| Quick start | `install.md` | Commands only, kept extremely simple: start everything, start one or several sections, add decoders, stop; the app config JSON (`sentinel_config.json` / **Application Config**); the four first settings. |
 
-**What works straight away** (to verify against the code while writing):
-
-| Section | With no set-up |
-|---|---|
-| Air | Works online once **My Location** is set |
-| Space | Works online |
-| Sea | Needs a free AISStream key (or a radio and the AIS decoder off grid) |
-| Land | Starts switched off; repeaters work once it's switched on |
-| SDR | Needs a radio |
+Owner's decision (2026-10-15, during D3): Get started must be extremely simple. The
+former **Run only the sections you need** page is folded into Quick start as commands,
+and **Find your way around the screen** moves to the top of **Use Sentinel**
+(`use/interface.md`). Day-one detail lives on each section page.
 
 ### Things you can do
 
@@ -160,6 +153,9 @@ setting: what it does and when to change it) → **Troubleshooting**.
 | Title | File | Diagrams |
 |---|---|---|
 | System overview | `architecture/overview.md` | Containers and connections; one request's journey. |
+| Docker and how Sentinel runs | `architecture/docker.md` | (added at the owner's request) Docker basics for a new developer; what compose starts; the image's build stages; volumes; ports; profiles; the dev loop. |
+| Backend code | `architecture/backend.md` | (added) Packages, import rules, composition roots, module lifecycles. |
+| Databases | `architecture/databases.md` | (added at the owner's request) How each SQLite database is set up, created and changed, seeded, edited, backed up; test databases. |
 | Gateway and routing | `architecture/gateway.md` | Registration → route sync to Caddy; longest-prefix table. |
 | Services and start-up | `architecture/services.md` | Start-up, waiting for core, registration; a section stopping or missing. |
 | Event bus | `architecture/event-bus.md` | Local handlers then NATS; request/reply; subjects. |
