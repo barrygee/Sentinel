@@ -3,15 +3,56 @@
     {
       "key": "get-started",
       "title": "Get started",
-      "pages": [{ "path": "index", "title": "Welcome to Sentinel" }]
+      "pages": [
+        { "path": "index", "title": "Welcome to Sentinel" },
+        { "path": "install", "title": "Quick start" }
+      ]
     },
-    { "key": "things-you-can-do", "title": "Things you can do", "pages": [] },
+    {
+      "key": "things-you-can-do",
+      "title": "Things you can do",
+      "pages": [
+        { "path": "tasks/no-internet", "title": "Run Sentinel with no internet" },
+        {
+          "path": "tasks/record-a-satellite-pass",
+          "title": "Catch a satellite pass and record it"
+        },
+        {
+          "path": "tasks/aircraft-emergency-alerts",
+          "title": "Get alerted to aircraft emergencies"
+        },
+        { "path": "tasks/listen-to-a-repeater", "title": "Find and listen to a local repeater" },
+        {
+          "path": "tasks/track-ships-off-grid",
+          "title": "Track ships off grid with your own radio"
+        }
+      ]
+    },
     {
       "key": "use-sentinel",
       "title": "Use Sentinel",
       "pages": [
-        { "path": "sections", "title": "What each section does" },
-        { "path": "offline-maps", "title": "Download maps for offline use" }
+        { "path": "use/interface", "title": "Find your way around the screen" },
+        { "path": "use/air", "title": "Air: aircraft (ADS-B)" },
+        { "path": "use/space", "title": "Space: satellites" },
+        { "path": "use/sea", "title": "Sea: ships (AIS)" },
+        { "path": "use/land", "title": "Land: repeaters and APRS" },
+        {
+          "title": "SDR: your radios",
+          "pages": [
+            { "path": "use/sdr/add-a-radio", "title": "Add a radio" },
+            { "path": "use/sdr/listen", "title": "Listen to a frequency" },
+            { "path": "use/sdr/frequencies", "title": "Save and scan frequencies" },
+            { "path": "use/sdr/record", "title": "Record what you hear" },
+            { "path": "use/sdr/decode", "title": "Decode digital signals" }
+          ]
+        },
+        { "path": "use/alerts", "title": "Alerts" },
+        { "path": "use/maps", "title": "Change the map look" },
+        { "path": "use/offline-maps", "title": "Download maps for offline use" },
+        { "path": "use/settings", "title": "Change settings" },
+        { "path": "use/config-file", "title": "Edit the config file" },
+        { "path": "use/receiving-responsibly", "title": "Receiving responsibly" }
       ]
     },
     {
@@ -24,7 +65,26 @@
         { "path": "radio-host", "title": "Run the radios on a second machine" }
       ]
     },
-    { "key": "how-it-works", "title": "How it works", "pages": [] },
+    {
+      "key": "how-it-works",
+      "title": "How it works",
+      "pages": [
+        { "path": "architecture/overview", "title": "System overview" },
+        { "path": "architecture/docker", "title": "How Sentinel runs in Docker" },
+        { "path": "architecture/backend", "title": "Backend code" },
+        { "path": "architecture/frontend", "title": "Frontend" },
+        { "path": "architecture/gateway", "title": "Gateway and routing" },
+        { "path": "architecture/event-bus", "title": "Event bus" },
+        { "path": "architecture/services", "title": "Services and start-up" },
+        { "path": "architecture/data-stores", "title": "Data stores" },
+        { "path": "architecture/databases", "title": "Databases" },
+        { "path": "architecture/caching", "title": "Caching" },
+        { "path": "architecture/sdr-pipeline", "title": "Radios and the SDR pipeline" },
+        { "path": "architecture/decoding", "title": "Decoding" },
+        { "path": "architecture/data-flows", "title": "Section data flows" },
+        { "path": "architecture/security", "title": "Security" }
+      ]
+    },
     {
       "key": "develop",
       "title": "Develop",
@@ -37,19 +97,13 @@
               "path": "adr/0001-webapp-standards-retrofit",
               "title": "0001 Retrofit to the webapp standards"
             },
-            {
-              "path": "adr/0002-base-component-dedupe",
-              "title": "0002 Shared base components"
-            },
+            { "path": "adr/0002-base-component-dedupe", "title": "0002 Shared base components" },
             {
               "path": "adr/0003-sentry-sdr-lock-and-tune",
               "title": "0003 Sentry SDR lock and tune"
             },
             { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
-            {
-              "path": "adr/0005-sea-ais-vessel-tracking",
-              "title": "0005 Sea AIS vessel tracking"
-            },
+            { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },
             { "path": "adr/0006-section-containers", "title": "0006 Section containers" }
           ]
         }
@@ -75,6 +129,18 @@
     "offline": ["Off Grid", "tiles", "pmtiles"],
     "map": ["tiles", "pmtiles"],
     "password": ["credentials", "secret"],
-    "env": ["environment", "configuration"]
+    "env": ["environment", "configuration"],
+    "scanner": ["SDR", "scan", "search"],
+    "repeater": ["Land", "repeaters"],
+    "record": ["recording", "recordings"],
+    "recording": ["record", "recordings"],
+    "emergency": ["squawk", "7700"],
+    "squawk": ["emergency", "Air"],
+    "internet": ["Off Grid", "offline"],
+    "docker": ["compose", "container", "volume"],
+    "database": ["SQLite", "databases", "db"],
+    "architecture": ["overview", "how it works"],
+    "nats": ["event bus"],
+    "caddy": ["gateway"]
   }
 }

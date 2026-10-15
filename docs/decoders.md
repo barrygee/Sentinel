@@ -29,11 +29,11 @@ traffic between the hosts is TLS with a CA generated for your deployment. The st
 
 ## Digital voice decoding
 
-P25, DMR, NXDN, D-STAR, YSF, M17 via **`dsd-fme`**. Opt-in because it compiles the patent-encumbered **`mbelib`** vocoder on your machine; the first build takes several minutes. In the SDR view: start a radio, tune a digital channel, click **DIGITAL** — call metadata appears in the decode panel and voice plays. "No sync" with nothing tuned in is expected. Details: [`decoder/README.md`](../decoder/README.md).
+P25, DMR, NXDN, D-STAR, YSF, M17 via **`dsd-fme`**. Opt-in because it compiles the patent-encumbered **`mbelib`** vocoder on your machine; the first build takes several minutes. In the SDR view: start a radio, tune a digital channel, select **DMR** under **DIGITAL MODE** — call metadata appears in the decode panel and voice plays (the button decodes every mode above, not only DMR). Using it: [Decode digital signals](use/sdr/decode.md). "No sync" with nothing tuned in is expected. Details: [`decoder/README.md`](../decoder/README.md).
 
 ## APRS decoding
 
-1200-baud AFSK/AX.25 via **Direwolf** (144.800 MHz Europe, 144.390 MHz North America). Select the radio on your APRS frequency and click **APRS**; packets list below the waterfall and stations plot on the Land map (Land domain must be enabled). Decode keeps running in the background and resumes on restart. Details: [`decoder/aprs/README.md`](../decoder/aprs/README.md).
+1200-baud AFSK/AX.25 via **Direwolf** (144.800 MHz Europe, 144.390 MHz North America). Pick the radio in **Settings › LAND › Off Grid APRS SDR**; it is tuned to the APRS channel (**Settings › LAND › APRS Channel**) and stations plot on the Land map (Land must be switched on: see [Land](use/land.md#switch-land-on)). Decode keeps running in the background and resumes on restart. Details: [`decoder/aprs/README.md`](../decoder/aprs/README.md).
 
 ## Off Grid AIS
 

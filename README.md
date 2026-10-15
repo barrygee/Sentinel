@@ -10,7 +10,7 @@ Sentinel is a real-time, offline-capable surveillance dashboard that puts five s
 - **Land** — APRS stations and the UK repeater directory
 - **SDR** — your RTL-SDR radios: spectrum, waterfall, audio and recording
 
-Every section has an online and an off-grid data source (switch with **Online / Off Grid** in Settings), and bundled map tiles keep the map working without internet. What each section does in detail: [docs/sections.md](docs/sections.md).
+Every section has an online and an off-grid data source (switch with **Online / Off Grid** in Settings), and maps you download keep working without internet. How to install it and use each section: [the documentation](docs/index.md), also shown inside the app under **Settings › Docs**.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ cp .env.example .env              # optional: every setting has a working defaul
 docker compose up --build -d      # the whole app: core + every section
 ```
 
-Open **http://localhost:8080**, then **Settings** (gear icon, bottom-right) › **My Location**. The first build takes a few minutes. Afterwards `docker compose up -d` is enough, with `--build` only when dependencies change.
+Open **http://localhost:8080**, then **Settings** (gear icon, bottom-right) › **App Settings › Sentinel Location**. What to set up first is in [Quick start](docs/install.md). The first build takes a few minutes. Afterwards `docker compose up -d` is enough, with `--build` only when dependencies change.
 
 **Just one section.** Name it (plus `gateway`) and compose starts core with it:
 
@@ -70,19 +70,21 @@ docker compose up -d sdr
 ```
 
 To sort recordings into subfolders such as `satellites/noaa`, set
-**Settings › SDR › Recordings Folder**. Changing either setting affects only
+**Settings › SDR › SDR Options › Recordings Folder**. Changing either setting affects only
 new recordings, and nothing already saved is moved. The details are in
-[docs/operations.md](docs/operations.md#where-recordings-are-saved).
+[Record what you hear](docs/use/sdr/record.md#where-recordings-are-saved).
 
 ## Documentation
 
 | Topic | Where |
 |---|---|
 | Logs, health, troubleshooting, upgrades, other architectures | [docs/operations.md](docs/operations.md) |
-| Where SDR recordings are saved | [docs/operations.md](docs/operations.md#where-recordings-are-saved) |
+| Install, first run, and using each section | [Quick start](docs/install.md) · [docs/index.md](docs/index.md) |
+| Where SDR recordings are saved | [docs/use/sdr/record.md](docs/use/sdr/record.md#where-recordings-are-saved) |
 | Environment variables | [docs/configuration.md](docs/configuration.md) · [`.env.example`](.env.example) |
 | Decoder sidecars | [docs/decoders.md](docs/decoders.md) |
-| Offline maps (bundled tiles, in-app downloads) | [docs/offline-maps.md](docs/offline-maps.md) |
+| Offline maps (bundled tiles, in-app downloads) | [docs/use/offline-maps.md](docs/use/offline-maps.md) |
 | Radio hub on a second machine | [docs/radio-host.md](docs/radio-host.md) |
+| How it works: architecture, Docker, backend, frontend, databases, code flows | [docs/architecture/overview.md](docs/architecture/overview.md) |
 | Development, tests and quality gates, commit/PR conventions | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Architecture decisions | [docs/adr/](docs/adr/) |
