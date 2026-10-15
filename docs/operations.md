@@ -144,25 +144,53 @@ server's user, read `/proc/1/status`.
 
 ### Where recordings are saved
 
-Each recording is a WAV file (`<id>.wav`) and, with **Record Raw IQ** on, a
-raw IQ file (`<id>.u8`), saved together in one folder:
+The **Record** button in the SDR radio panel saves up to two files per
+recording, together in one folder and named after the recording's number
+(the frequency, mode, sample rate and notes are kept with the recording and
+shown in the **RECORDINGS** tab, not in the file name):
 
-1. **The recordings root.** By default the `sdr_recordings` Docker volume. To
-   save to a folder on this machine instead, set it in `.env` and restart the
-   SDR service:
+- **`<id>.wav`, the audio.** Exactly what you heard after demodulation. Play
+  it anywhere, edit it in an audio editor, or feed it to a decoder that takes
+  audio (a NOAA APT image decoder, for example).
+- **`<id>.u8`, the raw IQ.** Saved only with **Settings › SDR › Record Raw IQ
+  with Recordings (Large Files)** on. It's the radio's raw signal: the whole
+  band it was receiving, as unsigned 8-bit I/Q pairs straight from the dongle,
+  at the recording's sample rate. Open it in SDR software (SDR++, GQRX,
+  Universal Radio Hacker, GNU Radio) to tune to a different signal in the same
+  band, try another mode, or decode it again later. It is large: about 4 MB a
+  second (some 250 MB a minute) at the default 2.048 MHz sample rate, against
+  about 100 KB a second for the WAV.
+
+Two settings decide where the files go. The **recordings root** is where on
+disk they are (a machine choice, made once in `.env`). The **recordings
+folder** is how they're organised inside it (an everyday choice, made in
+Settings):
+
+1. **The recordings root.** By default the `sdr_recordings` Docker volume,
+   which keeps recordings safe across rebuilds but only reachable through the
+   app. Point it at a folder on this machine when you want the files
+   themselves: to open them in other software, keep them on a bigger or
+   external disk, back them up, or share the folder. Set it in `.env` and
+   restart the SDR service:
 
    ```bash
    SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
    docker compose up -d sdr
    ```
 
-   Docker creates the folder if it doesn't exist. On Linux, also set
+   Docker creates the folder if it doesn't exist. Files saved there are
+   ordinary files: open them straight from Finder or a file manager. On Linux, also set
    `SENTINEL_RUNTIME_USER_ID` / `SENTINEL_RUNTIME_GROUP_ID` to your own ids
    (`id -u` / `id -g`), so the files are yours.
 2. **The recordings folder.** **Settings › SDR › Recordings Folder** (or
    `sdr.recordingsFolder` in `sentinel_config.json`) picks a subfolder of the
    root, e.g. `satellites/noaa`; it is created when the next recording starts.
-   Leave it empty to save to the root. It can't leave the root: a full path,
+   Use it to keep recordings sorted by what you're working on: set
+   `satellites/noaa` before a weather-satellite pass and `airband` afterwards,
+   and each session's files land in their own folder. Leave it empty to save
+   to the root. Because it only names a folder *inside* the root, anyone
+   using Settings can organise recordings but can't make the app write
+   anywhere else on the machine. It can't leave the root: a full path,
    `.` or `..`, or a backslash is refused in Settings, and if one reaches the
    backend (a hand-edited config file) the recording goes to the root and the
    `sdr` log says `Ignoring sdr.recordingsFolder (…); saving to …`.
