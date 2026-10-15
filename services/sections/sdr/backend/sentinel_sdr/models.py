@@ -105,4 +105,7 @@ class SdrRecording(Base):
     has_iq_file = Column(Boolean, nullable=False, default=False)
     iq_file_size_bytes = Column(Integer, nullable=False, default=0)
     status = Column(Text, nullable=False, default="recording")  # "recording"|"complete"|"error"
+    # The folder its WAV and IQ were saved in, fixed when it starts; "" = the
+    # pre-setting location, recordings/ next to the database (services/recording_folders.py).
+    directory = Column(Text, nullable=False, default="")
     created_at = Column(Integer, nullable=False)  # Unix ms

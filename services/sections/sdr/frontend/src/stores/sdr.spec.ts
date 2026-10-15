@@ -306,6 +306,51 @@ describe('sdr store', () => {
     })
   })
 
+  describe('recordingsFolder', () => {
+    it('defaults to the recordings root (empty)', () => {
+      expect(useSdrStore().recordingsFolder).toBe('')
+    })
+    it('trims surrounding spaces on set', () => {
+      const store = useSdrStore()
+      store.setRecordingsFolder('  satellites/noaa ')
+      expect(store.recordingsFolder).toBe('satellites/noaa')
+    })
+    it('keeps nothing in localStorage: only the backend acts on it', () => {
+      const setItem = vi.spyOn(window.localStorage, 'setItem')
+      useSdrStore().setRecordingsFolder('noaa')
+      expect(setItem).not.toHaveBeenCalled()
+    })
+    it('hydrates the folder from the DB, including back to the root', async () => {
+      const store = useSdrStore()
+      stubFetch({ recordingsFolder: 'noaa' })
+      await store.hydrateRecordingsFolderFromDb()
+      expect(store.recordingsFolder).toBe('noaa')
+      stubFetch({ recordingsFolder: '' })
+      await store.hydrateRecordingsFolderFromDb()
+      expect(store.recordingsFolder).toBe('')
+    })
+    it.each([
+      ['not text', 7],
+      ['null', null],
+      ['missing', undefined],
+    ])('ignores a DB value that is %s', async (_case, folder) => {
+      const store = useSdrStore()
+      store.setRecordingsFolder('kept')
+      stubFetch({ recordingsFolder: folder })
+      await store.hydrateRecordingsFolderFromDb()
+      expect(store.recordingsFolder).toBe('kept')
+    })
+    it('ignores a non-ok response and a failed request', async () => {
+      const store = useSdrStore()
+      stubFetch({ recordingsFolder: 'noaa' }, false)
+      await store.hydrateRecordingsFolderFromDb()
+      expect(store.recordingsFolder).toBe('')
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+      await expect(store.hydrateRecordingsFolderFromDb()).resolves.toBeUndefined()
+      expect(store.recordingsFolder).toBe('')
+    })
+  })
+
   // ── view settings ──────────────────────────────────────────────────────────
   describe('waterfall timestamps', () => {
     it('is on unless it was switched off before', () => {

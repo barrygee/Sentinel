@@ -124,8 +124,8 @@ class TestStopAsksTheHub:
     def test_stops_the_capture_and_reports_the_file_the_hub_wrote(self, client, fake_bus, tmp_path):
         _enable_raw_iq(client)
         recording_id = _start(client)
+        # Start made the recording's folder (the root: no recordings folder is set).
         recordings_dir = tmp_path / "recordings"
-        recordings_dir.mkdir()
         (recordings_dir / f"{recording_id}.u8").write_bytes(b"\x00" * 6)
 
         body = _stop(client, recording_id).json()

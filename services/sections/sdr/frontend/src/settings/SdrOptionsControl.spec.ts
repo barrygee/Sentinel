@@ -444,6 +444,64 @@ describe('SdrOptionsControl', () => {
     })
   })
 
+  describe('recordings folder row', () => {
+    /** The text field the recordings-folder row contributes to the options table. */
+    function folderInput(wrapper: ReturnType<typeof mount>) {
+      return wrapper.get<HTMLInputElement>(
+        'input[aria-label="Recordings folder, inside the recordings root"]',
+      )
+    }
+
+    beforeEach(() => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ recordingsFolder: 'satellites' }),
+        }),
+      )
+    })
+
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('renders the stored folder as a text field, not another toggle', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      expect(switches(wrapper)).toHaveLength(7)
+      expect(folderInput(wrapper).element.value).toBe('satellites')
+    })
+
+    it('sits under the recording length, with the other recording rows', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+      const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
+      const lengthRow = labels.indexOf('Max Recording Length (Minutes)')
+      expect(lengthRow).toBeGreaterThan(-1)
+      expect(labels[lengthRow + 1]).toBe('Recordings Folder')
+    })
+
+    it('re-emits the folder control staged write, which persists the new folder', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await folderInput(wrapper).setValue('satellites/noaa')
+      expect(useSdrStore().recordingsFolder).toBe('satellites/noaa')
+
+      await runStagedWrite(wrapper)
+      expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'recordingsFolder', 'satellites/noaa')
+    })
+
+    it('re-emits commit when Enter is pressed in the folder field', async () => {
+      const wrapper = mount(SdrOptionsControl)
+      await flushPromises()
+
+      await folderInput(wrapper).trigger('keydown.enter')
+      expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+  })
+
   describe('raw IQ recording row', () => {
     // Saves a recording's raw IQ alongside its audio. Only the backend reads it
     // (when a recording starts), so it defaults off and stays off until asked.

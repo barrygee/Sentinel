@@ -316,7 +316,14 @@ services:
   # first boot together with the recordings' WAV/IQ files. The band plan and
   # the other SDR settings stay in the app. Raw-IQ captures are started
   # and stopped on the radio hub over NATS; when one stops this service copies
-  # the file from the hub over HTTP into recordings/ on this volume (P7.3).
+  # the file from the hub over HTTP into the recording's folder (P7.3).
+  #
+  # New recordings (each one's WAV and raw IQ) are saved under /recordings, in
+  # the subfolder Settings › SDR › Recordings Folder names. /recordings is the
+  # `sdr_recordings` volume, or the host folder SENTINEL_RECORDINGS_DIRECTORY
+  # names in .env (e.g. ~/SentinelRecordings), so the files can be opened on
+  # this machine. Recordings saved before that setting existed stay in
+  # recordings/ on sdr_data and keep working.
   sdr:
     <<: *section-service
     container_name: sentinel-sdr
@@ -327,10 +334,14 @@ services:
       - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr}}
+      - ${SENTINEL_RECORDINGS_DIRECTORY:-sdr_recordings}:/recordings
     environment:
       <<: *section-env
       DB_PATH: /app/data/sdr.db
       SERVICE_INTERNAL_URL: http://sdr:8000
+      RECORDINGS_DIRECTORY: /recordings
+      # Handed to the runtime user on start, with the database volume.
+      SENTINEL_WRITABLE_DIRECTORIES: /app/data /recordings
     command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
@@ -598,6 +609,7 @@ volumes:
   sea_data:
   radio_data:
   sdr_data:
+  sdr_recordings:
 
 networks:
   sentinel:

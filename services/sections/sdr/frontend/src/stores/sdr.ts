@@ -466,6 +466,28 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
+  // Subfolder of the recordings root that new recordings (WAV + raw IQ) are
+  // saved in; '' = the root itself. Only the backend acts on it, so like the
+  // length limit it has no localStorage cache — the Settings control hydrates
+  // it from the DB.
+  const recordingsFolder = ref<string>('')
+  function setRecordingsFolder(folder: string) {
+    recordingsFolder.value = folder.trim()
+  }
+  async function hydrateRecordingsFolderFromDb(): Promise<void> {
+    try {
+      const res = await fetch('/api/settings/sdr')
+      if (!res.ok) return
+      const data = await res.json()
+      const folder = data?.recordingsFolder
+      if (typeof folder === 'string' && folder !== recordingsFolder.value) {
+        setRecordingsFolder(folder)
+      }
+    } catch {
+      /* offline / transient */
+    }
+  }
+
   // Waterfall view settings (Zoom / Max / Min sliders in SdrWaterfall). These
   // live in the store — not as plain local refs in the component — so they
   // survive the component being torn down and rebuilt when the user navigates
@@ -1335,6 +1357,9 @@ export const useSdrStore = defineStore('sdr', () => {
     recordingMaxDurationMinutes,
     setRecordingMaxDurationMinutes,
     hydrateRecordingMaxDurationFromDb,
+    recordingsFolder,
+    setRecordingsFolder,
+    hydrateRecordingsFolderFromDb,
     viewZoom,
     viewZmin,
     viewZmax,

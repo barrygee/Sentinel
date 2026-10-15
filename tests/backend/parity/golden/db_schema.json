@@ -892,6 +892,13 @@
       },
       {
         "default": null,
+        "name": "directory",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
         "name": "created_at",
         "nullable": false,
         "primary_key": false,

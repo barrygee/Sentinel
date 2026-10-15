@@ -136,7 +136,9 @@ def sessions(test_engine, db_setup, monkeypatch):
     return session_factory
 
 
-async def add_recording(sessions, recording_id: int, *, has_iq_file: bool = True, status: str = "complete") -> None:
+async def add_recording(
+    sessions, recording_id: int, *, has_iq_file: bool = True, status: str = "complete", directory: str = ""
+) -> None:
     async with sessions() as db:
         db.add(
             SdrRecording(
@@ -154,6 +156,7 @@ async def add_recording(sessions, recording_id: int, *, has_iq_file: bool = True
                 iq_file_size_bytes=0,
                 status=status,
                 created_at=0,
+                directory=directory,
             )
         )
         await db.commit()
@@ -170,7 +173,7 @@ def recording_object(recording_id: int, *, has_iq_file: bool = True) -> SdrRecor
 
 class TestWhereTheIqLives:
     def test_iq_path_is_in_the_recordings_folder(self, tmp_path):
-        assert transfer.iq_path(3) == tmp_path / "recordings" / "3.u8"
+        assert transfer.iq_path(recording_object(3)) == tmp_path / "recordings" / "3.u8"
 
     def test_pending_while_the_iq_is_not_here_yet(self):
         assert transfer.iq_file_pending(recording_object(3)) is True
@@ -297,6 +300,25 @@ class TestCollectCapture:
         recording = await load_recording(sessions, 3)
         assert recording.iq_file_size_bytes == 5 and recording.has_iq_file is True
         assert hub_bus.sent(LOCATE) == [3]
+        assert 3 not in transfer._collecting
+
+    async def test_copies_into_the_folder_the_recording_was_saved_in(self, hub_bus, hub_http, sessions, tmp_path):
+        saved_in = tmp_path / "recordings-root" / "satellites"
+        await add_recording(sessions, 3, directory=str(saved_in))
+        hub_http.files[3] = b"\x01\x02\x03"
+
+        await transfer.collect_capture(3)
+
+        assert (saved_in / "3.u8").read_bytes() == b"\x01\x02\x03"
+        assert not (tmp_path / "recordings" / "3.u8").exists()
+        assert (await load_recording(sessions, 3)).iq_file_size_bytes == 3
+
+    async def test_a_recording_deleted_before_its_copy_has_the_hub_discard_it(self, hub_bus, hub_http, sessions):
+        await transfer.collect_capture(3)
+
+        assert hub_bus.sent(DISCARD) == [3]
+        assert hub_bus.sent(LOCATE) == []
+        assert hub_http.requests == []
         assert 3 not in transfer._collecting
 
     async def test_stops_a_capture_whose_stop_never_arrived_and_waits_for_the_next_run(
@@ -499,6 +521,20 @@ class TestReconcile:
 
         assert hub_bus.sent(DISCARD) == [3]
         assert hub_bus.sent(LOCATE) == [3]
+
+    async def test_a_capture_already_in_its_recordings_own_folder_is_discarded_not_collected(
+        self, hub_bus, hub_http, sessions, tmp_path
+    ):
+        saved_in = tmp_path / "recordings-root" / "noaa"
+        saved_in.mkdir(parents=True)
+        (saved_in / "3.u8").write_bytes(b"iq")
+        await add_recording(sessions, 3, directory=str(saved_in))
+        hub_bus.replies[LIST] = {"ok": True, "capture_ids": [3]}
+
+        await transfer.reconcile_iq_captures()
+
+        assert hub_bus.sent(LOCATE) == []
+        assert hub_bus.sent(DISCARD) == [3]
 
     async def test_an_outage_is_logged_once_and_its_end_once(self, hub_bus, sessions, caplog):
         await add_recording(sessions, 3)

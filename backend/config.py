@@ -311,6 +311,14 @@ class Settings(BaseSettings):
     # container, not this one's. Empty = public certificate authorities only.
     gateway_upstream_certificate_authority_file: str = ""
 
+    # ── SDR recordings ───────────────────────────────────────────────────────
+    # The folder the SDR section saves recordings under (each recording's WAV
+    # and raw IQ, in the subfolder the `sdr.recordingsFolder` setting names).
+    # Compose sets it to /recordings: the `sdr_recordings` volume, or the host
+    # folder SENTINEL_RECORDINGS_DIRECTORY names. Empty = recordings/ next to
+    # the database.
+    recordings_directory: str = ""
+
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's
     # address on the internal network, e.g. `http://app:8000`. Empty means this

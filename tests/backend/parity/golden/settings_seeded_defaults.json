@@ -125,6 +125,7 @@
     "radios": [],
     "recordRawIq": false,
     "recordingMaxDurationMinutes": 360,
+    "recordingsFolder": "",
     "resumeDelaySec": 0,
     "searchRanges": [],
     "showBandPlan": true,
