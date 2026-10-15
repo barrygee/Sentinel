@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-QTnfLwEv.js";var t=e({currentMapTheme:()=>n,isBrightBasemap:()=>r,overlayAccentColor:()=>i});function n(){return document.documentElement.dataset.mapTheme===`light`?`light`:`dark`}function r(){return n()===`light`}function i(){return r()?`#000000`:`#c8ff00`}export{i,r as n,t as r,n as t};

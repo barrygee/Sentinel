@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-QTnfLwEv.js";var t=e({siteLabel:()=>n});function n(e){return e.name?.trim()||`${e.address}:${e.port}`}export{n,t};
