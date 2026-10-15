@@ -50,7 +50,7 @@ const blocking = computed<{ title: string; message: string } | null>(() => {
     return {
       title: 'No off-grid AIS receiver selected.',
       message:
-        'Off Grid mode is active, so vessels are decoded from an SDR rather than AISStream. Choose the receiver under Settings › SEA › AIS › Off Grid AIS SDR to continue.',
+        'Off Grid mode is active, so vessels are decoded from an SDR rather than AISStream. Choose the receiver under Settings › SEA › Off Grid AIS SDR to continue.',
     }
   }
   switch (status) {
@@ -58,12 +58,12 @@ const blocking = computed<{ title: string; message: string } | null>(() => {
       return {
         title: 'No AISStream API key configured.',
         message:
-          'Live vessels come from AISStream.io, which needs a free API key. Add yours under Settings › SEA › AISStream API Key to continue.',
+          'Live vessels come from AISStream.io, which needs a free API key. Add yours under Settings › SEA › AIS Data API Key to continue.',
       }
     case 'auth-failed':
       return {
         title: 'AISStream rejected the API key.',
-        message: `${error ? `${error}. ` : ''}Check the key under Settings › SEA › AISStream API Key — it is retried once an hour, or straight away once the key changes.`,
+        message: `${error ? `${error}. ` : ''}Check the key under Settings › SEA › AIS Data API Key — it is retried once an hour, or straight away once the key changes.`,
       }
     case 'disabled':
       return {
