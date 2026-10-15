@@ -98,6 +98,10 @@ services:
       # the ./backend bind mount is where the app writes sentinel_config.json.
       - SENTINEL_RUNTIME_USER_ID=${SENTINEL_RUNTIME_USER_ID:-1000}
       - SENTINEL_RUNTIME_GROUP_ID=${SENTINEL_RUNTIME_GROUP_ID:-1000}
+      # Offline map download sources (core runs the downloads). Empty basemap =
+      # find the newest Protomaps build automatically (basemap_source.py).
+      - OFFLINE_BASEMAP_SOURCE_URL=${OFFLINE_BASEMAP_SOURCE_URL:-}
+      - OFFLINE_TERRAIN_SOURCE_URL=${OFFLINE_TERRAIN_SOURCE_URL:-https://download.mapterhorn.com/planet.pmtiles}
     depends_on:
       nats:
         condition: service_healthy
@@ -575,7 +579,8 @@ services:
       - RTL_TCP_PORT=${SENTINEL_ADSB_RTL_TCP_PORT:-2345}
       # Polled once at startup to report what the source device is tuned to, so
       # a mis-tuned dongle shows up in the logs rather than as an empty map.
-      - SENTRY_API_BASE=${SENTINEL_ADSB_SENTRY_API:-http://192.168.5.67:8000}
+      # Your Sentry host, e.g. http://<sentry-host>:8000; empty skips the check.
+      - SENTRY_API_BASE=${SENTINEL_ADSB_SENTRY_API:-}
       - JSON_DIR=/run/adsb/data
       - HTTP_PORT=8080
     # Published so the decoder can be checked from a browser and pointed at from
