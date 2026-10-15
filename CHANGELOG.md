@@ -561,6 +561,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the voice decoder service to voice-decoder
 - Allow several components per spec file
 
+### Reverts
+
+- Keep SENTINEL_RECORDINGS_DIRECTORY commented out in .env.example
+
 ### Other
 
 - Initial commit
@@ -1526,6 +1530,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #484 from barrygee/fix/adsb-decoder-loopback-port
 - Merge pull request #485 from barrygee/refactor/remove-in-process-hosting
 - Merge pull request #486 from barrygee/feat/recordings-folder
+- Merge pull request #487 from barrygee/docs/recordings-folder-readme
 
 ### Refactoring
 
@@ -1666,6 +1671,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Slim the README to basics and move the detail into docs/
 - Document the section backend package pattern and new lint paths
 - Note that Land has moved too
+- Explain what recordings and their save location are for
+- Give SENTINEL_RECORDINGS_DIRECTORY an empty placeholder in .env.example
 
 ### Tests
 
