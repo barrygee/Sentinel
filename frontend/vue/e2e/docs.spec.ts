@@ -47,7 +47,7 @@ test.describe('Docs', () => {
     await expect(page.locator(docsPage)).toBeVisible()
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/welcome to sentinel/i)
 
-    await page.getByRole('button', { name: 'Close docs' }).click()
+    await page.keyboard.press('Escape')
     // Docs was opened from the Settings page, so closing lands back there.
     await expect(page).toHaveURL(/\/settings\/app$/)
     await expect(page.locator('#settings-panel.settings-panel-visible')).toBeVisible()

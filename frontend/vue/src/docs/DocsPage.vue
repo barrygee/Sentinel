@@ -4,7 +4,6 @@ import './docTokens.css'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import DocsArticle from './DocsArticle.vue'
 import DocsBreadcrumb from './DocsBreadcrumb.vue'
-import DocsCloseButton from './DocsCloseButton.vue'
 import DocsDisclosure from './DocsDisclosure.vue'
 import DocsGroupRail from './DocsGroupRail.vue'
 import DocsHeading from './DocsHeading.vue'
@@ -28,7 +27,7 @@ import { renderDocument } from './markdown/renderDocument'
 /**
  * The `/doc/...` view: a document you read for a long time, in the Settings
  * language (a light island with a charcoal rail), not a modal. It composes the
- * group rail, the page list with search, a breadcrumb and close button, and the
+ * group rail, the page list with search, a breadcrumb, and the
  * content column, which shows one of: the page, the search results, or "page
  * not found". The header and footer stay usable, and the skip link lands here.
  *
@@ -164,7 +163,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
       <div class="doc-column">
         <div class="doc-topbar">
           <DocsBreadcrumb :trail="trail" />
-          <DocsCloseButton />
         </div>
 
         <div ref="mainRef" class="doc-main">
@@ -247,7 +245,9 @@ onBeforeUnmount(() => docsStore.setActive(false))
   min-width: 0;
 }
 
-/* Stays at the top while the phone column scrolls, so close is always in reach. */
+/* Stays at the top while the phone column scrolls, so the breadcrumb stays in
+   reach. The min-height keeps the 44px row the close button used to set, so the
+   heading doesn't move up. */
 .doc-topbar {
   position: sticky;
   top: 0;
@@ -256,6 +256,7 @@ onBeforeUnmount(() => docsStore.setActive(false))
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 44px;
   padding: 6px 4px 0 16px;
   background: var(--canvas);
 }

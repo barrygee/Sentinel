@@ -406,12 +406,6 @@ describe('DocsPage', () => {
       pressEscape(pageLink.element)
       expect(closeDocs).toHaveBeenCalledTimes(1)
     })
-
-    it('the close button closes the docs too', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
-      await wrapper.get('button[aria-label="Close docs"]').trigger('click')
-      expect(closeDocs).toHaveBeenCalledTimes(1)
-    })
   })
 
   describe('keyboard in the search', () => {

@@ -12,7 +12,7 @@ A live map of what is around you, and a control panel for your own radios. It ru
 
 ## Online or off grid
 
-- **Online:** data comes from free internet feeds. You need no radio.
+- **Online:** data comes from free internet feeds. Radio only required for SDR section.
 - **Off grid:** data comes from your own radios, maps you downloaded and data already stored. See [Off grid](use/off-grid.md).
 
 ## Start here
