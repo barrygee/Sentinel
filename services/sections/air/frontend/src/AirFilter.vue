@@ -396,7 +396,10 @@ const results = computed<Array<PlaneResult | AirportResult | MilResult>>(() => {
         callsign,
         reg,
         squawk,
-        emergency: !!p.emergency && p.emergency !== 'none',
+        // The map's own test: an emergency squawk (7500/7600/7700) counts as
+        // much as the transponder's emergency field, so the row and its
+        // headings go red whenever the map's label does.
+        emergency: p.squawkEmerg === 1 || (!!p.emergency && p.emergency !== 'none'),
         coords: f.geometry.coordinates,
       })
     }
