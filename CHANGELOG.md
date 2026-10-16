@@ -563,6 +563,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the pre-gateway env defaults from the decoder images
 - Rename the voice decoder service to voice-decoder
 - Allow several components per spec file
+- Give every .env.example variable its own comment
+- Set every variable with a default to it in .env.example
 
 ### Reverts
 
@@ -1540,6 +1542,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #491 from barrygee/fix/sea-source-notice-wording
 - Merge pull request #493 from barrygee/fix/env-passthrough
 - Merge pull request #492 from barrygee/docs/run-develop-reference
+- Merge pull request #495 from barrygee/chore/env-example-comments
 
 ### Refactoring
 
