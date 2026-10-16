@@ -588,17 +588,55 @@ describe('AdsbLiveControl._interpolatedCoords', () => {
 })
 
 describe('AdsbLiveControl.selectByHex', () => {
-  it('eases to the aircraft and returns true', () => {
-    const { control, map } = mounted()
+  it('selects the aircraft (so its trail draws), eases in to it and returns true', () => {
+    const { control, map } = mounted({ zoom: 5 })
+    map.layers.add('adsb-trail-line')
+    map.layers.add('adsb-trail-dots')
     seedFeature(control)
+    priv(control)._trails['abc123'] = [
+      { lon: -0.1, lat: 51.5, alt: 100 },
+      { lon: -0.2, lat: 51.6, alt: 200 },
+    ]
     expect(control.selectByHex('abc123')).toBe(true)
-    expect(map.easeTo).toHaveBeenCalled()
+    expect(control._selectedHex).toBe('abc123')
+    expect(control._trailHex).toBe('abc123')
+    expect(
+      (map.sourceData['adsb-trails-source'] as GeoJSON.FeatureCollection).features.length,
+    ).toBe(2)
+    expect(map.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [-0.1, 51.5], zoom: 10 }),
+    )
   })
 
-  it('returns false for an unknown hex or no map', () => {
+  it('does not isolate the picked aircraft (a label click does not either)', () => {
     const { control } = mounted()
+    seedFeature(control)
+    control.selectByHex('abc123')
+    expect(priv(control)._isolatedHex).toBeNull()
+  })
+
+  it('hides a showing hover tag when it selects', () => {
+    const { control } = mounted()
+    seedFeature(control)
+    const hideNow = vi.spyOn(priv(control), '_hideHoverTagNow')
+    control.selectByHex('abc123')
+    expect(hideNow).toHaveBeenCalled()
+  })
+
+  it('returns false and leaves the selection alone for an unknown or empty hex', () => {
+    const { control, map } = mounted()
+    seedFeature(control)
+    control._selectedHex = 'abc123'
     expect(control.selectByHex('nope')).toBe(false)
     expect(control.selectByHex('')).toBe(false)
+    expect(control._selectedHex).toBe('abc123')
+    expect(map.easeTo).not.toHaveBeenCalled()
+  })
+
+  it('returns false before the control is on a map', () => {
+    const control = makeControl(null)
+    expect(control.selectByHex('abc123')).toBe(false)
+    expect(control._selectedHex).toBeNull()
   })
 })
 

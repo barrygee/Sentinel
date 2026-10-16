@@ -595,8 +595,8 @@ function onExpandedKeyChange(key: string): void {
   fitBoundsWithPadding(base.bounds)
 }
 
-// Opening an aircraft row centres the map on it (matching the airport rows'
-// behaviour) and pins it to the top of the list.
+// Opening an aircraft row selects it on the map (selected tag + trail, as a
+// label click does), centres the map on it and pins it to the top of the list.
 function selectPlane(r: PlaneResult) {
   expandedPlane.value = r.hex
   // Capture the clicked row so it stays rendered (with last-known telemetry) if
@@ -606,12 +606,14 @@ function selectPlane(r: PlaneResult) {
   centrePlane(r)
 }
 
-// Ease the map to an aircraft, preferring the control's interpolated position
-// over the (older) snapshot coordinates from the search result.
+// Select the aircraft on the map and ease to it. When it has left the live feed
+// (a snapshot row) there is nothing to select, so the map just eases to the
+// snapshot's last-known coordinates.
 function centrePlane(r: PlaneResult) {
   const c = props.adsbControl
   if (!c) return
-  const coords = c._interpolatedCoords(r.hex) ?? r.coords
+  if (c.selectByHex(r.hex)) return
+  const coords = r.coords
   const m = props.getMap()
   if (m) m.easeTo({ center: coords, zoom: Math.max(m.getZoom(), 10), duration: 600 })
 }

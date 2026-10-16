@@ -15,7 +15,7 @@
     :listbox-label="portsOn ? 'Live vessels and ports' : 'Live vessels'"
     :empty-message="emptyMessage"
     @update:query="seaStore.setSearchQuery"
-    @update:expanded-key="onExpand"
+    @update:expanded-key="onRowPick"
   >
     <template #accordion="{ item }">
       <div class="sea-filter-accordion">
@@ -159,6 +159,14 @@ function onExpand(key: string): void {
     seaStore.setSearchExpandedMmsi(key)
     seaStore.setSearchExpandedPort('')
   }
+}
+
+// A row opened from the list also selects its vessel on the map, so the track
+// draws as it does for a marker click. (Map clicks arrive through onExpand
+// directly: the marker has already selected the vessel.)
+function onRowPick(key: string): void {
+  onExpand(key)
+  if (vesselFor(key)) seaStore.selectVessel(key)
 }
 
 // ── tuning a port channel ──────────────────────────────────────────────────

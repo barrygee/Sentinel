@@ -345,8 +345,7 @@ export class AisVesselsControl extends SentinelControlBase {
 
   /** Select a vessel (from its marker or a notification click). */
   selectByMmsi(mmsi: string, options: { openPane?: boolean } = {}): void {
-    this._seaStore.setSelectedMmsi(mmsi)
-    void this._seaStore.fetchTrack(mmsi)
+    this._seaStore.selectVessel(mmsi)
     if (options.openPane) {
       document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi } }))
     }

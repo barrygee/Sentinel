@@ -347,6 +347,15 @@ export const useSeaStore = defineStore('sea', () => {
     }
   }
 
+  /**
+   * Select a vessel on the map — bracket plus its recent track — from wherever
+   * the pick came from (its marker, a notification, or a SEARCH row).
+   */
+  function selectVessel(mmsi: string): void {
+    selectedMmsi.value = mmsi
+    void fetchTrack(mmsi)
+  }
+
   return {
     vessels,
     feed,
@@ -380,5 +389,6 @@ export const useSeaStore = defineStore('sea', () => {
     startPolling,
     stopPolling,
     fetchTrack,
+    selectVessel,
   }
 })
