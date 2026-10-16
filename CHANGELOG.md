@@ -515,6 +515,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pass the offline map sources from .env and drop the LAN Sentry default
 - Draw AARA zone labels in the app's map label font
 - Stop enlarged arrowheads reaching into the box they point at
+- Bring captions, descriptions and labels up to WCAG AA contrast
 
 ### Chores
 
@@ -572,6 +573,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Allow several components per spec file
 - Give every .env.example variable its own comment
 - Set every variable with a default to it in .env.example
+- Remove the last SENTINEL_EXTERNAL_SERVICES leftovers
 
 ### Reverts
 
@@ -1553,6 +1555,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #494 from barrygee/docs/simplify
 - Merge pull request #496 from barrygee/docs/space-screenshot-iss
 - Merge pull request #497 from barrygee/docs/sdr-waterfall-screenshot
+- Merge pull request #498 from barrygee/chore/remove-external-services-leftovers
+- Merge pull request #499 from barrygee/fix/settings-label-contrast
 
 ### Refactoring
 
@@ -1704,6 +1708,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Say .env.example sets every default
 - Lay diagrams out top to bottom with each flow's direction shown
 - Show the SDR panels where the docs describe them
+- Retake the Settings screenshots with the new label contrast
 
 ### Tests
 
@@ -1799,6 +1804,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Follow the new Set up and run page order
 - Retake the docs screenshots on a larger screen with items selected
 - Give the docs SDR screenshots a live waterfall and demo data
+- Audit every Settings section with axe
 
 ### Build System
 
@@ -1840,6 +1846,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the updated Environment variables page
 - Rebuild the bundle with the docs and diagram changes
 - Rebuild the bundle with the docs rail and SDR screenshots
+- Rebuild the bundle with the Settings contrast fix
 
 ### Continuous Integration
 
