@@ -11,7 +11,7 @@ For radio amateurs: every UK repeater, and the APRS stations your radio hears. T
 - **Search** by callsign, town, band or mode; filter by **Band**, **Mode** and **Status**.
 - **APRS STATIONS**: stations heard by your radio, with their symbols and details. **RAW** shows the packet as received.
 
-![A repeater's details: SITE information, then its 2 m channel with OUTPUT and INPUT frequencies (each with a save button), offset, CTCSS tone, status, height, power and mode.](../images/land-repeater-details.png)
+![REPEATER FILTERS open with 2M, FM and ON AIR chosen, the map narrowed to the matching repeaters, and one repeater's details: SITE information, then its 2 m channel with OUTPUT and INPUT frequencies (each with a save button), offset, CTCSS tone, status, height, power and mode.](../images/land-repeater-details.png)
 
 ## Switch Land on
 
@@ -28,6 +28,8 @@ You need a dongle you can give to APRS full time and a 2 m antenna.
 1. `docker compose --profile aprs up -d --build`
 2. **Settings › LAND › Off Grid APRS SDR**: pick the radio, then **APPLY CHANGES**.
 3. In **LAND**, choose **APRS STATIONS** under **FILTER**.
+
+![APRS stations heard around the receiver on the Land map, each drawn with its APRS symbol, and one station's details open in the FILTER pane: STATION, POSITION, MOVEMENT and PACKET.](../images/land-aprs-station.png)
 
 Decoding runs in the background, even with no browser open.
 

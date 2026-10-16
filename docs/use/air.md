@@ -15,7 +15,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 - **Airport frequencies**: select one to tune your radio to it in AM.
 - **Layers**: **RANGE RING**, **A2A REFUELING**, **AWACS**, **TERRAIN**, more under **MAP LAYERS**.
 
-![An aircraft's details in the FILTER pane: POSITION and IDENTIFICATION, squawk 7700, and the track, alert and centre buttons beneath. The aircraft is highlighted in red on the map.](../images/air-aircraft-details.png)
+![An aircraft's details in the FILTER pane: POSITION and IDENTIFICATION, squawk 7700, and the track, alert and centre buttons beneath; its headings are red for the emergency. On the map the aircraft is red too, with its recent trail behind it.](../images/air-aircraft-details.png)
 
 ## Off grid
 
