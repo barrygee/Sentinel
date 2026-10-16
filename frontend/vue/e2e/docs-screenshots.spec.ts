@@ -1,11 +1,11 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Page, type Route } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
 import { clearPersistedState, seedNotifications } from './support/seedStore'
-import { installFakeSdr } from './support/fakeSdr'
+import { openRadioSection, playDemoRadio } from './support/demoSdr'
 
 /**
  * Regenerates the screenshots in docs/images/ — not part of the gating suite.
@@ -30,7 +30,8 @@ const PHONE_VIEWPORT = { width: 390, height: 844 }
 const PHONE_SCALE = 3
 
 /** Central England: inside every map's opening view. */
-const DEMO_LOCATION = { latitude: 52.2, longitude: -1.5 }
+// Mid Great Britain: the maps open centred on your location, so this frames the UK.
+const DEMO_LOCATION = { latitude: 54.6, longitude: -3.0 }
 
 const DEMO_AIRCRAFT = {
   ac: [
@@ -287,7 +288,8 @@ function demoVessel(
   cog: number,
 ) {
   return {
-    mmsi: `23500000${index}`,
+    // Nine digits, like a real MMSI: 235000001, 235000012…
+    mmsi: `235${String(index).padStart(6, '0')}`,
     name,
     imo: '',
     callsign: `DEMO${index}`,
@@ -308,14 +310,172 @@ function demoVessel(
 
 const DEMO_VESSELS = {
   vessels: [
-    demoVessel(1, 'EXAMPLE STAR', 'cargo', 'CARGO', 53.62, 0.55, 12.1, 95),
+    demoVessel(1, 'EXAMPLE STAR', 'cargo', 'CARGO', 53.62, 0.55, 12.1, 165),
     demoVessel(2, 'DEMO SPIRIT', 'passenger', 'PASSENGER', 53.7, -4.3, 17.5, 210),
     demoVessel(3, 'SAMPLE TIDE', 'tanker', 'TANKER', 54.35, 0.3, 9.4, 260),
     demoVessel(4, 'FICTIONAL GULL', 'fishing', 'FISHING', 53.15, 1.8, 3.2, 45),
     demoVessel(5, 'TEST VOYAGER', 'pleasure', 'PLEASURE CRAFT', 54.3, -4.0, 6.0, 140),
+    demoVessel(6, 'DEMO TRADER', 'cargo', 'CARGO', 52.9, 2.5, 13.4, 200),
+    demoVessel(7, 'NORTH EXAMPLE', 'tanker', 'TANKER', 55.2, 1.2, 11.0, 175),
+    demoVessel(8, 'SAMPLE FORTH', 'cargo', 'CARGO', 56.1, -2.3, 8.7, 80),
+    demoVessel(9, 'EXAMPLE QUEEN', 'passenger', 'PASSENGER', 51.95, 1.9, 19.0, 95),
+    demoVessel(10, 'TEST HARVEST', 'fishing', 'FISHING', 54.9, -0.8, 4.1, 20),
+    demoVessel(11, 'DEMO NET', 'fishing', 'FISHING', 52.4, 2.0, 2.8, 300),
+    demoVessel(12, 'SOLENT SAMPLE', 'cargo', 'CARGO', 50.55, -1.0, 14.2, 260),
+    demoVessel(13, 'CHANNEL DEMO', 'tanker', 'TANKER', 50.3, -2.5, 12.6, 75),
+    demoVessel(14, 'FICTIONAL FERRY', 'passenger', 'PASSENGER', 50.9, 0.9, 20.5, 140),
+    demoVessel(15, 'TEST TRAWLER', 'fishing', 'FISHING', 50.05, -4.0, 3.5, 230),
+    demoVessel(16, 'EXAMPLE BREEZE', 'pleasure', 'PLEASURE CRAFT', 50.72, -1.4, 5.5, 110),
+    demoVessel(17, 'IRISH SAMPLE', 'passenger', 'PASSENGER', 53.38, -5.2, 18.0, 270),
+    demoVessel(18, 'MERSEY DEMO', 'cargo', 'CARGO', 53.55, -3.4, 10.2, 300),
+    demoVessel(19, 'WESTERN TEST', 'tanker', 'TANKER', 52.0, -5.6, 11.8, 190),
+    demoVessel(20, 'SAMPLE SAIL', 'pleasure', 'PLEASURE CRAFT', 54.6, -5.45, 4.8, 330),
+    demoVessel(21, 'BRISTOL EXAMPLE', 'cargo', 'CARGO', 51.35, -3.8, 9.6, 250),
   ],
   source: 'live',
   status: 'ok',
+}
+
+/** Degrees of latitude per nautical mile. */
+const DEGREES_PER_NM = 1 / 60
+
+/** A point `distanceNm` from (lat, lon) along `bearingDeg` (flat-earth: fine for a few miles). */
+function stepAlong(lat: number, lon: number, bearingDeg: number, distanceNm: number) {
+  const bearing = (bearingDeg * Math.PI) / 180
+  const dLat = distanceNm * DEGREES_PER_NM * Math.cos(bearing)
+  const dLon = (distanceNm * DEGREES_PER_NM * Math.sin(bearing)) / Math.cos((lat * Math.PI) / 180)
+  return { lat: lat + dLat, lon: lon + dLon }
+}
+
+/** The demo aircraft are laid out around (52.2, -1.5); this moves them to
+ *  surround DEMO_LOCATION instead. */
+const AIRCRAFT_SHIFT = { lat: DEMO_LOCATION.latitude - 52.2, lon: DEMO_LOCATION.longitude + 1.5 }
+
+/** Polls the Air shots wait for (one every 10 s) before shooting. */
+const TRAIL_POLLS = 6
+
+/** The demo aircraft after `poll` polls, each moved 10 NM per poll along its track
+ *  (fast, so a few polls draw a trail that reaches out from under the label). They
+ *  start that far back along their tracks, so at the shot they are where they
+ *  were laid out, not flown off the map. */
+function movedAircraft(poll: number) {
+  return {
+    ...DEMO_AIRCRAFT,
+    ac: DEMO_AIRCRAFT.ac.map((aircraft) => ({
+      ...aircraft,
+      ...stepAlong(
+        aircraft.lat + AIRCRAFT_SHIFT.lat,
+        aircraft.lon + AIRCRAFT_SHIFT.lon,
+        aircraft.track,
+        (poll - TRAIL_POLLS) * 10,
+      ),
+      seen_pos: 0,
+    })),
+  }
+}
+
+/** Twenty-four fixes behind a ship, 10 minutes apart at its own speed, oldest
+ *  first: four hours, so the track reaches out from under the label. */
+function trackBehind(vessel: { lat: number; lon: number; sog: number; cog: number }) {
+  const now = Math.floor(Date.now() / 1000)
+  return Array.from({ length: 24 }, (_, index) => {
+    const minutesAgo = (24 - index) * 10
+    const point = stepAlong(
+      vessel.lat,
+      vessel.lon,
+      vessel.cog + 180,
+      (vessel.sog * minutesAgo) / 60,
+    )
+    return { ...point, t: now - minutesAgo * 60 }
+  })
+}
+
+/** Places across Great Britain for the generated repeaters: [lat, lon, region]. */
+const REPEATER_SITES: readonly [number, number, string][] = [
+  [57.15, -2.1, 'SCOTLAND'],
+  [56.45, -3.0, 'SCOTLAND'],
+  [55.95, -3.2, 'SCOTLAND'],
+  [55.85, -4.25, 'SCOTLAND'],
+  [57.48, -4.22, 'SCOTLAND'],
+  [55.0, -1.6, 'NORTH'],
+  [54.57, -1.23, 'NORTH'],
+  [53.8, -1.55, 'NORTH'],
+  [53.48, -2.24, 'NORTH WEST'],
+  [53.4, -2.98, 'NORTH WEST'],
+  [54.05, -2.8, 'NORTH WEST'],
+  [53.0, -2.18, 'MIDLANDS'],
+  [52.63, -1.13, 'MIDLANDS'],
+  [52.95, -1.15, 'MIDLANDS'],
+  [52.48, -1.9, 'MIDLANDS'],
+  [52.63, 1.3, 'EAST'],
+  [52.2, 0.12, 'EAST'],
+  [51.75, -1.26, 'SOUTH'],
+  [51.45, -2.58, 'SOUTH WEST'],
+  [50.72, -3.53, 'SOUTH WEST'],
+  [50.37, -4.14, 'SOUTH WEST'],
+  [51.48, -3.18, 'WALES'],
+  [52.41, -4.08, 'WALES'],
+  [53.23, -4.13, 'WALES'],
+  [51.5, -0.12, 'SOUTH EAST'],
+  [50.83, -0.14, 'SOUTH EAST'],
+  [51.28, 1.08, 'SOUTH EAST'],
+  [54.6, -5.93, 'NORTHERN IRELAND'],
+]
+
+/** Band plans the generated repeaters cycle through: [band, channel, output, input]. */
+const REPEATER_BANDS: readonly [string, string, number, number][] = [
+  ['2M', 'RV58', 145.725, 145.125],
+  ['70CM', 'RB04', 433.1, 434.7],
+  ['2M', 'RV55', 145.6875, 145.0875],
+  ['70CM', 'RU70', 430.875, 438.475],
+  ['2M', 'RV61', 145.7625, 145.1625],
+  ['6M', 'RF84', 51.84, 51.34],
+  ['23CM', 'RM3', 1297.075, 1291.075],
+  ['10M', 'R10', 29.66, 29.56],
+]
+
+/** Mode mixes the generated repeaters cycle through (ETCC letters: A FM, M DMR,
+ *  F Fusion, D D-STAR). */
+const REPEATER_MODE_MIXES: readonly string[][] = [
+  ['A'],
+  ['A', 'M'],
+  ['M'],
+  ['F'],
+  ['A', 'D'],
+  ['A', 'F'],
+]
+
+/** A fictional repeater (GB3DM<n>: no real callsign has a digit there), with a
+ *  realistic spread of bands, modes and off-air sites for the filters to narrow. */
+function demoRepeater([latitude, longitude, region]: [number, number, string], index: number) {
+  // Staggered steps, so neighbouring sites differ and every region gets a mix.
+  const [band, channel, txMhz, rxMhz] = REPEATER_BANDS[(index * 3) % REPEATER_BANDS.length]!
+  const modes = REPEATER_MODE_MIXES[(index * 5) % REPEATER_MODE_MIXES.length]!
+  return {
+    callsign: `GB3DM${index + 1}`,
+    latitude,
+    longitude,
+    locator: 'IO00AA',
+    location: 'EXAMPLE SITE',
+    postcode: 'EX1',
+    region,
+    keeper: 'M0DEMO',
+    channels: [
+      {
+        id: 9100 + index,
+        band,
+        channel,
+        txMhz,
+        rxMhz,
+        modes,
+        ctcssHz: modes.includes('A') ? 77.0 : null,
+        dmrColourCode: modes.includes('M') ? 1 : null,
+        heightMagl: 30,
+        erpDbw: 10,
+        status: (index * 7) % 9 === 4 ? 'NOT OPERATIONAL' : 'OPERATIONAL',
+      },
+    ],
+  }
 }
 
 const DEMO_REPEATERS = {
@@ -372,6 +532,11 @@ const DEMO_REPEATERS = {
         },
       ],
     },
+    ...REPEATER_SITES.map((site, index) => demoRepeater(site, index)),
+    // A second site near each place, as the real directory has (it is dense).
+    ...REPEATER_SITES.map(([latitude, longitude, region], index) =>
+      demoRepeater([latitude + 0.3, longitude - 0.4, region], REPEATER_SITES.length + index),
+    ),
   ],
 }
 
@@ -419,234 +584,74 @@ function upcomingIssPasses(now: number): RecordedPass[] {
 }
 
 /**
- * A believable 2 MHz slice of the 2 m band for the SDR waterfall: a noise floor
- * that rolls off at the edges, a steady signal on the tuned frequency, NFM
- * conversations that key up and drop, APRS packet bursts on 144.800 and a few
- * quiet carriers. Deterministic, so the picture is the same every run.
- */
-const SPECTRUM_BINS = 2048
-
-/** Signals in the band: centre (Hz), width (Hz), peak (dBFS), and when it is on. */
-const DEMO_SIGNALS: readonly {
-  hz: number
-  widthHz: number
-  peakDb: number
-  isOn: (frame: number) => boolean
-}[] = [
-  // The tuned station stays on: a strong signal dropping out makes the
-  // waterfall rescale its brightness, which draws a band across it.
-  { hz: 145_500_000, widthHz: 11_000, peakDb: -38, isOn: () => true },
-  { hz: 145_525_000, widthHz: 10_000, peakDb: -52, isOn: (frame) => frame % 180 < 70 },
-  { hz: 145_600_000, widthHz: 11_000, peakDb: -48, isOn: (frame) => (frame + 90) % 300 < 140 },
-  { hz: 145_337_500, widthHz: 9_000, peakDb: -62, isOn: (frame) => (frame + 40) % 220 < 60 },
-  { hz: 144_800_000, widthHz: 14_000, peakDb: -50, isOn: (frame) => frame % 75 < 6 },
-  { hz: 146_025_000, widthHz: 2_500, peakDb: -60, isOn: () => true },
-  { hz: 145_800_000, widthHz: 6_000, peakDb: -72, isOn: (frame) => frame % 40 < 34 },
-  { hz: 144_950_000, widthHz: 3_000, peakDb: -74, isOn: () => true },
-]
-
-/** Repeatable noise in -1..1 for a frame and bin. */
-function noise(frame: number, bin: number): number {
-  const seed = Math.sin(frame * 12.9898 + bin * 78.233) * 43758.5453
-  return (seed - Math.floor(seed)) * 2 - 1
-}
-
-function demoSpectrumFrame(frame: number, centerHz: number, sampleRate: number): number[] {
-  const binHz = sampleRate / SPECTRUM_BINS
-  const startHz = centerHz - sampleRate / 2
-  const bins: number[] = []
-  for (let bin = 0; bin < SPECTRUM_BINS; bin++) {
-    const hz = startHz + bin * binHz
-    const fromCentre = Math.abs(bin - SPECTRUM_BINS / 2) / (SPECTRUM_BINS / 2)
-    let level = -96 - 6 * fromCentre ** 4 + noise(frame, bin) * 3.5
-    for (const signal of DEMO_SIGNALS) {
-      if (!signal.isOn(frame)) continue
-      const offset = (hz - signal.hz) / (signal.widthHz / 2)
-      if (Math.abs(offset) > 3) continue
-      const shape = Math.exp(-offset * offset * 2.2)
-      const signalLevel = signal.peakDb + noise(frame + 7, bin) * 2
-      level = Math.max(level, -96 + (signalLevel + 96) * shape)
-    }
-    bins.push(Math.round(level * 10) / 10)
-  }
-  return bins
-}
-
-/** Demo SDR groups, saved frequencies, search ranges and recordings. */
-const DEMO_SDR_GROUPS = [
-  { id: 1, name: '2 m simplex', slug: '2m-simplex', color: '#c8ff00', sort_order: 0 },
-  { id: 2, name: 'Repeaters', slug: 'repeaters', color: '#4fc3f7', sort_order: 1 },
-  { id: 3, name: 'APRS & packet', slug: 'aprs-packet', color: '#ffb74d', sort_order: 2 },
-  { id: 4, name: 'Satellites', slug: 'satellites', color: '#ba68c8', sort_order: 3 },
-  { id: 5, name: 'Airband', slug: 'airband', color: '#81c784', sort_order: 4 },
-  { id: 6, name: 'Marine', slug: 'marine', color: '#4db6ac', sort_order: 5 },
-]
-
-const demoFrequency = (
-  id: number,
-  label: string,
-  frequencyHz: number,
-  mode: string,
-  groupId: number,
-  notes: string,
-  favourite = false,
-) => ({
-  id,
-  group_id: groupId,
-  group_ids: [groupId],
-  label,
-  frequency_hz: frequencyHz,
-  mode,
-  squelch: -60,
-  gain: 30,
-  bandwidth: null,
-  sample_rate: null,
-  volume: 80,
-  scannable: true,
-  favourite,
-  notes,
-})
-
-/** Six inside the 144.5–146.5 MHz view, so the waterfall marks known frequencies. */
-const DEMO_SDR_FREQUENCIES = [
-  demoFrequency(1, 'Calling channel', 145_500_000, 'NFM', 1, '2 m FM calling', true),
-  demoFrequency(2, 'Simplex S21', 145_525_000, 'NFM', 1, 'Local nets'),
-  demoFrequency(3, 'GB3DEM repeater', 145_600_000, 'NFM', 2, 'Output, CTCSS 77.0 Hz', true),
-  demoFrequency(4, 'Club net', 145_337_500, 'NFM', 2, 'Thursdays 20:00'),
-  demoFrequency(5, 'APRS', 144_800_000, 'NFM', 3, 'Packet, 1200 baud'),
-  demoFrequency(6, 'ISS voice downlink', 145_800_000, 'NFM', 4, 'Passes overhead', true),
-  demoFrequency(7, 'Tower', 118_700_000, 'AM', 5, 'Demo airfield'),
-  demoFrequency(8, 'Channel 16', 156_800_000, 'NFM', 6, 'Distress and calling'),
-]
-
-const DEMO_SDR_SEARCH_RANGES = [
-  {
-    id: 1,
-    label: '2 m FM',
-    low_hz: 144_500_000,
-    high_hz: 146_000_000,
-    step_hz: 12_500,
-    mode: 'NFM',
-    threshold_dbfs: -60,
-    dwell_ms: 300,
-    band_name: '2 m',
-    enabled: true,
-    notes: 'Find local activity',
-    sort_order: 0,
-  },
-  {
-    id: 2,
-    label: 'Airband',
-    low_hz: 118_000_000,
-    high_hz: 137_000_000,
-    step_hz: 8_330,
-    mode: 'AM',
-    threshold_dbfs: -55,
-    dwell_ms: 250,
-    band_name: 'VHF air',
-    enabled: true,
-    notes: '',
-    sort_order: 1,
-  },
-  {
-    id: 3,
-    label: 'Marine VHF',
-    low_hz: 156_000_000,
-    high_hz: 162_025_000,
-    step_hz: 25_000,
-    mode: 'NFM',
-    threshold_dbfs: -60,
-    dwell_ms: 300,
-    band_name: 'Marine',
-    enabled: true,
-    notes: '',
-    sort_order: 2,
-  },
-]
-
-const DEMO_SDR_RECORDINGS = [
-  {
-    id: 3,
-    name: 'Club net',
-    notes: 'Weekly net, good signal',
-    frequency_hz: 145_337_500,
-    mode: 'NFM',
-    duration_s: 1260,
-    file_size_bytes: 120_960_000,
-    started_at: '2026-10-15T20:00:00Z',
-    has_iq_file: false,
-    radio_id: 1,
-    radio_name: 'RTL-SDR v3',
-  },
-  {
-    id: 2,
-    name: 'ISS pass',
-    notes: 'Recorded by Space auto-tune',
-    frequency_hz: 145_800_000,
-    mode: 'NFM',
-    duration_s: 540,
-    file_size_bytes: 51_840_000,
-    started_at: '2026-10-15T18:42:00Z',
-    has_iq_file: true,
-    radio_id: 1,
-    radio_name: 'RTL-SDR v3',
-  },
-  {
-    id: 1,
-    name: 'Repeater check',
-    notes: '',
-    frequency_hz: 145_600_000,
-    mode: 'NFM',
-    duration_s: 95,
-    file_size_bytes: 9_120_000,
-    started_at: '2026-10-14T09:15:00Z',
-    has_iq_file: false,
-    radio_id: 1,
-    radio_name: 'RTL-SDR v3',
-  },
-]
-
-/** Serves the demo SDR data in place of installDefaultMocks' minimal fixtures. */
-async function serveDemoSdrData(page: Page): Promise<void> {
-  const json = (body: unknown) => ({ contentType: 'application/json', body: JSON.stringify(body) })
-  await page.route('/api/sdr/groups', (route) => route.fulfill(json(DEMO_SDR_GROUPS)))
-  await page.route('/api/sdr/frequencies', (route) => route.fulfill(json(DEMO_SDR_FREQUENCIES)))
-  await page.route('/api/sdr/search-ranges', (route) => route.fulfill(json(DEMO_SDR_SEARCH_RANGES)))
-  await page.route('/api/sdr/recordings', (route) => route.fulfill(json(DEMO_SDR_RECORDINGS)))
-}
-
-/**
- * Opens SDR with the demo radio playing 145.500 MHz in NFM over a live demo
- * spectrum, and waits until the waterfall has filled its whole height (it
- * scrolls by time, about 5 s per 180 px).
+ * Opens SDR with the demo radio playing and waits until the waterfall has
+ * filled its whole height (it scrolls by time, about 5 s per 180 px).
  */
 async function openLiveSdr(page: Page): Promise<void> {
   await prepare(page)
-  await serveDemoSdrData(page)
-  await installFakeSdr(page, {
-    centerHz: 145_500_000,
-    spectrum: { intervalMs: 15, frame: demoSpectrumFrame },
-  })
-  await page.goto('/sdr/')
-  await waitForShellHydration(page)
-  await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
-  const tuneButton = page.getByRole('button', { name: /^tune$/i })
-  await expect(tuneButton).toBeEnabled({ timeout: 10_000 })
-  await page.getByRole('textbox', { name: /tuned frequency in MHz/i }).fill('145.500')
-  await tuneButton.click()
-  await page.getByRole('radio', { name: 'NFM', exact: true }).click()
+  await playDemoRadio(page)
   await page.waitForTimeout(27_000)
 }
 
-/** Opens one of the RADIO tab's sections (FAVOURITES, SCANNER, SEARCH), with CONTROLS folded away to make room. */
-async function openRadioSection(page: Page, title: string): Promise<void> {
-  const header = (name: string) =>
-    page.locator(`button[aria-expanded]:has(> label:text-is("${name}"))`)
-  if ((await header('CONTROLS').getAttribute('aria-expanded')) === 'true')
-    await header('CONTROLS').click()
-  await header(title).click()
-  await page.waitForTimeout(500)
+/** Air's map layers in the shots: range rings on; A2A refuelling and AWACS areas off. */
+const SHOT_AIR_LAYERS = {
+  rangeRings: true,
+  aara: false,
+  awacs: false,
+  groundVehicles: true,
+  towers: true,
+  airports: true,
+  militaryBases: true,
 }
+
+/** Fictional APRS stations around the demo location: cars, walkers, homes,
+ *  digipeaters and weather stations — about what one 2 m receiver hears. */
+const APRS_SYMBOLS = ['/>', '/-', '/[', '/#', '/_', '/k', '/>', '/-'] as const
+const APRS_COMMENTS = [
+  'Mobile, monitoring 145.500',
+  'Home station',
+  'Out walking',
+  'Fill-in digipeater',
+  'Weather station',
+  'Van, en route',
+  'On the motorway',
+  'QRV on 2 m and 70 cm',
+] as const
+
+function demoAprsStation(index: number) {
+  const symbol = APRS_SYMBOLS[index % APRS_SYMBOLS.length]!
+  const moving = symbol === '/>' || symbol === '/k' || symbol === '/['
+  // A sunflower spiral (golden angle, distance by square root) spreads them
+  // evenly over the view, so their labels don't stack.
+  const angle = index * 137.5
+  const point = stepAlong(
+    DEMO_LOCATION.latitude,
+    DEMO_LOCATION.longitude,
+    angle,
+    13 * Math.sqrt(index + 1),
+  )
+  return {
+    callsign: `DEMO${index + 1}-${moving ? 9 : 1}`,
+    latitude: point.lat,
+    longitude: point.lon,
+    symbol,
+    comment: APRS_COMMENTS[index % APRS_COMMENTS.length]!,
+    // No course: a station with one is drawn as an arrow, not its APRS symbol.
+    course: null,
+    speed: moving ? 30 + (index % 5) * 12 : null,
+    altitude: 60 + index * 7,
+    path: 'WIDE1-1,WIDE2-1',
+    raw: null,
+    last_heard_ms: Date.now() - index * 45_000,
+  }
+}
+
+const DEMO_APRS_STATIONS = {
+  stations: Array.from({ length: 12 }, (_, index) => demoAprsStation(index)),
+}
+
+/** Sea's layers in the shots: vessels, their labels and the ferry routes the app draws. */
+const SHOT_SEA_LAYERS = ['vessels', 'vesselLabels', 'ferryRoutes']
 
 /** Real map style, fonts and sprites from the repo, so maps aren't blank. */
 async function serveRealMapAssets(page: Page): Promise<void> {
@@ -671,19 +676,64 @@ async function prepare(page: Page, viewport = DESKTOP_VIEWPORT): Promise<void> {
       JSON.stringify({ ...location, ts: Date.now(), manual: true }),
     )
   }, DEMO_LOCATION)
+  // Map layers for the shots: range rings on (they show distance from your
+  // location), the A2A refuelling and AWACS areas off (they crowd the map).
+  // Each keeps the data source the default mocks give its section.
+  const sectionSettings = (body: object) => (route: Route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route(
+    '/api/settings/air',
+    sectionSettings({
+      onlineDataSourceURL: 'http://192.168.1.1:8080/data/source.json',
+      mapLayers: SHOT_AIR_LAYERS,
+    }),
+  )
+  await page.route(
+    '/api/settings/sea',
+    sectionSettings({
+      onlineUrl: 'wss://stream.aisstream.io/v0/stream',
+      defaultLayers: SHOT_SEA_LAYERS,
+    }),
+  )
+  // Startup reads every section's settings from the top-level call, so the
+  // layers go there too (the per-section routes above serve Settings itself).
+  await page.route(
+    '/api/settings',
+    sectionSettings({
+      air: { enabled: true, mapLayers: SHOT_AIR_LAYERS },
+      space: { enabled: true },
+      sea: { enabled: true, defaultLayers: SHOT_SEA_LAYERS },
+      land: { enabled: true },
+      sdr: { enabled: true },
+      app: {},
+    }),
+  )
   await page.route('/api/settings/app', (route) =>
     route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({ location: DEMO_LOCATION }),
     }),
   )
-  await page.route('**/api/air/adsb/point/**', (route) =>
-    route.fulfill({
+  // Each poll moves every aircraft a little along its heading, so the map
+  // builds the selected aircraft's trail the way it does from a live feed.
+  let adsbPolls = 0
+  await page.route('**/api/air/adsb/point/**', (route) => {
+    adsbPolls += 1
+    return route.fulfill({
       contentType: 'application/json',
-      body: JSON.stringify(DEMO_AIRCRAFT),
+      body: JSON.stringify(movedAircraft(adsbPolls)),
       headers: { 'X-Cache': 'MISS', 'X-Snapshot-Age-Ms': '0' },
-    }),
-  )
+    })
+  })
+  // A selected ship's recent path: fixes laid back along its course.
+  await page.route('**/api/sea/vessels/*/track', (route) => {
+    const mmsi = new URL(route.request().url()).pathname.split('/').at(-2)
+    const vessel = DEMO_VESSELS.vessels.find((candidate) => candidate.mmsi === mmsi)
+    return route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ samples: vessel ? trackBehind(vessel) : [] }),
+    })
+  })
   // An obviously fake key fingerprint, so nothing key-shaped appears in the docs.
   await page.route('**/api/sea/ais-key', (route) =>
     route.request().method() === 'GET'
@@ -697,8 +747,11 @@ async function prepare(page: Page, viewport = DESKTOP_VIEWPORT): Promise<void> {
         })
       : route.fulfill({ status: 204 }),
   )
-  await page.route('**/api/sea/vessels**', (route) =>
-    route.fulfill({ contentType: 'application/json', body: JSON.stringify(DEMO_VESSELS) }),
+  // Only the list: a glob would also catch (and win over) the track route above.
+  await page.route(
+    (url) => url.pathname === '/api/sea/vessels',
+    (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(DEMO_VESSELS) }),
   )
   await page.route('**/api/land/repeaters', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(DEMO_REPEATERS) }),
@@ -798,17 +851,72 @@ async function prepare(page: Page, viewport = DESKTOP_VIEWPORT): Promise<void> {
  * around a selected aircraft). A wheel notch of 100 moves the map by about a
  * quarter of a zoom level; MapLibre caps each event, so it scrolls in steps.
  */
+/** How far the Air, Sea and Land shots zoom out from the opening view: enough
+ *  for the whole of Great Britain, not so far that the UK gets small. */
+const UK_FRAME_WHEEL = 300
+
 async function zoomMapOut(page: Page, wheelDelta: number): Promise<void> {
   const map = page.locator('.maplibregl-canvas').first()
   await expect(map).toBeVisible()
   const box = await map.boundingBox()
   if (!box) throw new Error('The map has no size')
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  for (let remaining = wheelDelta; remaining > 0; remaining -= 300) {
-    await page.mouse.wheel(0, Math.min(300, remaining))
+  // Zoom about your location when it is on the map, so it (and the UK around
+  // it) stays where the map opened it rather than drifting off to one side.
+  const location = page.locator('.user-location-marker').first()
+  const anchor = (await location.count()) ? await location.boundingBox() : null
+  const pointer = anchor
+    ? { x: anchor.x + anchor.width / 2, y: anchor.y + anchor.height / 2 }
+    : { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  await page.mouse.move(pointer.x, pointer.y)
+  // Positive zooms out, negative zooms in, in wheel steps of up to 300.
+  const direction = Math.sign(wheelDelta)
+  for (let remaining = Math.abs(wheelDelta); remaining > 0; remaining -= 300) {
+    await page.mouse.wheel(0, direction * Math.min(300, remaining))
     await page.waitForTimeout(250)
   }
+  if (anchor) {
+    // Then drag your location (the middle of the UK) to the middle of the map
+    // you can see: the canvas runs on under the side panel (open it first).
+    const sidebar = await page.locator('#map-sidebar-panes').boundingBox()
+    const visibleLeft = sidebar ? Math.max(box.x, sidebar.x + sidebar.width) : box.x
+    await page.mouse.down()
+    await page.mouse.move((visibleLeft + box.x + box.width) / 2, box.y + box.height / 2, {
+      steps: 12,
+    })
+    // Hold still before letting go, or the drag's inertia carries the map on.
+    await page.waitForTimeout(400)
+    await page.mouse.up()
+  }
   await page.waitForTimeout(800)
+}
+
+/**
+ * Switches the map's range rings on with the rail's MAP LAYERS > Range rings
+ * button, as a user would (Land has no range-ring setting), then folds MAP
+ * LAYERS away so the shot shows the FILTER list.
+ */
+async function switchOnRangeRings(page: Page): Promise<void> {
+  const layers = page.getByRole('button', { name: 'Map layers' })
+  await layers.click()
+  await page.getByRole('button', { name: /^Range rings?$/ }).click()
+  await layers.click()
+}
+
+/**
+ * Give Land a working APRS receiver: radio 1 named as the APRS SDR (which
+ * enables the APRS STATIONS layer and makes it the one shown) and a busy list
+ * of heard stations. Call after `prepare`, so these routes win.
+ */
+async function serveAprsReceiver(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    localStorage.setItem('sdrAprsRadioId', '1')
+    localStorage.setItem('sdrAprsEnabled', '1')
+  })
+  const json = (body: object) => (route: Route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('/api/settings/sdr', json({ aprs_radio_id: 1 }))
+  await page.route('/api/settings/land', json({ defaultLayers: ['aprs'] }))
+  await page.route('/api/land/aprs/stations', json(DEMO_APRS_STATIONS))
 }
 
 async function shoot(page: Page, name: string): Promise<void> {
@@ -827,26 +935,42 @@ test.describe('docs screenshots', () => {
   test.use({ deviceScaleFactor: 2 })
 
   test('whole screen on Air', async ({ page }) => {
+    test.setTimeout(200_000)
     await prepare(page)
     await page.goto('/air/')
     await waitForShellHydration(page)
     await page.locator('[data-tab="search"]').first().click()
-    await page.getByRole('combobox').first().fill('DEMO101')
-    await page.getByRole('option').first().click()
-    await page.waitForTimeout(1500)
-    await zoomMapOut(page, 5400)
+    await zoomMapOut(page, UK_FRAME_WHEEL)
+    // Its map label, not the search list: only a map pick selects the
+    // aircraft there and draws its trail (and it opens the details too).
+    await page
+      .locator('.maplibregl-map')
+      .getByText('DEMO101', { exact: true })
+      .first()
+      // Forced: the labels glide between polls, so they never hold still.
+      .click({ force: true })
+    // Polls come every 10 s; these give the selected aircraft a visible trail.
+    await page.waitForTimeout(TRAIL_POLLS * 10_000 + 5_000)
     await shoot(page, 'interface-air-screen')
   })
 
   test('Air aircraft details', async ({ page }) => {
+    test.setTimeout(200_000)
     await prepare(page)
     await page.goto('/air/')
     await waitForShellHydration(page)
     await page.locator('[data-tab="search"]').first().click()
-    await page.getByRole('combobox').first().fill('DEMO303')
-    await page.getByRole('option').first().click()
-    await page.waitForTimeout(1500)
-    await zoomMapOut(page, 5400)
+    await zoomMapOut(page, UK_FRAME_WHEEL)
+    // Its map label, not the search list: only a map pick selects the
+    // aircraft there and draws its trail (and it opens the details too).
+    await page
+      .locator('.maplibregl-map')
+      .getByText('DEMO303', { exact: true })
+      .first()
+      // Forced: the labels glide between polls, so they never hold still.
+      .click({ force: true })
+    // Polls come every 10 s; these give the selected aircraft a visible trail.
+    await page.waitForTimeout(TRAIL_POLLS * 10_000 + 5_000)
     await shoot(page, 'air-aircraft-details')
   })
 
@@ -876,9 +1000,12 @@ test.describe('docs screenshots', () => {
     await prepare(page)
     await page.goto('/sea/')
     await waitForShellHydration(page)
+    await switchOnRangeRings(page)
     await page.locator('[data-tab="search"]').first().click()
-    await page.getByRole('combobox').first().fill('EXAMPLE STAR')
-    await page.getByRole('option').first().click()
+    await zoomMapOut(page, UK_FRAME_WHEEL)
+    // Its map label, not the search list: only a map pick selects the ship
+    // there and draws its track.
+    await page.locator('.maplibregl-map').getByText('EXAMPLE STAR', { exact: true }).click()
     await shoot(page, 'sea-vessel-details')
   })
 
@@ -886,10 +1013,43 @@ test.describe('docs screenshots', () => {
     await prepare(page)
     await page.goto('/land/')
     await waitForShellHydration(page)
+    await switchOnRangeRings(page)
     await page.locator('[data-tab="search"]').first().click()
+    // Narrow the directory as an operator with a 2 m FM radio would: 2 m,
+    // FM, on air only, with the filters left open to show it.
+    await page.getByRole('button', { name: /^Repeater filters/i }).click()
+    await page
+      .getByRole('group', { name: 'Band' })
+      .getByRole('button', { name: '2M', exact: true })
+      .click()
+    await page
+      .getByRole('group', { name: 'Mode' })
+      .getByRole('button', { name: 'FM', exact: true })
+      .click()
+    await page
+      .getByRole('group', { name: 'Status' })
+      .getByRole('button', { name: 'On air', exact: true })
+      .click()
     await page.getByRole('combobox').first().fill('GB3DEM')
     await page.getByRole('option').first().click()
+    // After the pick: picking a repeater pans the map to it.
+    await page.waitForTimeout(1200)
+    await zoomMapOut(page, UK_FRAME_WHEEL)
     await shoot(page, 'land-repeater-details')
+  })
+
+  test('Land APRS stations', async ({ page }) => {
+    await prepare(page)
+    await serveAprsReceiver(page)
+    await page.goto('/land/')
+    await waitForShellHydration(page)
+    await switchOnRangeRings(page)
+    await page.locator('[data-tab="search"]').first().click()
+    // Closer in than the other shots: one receiver hears tens of miles, not the UK.
+    await zoomMapOut(page, -900)
+    await page.getByRole('combobox').first().fill('DEMO5-1')
+    await page.getByRole('option').first().click()
+    await shoot(page, 'land-aprs-station')
   })
 
   test('Alerts', async ({ page }) => {
@@ -991,13 +1151,6 @@ test.describe('docs screenshots', () => {
       .first()
       .evaluate((element) => element.scrollIntoView({ block: 'start' }))
     await shoot(page, 'settings-offline-maps')
-  })
-
-  test('Docs page', async ({ page }) => {
-    await prepare(page)
-    await page.goto('/doc/install')
-    await waitForShellHydration(page)
-    await shoot(page, 'docs-quick-start')
   })
 
   test.describe('on a phone', () => {

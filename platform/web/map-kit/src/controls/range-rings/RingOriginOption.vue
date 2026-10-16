@@ -118,7 +118,7 @@ function onActivate(): void {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.45);
+  color: var(--ink-secondary);
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
 }

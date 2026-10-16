@@ -2,7 +2,7 @@
 
 Every section uses the same layout.
 
-![The Air section: the section menu across the top, the sidebar rail and FILTER list on the left, the map in the middle with aircraft DEMO303 shown in red because it is squawking 7700, the map controls on the right, and the footer with the gear for Settings.](../images/interface-air-screen.png)
+![The Air section: the section menu across the top, the sidebar rail and FILTER list on the left, the map in the middle with the selected aircraft's trail and DEMO303 shown in red because it is squawking 7700, the map controls on the right, and the footer with the gear for Settings.](../images/interface-air-screen.png)
 
 ## Parts
 

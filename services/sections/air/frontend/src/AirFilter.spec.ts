@@ -52,6 +52,7 @@ interface PlaneProps {
   t?: string
   military?: boolean
   emergency?: string
+  squawkEmerg?: 0 | 1
   alt_baro?: number
   gs?: number
   track?: number
@@ -1092,6 +1093,35 @@ describe('AirFilter', () => {
       const titles = body.findAll('.apt-acc-section-title').map((node) => node.text())
       expect(titles).toContain('POSITION')
       expect(titles).toContain('IDENTIFICATION')
+    })
+
+    // The map flags 7500/7600/7700 from the squawk alone (squawkEmerg); a
+    // transponder rarely sets the emergency field with it, and the panel must
+    // still go red as the map label does.
+    it('flags the row and accordion for an emergency squawk with no emergency field', async () => {
+      const wrapper = mountFilter(
+        makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1', squawk: '7700', squawkEmerg: 1 })]),
+      )
+      expect(wrapper.find('.bfp-result-item').classes()).toContain('filter-result-item--emergency')
+      await openPlane(wrapper)
+      expect(wrapper.find('.acft-acc-body').classes()).toContain('acft-acc-body--emergency')
+    })
+
+    it("does not flag an aircraft whose emergency field says 'none'", async () => {
+      const wrapper = mountFilter(
+        makeAdsb([
+          planeFeature({
+            hex: 'aa1',
+            flight: 'BAW1',
+            squawk: '1000',
+            squawkEmerg: 0,
+            emergency: 'none',
+          }),
+        ]),
+      )
+      expect(wrapper.find('.bfp-result-item').classes()).not.toContain(
+        'filter-result-item--emergency',
+      )
     })
 
     it('does not flag a normal (non-emergency) aircraft', async () => {

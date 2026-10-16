@@ -1,106 +1,193 @@
 <script setup lang="ts">
-import { CHANGELOG_URL } from './markdown/docLinks'
-import type { DocsGroup, DocsPage } from './docsTypes'
+import { ref, watch } from 'vue'
+import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
+import type { DocGroupKey, DocsGroup, DocsPage } from './docsTypes'
 
 /**
- * The ordered page links of one group (with its sub-lists, such as the design
- * decisions, nested), and the link to the online changelog beneath them. The
- * current page is marked with `aria-current="page"`.
+ * Every docs group as a collapsible heading with its pages beneath (and
+ * sub-lists, such as the design decisions, under their own label). This is the
+ * docs' own navigation: the rail beside it only holds the Settings buttons, so
+ * nothing there repeats a docs group.
+ *
+ * The open page's group starts expanded and the rest collapsed; any can be
+ * opened or closed, and moving to a page in another group expands that one.
+ * The current page is marked with `aria-current="page"`.
  */
-defineProps<{
-  /** The group to list; undefined shows nothing (no group is active). */
-  group: DocsGroup | undefined
+const props = defineProps<{
+  groups: readonly DocsGroup[]
+  /** The group of the page on screen; undefined when none is (not found). */
+  activeGroupKey?: DocGroupKey | undefined
   currentPath: string
 }>()
 
-function isCurrent(page: DocsPage, currentPath: string): boolean {
-  return page.path === currentPath
+/** Which groups are open. Local: it never has to outlive the docs page. */
+const openGroups = ref(new Set<DocGroupKey>())
+
+watch(
+  () => props.activeGroupKey,
+  (key) => {
+    if (key) openGroups.value = new Set([...openGroups.value, key])
+  },
+  { immediate: true },
+)
+
+function isOpen(key: DocGroupKey): boolean {
+  return openGroups.value.has(key)
+}
+
+function toggle(key: DocGroupKey): void {
+  const next = new Set(openGroups.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  openGroups.value = next
+}
+
+function isCurrent(page: DocsPage): boolean {
+  return page.path === props.currentPath
 }
 </script>
 
 <template>
-  <nav v-if="group" class="doc-page-list" :aria-label="`Pages in ${group.title}`">
-    <p class="doc-page-list__label">{{ group.title }}</p>
-    <ol class="doc-page-list__pages">
-      <template
-        v-for="entry in group.entries"
-        :key="entry.kind === 'page' ? entry.page.path : entry.subgroup.title"
+  <nav class="doc-page-list" aria-label="Documentation pages">
+    <ul class="doc-page-list__groups">
+      <li
+        v-for="group in groups"
+        :key="group.key"
+        class="doc-page-list__group"
+        :class="{ 'doc-page-list__group--open': isOpen(group.key) }"
       >
-        <li v-if="entry.kind === 'page'">
-          <RouterLink v-slot="{ href, navigate }" :to="entry.page.url" custom>
-            <a
-              class="doc-page-list__link"
-              :class="{ 'doc-page-list__link--current': isCurrent(entry.page, currentPath) }"
-              :href="href"
-              :aria-current="isCurrent(entry.page, currentPath) ? 'page' : undefined"
-              @click="navigate"
-              >{{ entry.page.title }}</a
-            >
-          </RouterLink>
-        </li>
-        <li v-else class="doc-page-list__subgroup">
-          <p class="doc-page-list__sublabel">
-            {{ entry.subgroup.title }}
-          </p>
-          <ol
-            class="doc-page-list__pages doc-page-list__pages--nested"
-            :aria-label="entry.subgroup.title"
+        <button
+          type="button"
+          class="doc-page-list__group-toggle"
+          :class="{ 'doc-page-list__group-toggle--active': group.key === activeGroupKey }"
+          :aria-expanded="isOpen(group.key)"
+          :aria-controls="`doc-pages-${group.key}`"
+          @click="toggle(group.key)"
+        >
+          <span>{{ group.title }}</span>
+          <ChevronIcon class="doc-page-list__chevron" :open="isOpen(group.key)" />
+        </button>
+        <ol
+          v-show="isOpen(group.key)"
+          :id="`doc-pages-${group.key}`"
+          class="doc-page-list__pages"
+          :aria-label="group.title"
+        >
+          <template
+            v-for="entry in group.entries"
+            :key="entry.kind === 'page' ? entry.page.path : entry.subgroup.title"
           >
-            <li v-for="page in entry.subgroup.pages" :key="page.path">
-              <RouterLink v-slot="{ href, navigate }" :to="page.url" custom>
+            <li v-if="entry.kind === 'page'">
+              <RouterLink v-slot="{ href, navigate }" :to="entry.page.url" custom>
                 <a
                   class="doc-page-list__link"
-                  :class="{ 'doc-page-list__link--current': isCurrent(page, currentPath) }"
+                  :class="{ 'doc-page-list__link--current': isCurrent(entry.page) }"
                   :href="href"
-                  :aria-current="isCurrent(page, currentPath) ? 'page' : undefined"
+                  :aria-current="isCurrent(entry.page) ? 'page' : undefined"
                   @click="navigate"
-                  >{{ page.title }}</a
+                  >{{ entry.page.title }}</a
                 >
               </RouterLink>
             </li>
-          </ol>
-        </li>
-      </template>
-    </ol>
+            <li v-else class="doc-page-list__subgroup">
+              <p class="doc-page-list__sublabel">
+                {{ entry.subgroup.title }}
+              </p>
+              <ol class="doc-page-list__pages" :aria-label="entry.subgroup.title">
+                <li v-for="page in entry.subgroup.pages" :key="page.path">
+                  <RouterLink v-slot="{ href, navigate }" :to="page.url" custom>
+                    <a
+                      class="doc-page-list__link"
+                      :class="{ 'doc-page-list__link--current': isCurrent(page) }"
+                      :href="href"
+                      :aria-current="isCurrent(page) ? 'page' : undefined"
+                      @click="navigate"
+                      >{{ page.title }}</a
+                    >
+                  </RouterLink>
+                </li>
+              </ol>
+            </li>
+          </template>
+        </ol>
+      </li>
+    </ul>
   </nav>
-  <p class="doc-page-list__external">
-    <a :href="CHANGELOG_URL" target="_blank" rel="noopener noreferrer"
-      >What's new (online only)
-      <span aria-hidden="true">↗</span>
-      <span class="sr-only">(opens in a new tab)</span></a
-    >
-  </p>
 </template>
 
 <style scoped>
-.doc-page-list__label {
-  margin: 0;
-  padding: 18px 16px 8px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-title);
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.62);
-}
-
+/* The main app's side panel type: page links are its list rows
+   (`BaseFilterPanel` `.bfp-result-primary`), and the group headings sit a size
+   above them. */
+.doc-page-list__groups,
 .doc-page-list__pages {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.doc-page-list__groups {
+  padding-top: 4px;
+}
+
+.doc-page-list__group-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 14px 24px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-secondary);
+}
+
+/* As the app's rows: an open group tints its heading and its pages (each
+   painted directly, so the two tints never stack), and hover or open lights
+   the chevron in accent instead of washing the row. */
+.doc-page-list__group--open > .doc-page-list__group-toggle,
+.doc-page-list__group--open > .doc-page-list__pages {
+  background: rgba(var(--ink-rgb), 0.04);
+}
+
+.doc-page-list__chevron {
+  transition: color 0.15s;
+}
+
+.doc-page-list__group-toggle:hover .doc-page-list__chevron,
+.doc-page-list__group--open .doc-page-list__chevron {
+  color: var(--accent-text);
+}
+
+/* The open page's group reads in full ink, so where you are is clear at a glance. */
+.doc-page-list__group-toggle--active {
+  color: var(--ink-strong);
+}
+
+.doc-page-list__pages {
+  padding-bottom: 8px;
+}
+
 .doc-page-list__link {
   display: flex;
   align-items: center;
-  min-height: 40px;
-  padding: 9px 16px;
-  border-left: 2px solid transparent;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-value);
-  font-weight: 500;
+  min-height: 44px;
+  padding: 13px 24px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   line-height: 1.35;
-  color: var(--ink);
+  color: var(--ink-strong);
   text-decoration: none;
 }
 
@@ -108,46 +195,19 @@ function isCurrent(page: DocsPage, currentPath: string): boolean {
   background: var(--hover-surface);
 }
 
+/* The current page: accent text, on its open group's tint. */
 .doc-page-list__link--current {
-  font-weight: 600;
-  color: var(--ink-strong);
-  border-left-color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.08);
+  color: var(--accent-text);
 }
 
 .doc-page-list__sublabel {
   margin: 0;
-  padding: 14px 16px 4px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
+  padding: 14px 24px 4px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.62);
-}
-
-.doc-page-list__pages--nested {
-  padding-left: 12px;
-}
-
-.doc-page-list__pages--nested .doc-page-list__link {
-  font-size: var(--settings-text-body);
-}
-
-.doc-page-list__external {
-  margin: 14px 0 0;
-  padding: 0 16px 24px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-body);
-}
-
-.doc-page-list__external a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  color: var(--accent-text-deep);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: var(--ink-secondary);
 }
 </style>

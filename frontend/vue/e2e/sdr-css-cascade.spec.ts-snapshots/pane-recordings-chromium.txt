@@ -91,22 +91,22 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                 div.sdr-radio-section | padding-bottom=10px
                   div.sdr-slider-header | display=flex; align-items=center; gap=10px
                     label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
-                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.55); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
                   input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
                 div.sdr-radio-section | padding-top=10px; padding-bottom=10px
                   div.sdr-slider-header | display=flex; align-items=center; gap=10px
                     label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
-                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.55); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
                   input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
                 div.sdr-radio-section | padding-top=10px; padding-bottom=10px
                   div.sdr-slider-header | display=flex; align-items=center; gap=10px
                     label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
-                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.55); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
                   input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
                 div.sdr-radio-section | padding-top=10px; padding-bottom=10px
                   div.sdr-slider-header | display=flex; align-items=center; gap=10px
                     label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
-                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.55); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
                   input.sdr-panel-slider | display=block; color=rgb(197, 197, 197); background-color=rgb(38, 41, 46); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; cursor=default; overflow-x=visible; overflow-y=visible
                 div.sdr-agc-row.sdr-radio-section | padding-top=10px; padding-bottom=10px
                   label.sdr-checkbox-label | display=flex; align-items=center; gap=10px; cursor=pointer; user-select=none
@@ -116,7 +116,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                 div.sdr-radio-section | padding-top=10px; padding-bottom=10px
                   div.sdr-slider-header | display=flex; align-items=center; gap=10px
                     label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
-                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.25); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
+                    span.sdr-slider-val.sdr-slider-val--dimmed | display=block; color=rgba(255, 255, 255, 0.55); font-size=10px; font-weight=700; letter-spacing=1px; text-align=right
                   div.sdr-device-dropdown.sdr-device-dropdown--loading | position=relative; background-color=rgba(255, 255, 255, 0.04); border-radius=2px; cursor=default; pointer-events=none; user-select=none
                     div.sdr-device-dropdown-selected | display=flex; padding-right=10px; padding-left=10px; justify-content=space-between; align-items=center; gap=8px; user-select=none
                       span.sdr-device-dropdown-text.sdr-device-dropdown-text--chosen | display=block; color=rgba(255, 255, 255, 0.75); font-size=10px; letter-spacing=1px; text-transform=uppercase; white-space=nowrap; user-select=none; overflow-x=hidden; overflow-y=hidden
@@ -213,7 +213,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                 div.sdr-freq-row-body | display=flex; flex-direction=column; gap=4px
                   div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
                     span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
-                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.55); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
                     span.sdr-freq-row-hz | display=block
                     span.sdr-freq-row-sep | display=block
                     span.sdr-freq-row-mode | display=block
@@ -235,7 +235,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                 div.sdr-freq-row-body | display=flex; flex-direction=column; gap=4px
                   div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
                     span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
-                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.55); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
                     span.sdr-freq-row-hz | display=block
                     span.sdr-freq-row-sep | display=block
                     span.sdr-freq-row-mode | display=block
@@ -262,7 +262,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                 div.sdr-freq-row-body.sdr-search-range-row-body | display=flex; flex-direction=column; gap=4px; cursor=pointer
                   div.sdr-freq-row-main | display=flex; align-items=baseline; gap=12px
                     span.sdr-freq-row-label | display=block; color=rgb(255, 255, 255); font-size=13px; font-weight=600; letter-spacing=1.3px; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
-                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.4); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
+                  div.sdr-freq-row-sub | display=flex; color=rgba(255, 255, 255, 0.55); font-size=10px; letter-spacing=0.8px; white-space=nowrap; align-items=center; gap=6px; overflow-x=hidden; overflow-y=hidden
                     span.sdr-freq-row-hz | display=block
                 span.sdr-freq-row-play-spacer | display=block
                 button.ba-icon-action.sdr-freq-row-edit | display=flex; position=relative; color=rgba(255, 255, 255, 0.2); background-color=rgba(0, 0, 0, 0); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; font-family=Arial; font-size=12px; text-align=center; justify-content=center; align-items=center; cursor=pointer
@@ -307,13 +307,13 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                         path
                 dl.sdr-recording-meta | display=flex; flex-direction=column; gap=4px
                   div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
-                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dt | color=rgba(255, 255, 255, 0.55); text-transform=uppercase
                     dd | color=rgba(255, 255, 255, 0.6)
                   div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
-                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dt | color=rgba(255, 255, 255, 0.55); text-transform=uppercase
                     dd | color=rgba(255, 255, 255, 0.6)
                   div.sdr-recording-meta-row | display=flex; font-family="Barlow Condensed", Barlow, sans-serif; font-size=11px; letter-spacing=0.88px; align-items=baseline; gap=10px
-                    dt | color=rgba(255, 255, 255, 0.3); text-transform=uppercase
+                    dt | color=rgba(255, 255, 255, 0.55); text-transform=uppercase
                     dd | color=rgba(255, 255, 255, 0.6)
                 div.sdr-recording-controls | display=flex; align-items=center; gap=4px
                   button.sdr-recording-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer

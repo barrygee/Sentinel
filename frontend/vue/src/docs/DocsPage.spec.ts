@@ -90,18 +90,18 @@ describe('DocsPage', () => {
       expect(breadcrumb.get('[aria-current="page"]').text()).toBe('Check logs')
     })
 
-    it("shows the group rail with the page's group current", async () => {
+    it("shows the Settings rail and opens the page's group in the page list", async () => {
       const { wrapper } = await mountPage('/doc/operations')
-      const current = wrapper.findAll(
-        'nav[aria-label="Documentation sections"] a[aria-current="true"]',
-      )
-      expect(current).toHaveLength(1)
-      expect(current[0]?.attributes('aria-label')).toBe('Use Sentinel')
+      expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(true)
+      const active = wrapper.findAll('.doc-page-list__group-toggle--active')
+      expect(active).toHaveLength(1)
+      expect(active[0]?.text()).toBe('Use Sentinel')
+      expect(active[0]?.attributes('aria-expanded')).toBe('true')
     })
 
     it("lists the group's pages with the current one marked", async () => {
       const { wrapper } = await mountPage('/doc/operations')
-      const list = wrapper.get('nav[aria-label="Pages in Use Sentinel"]')
+      const list = wrapper.get('nav[aria-label="Documentation pages"] #doc-pages-sdr')
       expect(list.get('a[aria-current="page"]').text()).toBe('Check logs')
     })
 
@@ -274,13 +274,12 @@ describe('DocsPage', () => {
       expect(field.value).toBe('missing')
     })
 
-    it("marks no group current and lists the first group's pages", async () => {
+    it('marks no group active and opens none, but still lists every group', async () => {
       const { wrapper } = await mountPage('/doc/missing')
-      expect(
-        wrapper.findAll('nav[aria-label="Documentation sections"] [aria-current]'),
-      ).toHaveLength(0)
-      expect(wrapper.find('nav[aria-label="Pages in Get started"]').exists()).toBe(true)
-      expect(wrapper.get('.doc-disclosure__button').text()).toContain('Pages in Docs')
+      expect(wrapper.findAll('.doc-page-list__group-toggle--active')).toHaveLength(0)
+      expect(wrapper.findAll('.doc-page-list [aria-expanded="true"]')).toHaveLength(0)
+      expect(wrapper.findAll('.doc-page-list__group-toggle')).toHaveLength(3)
+      expect(wrapper.get('.doc-disclosure__button').text()).toContain('Docs pages')
     })
 
     it('has no "On this page" and no previous/next', async () => {
@@ -307,7 +306,7 @@ describe('DocsPage', () => {
   describe('the navigation columns', () => {
     it('are shown by default', async () => {
       const { wrapper } = await mountPage('/doc/operations')
-      expect(wrapper.find('nav[aria-label="Documentation sections"]').exists()).toBe(true)
+      expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(true)
       expect(wrapper.find('aside[aria-label="Documentation navigation"]').exists()).toBe(true)
       expect(wrapper.get('.doc-body').classes()).not.toContain('doc-body--no-sidebar')
     })
@@ -316,7 +315,7 @@ describe('DocsPage', () => {
       const { wrapper, store } = await mountPage('/doc/operations')
       store.toggleSidebar()
       await flushPromises()
-      expect(wrapper.find('nav[aria-label="Documentation sections"]').exists()).toBe(false)
+      expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(false)
       expect(wrapper.find('aside[aria-label="Documentation navigation"]').exists()).toBe(false)
       expect(wrapper.get('.doc-body').classes()).toContain('doc-body--no-sidebar')
       expect(headingText(wrapper)).toBe('Check logs')

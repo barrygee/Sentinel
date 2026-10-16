@@ -591,7 +591,8 @@ html {
 }
 
 #footer-sdr .footer-sdr-name {
-    color: rgba(var(--rail-ink-rgb), 0.45);
+    /* 60%: 45% was 4.4:1 on the black footer, just under AA. */
+    color: rgba(var(--rail-ink-rgb), 0.6);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

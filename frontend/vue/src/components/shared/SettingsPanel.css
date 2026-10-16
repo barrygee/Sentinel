@@ -1433,7 +1433,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.5);
+  color: var(--ink-secondary);
   width: 110px;
   flex-shrink: 0;
 }
@@ -1496,7 +1496,7 @@
   --ba-ghost-bg: var(--surface);
   --ba-ghost-hover-bg:
     linear-gradient(rgba(var(--ink-rgb), 0.05), rgba(var(--ink-rgb), 0.05)), var(--surface);
-  --ba-ghost-color: rgba(var(--ink-rgb), 0.5);
+  --ba-ghost-color: var(--ink-secondary);
   --ba-ghost-hover-color: rgba(var(--ink-rgb), 0.8);
 }
 

@@ -1,11 +1,25 @@
 {
   "groups": [
     {
+      "key": "set-up-and-run",
+      "title": "Set up and run",
+      "pages": [
+        { "path": "install", "title": "Quick start" },
+        { "path": "configuration", "title": "Environment variables (.env)" },
+        { "path": "hardware", "title": "Hardware" },
+        { "path": "decoders", "title": "Decoders" },
+        { "path": "radio-host", "title": "Radio host" },
+        { "path": "operations", "title": "Run and maintain" },
+        { "path": "reference/ports-and-services", "title": "Ports and services" },
+        { "path": "troubleshooting", "title": "Troubleshooting" },
+        { "path": "upgrading", "title": "Upgrade" }
+      ]
+    },
+    {
       "key": "get-started",
       "title": "Get started",
       "pages": [
         { "path": "index", "title": "Welcome to Sentinel" },
-        { "path": "install", "title": "Quick start" },
         { "path": "use/interface", "title": "The screen" },
         { "path": "reference/glossary", "title": "Glossary" }
       ]
@@ -50,20 +64,6 @@
         { "path": "use/sdr/frequencies", "title": "Frequencies and scanning" },
         { "path": "use/sdr/record", "title": "Record" },
         { "path": "use/sdr/decode", "title": "Decode" }
-      ]
-    },
-    {
-      "key": "set-up-and-run",
-      "title": "Set up and run",
-      "pages": [
-        { "path": "configuration", "title": "Environment variables (.env)" },
-        { "path": "hardware", "title": "Hardware" },
-        { "path": "decoders", "title": "Decoders" },
-        { "path": "radio-host", "title": "Radio host" },
-        { "path": "operations", "title": "Run and maintain" },
-        { "path": "reference/ports-and-services", "title": "Ports and services" },
-        { "path": "troubleshooting", "title": "Troubleshooting" },
-        { "path": "upgrading", "title": "Upgrade" }
       ]
     },
     {

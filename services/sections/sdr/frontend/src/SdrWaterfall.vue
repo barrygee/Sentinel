@@ -609,7 +609,9 @@ const MIN_BW_HZ = 200
 // a dense band reads as a single dot with a count rather than a smear of dots.
 // `tunedLabel` is the member name to show as a persistent tag while the radio is
 // tuned to (near) that marker.
-const KNOWN_CLUSTER_PX = 16 // dots closer than this on screen merge into one marker
+// The marker's 24px button: dots closer than that would overlap each other's
+// targets (WCAG 2.5.8), so they merge into one marker instead.
+const KNOWN_CLUSTER_PX = 24 // dots closer than this on screen merge into one marker
 const KNOWN_TUNED_MATCH_HZ = 1500 // within this of the tuned freq ⇒ the marker reads as "tuned"
 
 interface KnownFreqMember {

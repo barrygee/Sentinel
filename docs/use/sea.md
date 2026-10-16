@@ -13,7 +13,7 @@ Live ships near you, from AIS. Online from [AISStream](https://aisstream.io) (fr
 
 Ships not heard for 30 minutes leave the map.
 
-![A ship's details in the FILTER pane, grouped as VESSEL, VOYAGE, POSITION and MOVEMENT, with labelled ships on the map.](../images/sea-vessel-details.png)
+![A ship's details in the FILTER pane, grouped as VESSEL, VOYAGE, POSITION and MOVEMENT, with labelled ships, the ferry routes and the selected ship's recent track on the map.](../images/sea-vessel-details.png)
 
 ## Add your AISStream key
 

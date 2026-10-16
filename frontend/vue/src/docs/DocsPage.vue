@@ -136,14 +136,14 @@ onBeforeUnmount(() => docsStore.setActive(false))
     data-testid="docs-page"
     @keydown.esc="onEscape"
   >
-    <DocsGroupRail
-      v-if="docsStore.sidebarOpen"
-      :groups="library.groups"
-      :active-group-key="activeGroup?.key"
-    />
+    <DocsGroupRail v-if="docsStore.sidebarOpen" />
 
     <div ref="bodyRef" class="doc-body" :class="{ 'doc-body--no-sidebar': !docsStore.sidebarOpen }">
-      <aside v-if="docsStore.sidebarOpen" class="doc-sidebar" aria-label="Documentation navigation">
+      <aside
+        v-if="docsStore.sidebarOpen"
+        class="doc-sidebar theme-dark"
+        aria-label="Documentation navigation"
+      >
         <div class="doc-sidebar__search">
           <DocsSearchField
             ref="searchFieldRef"
@@ -152,12 +152,12 @@ onBeforeUnmount(() => docsStore.setActive(false))
             @focus-results="searchResultsRef?.focusFirst()"
           />
         </div>
-        <DocsDisclosure
-          v-model:open="pageListOpen"
-          :label="`Pages in ${activeGroup?.title ?? 'Docs'}`"
-          collapse-below="tablet"
-        >
-          <DocsPageList :group="activeGroup ?? library.groups[0]" :current-path="pagePath" />
+        <DocsDisclosure v-model:open="pageListOpen" label="Docs pages" collapse-below="tablet">
+          <DocsPageList
+            :groups="library.groups"
+            :active-group-key="activeGroup?.key"
+            :current-path="pagePath"
+          />
         </DocsDisclosure>
       </aside>
 
@@ -230,12 +230,17 @@ onBeforeUnmount(() => docsStore.setActive(false))
   scrollbar-color: rgba(var(--ink-rgb), 0.08) transparent;
 }
 
+/* Dark, like the main app's side panel (`#map-sidebar`), on the light page:
+   the menu is the same panel you browse a section from. */
 .doc-sidebar {
-  background: var(--surface-sunken);
+  background: var(--panel-bg);
+  color: var(--ink);
 }
 
+/* The field's own edges sit on the page list's 24px line, so the box lines
+   up with the headings and links below it. */
 .doc-sidebar__search {
-  padding: 12px 16px;
+  padding: 12px 24px 8px;
 }
 
 .doc-column {
