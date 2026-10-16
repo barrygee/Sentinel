@@ -11,6 +11,8 @@ Record what you hear as WAV, and optionally the raw signal (IQ) to re-tune later
 - **Safety stop**: a recording left running past **Max Recording Length** is stopped and marked failed.
 - **Folders**: sort new recordings into a subfolder, such as `satellites/noaa`.
 
+![The RECORDINGS tab: recordings such as Club net 145.3375 MHz NFM with date, duration, size and notes, each with play, DOWNLOAD and, where raw IQ was saved, DOWNLOAD IQ.](../../images/sdr-recordings.png)
+
 ## Record
 
 1. Tune and press **Tune** (▶).

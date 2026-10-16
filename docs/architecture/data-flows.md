@@ -110,7 +110,7 @@ Always your own radios. Live data goes through the radio hub ([Radios and decodi
 
 ## Maps
 
-*Figure: Online tiles from the internet; off grid from downloaded areas, then the base archive.*
+*Figure: Online, tiles come from the internet. Off grid, core looks in your downloaded areas, then the base archive, and otherwise leaves the square blank.*
 
 ```mermaid
 flowchart TB
@@ -118,11 +118,10 @@ flowchart TB
         web["Online tile source"]
     end
     subgraph mapOffgrid["OFF GRID"]
-        regions["Downloaded areas<br/>newest first"] --> base["Base archive<br/>frontend/assets/tiles"] --> none["204: blank"]
+        lookup["1. downloaded areas, newest first<br/>2. base archive in frontend/assets/tiles<br/>3. none: 204, left blank"]
     end
     web --> map["Every map"]
-    regions --> map
-    base --> map
+    lookup --> map
     class mapOnline online
     class mapOffgrid offgrid
 ```
