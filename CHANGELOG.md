@@ -228,6 +228,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw diagrams in the app's dark palette with clear flow direction
 - Keep the Settings rail on docs pages, with the docs groups under Docs
 - Remove the "On this page" panel
+- Collapsible page list in the app's side-panel style
 
 ### Bug Fixes
 
@@ -516,6 +517,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw AARA zone labels in the app's map label font
 - Stop enlarged arrowheads reaching into the box they point at
 - Bring captions, descriptions and labels up to WCAG AA contrast
+- Bring dark-panel captions and values up to WCAG AA contrast
+- Merge waterfall markers closer than their 24px button
+- Turn the side panel red for an emergency squawk
 
 ### Chores
 
@@ -1557,6 +1561,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #497 from barrygee/docs/sdr-waterfall-screenshot
 - Merge pull request #498 from barrygee/chore/remove-external-services-leftovers
 - Merge pull request #499 from barrygee/fix/settings-label-contrast
+- Merge pull request #500 from barrygee/fix/dark-panel-contrast
 
 ### Refactoring
 
@@ -1709,6 +1714,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lay diagrams out top to bottom with each flow's direction shown
 - Show the SDR panels where the docs describe them
 - Retake the Settings screenshots with the new label contrast
+- Retake the screenshots centred on the UK with tracks and realistic data
 
 ### Tests
 
@@ -1805,6 +1811,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retake the docs screenshots on a larger screen with items selected
 - Give the docs SDR screenshots a live waterfall and demo data
 - Audit every Settings section with axe
+- Audit the playing SDR radio panel and its tabs with axe
+- Drop the docs-page screenshot no docs page uses
 
 ### Build System
 
@@ -1847,6 +1855,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the docs and diagram changes
 - Rebuild the bundle with the docs rail and SDR screenshots
 - Rebuild the bundle with the Settings contrast fix
+- Rebuild the bundle with the docs navigation, contrast and Air fixes
+- Rebuild the bundle without the stray docs-page screenshot
 
 ### Continuous Integration
 
