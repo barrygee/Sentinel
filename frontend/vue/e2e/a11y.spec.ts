@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
 import { clearPersistedState } from './support/seedStore'
+import { openRadioSection, playDemoRadio } from './support/demoSdr'
 
 /**
  * Live accessibility audit — runs the real axe-core engine in a real browser
@@ -85,6 +86,40 @@ test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
       expect(
         results.violations,
         `axe violations on /settings/${section}: ${results.violations.map((violation) => violation.id).join(', ')}`,
+      ).toEqual([])
+    })
+  }
+
+  // The section views above are audited empty. These open the SDR panels with
+  // the demo radio playing and saved data in them, where the small greys live:
+  // frequency rows, slider readouts, recording labels, the footer readout.
+  for (const { name, open } of [
+    { name: 'radio panel, playing', open: async () => {} },
+    { name: 'Favourites', open: (page: Page) => openRadioSection(page, 'FAVOURITES') },
+    {
+      name: 'Frequency Manager tab',
+      open: (page: Page) =>
+        page.locator('#sdr-sidebar-rail [data-tab="frequency-manager"]').click(),
+    },
+    {
+      name: 'Recordings tab',
+      open: (page: Page) => page.locator('#sdr-sidebar-rail [data-tab="recordings"]').click(),
+    },
+  ]) {
+    test(`SDR ${name} has no WCAG 2.2 AA violations`, async ({ page }) => {
+      test.slow()
+      await clearPersistedState(page)
+      await installDefaultMocks(page)
+      await playDemoRadio(page)
+      await open(page)
+      // Let the spectrum draw and the saved-frequency markers settle.
+      await page.waitForTimeout(1500)
+
+      const results = await auditPage(page)
+
+      expect(
+        results.violations,
+        `axe violations on SDR ${name}: ${results.violations.map((violation) => violation.id).join(', ')}`,
       ).toEqual([])
     })
   }
