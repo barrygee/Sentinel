@@ -2,8 +2,8 @@
 
 Owns `sea_vessel_cache` and `sea_vessel_static` in its own database
 (`DB_PATH`), copied from the monolith's on first boot (`LEGACY_DB_PATH`), and
-serves `/api/sea/`. It runs the one AISStream connection the key allows, which
-is why the app must not host its own copy as well (`SENTINEL_EXTERNAL_SERVICES`).
+serves `/api/sea/`. It runs the one AISStream connection the key allows; core
+never imports a section's code, so no second copy can open another.
 
 Settings stay in core and are read over HTTP, including the AISStream key: it
 is a secret the public settings API redacts, so Sea reads and writes it through

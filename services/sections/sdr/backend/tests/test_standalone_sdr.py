@@ -625,7 +625,6 @@ def probe_fresh_interpreter(probe: str) -> list:
         "PYTHONPATH": str(REPO_ROOT),
         "SENTINEL_CORE_URL": CORE_URL,
         "SERVICE_INTERNAL_URL": SDR_URL,
-        "SENTINEL_EXTERNAL_SERVICES": "",
     }
     result = subprocess.run(
         [sys.executable, "-c", probe],
