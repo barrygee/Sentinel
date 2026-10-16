@@ -1539,6 +1539,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #490 from barrygee/docs/get-started-and-use
 - Merge pull request #491 from barrygee/fix/sea-source-notice-wording
 - Merge pull request #493 from barrygee/fix/env-passthrough
+- Merge pull request #492 from barrygee/docs/run-develop-reference
 
 ### Refactoring
 
@@ -1683,6 +1684,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give SENTINEL_RECORDINGS_DIRECTORY an empty placeholder in .env.example
 - Add the content plan for the in-app /doc documentation site
 - Add Get started, Things you can do, Use Sentinel and How it works
+- Add the Set up and run, Develop and Reference pages
+- List the offline map sources and the empty Sentry default in Environment variables
 
 ### Tests
 
@@ -1775,6 +1778,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin the in-process test app and core's remote refusal
 - Pin recording folders, their validation and the folder setting
 - Add an opt-in script that retakes the docs screenshots
+- Follow the new Set up and run page order
 
 ### Build System
 
@@ -1811,6 +1815,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the /doc page
 - Rebuild the bundle with the new docs pages
 - Rebuild the bundle with the Sea notice wording
+- Rebuild the bundle with the D5 docs pages
 
 ### Continuous Integration
 
