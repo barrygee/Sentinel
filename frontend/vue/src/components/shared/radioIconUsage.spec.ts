@@ -7,11 +7,11 @@ import { describe, it, expect } from 'vitest'
 describe('RadioIcon usage', () => {
   it('is the only copy of the glyph left in the app', () => {
     // The point of the component: the SDR mark previously existed as four
-    // hand-copied SVGs (settings rail, SDR RADIO tab, and two Space auto-tune
+    // hand-copied SVGs (settings rail, now SectionIcon; SDR RADIO tab, and two Space auto-tune
     // buttons that had already drifted). A new inline copy would re-open that
     // drift, so no call site may re-declare the body rect's geometry.
     const sources = [
-      'src/components/shared/SettingsPanel.vue',
+      'src/components/shared/SectionIcon.vue',
       '../../services/sections/sdr/frontend/src/SdrPanel.vue',
       '../../services/sections/space/frontend/src/SpacePasses.vue',
       '../../services/sections/space/frontend/src/SpaceFilter.vue',
