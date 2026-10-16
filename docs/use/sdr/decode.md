@@ -1,40 +1,36 @@
-# Decode digital signals
+# Decode
 
-This page is about using decoders. To install them, see [Install and run decoders](../../decoders.md).
+Turn digital signals into voice, positions and messages. Each decoder is an optional container and needs **its own dongle** while it runs. Install them first: [Decoders](../../decoders.md).
 
-A **decoder** turns a digital radio signal into something you can read or hear: voice, ship and aircraft positions, or packet messages. Each decoder runs alongside Sentinel as its own optional service, and each one needs **its own dongle** while it runs.
+## Decoders
 
-## Which decoder does what
-
-| Decoder | What you get | Where it shows | Start it from |
+| Decoder | You get | Shows in | Start it from |
 |---|---|---|---|
-| **Digital voice** | Speech and call details from DMR, P25, NXDN, D-STAR, YSF and M17 radio | The SDR radio panel | The **DMR** button in the SDR radio panel (it decodes all these modes, not only DMR) |
-| **APRS** | Positions, weather and messages from radio amateurs | The Land map | **Settings › LAND › Off Grid APRS SDR** |
-| **AIS** | Ship positions, with no internet | The Sea map | **Settings › SEA › Off Grid AIS SDR**, then Sea off grid |
-| **ADS-B** | Aircraft positions, with no internet | The Air map | **Settings › AIR › Off Grid ADS-B SDR**, then Air off grid |
+| **Digital voice** | DMR, P25, NXDN, D-STAR, YSF and M17 voice and call details | SDR panel | **CONTROLS › DIGITAL MODE › DMR** |
+| **APRS** | Amateur positions, weather, messages | Land map | **Settings › LAND › Off Grid APRS SDR** |
+| **AIS** | Ships, no internet | Sea map | **Settings › SEA › Off Grid AIS SDR** |
+| **ADS-B** | Aircraft, no internet | Air map | **Settings › AIR › Off Grid ADS-B SDR** |
 
-Each decoder must be installed before it can be started; [Install and run decoders](../../decoders.md) has the commands.
+## Digital voice
 
-## Decode digital voice
+1. `docker compose --profile voice-decoder up -d --build` (first build takes minutes).
+2. Tune to a digital voice channel and press **Tune** (▶).
+3. **CONTROLS › DIGITAL MODE › DMR**. The decoder opens below the waterfall.
 
-1. Install the voice decoder: `docker compose --profile voice-decoder up -d --build`. The first build takes several minutes.
-2. In **SDR**, tune to a digital voice channel and select **Tune** (▶).
-3. Under **CONTROLS › DIGITAL MODE**, select **DMR**. The decoder opens below the waterfall.
+- Decoded voice plays; call details (talk group, radio ID) appear as calls arrive.
+- Two views: decoded messages, and the raw decoder log. **Clear** empties them.
+- Press **DMR** again to stop. Despite the label it decodes every mode in the table.
 
-Call details (talk group, radio ID and so on) appear in the decoder panel as calls come in, and the voice plays. Before a call starts, the decoder shows no sync; that is expected. Select **DMR** again to stop decoding and hide the panel. Despite its label, the button decodes every mode in the table above.
+## APRS, AIS and ADS-B
 
-Turn on **Settings › SDR › SDR Options › Mute Audio While Decoding** if the raw digital noise under the decoded voice bothers you.
+Start these from their section's settings: [Land](../land.md#hear-aprs-stations), [Sea](../sea.md#off-grid), [Air](../air.md#off-grid).
 
-## Decode APRS, AIS and ADS-B
+- APRS and AIS keep their dongle on channel and decode in the background, even after a restart.
+- ADS-B holds its dongle while the Air map is open.
+- A held dongle reads **RESERVED** in the SDR panel.
 
-These three decoders work for another section, so you start them from that section's settings, not from the SDR panel. Once started, APRS and AIS keep the dongle tuned to their channel, and keep decoding in the background with no browser open, even after a restart. ADS-B holds its dongle while the Air map is open.
+## Tips
 
-- APRS: see [Land: Hear APRS stations](../land.md#hear-aprs-stations).
-- AIS: see [Track ships off grid with your own radio](../../tasks/track-ships-off-grid.md).
-- ADS-B: see [Air: Off grid](../air.md#off-grid).
-
-A dongle held by one of these decoders reads **RESERVED** in the SDR radio panel and can't be tuned there, so the decoder isn't knocked off its channel.
-
-## Why each decoder needs its own dongle
-
-A dongle can only listen to one slice of the band at a time, and each decoder needs a particular channel: 144.800 MHz for APRS in Europe, 161.975 and 162.025 MHz for AIS, 1090 MHz for ADS-B. So running all four decoders at once needs four dongles. With one dongle, run one decoder at a time.
+- Channels: APRS 144.800 MHz (Europe), AIS 161.975 and 162.025 MHz, ADS-B 1090 MHz. One dongle can't cover two.
+- No sync before a call starts is normal.
+- **Mute Audio While Decoding** hides the raw digital noise.

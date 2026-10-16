@@ -5,54 +5,51 @@
       "title": "Get started",
       "pages": [
         { "path": "index", "title": "Welcome to Sentinel" },
-        { "path": "install", "title": "Quick start" }
+        { "path": "install", "title": "Quick start" },
+        { "path": "use/interface", "title": "The screen" },
+        { "path": "reference/glossary", "title": "Glossary" }
       ]
     },
     {
-      "key": "things-you-can-do",
-      "title": "Things you can do",
+      "key": "app",
+      "title": "App-wide",
       "pages": [
-        { "path": "tasks/no-internet", "title": "Run Sentinel with no internet" },
-        {
-          "path": "tasks/record-a-satellite-pass",
-          "title": "Catch a satellite pass and record it"
-        },
-        {
-          "path": "tasks/aircraft-emergency-alerts",
-          "title": "Get alerted to aircraft emergencies"
-        },
-        { "path": "tasks/listen-to-a-repeater", "title": "Find and listen to a local repeater" },
-        {
-          "path": "tasks/track-ships-off-grid",
-          "title": "Track ships off grid with your own radio"
-        }
-      ]
-    },
-    {
-      "key": "use-sentinel",
-      "title": "Use Sentinel",
-      "pages": [
-        { "path": "use/interface", "title": "Find your way around the screen" },
-        { "path": "use/air", "title": "Air: aircraft (ADS-B)" },
-        { "path": "use/space", "title": "Space: satellites" },
-        { "path": "use/sea", "title": "Sea: ships (AIS)" },
-        { "path": "use/land", "title": "Land: repeaters and APRS" },
-        {
-          "title": "SDR: your radios",
-          "pages": [
-            { "path": "use/sdr/add-a-radio", "title": "Add a radio" },
-            { "path": "use/sdr/listen", "title": "Listen to a frequency" },
-            { "path": "use/sdr/frequencies", "title": "Save and scan frequencies" },
-            { "path": "use/sdr/record", "title": "Record what you hear" },
-            { "path": "use/sdr/decode", "title": "Decode digital signals" }
-          ]
-        },
         { "path": "use/alerts", "title": "Alerts" },
-        { "path": "use/maps", "title": "Change the map look" },
-        { "path": "use/offline-maps", "title": "Download maps for offline use" },
-        { "path": "use/settings", "title": "Change settings" },
-        { "path": "use/config-file", "title": "Edit the config file" },
+        { "path": "use/maps", "title": "Maps" },
+        { "path": "use/settings", "title": "Settings and the config file" },
+        { "path": "use/off-grid", "title": "Off grid" },
         { "path": "use/receiving-responsibly", "title": "Receiving responsibly" }
+      ]
+    },
+    {
+      "key": "air",
+      "title": "Air",
+      "pages": [{ "path": "use/air", "title": "Air: aircraft" }]
+    },
+    {
+      "key": "space",
+      "title": "Space",
+      "pages": [{ "path": "use/space", "title": "Space: satellites" }]
+    },
+    {
+      "key": "sea",
+      "title": "Sea",
+      "pages": [{ "path": "use/sea", "title": "Sea: ships" }]
+    },
+    {
+      "key": "land",
+      "title": "Land",
+      "pages": [{ "path": "use/land", "title": "Land: repeaters and APRS" }]
+    },
+    {
+      "key": "sdr",
+      "title": "SDR",
+      "pages": [
+        { "path": "use/sdr/add-a-radio", "title": "Radios" },
+        { "path": "use/sdr/listen", "title": "Listen" },
+        { "path": "use/sdr/frequencies", "title": "Frequencies and scanning" },
+        { "path": "use/sdr/record", "title": "Record" },
+        { "path": "use/sdr/decode", "title": "Decode" }
       ]
     },
     {
@@ -60,41 +57,27 @@
       "title": "Set up and run",
       "pages": [
         { "path": "configuration", "title": "Environment variables (.env)" },
-        { "path": "hardware", "title": "Choose radios and hardware" },
-        { "path": "decoders", "title": "Install and run decoders" },
-        { "path": "radio-host", "title": "Run the radios on a second machine" },
-        { "path": "operations", "title": "Check logs, health and backups" },
+        { "path": "hardware", "title": "Hardware" },
+        { "path": "decoders", "title": "Decoders" },
+        { "path": "radio-host", "title": "Radio host" },
+        { "path": "operations", "title": "Run and maintain" },
+        { "path": "reference/ports-and-services", "title": "Ports and services" },
         { "path": "troubleshooting", "title": "Troubleshooting" },
-        { "path": "upgrading", "title": "Upgrade Sentinel" }
-      ]
-    },
-    {
-      "key": "how-it-works",
-      "title": "How it works",
-      "pages": [
-        { "path": "architecture/overview", "title": "System overview" },
-        { "path": "architecture/docker", "title": "How Sentinel runs in Docker" },
-        { "path": "architecture/backend", "title": "Backend code" },
-        { "path": "architecture/frontend", "title": "Frontend" },
-        { "path": "architecture/gateway", "title": "Gateway and routing" },
-        { "path": "architecture/event-bus", "title": "Event bus" },
-        { "path": "architecture/services", "title": "Services and start-up" },
-        { "path": "architecture/data-stores", "title": "Data stores" },
-        { "path": "architecture/databases", "title": "Databases" },
-        { "path": "architecture/caching", "title": "Caching" },
-        { "path": "architecture/sdr-pipeline", "title": "Radios and the SDR pipeline" },
-        { "path": "architecture/decoding", "title": "Decoding" },
-        { "path": "architecture/data-flows", "title": "Section data flows" },
-        { "path": "architecture/security", "title": "Security" }
+        { "path": "upgrading", "title": "Upgrade" }
       ]
     },
     {
       "key": "develop",
       "title": "Develop",
       "pages": [
+        { "path": "architecture/overview", "title": "How it works" },
+        { "path": "architecture/data-flows", "title": "Data flows" },
+        { "path": "architecture/radios", "title": "Radios and decoding" },
+        { "path": "architecture/storage", "title": "Storage and caching" },
+        { "path": "architecture/bus-and-security", "title": "Event bus and security" },
         { "path": "development/setup", "title": "Set up for development" },
-        { "path": "development/code-map", "title": "Find your way around the code" },
-        { "path": "development/testing", "title": "Run tests and quality checks" },
+        { "path": "development/code-map", "title": "Code map" },
+        { "path": "development/testing", "title": "Testing" },
         { "path": "development/how-to", "title": "How to…" },
         { "path": "contributing", "title": "Contributing", "file": "CONTRIBUTING.md" },
         {
@@ -114,16 +97,6 @@
             }
           ]
         }
-      ]
-    },
-    {
-      "key": "reference",
-      "title": "Reference",
-      "pages": [
-        { "path": "reference/glossary", "title": "Glossary" },
-        { "path": "reference/ports-and-services", "title": "Ports and services" },
-        { "path": "reference/commands", "title": "Commands cheat sheet" },
-        { "path": "reference/whats-new", "title": "What's new" }
       ]
     }
   ],

@@ -1,93 +1,86 @@
-# System overview
+# How it works
 
-This page is the map of Sentinel for a developer: which processes run, how they talk to each other, and how one browser request reaches the code that answers it. The other pages in **How it works** zoom in on each part.
+A small **core** plus **one service per section**, all from one backend image, with a Vue app (the **shell**) in the browser. Decisions behind it: [ADR 0006](../adr/0006-section-containers.md).
 
-New to a term on these pages, such as core, shell, remote, NATS or SQLite? Each is defined in the [Glossary](../reference/glossary.md).
+## The parts
 
-## The shape of it
+- **Core** (`app`, `backend/`): settings, alerts, offline maps, the service registry; serves the shell.
+- **Sections** (`air`, `space`, `sea`, `land`, `sdr`): each its own FastAPI service, SQLite database and UI remote.
+- **Radio hub** (`radio`): everything that touches a physical radio.
+- **Gateway** (Caddy): the only address a browser uses.
+- **NATS**: low-rate events between services.
+- **Decoders**: optional containers that turn radio audio into data.
 
-Sentinel is a small **core** plus **one service per section**, all built from one backend image, with a Vue single-page app (the **shell**) in the browser.
-
-- **Core** (`app` service, `backend/`) holds what every section shares: settings, alerts, offline maps, the service registry, and serving the shell.
-- **Each section** (`air`, `space`, `sea`, `land`, `sdr`) is its own FastAPI service, with its own SQLite database and its own piece of UI (a Module Federation **remote**).
-- **The radio hub** (`radio`) owns everything that touches a physical radio.
-- **The gateway** (Caddy) is the only address a browser uses. Core tells it at run time which path goes to which service.
-- **NATS** carries low-rate events between the services.
-- **Decoders** are optional containers that turn a radio's audio into data.
-
-*Figure: The containers of a full deployment and how they connect. The browser only talks to the gateway; services talk to each other over HTTP and NATS.*
+*Figure: The containers, with online feeds and your own radios kept apart.*
 
 ```mermaid
 flowchart LR
-    browser["Browser<br/>(Vue shell + section remotes)"] --> gateway["gateway<br/>Caddy :8080"]
-    gateway --> app["app<br/>core"]
-    gateway --> sections["air · space · sea · land · sdr<br/>section services"]
-    gateway --> radio["radio<br/>radio hub"]
-    sections -- "register, settings<br/>(HTTP)" --> app
-    radio -- "register, settings<br/>(HTTP)" --> app
-    app -- "pushes routes<br/>(admin API :2019)" --> gateway
+    browser["Browser<br/>shell + remotes"] --> gateway["gateway :8080"]
+    gateway --> app["app (core)"]
+    gateway --> sections["air · space · sea · land · sdr"]
+    gateway --> radio["radio hub"]
+    sections -- "register, settings" --> app
+    radio -- "register, settings" --> app
     app <--> nats(("nats"))
     sections <--> nats
     radio <--> nats
-    radio -- "rtl_tcp / Sentry" --> dongles["RTL-SDR dongles"]
-    decoders["decoders<br/>voice · aprs · ais · adsb"] -- "config, PCM, events" --> radio
-    class gateway accent
-    class nats accent
+    subgraph onlineFeeds["ONLINE"]
+        feeds["adsb.lol · AISStream<br/>CelesTrak · ukrepeater.net<br/>Protomaps"]
+    end
+    subgraph offgridRadios["OFF GRID"]
+        dongles["RTL-SDR dongles<br/>rtl_tcp / Sentry"]
+        decoders["decoders<br/>voice · aprs · ais · adsb"]
+    end
+    feeds --> sections
+    feeds --> app
+    radio --> dongles
+    decoders -- "config, PCM, events" --> radio
+    class onlineFeeds online
+    class offgridRadios offgrid
 ```
 
-**In words:**
+- The browser reaches only the gateway, over HTTP, SSE and WebSockets.
+- Services register with core and read settings over HTTP; events go over NATS.
+- Online, sections and core fetch internet feeds. Off grid, data comes from your dongles through the radio hub and decoders.
 
-| Part | Connects to | Over |
-|---|---|---|
-| Browser | gateway only | HTTP, SSE, WebSockets on :8080 |
-| gateway | app, every section, radio hub | HTTP; routes for sections and the hub are pushed by core |
-| app (core) | gateway's admin API; NATS | HTTP (:2019, compose network only); NATS |
-| Section services | core (registration, settings); NATS | HTTP with their own credential; NATS |
-| radio (hub) | core; NATS; the dongles | HTTP; NATS; raw TCP to `rtl_tcp`, HTTP to Sentry |
-| Decoders | radio hub | HTTP through the gateway for config; TCP for audio |
+## Start-up
 
-## One request's journey
+1. `service-credentials` runs once: certificates and a login per service.
+2. `nats`, then `app`, then the gateway and every section and the hub.
+3. Each section waits for core (`waiting for core to answer`), connects to NATS, runs `prepare` (tables, first-boot import) and `start` (background work).
+4. It registers its **manifest** (id, address, path prefixes) with core.
+5. Core pushes the routes into Caddy, and health-probes the service every 10 s.
 
-*Figure: A browser asks for Sea's vessels. The gateway matches the longest registered prefix and proxies to the Sea service, which reads its own store.*
+Three failed probes mark it unavailable: its route answers 503 and the shell greys it out. The registry is in memory; services re-register, so a restarted core relearns them in seconds.
 
-```mermaid
-sequenceDiagram
-    participant Browser
-    participant Gateway as gateway (Caddy)
-    participant Sea as sea service
-    participant Core as app (core)
-    Browser->>Gateway: GET /api/sea/vessels
-    Note over Gateway: longest prefix match:<br/>/api/sea/ → sea:8000
-    Gateway->>Sea: GET /api/sea/vessels
-    Sea-->>Gateway: 200 JSON
-    Gateway-->>Browser: 200 JSON
-    Browser->>Gateway: GET /api/settings
-    Note over Gateway: no registered prefix<br/>→ default route
-    Gateway->>Core: GET /api/settings
-    Core-->>Browser: 200 JSON (via gateway)
-```
+## Routing
 
-**In words:**
+Core keeps the gateway's routes in step through Caddy's admin API (:2019, compose network only): at once on a registration, and every 10 s, so a restarted gateway heals itself. Longest prefix wins:
 
-1. The browser asks the gateway for `/api/sea/vessels`.
-2. The gateway finds the longest path prefix any service registered (`/api/sea/`, registered by Sea) and proxies the request to the Sea service.
-3. Sea answers from its in-memory vessel store; the gateway passes the answer back.
-4. A path no service registered, such as `/api/settings`, goes to core by default.
+| Path | Goes to |
+|---|---|
+| `/api/air/messages…` | core (alerts) |
+| `/api/air/…`, `/api/sdr/adsb/…` | air |
+| `/api/sdr/radios`, `/connect`, `/decode/…`, `/aprs/…`, `/ais/…`, `/sentry-hosts`, `/decoders`, `/ws/sdr/…` | radio |
+| `/api/sdr/…` | sdr |
+| `/api/<id>/…`, `/remotes/<id>/…` | that section |
+| anything else | core |
 
-What happens when a service is down, or never started, is in [Gateway and routing](gateway.md#longest-prefix-wins).
+- `/internal/…` always gets a 404 from the gateway.
+- Caddy streams SSE and WebSockets as is: don't add buffering.
+- :8443 is a TLS entrypoint straight to core, for a [radio host](../radio-host.md).
 
-## Where the code lives
+## In Docker
 
-| Folder | What it is | More |
-|---|---|---|
-| `backend/` | Core, plus the shared platform every service uses | [Backend code](backend.md) |
-| `services/sections/<id>/backend/` | One Python package per section, `sentinel_<id>` | [Backend code](backend.md) |
-| `services/radio/backend/` | The radio hub, `sentinel_radio` | [Radios and the SDR pipeline](sdr-pipeline.md) |
-| `frontend/vue/` | The shell SPA | [Frontend](frontend.md) |
-| `services/sections/<id>/frontend/` | Each section's UI package and remote | [Frontend](frontend.md) |
-| `platform/web/` | Shared web packages (`ui`, `shell-api`, `map-kit`, `config`) | [Frontend](frontend.md) |
-| `gateway/` | Caddy's static config | [Gateway and routing](gateway.md) |
-| `docker-compose.yml`, `backend/Dockerfile` | Every container, and the image they run | [How Sentinel runs in Docker](docker.md) |
-| `decoder/` | Decoder containers | [Decoding](decoding.md) |
+- One image (`backend/Dockerfile`) for every Python service; only the `uvicorn` target differs.
+- Its stages: build the SPA and docs (Node), fetch `pmtiles` (checksummed), then the Python runtime as an unprivileged user.
+- Backend code is bind-mounted with `uvicorn --reload`; the built `frontend/spa-dist/` is mounted read-only.
+- Every service has its own volume ([Storage](storage.md)).
 
-The decisions behind this layout are in [ADR 0006: section containers](../adr/0006-section-containers.md).
+## More
+
+- [Data flows](data-flows.md): each section, online and off grid
+- [Radios and decoding](radios.md)
+- [Storage and caching](storage.md)
+- [Event bus and security](bus-and-security.md)
+- [Code map](../development/code-map.md)
