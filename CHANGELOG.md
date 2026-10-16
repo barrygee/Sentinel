@@ -225,6 +225,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the in-app /doc docs page
 - Move Docs under the section buttons and share the section icons
 - Group the docs by section and match Settings' type and spacing
+- Draw diagrams in the app's dark palette with clear flow direction
 
 ### Bug Fixes
 
@@ -510,6 +511,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Publish the adsb-decoder on 127.0.0.1 by default
 - Point source notices at the real settings labels
 - Pass the offline map sources from .env and drop the LAN Sentry default
+- Draw AARA zone labels in the app's map label font
 
 ### Chores
 
@@ -1546,6 +1548,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #492 from barrygee/docs/run-develop-reference
 - Merge pull request #495 from barrygee/chore/env-example-comments
 - Merge pull request #494 from barrygee/docs/simplify
+- Merge pull request #496 from barrygee/docs/space-screenshot-iss
 
 ### Refactoring
 
@@ -1695,6 +1698,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cut the docs down to short feature lists per section
 - Retake the screenshots at twice the resolution
 - Say .env.example sets every default
+- Lay diagrams out top to bottom with each flow's direction shown
 
 ### Tests
 
@@ -1788,6 +1792,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin recording folders, their validation and the folder setting
 - Add an opt-in script that retakes the docs screenshots
 - Follow the new Set up and run page order
+- Retake the docs screenshots on a larger screen with items selected
 
 ### Build System
 
@@ -1827,6 +1832,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the D5 docs pages
 - Rebuild the bundle with the simplified docs
 - Rebuild the bundle with the updated Environment variables page
+- Rebuild the bundle with the docs and diagram changes
 
 ### Continuous Integration
 
@@ -1897,6 +1903,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Format the satellite pass notifier spec
 - Add vertical space in Offline Maps and Coverage Area
 - Put every settings view on one type scale
+- Drop borders from the docs page and rename Develop to Developer docs
 
 ### Dependencies
 
