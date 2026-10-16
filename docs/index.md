@@ -6,7 +6,7 @@ A live map of what is around you, and a control panel for your own radios. It ru
 |---|---|
 | **AIR** | Aircraft near you, with emergency alerts |
 | **SPACE** | Satellites, and when they pass over you |
-| **SEA** | Ships near you |
+| **SEA** | Vessels near you |
 | **LAND** | UK amateur repeaters and APRS stations |
 | **SDR** | Your radios: see a band, listen, scan, record, decode |
 
