@@ -20,7 +20,7 @@ const MARKDOWN = {
 
 const MANIFEST = {
   groups: [
-    { key: 'get-started', title: 'Get started', pages: [{ path: 'index', title: 'Welcome' }] },
+    { key: 'introduction', title: 'Introduction', pages: [{ path: 'index', title: 'Welcome' }] },
     { key: 'air', title: 'Things you can do', pages: [] },
     {
       key: 'sdr',
@@ -92,7 +92,7 @@ describe('buildDocsLibrary: a valid manifest', () => {
   const library = buildDocsLibrary(MANIFEST, MARKDOWN)
 
   it('hides groups that have no pages', () => {
-    expect(library.groups.map((group) => group.key)).toEqual(['get-started', 'sdr', 'develop'])
+    expect(library.groups.map((group) => group.key)).toEqual(['introduction', 'sdr', 'develop'])
   })
 
   it('lists every page in reading order across groups, sub-lists included', () => {
@@ -261,7 +261,7 @@ describe('buildDocsLibrary: invalid manifests fail loudly', () => {
           {
             groups: [
               { key: 'develop', title: 'D', pages: [{ path: 'sections', title: 'A' }] },
-              { key: 'set-up-and-run', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
+              { key: 'getting-started', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
             ],
           },
           MARKDOWN,

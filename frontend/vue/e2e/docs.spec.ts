@@ -72,13 +72,13 @@ test.describe('Docs', () => {
     await waitForShellHydration(page)
 
     const pageList = page.getByRole('navigation', { name: 'Documentation pages' })
-    // The welcome page's own group is open; Set up and run starts closed.
-    const setUp = pageList.getByRole('button', { name: 'Set up and run' })
+    // The welcome page's own group is open; Getting started starts closed.
+    const setUp = pageList.getByRole('button', { name: 'Getting started' })
     await expect(setUp).toHaveAttribute('aria-expanded', 'false')
     await setUp.click()
     await expect(setUp).toHaveAttribute('aria-expanded', 'true')
 
-    const setUpPages = pageList.getByRole('list', { name: 'Set up and run' })
+    const setUpPages = pageList.getByRole('list', { name: 'Getting started' })
     await setUpPages.getByRole('link', { name: 'Environment variables (.env)' }).click()
     await expect(page).toHaveURL(/\/doc\/configuration$/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/environment variables/i)

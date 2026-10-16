@@ -4,13 +4,13 @@
  */
 
 /**
- * The fixed groups, in reading order: Set up and run first, then Get started,
+ * The fixed groups, in reading order: Getting started first, then Introduction,
  * one group per Settings section in the Settings rail's order (`app` and the
  * five sections), and Developer docs. A manifest group must use one of these keys.
  */
 export const DOC_GROUP_KEYS = [
-  'set-up-and-run',
-  'get-started',
+  'getting-started',
+  'introduction',
   'app',
   'air',
   'space',

@@ -35,7 +35,7 @@ describe('DocsPageList', () => {
     // The empty fixture group has no pages, so the library leaves it out.
     expect(
       wrapper.findAll('button.doc-page-list__group-toggle').map((button) => button.text()),
-    ).toEqual(['Get started', 'Use Sentinel', 'Develop'])
+    ).toEqual(['Introduction', 'Use Sentinel', 'Develop'])
   })
 
   it('ties each heading to its page list with aria-controls, and names the list after the group', async () => {
@@ -48,9 +48,9 @@ describe('DocsPageList', () => {
   it("opens the current page's group and keeps the others closed", async () => {
     const { wrapper } = await mountList('sdr', 'sections')
     expect(toggleFor(wrapper, 'Use Sentinel').attributes('aria-expanded')).toBe('true')
-    expect(toggleFor(wrapper, 'Get started').attributes('aria-expanded')).toBe('false')
+    expect(toggleFor(wrapper, 'Introduction').attributes('aria-expanded')).toBe('false')
     expect(pagesShown(wrapper, 'sdr')).toBe(true)
-    expect(pagesShown(wrapper, 'get-started')).toBe(false)
+    expect(pagesShown(wrapper, 'introduction')).toBe(false)
     expect(wrapper.findAll('.doc-page-list__group--open')).toHaveLength(1)
   })
 

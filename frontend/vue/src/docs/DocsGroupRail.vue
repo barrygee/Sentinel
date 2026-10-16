@@ -58,7 +58,6 @@ const { offeredSections } = useOfferedSettingsSections()
   display: flex;
   flex-direction: column;
   background: var(--rail-bg);
-  border-right: 1px solid var(--rail-border);
 }
 
 .doc-rail ul {

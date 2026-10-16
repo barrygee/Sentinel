@@ -59,7 +59,7 @@ describe('DocsSearchResults', () => {
 
     it('says how many are shown when the total is more', async () => {
       const outcome: DocsSearchOutcome = {
-        hits: [hitFor('sections#air', 'sdr', 'sections'), hitFor('index', 'get-started', 'index')],
+        hits: [hitFor('sections#air', 'sdr', 'sections'), hitFor('index', 'introduction', 'index')],
         totalHits: 55,
         expansions: [],
       }
@@ -92,7 +92,7 @@ describe('DocsSearchResults', () => {
       const outcome: DocsSearchOutcome = {
         hits: [
           hitFor('contributing', 'develop', 'contributing'),
-          hitFor('index', 'get-started', 'index'),
+          hitFor('index', 'introduction', 'index'),
           hitFor('adr/0001-first', 'develop', 'adr/0001-first'),
         ],
         totalHits: 3,
@@ -102,7 +102,7 @@ describe('DocsSearchResults', () => {
       const titles = wrapper
         .findAll('h2.doc-search-results__group-title')
         .map((title) => title.text())
-      expect(titles).toEqual(['Get started', 'Develop'])
+      expect(titles).toEqual(['Introduction', 'Develop'])
       const develop = wrapper.findAll('section')[1]
       expect(develop?.findAll('li')).toHaveLength(2)
     })
@@ -168,7 +168,7 @@ describe('DocsSearchResults', () => {
     async function mountThree() {
       const outcome: DocsSearchOutcome = {
         hits: [
-          hitFor('index', 'get-started', 'index'),
+          hitFor('index', 'introduction', 'index'),
           hitFor('sections#air', 'sdr', 'sections'),
           hitFor('sections#sea', 'sdr', 'sections'),
         ],

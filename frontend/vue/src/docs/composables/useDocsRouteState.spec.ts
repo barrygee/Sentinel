@@ -20,7 +20,7 @@ describe('useDocsRouteState', () => {
       const { state } = await mountAt('/doc/')
       expect(state.pagePath.value).toBe('index')
       expect(state.page.value?.title).toBe('Welcome to Sentinel')
-      expect(state.activeGroup.value?.key).toBe('get-started')
+      expect(state.activeGroup.value?.key).toBe('introduction')
     })
 
     it('reads /doc (no trailing slash) as the welcome page too', async () => {
@@ -32,7 +32,7 @@ describe('useDocsRouteState', () => {
       const { state } = await mountAt('/doc/operations')
       expect(state.pagePath.value).toBe('operations')
       expect(state.page.value?.path).toBe('operations')
-      expect(state.activeGroup.value?.key).toBe('set-up-and-run')
+      expect(state.activeGroup.value?.key).toBe('getting-started')
     })
 
     it('reads a nested page path', async () => {

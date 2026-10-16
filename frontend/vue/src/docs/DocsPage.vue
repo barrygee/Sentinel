@@ -284,10 +284,18 @@ onBeforeUnmount(() => docsStore.setActive(false))
     grid-template-columns: minmax(0, 1fr);
   }
 
+  /* Scrolls without a visible scrollbar: a classic scrollbar takes width as
+     soon as a group opens past the bottom, which shrank the search field and
+     left an untinted strip beside the open group. Wheel, touch and keyboard
+     (tabbing through the links) still scroll it. */
   .doc-sidebar {
     min-height: 0;
     overflow-y: auto;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+
+  .doc-sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .doc-column {

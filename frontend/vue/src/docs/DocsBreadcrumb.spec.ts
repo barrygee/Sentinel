@@ -15,12 +15,12 @@ describe('DocsBreadcrumb', () => {
   it('links every item except the last, which is the current page', async () => {
     const { wrapper } = await mountWithRouter(DocsBreadcrumb, {
       props: {
-        trail: [{ label: 'Set up and run', to: '/doc/operations' }, { label: 'Check logs' }],
+        trail: [{ label: 'Getting started', to: '/doc/operations' }, { label: 'Check logs' }],
       },
     })
     const links = wrapper.findAll('a')
     expect(links).toHaveLength(1)
-    expect(links[0]?.text()).toBe('Set up and run')
+    expect(links[0]?.text()).toBe('Getting started')
     expect(links[0]?.attributes('href')).toBe('/doc/operations')
     const current = wrapper.get('[aria-current="page"]')
     expect(current.text()).toBe('Check logs')

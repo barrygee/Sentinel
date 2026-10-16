@@ -117,7 +117,7 @@ function isCurrent(page: DocsPage): boolean {
 
 <style scoped>
 /* Kept small and light so the menu reads as navigation, not headings: group
-   headings and page links share one size, with only the headings in bold. */
+   page links sit a size below the group headings, which are also bold. */
 .doc-page-list__groups,
 .doc-page-list__pages {
   margin: 0;
@@ -181,7 +181,7 @@ function isCurrent(page: DocsPage): boolean {
   min-height: 44px;
   padding: 13px 24px;
   font-family: 'Barlow', sans-serif;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
