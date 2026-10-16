@@ -31,4 +31,4 @@ Ships send AIS on two channels, **A (161.975 MHz)** and **B (162.025 MHz)**, tak
 
 ## Troubleshooting
 
-The notice at the top of the Sea map says what is wrong; [Sea: Troubleshooting](../use/sea.md#troubleshooting) explains each one. To see what the decoder itself reports, run `docker compose --profile ais logs ais-decoder`. More on the decoder is in [Install and run decoders](../decoders.md#off-grid-ais).
+The notice at the top of the Sea map says what is wrong; [Sea: Troubleshooting](../use/sea.md#troubleshooting) explains each one. To see what the decoder itself reports, run `docker compose --profile ais logs ais-decoder`. More on the decoder is in [Install and run decoders](../decoders.md).

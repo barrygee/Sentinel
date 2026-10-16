@@ -2,7 +2,7 @@
 
 This page follows a section service from `docker compose up` to serving requests, and explains what happens when one stops or is never started.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Start-up and registration
 

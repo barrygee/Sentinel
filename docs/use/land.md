@@ -87,5 +87,5 @@ All under **Settings › LAND**:
 
 - **LAND isn't in the menu.** It is switched off; see [Switch Land on](#switch-land-on).
 - **APRS STATIONS can't be selected.** No radio is set in **Off Grid APRS SDR**.
-- **APRS hears nothing.** Check that the decoder is running (`docker compose --profile aprs ps`) and that the radio is on the APRS channel: a satellite auto-tune can move it, and it moves back within about 15 seconds. Check the antenna suits 2 m.
+- **APRS hears nothing.** Check that the decoder is running (`docker compose --profile aprs ps`) and that the radio is on the APRS channel: a satellite auto-tune can move it, and it moves back within about 15 seconds. To check, find the radio's `id` with `curl -s http://localhost:8080/api/sdr/radios`, then run `curl -s http://localhost:8080/api/sdr/aprs/status/<id>`: `"on_channel": false` means it is off the channel. Also check the antenna suits 2 m.
 - **A repeater's details look out of date.** Online, the directory updates daily. Offline, it is the built-in copy from when your version of Sentinel was made.

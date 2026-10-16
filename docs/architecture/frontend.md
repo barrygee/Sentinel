@@ -2,7 +2,7 @@
 
 The frontend is a Vue 3 single-page app written in TypeScript, built with Vite, with Pinia for state and vue-router for pages. Maps are MapLibre GL. This page explains how it is split into packages, how it boots, how sections plug into it, and where state lives.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Packages
 
@@ -116,17 +116,7 @@ Canvas maps are invisible to screen readers, so every map has an accessible equi
 
 ## Building and testing
 
-These commands run the dev server, build the bundle, and run the tests:
-
-```bash
-cd frontend/vue && npm run dev           # Vite on :5173, proxies to the stack on :8080
-cd frontend/vue && npm run build         # writes frontend/spa-dist/ (commit it)
-cd frontend/vue && npm run test:coverage # Vitest, 100% coverage gate
-cd frontend/vue && npm run test:e2e      # Playwright + axe, against the built bundle
-npm run web-packages -- test:coverage    # every shared and section package
-```
-
-Every package has its own lint, type check and 100% coverage gate. The e2e suite serves the **committed** `frontend/spa-dist/`, so build before running it.
+Every package has its own lint, type check and 100% coverage gate, and the shell is built into the committed `frontend/spa-dist/`. The commands, and the two browser test suites, are in [Run tests and quality checks](../development/testing.md); the dev server is in [Set up for development](../development/setup.md#the-dev-loop).
 
 ## Screenshots in these docs
 

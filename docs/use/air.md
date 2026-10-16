@@ -86,7 +86,7 @@ Then:
 3. Switch to **OFF GRID** (all of Sentinel in **Settings › App Settings › Connectivity Mode**, or only Air in **Settings › AIR › Source Override**), then select **APPLY CHANGES**.
 4. Open **AIR**. Sentinel claims the dongle, tunes it to 1090 MHz and shows the aircraft around the receiver.
 
-The dongle is held for Air while the map is open and released when you close it. More detail is in [Install and run decoders](../decoders.md#off-grid-ads-b).
+The dongle is held for Air while the map is open and released when you close it. More detail is in [Install and run decoders](../decoders.md).
 
 ## Settings
 

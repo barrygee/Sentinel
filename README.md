@@ -12,45 +12,16 @@ Sentinel is a real-time, offline-capable surveillance dashboard that puts five s
 
 Every section has an online and an off-grid data source (switch with **Online / Off Grid** in Settings), and maps you download keep working without internet. How to install it and use each section: [the documentation](docs/index.md), also shown inside the app under **Settings › Docs**.
 
-## Architecture
-
-Sentinel is a small **core** plus **one service per section**, all built from one backend image.
-
-```
-Browser ──► :8080 gateway (Caddy) ──┬──► app          core: shell UI, settings, notifications, offline maps
-                                    ├──► space · land · air · sea · sdr     one service + database each
-                                    └──► radio ──► your radios (rtl_tcp / Sentry)
-            nats (event bus) connects them all; optional decoders attach to the radio hub
-```
-
-- **Core** is always on: `app` (the shell UI and settings), `gateway` (the only address browsers use) and `nats` (the event bus).
-- **Each section** runs as its own service with its own database. It registers with core when it starts, and its menu entry, map and settings appear. A section that isn't running doesn't appear, and one that stops is greyed out while the others keep working.
-- **The radio hub** owns every radio, so SDR audio keeps playing as you move between sections. It can run on a second machine next to the antennas ([docs/radio-host.md](docs/radio-host.md)).
-
-The design and its trade-offs are in [ADR 0006](docs/adr/0006-section-containers.md).
-
 ## Start Sentinel
 
 You need **Docker with Docker Compose**. Nothing else is required to run it.
 
 ```bash
-cp .env.example .env              # optional: every setting has a working default
-docker compose up --build -d      # the whole app: core + every section
+git clone https://github.com/barrygee/Sentinel.git && cd Sentinel
+docker compose up --build -d
 ```
 
-Open **http://localhost:8080**, then **Settings** (gear icon, bottom-right) › **App Settings › Sentinel Location**. What to set up first is in [Quick start](docs/install.md). The first build takes a few minutes. Afterwards `docker compose up -d` is enough, with `--build` only when dependencies change.
-
-**Just one section.** Name it (plus `gateway`) and compose starts core with it:
-
-```bash
-docker compose up -d gateway sea                 # core + Sea only
-docker compose up -d gateway sdr radio           # core + SDR (it needs the radio hub for live radios)
-docker compose up -d --scale land=0              # everything except Land
-```
-
-**Radio decoders** (digital voice, APRS, off-grid AIS, off-grid ADS-B) are opt-in and each needs its own dongle: `docker compose --profile all up --build -d`, or one at a time. See [docs/decoders.md](docs/decoders.md).
-
-**Stop:** `docker compose down`. Your data stays in Docker volumes.
+Open **http://localhost:8080**. The first build takes a few minutes. Starting only some sections, adding radio decoders and the first settings to make are in [Quick start](docs/install.md).
 
 ## SDR recordings
 
@@ -76,15 +47,14 @@ new recordings, and nothing already saved is moved. The details are in
 
 ## Documentation
 
-| Topic | Where |
+The docs are in [`docs/`](docs/index.md), and inside the app under **Settings › Docs**.
+
+| To | Read |
 |---|---|
-| Logs, health, troubleshooting, upgrades, other architectures | [docs/operations.md](docs/operations.md) |
-| Install, first run, and using each section | [Quick start](docs/install.md) · [docs/index.md](docs/index.md) |
-| Where SDR recordings are saved | [docs/use/sdr/record.md](docs/use/sdr/record.md#where-recordings-are-saved) |
-| Environment variables | [docs/configuration.md](docs/configuration.md) · [`.env.example`](.env.example) |
-| Decoder sidecars | [docs/decoders.md](docs/decoders.md) |
-| Offline maps (bundled tiles, in-app downloads) | [docs/use/offline-maps.md](docs/use/offline-maps.md) |
-| Radio hub on a second machine | [docs/radio-host.md](docs/radio-host.md) |
-| How it works: architecture, Docker, backend, frontend, databases, code flows | [docs/architecture/overview.md](docs/architecture/overview.md) |
-| Development, tests and quality gates, commit/PR conventions | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Architecture decisions | [docs/adr/](docs/adr/) |
+| Install Sentinel and make the first settings | [Quick start](docs/install.md) |
+| Use each section | [Use Sentinel](docs/use/interface.md) |
+| Configure, run and look after it | [Environment variables](docs/configuration.md) · [Check logs, health and backups](docs/operations.md) · [Troubleshooting](docs/troubleshooting.md) · [Upgrade Sentinel](docs/upgrading.md) |
+| Run the radios on a second machine | [docs/radio-host.md](docs/radio-host.md) |
+| Understand how it works | [System overview](docs/architecture/overview.md) |
+| Work on the code | [Set up for development](docs/development/setup.md) · [CONTRIBUTING.md](CONTRIBUTING.md) |
+| See the design decisions | [docs/adr/](docs/adr/) |

@@ -2,7 +2,7 @@
 
 Sentinel has no user logins: anyone who can reach port 8080 can use it, so run it on a network you trust. This page explains how Sentinel's services prove who they are to each other, what each is allowed to do, and what protects the browser.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Trust boundaries
 

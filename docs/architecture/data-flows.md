@@ -2,7 +2,7 @@
 
 This page follows the data of each section from its source to the map. Each section is a backend package (`services/sections/<id>/backend/sentinel_<id>/`) plus a frontend package (`services/sections/<id>/frontend/`); the map features are MapLibre controls under the frontend's `src/controls/`.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Air
 

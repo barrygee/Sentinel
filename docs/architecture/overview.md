@@ -2,28 +2,7 @@
 
 This page is the map of Sentinel for a developer: which processes run, how they talk to each other, and how one browser request reaches the code that answers it. The other pages in **How it works** zoom in on each part.
 
-## Words used on these pages
-
-| Word | Means |
-|---|---|
-| **Core** | The `app` service: the part of Sentinel every section depends on (settings, alerts, offline maps, the list of running services). |
-| **Section** | One of Air, Space, Sea, Land and SDR: a backend service plus its piece of the UI. |
-| **Radio hub** | The `radio` service, the only one that talks to radios. |
-| **Shell** | The Vue app that loads in the browser and hosts every section's UI. |
-| **Remote** | A section's UI, built as its own bundle and loaded by the shell when the page opens. |
-| **Module Federation** | The build feature that lets the shell load remotes at run time. |
-| **Caddy** | A web server; here it forwards each request to the right container. It is the **gateway**. |
-| **NATS** | A small message broker: services publish short messages to it, and others subscribe. It carries the **event bus**. |
-| **FastAPI** | The Python web framework every backend service is written in. |
-| **Uvicorn** | The program that runs a FastAPI service. |
-| **SQLite** | A database that is a single file, with no database server to run. |
-| **SQLAlchemy** | The Python library Sentinel uses to read and write SQLite; its **ORM models** are Python classes that describe tables. |
-| **Vite** | The tool that builds the frontend and serves it, with **hot reload** (changes appear without a page reload), while you develop. |
-| **Pinia** | Vue's state library; a **store** holds state that several components share. |
-| **SSE** | Server-sent events: a one-way stream of updates from server to browser over ordinary HTTP. |
-| **Manifest** | What a service tells core about itself when it registers: its id, address and the paths it serves. |
-| **Hook** | A function a module hands over to be called at a set moment, such as start-up. |
-| **SIGTERM** | The signal Docker sends a process to ask it to stop. |
+New to a term on these pages, such as core, shell, remote, NATS or SQLite? Each is defined in the [Glossary](../reference/glossary.md).
 
 ## The shape of it
 

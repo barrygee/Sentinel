@@ -70,4 +70,4 @@ Air works straight away.
 
 - [Find your way around the screen](use/interface.md)
 - [Run Sentinel with no internet](tasks/no-internet.md)
-- [Check logs, health and backups](operations.md), if something doesn't start
+- [Troubleshooting](troubleshooting.md), if something doesn't start

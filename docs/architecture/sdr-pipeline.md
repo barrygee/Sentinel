@@ -2,7 +2,7 @@
 
 This page follows a radio signal from the dongle to the waterfall on screen and the sound in your speakers, then shows how a recording is made. The code is in the radio hub (`services/radio/backend/sentinel_radio/`) and the SDR section's frontend (`services/sections/sdr/frontend/`).
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## The parts
 

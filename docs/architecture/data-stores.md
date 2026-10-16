@@ -2,7 +2,7 @@
 
 Every service keeps its own data, and only settings are shared. This page lists what is stored where and who owns it, then follows a settings change from the browser to every service that cares.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Who owns what
 

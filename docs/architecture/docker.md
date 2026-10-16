@@ -2,7 +2,7 @@
 
 Sentinel runs entirely in Docker. This page explains, from scratch, what Docker Compose starts, how the images are built, where data is kept, and how your code edits reach the running app. If you have used Docker before, skim the first section.
 
-New to a term on this page? See [Words used on these pages](overview.md#words-used-on-these-pages).
+New to a term on this page? See the [Glossary](../reference/glossary.md).
 
 ## Docker in two minutes
 
@@ -43,27 +43,11 @@ flowchart TD
 
 All of them are on one Docker network called `sentinel`.
 
-### Ports
+### Ports and optional containers
 
-| Port on your computer | Service | Who uses it |
-|---|---|---|
-| `8080` | gateway | Your browser |
-| `127.0.0.1:8443` | gateway (TLS service entrypoint) | Services on a second machine, such as a radio host |
-| `127.0.0.1:4222` | nats | Services on a second machine |
-| `127.0.0.1:8090` | adsb-decoder (when running) | Reading the ADS-B decoder directly |
+Core and the sections listen on port 8000 **inside** the network only (`expose`, not `ports`), so a browser can't reach them except through the gateway, which publishes port 8080. The decoders are **profiles**: optional containers that start only with `--profile <name>`.
 
-Core and the sections listen on port 8000 **inside** the network only (`expose`, not `ports`), so a browser can't reach them except through the gateway. Caddy's admin API (`:2019`) is also network-only.
-
-### Optional containers (profiles)
-
-| Profile | Starts | Built from |
-|---|---|---|
-| `voice-decoder` | `voice-decoder` (dsd-fme) | `decoder/` |
-| `aprs` | `aprs-decoder` (Direwolf) | `decoder/aprs/` |
-| `ais` | `ais-decoder` (Direwolf 1.8, built from source) | `decoder/ais/` |
-| `adsb` | `adsb-decoder` (readsb) | `decoder/adsb/` |
-| `all` | all four decoders above | |
-| `decoder-stub` | `stub-decoder`, a test double that decodes nothing | `decoder/stub/` |
+Every port, profile and container is listed in [Ports and services](../reference/ports-and-services.md).
 
 ## One image for every Python service
 

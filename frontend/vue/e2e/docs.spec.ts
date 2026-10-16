@@ -72,17 +72,17 @@ test.describe('Docs', () => {
     await waitForShellHydration(page)
 
     await page.getByRole('link', { name: 'Set up and run' }).click()
-    await expect(page).toHaveURL(/\/doc\/operations$/)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/check logs/i)
-    await expect(page).toHaveTitle('Check logs, health and backups · Docs · Sentinel')
+    await expect(page).toHaveURL(/\/doc\/configuration$/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/environment variables/i)
+    await expect(page).toHaveTitle('Environment variables (.env) · Docs · Sentinel')
 
     const pageList = page.getByRole('navigation', { name: 'Pages in Set up and run' })
     await expect(
-      pageList.getByRole('link', { name: 'Check logs, health and backups' }),
+      pageList.getByRole('link', { name: 'Environment variables (.env)' }),
     ).toHaveAttribute('aria-current', 'page')
-    await pageList.getByRole('link', { name: 'Environment variables' }).click()
-    await expect(page).toHaveURL(/\/doc\/configuration$/)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/environment variables/i)
+    await pageList.getByRole('link', { name: 'Check logs, health and backups' }).click()
+    await expect(page).toHaveURL(/\/doc\/operations$/)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/check logs/i)
     // Opening a page puts keyboard focus on its heading.
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
   })
