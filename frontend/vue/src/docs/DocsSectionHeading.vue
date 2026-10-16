@@ -58,9 +58,7 @@ const hasAnchor = computed(() => props.level <= 4)
   font-size: var(--settings-text-title);
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  /* Settings' group labels use --ink-muted, but that is only 2.2:1 on this
-     light island; this grey (the figure captions') keeps the look at AA. */
-  color: rgba(var(--ink-rgb), 0.62);
+  color: var(--ink-secondary);
 }
 
 .doc-section-heading--h3 {

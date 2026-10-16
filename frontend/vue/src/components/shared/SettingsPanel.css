@@ -244,7 +244,7 @@
   font-size: var(--settings-text-title);
   font-weight: 600;
   letter-spacing: 0.22em;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   text-transform: uppercase;
   padding: 8px 0 0;
 }
@@ -256,7 +256,7 @@
   font-size: var(--settings-text-title);
   font-weight: 600;
   letter-spacing: 0.22em;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   text-transform: uppercase;
   padding: 4px 0 0;
 }
@@ -312,7 +312,7 @@
   font-size: var(--settings-text-body);
   font-weight: 400;
   line-height: 1.55;
-  color: rgba(var(--ink-rgb), 0.5);
+  color: var(--ink-secondary);
 }
 
 .settings-empty {
@@ -546,7 +546,7 @@
   font-weight: 600;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   margin-bottom: 4px;
 }
 
@@ -622,7 +622,8 @@
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.5);
+  /* AA on the pill's grey: 50% ink was ~3.4:1. */
+  color: var(--ink-secondary);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -938,7 +939,7 @@
 .tle-cat-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -1078,7 +1079,7 @@
 
 .tle-satlist-chevron {
   font-size: var(--settings-text-caption);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   transition: transform 0.2s ease;
   flex-shrink: 0;
 }
@@ -1158,7 +1159,7 @@
 .tle-satlist-age {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
   text-align: right;
   letter-spacing: 0.04em;
 }
@@ -1273,7 +1274,7 @@
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-body);
   letter-spacing: 0.06em;
-  color: rgba(var(--ink-rgb), 0.4);
+  color: var(--ink-secondary);
   padding: 4px 0 12px;
 }
 

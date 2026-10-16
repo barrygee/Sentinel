@@ -13,4 +13,8 @@
   --surface-sunken: #f1efe9;
   --surface-sunken-hover: #e6e2d9;
   --surface-pressed: #dcdfe3;
+  /* Labels, captions and descriptions on the island's near-white: the theme's
+     55% ink is ~4.0:1 here, under AA; 62% is ~5.1:1. (--ink-muted stays for
+     placeholders and disabled controls, which are exempt.) */
+  --ink-secondary: rgba(var(--ink-rgb), 0.62);
 }

@@ -174,7 +174,7 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(16, 19, 29, 0.38);
+  color: var(--ink-secondary);
 }
 .lft-header-field {
   /* Lines up with the row names (.lft-row-label's 12px inset). */

@@ -170,7 +170,7 @@ function onInput(event: Event): void {
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.5);
+  color: var(--ink-secondary);
 }
 .number-setting-input {
   width: 60px;
