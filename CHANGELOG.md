@@ -229,6 +229,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the Settings rail on docs pages, with the docs groups under Docs
 - Remove the "On this page" panel
 - Collapsible page list in the app's side-panel style
+- Serve the docs at /docs, with /doc redirecting
 
 ### Bug Fixes
 
@@ -523,6 +524,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Smaller, lighter docs menu and drop the Receiving responsibly page
 - Select a search-list pick on the map so its trail/track draws
 - Patch the four open Dependabot alerts
+- Rename the docs groups and steady the docs menu
+- Drop the close button, show the phone nav bar, Sea and radio wording
 
 ### Chores
 
@@ -1568,6 +1571,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #502 from barrygee/fix/docs-menu-type
 - Merge pull request #501 from barrygee/fix/search-pick-selects-on-map
 - Merge pull request #503 from barrygee/chore/deps-security
+- Merge pull request #504 from barrygee/fix/docs-menu-names
 
 ### Refactoring
 
@@ -1721,6 +1725,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show the SDR panels where the docs describe them
 - Retake the Settings screenshots with the new label contrast
 - Retake the screenshots centred on the UK with tracks and realistic data
+- Say vessels near you, not ships
 
 ### Tests
 
@@ -1866,6 +1871,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the slimmer docs menu
 - Rebuild the Air and Sea remotes with search-pick selection
 - Rebuild the bundle on vue 3.5.44
+- Rebuild the bundle for the docs menu fixes
+- Rebuild the bundle for the Sea wording
+- Rebuild the bundle for the docs page fixes
+- Rebuild the bundle for the /docs path
 
 ### Continuous Integration
 
