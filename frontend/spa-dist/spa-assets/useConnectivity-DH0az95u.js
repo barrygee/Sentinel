@@ -1,0 +1,1 @@
+import{C as e}from"./_virtual_mf___mfe_internal__sentinel_shell__mf_owner__100676512179738__loadShare__pinia__loadShare__.js-PcQeaUtO.js";import{n as t}from"./app-DcgHDKVQ.js";function n(n){let r=t();e(()=>r.isOnline,e=>n?.(e))}export{n as useConnectivity};
