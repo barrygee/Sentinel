@@ -2,7 +2,7 @@
 
 `.env` holds how Sentinel runs on this computer: what starts, where files go, and a second computer. Everything else is in [Settings](use/settings.md). You don't need one: every variable has a default.
 
-- `cp .env.example .env` gives you every variable, commented out.
+- `cp .env.example .env` gives you every variable set to its default, with a comment on each; change only what differs. The three radio-host URLs stay commented out.
 - After a change: `docker compose up -d` (restarts only what the change affects).
 - Never commit it.
 
