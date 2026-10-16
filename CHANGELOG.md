@@ -226,6 +226,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move Docs under the section buttons and share the section icons
 - Group the docs by section and match Settings' type and spacing
 - Draw diagrams in the app's dark palette with clear flow direction
+- Keep the Settings rail on docs pages, with the docs groups under Docs
+- Remove the "On this page" panel
 
 ### Bug Fixes
 
@@ -512,6 +514,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point source notices at the real settings labels
 - Pass the offline map sources from .env and drop the LAN Sentry default
 - Draw AARA zone labels in the app's map label font
+- Stop enlarged arrowheads reaching into the box they point at
 
 ### Chores
 
@@ -1549,6 +1552,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #495 from barrygee/chore/env-example-comments
 - Merge pull request #494 from barrygee/docs/simplify
 - Merge pull request #496 from barrygee/docs/space-screenshot-iss
+- Merge pull request #497 from barrygee/docs/sdr-waterfall-screenshot
 
 ### Refactoring
 
@@ -1699,6 +1703,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retake the screenshots at twice the resolution
 - Say .env.example sets every default
 - Lay diagrams out top to bottom with each flow's direction shown
+- Show the SDR panels where the docs describe them
 
 ### Tests
 
@@ -1793,6 +1798,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an opt-in script that retakes the docs screenshots
 - Follow the new Set up and run page order
 - Retake the docs screenshots on a larger screen with items selected
+- Give the docs SDR screenshots a live waterfall and demo data
 
 ### Build System
 
@@ -1833,6 +1839,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the simplified docs
 - Rebuild the bundle with the updated Environment variables page
 - Rebuild the bundle with the docs and diagram changes
+- Rebuild the bundle with the docs rail and SDR screenshots
 
 ### Continuous Integration
 
