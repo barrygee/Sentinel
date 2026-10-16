@@ -21,13 +21,33 @@ const THEME_VARIABLES = {
   fontSize: '14px',
 }
 
-/** The `accent` class an author gives a node to highlight it (`class Node accent`). */
+/**
+ * Classes an author gives a node or a subgraph (`class Node accent`):
+ * - `accent` highlights one node.
+ * - `online` and `offgrid` mark which mode a part of a flow belongs to. Put
+ *   each mode's nodes in a subgraph titled ONLINE or OFF GRID and give the
+ *   subgraph the class: the title says it in words, and the border differs in
+ *   colour and in style (solid / dashed), so colour is never the only cue.
+ */
 const ACCENT_NODE_CSS = `
   .node.accent rect, .node.accent polygon, .node.accent circle, .node.accent ellipse, .node.accent path {
     stroke: #446b00 !important;
     stroke-width: 2px !important;
     fill: rgba(200, 255, 0, 0.25) !important;
   }
+  .cluster.online rect {
+    stroke: #1d5a9e !important;
+    stroke-width: 2px !important;
+    fill: rgba(29, 90, 158, 0.07) !important;
+  }
+  .cluster.offgrid rect {
+    stroke: #446b00 !important;
+    stroke-width: 2px !important;
+    stroke-dasharray: 6 4 !important;
+    fill: rgba(200, 255, 0, 0.12) !important;
+  }
+  .cluster.online .cluster-label text, .cluster.online .cluster-label tspan { fill: #1d5a9e !important; font-weight: 600; }
+  .cluster.offgrid .cluster-label text, .cluster.offgrid .cluster-label tspan { fill: #3a5c00 !important; font-weight: 600; }
 `
 
 type MermaidApi = typeof import('mermaid').default

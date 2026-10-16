@@ -64,7 +64,7 @@ defineProps<{ previous: DocsPage | null; next: DocsPage | null }>()
 }
 
 .doc-prev-next__title {
-  font-size: 15px;
+  font-size: var(--settings-text-value);
   font-weight: 600;
 }
 

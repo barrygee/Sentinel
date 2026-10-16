@@ -77,7 +77,7 @@ const activeId = useActiveHeading(headingIds)
   padding: 5px 12px;
   border-left: 2px solid transparent;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   line-height: 1.4;
   color: var(--ink);
   text-decoration: none;

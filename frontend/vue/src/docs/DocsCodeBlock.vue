@@ -121,7 +121,7 @@ const buttonText: Record<CopyState, string> = {
   padding: 8px 18px 14px;
   overflow-x: auto;
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   line-height: 1.55;
   color: var(--ink-strong);
   /* No wrapping: a command copied from here must stay one line. */

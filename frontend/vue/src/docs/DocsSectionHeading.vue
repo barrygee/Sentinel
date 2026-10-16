@@ -52,19 +52,24 @@ const hasAnchor = computed(() => props.level <= 4)
   box-shadow: -4px 0 0 var(--accent-text);
 }
 
+/* h2 = Settings' group label (DATA SOURCES), h3 = a setting's title. */
 .doc-section-heading--h2 {
-  margin: 48px 0 14px;
-  padding-top: 20px;
-  border-top: 1px solid var(--rule);
+  margin: 48px 0 18px;
   font-size: var(--settings-text-title);
   letter-spacing: 0.22em;
   text-transform: uppercase;
+  /* Settings' group labels use --ink-muted, but that is only 2.2:1 on this
+     light island; this grey (the figure captions') keeps the look at AA. */
+  color: rgba(var(--ink-rgb), 0.62);
 }
 
 .doc-section-heading--h3 {
-  margin: 32px 0 10px;
-  font-size: 16px;
+  margin: 30px 0 8px;
+  font-size: var(--settings-text-title);
+  letter-spacing: 0.1em;
   line-height: 1.35;
+  text-transform: uppercase;
+  color: var(--ink);
 }
 
 .doc-section-heading--h4,

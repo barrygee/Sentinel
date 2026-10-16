@@ -65,7 +65,7 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
   min-width: 100%;
   border-collapse: collapse;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   line-height: 1.5;
   color: var(--ink);
 }

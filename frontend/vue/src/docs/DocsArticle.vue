@@ -67,8 +67,8 @@ function onArticleClick(event: MouseEvent): void {
 <style scoped>
 .doc-article {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--doc-text-body, 15px);
-  line-height: var(--doc-line, 1.65);
+  font-size: var(--doc-text-body);
+  line-height: var(--doc-line);
   color: var(--ink);
 }
 
@@ -142,7 +142,7 @@ function onArticleClick(event: MouseEvent): void {
   padding: 10px 14px;
   background: var(--surface);
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   line-height: 1.55;
   white-space: pre;
 }
@@ -156,7 +156,7 @@ function onArticleClick(event: MouseEvent): void {
 .doc-prose :deep(.doc-nested-scroll table) {
   min-width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   line-height: 1.5;
 }
 
@@ -194,7 +194,7 @@ function onArticleClick(event: MouseEvent): void {
 
 .doc-prose :deep(.doc-figure figcaption) {
   margin-top: 8px;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.62);
 }

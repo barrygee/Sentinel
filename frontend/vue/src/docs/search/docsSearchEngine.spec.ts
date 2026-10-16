@@ -13,7 +13,7 @@ function libraryOf(
     {
       groups: [
         {
-          key: 'use-sentinel',
+          key: 'sdr',
           title: 'Use Sentinel',
           pages: pages.map((page) => ({ path: page.path, title: page.title })),
         },

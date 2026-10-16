@@ -96,8 +96,8 @@ const showWarningGlyph = computed(() => props.variant === 'warning' || props.var
 
 .doc-callout__body :deep(p) {
   margin: 0 0 8px;
-  font-size: var(--doc-text-body, 15px);
-  line-height: var(--doc-line, 1.65);
+  font-size: var(--doc-text-body);
+  line-height: var(--doc-line);
 }
 
 .doc-callout__body :deep(> :last-child) {

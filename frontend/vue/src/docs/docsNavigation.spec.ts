@@ -21,9 +21,9 @@ const MARKDOWN = {
 const MANIFEST = {
   groups: [
     { key: 'get-started', title: 'Get started', pages: [{ path: 'index', title: 'Welcome' }] },
-    { key: 'things-you-can-do', title: 'Things you can do', pages: [] },
+    { key: 'air', title: 'Things you can do', pages: [] },
     {
-      key: 'use-sentinel',
+      key: 'sdr',
       title: 'Use Sentinel',
       pages: [{ path: 'sections', title: 'Sections' }],
     },
@@ -92,11 +92,7 @@ describe('buildDocsLibrary: a valid manifest', () => {
   const library = buildDocsLibrary(MANIFEST, MARKDOWN)
 
   it('hides groups that have no pages', () => {
-    expect(library.groups.map((group) => group.key)).toEqual([
-      'get-started',
-      'use-sentinel',
-      'develop',
-    ])
+    expect(library.groups.map((group) => group.key)).toEqual(['get-started', 'sdr', 'develop'])
   })
 
   it('lists every page in reading order across groups, sub-lists included', () => {
@@ -117,7 +113,7 @@ describe('buildDocsLibrary: a valid manifest', () => {
       title: 'Sections',
       file: 'docs/sections.md',
       markdown: '# Sections',
-      groupKey: 'use-sentinel',
+      groupKey: 'sdr',
       groupTitle: 'Use Sentinel',
     })
   })
@@ -265,7 +261,7 @@ describe('buildDocsLibrary: invalid manifests fail loudly', () => {
           {
             groups: [
               { key: 'develop', title: 'D', pages: [{ path: 'sections', title: 'A' }] },
-              { key: 'reference', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
+              { key: 'set-up-and-run', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
             ],
           },
           MARKDOWN,

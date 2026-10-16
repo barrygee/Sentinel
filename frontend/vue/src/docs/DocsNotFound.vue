@@ -51,8 +51,8 @@ onMounted(() => {
   max-width: var(--doc-measure, 720px);
   padding-top: 18px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--doc-text-body, 15px);
-  line-height: var(--doc-line, 1.65);
+  font-size: var(--doc-text-body);
+  line-height: var(--doc-line);
   color: var(--ink);
 }
 

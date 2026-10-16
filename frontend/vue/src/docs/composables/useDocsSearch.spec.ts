@@ -6,7 +6,7 @@ import { useDocsSearch } from './useDocsSearch'
 
 const library = buildDocsLibrary(
   {
-    groups: [{ key: 'use-sentinel', title: 'Use', pages: [{ path: 'a', title: 'Alpha' }] }],
+    groups: [{ key: 'sdr', title: 'Use', pages: [{ path: 'a', title: 'Alpha' }] }],
   },
   { 'docs/a.md': '# Alpha\n\nTune the radio.\n\n## Maps\n\nOffline tiles.\n' },
 )
