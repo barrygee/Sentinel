@@ -1153,13 +1153,6 @@ test.describe('docs screenshots', () => {
     await shoot(page, 'settings-offline-maps')
   })
 
-  test('Docs page', async ({ page }) => {
-    await prepare(page)
-    await page.goto('/doc/install')
-    await waitForShellHydration(page)
-    await shoot(page, 'docs-quick-start')
-  })
-
   test.describe('on a phone', () => {
     test.use({ deviceScaleFactor: PHONE_SCALE })
 
