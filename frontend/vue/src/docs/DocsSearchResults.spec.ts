@@ -59,10 +59,7 @@ describe('DocsSearchResults', () => {
 
     it('says how many are shown when the total is more', async () => {
       const outcome: DocsSearchOutcome = {
-        hits: [
-          hitFor('sections#air', 'use-sentinel', 'sections'),
-          hitFor('index', 'get-started', 'index'),
-        ],
+        hits: [hitFor('sections#air', 'sdr', 'sections'), hitFor('index', 'get-started', 'index')],
         totalHits: 55,
         expansions: [],
       }
@@ -113,8 +110,8 @@ describe('DocsSearchResults', () => {
     it("keeps each group's results in the ranking order they arrived in", async () => {
       const outcome: DocsSearchOutcome = {
         hits: [
-          hitFor('sections#sea', 'use-sentinel', 'sections'),
-          hitFor('operations#backups', 'use-sentinel', 'operations'),
+          hitFor('sections#sea', 'sdr', 'sections'),
+          hitFor('operations#backups', 'sdr', 'operations'),
         ],
         totalHits: 2,
         expansions: [],
@@ -172,8 +169,8 @@ describe('DocsSearchResults', () => {
       const outcome: DocsSearchOutcome = {
         hits: [
           hitFor('index', 'get-started', 'index'),
-          hitFor('sections#air', 'use-sentinel', 'sections'),
-          hitFor('sections#sea', 'use-sentinel', 'sections'),
+          hitFor('sections#air', 'sdr', 'sections'),
+          hitFor('sections#sea', 'sdr', 'sections'),
         ],
         totalHits: 3,
         expansions: [],

@@ -84,7 +84,7 @@ onMounted(async () => {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   color: rgba(var(--ink-rgb), 0.62);
 }
 
@@ -105,7 +105,7 @@ onMounted(async () => {
 .doc-diagram__caption {
   margin-top: 8px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   color: var(--ink);
 }
 
@@ -114,8 +114,8 @@ onMounted(async () => {
   margin-top: 14px;
   padding-left: 16px;
   border-left: 2px solid var(--rule);
-  font-size: var(--doc-text-body, 15px);
-  line-height: var(--doc-line, 1.65);
+  font-size: var(--doc-text-body);
+  line-height: var(--doc-line);
   color: var(--ink);
 }
 

@@ -97,7 +97,7 @@ function isCurrent(page: DocsPage, currentPath: string): boolean {
   padding: 9px 16px;
   border-left: 2px solid transparent;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-weight: 500;
   line-height: 1.35;
   color: var(--ink);
@@ -131,7 +131,7 @@ function isCurrent(page: DocsPage, currentPath: string): boolean {
 }
 
 .doc-page-list__pages--nested .doc-page-list__link {
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
 }
 
 .doc-page-list__external {
@@ -139,7 +139,7 @@ function isCurrent(page: DocsPage, currentPath: string): boolean {
   padding: 0 16px 24px;
   border-top: 1px solid var(--border);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
 }
 
 .doc-page-list__external a {

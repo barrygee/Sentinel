@@ -24,9 +24,9 @@ export const FIXTURE_DOCS_MANIFEST = {
       title: 'Get started',
       pages: [{ path: 'index', title: 'Welcome to Sentinel' }],
     },
-    { key: 'things-you-can-do', title: 'Things you can do', pages: [] },
+    { key: 'air', title: 'Things you can do', pages: [] },
     {
-      key: 'use-sentinel',
+      key: 'sdr',
       title: 'Use Sentinel',
       pages: [
         { path: 'sections', title: 'What each section does' },

@@ -11,7 +11,7 @@ function pageNamed(path: string, title: string): DocsPage {
     title,
     file: `docs/${path}.md`,
     markdown: '',
-    groupKey: 'use-sentinel',
+    groupKey: 'sdr',
     groupTitle: 'Use Sentinel',
   }
 }

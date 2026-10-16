@@ -101,10 +101,9 @@
    src/components/base/BaseIconButton.vue); the classname remains on the
    rendered button purely so tests can still target it. */
 
-/* The Docs entry sits at the foot of the rail, set off by a hairline. It is a
+/* The Docs entry sits under the section buttons, set off by a hairline. It is a
    link out of Settings, not one of its sections. */
 .settings-nav-docs {
-  margin-top: auto;
   border-top: 1px solid var(--rail-border);
 }
 

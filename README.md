@@ -43,7 +43,7 @@ docker compose up -d sdr
 To sort recordings into subfolders such as `satellites/noaa`, set
 **Settings › SDR › SDR Options › Recordings Folder**. Changing either setting affects only
 new recordings, and nothing already saved is moved. The details are in
-[Record what you hear](docs/use/sdr/record.md#where-recordings-are-saved).
+[Record](docs/use/sdr/record.md#where-files-go).
 
 ## Documentation
 
@@ -52,9 +52,9 @@ The docs are in [`docs/`](docs/index.md), and inside the app under **Settings �
 | To | Read |
 |---|---|
 | Install Sentinel and make the first settings | [Quick start](docs/install.md) |
-| Use each section | [Use Sentinel](docs/use/interface.md) |
-| Configure, run and look after it | [Environment variables](docs/configuration.md) · [Check logs, health and backups](docs/operations.md) · [Troubleshooting](docs/troubleshooting.md) · [Upgrade Sentinel](docs/upgrading.md) |
+| Use each section | [The screen](docs/use/interface.md), then each section's page |
+| Configure, run and look after it | [Environment variables](docs/configuration.md) · [Run and maintain](docs/operations.md) · [Troubleshooting](docs/troubleshooting.md) · [Upgrade](docs/upgrading.md) |
 | Run the radios on a second machine | [docs/radio-host.md](docs/radio-host.md) |
-| Understand how it works | [System overview](docs/architecture/overview.md) |
+| Understand how it works | [How it works](docs/architecture/overview.md) |
 | Work on the code | [Set up for development](docs/development/setup.md) · [CONTRIBUTING.md](CONTRIBUTING.md) |
 | See the design decisions | [docs/adr/](docs/adr/) |

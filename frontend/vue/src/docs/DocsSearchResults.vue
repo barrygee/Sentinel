@@ -127,7 +127,7 @@ defineExpose({
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
   font-weight: 600;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.16em;
   /* Readable, not decorative: this is the page's only content. */
   color: rgba(var(--ink-rgb), 0.62);
 }
@@ -136,7 +136,7 @@ defineExpose({
 .doc-search-results__summary {
   margin: 0 0 18px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   color: rgba(var(--ink-rgb), 0.62);
 }
 

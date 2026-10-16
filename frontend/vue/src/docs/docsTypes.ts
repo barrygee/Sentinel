@@ -4,20 +4,24 @@
  */
 
 /**
- * The seven fixed groups, in reading order. Each has a hand-drawn rail icon
- * (`DocsGroupIcon`), so a manifest group must use one of these keys.
+ * The fixed groups, in reading order: Get started, then one group per Settings
+ * section in the Settings rail's order (`app` and the five sections, drawn with
+ * its icons), then Set up and run, and Develop. Those three have hand-drawn
+ * rail icons (`DocsGroupIcon`), so a manifest group must use one of these keys.
  */
 export const DOC_GROUP_KEYS = [
   'get-started',
-  'things-you-can-do',
-  'use-sentinel',
+  'app',
+  'air',
+  'space',
+  'sea',
+  'land',
+  'sdr',
   'set-up-and-run',
-  'how-it-works',
   'develop',
-  'reference',
 ] as const
 
-/** Key of one of the seven groups. */
+/** Key of one of the fixed groups. */
 export type DocGroupKey = (typeof DOC_GROUP_KEYS)[number]
 
 /** One readable page: where it lives, how it is named and its markdown. */

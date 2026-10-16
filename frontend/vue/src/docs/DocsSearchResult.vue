@@ -75,13 +75,13 @@ const showHeading = computed(() => props.hit.section.headingId !== '')
 }
 
 .doc-search-result__title {
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-weight: 600;
   color: var(--ink-strong);
 }
 
 .doc-search-result__heading {
-  font-size: 13px;
+  font-size: var(--settings-text-value);
   font-weight: 500;
   color: var(--ink);
 }
@@ -90,7 +90,7 @@ const showHeading = computed(() => props.hit.section.headingId !== '')
   display: -webkit-box;
   margin-top: 4px;
   overflow: hidden;
-  font-size: 12.5px;
+  font-size: var(--settings-text-body);
   line-height: 1.5;
   color: rgba(var(--ink-rgb), 0.7);
   -webkit-line-clamp: 2;

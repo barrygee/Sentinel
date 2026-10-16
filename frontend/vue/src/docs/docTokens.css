@@ -1,11 +1,11 @@
-/* Docs page tokens. Scoped under .doc-page, so the app's global type scale is
-   untouched: Settings' 12.5px body suits one-line descriptions, but long
-   reading wants a larger size and a longer line height. */
+/* Docs page tokens. Scoped under .doc-page. The docs use Settings' type scale
+   (--settings-text-*, frontend/assets/template.css) so the two pages read as
+   one app: body copy at the value size, Settings' measure and spacing. */
 .doc-page {
-  --doc-text-body: 15px;
-  --doc-line: 1.65;
-  /* About 75 characters of 15px Barlow per line. */
-  --doc-measure: 720px;
+  --doc-text-body: var(--settings-text-value);
+  --doc-line: 1.6;
+  /* The width of Settings' card column. */
+  --doc-measure: 760px;
 }
 
 /* The global focus ring is the lime accent, which has no contrast on this light

@@ -1,17 +1,21 @@
 # Welcome to Sentinel
 
-Sentinel is a live map of what is around you, and a control panel for your own radios. It runs on your own computer, and it keeps working with no internet once you have downloaded maps and set up a radio.
+A live map of what is around you, and a control panel for your own radios. It runs on your computer and keeps working with no internet.
 
-It has five **sections**:
-
-| Section | Shows |
+| Section | What you get |
 |---|---|
-| **AIR** | Aircraft near you, with alerts for emergencies |
-| **SPACE** | Satellites and when they pass over you |
+| **AIR** | Aircraft near you, with emergency alerts |
+| **SPACE** | Satellites, and when they pass over you |
 | **SEA** | Ships near you |
-| **LAND** | UK amateur radio repeaters and APRS stations |
-| **SDR** | Your radios: see a band, listen, scan and record |
+| **LAND** | UK amateur repeaters and APRS stations |
+| **SDR** | Your radios: see a band, listen, scan, record, decode |
 
-Each section runs as its own service, so you can run all of them or only the ones you need.
+## Online or off grid
 
-**Next:** [Quick start](install.md) gets it running in a few commands. Developers: [System overview](architecture/overview.md) explains how it is built.
+- **Online:** data comes from free internet feeds. You need no radio.
+- **Off grid:** data comes from your own radios, maps you downloaded and data already stored. See [Off grid](use/off-grid.md).
+
+## Start here
+
+- [Quick start](install.md): running in four commands
+- [The screen](use/interface.md): what each part does

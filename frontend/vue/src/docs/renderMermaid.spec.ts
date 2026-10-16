@@ -125,6 +125,25 @@ describe('renderMermaidDiagram', () => {
       expect(options.themeVariables.primaryTextColor).toBe('#16191d')
       expect(options.themeCSS).toContain('.node.accent')
     })
+
+    it('styles ONLINE and OFF GRID subgraphs apart by line style as well as colour', async () => {
+      await renderMermaidDiagram('a', 'One')
+      const themeCss: string = mermaidApi.initialize.mock.calls[0]?.[0].themeCSS
+      const ruleFor = (selector: string) =>
+        themeCss.slice(
+          themeCss.indexOf(selector),
+          themeCss.indexOf('}', themeCss.indexOf(selector)),
+        )
+      const online = ruleFor('.cluster.online rect')
+      const offgrid = ruleFor('.cluster.offgrid rect')
+      expect(online).toContain('stroke: #1d5a9e')
+      expect(offgrid).toContain('stroke: #446b00')
+      // Colour alone must not carry the difference (WCAG 1.4.1): only off grid is dashed.
+      expect(offgrid).toContain('stroke-dasharray')
+      expect(online).not.toContain('stroke-dasharray')
+      expect(themeCss).toContain('.cluster.online .cluster-label text')
+      expect(themeCss).toContain('.cluster.offgrid .cluster-label text')
+    })
   })
 
   describe('errors', () => {

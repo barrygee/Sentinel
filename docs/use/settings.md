@@ -1,39 +1,64 @@
-# Change settings
+# Settings and the config file
 
-This page explains how Settings works: where to find a setting, and why your changes wait until you apply them.
+Every setting is in **Settings** (the gear, bottom right) and in one live file, `backend/data/sentinel_config.json`.
 
-## Open Settings
+## Features
 
-Select the gear at the bottom right of the screen. Settings fills the screen, with its own menu on the left: **App Settings** for things that affect all of Sentinel, then one entry for each section you run (**AIR**, **SPACE**, **SEA**, **LAND**, **SDR**). Close it with the close button or **Escape**, and you go back to the section you came from.
+- **One page per section**, each with its own address such as `/settings/sea`.
+- **SEARCH SETTINGS** finds any setting by name or description.
+- **Doc links** beside a setting open its page here.
+- **APPLY CHANGES** saves everything at once and updates every browser in place, with no reload. **NO CHANGES** means nothing was changed.
+- **Shared**: settings live on the Sentinel computer, so every device sees the same.
+- **Connectivity Mode**: **ONLINE** or **OFF GRID** for every section; Air and Sea also have a **Source Override**.
+- **Export All Configuration**: settings, frequencies and band plan as three files.
+- **Application Config**: view, **EDIT** or **EXPORT** the config file in the browser.
 
-![Settings › App Settings: the Settings menu down the left with Docs at the bottom, SEARCH SETTINGS at the top, Connectivity Mode and Alert Sound, and APPLY CHANGES at the bottom right.](../images/settings-app.png)
+![Settings › App Settings: the Settings menu down the left, SEARCH SETTINGS at the top, Connectivity Mode and Alert Sound, and APPLY CHANGES at the bottom right.](../images/settings-app.png)
 
-Each part of Settings has its own web address, such as `/settings/sea`, so you can bookmark it or send it to someone on your network.
+## Things to know
 
-## Find a setting
+- Changes wait for **APPLY CHANGES**. Leaving the page without it throws them away.
+- These act at once: **UPDATE TLE**, adding or removing a radio or Sentry host, **DOWNLOAD**, **EXPORT**.
+- Choosing **Connectivity Mode** resets every **Source Override**.
 
-Type in **SEARCH SETTINGS** at the top. Settings lists every setting whose name or description contains all the words you typed, in any section. Search for what a setting does, not only its name: "squawk", "recordings" or "coverage" all work.
+## The config file
 
-Where a setting has a page in these docs, a link beside it opens that page.
+A live, two-way copy of every setting.
 
-## Apply your changes
+- Sentinel rewrites it within a second of any change.
+- Save an edit and Sentinel applies it within a second or two; browsers update in place.
+- An invalid file is ignored and logged (`docker compose logs app`); fix it before the next change overwrites it.
+- In **Application Config › EDIT**, you can send only the keys you want to change. A nested value (such as `location`) is replaced whole.
 
-Most settings don't take effect as you change them. Sentinel holds your changes until you select **APPLY CHANGES** at the bottom of Settings, then saves them all at once. This lets you change several related settings, such as a radio and the mode that uses it, and have them take effect together.
+```json
+{
+  "app": {
+    "location": { "latitude": 51.5072, "longitude": -0.1276 },
+    "connectivityMode": "offgrid"
+  },
+  "land": { "enabled": true, "aprsChannelHz": 144390000 },
+  "sea": { "aisBoundingBoxes": [[[49.5, -11.0], [61.0, 2.5]]] }
+}
+```
 
-- After **APPLY CHANGES**, Sentinel updates in place. You don't need to reload the page.
-- If you select **APPLY CHANGES** with nothing changed, it says **NO CHANGES**.
-- If you close Settings or move to another part of it without applying, your changes are thrown away.
+| Key | Values |
+|---|---|
+| `app.connectivityMode`, `<section>.sourceOverride` | `"online"` or `"offgrid"` |
+| `app.location` | `latitude` and `longitude`, both set or both empty |
+| `app.mapTheme` | `"dark"` or `"light"` |
+| `<section>.enabled` | `true` or `false` |
+| `sea.aisBoundingBoxes` | Boxes of `[[south, west], [north, east]]` |
+| `sea.aisSdrRadioId`, `sdr.aprs_radio_id`, `air.offgridSdrSource` | A radio `id` from `sdr.radios`, or `null` |
+| `sdr.radios` | The radio list; sending it replaces the whole list |
 
-A few controls act straight away because they do something rather than set something: **UPDATE TLE**, adding or removing a radio or Sentry host, **DOWNLOAD** in Offline Maps, and **EXPORT** buttons.
+The full defaults are in `backend/default_config.json`.
 
-Settings are saved on the Sentinel computer, not in your browser, so every browser and device that opens Sentinel sees the same settings.
+## Not in the file
 
-## Online or off grid
+- The AISStream key (set it on each Sentinel).
+- Saved frequencies, groups, ranges, band plan and satellite frequencies: each has its own JSON editor in Settings.
+- `.env` settings: see [Environment variables](../configuration.md).
 
-**Settings › App Settings › Connectivity Mode** switches all of Sentinel between **ONLINE** (data from the internet) and **OFF GRID** (data from your own radios, maps you downloaded and data already stored). Choosing it sets every section to that mode.
+## Copy settings to another Sentinel
 
-Air and Sea also have a **Source Override** in their own settings, to run that one section differently: for example Sea off grid from your own AIS radio while Air stays online. Choosing **Connectivity Mode** again replaces these overrides; the **SECTION OVERRIDES** list under it shows what each section will become.
-
-## Back up your settings
-
-**Settings › App Settings › Export All Configuration** saves all your settings, frequencies and band plan to a folder you choose, as three files: `sentinel_config.json`, `sdr_frequencies.json` and `sdr_bandplan.json`. To edit or load settings as a file, see [Edit the config file](config-file.md).
+**EXPORT** on the first, then on the second paste it into **Application Config › EDIT** and **APPLY CHANGES** (or replace its file).

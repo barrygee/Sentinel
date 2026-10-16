@@ -3,8 +3,8 @@
 Thanks for working on Sentinel. This page covers how changes get in: branches, commit messages and pull requests. Everything else a developer needs is in the docs:
 
 - [Set up for development](docs/development/setup.md): tools, first-time set-up and the dev loop.
-- [Find your way around the code](docs/development/code-map.md)
-- [Run tests and quality checks](docs/development/testing.md): every check CI runs, and the 100% coverage rule.
+- [Code map](docs/development/code-map.md)
+- [Testing](docs/development/testing.md): every check CI runs, and the 100% coverage rule.
 - [How to…](docs/development/how-to.md) add a setting, a section, a decoder or a map control, and ship a frontend change.
 - [How it works](docs/architecture/overview.md)
 
@@ -50,7 +50,7 @@ The mapping lives in [`cliff.toml`](cliff.toml).
 ## Pull requests
 
 1. **Keep it focused**: one change per pull request. Small ones are reviewed faster and are easier to revert.
-2. **Run the checks** in [Run tests and quality checks](docs/development/testing.md) first, including the browser tests for any UI change.
+2. **Run the checks** in [Testing](docs/development/testing.md) first, including the browser tests for any UI change.
 3. **Read your own diff** as a reviewer would before you ask anyone else to.
 4. **Open it against `main`**, with a description that says what changed, why, how you tested it, and any breaking change. Add screenshots for UI changes.
 5. **Every CI check must pass**, and new frontend code must be at 100% coverage.

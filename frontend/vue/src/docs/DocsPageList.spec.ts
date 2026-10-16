@@ -6,7 +6,7 @@ import { CHANGELOG_URL } from './markdown/docLinks'
 import DocsPageList from './DocsPageList.vue'
 
 const library = buildFixtureDocsLibrary()
-const useSentinel = library.groups.find((group) => group.key === 'use-sentinel')
+const useSentinel = library.groups.find((group) => group.key === 'sdr')
 const develop = library.groups.find((group) => group.key === 'develop')
 
 describe('DocsPageList', () => {

@@ -1,30 +1,52 @@
-# Change the map look
+# Maps
 
-Every map in Sentinel shares the same base map and the same look settings. This page covers the map style, what the base map draws, terrain, range rings and Sentry sites.
+Every map shares one base map and one look. Download areas to keep maps working offline.
 
-## Light or dark
+## Features
 
-**Settings › App Settings › Map Style** chooses the palette of every map:
+- **Map Style**: **DARK** (dim, night-friendly) or **LIGHT** (OpenStreetMap colours).
+- **Base map layers**: **Roads**, **Location names**, **Borders**.
+- **TERRAIN**: hill shading and contours, for judging line of sight. Needs terrain downloaded.
+- **RANGE RING** around your location or a Sentry host (**Range Ring Origin**).
+- **Sentry sites** marked on every map.
+- **Offline areas**: download a region's basemap and terrain, to the depth you choose.
 
-- **DARK**: a dim map that keeps aircraft, ships and labels clearly visible, and is kind to your eyes at night.
-- **LIGHT**: OpenStreetMap's familiar colours, clearer in daylight.
+All of these are in **Settings › App Settings**.
 
-The rest of Sentinel stays dark either way.
+## Download an area
 
-## What the base map shows
+Do this while online: downloading is turned off in **OFF GRID**.
 
-**Settings › App Settings › Map Layers** turns parts of the base map on and off for every section: **Roads**, **Location names** and **Borders**. Fewer layers leave busy maps less cluttered.
+1. **Settings › App Settings › Offline Maps**.
+2. Choose the area: **DRAW AREA**, **USE CURRENT VIEW**, or type **NORTH**, **SOUTH**, **EAST**, **WEST**.
+3. **DEPTH**: 6 (countries) to 14 (streets). Each step can take up to four times the space.
+4. Tick **Basemap** and/or **Terrain**.
+5. Check the size against **Free space**, then **DOWNLOAD**.
 
-Each section has its own layers too (aircraft labels, ports, range rings and so on), in its own settings and in the map controls on the right of its map.
+![Settings › App Settings › Offline Maps: a small world map to choose the area on, with DRAW AREA and USE CURRENT VIEW beneath.](../images/settings-offline-maps.png)
 
-## Terrain
+- Runs on the Sentinel computer: you can close the browser. One at a time; others wait as **QUEUED**. **CANCEL** stops one.
+- Finished areas are listed with size and date; delete one with its button.
+- Maps update as soon as a download finishes. No restart.
 
-**TERRAIN** in the map controls draws hill shading and contour lines, so you can see high ground at a glance: useful for judging radio line of sight. It is greyed out, with **TERRAIN — TILES NOT INSTALLED**, until terrain data is available: download it for your area in [Download maps for offline use](offline-maps.md).
+## Tips
 
-## Range rings
+- Keep it small: a large area at low depth, plus a small area at high depth where you are.
+- Terrain stops adding detail at depth 12.
+- Off grid, outside your downloaded areas the map is blank.
 
-**RANGE RING** draws circles at set distances from a point, to judge how far away things are. **Settings › App Settings › Range Ring Origin** chooses the point: your **Sentinel Location**, or the location of one of your Sentry hosts.
+## Advanced: a base archive
 
-## Sentry sites
+Sentinel also reads hand-made [PMTiles](https://protomaps.com) files in `frontend/assets/tiles/`, used wherever no download covers the map. Cut them with the `pmtiles` tool (`--bbox` is `west,south,east,north`; `YYYYMMDD` is a current build from [build.protomaps.com](https://build.protomaps.com)):
 
-If you have Sentry hosts with a location set, they are marked on the maps. Use them as range-ring centres, and as places to watch for aircraft overhead (**Settings › AIR › Overhead Aircraft Alerts**).
+```bash
+pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/surroundings.pmtiles --maxzoom=6
+pmtiles extract https://build.protomaps.com/YYYYMMDD.pmtiles frontend/assets/tiles/uk.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=14
+pmtiles extract https://download.mapterhorn.com/planet.pmtiles frontend/assets/tiles/uk-terrain.pmtiles --bbox=-8.65,49.84,1.77,60.86 --maxzoom=12
+```
+
+## About the map data
+
+Basemaps come from the newest [Protomaps](https://protomaps.com) build, found automatically; terrain from [Mapterhorn](https://mapterhorn.com). `OFFLINE_BASEMAP_SOURCE_URL` and `OFFLINE_TERRAIN_SOURCE_URL` in `.env` change them.
+
+National park boundaries (`frontend/assets/national-parks.geojson`) are the ONS _National Parks (December 2022) Boundaries GB BGC_: Office for National Statistics, [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/); contains OS data © Crown copyright and database right 2022.

@@ -1,51 +1,45 @@
-# Save and scan frequencies
+# Frequencies and scanning
 
-Save the frequencies you listen to, sort them into groups, and let Sentinel scan them or sweep a range for activity. You need a radio added first; see [Add a radio](add-a-radio.md).
+Save frequencies, group them, and let Sentinel scan or sweep for activity.
+
+## Features
+
+- **Saved frequencies** with label, mode, groups and notes, marked on the waterfall. Each can keep its own radio settings (gain, squelch, bandwidth, volume, sample rate, zoom, waterfall range).
+- **Favourites** (the star): one-click tuning from **FAVOURITES** on the **RADIO** tab.
+- **Groups**: colour-coded; filter the list by group.
+- **Scanner**: steps through saved frequencies (all, or chosen groups) and stops on a signal.
+- **Search**: sweeps a range in steps for signals you haven't saved.
+- **Saved ranges**: keep a range with its step, dwell time, mode and threshold.
+- **Saved from other sections**: **SAVE FREQUENCY** on a Land repeater lands here.
+- **JSON editor** for every frequency, group and range at once; **EXPORT** to back up or copy.
 
 ## Save a frequency
 
-1. In the SDR radio panel, open the **FREQUENCY MANAGER** tab.
-2. Under **ADD FREQUENCY**, fill in a **LABEL** (such as `Local repeater`), the **FREQ (MHz)** and the **MODE**.
-3. Tick any **GROUPS** it belongs to, and add **NOTES** if you like.
-4. Select **SAVE**.
+1. **FREQUENCY MANAGER › ADD FREQUENCY**: **LABEL**, **FREQ (MHz)**, **MODE**, optional **GROUPS** and **NOTES**.
+2. **SAVE**. Use **Tune to** beside any saved frequency to listen.
 
-It is marked on the waterfall from then on. Select **Tune to** next to any saved frequency to listen to it. Other sections can save frequencies here too, such as **SAVE FREQUENCY** on a Land repeater.
+Groups: **GROUPS** tab, type a name, **ADD**. Deleting a group keeps its frequencies.
 
-Mark a frequency as a **Favourite** (the star) to add it to **FAVOURITES** on the **RADIO** tab, for one-click tuning.
+## Scan
 
-## Sort frequencies into groups
+1. **RADIO › SCANNER**: choose **All** or some groups.
+2. Set **SQUELCH** just above the noise: anything louder counts as a signal.
+3. **Start scan**. It reads **SCANNING**, then **SCANNING PAUSED** while a signal plays, and carries on when it ends.
 
-Groups keep related frequencies together, such as "Airband" or "Marine", and give them a colour on the waterfall.
+## Search a range
 
-1. Open the **GROUPS** tab.
-2. Type a group name and select **ADD**.
-3. Rename or delete a group with the buttons beside it. Deleting a group doesn't delete its frequencies.
+1. **RADIO › SEARCH**: **LOW (MHz)**, **HIGH (MHz)**, **STEP** (use the band's channel spacing, such as 12.5 kHz).
+2. **Start search**. It stops on signals like the scanner.
 
-To show only some groups in the frequency list, choose them in the group filter at the top of **FREQUENCY MANAGER**.
+To keep a range: **SEARCH RANGES › ADD RANGE**. It then appears under **SAVED RANGES** with its own start button.
 
-## Scan saved frequencies
+## Settings
 
-The scanner steps through your saved frequencies and stops on any that has a signal, like a handheld scanner.
+| Setting | What it does |
+|---|---|
+| **SDR Options › Scan / Search Resume Delay (Seconds)** | Wait after a signal ends before moving on |
+| **Frequencies & Groups (JSON)** | Every frequency, group and range; **EDIT** or **EXPORT** |
 
-1. On the **RADIO** tab, open **SCANNER**.
-2. Choose **All**, or select the groups to scan.
-3. Set **SQUELCH** (under **CONTROLS**) a little above the noise. The scanner treats anything louder than the squelch as a signal.
-4. Select **Start scan**. The header reads **SCANNING**.
+## Tips
 
-When it finds a signal it stops there and reads **SCANNING PAUSED** while you listen. When the signal ends, it carries on. Select **Stop scan** to stop.
-
-**Settings › SDR › SDR Options › Scan / Search Resume Delay (Seconds)** sets how long it waits after a signal ends before moving on. Raise it to hear replies in a conversation.
-
-## Search a range for activity
-
-A search sweeps every step between two frequencies, looking for signals you haven't saved.
-
-1. On the **RADIO** tab, open **SEARCH**.
-2. Enter **LOW (MHz)**, **HIGH (MHz)** and the **STEP** (the gap between frequencies to try; use the channel spacing of the band, such as 12.5 kHz).
-3. Select **Start search**. It stops on signals the same way the scanner does.
-
-To keep a range for later, add it in the **SEARCH RANGES** tab under **ADD RANGE**: give it a **LABEL**, the low and high frequencies, **STEP**, how long to listen on each step (dwell time), **MODE** and the signal threshold. Saved ranges appear under **SAVED RANGES** in **SEARCH**, each with its own start button.
-
-## Edit many at once
-
-**Settings › SDR › Frequencies & Groups (JSON)** holds every saved frequency, group and search range in one JSON file. Select **EDIT** to change it there, then **APPLY CHANGES**, or **EXPORT** to download it as a backup or to load into another Sentinel.
+- Raise the resume delay to hear both sides of a conversation.

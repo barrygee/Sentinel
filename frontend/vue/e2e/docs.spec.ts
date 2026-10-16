@@ -80,9 +80,9 @@ test.describe('Docs', () => {
     await expect(
       pageList.getByRole('link', { name: 'Environment variables (.env)' }),
     ).toHaveAttribute('aria-current', 'page')
-    await pageList.getByRole('link', { name: 'Check logs, health and backups' }).click()
+    await pageList.getByRole('link', { name: 'Run and maintain' }).click()
     await expect(page).toHaveURL(/\/doc\/operations$/)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/check logs/i)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/run and maintain/i)
     // Opening a page puts keyboard focus on its heading.
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
   })
@@ -131,7 +131,7 @@ test.describe('Docs', () => {
       const hrefs = await page
         .locator('.doc-search-result a')
         .evaluateAll((links) => links.map((link) => link.getAttribute('href') ?? ''))
-      const bothWords = hrefs.indexOf('/doc/use/sdr/record#where-recordings-are-saved')
+      const bothWords = hrefs.indexOf('/doc/use/sdr/record#where-files-go')
       const onlyOneWord = hrefs.findIndex((href) => href.startsWith('/doc/use/sdr/add-a-radio'))
       // Any word is enough to be listed (Add a radio mentions only "recordings")...
       expect(onlyOneWord).toBeGreaterThanOrEqual(0)
@@ -156,9 +156,9 @@ test.describe('Docs', () => {
     test('Enter on a result for the page already open still moves focus to its heading', async ({
       page,
     }) => {
-      await page.goto('/doc/operations#everyday-commands')
+      await page.goto('/doc/operations#commands')
       await waitForShellHydration(page)
-      await expect(page.locator('[id="everyday-commands"]')).toBeFocused()
+      await expect(page.locator('[id="commands"]')).toBeFocused()
       await page.locator('input[type="search"]').fill('recordings saved')
       await expect(page.getByRole('heading', { level: 1 })).toHaveText('SEARCH RESULTS')
       const sameLink = page.locator('.doc-search-result a[href^="/doc/operations#"]').first()
@@ -226,9 +226,9 @@ test.describe('Docs', () => {
       for (const path of [
         '/doc/',
         '/doc/operations',
-        '/doc/use/offline-maps',
+        '/doc/use/maps',
         '/doc/configuration',
-        '/doc/tasks/track-ships-off-grid',
+        '/doc/radio-host',
       ]) {
         await page.goto(path)
         await waitForShellHydration(page)
@@ -236,7 +236,7 @@ test.describe('Docs', () => {
         expect(await pageScrollsSideways(page), path).toBe(false)
       }
       // The nested code block scrolls inside its own focusable group instead.
-      await page.goto('/doc/tasks/track-ships-off-grid')
+      await page.goto('/doc/radio-host')
       await waitForShellHydration(page)
       await expect(page.locator('.doc-nested-scroll').first()).toHaveAttribute('tabindex', '0')
     })

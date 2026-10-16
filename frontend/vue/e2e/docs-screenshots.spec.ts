@@ -314,6 +314,9 @@ test.describe('docs screenshots', () => {
   test.skip(!process.env.DOCS_SCREENSHOTS, 'Set DOCS_SCREENSHOTS=1 to regenerate docs/images/')
   test.describe.configure({ mode: 'default' })
   test.setTimeout(90_000)
+  // Twice the screen's pixels, so an image stays sharp when it is opened full
+  // size or read on a high-density display.
+  test.use({ deviceScaleFactor: 2 })
 
   test('whole screen on Air', async ({ page }) => {
     await prepare(page)

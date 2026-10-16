@@ -6,7 +6,7 @@ import DocsGroupRail from './DocsGroupRail.vue'
 
 const library = buildFixtureDocsLibrary()
 
-async function mountRail(activeGroupKey?: 'use-sentinel') {
+async function mountRail(activeGroupKey?: 'sdr') {
   return mountWithRouter(DocsGroupRail, {
     props: { groups: library.groups, activeGroupKey },
   })
@@ -33,7 +33,7 @@ describe('DocsGroupRail', () => {
   })
 
   it('marks only the active group as current', async () => {
-    const { wrapper } = await mountRail('use-sentinel')
+    const { wrapper } = await mountRail('sdr')
     const current = wrapper.findAll('a[aria-current="true"]')
     expect(current).toHaveLength(1)
     expect(current[0]?.attributes('aria-label')).toBe('Use Sentinel')
@@ -69,13 +69,13 @@ describe('DocsGroupRail', () => {
 
   it('falls back to /doc/ for a group without pages', async () => {
     const { wrapper } = await mountWithRouter(DocsGroupRail, {
-      props: { groups: [{ key: 'reference', title: 'Reference', entries: [], pages: [] }] },
+      props: { groups: [{ key: 'set-up-and-run', title: 'Reference', entries: [], pages: [] }] },
     })
     expect(wrapper.get('a').attributes('href')).toBe('/doc/')
   })
 
   it('has no accessibility violations', async () => {
-    const { wrapper } = await mountRail('use-sentinel')
+    const { wrapper } = await mountRail('sdr')
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
