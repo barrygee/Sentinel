@@ -116,9 +116,8 @@ function isCurrent(page: DocsPage): boolean {
 </template>
 
 <style scoped>
-/* The main app's side panel type: page links are its list rows
-   (`BaseFilterPanel` `.bfp-result-primary`), and the group headings sit a size
-   above them. */
+/* Kept small and light so the menu reads as navigation, not headings: group
+   headings and page links share one size, with only the headings in bold. */
 .doc-page-list__groups,
 .doc-page-list__pages {
   margin: 0;
@@ -142,7 +141,7 @@ function isCurrent(page: DocsPage): boolean {
   background: transparent;
   cursor: pointer;
   font-family: 'Barlow', sans-serif;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -182,9 +181,9 @@ function isCurrent(page: DocsPage): boolean {
   min-height: 44px;
   padding: 13px 24px;
   font-family: 'Barlow', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   line-height: 1.35;
   color: var(--ink-strong);
