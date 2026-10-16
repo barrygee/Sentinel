@@ -143,13 +143,26 @@ const DIAGRAM_CSS = `
  */
 const ARROWHEAD_SCALE = 1.6
 
-/** Scales every arrowhead (`<marker>`) in a drawn diagram by ARROWHEAD_SCALE. */
+/**
+ * Scales every arrowhead (`<marker>`) in a drawn diagram by ARROWHEAD_SCALE,
+ * keeping its tip where Mermaid put it. Mermaid stops each line short of the
+ * box by the arrowhead's own length; a bigger head would reach past that into
+ * the box, so its anchor (`refX`) moves back by the amount the head grew.
+ */
 function enlargeArrowheads(svgElement: SVGElement): void {
   svgElement.querySelectorAll('marker').forEach((marker) => {
-    for (const attribute of ['markerWidth', 'markerHeight']) {
-      const size = Number(marker.getAttribute(attribute))
-      // A marker without a size uses the SVG default; leave that alone.
-      if (size > 0) marker.setAttribute(attribute, String(size * ARROWHEAD_SCALE))
+    const width = Number(marker.getAttribute('markerWidth'))
+    // A marker without a size uses the SVG default; leave that alone.
+    if (!(width > 0)) return
+    marker.setAttribute('markerWidth', String(width * ARROWHEAD_SCALE))
+    const height = Number(marker.getAttribute('markerHeight'))
+    if (height > 0) marker.setAttribute('markerHeight', String(height * ARROWHEAD_SCALE))
+    const [, , viewWidth] = (marker.getAttribute('viewBox') ?? '').split(/[\s,]+/).map(Number)
+    const anchor = Number(marker.getAttribute('refX'))
+    if (viewWidth !== undefined && viewWidth > 0 && Number.isFinite(anchor)) {
+      // The tip sits at the viewBox's right edge; keep its distance past the
+      // anchor, in screen pixels, the same as before scaling.
+      marker.setAttribute('refX', String(viewWidth - (viewWidth - anchor) / ARROWHEAD_SCALE))
     }
   })
 }

@@ -130,18 +130,27 @@ describe('renderMermaidDiagram', () => {
       mermaidApi.render.mockResolvedValue({
         svg:
           '<svg xmlns="http://www.w3.org/2000/svg"><defs>' +
-          '<marker id="end" markerWidth="8" markerHeight="10"><path d="M0,0 L10,5 L0,10z"></path></marker>' +
+          '<marker id="end" viewBox="0 0 10 10" refX="5" markerWidth="8" markerHeight="10"><path d="M0,0 L10,5 L0,10z"></path></marker>' +
           '<marker id="bare"><path d="M0,0"></path></marker>' +
+          '<marker id="wide-only" markerWidth="8"><path d="M0,0"></path></marker>' +
           '</defs><path marker-end="url(#end)" d="M0,0 L50,0"></path></svg>',
       })
       const svg = await renderMermaidDiagram('a', 'One')
       const sized = svg.querySelector('#end')!
       expect(Number(sized.getAttribute('markerWidth'))).toBeCloseTo(12.8)
       expect(Number(sized.getAttribute('markerHeight'))).toBeCloseTo(16)
+      // The tip, at the viewBox's right edge, stays 5 units / 8 px * 10 = 4 px past
+      // the line's end: the anchor moves back, 10 - (10 - 5) / 1.6 = 6.875.
+      expect(Number(sized.getAttribute('refX'))).toBeCloseTo(6.875)
       // A marker with no size keeps the SVG default rather than becoming 0 or NaN.
       const bare = svg.querySelector('#bare')!
       expect(bare.hasAttribute('markerWidth')).toBe(false)
       expect(bare.hasAttribute('markerHeight')).toBe(false)
+      // Width alone grows; with no viewBox or anchor there is nothing to move back.
+      const wideOnly = svg.querySelector('#wide-only')!
+      expect(Number(wideOnly.getAttribute('markerWidth'))).toBeCloseTo(12.8)
+      expect(wideOnly.hasAttribute('markerHeight')).toBe(false)
+      expect(wideOnly.hasAttribute('refX')).toBe(false)
     })
 
     it('moves sequence lifelines behind the message text', async () => {
