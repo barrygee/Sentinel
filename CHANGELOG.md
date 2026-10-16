@@ -520,6 +520,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bring dark-panel captions and values up to WCAG AA contrast
 - Merge waterfall markers closer than their 24px button
 - Turn the side panel red for an emergency squawk
+- Smaller, lighter docs menu and drop the Receiving responsibly page
 
 ### Chores
 
@@ -1562,6 +1563,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #498 from barrygee/chore/remove-external-services-leftovers
 - Merge pull request #499 from barrygee/fix/settings-label-contrast
 - Merge pull request #500 from barrygee/fix/dark-panel-contrast
+- Merge pull request #502 from barrygee/fix/docs-menu-type
 
 ### Refactoring
 
@@ -1857,6 +1859,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the Settings contrast fix
 - Rebuild the bundle with the docs navigation, contrast and Air fixes
 - Rebuild the bundle without the stray docs-page screenshot
+- Rebuild the bundle with the slimmer docs menu
 
 ### Continuous Integration
 
