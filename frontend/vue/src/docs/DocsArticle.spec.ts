@@ -25,7 +25,7 @@ const ALL_KINDS: DocBlock[] = [
   },
 ]
 
-async function mountArticle(blocks: readonly DocBlock[], url = '/doc/operations') {
+async function mountArticle(blocks: readonly DocBlock[], url = '/docs/operations') {
   return mountWithRouter(DocsArticle, { url, props: { blocks }, plugins: [createPinia()] })
 }
 
@@ -113,7 +113,7 @@ describe('DocsArticle', () => {
     const docLinkBlocks: DocBlock[] = [
       {
         kind: 'html',
-        html: '<p><a id="doc" href="/doc/sections" data-doc-link>Sections <span id="inner">inner</span></a> <a id="plain" href="https://example.com">Out</a> <a id="nohref" data-doc-link>No href</a> <a id="empty" href="" data-doc-link>Empty</a></p>',
+        html: '<p><a id="doc" href="/docs/sections" data-doc-link>Sections <span id="inner">inner</span></a> <a id="plain" href="https://example.com">Out</a> <a id="nohref" data-doc-link>No href</a> <a id="empty" href="" data-doc-link>Empty</a></p>',
       },
     ]
 
@@ -122,7 +122,7 @@ describe('DocsArticle', () => {
       const outcome = click(wrapper.get('#doc').element)
       await flushPromises()
       expect(outcome.prevented).toBe(true)
-      expect(router.currentRoute.value.path).toBe('/doc/sections')
+      expect(router.currentRoute.value.path).toBe('/docs/sections')
     })
 
     it('routes a click on something inside the link', async () => {
@@ -130,16 +130,19 @@ describe('DocsArticle', () => {
       const outcome = click(wrapper.get('#inner').element)
       await flushPromises()
       expect(outcome.prevented).toBe(true)
-      expect(router.currentRoute.value.path).toBe('/doc/sections')
+      expect(router.currentRoute.value.path).toBe('/docs/sections')
     })
 
     it('keeps the fragment of the link', async () => {
       const { wrapper, router } = await mountArticle([
-        { kind: 'html', html: '<p><a id="doc" href="/doc/sections#sea" data-doc-link>Sea</a></p>' },
+        {
+          kind: 'html',
+          html: '<p><a id="doc" href="/docs/sections#sea" data-doc-link>Sea</a></p>',
+        },
       ])
       click(wrapper.get('#doc').element)
       await flushPromises()
-      expect(router.currentRoute.value.fullPath).toBe('/doc/sections#sea')
+      expect(router.currentRoute.value.fullPath).toBe('/docs/sections#sea')
     })
 
     it.each([
@@ -152,14 +155,14 @@ describe('DocsArticle', () => {
       const outcome = click(wrapper.get('#doc').element, modifier)
       await flushPromises()
       expect(outcome.prevented).toBe(false)
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
 
     it('leaves a middle-click and a right-click to the browser', async () => {
       const { wrapper, router } = await mountArticle(docLinkBlocks)
       expect(click(wrapper.get('#doc').element, { button: 1 }).prevented).toBe(false)
       expect(click(wrapper.get('#doc').element, { button: 2 }).prevented).toBe(false)
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
 
     it('does not handle a click someone else already handled', async () => {
@@ -168,28 +171,28 @@ describe('DocsArticle', () => {
       link.addEventListener('click', (event) => event.preventDefault())
       click(link)
       await flushPromises()
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
 
     it('leaves external links to the browser', async () => {
       const { wrapper, router } = await mountArticle(docLinkBlocks)
       const outcome = click(wrapper.get('#plain').element)
       expect(outcome.prevented).toBe(false)
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
 
     it('ignores a marked link with no usable href', async () => {
       const { wrapper, router } = await mountArticle(docLinkBlocks)
       expect(click(wrapper.get('#nohref').element).prevented).toBe(false)
       expect(click(wrapper.get('#empty').element).prevented).toBe(false)
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
 
     it('ignores clicks that are not on a link', async () => {
       const { wrapper, router } = await mountArticle(docLinkBlocks)
       const outcome = click(wrapper.get('.doc-prose').element)
       expect(outcome.prevented).toBe(false)
-      expect(router.currentRoute.value.path).toBe('/doc/operations')
+      expect(router.currentRoute.value.path).toBe('/docs/operations')
     })
   })
 

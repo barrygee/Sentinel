@@ -35,10 +35,10 @@
         </span>
       </BaseIconButton>
 
-      <!-- Docs: the only way into /doc. A link, not a section button: it leaves
+      <!-- Docs: the only way into /docs. A link, not a section button: it leaves
            Settings for another page (the route change closes this panel), so it
            never takes the active bar. Sits straight under the section buttons. -->
-      <RouterLink v-slot="{ href, navigate }" to="/doc/" custom>
+      <RouterLink v-slot="{ href, navigate }" to="/docs/" custom>
         <BaseIconLink
           class="settings-nav-docs"
           :href="href"

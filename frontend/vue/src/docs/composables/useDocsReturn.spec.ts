@@ -13,7 +13,7 @@ async function setup(returnPath: string | null = '/air/') {
   window.history.replaceState(null, '', '/')
   const router = createDocsTestWebRouter()
   await router.push('/air/')
-  await router.push('/doc/operations')
+  await router.push('/docs/operations')
   docsReturn.path = returnPath
   const { result } = mountComposable(() => useDocsReturn(), [router])
   return { router, closeDocs: result.closeDocs }
@@ -100,7 +100,7 @@ describe('useDocsReturn', () => {
       closeDocs()
       await flushPromises()
       expect(router.currentRoute.value.path).toBe('/')
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       // The page before this one is now "/", the return path, so closing goes back.
       const back = vi.spyOn(router, 'back').mockImplementation(() => undefined)
       closeDocs()

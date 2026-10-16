@@ -19,7 +19,7 @@ const library = buildDocsLibrary(
 function render(markdown: string) {
   return renderDocument(markdown, {
     file: 'docs/sections.md',
-    pageUrl: '/doc/sections',
+    pageUrl: '/docs/sections',
     library,
     imageUrls: { 'docs/images/map.png': '/spa-assets/map-1.png' },
   })
@@ -127,8 +127,8 @@ describe('renderDocument: prose', () => {
   it('rewrites links in prose, lists and headings', () => {
     const rendered = render('# T\n\nSee [ops](operations.md).\n\n## About [ops](operations.md)\n')
     const prose = rendered.blocks[0]
-    expect(prose?.kind === 'html' && prose.html).toContain('href="/doc/operations"')
-    expect(headings(rendered.blocks)[0]?.html).toContain('href="/doc/operations"')
+    expect(prose?.kind === 'html' && prose.html).toContain('href="/docs/operations"')
+    expect(headings(rendered.blocks)[0]?.html).toContain('href="/docs/operations"')
   })
 })
 
@@ -232,7 +232,7 @@ describe('renderDocument: tables', () => {
 
   it('rewrites links in a table', () => {
     const [block] = render('| a |\n| - |\n| [ops](operations.md) |\n').blocks
-    expect(block?.kind === 'table' && block.html).toContain('href="/doc/operations"')
+    expect(block?.kind === 'table' && block.html).toContain('href="/docs/operations"')
   })
 })
 

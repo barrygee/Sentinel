@@ -47,13 +47,13 @@ flowchart TB
 2. `nats`, then `app`, then the gateway and every section and the hub.
 3. Each section waits for core (`waiting for core to answer`), connects to NATS, runs `prepare` (tables, first-boot import) and `start` (background work).
 4. It registers its **manifest** (id, address, path prefixes) with core.
-5. Core pushes the routes into Caddy, and health-probes the service every 10 s.
+5. Core pushes the routes into Caddy, and health-probes the service every 10 seconds.
 
 Three failed probes mark it unavailable: its route answers 503 and the shell greys it out. The registry is in memory; services re-register, so a restarted core relearns them in seconds.
 
 ## Routing
 
-Core keeps the gateway's routes in step through Caddy's admin API (:2019, compose network only): at once on a registration, and every 10 s, so a restarted gateway heals itself. Longest prefix wins:
+Core keeps the gateway's routes in step through Caddy's admin API (:2019, compose network only): at once on a registration, and every 10 seconds, so a restarted gateway heals itself. Longest prefix wins:
 
 | Path | Goes to |
 |---|---|

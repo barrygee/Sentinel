@@ -5,7 +5,7 @@ import { extractSearchSections } from './extractSearchSections'
 function pageWith(markdown: string, overrides: Partial<DocsPage> = {}): DocsPage {
   return {
     path: 'operations',
-    url: '/doc/operations',
+    url: '/docs/operations',
     title: 'Operations',
     file: 'docs/operations.md',
     markdown,

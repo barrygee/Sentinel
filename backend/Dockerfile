@@ -24,7 +24,7 @@ WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./
 # template.css is imported via ../../../../frontend/assets/template.css
 COPY frontend/assets/ /repo/frontend/assets/
-# The in-app docs (/doc) bundle the repo's markdown at build time: docs/**/*.md
+# The in-app docs (/docs) bundle the repo's markdown at build time: docs/**/*.md
 # (docs/plans is left out by the glob) and the root CONTRIBUTING.md, resolved
 # from src/docs/ as ../../../../docs and ../../../../CONTRIBUTING.md.
 COPY docs/ /repo/docs/

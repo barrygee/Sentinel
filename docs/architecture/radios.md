@@ -31,7 +31,7 @@ flowchart TB
 
 - The browser records the WAV (it has the audio, only while squelch is open); the hub captures IQ (it has the samples).
 - On stop the browser uploads the WAV; the SDR service then fetches the `.u8` from the hub's `/internal/radio-hub/iq-captures/<id>` (only SDR's credential may) and clears **COPYING IQ…**.
-- A 60 s reconcile loop retries copies, stops stray captures and discards uncollected ones. No shared volume, so the hub can run elsewhere.
+- A 60-second reconcile loop retries copies, stops stray captures and discards uncollected ones. No shared volume, so the hub can run elsewhere.
 - Always build paths with `sentinel_sdr.services.recording_folders`; each recording stores its own folder.
 
 ## Decoders
@@ -61,7 +61,7 @@ sequenceDiagram
 ```
 
 - Decoders reach the hub through the gateway and learn the PCM socket from `/config`, so nothing hard-codes where the hub runs.
-- **APRS and AIS own an absolute channel**: they tune on start, demodulate at the offset for each chunk's real capture frequency, and pull the radio back after ~15 s if moved.
+- **APRS and AIS own an absolute channel**: they tune on start, demodulate at the offset for each chunk's real capture frequency, and pull the radio back after about 15 seconds if moved.
 - AIS decodes both channels 50 kHz apart as stereo; one channel loses half the traffic.
 
 ## A new decoder kind

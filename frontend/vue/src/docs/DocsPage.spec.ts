@@ -61,37 +61,37 @@ describe('DocsPage', () => {
 
   describe('a page', () => {
     it("shows the page title as the one h1, with the markdown title's anchor id", async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.findAll('h1')).toHaveLength(1)
       expect(headingText(wrapper)).toBe('Check logs')
       expect(wrapper.get('h1').attributes('id')).toBe('check-logs')
     })
 
     it("shows the page's content in the article", async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.get('article').text()).toContain('Read the logs.')
       expect(wrapper.findAll('article h2').map((heading) => heading.text())).toEqual([
         'Health checks',
       ])
     })
 
-    it('shows the welcome page at /doc/', async () => {
-      const { wrapper } = await mountPage('/doc/')
+    it('shows the welcome page at /docs/', async () => {
+      const { wrapper } = await mountPage('/docs/')
       expect(headingText(wrapper)).toBe('Welcome to Sentinel')
       expect(wrapper.get('article').text()).toContain('Start here.')
     })
 
     it('gives a breadcrumb of group (linked to its first page) and page', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const breadcrumb = wrapper.get('nav[aria-label="Breadcrumb"]')
       const link = breadcrumb.get('a')
       expect(link.text()).toBe('Use Sentinel')
-      expect(link.attributes('href')).toBe('/doc/sections')
+      expect(link.attributes('href')).toBe('/docs/sections')
       expect(breadcrumb.get('[aria-current="page"]').text()).toBe('Check logs')
     })
 
     it("shows the Settings rail and opens the page's group in the page list", async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(true)
       const active = wrapper.findAll('.doc-page-list__group-toggle--active')
       expect(active).toHaveLength(1)
@@ -100,50 +100,50 @@ describe('DocsPage', () => {
     })
 
     it("lists the group's pages with the current one marked", async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const list = wrapper.get('nav[aria-label="Documentation pages"] #doc-pages-sdr')
       expect(list.get('a[aria-current="page"]').text()).toBe('Check logs')
     })
 
     it('shows previous and next across groups', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.get('a[rel="prev"]').text()).toContain('What each section does')
       expect(wrapper.get('a[rel="next"]').text()).toContain('Contributing')
     })
 
     it('shows only next on the first page', async () => {
-      const { wrapper } = await mountPage('/doc/')
+      const { wrapper } = await mountPage('/docs/')
       expect(wrapper.find('a[rel="prev"]').exists()).toBe(false)
       expect(wrapper.find('a[rel="next"]').exists()).toBe(true)
     })
 
     it('has exactly one live region', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.findAll('[role="status"]')).toHaveLength(1)
     })
 
     it('is a light-island reading page', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.get('[data-testid="docs-page"]').classes()).toEqual(
         expect.arrayContaining(['doc-page', 'theme-light', 'light-island']),
       )
     })
 
     it('sets the window title after the page renders', async () => {
-      await mountPage('/doc/operations')
+      await mountPage('/docs/operations')
       expect(document.title).toBe('Check logs · Docs · Sentinel')
     })
 
     it('follows the route to another page', async () => {
-      const { wrapper, router } = await mountPage('/doc/operations')
-      await router.push('/doc/sections')
+      const { wrapper, router } = await mountPage('/docs/operations')
+      await router.push('/docs/sections')
       await settle(wrapper)
       expect(headingText(wrapper)).toBe('What each section does')
       expect(document.title).toBe('What each section does · Docs · Sentinel')
     })
 
     it('tells the store the docs page is on screen only while it is mounted', async () => {
-      const { wrapper, store } = await mountPage('/doc/operations')
+      const { wrapper, store } = await mountPage('/docs/operations')
       expect(store.active).toBe(true)
       wrapper.unmount()
       expect(store.active).toBe(false)
@@ -152,7 +152,7 @@ describe('DocsPage', () => {
 
   describe('search', () => {
     it('replaces the page with search results under a SEARCH RESULTS heading', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       expect(headingText(wrapper)).toBe('SEARCH RESULTS')
       expect(wrapper.find('article').exists()).toBe(false)
       expect(wrapper.get('.doc-search-results__summary').text()).toContain('for “air”')
@@ -160,40 +160,40 @@ describe('DocsPage', () => {
     })
 
     it('gives the search heading no anchor id', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       expect(wrapper.get('h1').attributes('id')).toBeUndefined()
     })
 
     it('has a Docs > Search breadcrumb and a "Search results" window title', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       const breadcrumb = wrapper.get('nav[aria-label="Breadcrumb"]')
-      expect(breadcrumb.get('a').attributes('href')).toBe('/doc/')
+      expect(breadcrumb.get('a').attributes('href')).toBe('/docs/')
       expect(breadcrumb.get('[aria-current="page"]').text()).toBe('Search')
       expect(document.title).toBe('Search results · Docs · Sentinel')
     })
 
     it('hides "On this page" and previous/next while showing results', async () => {
-      const { wrapper } = await mountPage('/doc/operations?q=air')
+      const { wrapper } = await mountPage('/docs/operations?q=air')
       expect(wrapper.find('nav[aria-label="On this page"]').exists()).toBe(false)
       expect(wrapper.find('nav[aria-label="Previous and next page"]').exists()).toBe(false)
     })
 
     it('says so when nothing matches', async () => {
-      const { wrapper } = await mountPage('/doc/?q=zzzzzz')
+      const { wrapper } = await mountPage('/docs/?q=zzzzzz')
       expect(wrapper.get('.doc-search-results__empty').text()).toBe('NO RESULTS FOR “ZZZZZZ”')
     })
 
     it('does not search for a single character, and keeps showing the page', async () => {
-      const { wrapper } = await mountPage('/doc/operations?q=a')
+      const { wrapper } = await mountPage('/docs/operations?q=a')
       expect(headingText(wrapper)).toBe('Check logs')
       expect(wrapper.find('.doc-search-results').exists()).toBe(false)
     })
 
     it('finds a section containing any one of several words', async () => {
-      const { wrapper } = await mountPage('/doc/?q=backups%20ships')
+      const { wrapper } = await mountPage('/docs/?q=backups%20ships')
       const links = wrapper.findAll('.doc-search-result a').map((link) => link.attributes('href'))
-      expect(links).toContain('/doc/operations#backups')
-      expect(links).toContain('/doc/sections#sea')
+      expect(links).toContain('/docs/operations#backups')
+      expect(links).toContain('/docs/sections#sea')
     })
 
     it('announces the result count through the one live region once typing settles', async () => {
@@ -201,7 +201,7 @@ describe('DocsPage', () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       const router = createDocsTestRouter()
-      await router.push('/doc/?q=backups')
+      await router.push('/docs/?q=backups')
       const wrapper = mount(DocsPage, {
         global: { plugins: [router, pinia] },
         attachTo: document.body,
@@ -215,7 +215,7 @@ describe('DocsPage', () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       const router = createDocsTestRouter()
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       const wrapper = mount(DocsPage, {
         global: { plugins: [router, pinia] },
         attachTo: document.body,
@@ -231,7 +231,7 @@ describe('DocsPage', () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       const router = createDocsTestRouter()
-      await router.push('/doc/operations?q=backups')
+      await router.push('/docs/operations?q=backups')
       const wrapper = mount(DocsPage, {
         global: { plugins: [router, pinia] },
         attachTo: document.body,
@@ -243,7 +243,7 @@ describe('DocsPage', () => {
     })
 
     it('puts the query in the search box on a cold load', async () => {
-      const { wrapper } = await mountPage('/doc/?q=backups')
+      const { wrapper } = await mountPage('/docs/?q=backups')
       expect((wrapper.get('input[type="search"]').element as HTMLInputElement).value).toBe(
         'backups',
       )
@@ -252,15 +252,15 @@ describe('DocsPage', () => {
 
   describe('page not found', () => {
     it('says so under a PAGE NOT FOUND heading with the address and a way on', async () => {
-      const { wrapper } = await mountPage('/doc/use/missing')
+      const { wrapper } = await mountPage('/docs/use/missing')
       expect(headingText(wrapper)).toBe('PAGE NOT FOUND')
-      expect(wrapper.get('.doc-not-found code').text()).toBe('/doc/use/missing')
-      expect(wrapper.get('.doc-not-found a').attributes('href')).toBe('/doc/')
+      expect(wrapper.get('.doc-not-found code').text()).toBe('/docs/use/missing')
+      expect(wrapper.get('.doc-not-found a').attributes('href')).toBe('/docs/')
       expect(wrapper.find('article').exists()).toBe(false)
     })
 
     it('has a Docs > Page not found breadcrumb and window title', async () => {
-      const { wrapper } = await mountPage('/doc/missing')
+      const { wrapper } = await mountPage('/docs/missing')
       const breadcrumb = wrapper.get('nav[aria-label="Breadcrumb"]')
       expect(breadcrumb.get('a').text()).toBe('Docs')
       expect(breadcrumb.get('[aria-current="page"]').text()).toBe('Page not found')
@@ -268,14 +268,14 @@ describe('DocsPage', () => {
     })
 
     it('puts focus in its own search box, guessing the last part of the address', async () => {
-      const { wrapper } = await mountPage('/doc/use/missing')
+      const { wrapper } = await mountPage('/docs/use/missing')
       const field = wrapper.get('.doc-not-found input').element as HTMLInputElement
       expect(document.activeElement).toBe(field)
       expect(field.value).toBe('missing')
     })
 
     it('marks no group active and opens none, but still lists every group', async () => {
-      const { wrapper } = await mountPage('/doc/missing')
+      const { wrapper } = await mountPage('/docs/missing')
       expect(wrapper.findAll('.doc-page-list__group-toggle--active')).toHaveLength(0)
       expect(wrapper.findAll('.doc-page-list [aria-expanded="true"]')).toHaveLength(0)
       expect(wrapper.findAll('.doc-page-list__group-toggle')).toHaveLength(3)
@@ -283,13 +283,13 @@ describe('DocsPage', () => {
     })
 
     it('has no "On this page" and no previous/next', async () => {
-      const { wrapper } = await mountPage('/doc/missing')
+      const { wrapper } = await mountPage('/docs/missing')
       expect(wrapper.find('nav[aria-label="On this page"]').exists()).toBe(false)
       expect(wrapper.find('nav[aria-label="Previous and next page"]').exists()).toBe(false)
     })
 
     it('searches when its search box is used', async () => {
-      const { wrapper, router } = await mountPage('/doc/use/missing')
+      const { wrapper, router } = await mountPage('/docs/use/missing')
       await wrapper.get('.doc-not-found input').trigger('keydown', { key: 'Enter' })
       await flushPromises()
       expect(router.currentRoute.value.query.q).toBe('missing')
@@ -297,7 +297,7 @@ describe('DocsPage', () => {
     })
 
     it('shows search results (not the not-found page) for an unknown path with a query', async () => {
-      const { wrapper } = await mountPage('/doc/missing?q=air')
+      const { wrapper } = await mountPage('/docs/missing?q=air')
       expect(headingText(wrapper)).toBe('SEARCH RESULTS')
       expect(wrapper.find('.doc-not-found').exists()).toBe(false)
     })
@@ -305,14 +305,14 @@ describe('DocsPage', () => {
 
   describe('the navigation columns', () => {
     it('are shown by default', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(true)
       expect(wrapper.find('aside[aria-label="Documentation navigation"]').exists()).toBe(true)
       expect(wrapper.get('.doc-body').classes()).not.toContain('doc-body--no-sidebar')
     })
 
     it('are hidden when the footer button closes them, leaving the content', async () => {
-      const { wrapper, store } = await mountPage('/doc/operations')
+      const { wrapper, store } = await mountPage('/docs/operations')
       store.toggleSidebar()
       await flushPromises()
       expect(wrapper.find('nav[aria-label="Settings sections"]').exists()).toBe(false)
@@ -322,7 +322,7 @@ describe('DocsPage', () => {
     })
 
     it('come back when toggled again', async () => {
-      const { wrapper, store } = await mountPage('/doc/operations')
+      const { wrapper, store } = await mountPage('/docs/operations')
       store.toggleSidebar()
       store.toggleSidebar()
       await flushPromises()
@@ -330,11 +330,11 @@ describe('DocsPage', () => {
     })
 
     it('close the phone page list when a new page opens', async () => {
-      const { wrapper, router } = await mountPage('/doc/operations')
+      const { wrapper, router } = await mountPage('/docs/operations')
       const button = wrapper.get('.doc-sidebar .doc-disclosure__button')
       await button.trigger('click')
       expect(button.attributes('aria-expanded')).toBe('true')
-      await router.push('/doc/sections')
+      await router.push('/docs/sections')
       await flushPromises()
       expect(wrapper.get('.doc-sidebar .doc-disclosure__button').attributes('aria-expanded')).toBe(
         'false',
@@ -344,19 +344,19 @@ describe('DocsPage', () => {
 
   describe('Escape', () => {
     it('closes the docs', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       pressEscape(wrapper.get('article').element)
       expect(closeDocs).toHaveBeenCalledTimes(1)
     })
 
     it('closes the docs from the heading, where focus starts', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       pressEscape(wrapper.get('h1').element)
       expect(closeDocs).toHaveBeenCalledTimes(1)
     })
 
     it('does not close while the reader is in a text field', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const textarea = document.createElement('textarea')
       wrapper.get('[data-testid="docs-page"]').element.appendChild(textarea)
       pressEscape(textarea)
@@ -364,7 +364,7 @@ describe('DocsPage', () => {
     })
 
     it('does not close while a select or editable region has the key', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const root = wrapper.get('[data-testid="docs-page"]').element
       const select = document.createElement('select')
       const editable = document.createElement('div')
@@ -376,7 +376,7 @@ describe('DocsPage', () => {
     })
 
     it('clears the search box first and only a second Escape closes the docs', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       const field = wrapper.get('input[type="search"]')
       pressEscape(field.element)
       expect(closeDocs).not.toHaveBeenCalled()
@@ -385,7 +385,7 @@ describe('DocsPage', () => {
     })
 
     it('does not close when something below already handled the key', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const article = wrapper.get('article').element
       article.addEventListener('keydown', (event) => event.preventDefault())
       pressEscape(article)
@@ -393,7 +393,7 @@ describe('DocsPage', () => {
     })
 
     it('closes an open phone page list first, and only then the docs', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       const button = wrapper.get('.doc-sidebar .doc-disclosure__button')
       await button.trigger('click')
       const pageLink = wrapper.get('.doc-sidebar nav a')
@@ -410,7 +410,7 @@ describe('DocsPage', () => {
 
   describe('keyboard in the search', () => {
     it('Down in the search box moves to the first result, Up on it returns to the box', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       const field = wrapper.get('input[type="search"]').element as HTMLInputElement
       field.focus()
       await wrapper.get('input[type="search"]').trigger('keydown', { key: 'ArrowDown' })
@@ -423,7 +423,7 @@ describe('DocsPage', () => {
     })
 
     it('Down with no results moves nowhere and does not throw', async () => {
-      const { wrapper } = await mountPage('/doc/?q=zzzzzz')
+      const { wrapper } = await mountPage('/docs/?q=zzzzzz')
       const field = wrapper.get('input[type="search"]').element as HTMLInputElement
       field.focus()
       await wrapper.get('input[type="search"]').trigger('keydown', { key: 'ArrowDown' })
@@ -435,7 +435,7 @@ describe('DocsPage', () => {
       const pinia = createPinia()
       setActivePinia(pinia)
       const router = createDocsTestRouter()
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       const wrapper = mount(DocsPage, {
         global: { plugins: [router, pinia] },
         attachTo: document.body,
@@ -452,20 +452,20 @@ describe('DocsPage', () => {
 
   describe('focus on arrival', () => {
     it('starts on the page heading', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       await settle(wrapper)
       expect(document.activeElement).toBe(wrapper.get('h1').element)
     })
 
     it('starts on the heading named by the #fragment', async () => {
-      const { wrapper } = await mountPage('/doc/operations#backups')
+      const { wrapper } = await mountPage('/docs/operations#backups')
       await settle(wrapper)
       expect(document.activeElement?.id).toBe('backups')
       expect(document.activeElement?.tagName).toBe('H3')
     })
 
     it('falls back to the page heading for an unknown #fragment', async () => {
-      const { wrapper } = await mountPage('/doc/operations#nothing-here')
+      const { wrapper } = await mountPage('/docs/operations#nothing-here')
       await settle(wrapper)
       expect(document.activeElement).toBe(wrapper.get('h1').element)
     })
@@ -475,41 +475,41 @@ describe('DocsPage', () => {
       outside.id = 'outside-heading'
       outside.tabIndex = -1
       document.body.appendChild(outside)
-      const { wrapper } = await mountPage('/doc/operations#outside-heading')
+      const { wrapper } = await mountPage('/docs/operations#outside-heading')
       await settle(wrapper)
       expect(document.activeElement).not.toBe(outside)
       expect(document.activeElement).toBe(wrapper.get('h1').element)
     })
 
     it('follows a link to a heading on the same page', async () => {
-      const { wrapper, router } = await mountPage('/doc/operations')
+      const { wrapper, router } = await mountPage('/docs/operations')
       await settle(wrapper)
-      await router.push('/doc/operations#backups')
+      await router.push('/docs/operations#backups')
       await settle(wrapper)
       expect(document.activeElement?.id).toBe('backups')
     })
 
     it('follows a search result to its heading on another page', async () => {
-      const { wrapper, router } = await mountPage('/doc/?q=backups')
+      const { wrapper, router } = await mountPage('/docs/?q=backups')
       await settle(wrapper)
       await wrapper.get('.doc-search-result a').trigger('click')
       await flushPromises()
-      expect(router.currentRoute.value.fullPath).toBe('/doc/operations#backups')
+      expect(router.currentRoute.value.fullPath).toBe('/docs/operations#backups')
       await settle(wrapper)
       expect(document.activeElement?.id).toBe('backups')
     })
 
     it('moves to the new page heading when navigating between pages', async () => {
-      const { wrapper, router } = await mountPage('/doc/operations')
+      const { wrapper, router } = await mountPage('/docs/operations')
       await settle(wrapper)
-      await router.push('/doc/sections')
+      await router.push('/docs/sections')
       await settle(wrapper)
       expect(document.activeElement).toBe(wrapper.get('h1').element)
       expect(headingText(wrapper)).toBe('What each section does')
     })
 
     it('leaves the not-found search box focused rather than moving to the heading', async () => {
-      const { wrapper } = await mountPage('/doc/missing')
+      const { wrapper } = await mountPage('/docs/missing')
       await settle(wrapper)
       expect(document.activeElement).toBe(wrapper.get('.doc-not-found input').element)
     })
@@ -519,32 +519,32 @@ describe('DocsPage', () => {
     const rules = { region: { enabled: false } }
 
     it('has no violations on a page', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
+      const { wrapper } = await mountPage('/docs/operations')
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()
     })
 
     it('has no violations on the welcome page', async () => {
-      const { wrapper } = await mountPage('/doc/')
+      const { wrapper } = await mountPage('/docs/')
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()
     })
 
     it('has no violations on search results', async () => {
-      const { wrapper } = await mountPage('/doc/?q=air')
+      const { wrapper } = await mountPage('/docs/?q=air')
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()
     })
 
     it('has no violations with no search results', async () => {
-      const { wrapper } = await mountPage('/doc/?q=zzzzzz')
+      const { wrapper } = await mountPage('/docs/?q=zzzzzz')
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()
     })
 
     it('has no violations on the not-found page', async () => {
-      const { wrapper } = await mountPage('/doc/missing')
+      const { wrapper } = await mountPage('/docs/missing')
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()
     })
 
     it('has no violations with the navigation columns hidden', async () => {
-      const { wrapper, store } = await mountPage('/doc/operations')
+      const { wrapper, store } = await mountPage('/docs/operations')
       store.toggleSidebar()
       await flushPromises()
       expect(await axe(wrapper.html(), { rules })).toHaveNoViolations()

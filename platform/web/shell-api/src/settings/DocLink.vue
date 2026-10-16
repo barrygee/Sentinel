@@ -5,10 +5,10 @@
  * this Settings section.
  *
  * Router-aware only through `RouterLink`, so it works in any app that mounts
- * the `/doc/<path>` route.
+ * the `/docs/<path>` route.
  */
 defineProps<{
-  /** Docs location below `/doc/`, with an optional anchor: `use/sdr/record#where-theyre-saved`. */
+  /** Docs location below `/docs/`, with an optional anchor: `use/sdr/record#where-theyre-saved`. */
   docPath: string
   /** The setting's label, so the link's name says what it is about. */
   settingLabel: string
@@ -16,7 +16,7 @@ defineProps<{
 </script>
 
 <template>
-  <RouterLink v-slot="{ href, navigate }" :to="`/doc/${docPath}`" custom>
+  <RouterLink v-slot="{ href, navigate }" :to="`/docs/${docPath}`" custom>
     <a
       class="doc-link"
       :href="href"

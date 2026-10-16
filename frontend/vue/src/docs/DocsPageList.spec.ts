@@ -100,8 +100,8 @@ describe('DocsPageList', () => {
     const links = wrapper.get('#doc-pages-sdr').findAll('a')
     expect(links.map((link) => link.text())).toEqual(['What each section does', 'Check logs'])
     expect(links.map((link) => link.attributes('href'))).toEqual([
-      '/doc/sections',
-      '/doc/operations',
+      '/docs/sections',
+      '/docs/operations',
     ])
   })
 
@@ -139,14 +139,14 @@ describe('DocsPageList', () => {
       .find((link) => link.text() === '0001 First')
       ?.trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/adr/0001-first')
+    expect(router.currentRoute.value.path).toBe('/docs/adr/0001-first')
   })
 
   it('navigates in the app when a top-level page is clicked', async () => {
     const { wrapper, router } = await mountList('sdr', 'sections')
-    await wrapper.get('#doc-pages-sdr a[href="/doc/operations"]').trigger('click')
+    await wrapper.get('#doc-pages-sdr a[href="/docs/operations"]').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/operations')
+    expect(router.currentRoute.value.path).toBe('/docs/operations')
   })
 
   it('offers no external changelog link', async () => {

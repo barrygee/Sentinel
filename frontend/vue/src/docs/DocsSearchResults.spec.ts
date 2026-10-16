@@ -118,19 +118,19 @@ describe('DocsSearchResults', () => {
       }
       const { wrapper } = await mountResults('x', outcome)
       expect(wrapper.findAll('li a').map((link) => link.attributes('href'))).toEqual([
-        '/doc/sections#sea',
-        '/doc/operations#backups',
+        '/docs/sections#sea',
+        '/docs/operations#backups',
       ])
     })
 
-    it('falls back to /doc/ for a result whose page is no longer in the library', async () => {
+    it('falls back to /docs/ for a result whose page is no longer in the library', async () => {
       const outcome: DocsSearchOutcome = {
         hits: [hitFor('gone', 'develop', 'gone')],
         totalHits: 1,
         expansions: [],
       }
       const { wrapper } = await mountResults('x', outcome)
-      expect(wrapper.get('li a').attributes('href')).toBe('/doc/')
+      expect(wrapper.get('li a').attributes('href')).toBe('/docs/')
     })
 
     it('is not a combobox: plain headings, lists and links', async () => {

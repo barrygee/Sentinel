@@ -8,7 +8,7 @@ import DocsSearchField from './DocsSearchField.vue'
  * with the last part of the address filled in as a first guess.
  */
 const props = defineProps<{
-  /** The address the reader asked for, below `/doc/`. */
+  /** The address the reader asked for, below `/docs/`. */
   requestedPath: string
 }>()
 
@@ -28,11 +28,11 @@ onMounted(() => {
 <template>
   <div class="doc-not-found">
     <p>
-      There's no page at <code>/doc/{{ requestedPath }}</code
+      There's no page at <code>/docs/{{ requestedPath }}</code
       >. It may have moved.
     </p>
     <p>
-      <RouterLink to="/doc/">Welcome to Sentinel</RouterLink>
+      <RouterLink to="/docs/">Welcome to Sentinel</RouterLink>
     </p>
     <p class="doc-not-found__prompt">Or search for it:</p>
     <DocsSearchField

@@ -25,7 +25,7 @@ import { useDocsStore } from './docsStore'
 import { renderDocument } from './markdown/renderDocument'
 
 /**
- * The `/doc/...` view: a document you read for a long time, in the Settings
+ * The `/docs/...` view: a document you read for a long time, in the Settings
  * language (a light island with a charcoal rail), not a modal. It composes the
  * group rail, the page list with search, a breadcrumb, and the
  * content column, which shows one of: the page, the search results, or "page
@@ -74,7 +74,7 @@ const trail = computed(() => {
   const current = page.value
   if (searchActive.value || !current) {
     return [
-      { label: 'Docs', to: '/doc/' },
+      { label: 'Docs', to: '/docs/' },
       { label: searchActive.value ? 'Search' : 'Page not found' },
     ]
   }
@@ -82,7 +82,7 @@ const trail = computed(() => {
     {
       label: current.groupTitle,
       /* v8 ignore start -- a page always belongs to a group that has at least that page */
-      to: activeGroup.value?.pages[0]?.url ?? '/doc/',
+      to: activeGroup.value?.pages[0]?.url ?? '/docs/',
       /* v8 ignore stop */
     },
     { label: current.title },

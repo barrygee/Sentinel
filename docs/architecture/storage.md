@@ -11,7 +11,7 @@ Every service owns its own SQLite database; only settings are shared, and they b
 | `backend/data/sentinel_config.json` | core | Live two-way copy of every setting |
 | `space.db` | space | Satellites and TLEs |
 | `air.db` | air | ADS-B snapshot cache, tracked aircraft |
-| `sea.db` | sea | `sea_vessel_cache` (30 s snapshot), `sea_vessel_static` |
+| `sea.db` | sea | `sea_vessel_cache` (30-second snapshot), `sea_vessel_static` |
 | `land.db` | land | APRS stations, `repeater_cache` |
 | `sdr.db` + recordings | sdr | Frequencies, groups, ranges, recordings |
 | `radio.db` | radio | Sentry hosts |
@@ -67,10 +67,10 @@ Fresh window: serve the cache. Past it: fetch. Fetch failed: serve a copy inside
 
 | What | Fresh / stale |
 |---|---|
-| ADS-B | 10 s / 60 s (`ADSB_TTL_MS`, `ADSB_STALE_MS`) |
+| ADS-B | 10 seconds / 60 seconds (`ADSB_TTL_MS`, `ADSB_STALE_MS`) |
 | TLEs | 6 h / 12 h; uploads 30 days |
 | UK repeaters | daily; stale up to 30 days, then the built-in copy |
-| Vessels | 30 min retention; snapshot every 30 s |
+| Vessels | 30 min retention; snapshot every 30 seconds |
 
 Windows are in `backend/config.py`; override them in `docker-compose.override.yml` ([how](../configuration.md#anything-else)).
 

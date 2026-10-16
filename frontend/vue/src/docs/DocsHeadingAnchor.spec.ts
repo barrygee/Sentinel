@@ -7,7 +7,7 @@ import * as clipboard from './composables/useClipboardCopy'
 import DocsHeadingAnchor from './DocsHeadingAnchor.vue'
 import { useDocsStore } from './docsStore'
 
-async function mountAnchor(url = '/doc/operations') {
+async function mountAnchor(url = '/docs/operations') {
   const pinia = createPinia()
   setActivePinia(pinia)
   const mounted = await mountWithRouter(DocsHeadingAnchor, {
@@ -44,7 +44,7 @@ describe('DocsHeadingAnchor', () => {
     wrapper.get('a').element.dispatchEvent(event)
     await flushPromises()
     expect(event.defaultPrevented).toBe(true)
-    expect(router.currentRoute.value.path).toBe('/doc/operations')
+    expect(router.currentRoute.value.path).toBe('/docs/operations')
     expect(router.currentRoute.value.hash).toBe('#health-checks')
   })
 
@@ -62,25 +62,25 @@ describe('DocsHeadingAnchor', () => {
     const { wrapper, store } = await mountAnchor()
     await wrapper.get('a').trigger('click')
     await flushPromises()
-    expect(copy).toHaveBeenCalledWith(`${window.location.origin}/doc/operations#health-checks`)
+    expect(copy).toHaveBeenCalledWith(`${window.location.origin}/docs/operations#health-checks`)
     await vi.advanceTimersByTimeAsync(60)
     expect(store.announcement).toBe('Link to section copied')
   })
 
   it('keeps the search query in the copied link', async () => {
-    const { wrapper } = await mountAnchor('/doc/operations?q=logs')
+    const { wrapper } = await mountAnchor('/docs/operations?q=logs')
     await wrapper.get('a').trigger('click')
     await flushPromises()
     expect(copy).toHaveBeenCalledWith(
-      `${window.location.origin}/doc/operations?q=logs#health-checks`,
+      `${window.location.origin}/docs/operations?q=logs#health-checks`,
     )
   })
 
   it('replaces an earlier fragment in the copied link', async () => {
-    const { wrapper } = await mountAnchor('/doc/operations#something-else')
+    const { wrapper } = await mountAnchor('/docs/operations#something-else')
     await wrapper.get('a').trigger('click')
     await flushPromises()
-    expect(copy).toHaveBeenCalledWith(`${window.location.origin}/doc/operations#health-checks`)
+    expect(copy).toHaveBeenCalledWith(`${window.location.origin}/docs/operations#health-checks`)
   })
 
   it('does not announce a copy that did not happen', async () => {

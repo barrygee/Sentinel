@@ -32,7 +32,7 @@ const { offeredSections } = useOfferedSettingsSections()
           </RouterLink>
         </li>
         <li>
-          <RouterLink v-slot="{ href, navigate }" to="/doc/" custom>
+          <RouterLink v-slot="{ href, navigate }" to="/docs/" custom>
             <BaseIconLink
               class="doc-rail__item doc-rail__docs"
               :href="href"

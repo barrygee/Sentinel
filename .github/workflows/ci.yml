@@ -301,7 +301,7 @@ jobs:
         run: npm run typecheck
 
       # Relative links and #anchors in docs/**, CONTRIBUTING.md and README.md,
-      # plus every page docs/nav.json lists. The in-app docs (/doc) bundle these
+      # plus every page docs/nav.json lists. The in-app docs (/docs) bundle these
       # files, so a dead link here is a dead link in the app.
       - name: Documentation links
         run: npm run check:doc-links

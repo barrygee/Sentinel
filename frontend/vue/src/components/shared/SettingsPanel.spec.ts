@@ -177,7 +177,7 @@ describe('SettingsPanel', () => {
   })
 
   describe('docs entry in the rail', () => {
-    it('is a link to /doc/ named "Docs (documentation)", not a toggle', () => {
+    it('is a link to /docs/ named "Docs (documentation)", not a toggle', () => {
       const wrapper = mountPanel()
       const docs = wrapper.find('.settings-nav-docs')
       expect(docs.exists()).toBe(true)

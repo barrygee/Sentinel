@@ -17,7 +17,7 @@ const library = buildDocsLibrary(
 
 const environment: DocsRenderEnvironment = {
   file: 'docs/sections.md',
-  pageUrl: '/doc/sections',
+  pageUrl: '/docs/sections',
   library,
   imageUrls: { 'docs/images/map.png': '/spa-assets/map-1.png' },
 }
@@ -42,14 +42,14 @@ describe('markdownEngine: raw HTML', () => {
 describe('markdownEngine: link rewriting', () => {
   it('points a link to another bundled doc at its in-app page and marks it for the router', () => {
     const html = render('[ops](operations.md#health)')
-    expect(html).toContain('href="/doc/operations#health"')
+    expect(html).toContain('href="/docs/operations#health"')
     expect(html).toContain('data-doc-link')
     expect(html).not.toContain('target=')
   })
 
   it('points a #anchor link at the page being read', () => {
     const html = render('[jump](#install)')
-    expect(html).toContain('href="/doc/sections#install"')
+    expect(html).toContain('href="/docs/sections#install"')
     expect(html).toContain('data-doc-link')
   })
 
@@ -99,7 +99,7 @@ describe('markdownEngine: link rewriting', () => {
 
   it('rewrites links inside list items, headings and emphasis', () => {
     const html = render('- [ops](operations.md)\n\n## See [ops](operations.md)')
-    expect(html.match(/href="\/doc\/operations"/g)).toHaveLength(2)
+    expect(html.match(/href="\/docs\/operations"/g)).toHaveLength(2)
   })
 
   it('leaves links alone when parsed without a document (search indexing)', () => {

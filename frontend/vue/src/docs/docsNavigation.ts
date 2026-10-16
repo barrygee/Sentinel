@@ -7,7 +7,7 @@ import {
   type DocsPage,
 } from './docsTypes'
 
-/** The path of the welcome page, which is served at `/doc/`. */
+/** The path of the welcome page, which is served at `/docs/`. */
 export const DOCS_INDEX_PATH = 'index'
 
 /** Thrown when `docs/nav.json` is malformed or names a file that was not bundled. */
@@ -18,13 +18,13 @@ export class DocsNavigationError extends Error {
   }
 }
 
-/** The router URL of a page path: `index` -> `/doc/`, `operations` -> `/doc/operations`. */
+/** The router URL of a page path: `index` -> `/docs/`, `operations` -> `/docs/operations`. */
 export function docsPageUrl(path: string): string {
-  return path === DOCS_INDEX_PATH ? '/doc/' : `/doc/${path}`
+  return path === DOCS_INDEX_PATH ? '/docs/' : `/docs/${path}`
 }
 
 /**
- * Turns the router's `/doc/<...>` parameter into a page path: surrounding
+ * Turns the router's `/docs/<...>` parameter into a page path: surrounding
  * slashes are dropped and an empty parameter means the welcome page.
  */
 export function docsPathFromParam(param: string): string {

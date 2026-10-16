@@ -23,7 +23,7 @@ function setRoute(path: string): void {
   shared.route!.path = path
   shared.route!.meta = section && sectionIds.includes(section) ? { domain: section } : {}
   // The Settings page is the named `settings` route, as in router/index.ts.
-  shared.route!.name = section === 'settings' ? 'settings' : section === 'doc' ? 'doc' : undefined
+  shared.route!.name = section === 'settings' ? 'settings' : section === 'docs' ? 'doc' : undefined
 }
 
 vi.mock('vue-router', () => ({
@@ -629,7 +629,7 @@ describe('App', () => {
 
     it('titles the docs page with a bare "DOCS" until the page sets its own', async () => {
       mountApp()
-      setRoute('/doc/operations')
+      setRoute('/docs/operations')
       await nextTick()
       expect(document.title).toBe('SENTINEL — DOCS')
     })
@@ -637,7 +637,7 @@ describe('App', () => {
     it('leaves focus to the docs page when navigating to it', async () => {
       const wrapper = mountApp({ attach: true })
       const main = wrapper.get('#main').element
-      setRoute('/doc/operations')
+      setRoute('/docs/operations')
       await nextTick()
       await nextTick()
       expect(document.activeElement).not.toBe(main)
@@ -648,7 +648,7 @@ describe('App', () => {
       const aside = () => wrapper.get('aside[aria-label="Map controls"]')
       expect(aside().attributes('inert')).toBeUndefined()
 
-      setRoute('/doc/')
+      setRoute('/docs/')
       await nextTick()
       expect(aside().attributes('inert')).toBeDefined()
 

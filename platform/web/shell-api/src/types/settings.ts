@@ -54,7 +54,7 @@ export interface SettingItem {
    */
   hideLabel?: boolean
   /**
-   * The page of the in-app docs that explains this setting, below `/doc/` and
+   * The page of the in-app docs that explains this setting, below `/docs/` and
    * with an optional anchor (`operations#where-recordings-are-saved`). When set,
    * the row shows a "LEARN MORE" link to it after the description.
    */
