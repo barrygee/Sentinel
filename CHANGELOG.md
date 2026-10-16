@@ -521,6 +521,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge waterfall markers closer than their 24px button
 - Turn the side panel red for an emergency squawk
 - Smaller, lighter docs menu and drop the Receiving responsibly page
+- Select a search-list pick on the map so its trail/track draws
 
 ### Chores
 
@@ -1564,6 +1565,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #499 from barrygee/fix/settings-label-contrast
 - Merge pull request #500 from barrygee/fix/dark-panel-contrast
 - Merge pull request #502 from barrygee/fix/docs-menu-type
+- Merge pull request #501 from barrygee/fix/search-pick-selects-on-map
 
 ### Refactoring
 
@@ -1860,6 +1862,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the docs navigation, contrast and Air fixes
 - Rebuild the bundle without the stray docs-page screenshot
 - Rebuild the bundle with the slimmer docs menu
+- Rebuild the Air and Sea remotes with search-pick selection
 
 ### Continuous Integration
 
