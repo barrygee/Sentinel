@@ -1013,6 +1013,27 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     expect(wrapper.find('.sdr-wf-known-marker-pop').exists()).toBe(false)
   })
 
+  it("merges dots closer than a marker's 24 px button, so no two targets overlap", async () => {
+    const { wrapper, store } = mountWaterfall()
+    // 1 px ≈ 1 kHz across the default 2.048 MHz window, as below.
+    specPlot()._Mx.l = 0
+    specPlot()._Mx.r = 2048
+    store.frequencies = [
+      { id: 1, group_id: null, label: 'NEAR-A', frequency_hz: 100_000_000, mode: 'NFM' },
+      { id: 2, group_id: null, label: 'NEAR-B', frequency_hz: 100_020_000, mode: 'NFM' }, // ~20 px ⇒ merges
+      { id: 3, group_id: null, label: 'APART', frequency_hz: 100_050_000, mode: 'NFM' }, // ~30 px further ⇒ separate
+    ]
+    store.setShowKnownFreqs(true)
+    await playWithFrame(store)
+    await wrapper.vm.$nextTick()
+    const markers = wrapper.findAll('.sdr-wf-known-marker')
+    expect(markers).toHaveLength(2)
+    expect(markers[0].find('.sdr-wf-known-marker-dot').attributes('aria-label')).toBe(
+      '2 known frequencies',
+    )
+    expect(markers[1].find('.sdr-wf-known-marker-dot').attributes('aria-label')).toBe('APART')
+  })
+
   it('merges dots that would overlap into one counted marker listing every name', async () => {
     const { wrapper, store } = mountWaterfall()
     // Size the data box so 1 px ≈ 1 kHz across the default 2.048 MHz window.
