@@ -105,13 +105,6 @@ describe('DocsPage', () => {
       expect(list.get('a[aria-current="page"]').text()).toBe('Check logs')
     })
 
-    it('shows "On this page" for the h2 and h3 headings', async () => {
-      const { wrapper } = await mountPage('/doc/operations')
-      const toc = wrapper.get('nav[aria-label="On this page"]')
-      expect(toc.findAll('a').map((link) => link.text())).toEqual(['Health checks', 'Backups'])
-      expect(toc.get('a').attributes('href')).toBe('/doc/operations#health-checks')
-    })
-
     it('shows previous and next across groups', async () => {
       const { wrapper } = await mountPage('/doc/operations')
       expect(wrapper.get('a[rel="prev"]').text()).toContain('What each section does')

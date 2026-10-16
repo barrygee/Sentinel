@@ -2,7 +2,8 @@
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 
 /**
- * The icon of one Settings section (App Settings, AIR, SPACE, SEA, LAND, SDR):
+ * The icon of one Settings section (App Settings, AIR, SPACE, SEA, LAND, SDR),
+ * or `docs` for the Docs entry below them:
  * 24px grid, 1.8 strokes, `currentColor`. Shared by the Settings rail and the
  * docs rail, so a section looks the same in both. Any other key draws SDR's
  * radio (SDR's own `RadioIcon`). One root either way, so a class passed in
@@ -14,7 +15,7 @@ defineProps<{
 }>()
 
 /** Keys drawn inline here; anything else is SDR's shared radio glyph. */
-const INLINE_ICON_KEYS: readonly string[] = ['app', 'air', 'space', 'sea', 'land']
+const INLINE_ICON_KEYS: readonly string[] = ['app', 'air', 'space', 'sea', 'land', 'docs']
 </script>
 
 <template>
@@ -94,6 +95,24 @@ const INLINE_ICON_KEYS: readonly string[] = ['app', 'air', 'space', 'sea', 'land
         stroke="currentColor"
         stroke-width="1.8"
         stroke-linejoin="round"
+      />
+    </template>
+    <!-- Docs: an open book -->
+    <template v-else-if="sectionKey === 'docs'">
+      <path
+        d="M12 6.5C10.4 5 7.6 4.5 4 4.5v13c3.6 0 6.4.5 8 2 1.6-1.5 4.4-2 8-2v-13c-3.6 0-6.4.5-8 2z"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linejoin="round"
+      />
+      <line
+        x1="12"
+        y1="6.5"
+        x2="12"
+        y2="19.5"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
       />
     </template>
   </svg>

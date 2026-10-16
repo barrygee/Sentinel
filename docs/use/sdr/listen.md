@@ -15,7 +15,7 @@ See a whole band at once, tune to a signal and listen.
 - **Plays everywhere**: audio continues in other sections, Settings and Docs; the footer shows the frequency.
 - **Timestamps** down the waterfall, every so many seconds.
 
-![The SDR section tuned to 145.5000 MHz: the radio panel on the left with the play, stop and record buttons, SIGNAL meter, MODULATION and settings; the spectrum and waterfall on the right with the tuned frequency marked.](../../images/sdr-radio-panel.png)
+![The SDR section playing the Calling channel on 145.5000 MHz in NFM: the radio panel with the SIGNAL meter, MODULATION and SETTINGS on the left; the spectrum with saved-frequency markers along its top, and a full waterfall showing the steady signal, conversations keying up and down, and APRS bursts on 144.800 MHz.](../../images/sdr-radio-panel.png)
 
 ## Listen
 
