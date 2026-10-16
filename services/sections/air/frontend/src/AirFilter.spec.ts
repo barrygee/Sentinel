@@ -70,7 +70,9 @@ function makeAdsb(features: ReturnType<typeof planeFeature>[] = []) {
     _followEnabled: false,
     _selectedHex: null as string | null,
     _geojson: { type: 'FeatureCollection', features },
-    _interpolatedCoords: vi.fn(() => null as [number, number] | null),
+    // False by default: the aircraft is not in the control's feed, so the pane
+    // falls back to easing the map to the row's snapshot coordinates itself.
+    selectByHex: vi.fn((_hex: string) => false),
     _trackingNotifIds: null as Record<string, string> | null,
     _rebuildTagForHex: vi.fn(),
     toggleFollowByHex: vi.fn(),
@@ -604,13 +606,23 @@ describe('AirFilter', () => {
   })
 
   describe('selection actions', () => {
-    it('eases to a plane using the interpolated coordinates when available', async () => {
+    it('selects a picked plane on the map through the control, which does the easing', async () => {
       const map = makeMap()
       const adsb = makeAdsb(defaultPlanes())
-      adsb._interpolatedCoords.mockReturnValue([1, 2])
+      adsb.selectByHex.mockReturnValue(true)
       const wrapper = mountFilter(adsb, () => map)
       await wrapper.findAll('.bfp-result-info')[0]!.trigger('click')
-      expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [1, 2] }))
+      expect(adsb.selectByHex).toHaveBeenCalledWith('aa1')
+      expect(map.easeTo).not.toHaveBeenCalled()
+    })
+
+    it('eases to the snapshot coordinates when the control cannot select the plane', async () => {
+      const map = makeMap()
+      const adsb = makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' }, [7, 8])])
+      const wrapper = mountFilter(adsb, () => map)
+      await wrapper.findAll('.bfp-result-info')[0]!.trigger('click')
+      expect(adsb.selectByHex).toHaveBeenCalledWith('aa1')
+      expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [7, 8] }))
     })
 
     it('does nothing when selecting a plane with no adsb control', async () => {
@@ -993,22 +1005,22 @@ describe('AirFilter', () => {
       }
     })
 
-    it('centres the map on the aircraft via the centre button', async () => {
+    it('centres the map on the aircraft via the centre button, selecting it through the control', async () => {
       const map = makeMap()
       const adsb = makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' }, [1, 2])])
-      adsb._interpolatedCoords.mockReturnValue([3, 4])
+      adsb.selectByHex.mockReturnValue(true)
       const wrapper = mountFilter(adsb, () => map)
       await openPlane(wrapper)
-      // Opening already eased once; clear and assert the explicit centre click.
-      map.easeTo.mockClear()
+      // Opening already selected once; clear and assert the explicit centre click.
+      adsb.selectByHex.mockClear()
       await accordionButton(wrapper, 'centre').trigger('click')
-      expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [3, 4] }))
+      expect(adsb.selectByHex).toHaveBeenCalledWith('aa1')
+      expect(map.easeTo).not.toHaveBeenCalled()
     })
 
-    it('centre button falls back to snapshot coordinates without interpolation', async () => {
+    it('centre button falls back to snapshot coordinates when the control cannot select', async () => {
       const map = makeMap()
       const adsb = makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' }, [5, 6])])
-      adsb._interpolatedCoords.mockReturnValue(null)
       const wrapper = mountFilter(adsb, () => map)
       await openPlane(wrapper)
       map.easeTo.mockClear()

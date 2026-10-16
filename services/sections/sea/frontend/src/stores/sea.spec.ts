@@ -227,6 +227,43 @@ describe('sea store', () => {
       expect(store.selectedTrack).toEqual([])
     })
 
+    it('selectVessel selects the vessel and loads its track', async () => {
+      const samples = [{ lat: 51, lon: 1, t: 1 }]
+      const fetchMock = okFetch({ samples })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSeaStore()
+      store.selectVessel(VESSEL.mmsi)
+      // Selected at once, so the bracket shows before the track arrives.
+      expect(store.selectedMmsi).toBe(VESSEL.mmsi)
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/sea/vessels/${VESSEL.mmsi}/track`,
+        expect.objectContaining({ cache: 'no-store' }),
+      )
+      await vi.waitFor(() => expect(store.selectedTrack).toEqual(samples))
+    })
+
+    it('selectVessel drops the previous vessel’s track if it is superseded', async () => {
+      let resolveFirst: (value: unknown) => void = () => {}
+      const fetchMock = vi
+        .fn()
+        .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ samples: [{ lat: 2, lon: 2, t: 2 }] }),
+        })
+      vi.stubGlobal('fetch', fetchMock)
+      const store = useSeaStore()
+      store.selectVessel('first')
+      store.selectVessel('second')
+      await vi.waitFor(() => expect(store.selectedTrack).toEqual([{ lat: 2, lon: 2, t: 2 }]))
+      resolveFirst({ ok: true, json: async () => ({ samples: [{ lat: 1, lon: 1, t: 1 }] }) })
+      // Let the stale reply's json() and the store's check run (fake timers are
+      // on, so flush microtasks rather than waiting on a timeout).
+      for (let tick = 0; tick < 5; tick++) await Promise.resolve()
+      expect(store.selectedMmsi).toBe('second')
+      expect(store.selectedTrack).toEqual([{ lat: 2, lon: 2, t: 2 }])
+    })
+
     it('drops a late track for a vessel that is no longer selected', async () => {
       vi.stubGlobal('fetch', okFetch({ samples: [{ lat: 1, lon: 1, t: 1 }] }))
       const store = useSeaStore()

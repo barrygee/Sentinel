@@ -122,13 +122,36 @@ describe('SeaFilter', () => {
     expect(wrapper.text()).toContain('DOVER')
   })
 
+  it('selects a vessel picked from the list on the map, so its track draws', async () => {
+    store.vessels = [vessel(), TRAWLER]
+    const selectSpy = vi.spyOn(store, 'selectVessel').mockImplementation(() => {})
+    const wrapper = mount(SeaFilter)
+    await wrapper.findAll('.bfp-result-item')[1]!.trigger('click')
+    expect(selectSpy).toHaveBeenCalledTimes(1)
+    expect(selectSpy).toHaveBeenCalledWith('235099999')
+  })
+
+  it('does not select anything when the open row is clicked shut', async () => {
+    store.vessels = [vessel()]
+    const wrapper = mount(SeaFilter)
+    await wrapper.find('.bfp-result-item').trigger('click')
+    const selectSpy = vi.spyOn(store, 'selectVessel').mockImplementation(() => {})
+    await wrapper.find('.bfp-result-item').trigger('click')
+    expect(store.searchExpandedMmsi).toBe('')
+    expect(selectSpy).not.toHaveBeenCalled()
+  })
+
   it('opens the row for a vessel clicked on the map', async () => {
     store.vessels = [vessel()]
+    // The marker has already selected the vessel; the row opening must not
+    // select (and fetch its track) a second time.
+    const selectSpy = vi.spyOn(store, 'selectVessel').mockImplementation(() => {})
     const wrapper = mount(SeaFilter)
     document.dispatchEvent(new CustomEvent('sea-open-vessel', { detail: { mmsi: '232012345' } }))
     await nextTick()
     expect(store.searchExpandedMmsi).toBe('232012345')
     expect(wrapper.find('.bfp-expanded').exists()).toBe(true)
+    expect(selectSpy).not.toHaveBeenCalled()
   })
 
   it('collapses the row when its vessel leaves the snapshot', async () => {
@@ -183,6 +206,14 @@ describe('SeaFilter', () => {
       await nextTick()
       expect(wrapper.findAll('.bfp-result-item')).toHaveLength(2)
       expect(wrapper.find('[role="listbox"]').attributes('aria-label')).toBe('Live vessels')
+    })
+
+    it('opens a picked port row without selecting a vessel', async () => {
+      const selectSpy = vi.spyOn(store, 'selectVessel').mockImplementation(() => {})
+      const wrapper = mount(SeaFilter)
+      await wrapper.findAll('.bfp-result-item')[2]!.trigger('click')
+      expect(store.searchExpandedPort).toBe('GBSOU')
+      expect(selectSpy).not.toHaveBeenCalled()
     })
 
     it('is independent of the vessel category', async () => {

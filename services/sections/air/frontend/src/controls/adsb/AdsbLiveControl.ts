@@ -2344,10 +2344,19 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
   }
 
+  /**
+   * Select the aircraft with this hex the way a click on its callsign label
+   * does — selected tag, status bar and trail — then ease the map to it. Used by
+   * the SEARCH list and alert clicks. Returns false when the aircraft is not in
+   * the current feed (nothing is selected or moved).
+   */
   selectByHex(hex: string): boolean {
     if (!this.map || !hex) return false
     const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
     if (!aircraftFeature) return false
+    this._selectedHex = hex
+    this._hideHoverTagNow()
+    this._applySelection()
     /* v8 ignore start -- defensive: aircraftFeature is in the collection so
        _interpolatedCoords always resolves; the || fallback never runs */
     const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
