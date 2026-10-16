@@ -59,6 +59,15 @@ export interface FakeSdrOptions {
    * default radio.
    */
   radios?: FakeSdrRadio[]
+  /**
+   * Opt-in live spectrum: after each tune, push a `spectrum` frame every
+   * `intervalMs`, its bins from `frame` (frame number from 0, the tuned centre
+   * and the sample rate). Without it the fake sends one flat frame per tune.
+   */
+  spectrum?: {
+    intervalMs: number
+    frame: (frameIndex: number, centerHz: number, sampleRate: number) => number[]
+  }
 }
 
 /**
@@ -144,6 +153,25 @@ export async function installFakeSdr(
       }),
     )
 
+    let spectrumTimer: ReturnType<typeof setInterval> | undefined
+    const streamSpectrum = (frequencyHz: number) => {
+      if (!options.spectrum) return
+      clearInterval(spectrumTimer)
+      let frameIndex = 0
+      const { intervalMs, frame } = options.spectrum
+      spectrumTimer = setInterval(() => {
+        webSocket.send(
+          JSON.stringify({
+            type: 'spectrum',
+            bins: frame(frameIndex++, frequencyHz, sampleRate),
+            center_hz: frequencyHz,
+            sample_rate: sampleRate,
+            timestamp_ms: Date.now(),
+          }),
+        )
+      }, intervalMs)
+    }
+
     webSocket.onMessage((rawMessage) => {
       let parsed: Record<string, unknown>
       try {
@@ -176,12 +204,14 @@ export async function installFakeSdr(
             timestamp_ms: Date.now(),
           }),
         )
+        streamSpectrum(frequencyHz)
       } else if (parsed.cmd === 'ping') {
         webSocket.send(JSON.stringify({ type: 'pong' }))
       }
     })
 
     webSocket.onClose(() => {
+      clearInterval(spectrumTimer)
       recorder.controlCloses++
     })
   })
