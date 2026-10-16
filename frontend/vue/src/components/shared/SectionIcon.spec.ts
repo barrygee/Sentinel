@@ -4,7 +4,7 @@ import { axe } from 'jest-axe'
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import SectionIcon from './SectionIcon.vue'
 
-const INLINE_KEYS = ['app', 'air', 'space', 'sea', 'land'] as const
+const INLINE_KEYS = ['app', 'air', 'space', 'sea', 'land', 'docs'] as const
 
 describe('SectionIcon', () => {
   it.each(INLINE_KEYS)('draws %s inline as one decorative svg', (sectionKey) => {

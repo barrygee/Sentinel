@@ -49,23 +49,7 @@
           @click="navigate"
         >
           <span class="settings-nav-icon-wrap">
-            <svg
-              class="settings-nav-icon"
-              width="19"
-              height="19"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <path
-                d="M12 6.5C10.4 5 7.6 4.5 4 4.5v13c3.6 0 6.4.5 8 2 1.6-1.5 4.4-2 8-2v-13c-3.6 0-6.4.5-8 2z"
-              />
-              <line x1="12" y1="6.5" x2="12" y2="19.5" />
-            </svg>
+            <SectionIcon section-key="docs" class="settings-nav-icon" />
           </span>
         </BaseIconLink>
       </RouterLink>
@@ -162,12 +146,12 @@ import './SettingsPanel.css'
 import SectionIcon from './SectionIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
-import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import SettingRow from './settings/SettingRow.vue'
 import './settings/appSettings'
-import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
+import { getSettingItems } from '@sentinel/shell-api/shell/settingsRegistry'
+import { useOfferedSettingsSections } from '@/composables/useOfferedSettingsSections'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseSearchField from '@sentinel/ui/base/BaseSearchField.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
@@ -180,7 +164,6 @@ import { createSearchRecord, searchRecords } from '@/search/textSearch'
 export type { SettingItem }
 
 const store = useSettingsStore()
-const appStore = useAppStore()
 
 const activeSection = ref('app')
 const searchQuery = ref('')
@@ -205,17 +188,12 @@ const applyStatusClass = ref('')
 // Every Settings section and item comes from the registry: core registers
 // 'app' (./settings/appSettings), each section registers its own (F3). A domain
 // section is offered — in the nav and in search — only while it is enabled.
-const navSections = getSettingsSections()
+const {
+  sections: navSections,
+  isSectionOffered,
+  offeredSections: visibleSections,
+} = useOfferedSettingsSections()
 const allSettings = getSettingItems()
-const domainSectionKeys = new Set(
-  navSections.filter((section) => section.domain).map((section) => section.key),
-)
-function isSectionOffered(key: string): boolean {
-  return !domainSectionKeys.has(key) || appStore.enabledDomains.includes(key)
-}
-const visibleSections = computed(() =>
-  navSections.filter((section) => isSectionOffered(section.key)),
-)
 
 const sectionHeading = computed(() => {
   if (searchQuery.value.trim()) return 'SEARCH RESULTS'
