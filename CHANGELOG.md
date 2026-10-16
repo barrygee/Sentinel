@@ -522,6 +522,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Turn the side panel red for an emergency squawk
 - Smaller, lighter docs menu and drop the Receiving responsibly page
 - Select a search-list pick on the map so its trail/track draws
+- Patch the four open Dependabot alerts
 
 ### Chores
 
@@ -1566,6 +1567,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #500 from barrygee/fix/dark-panel-contrast
 - Merge pull request #502 from barrygee/fix/docs-menu-type
 - Merge pull request #501 from barrygee/fix/search-pick-selects-on-map
+- Merge pull request #503 from barrygee/chore/deps-security
 
 ### Refactoring
 
@@ -1863,6 +1865,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle without the stray docs-page screenshot
 - Rebuild the bundle with the slimmer docs menu
 - Rebuild the Air and Sea remotes with search-pick selection
+- Rebuild the bundle on vue 3.5.44
 
 ### Continuous Integration
 
