@@ -3,9 +3,6 @@ import type { DocsLibrary, DocsPage } from '../docsTypes'
 /** The project's home on GitHub; repo files that are not docs pages link here. */
 export const REPOSITORY_URL = 'https://github.com/barrygee/Sentinel'
 
-/** Where the changelog lives (it is generated from commits and not bundled). */
-export const CHANGELOG_URL = `${REPOSITORY_URL}/blob/main/CHANGELOG.md`
-
 /** What a markdown link points at once resolved against the doc it was written in. */
 export type ResolvedDocsLink =
   | { kind: 'page'; page: DocsPage; hash: string }

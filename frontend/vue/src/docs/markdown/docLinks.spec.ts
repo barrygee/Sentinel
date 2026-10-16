@@ -1,12 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { buildDocsLibrary } from '../docsNavigation'
-import {
-  CHANGELOG_URL,
-  REPOSITORY_URL,
-  resolveDocsImage,
-  resolveDocsLink,
-  resolveRepoPath,
-} from './docLinks'
+import { REPOSITORY_URL, resolveDocsImage, resolveDocsLink, resolveRepoPath } from './docLinks'
 
 const library = buildDocsLibrary(
   {
@@ -32,12 +26,6 @@ const library = buildDocsLibrary(
     'CONTRIBUTING.md': '# Contributing',
   },
 )
-
-describe('constants', () => {
-  it('derives the changelog address from the repository address', () => {
-    expect(CHANGELOG_URL).toBe(`${REPOSITORY_URL}/blob/main/CHANGELOG.md`)
-  })
-})
 
 describe('resolveRepoPath', () => {
   it('resolves a sibling against the folder of the source file', () => {

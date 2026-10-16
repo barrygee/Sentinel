@@ -2,26 +2,15 @@
 import BaseIconLink from '@sentinel/ui/base/BaseIconLink.vue'
 import SectionIcon from '@/components/shared/SectionIcon.vue'
 import { useOfferedSettingsSections } from '@/composables/useOfferedSettingsSections'
-import DocsGroupIcon from './DocsGroupIcon.vue'
-import type { DocGroupKey, DocsGroup } from './docsTypes'
 
 /**
- * The charcoal rail beside the docs: the same Settings buttons as the
- * Settings page (each a link back to that section's settings), then Docs,
- * shown as the current area, with the docs groups as its sub-buttons on the
- * grey sub-panel, the way FILTER's sub-buttons sit under it in the map
- * sidebar. So the Settings buttons never change meaning on a docs page.
+ * The charcoal rail beside the docs: exactly the Settings rail, its section
+ * buttons (each a link back to that section's settings) then Docs, shown as
+ * the current area. The docs' own groups live in the sidebar's page list, so
+ * nothing on this rail repeats a docs group.
  *
- * Every entry is a *link*, not a toggle: middle-click and open-in-new-tab
- * work. The current group carries `aria-current="true"` (the current *page*
- * is a child of it, so `page` would be wrong).
+ * Every entry is a *link*, not a toggle: middle-click and open-in-new-tab work.
  */
-defineProps<{
-  groups: readonly DocsGroup[]
-  /** The group of the page on screen; undefined when none is (not found). */
-  activeGroupKey?: DocGroupKey | undefined
-}>()
-
 const { offeredSections } = useOfferedSettingsSections()
 </script>
 
@@ -58,25 +47,6 @@ const { offeredSections } = useOfferedSettingsSections()
         </li>
       </ul>
     </nav>
-    <nav class="doc-rail__groups" aria-label="Documentation sections">
-      <ul>
-        <li v-for="group in groups" :key="group.key">
-          <RouterLink v-slot="{ href, navigate }" :to="group.pages[0]?.url ?? '/doc/'" custom>
-            <BaseIconLink
-              class="doc-rail__item doc-rail__group"
-              :href="href"
-              :accessible-name="group.title"
-              :tooltip="group.title"
-              :active="group.key === activeGroupKey"
-              :current="group.key === activeGroupKey"
-              @click="navigate"
-            >
-              <DocsGroupIcon :group-key="group.key" />
-            </BaseIconLink>
-          </RouterLink>
-        </li>
-      </ul>
-    </nav>
   </div>
 </template>
 
@@ -87,8 +57,6 @@ const { offeredSections } = useOfferedSettingsSections()
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  scrollbar-width: none;
   background: var(--rail-bg);
   border-right: 1px solid var(--rail-border);
 }
@@ -104,16 +72,5 @@ const { offeredSections } = useOfferedSettingsSections()
 /* Docs sits under the section buttons, set off by a hairline, as in Settings. */
 .doc-rail__docs {
   border-top: 1px solid var(--rail-border);
-}
-
-/* Docs' sub-buttons: the grey sub-panel IconRailAccordion uses under FILTER and
-   MAP LAYERS, with smaller icons so they read as children of Docs. */
-.doc-rail__groups {
-  background: var(--rail-surface);
-}
-
-.doc-rail__group :deep(svg) {
-  width: 16px;
-  height: 16px;
 }
 </style>

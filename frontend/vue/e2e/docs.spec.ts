@@ -67,20 +67,27 @@ test.describe('Docs', () => {
     await expect(page.locator(docsPage)).toHaveCount(0)
   })
 
-  test('moves between pages with the group rail and the page list', async ({ page }) => {
+  test('moves between pages with the collapsible page list', async ({ page }) => {
     await page.goto('/doc/')
     await waitForShellHydration(page)
 
-    await page.getByRole('link', { name: 'Set up and run' }).click()
+    const pageList = page.getByRole('navigation', { name: 'Documentation pages' })
+    // The welcome page's own group is open; Set up and run starts closed.
+    const setUp = pageList.getByRole('button', { name: 'Set up and run' })
+    await expect(setUp).toHaveAttribute('aria-expanded', 'false')
+    await setUp.click()
+    await expect(setUp).toHaveAttribute('aria-expanded', 'true')
+
+    const setUpPages = pageList.getByRole('list', { name: 'Set up and run' })
+    await setUpPages.getByRole('link', { name: 'Environment variables (.env)' }).click()
     await expect(page).toHaveURL(/\/doc\/configuration$/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/environment variables/i)
     await expect(page).toHaveTitle('Environment variables (.env) · Docs · Sentinel')
-
-    const pageList = page.getByRole('navigation', { name: 'Pages in Set up and run' })
     await expect(
-      pageList.getByRole('link', { name: 'Environment variables (.env)' }),
+      setUpPages.getByRole('link', { name: 'Environment variables (.env)' }),
     ).toHaveAttribute('aria-current', 'page')
-    await pageList.getByRole('link', { name: 'Run and maintain' }).click()
+
+    await setUpPages.getByRole('link', { name: 'Run and maintain' }).click()
     await expect(page).toHaveURL(/\/doc\/operations$/)
     await expect(page.getByRole('heading', { level: 1 })).toHaveText(/run and maintain/i)
     // Opening a page puts keyboard focus on its heading.
