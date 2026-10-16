@@ -1,5 +1,8 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { waitForShellHydration } from './support/hydrationGate'
+import { installDefaultMocks } from './support/mockApi'
+import { clearPersistedState } from './support/seedStore'
 
 /**
  * Live accessibility audit — runs the real axe-core engine in a real browser
@@ -62,6 +65,26 @@ test.describe('Live accessibility audit (axe-core, WCAG 2.2 AA)', () => {
       expect(
         results.violations,
         `axe violations on ${path}: ${results.violations.map((violation) => violation.id).join(', ')}`,
+      ).toEqual([])
+    })
+  }
+
+  // Settings is a light page with its own greys: a caption or description that
+  // reads fine on the dark views can fall under AA here (it did, at 2.2:1).
+  for (const section of ['app', 'air', 'space', 'sea', 'land', 'sdr']) {
+    test(`Settings › ${section} has no WCAG 2.2 AA violations`, async ({ page }) => {
+      test.slow()
+      await clearPersistedState(page)
+      await installDefaultMocks(page)
+      await page.goto(`/settings/${section}`)
+      await waitForShellHydration(page)
+      await expect(page.locator('#settings-section-heading')).toBeVisible()
+
+      const results = await auditPage(page)
+
+      expect(
+        results.violations,
+        `axe violations on /settings/${section}: ${results.violations.map((violation) => violation.id).join(', ')}`,
       ).toEqual([])
     })
   }
