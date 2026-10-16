@@ -223,6 +223,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Apply settings in place instead of reloading the page
 - Let users choose where recordings are saved
 - Add the in-app /doc docs page
+- Move Docs under the section buttons and share the section icons
+- Group the docs by section and match Settings' type and spacing
 
 ### Bug Fixes
 
@@ -1543,6 +1545,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #493 from barrygee/fix/env-passthrough
 - Merge pull request #492 from barrygee/docs/run-develop-reference
 - Merge pull request #495 from barrygee/chore/env-example-comments
+- Merge pull request #494 from barrygee/docs/simplify
 
 ### Refactoring
 
@@ -1689,6 +1692,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add Get started, Things you can do, Use Sentinel and How it works
 - Add the Set up and run, Develop and Reference pages
 - List the offline map sources and the empty Sentry default in Environment variables
+- Cut the docs down to short feature lists per section
+- Retake the screenshots at twice the resolution
+- Say .env.example sets every default
 
 ### Tests
 
@@ -1819,6 +1825,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle with the new docs pages
 - Rebuild the bundle with the Sea notice wording
 - Rebuild the bundle with the D5 docs pages
+- Rebuild the bundle with the simplified docs
+- Rebuild the bundle with the updated Environment variables page
 
 ### Continuous Integration
 
