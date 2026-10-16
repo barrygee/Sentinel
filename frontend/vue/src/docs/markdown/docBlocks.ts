@@ -70,17 +70,9 @@ export type DocBlock =
   | CalloutBlock
   | DiagramBlock
 
-/** One entry of the "On this page" outline (h2 and h3). */
-export interface OutlineEntry {
-  id: string
-  level: 2 | 3
-  text: string
-}
-
 /** A fully rendered page. */
 export interface RenderedDocument {
   /** Anchor id of the page's own h1, so `#the-title` links still land. */
   headingId: string
   blocks: DocBlock[]
-  outline: OutlineEntry[]
 }

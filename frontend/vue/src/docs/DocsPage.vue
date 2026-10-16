@@ -10,7 +10,6 @@ import DocsGroupRail from './DocsGroupRail.vue'
 import DocsHeading from './DocsHeading.vue'
 import DocsLiveStatus from './DocsLiveStatus.vue'
 import DocsNotFound from './DocsNotFound.vue'
-import DocsOnThisPage from './DocsOnThisPage.vue'
 import DocsPageList from './DocsPageList.vue'
 import DocsPrevNext from './DocsPrevNext.vue'
 import DocsSearchField from './DocsSearchField.vue'
@@ -59,11 +58,6 @@ const rendered = computed(() => {
     imageUrls: docsImageUrls,
   })
 })
-
-// The page's address, for the in-page links of "On this page" (only shown for a page).
-/* v8 ignore start -- only read while a page is shown, so the fallback never applies */
-const currentPageUrl = computed(() => page.value?.url ?? '/doc/')
-/* v8 ignore stop */
 
 const adjacent = computed(() => adjacentDocsPages(library, pagePath.value))
 
@@ -201,11 +195,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
                 <DocsArticle :key="page?.url" :blocks="rendered.blocks" />
                 <DocsPrevNext :previous="adjacent.previous" :next="adjacent.next" />
               </div>
-              <!-- After the article in the DOM so Tab follows the wide layout (the
-                   column to its right); below 1280px it is placed under the heading. -->
-              <div class="doc-content__toc">
-                <DocsOnThisPage :entries="rendered.outline" :page-url="currentPageUrl" />
-              </div>
             </template>
           </div>
         </div>
@@ -274,21 +263,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
   max-width: 100%;
 }
 
-/* Heading, then "On this page", then the article — though the article comes
-   before "On this page" in the DOM (see the template). */
-.doc-content--page {
-  display: flex;
-  flex-direction: column;
-}
-
-.doc-content--page .doc-content__toc {
-  order: 1;
-}
-
-.doc-content--page .doc-content__body {
-  order: 2;
-}
-
 /* With the heading's own 6px, a 32px gap to the text, as under Settings' title. */
 .doc-content__header {
   margin-bottom: 26px;
@@ -349,29 +323,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
 
   .doc-main {
     padding: 0 44px 110px;
-  }
-}
-
-/* Wide: "On this page" becomes a sticky column beside the article. */
-@media (min-width: 1280px) {
-  .doc-content--page {
-    display: grid;
-    grid-template-columns: minmax(0, 960px) 232px;
-    column-gap: 40px;
-    align-items: start;
-  }
-
-  .doc-content--page .doc-content__header,
-  .doc-content--page .doc-content__body {
-    grid-column: 1;
-  }
-
-  .doc-content--page .doc-content__toc {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    position: sticky;
-    top: 34px;
-    padding-top: 34px;
   }
 }
 

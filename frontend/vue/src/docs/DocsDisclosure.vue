@@ -5,8 +5,8 @@ import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 /**
  * A button that opens and closes a region below it — but only on the screens
  * that need it. Wide enough, the button disappears and the region is simply
- * shown. It is how the page list collapses on a phone and "On this page"
- * collapses below the wide layout, with one set of keyboard rules:
+ * shown. It is how the page list collapses on a phone, with one set of keyboard
+ * rules:
  * `aria-expanded`/`aria-controls`, and Escape closes it and hands focus back to
  * the button (instead of the page-wide Escape that would close Docs).
  */

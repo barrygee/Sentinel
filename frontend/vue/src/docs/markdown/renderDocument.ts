@@ -3,13 +3,7 @@ import { markdownEngine, type DocsRenderEnvironment } from './markdownEngine.ts'
 import { createHeadingSlugger } from './headingSlug.ts'
 import { inlinePlainText } from './headingAnchors.ts'
 import { sanitizeDocsHtml } from './sanitizeHtml'
-import type {
-  CalloutVariant,
-  DocBlock,
-  HeadingBlock,
-  OutlineEntry,
-  RenderedDocument,
-} from './docBlocks'
+import type { CalloutVariant, DocBlock, HeadingBlock, RenderedDocument } from './docBlocks'
 
 /** The tokens of one top-level block, from its opening token to its closing one. */
 type TokenGroup = Token[]
@@ -324,15 +318,6 @@ function mergeAdjacentProse(blocks: readonly DocBlock[]): DocBlock[] {
   return merged
 }
 
-/** The h2 and h3 of a page, for "On this page". */
-function outlineOf(blocks: readonly DocBlock[]): OutlineEntry[] {
-  return blocks.flatMap((block) =>
-    block.kind === 'heading' && (block.level === 2 || block.level === 3)
-      ? [{ id: block.id, level: block.level, text: block.text }]
-      : [],
-  )
-}
-
 /**
  * Renders one markdown page into blocks.
  *
@@ -377,6 +362,5 @@ export function renderDocument(
     }
   }
 
-  const merged = mergeAdjacentProse(blocks)
-  return { headingId, blocks: merged, outline: outlineOf(merged) }
+  return { headingId, blocks: mergeAdjacentProse(blocks) }
 }

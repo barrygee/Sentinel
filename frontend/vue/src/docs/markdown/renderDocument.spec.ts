@@ -43,8 +43,8 @@ function headings(blocks: readonly DocBlock[]): HeadingBlock[] {
 }
 
 describe('renderDocument: empty and headings', () => {
-  it('renders an empty document as no blocks, no outline and no heading id', () => {
-    expect(render('')).toEqual({ headingId: '', blocks: [], outline: [] })
+  it('renders an empty document as no blocks and no heading id', () => {
+    expect(render('')).toEqual({ headingId: '', blocks: [] })
   })
 
   it('takes the first h1 as the page heading and does not emit it as a block', () => {
@@ -94,15 +94,6 @@ describe('renderDocument: empty and headings', () => {
     const [heading] = headings(render('# T\n\n## Use `rtl_tcp` *now*\n').blocks)
     expect(heading?.html).toBe('Use <code>rtl_tcp</code> <em>now</em>')
     expect(heading?.text).toBe('Use rtl_tcp now')
-  })
-
-  it('builds the outline from h2 and h3 only, in order', () => {
-    const rendered = render('# T\n\n## A\n\n### B\n\n#### C\n\n## D\n')
-    expect(rendered.outline).toEqual([
-      { id: 'a', level: 2, text: 'A' },
-      { id: 'b', level: 3, text: 'B' },
-      { id: 'd', level: 2, text: 'D' },
-    ])
   })
 })
 
