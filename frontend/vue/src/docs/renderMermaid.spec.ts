@@ -122,11 +122,88 @@ describe('renderMermaidDiagram', () => {
         flowchart: { htmlLabels: false, useMaxWidth: true },
         logLevel: 'fatal',
       })
-      expect(options.themeVariables.primaryTextColor).toBe('#16191d')
+      expect(options.themeVariables.primaryTextColor).toBe('#ffffff')
       expect(options.themeCSS).toContain('.node.accent')
     })
 
-    it('styles ONLINE and OFF GRID subgraphs apart by line style as well as colour', async () => {
+    it('draws arrowheads larger than Mermaid does, so the direction of flow stands out', async () => {
+      mermaidApi.render.mockResolvedValue({
+        svg:
+          '<svg xmlns="http://www.w3.org/2000/svg"><defs>' +
+          '<marker id="end" markerWidth="8" markerHeight="10"><path d="M0,0 L10,5 L0,10z"></path></marker>' +
+          '<marker id="bare"><path d="M0,0"></path></marker>' +
+          '</defs><path marker-end="url(#end)" d="M0,0 L50,0"></path></svg>',
+      })
+      const svg = await renderMermaidDiagram('a', 'One')
+      const sized = svg.querySelector('#end')!
+      expect(Number(sized.getAttribute('markerWidth'))).toBeCloseTo(12.8)
+      expect(Number(sized.getAttribute('markerHeight'))).toBeCloseTo(16)
+      // A marker with no size keeps the SVG default rather than becoming 0 or NaN.
+      const bare = svg.querySelector('#bare')!
+      expect(bare.hasAttribute('markerWidth')).toBe(false)
+      expect(bare.hasAttribute('markerHeight')).toBe(false)
+    })
+
+    it('moves sequence lifelines behind the message text', async () => {
+      mermaidApi.render.mockResolvedValue({
+        svg:
+          '<svg xmlns="http://www.w3.org/2000/svg">' +
+          '<text class="messageText">first</text>' +
+          '<g><line id="life-a" class="actor-line" x1="10" x2="10" y1="0" y2="90"></line></g>' +
+          '<g transform="translate(5,0)"><line id="life-moved-group" class="actor-line" x1="40" x2="40" y1="0" y2="90"></line></g>' +
+          '</svg>',
+      })
+      const svg = await renderMermaidDiagram('a', 'One')
+      const behind = svg.firstElementChild!
+      expect(behind.getAttribute('class')).toBe('doc-lifelines')
+      expect(behind.querySelector('#life-a')).not.toBeNull()
+      // A line under a transformed group would shift if moved, so it stays.
+      const transformed = svg.querySelector('#life-moved-group')!
+      expect(transformed.parentElement!.getAttribute('transform')).toBe('translate(5,0)')
+      // Drawn first, so the text after it paints on top.
+      expect(behind.compareDocumentPosition(svg.querySelector('.messageText')!)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+    })
+
+    it('leaves a diagram without lifelines unchanged', async () => {
+      const svg = await renderMermaidDiagram('a', 'One')
+      expect(svg.querySelector('.doc-lifelines')).toBeNull()
+    })
+
+    it('spaces shapes out so text never touches a box, a line or a subgraph title', async () => {
+      await renderMermaidDiagram('a', 'One')
+      const options = mermaidApi.initialize.mock.calls[0]?.[0]
+      // Mermaid's defaults are padding 15, nodeSpacing 50, rankSpacing 50.
+      expect(options.flowchart.padding).toBeGreaterThan(15)
+      // Side by side stays near the default, so a diagram still fits the column.
+      expect(options.flowchart.nodeSpacing).toBeGreaterThanOrEqual(40)
+      expect(options.flowchart.rankSpacing).toBeGreaterThan(50)
+      expect(options.flowchart.subGraphTitleMargin.top).toBeGreaterThan(0)
+      expect(options.flowchart.subGraphTitleMargin.bottom).toBeGreaterThan(0)
+      // Mermaid's defaults are actorMargin 50 and messageMargin 35; actors
+      // keep the default so sequence diagrams still fit the column.
+      expect(options.sequence.actorMargin).toBeGreaterThanOrEqual(50)
+      expect(options.sequence.messageMargin).toBeGreaterThan(35)
+    })
+
+    it('keeps lines from running through edge labels', async () => {
+      await renderMermaidDiagram('a', 'One')
+      const options = mermaidApi.initialize.mock.calls[0]?.[0]
+      const pageColour = options.themeVariables.background
+      expect(options.themeVariables.edgeLabelBackground).toBe(pageColour)
+      const themeCss: string = options.themeCSS
+      const rule = themeCss.slice(
+        themeCss.indexOf('.edgeLabel rect'),
+        themeCss.indexOf('}', themeCss.indexOf('.edgeLabel rect')),
+      )
+      // A same-coloured outline widens the label's background into a gap.
+      expect(rule).toContain(`fill: ${pageColour}`)
+      expect(rule).toContain(`stroke: ${pageColour}`)
+      expect(rule).toMatch(/stroke-width: \d+px/)
+    })
+
+    it('styles ONLINE and OFF GRID subgraphs apart by border style as well as colour', async () => {
       await renderMermaidDiagram('a', 'One')
       const themeCss: string = mermaidApi.initialize.mock.calls[0]?.[0].themeCSS
       const ruleFor = (selector: string) =>
@@ -136,8 +213,8 @@ describe('renderMermaidDiagram', () => {
         )
       const online = ruleFor('.cluster.online rect')
       const offgrid = ruleFor('.cluster.offgrid rect')
-      expect(online).toContain('stroke: #1d5a9e')
-      expect(offgrid).toContain('stroke: #446b00')
+      expect(online).toContain('stroke: none')
+      expect(offgrid).toContain('stroke: #c8ff00')
       // Colour alone must not carry the difference (WCAG 1.4.1): only off grid is dashed.
       expect(offgrid).toContain('stroke-dasharray')
       expect(online).not.toContain('stroke-dasharray')
