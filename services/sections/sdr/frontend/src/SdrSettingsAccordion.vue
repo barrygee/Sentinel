@@ -225,7 +225,7 @@ function pickSampleRate(v: number) {
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
   font-weight: 700;
-  color: rgba(var(--ink-rgb), 0.25);
+  color: var(--ink-secondary);
   letter-spacing: 0.1em;
   min-width: 60px;
   text-align: right;

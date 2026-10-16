@@ -910,7 +910,7 @@ defineExpose({ reload })
 
 .sdr-recording-meta-row dt {
   width: 64px;
-  color: rgba(var(--ink-rgb), 0.3);
+  color: var(--ink-secondary);
   text-transform: uppercase;
   flex-shrink: 0;
 }
@@ -933,7 +933,7 @@ defineExpose({ reload })
   font-weight: 400;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.3);
+  color: var(--ink-secondary);
   margin-bottom: 5px;
 }
 
