@@ -155,6 +155,5 @@ defineExpose({
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--border);
 }
 </style>
