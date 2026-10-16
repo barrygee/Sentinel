@@ -7,7 +7,7 @@ import type { DocsPage } from './docsTypes'
 function pageNamed(path: string, title: string): DocsPage {
   return {
     path,
-    url: `/doc/${path}`,
+    url: `/docs/${path}`,
     title,
     file: `docs/${path}.md`,
     markdown: '',
@@ -33,11 +33,11 @@ describe('DocsPrevNext', () => {
     })
     expect(wrapper.get('nav').attributes('aria-label')).toBe('Previous and next page')
     const previous = wrapper.get('a[rel="prev"]')
-    expect(previous.attributes('href')).toBe('/doc/sections')
+    expect(previous.attributes('href')).toBe('/docs/sections')
     expect(previous.text()).toContain('PREVIOUS')
     expect(previous.text()).toContain('What each section does')
     const next = wrapper.get('a[rel="next"]')
-    expect(next.attributes('href')).toBe('/doc/operations')
+    expect(next.attributes('href')).toBe('/docs/operations')
     expect(next.text()).toContain('NEXT')
     expect(next.classes()).toContain('doc-prev-next__cell--next')
   })

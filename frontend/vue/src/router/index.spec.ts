@@ -181,10 +181,10 @@ describe('createAppRouter', () => {
 
   describe('docs routes', () => {
     it.each([
-      ['/doc', ''],
-      ['/doc/', ''],
-      ['/doc/operations', 'operations'],
-      ['/doc/adr/0006-section-containers', 'adr/0006-section-containers'],
+      ['/docs', ''],
+      ['/docs/', ''],
+      ['/docs/operations', 'operations'],
+      ['/docs/adr/0006-section-containers', 'adr/0006-section-containers'],
     ])('resolves %s to the docs route', async (path, docPath) => {
       const router = createAppRouter()
       await router.push(path)
@@ -192,16 +192,28 @@ describe('createAppRouter', () => {
       expect(router.currentRoute.value.params.docPath ?? '').toBe(docPath)
     })
 
+    it.each([
+      ['/doc', '/docs/'],
+      ['/doc/', '/docs/'],
+      ['/doc/adr/0006-section-containers', '/docs/adr/0006-section-containers'],
+      ['/doc/operations?q=radio#backups', '/docs/operations?q=radio#backups'],
+    ])('redirects the old address %s to %s', async (oldPath, newPath) => {
+      const router = createAppRouter()
+      await router.push(oldPath)
+      expect(router.currentRoute.value.name).toBe('doc')
+      expect(router.currentRoute.value.fullPath).toBe(newPath)
+    })
+
     it('does not send an unknown docs path home: the docs page shows its own not-found', async () => {
       const router = createAppRouter()
-      await router.push('/doc/nowhere/at/all')
+      await router.push('/docs/nowhere/at/all')
       expect(router.currentRoute.value.name).toBe('doc')
     })
 
     it('remembers the section it was opened from as where closing returns to', async () => {
       const router = createAppRouter()
       await router.push('/sdr/')
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       expect(docsReturn.path).toBe('/sdr/')
     })
 
@@ -209,47 +221,47 @@ describe('createAppRouter', () => {
       const router = createAppRouter()
       await router.push('/air/')
       await router.push('/settings/sdr')
-      await router.push('/doc/')
+      await router.push('/docs/')
       expect(docsReturn.path).toBe('/settings/sdr')
     })
 
     it('keeps the return path across docs pages and searches', async () => {
       const router = createAppRouter()
       await router.push('/space/')
-      await router.push('/doc/operations')
-      await router.push('/doc/sections#sdr')
-      await router.replace('/doc/sections?q=radio')
+      await router.push('/docs/operations')
+      await router.push('/docs/sections#sdr')
+      await router.replace('/docs/sections?q=radio')
       expect(docsReturn.path).toBe('/space/')
     })
 
     it('follows the reader when they leave Docs for another section', async () => {
       const router = createAppRouter()
       await router.push('/air/')
-      await router.push('/doc/')
+      await router.push('/docs/')
       await router.push('/sdr/')
-      await router.push('/doc/')
+      await router.push('/docs/')
       expect(docsReturn.path).toBe('/sdr/')
     })
 
     it('returns a cold-loaded docs link to the first enabled section', async () => {
       useAppStore().setEnabledDomains(['space', 'sdr'])
       const router = createAppRouter()
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       expect(docsReturn.path).toBe('/space/')
     })
 
     it('is available even when no domain is enabled for it (it is not a section)', async () => {
       useAppStore().setEnabledDomains(['sdr'])
       const router = createAppRouter()
-      await router.push('/doc/')
-      expect(router.currentRoute.value.path).toBe('/doc/')
+      await router.push('/docs/')
+      expect(router.currentRoute.value.path).toBe('/docs/')
     })
 
     it('keeps the body domain of the section it came from and announces no domain change', async () => {
       const router = createAppRouter()
       await router.push('/sdr/')
       const changes = domainChanges()
-      await router.push('/doc/operations')
+      await router.push('/docs/operations')
       expect(document.body.dataset.domain).toBe('sdr')
       expect(changes).toEqual([])
     })
@@ -257,7 +269,7 @@ describe('createAppRouter', () => {
     it('does not move where Settings returns to', async () => {
       const router = createAppRouter()
       await router.push('/space/')
-      await router.push('/doc/')
+      await router.push('/docs/')
       expect(settingsReturn.path).toBe('/space/')
     })
 
@@ -272,7 +284,7 @@ describe('createAppRouter', () => {
         const opener = document.createElement('button')
         document.body.appendChild(opener)
         opener.focus()
-        await router.push('/doc/')
+        await router.push('/docs/')
         expect(docsReturn.opener).toBe(opener)
       })
 
@@ -280,7 +292,7 @@ describe('createAppRouter', () => {
         const router = createAppRouter()
         ;(document.activeElement as HTMLElement | null)?.blur()
         expect(document.activeElement).toBe(document.body)
-        await router.push('/doc/')
+        await router.push('/docs/')
         expect(docsReturn.opener).toBeNull()
       })
 
@@ -292,7 +304,7 @@ describe('createAppRouter', () => {
         document.body.appendChild(svg)
         svg.focus()
         expect(document.activeElement).toBe(svg)
-        await router.push('/doc/')
+        await router.push('/docs/')
         expect(docsReturn.opener).toBeNull()
       })
 
@@ -304,9 +316,9 @@ describe('createAppRouter', () => {
         linkInDocs.href = '#'
         document.body.append(opener, linkInDocs)
         opener.focus()
-        await router.push('/doc/')
+        await router.push('/docs/')
         linkInDocs.focus()
-        await router.push('/doc/operations')
+        await router.push('/docs/operations')
         expect(docsReturn.opener).toBe(opener)
       })
 
@@ -315,7 +327,7 @@ describe('createAppRouter', () => {
         await router.push('/air/')
         document.body.tabIndex = -1
         document.body.focus()
-        await router.push('/doc/')
+        await router.push('/docs/')
         document.body.removeAttribute('tabindex')
         expect(docsReturn.opener).toBeNull()
       })
@@ -324,7 +336,7 @@ describe('createAppRouter', () => {
     it('starts each new router with nowhere to return to', async () => {
       const first = createAppRouter()
       await first.push('/sdr/')
-      await first.push('/doc/')
+      await first.push('/docs/')
       expect(docsReturn.path).toBe('/sdr/')
       createAppRouter()
       expect(docsReturn.path).toBeNull()

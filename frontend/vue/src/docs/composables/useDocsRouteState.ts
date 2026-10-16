@@ -11,7 +11,7 @@ export const MINIMUM_QUERY_LENGTH = 2
 /** What the docs URL says: which page, which group, and any search in progress. */
 export interface DocsRouteState {
   library: DocsLibrary
-  /** The page path the URL names (`index` for `/doc/`). */
+  /** The page path the URL names (`index` for `/docs/`). */
   pagePath: ComputedRef<string>
   /** The page, or undefined when the URL names none (the not-found state). */
   page: ComputedRef<DocsPage | undefined>

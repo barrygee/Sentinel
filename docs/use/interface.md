@@ -23,7 +23,7 @@ Every section uses the same layout.
 
 ## On a phone
 
-![Sentinel on a phone: the section menu is behind the three-line button at the top right, and the map fills the screen.](../images/interface-phone.png)
+![Sentinel on a phone with the side panel open: the narrow nav bar on the left, the aircraft list beside it, and the section menu behind the three-line button at the top right.](../images/interface-phone.png)
 
 - The section menu and **SETTINGS** are behind the three-line button.
 - Sidebar panes open over the map.

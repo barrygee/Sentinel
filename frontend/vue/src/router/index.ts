@@ -43,11 +43,21 @@ export function createAppRouter(): Router {
       { path: '/settings/:section?', name: SETTINGS_ROUTE_NAME, component: { render: () => null } },
       // The documentation. Loaded on demand: it carries the bundled markdown
       // and renderer, which nothing else needs. The parameter is optional so both
-      // `/doc` and `/doc/` land on the welcome page.
+      // `/docs` and `/docs/` land on the welcome page.
       {
-        path: '/doc/:docPath(.*)?',
+        path: '/docs/:docPath(.*)?',
         name: DOCS_ROUTE_NAME,
         component: () => import('@/docs/DocsPage.vue'),
+      },
+      // The docs used to live at `/doc/`: old links and bookmarks land on the
+      // same page, query and anchor at `/docs/`.
+      {
+        path: '/doc/:docPath(.*)?',
+        redirect: (to) => ({
+          path: `/docs/${String(to.params.docPath ?? '')}`,
+          query: to.query,
+          hash: to.hash,
+        }),
       },
       { path: '/:pathMatch(.*)*', redirect: '/' },
     ],

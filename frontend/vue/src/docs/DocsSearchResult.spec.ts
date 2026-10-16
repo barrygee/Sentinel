@@ -15,8 +15,8 @@ function hitWith(
       id: 'operations#health-checks',
       pagePath: 'operations',
       pageTitle: 'Check logs',
-      groupKey: 'set-up-and-run',
-      groupTitle: 'Set up and run',
+      groupKey: 'getting-started',
+      groupTitle: 'Getting started',
       heading: 'Health checks',
       headingId: 'health-checks',
       text: 'Call the health endpoint.',
@@ -29,7 +29,7 @@ function hitWith(
   }
 }
 
-function mountResult(hit: DocsSearchHit, pageUrl = '/doc/operations') {
+function mountResult(hit: DocsSearchHit, pageUrl = '/docs/operations') {
   return mountWithRouter(DocsSearchResult, { props: { hit, pageUrl } })
 }
 
@@ -38,7 +38,7 @@ describe('DocsSearchResult', () => {
     const { wrapper } = await mountResult(hitWith())
     expect(wrapper.find('li').exists()).toBe(true)
     expect(wrapper.findAll('a')).toHaveLength(1)
-    expect(wrapper.get('a').attributes('href')).toBe('/doc/operations#health-checks')
+    expect(wrapper.get('a').attributes('href')).toBe('/docs/operations#health-checks')
   })
 
   it('shows the page title, then the section heading, then the excerpt', async () => {
@@ -75,7 +75,7 @@ describe('DocsSearchResult', () => {
     const { wrapper } = await mountResult(
       hitWith({ section: { headingId: '', heading: 'Check logs', id: 'operations' } }),
     )
-    expect(wrapper.get('a').attributes('href')).toBe('/doc/operations')
+    expect(wrapper.get('a').attributes('href')).toBe('/docs/operations')
     expect(wrapper.find('.doc-search-result__heading').exists()).toBe(false)
     expect(wrapper.find('.doc-search-result__separator').exists()).toBe(false)
     expect(wrapper.find('.sr-only').exists()).toBe(false)
@@ -90,7 +90,7 @@ describe('DocsSearchResult', () => {
     const { wrapper, router } = await mountResult(hitWith())
     await wrapper.get('a').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/operations')
+    expect(router.currentRoute.value.path).toBe('/docs/operations')
     expect(router.currentRoute.value.hash).toBe('#health-checks')
   })
 

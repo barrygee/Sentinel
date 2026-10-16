@@ -35,7 +35,7 @@ describe('DocsPageList', () => {
     // The empty fixture group has no pages, so the library leaves it out.
     expect(
       wrapper.findAll('button.doc-page-list__group-toggle').map((button) => button.text()),
-    ).toEqual(['Get started', 'Use Sentinel', 'Develop'])
+    ).toEqual(['Introduction', 'Use Sentinel', 'Develop'])
   })
 
   it('ties each heading to its page list with aria-controls, and names the list after the group', async () => {
@@ -48,9 +48,9 @@ describe('DocsPageList', () => {
   it("opens the current page's group and keeps the others closed", async () => {
     const { wrapper } = await mountList('sdr', 'sections')
     expect(toggleFor(wrapper, 'Use Sentinel').attributes('aria-expanded')).toBe('true')
-    expect(toggleFor(wrapper, 'Get started').attributes('aria-expanded')).toBe('false')
+    expect(toggleFor(wrapper, 'Introduction').attributes('aria-expanded')).toBe('false')
     expect(pagesShown(wrapper, 'sdr')).toBe(true)
-    expect(pagesShown(wrapper, 'get-started')).toBe(false)
+    expect(pagesShown(wrapper, 'introduction')).toBe(false)
     expect(wrapper.findAll('.doc-page-list__group--open')).toHaveLength(1)
   })
 
@@ -100,8 +100,8 @@ describe('DocsPageList', () => {
     const links = wrapper.get('#doc-pages-sdr').findAll('a')
     expect(links.map((link) => link.text())).toEqual(['What each section does', 'Check logs'])
     expect(links.map((link) => link.attributes('href'))).toEqual([
-      '/doc/sections',
-      '/doc/operations',
+      '/docs/sections',
+      '/docs/operations',
     ])
   })
 
@@ -139,14 +139,14 @@ describe('DocsPageList', () => {
       .find((link) => link.text() === '0001 First')
       ?.trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/adr/0001-first')
+    expect(router.currentRoute.value.path).toBe('/docs/adr/0001-first')
   })
 
   it('navigates in the app when a top-level page is clicked', async () => {
     const { wrapper, router } = await mountList('sdr', 'sections')
-    await wrapper.get('#doc-pages-sdr a[href="/doc/operations"]').trigger('click')
+    await wrapper.get('#doc-pages-sdr a[href="/docs/operations"]').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/operations')
+    expect(router.currentRoute.value.path).toBe('/docs/operations')
   })
 
   it('offers no external changelog link', async () => {

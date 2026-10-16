@@ -68,7 +68,7 @@ flowchart TB
     end
     aisstream --> store["AisVesselStore<br/>by MMSI"]
     adapter --> store
-    store --> snap["sea_vessel_cache<br/>every 30 s"]
+    store --> snap["sea_vessel_cache<br/>every 30 seconds"]
     store --> map["SEA map ≤ 1 update/s"]
     class seaOnline online
     class seaOffgrid offgrid

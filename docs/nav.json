@@ -1,8 +1,8 @@
 {
   "groups": [
     {
-      "key": "set-up-and-run",
-      "title": "Set up and run",
+      "key": "getting-started",
+      "title": "Getting started",
       "pages": [
         { "path": "install", "title": "Quick start" },
         { "path": "configuration", "title": "Environment variables (.env)" },
@@ -16,8 +16,8 @@
       ]
     },
     {
-      "key": "get-started",
-      "title": "Get started",
+      "key": "introduction",
+      "title": "Introduction",
       "pages": [
         { "path": "index", "title": "Welcome to Sentinel" },
         { "path": "use/interface", "title": "The screen" },

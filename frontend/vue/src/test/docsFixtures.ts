@@ -20,8 +20,8 @@ export const FIXTURE_DOCS_MARKDOWN: Record<string, string> = {
 export const FIXTURE_DOCS_MANIFEST = {
   groups: [
     {
-      key: 'get-started',
-      title: 'Get started',
+      key: 'introduction',
+      title: 'Introduction',
       pages: [{ path: 'index', title: 'Welcome to Sentinel' }],
     },
     { key: 'air', title: 'Things you can do', pages: [] },

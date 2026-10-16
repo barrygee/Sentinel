@@ -27,7 +27,7 @@ const DEMO_SIGNALS: readonly {
   // The tuned station stays on: a strong signal dropping out makes the
   // waterfall rescale its brightness, which draws a band across it.
   { hz: 145_500_000, widthHz: 11_000, peakDb: -38, isOn: () => true },
-  { hz: 145_525_000, widthHz: 10_000, peakDb: -52, isOn: (frame) => frame % 180 < 70 },
+  { hz: 145_550_000, widthHz: 10_000, peakDb: -52, isOn: (frame) => frame % 180 < 70 },
   { hz: 145_600_000, widthHz: 11_000, peakDb: -48, isOn: (frame) => (frame + 90) % 300 < 140 },
   { hz: 145_337_500, widthHz: 9_000, peakDb: -62, isOn: (frame) => (frame + 40) % 220 < 60 },
   { hz: 144_800_000, widthHz: 14_000, peakDb: -50, isOn: (frame) => frame % 75 < 6 },
@@ -101,7 +101,7 @@ const demoFrequency = (
 /** Six inside the 144.5–146.5 MHz view, so the waterfall marks known frequencies. */
 export const DEMO_SDR_FREQUENCIES = [
   demoFrequency(1, 'Calling channel', 145_500_000, 'NFM', 1, '2 m FM calling', true),
-  demoFrequency(2, 'Simplex S21', 145_525_000, 'NFM', 1, 'Local nets'),
+  demoFrequency(2, 'Simplex S22', 145_550_000, 'NFM', 1, 'Local nets'),
   demoFrequency(3, 'GB3DEM repeater', 145_600_000, 'NFM', 2, 'Output, CTCSS 77.0 Hz', true),
   demoFrequency(4, 'Club net', 145_337_500, 'NFM', 2, 'Thursdays 20:00'),
   demoFrequency(5, 'APRS', 144_800_000, 'NFM', 3, 'Packet, 1200 baud'),

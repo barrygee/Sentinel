@@ -20,7 +20,7 @@ const MARKDOWN = {
 
 const MANIFEST = {
   groups: [
-    { key: 'get-started', title: 'Get started', pages: [{ path: 'index', title: 'Welcome' }] },
+    { key: 'introduction', title: 'Introduction', pages: [{ path: 'index', title: 'Welcome' }] },
     { key: 'air', title: 'Things you can do', pages: [] },
     {
       key: 'sdr',
@@ -51,13 +51,13 @@ function expectNavigationError(action: () => unknown, messagePart: string): void
 }
 
 describe('docsPageUrl', () => {
-  it('maps the index page to /doc/', () => {
-    expect(docsPageUrl(DOCS_INDEX_PATH)).toBe('/doc/')
+  it('maps the index page to /docs/', () => {
+    expect(docsPageUrl(DOCS_INDEX_PATH)).toBe('/docs/')
   })
 
-  it('maps any other page below /doc/', () => {
-    expect(docsPageUrl('operations')).toBe('/doc/operations')
-    expect(docsPageUrl('adr/0006-section-containers')).toBe('/doc/adr/0006-section-containers')
+  it('maps any other page below /docs/', () => {
+    expect(docsPageUrl('operations')).toBe('/docs/operations')
+    expect(docsPageUrl('adr/0006-section-containers')).toBe('/docs/adr/0006-section-containers')
   })
 })
 
@@ -92,7 +92,7 @@ describe('buildDocsLibrary: a valid manifest', () => {
   const library = buildDocsLibrary(MANIFEST, MARKDOWN)
 
   it('hides groups that have no pages', () => {
-    expect(library.groups.map((group) => group.key)).toEqual(['get-started', 'sdr', 'develop'])
+    expect(library.groups.map((group) => group.key)).toEqual(['introduction', 'sdr', 'develop'])
   })
 
   it('lists every page in reading order across groups, sub-lists included', () => {
@@ -109,7 +109,7 @@ describe('buildDocsLibrary: a valid manifest', () => {
     const page = library.pageByPath.get('sections')
     expect(page).toEqual({
       path: 'sections',
-      url: '/doc/sections',
+      url: '/docs/sections',
       title: 'Sections',
       file: 'docs/sections.md',
       markdown: '# Sections',
@@ -118,8 +118,8 @@ describe('buildDocsLibrary: a valid manifest', () => {
     })
   })
 
-  it('gives the index page the /doc/ url', () => {
-    expect(library.pageByPath.get('index')?.url).toBe('/doc/')
+  it('gives the index page the /docs/ url', () => {
+    expect(library.pageByPath.get('index')?.url).toBe('/docs/')
   })
 
   it('uses an explicit file when the manifest names one', () => {
@@ -261,7 +261,7 @@ describe('buildDocsLibrary: invalid manifests fail loudly', () => {
           {
             groups: [
               { key: 'develop', title: 'D', pages: [{ path: 'sections', title: 'A' }] },
-              { key: 'set-up-and-run', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
+              { key: 'getting-started', title: 'R', pages: [{ path: 'sections', title: 'B' }] },
             ],
           },
           MARKDOWN,

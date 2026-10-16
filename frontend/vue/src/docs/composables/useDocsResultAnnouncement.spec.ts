@@ -33,7 +33,7 @@ describe('useDocsResultAnnouncement', () => {
     return { outcome, searchActive, wrapper, store: useDocsStore() }
   }
 
-  it('announces the count of a search that is already showing at load (cold /doc/?q=)', () => {
+  it('announces the count of a search that is already showing at load (cold /docs/?q=)', () => {
     const { store } = setup(outcomeWith(7))
     vi.advanceTimersByTime(SPOKEN_AFTER_MS)
     expect(store.announcement).toBe('7 results')

@@ -67,7 +67,7 @@ describe('sanitizeDocsHtml', () => {
   })
 
   it('keeps in-app link markers (data attributes)', () => {
-    expect(sanitizeDocsHtml('<a href="/doc/x" data-doc-link="">x</a>')).toContain('data-doc-link')
+    expect(sanitizeDocsHtml('<a href="/docs/x" data-doc-link="">x</a>')).toContain('data-doc-link')
   })
 
   it('returns an empty string for empty input', () => {

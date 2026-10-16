@@ -33,7 +33,7 @@ export function createDocsTestRouter(history: RouterHistory = createMemoryHistor
       { path: '/', component: EmptyView },
       { path: '/air/', component: EmptyView },
       { path: '/settings/:section?', name: 'settings', component: EmptyView },
-      { path: '/doc/:docPath(.*)?', name: DOCS_ROUTE_NAME, component: EmptyView },
+      { path: '/docs/:docPath(.*)?', name: DOCS_ROUTE_NAME, component: EmptyView },
       { path: '/:pathMatch(.*)*', component: EmptyView },
     ],
   })
@@ -87,7 +87,7 @@ export async function mountWithRouter(
   } = {},
 ): Promise<{ wrapper: VueWrapper; router: Router }> {
   const router = createDocsTestRouter()
-  await router.push(options.url ?? '/doc/')
+  await router.push(options.url ?? '/docs/')
   const wrapper = mount(component, {
     props: options.props,
     slots: options.slots,

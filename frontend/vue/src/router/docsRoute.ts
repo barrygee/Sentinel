@@ -2,16 +2,16 @@ import { reactive } from 'vue'
 import type { RouteLocationNormalized } from 'vue-router'
 
 /**
- * Docs URLs (`/doc/<page>`): like Settings, the docs page leaves the section
+ * Docs URLs (`/docs/<page>`): like Settings, the docs page leaves the section
  * you were on (its view unmounts; the SDR engine, outside the routed view,
  * plays on) and closing it returns there. Unlike Settings it is an ordinary
  * routed view rather than a modal panel, because it is a document to read.
  */
 
-/** Name of the `/doc/:docPath(.*)` route. */
+/** Name of the `/docs/:docPath(.*)` route. */
 export const DOCS_ROUTE_NAME = 'doc'
 
-/** True while a `/doc/...` URL is active. */
+/** True while a `/docs/...` URL is active. */
 export function isDocsRoute(route: Pick<RouteLocationNormalized, 'name'>): boolean {
   return route.name === DOCS_ROUTE_NAME
 }

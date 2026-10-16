@@ -6,8 +6,8 @@ const library = buildDocsLibrary(
   {
     groups: [
       {
-        key: 'set-up-and-run',
-        title: 'Set up and run',
+        key: 'getting-started',
+        title: 'Getting started',
         pages: [
           { path: 'operations', title: 'Operations' },
           { path: 'adr/0006-section-containers', title: 'ADR 6' },

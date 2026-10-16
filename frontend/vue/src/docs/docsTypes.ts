@@ -4,13 +4,13 @@
  */
 
 /**
- * The fixed groups, in reading order: Set up and run first, then Get started,
+ * The fixed groups, in reading order: Getting started first, then Introduction,
  * one group per Settings section in the Settings rail's order (`app` and the
  * five sections), and Developer docs. A manifest group must use one of these keys.
  */
 export const DOC_GROUP_KEYS = [
-  'set-up-and-run',
-  'get-started',
+  'getting-started',
+  'introduction',
   'app',
   'air',
   'space',
@@ -25,9 +25,9 @@ export type DocGroupKey = (typeof DOC_GROUP_KEYS)[number]
 
 /** One readable page: where it lives, how it is named and its markdown. */
 export interface DocsPage {
-  /** URL path under `/doc/`, e.g. `operations` or `adr/0006-section-containers`. */
+  /** URL path under `/docs/`, e.g. `operations` or `adr/0006-section-containers`. */
   path: string
-  /** The router URL, e.g. `/doc/operations` (`/doc/` for the welcome page). */
+  /** The router URL, e.g. `/docs/operations` (`/docs/` for the welcome page). */
   url: string
   /** Title for the page list, breadcrumb, heading and window title. */
   title: string

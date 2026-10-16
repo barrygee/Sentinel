@@ -332,7 +332,7 @@ function titleForPath(path: string): string {
   const segment = path.split('/').filter(Boolean)[0] ?? ''
   if (segment === 'settings') return 'SENTINEL — SETTINGS'
   // The docs page sets its own, more specific title once it has rendered.
-  if (segment === 'doc') return 'SENTINEL — DOCS'
+  if (segment === 'docs') return 'SENTINEL — DOCS'
   const entry = ALL_NAV_DOMAINS.find(([domain]) => domain === segment)
   return entry ? `SENTINEL — ${entry[1]}` : 'SENTINEL'
 }

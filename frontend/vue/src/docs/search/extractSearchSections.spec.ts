@@ -5,12 +5,12 @@ import { extractSearchSections } from './extractSearchSections'
 function pageWith(markdown: string, overrides: Partial<DocsPage> = {}): DocsPage {
   return {
     path: 'operations',
-    url: '/doc/operations',
+    url: '/docs/operations',
     title: 'Operations',
     file: 'docs/operations.md',
     markdown,
-    groupKey: 'set-up-and-run',
-    groupTitle: 'Set up and run',
+    groupKey: 'getting-started',
+    groupTitle: 'Getting started',
     ...overrides,
   }
 }
@@ -30,8 +30,8 @@ describe('extractSearchSections', () => {
       id: 'operations',
       pagePath: 'operations',
       pageTitle: 'Operations',
-      groupKey: 'set-up-and-run',
-      groupTitle: 'Set up and run',
+      groupKey: 'getting-started',
+      groupTitle: 'Getting started',
       heading: 'Operations',
       headingId: '',
       text: 'Intro words here.',
@@ -59,8 +59,8 @@ describe('extractSearchSections', () => {
       expect(section).toMatchObject({
         pagePath: 'operations',
         pageTitle: 'Operations',
-        groupKey: 'set-up-and-run',
-        groupTitle: 'Set up and run',
+        groupKey: 'getting-started',
+        groupTitle: 'Getting started',
       })
     }
   })

@@ -1160,6 +1160,9 @@ test.describe('docs screenshots', () => {
       await prepare(page, PHONE_VIEWPORT)
       await page.goto('/air/')
       await waitForShellHydration(page)
+      // With the side panel open, so the shot shows the narrow left nav bar
+      // (hidden on a phone until the panel is opened).
+      await page.locator('#map-sidebar-btn').click()
       await shoot(page, 'interface-phone')
     })
   })

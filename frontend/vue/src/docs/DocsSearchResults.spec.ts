@@ -59,7 +59,7 @@ describe('DocsSearchResults', () => {
 
     it('says how many are shown when the total is more', async () => {
       const outcome: DocsSearchOutcome = {
-        hits: [hitFor('sections#air', 'sdr', 'sections'), hitFor('index', 'get-started', 'index')],
+        hits: [hitFor('sections#air', 'sdr', 'sections'), hitFor('index', 'introduction', 'index')],
         totalHits: 55,
         expansions: [],
       }
@@ -92,7 +92,7 @@ describe('DocsSearchResults', () => {
       const outcome: DocsSearchOutcome = {
         hits: [
           hitFor('contributing', 'develop', 'contributing'),
-          hitFor('index', 'get-started', 'index'),
+          hitFor('index', 'introduction', 'index'),
           hitFor('adr/0001-first', 'develop', 'adr/0001-first'),
         ],
         totalHits: 3,
@@ -102,7 +102,7 @@ describe('DocsSearchResults', () => {
       const titles = wrapper
         .findAll('h2.doc-search-results__group-title')
         .map((title) => title.text())
-      expect(titles).toEqual(['Get started', 'Develop'])
+      expect(titles).toEqual(['Introduction', 'Develop'])
       const develop = wrapper.findAll('section')[1]
       expect(develop?.findAll('li')).toHaveLength(2)
     })
@@ -118,19 +118,19 @@ describe('DocsSearchResults', () => {
       }
       const { wrapper } = await mountResults('x', outcome)
       expect(wrapper.findAll('li a').map((link) => link.attributes('href'))).toEqual([
-        '/doc/sections#sea',
-        '/doc/operations#backups',
+        '/docs/sections#sea',
+        '/docs/operations#backups',
       ])
     })
 
-    it('falls back to /doc/ for a result whose page is no longer in the library', async () => {
+    it('falls back to /docs/ for a result whose page is no longer in the library', async () => {
       const outcome: DocsSearchOutcome = {
         hits: [hitFor('gone', 'develop', 'gone')],
         totalHits: 1,
         expansions: [],
       }
       const { wrapper } = await mountResults('x', outcome)
-      expect(wrapper.get('li a').attributes('href')).toBe('/doc/')
+      expect(wrapper.get('li a').attributes('href')).toBe('/docs/')
     })
 
     it('is not a combobox: plain headings, lists and links', async () => {
@@ -168,7 +168,7 @@ describe('DocsSearchResults', () => {
     async function mountThree() {
       const outcome: DocsSearchOutcome = {
         hits: [
-          hitFor('index', 'get-started', 'index'),
+          hitFor('index', 'introduction', 'index'),
           hitFor('sections#air', 'sdr', 'sections'),
           hitFor('sections#sea', 'sdr', 'sections'),
         ],

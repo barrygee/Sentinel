@@ -105,18 +105,18 @@ describe('BaseButton', () => {
   describe('as a link (href)', () => {
     it('renders an <a> with the href instead of a <button>', () => {
       const wrapper = mount(BaseButton, {
-        props: { href: '/doc/operations' },
+        props: { href: '/docs/operations' },
         slots: { default: 'Operations' },
       })
       expect(wrapper.find('button').exists()).toBe(false)
       const link = wrapper.get('a')
-      expect(link.attributes('href')).toBe('/doc/operations')
+      expect(link.attributes('href')).toBe('/docs/operations')
       expect(link.text()).toBe('Operations')
     })
 
     it('keeps the variant, active and bordered styling of a button', () => {
       const wrapper = mount(BaseButton, {
-        props: { href: '/doc/', variant: 'rail', active: true, bordered: true },
+        props: { href: '/docs/', variant: 'rail', active: true, bordered: true },
       })
       expect(wrapper.get('a').classes()).toEqual(
         expect.arrayContaining(['ba-btn', 'ba-btn--rail', 'ba-btn--active', 'ba-btn--bordered']),
@@ -125,7 +125,7 @@ describe('BaseButton', () => {
 
     it('drops type and disabled, which do not apply to a link', () => {
       const wrapper = mount(BaseButton, {
-        props: { href: '/doc/', type: 'submit', disabled: true },
+        props: { href: '/docs/', type: 'submit', disabled: true },
       })
       const link = wrapper.get('a')
       expect(link.attributes('type')).toBeUndefined()
@@ -134,7 +134,7 @@ describe('BaseButton', () => {
 
     it('still fires a forwarded click handler', async () => {
       const handler = vi.fn()
-      const wrapper = mount(BaseButton, { props: { href: '/doc/' }, attrs: { onClick: handler } })
+      const wrapper = mount(BaseButton, { props: { href: '/docs/' }, attrs: { onClick: handler } })
       await wrapper.get('a').trigger('click')
       expect(handler).toHaveBeenCalledOnce()
     })
@@ -146,7 +146,7 @@ describe('BaseButton', () => {
 
     it('has no accessibility violations as a link', async () => {
       const wrapper = mount(BaseButton, {
-        props: { href: '/doc/operations' },
+        props: { href: '/docs/operations' },
         slots: { default: 'Operations' },
       })
       expect(

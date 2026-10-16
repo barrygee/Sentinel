@@ -58,7 +58,7 @@ const summary = computed(() => {
 })
 
 function pageUrlOf(hit: DocsSearchHit): string {
-  return props.library.pageByPath.get(hit.section.pagePath)?.url ?? '/doc/'
+  return props.library.pageByPath.get(hit.section.pagePath)?.url ?? '/docs/'
 }
 
 function resultLinks(): HTMLAnchorElement[] {

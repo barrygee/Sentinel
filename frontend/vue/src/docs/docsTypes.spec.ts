@@ -4,8 +4,8 @@ import { DOC_GROUP_KEYS } from './docsTypes'
 describe('DOC_GROUP_KEYS', () => {
   it('lists the fixed groups in reading order', () => {
     expect(DOC_GROUP_KEYS).toEqual([
-      'set-up-and-run',
-      'get-started',
+      'getting-started',
+      'introduction',
       'app',
       'air',
       'space',

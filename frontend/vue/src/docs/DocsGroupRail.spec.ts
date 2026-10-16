@@ -41,7 +41,7 @@ describe('DocsGroupRail', () => {
         .get(settingsNav)
         .findAll('a')
         .map((link) => link.attributes('href'))
-      expect(hrefs).toEqual(['/settings/app', '/settings/air', '/settings/sdr', '/doc/'])
+      expect(hrefs).toEqual(['/settings/app', '/settings/air', '/settings/sdr', '/docs/'])
     })
 
     it('marks Docs as the area on screen and no section button', async () => {
@@ -84,9 +84,9 @@ describe('DocsGroupRail', () => {
 
   it('goes to the docs home when Docs is clicked', async () => {
     const { wrapper, router } = await mountRail()
-    await wrapper.get('a[href="/doc/"]').trigger('click')
+    await wrapper.get('a[href="/docs/"]').trigger('click')
     await new Promise((resolve) => setTimeout(resolve, 0))
-    expect(router.currentRoute.value.path).toBe('/doc/')
+    expect(router.currentRoute.value.path).toBe('/docs/')
   })
 
   it('has no accessibility violations', async () => {

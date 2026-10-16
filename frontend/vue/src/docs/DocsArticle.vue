@@ -190,6 +190,13 @@ function onArticleClick(event: MouseEvent): void {
   height: auto;
 }
 
+/* Phone screenshots (named `*-phone.png`) at a phone's width, not the column's:
+   full width they are taller than the screen. The bundled name keeps the
+   source name before its hash. */
+.doc-prose :deep(img[src*='-phone']) {
+  max-width: min(100%, 320px);
+}
+
 .doc-prose :deep(.doc-figure) {
   margin: 0 0 18px;
 }

@@ -6,13 +6,13 @@ A live map of what is around you, and a control panel for your own radios. It ru
 |---|---|
 | **AIR** | Aircraft near you, with emergency alerts |
 | **SPACE** | Satellites, and when they pass over you |
-| **SEA** | Ships near you |
+| **SEA** | Vessels near you |
 | **LAND** | UK amateur repeaters and APRS stations |
 | **SDR** | Your radios: see a band, listen, scan, record, decode |
 
 ## Online or off grid
 
-- **Online:** data comes from free internet feeds. You need no radio.
+- **Online:** data comes from free internet feeds. Radio only required for SDR section.
 - **Off grid:** data comes from your own radios, maps you downloaded and data already stored. See [Off grid](use/off-grid.md).
 
 ## Start here

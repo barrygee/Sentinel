@@ -18,7 +18,7 @@ export function useDocsResultAnnouncement(
 ): void {
   const docsStore = useDocsStore()
   let timer: ReturnType<typeof setTimeout> | undefined
-  // Immediate: on a cold `/doc/?q=...` load the outcome exists from the start,
+  // Immediate: on a cold `/docs/?q=...` load the outcome exists from the start,
   // so there is no later change to wait for.
   watch(
     outcome,

@@ -9,7 +9,7 @@ import type { DocsLibrary } from './docsTypes'
  * the in-app docs and the files on GitHub are the same text. `docs/plans/**`
  * is working design notes and is deliberately left out, as is the changelog.
  * Eager is fine here: it is plain text, and this module is only reached through
- * the lazily loaded `/doc` route, so none of it is in the app's entry chunk.
+ * the lazily loaded `/docs` route, so none of it is in the app's entry chunk.
  */
 const markdownModules = import.meta.glob(
   ['../../../../docs/**/*.md', '../../../../CONTRIBUTING.md', '!../../../../docs/plans/**'],

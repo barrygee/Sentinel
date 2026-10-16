@@ -15,20 +15,20 @@ describe('DocsNotFound', () => {
 
   it('names the address that was asked for, as typed', async () => {
     const { wrapper } = await mountNotFound('use/sdr/record')
-    expect(wrapper.get('code').text()).toBe('/doc/use/sdr/record')
+    expect(wrapper.get('code').text()).toBe('/docs/use/sdr/record')
   })
 
   it('shows the address as text, not markup', async () => {
     const { wrapper } = await mountNotFound('<img src=x onerror=alert(1)>')
     expect(wrapper.find('img').exists()).toBe(false)
-    expect(wrapper.get('code').text()).toBe('/doc/<img src=x onerror=alert(1)>')
+    expect(wrapper.get('code').text()).toBe('/docs/<img src=x onerror=alert(1)>')
   })
 
   it('offers the welcome page', async () => {
     const { wrapper } = await mountNotFound('nope')
     const link = wrapper.get('a')
     expect(link.text()).toBe('Welcome to Sentinel')
-    expect(link.attributes('href')).toBe('/doc/')
+    expect(link.attributes('href')).toBe('/docs/')
   })
 
   it('offers a search box with the last part of the address filled in as a first guess', async () => {

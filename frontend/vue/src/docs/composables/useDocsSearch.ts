@@ -15,7 +15,7 @@ export interface DocsSearch {
 /**
  * Search over the bundled docs. The records are prepared on the first query
  * (not at page load) and reused after, so a reader who never searches never
- * pays for it. Works the same on a cold `/doc/?q=...` load.
+ * pays for it. Works the same on a cold `/docs/?q=...` load.
  *
  * @param library The validated docs set to search.
  * @param activeQuery The query to search for; an empty string means no search.

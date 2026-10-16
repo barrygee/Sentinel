@@ -12,7 +12,7 @@ import type { DocsLibrary } from '../docsTypes'
 export type DocsRenderEnvironment = {
   /** Repo-relative file of the document, e.g. `docs/adr/0006-section-containers.md`. */
   file?: string
-  /** URL of the page being read (`/doc/operations`), the target of `#anchor` links. */
+  /** URL of the page being read (`/docs/operations`), the target of `#anchor` links. */
   pageUrl?: string
   library?: DocsLibrary
   imageUrls?: Readonly<Record<string, string>>

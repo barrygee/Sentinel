@@ -1,6 +1,6 @@
 # Sea
 
-Live ships near you, from AIS. Online from [AISStream](https://aisstream.io) (free key); off grid from your own radio.
+Live vessels near you, from AIS. Online from [AISStream](https://aisstream.io) (free key); off grid from your own radio.
 
 ## Features
 
