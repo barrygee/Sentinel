@@ -134,7 +134,6 @@ setting: what it does and when to change it) → **Troubleshooting**.
 | Download maps for offline use | ✱ `use/offline-maps.md` | Choosing an area and depth; how much space it takes. |
 | Change settings | `use/settings.md` | Settings are staged until **APPLY CHANGES**; finding a setting. |
 | Edit the config file | `use/config-file.md` | The live `sentinel_config.json`: editing it by hand, uploading and downloading a config. |
-| Receiving responsibly | `use/receiving-responsibly.md` | Short: receiving rules differ by country; UK law restricts listening to and using transmissions not meant for you. Not legal advice. |
 
 ### Set up and run
 

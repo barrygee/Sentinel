@@ -31,8 +31,7 @@
         { "path": "use/alerts", "title": "Alerts" },
         { "path": "use/maps", "title": "Maps" },
         { "path": "use/settings", "title": "Settings and the config file" },
-        { "path": "use/off-grid", "title": "Off grid" },
-        { "path": "use/receiving-responsibly", "title": "Receiving responsibly" }
+        { "path": "use/off-grid", "title": "Off grid" }
       ]
     },
     {
