@@ -13,7 +13,7 @@ flowchart TB
         celestrak["CelesTrak"]
         aisstream["AISStream"]
         ukrep["ukrepeater.net"]
-        tiles["Online maps"]
+        tiles["Online<br/>maps"]
     end
     adsblol --> air["AIR"]
     celestrak --> space["SPACE"]
@@ -26,11 +26,11 @@ flowchart TB
     land ~~~ builtin
     maps ~~~ downloads
     subgraph offgridSources["OFF GRID"]
-        adsbdec["ADS-B decoder"]
-        tle["Stored TLEs"]
-        aisdec["AIS decoder"]
-        builtin["Built-in repeaters,<br/>APRS decoder"]
-        downloads["Downloaded maps"]
+        adsbdec["ADS-B<br/>decoder"]
+        tle["Stored<br/>TLEs"]
+        aisdec["AIS<br/>decoder"]
+        builtin["Built-in list,<br/>APRS decoder"]
+        downloads["Downloaded<br/>maps"]
     end
     adsbdec --> air
     tle --> space

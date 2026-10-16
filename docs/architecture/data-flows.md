@@ -7,7 +7,7 @@ Each section's data from source to map, with the **ONLINE** and **OFF GRID** pat
 *Figure: Aircraft from adsb.lol online or your own receiver off grid, through Air's cache, to the map and to emergency alerts.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph airOnline["ONLINE"]
         adsblol["adsb.lol"]
     end
@@ -32,7 +32,7 @@ flowchart LR
 *Figure: TLEs from CelesTrak online or a stored or uploaded copy off grid, propagated with SGP4.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph spaceOnline["ONLINE"]
         celestrak["CelesTrak"]
     end
@@ -58,7 +58,7 @@ flowchart LR
 *Figure: AISStream online or the AIS decoder off grid, both feeding one vessel store.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph seaOnline["ONLINE"]
         aisstream["AISStream WebSocket<br/>one per key"]
     end
@@ -84,7 +84,7 @@ flowchart LR
 *Figure: Repeaters from a daily download online or the built-in copy off grid; APRS always from your radio.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph landOnline["ONLINE"]
         ukr["ukrepeater.net<br/>daily"]
     end
@@ -113,7 +113,7 @@ Always your own radios. Live data goes through the radio hub ([Radios and decodi
 *Figure: Online tiles from the internet; off grid from downloaded areas, then the base archive.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph mapOnline["ONLINE"]
         web["Online tile source"]
     end

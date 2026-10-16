@@ -48,12 +48,12 @@ sequenceDiagram
     participant Bus as NATS
     participant Sea as sea
     UI->>Core: PUT /api/settings/sea/…
-    Core->>Core: write user_settings, rewrite config file
+    Core->>Core: write user_settings,<br/>rewrite config file
     Core->>Bus: settings.changed.sea
     Bus->>Sea: settings.changed.sea
     Sea->>Core: read new value
     UI->>Core: GET /api/settings
-    UI->>UI: apply in place, sentinel:config-uploaded
+    UI->>UI: apply in place,<br/>sentinel:config-uploaded
 ```
 
 - Controls **stage** until **APPLY CHANGES**.

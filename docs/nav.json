@@ -68,7 +68,7 @@
     },
     {
       "key": "develop",
-      "title": "Develop",
+      "title": "Developer docs",
       "pages": [
         { "path": "architecture/overview", "title": "How it works" },
         { "path": "architecture/data-flows", "title": "Data flows" },

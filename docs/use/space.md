@@ -13,6 +13,8 @@ Satellites on a globe, and when they pass over you. Positions are worked out on 
 - **Record pass**: records while auto-tuned.
 - **DAY / NIGHT** shading and **LOCATION NAMES**.
 
+![The SPACE map zoomed out: the ISS (ZARYA) over Morocco with its visibility footprint as a circle, its ground track over the next orbits as curved lines across the Americas, Europe and Asia, and the Sentinel Location marked over the UK.](../images/space-iss.png)
+
 ![The PASSES pane: three upcoming passes, soonest first, each with its rise time, length and highest elevation, and category buttons above to filter them.](../images/space-passes.png)
 
 ## Load satellites
