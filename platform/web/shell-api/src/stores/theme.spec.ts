@@ -85,6 +85,16 @@ describe('theme store map theme', () => {
     expect(persisted()).toBeNull()
   })
 
+  it('publishes a switch on the attribute in the same tick, before any flush', () => {
+    // Map controls read the attribute as soon as they rebuild their layers,
+    // which can be the same tick as the switch — there is no nextTick here.
+    const store = useThemeStore()
+    store.setMapTheme('light')
+    expect(document.documentElement.dataset.mapTheme).toBe('light')
+    store.setLightMapTheme(false)
+    expect(document.documentElement.dataset.mapTheme).toBe('dark')
+  })
+
   it('takes a boolean from the light-map switch', () => {
     const store = useThemeStore()
     store.setLightMapTheme(true)

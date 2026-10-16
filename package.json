@@ -37,6 +37,10 @@
     },
     "overrides": {
         "undici": "^7.29.0",
+        "vue": "^3.5.44",
+        "mermaid": {
+            "katex": "^0.18.2"
+        },
         "sigplot": {
             "budo": "npm:empty-npm-package@1.0.0",
             "travis": "npm:empty-npm-package@1.0.0"

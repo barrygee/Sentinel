@@ -96,7 +96,10 @@ export const useThemeStore = defineStore('theme', () => {
   // a test or any other context that never ran that script.
   applyThemeAttribute(theme.value)
   applyMapThemeAttribute(mapTheme.value)
-  watch(mapTheme, applyMapThemeAttribute)
+  // Synchronous, so a control that switches the theme and rebuilds its layers
+  // in the same tick reads the new value. A queued watcher used to be flushed
+  // by any app mount; since Vue 3.5.44 a mount flushes only its own jobs.
+  watch(mapTheme, applyMapThemeAttribute, { flush: 'sync' })
 
   const isMapLight = computed(() => mapTheme.value === 'light')
 
