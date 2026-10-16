@@ -137,6 +137,6 @@ watch(
 .notification-subscriptions-empty {
   margin: 0;
   font-size: var(--settings-text-body);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
 }
 </style>
