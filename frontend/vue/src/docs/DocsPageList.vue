@@ -137,7 +137,6 @@ function isCurrent(page: DocsPage, currentPath: string): boolean {
 .doc-page-list__external {
   margin: 14px 0 0;
   padding: 0 16px 24px;
-  border-top: 1px solid var(--border);
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-body);
 }

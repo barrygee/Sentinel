@@ -11,7 +11,7 @@ Sections never import each other: they talk over the event bus (`backend/platfor
 *Figure: A publish runs local handlers first, then reaches other processes through NATS.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     pub["radio: publish<br/>decode.aprs.3"] --> local["local handlers"]
     pub --> nats(("NATS"))
     nats --> land["land: decode.aprs.*"]

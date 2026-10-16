@@ -7,7 +7,7 @@ From the dongle to the waterfall, the speakers, a recording and a decoder. Code:
 *Figure: One radio's samples: one reader in the hub, spectrum frames and raw IQ to the browser.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     dongle["RTL-SDR"] --> rtl["rtl_tcp"]
     rtl -- "TCP: IQ" --> bc["radio hub:<br/>one broadcaster per radio"]
     bc --> fft["FFT every ~40 ms"]

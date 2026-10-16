@@ -56,10 +56,6 @@ const showHeading = computed(() => props.hit.section.headingId !== '')
 </template>
 
 <style scoped>
-.doc-search-result {
-  border-bottom: 1px solid var(--border);
-}
-
 .doc-search-result__link {
   display: block;
   min-height: 56px;

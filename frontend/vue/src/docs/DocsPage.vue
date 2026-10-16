@@ -243,7 +243,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
 
 .doc-sidebar {
   background: var(--surface-sunken);
-  border-bottom: 1px solid var(--border);
 }
 
 .doc-sidebar__search {
@@ -310,8 +309,6 @@ onBeforeUnmount(() => docsStore.setActive(false))
     min-height: 0;
     overflow-y: auto;
     scrollbar-width: thin;
-    border-right: 1px solid var(--border);
-    border-bottom: none;
   }
 
   .doc-column {

@@ -6,8 +6,9 @@
 /**
  * The fixed groups, in reading order: Get started, then one group per Settings
  * section in the Settings rail's order (`app` and the five sections, drawn with
- * its icons), then Set up and run, and Develop. Those three have hand-drawn
- * rail icons (`DocsGroupIcon`), so a manifest group must use one of these keys.
+ * its icons), then Set up and run, and Developer docs. Those three have
+ * hand-drawn rail icons (`DocsGroupIcon`), so a manifest group must use one of
+ * these keys.
  */
 export const DOC_GROUP_KEYS = [
   'get-started',

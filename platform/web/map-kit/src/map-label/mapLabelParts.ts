@@ -37,8 +37,8 @@ export const MAP_LABEL_GLYPH_SIZE_PX = 15
  */
 export const MAP_LABEL_ARROW_SIZE_PX = 11
 
-/** Shared type stack for every label segment. */
-const MAP_LABEL_FONT_STACK = "'Barlow Condensed','Barlow',sans-serif"
+/** Shared type stack for every map label, so text on every map uses the app's font. */
+export const MAP_LABEL_FONT_STACK = "'Barlow Condensed','Barlow',sans-serif"
 
 /**
  * Which side of the pill a segment sits on, relative to the glyph well —

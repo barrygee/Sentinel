@@ -11,30 +11,28 @@ A small **core** plus **one service per section**, all from one backend image, w
 - **NATS**: low-rate events between services.
 - **Decoders**: optional containers that turn radio audio into data.
 
-*Figure: The containers, with online feeds and your own radios kept apart.*
+*Figure: The browser reaches the services only through the gateway. Online feeds flow into the services; off grid, your dongles feed the radio hub, which trades audio and decoded events with the decoders.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     browser["Browser<br/>shell + remotes"] --> gateway["gateway :8080"]
-    gateway --> app["app (core)"]
-    gateway --> sections["air · space · sea · land · sdr"]
-    gateway --> radio["radio hub"]
-    sections -- "register, settings" --> app
-    radio -- "register, settings" --> app
-    app <--> nats(("nats"))
-    sections <--> nats
-    radio <--> nats
+    gateway --> services
+    subgraph services["SERVICES"]
+        app["app (core)"]
+        sections["air · space · sea · land · sdr"]
+        radio["radio hub"]
+        nats["nats<br/>events between services"]
+    end
     subgraph onlineFeeds["ONLINE"]
         feeds["adsb.lol · AISStream<br/>CelesTrak · ukrepeater.net<br/>Protomaps"]
     end
+    onlineFeeds --> services
     subgraph offgridRadios["OFF GRID"]
         dongles["RTL-SDR dongles<br/>rtl_tcp / Sentry"]
         decoders["decoders<br/>voice · aprs · ais · adsb"]
     end
-    feeds --> sections
-    feeds --> app
-    radio --> dongles
-    decoders -- "config, PCM, events" --> radio
+    dongles -- "IQ samples" --> radio
+    radio <-- "audio out,<br/>events back" --> decoders
     class onlineFeeds online
     class offgridRadios offgrid
 ```

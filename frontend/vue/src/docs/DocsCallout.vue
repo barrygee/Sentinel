@@ -55,7 +55,6 @@ const showWarningGlyph = computed(() => props.variant === 'warning' || props.var
   margin: 0 0 18px;
   padding: 14px 18px;
   background: var(--doc-callout-wash);
-  border-left: 3px solid var(--doc-callout-bar);
   color: var(--ink);
 }
 

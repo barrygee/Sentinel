@@ -165,17 +165,24 @@ function onArticleClick(event: MouseEvent): void {
   padding: 8px 12px;
   vertical-align: top;
   text-align: left;
-  border-bottom: 1px solid var(--rule);
 }
 
+/* No rules: a faint shade on every other row, as in the page's own tables. */
+.doc-prose :deep(.doc-nested-scroll tbody tr:nth-child(odd) td) {
+  background: rgba(var(--ink-rgb), 0.035);
+}
+
+/* Set off by a wash instead of a rule down its side. */
 .doc-prose :deep(blockquote) {
-  padding-left: 16px;
-  border-left: 2px solid var(--rule);
+  padding: 10px 16px;
+  background: var(--surface);
 }
 
+/* A thematic break is space, not a line. */
 .doc-prose :deep(hr) {
+  height: 0;
+  margin: 28px 0;
   border: none;
-  border-top: 1px solid var(--rule);
 }
 
 .doc-prose :deep(img) {
@@ -189,7 +196,6 @@ function onArticleClick(event: MouseEvent): void {
 
 .doc-prose :deep(.doc-figure img) {
   display: block;
-  border: 1px solid var(--border);
 }
 
 .doc-prose :deep(.doc-figure figcaption) {

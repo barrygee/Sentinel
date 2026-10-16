@@ -33,7 +33,6 @@ defineProps<{ previous: DocsPage | null; next: DocsPage | null }>()
   grid-template-columns: minmax(0, 1fr);
   max-width: var(--doc-measure, 720px);
   margin-top: 56px;
-  border-top: 1px solid var(--rule);
 }
 
 .doc-prev-next__cell {

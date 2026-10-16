@@ -45,7 +45,7 @@ onMounted(async () => {
       </div>
       <div
         v-else-if="drawState === 'ready'"
-        class="doc-diagram__scroll"
+        class="doc-diagram__scroll theme-dark"
         role="region"
         tabindex="0"
         aria-label="Diagram"
@@ -88,11 +88,18 @@ onMounted(async () => {
   color: rgba(var(--ink-rgb), 0.62);
 }
 
+/* Pinned dark (`theme-dark`), so `--canvas` is the app's own dark ground and
+   the diagram looks like the map panels, even on the light docs page. */
 .doc-diagram__scroll {
   overflow-x: auto;
   padding: 16px;
   background: var(--canvas);
-  border: 1px solid var(--border);
+}
+
+/* The lime ring is drawn inside the dark box: outside, on the light page,
+   lime would be ~1.6:1. The global rule is !important, so this is too. */
+.doc-diagram__scroll:focus-visible {
+  outline-offset: -4px !important;
 }
 
 .doc-diagram__canvas :deep(svg) {
@@ -109,11 +116,9 @@ onMounted(async () => {
   color: var(--ink);
 }
 
-/* The text equivalent: always visible, set off by a rule, led by a caption. */
+/* The text equivalent: always visible, led by a caption. */
 .doc-diagram-text {
   margin-top: 14px;
-  padding-left: 16px;
-  border-left: 2px solid var(--rule);
   font-size: var(--doc-text-body);
   line-height: var(--doc-line);
   color: var(--ink);

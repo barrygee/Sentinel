@@ -74,8 +74,12 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
 .doc-table-scroll :deep(td) {
   padding: 10px 14px;
   vertical-align: top;
-  border-bottom: 1px solid var(--rule);
   text-align: left;
+}
+
+/* No rules between rows: a faint shade on every other row keeps them apart. */
+.doc-table-scroll :deep(tbody tr:nth-child(odd) td) {
+  background: rgba(var(--ink-rgb), 0.035);
 }
 
 .doc-table-scroll :deep(th) {

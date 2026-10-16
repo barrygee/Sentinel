@@ -41,7 +41,7 @@ const isSectionGroup = computed(() => SECTION_GROUP_KEYS.includes(props.groupKey
         d="M14.5 6.5a3.8 3.8 0 0 0 4.6 4.8l-8.6 8.6a2.1 2.1 0 0 1-3-3l8.6-8.6a3.8 3.8 0 0 0 4.8-4.6l-2.6 2.6-2.2-.4-.4-2.2z"
       />
     </template>
-    <!-- Develop: code brackets -->
+    <!-- Developer docs: code brackets -->
     <template v-else>
       <polyline points="8 7 3 12 8 17" />
       <polyline points="16 7 21 12 16 17" />

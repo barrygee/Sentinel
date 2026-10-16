@@ -1,5 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { MAP_LABEL_FONT_STACK } from '@sentinel/map-kit/map-label/mapLabelParts'
 import type { AirStore } from '../types'
 
 type LngLat = [number, number]
@@ -389,7 +390,7 @@ export class AaraToggleControl extends SentinelControlBase {
         wrapper.style.cssText = 'pointer-events:none'
 
         const label = document.createElement('div')
-        label.style.cssText = `color:#fff;font-family:monospace;font-size:10px;white-space:nowrap;text-align:center;transform:rotate(${rotate}deg)`
+        label.style.cssText = `color:#fff;font-family:${MAP_LABEL_FONT_STACK};font-size:11px;letter-spacing:0.08em;white-space:nowrap;text-align:center;transform:rotate(${rotate}deg)`
         label.textContent = f.properties.name
 
         wrapper.appendChild(label)

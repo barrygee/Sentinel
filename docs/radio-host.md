@@ -5,7 +5,7 @@ Run the radio hub and the voice, APRS and AIS decoders on a second computer by t
 *Figure: The two computers and the TLS links between them.*
 
 ```mermaid
-flowchart LR
+flowchart TB
     browser["Browser"] -- "http :8080" --> gateway
     subgraph core["CORE HOST"]
         gateway["gateway<br/>:8080, :8443"]
@@ -18,12 +18,12 @@ flowchart LR
         radio["radio hub"]
         decoders["decoders"]
         rgw --> radio
-        decoders --> radio
+        radio <-- "audio out,<br/>events back" --> decoders
     end
     gateway -- "TLS: radio requests" --> rgw
-    radio -- "TLS: register, settings" --> gateway
-    radio -- "TLS: events" --> nats
-    radio --> dongles["Your dongles"]
+    radio <-- "TLS: register, settings" --> gateway
+    radio <-- "TLS: events" --> nats
+    dongles["Your dongles"] -- "IQ samples" --> radio
 ```
 
 - The browser only talks to the core host on :8080.
