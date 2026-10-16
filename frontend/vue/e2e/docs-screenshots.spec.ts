@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { waitForShellHydration } from './support/hydrationGate'
@@ -24,7 +24,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../.
 const imagesDirectory = join(repositoryRoot, 'docs/images')
 const assetsDirectory = join(repositoryRoot, 'frontend/assets')
 
-const DESKTOP_VIEWPORT = { width: 1440, height: 900 }
+const DESKTOP_VIEWPORT = { width: 1920, height: 1080 }
 const PHONE_VIEWPORT = { width: 390, height: 844 }
 
 /** Central England: inside every map's opening view. */
@@ -32,6 +32,174 @@ const DEMO_LOCATION = { latitude: 52.2, longitude: -1.5 }
 
 const DEMO_AIRCRAFT = {
   ac: [
+    {
+      hex: '4ca011',
+      flight: 'DEMO411 ',
+      lat: 53.35,
+      lon: -2.27,
+      alt_baro: 36000,
+      gs: 448,
+      track: 95,
+      category: 'A3',
+      t: 'A20N',
+      r: 'G-DEMF',
+      squawk: '1000',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca012',
+      flight: 'EXAMPLE12 ',
+      lat: 51.47,
+      lon: -0.45,
+      alt_baro: 4200,
+      gs: 180,
+      track: 270,
+      category: 'A3',
+      t: 'B789',
+      r: 'G-DEMG',
+      squawk: '1111',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca013',
+      flight: 'TEST613 ',
+      lat: 55.95,
+      lon: -3.35,
+      alt_baro: 23000,
+      gs: 390,
+      track: 165,
+      category: 'A3',
+      t: 'E190',
+      r: 'G-DEMH',
+      squawk: '1222',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca014',
+      flight: 'DEMO714 ',
+      lat: 54.1,
+      lon: -1.2,
+      alt_baro: 38000,
+      gs: 470,
+      track: 330,
+      category: 'A3',
+      t: 'A321',
+      r: 'G-DEMI',
+      squawk: '1333',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca015',
+      flight: 'SAMPLE15 ',
+      lat: 50.9,
+      lon: -1.4,
+      alt_baro: 9000,
+      gs: 240,
+      track: 40,
+      category: 'A3',
+      t: 'DH8D',
+      r: 'G-DEMJ',
+      squawk: '1444',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca016',
+      flight: 'DEMO816 ',
+      lat: 52.95,
+      lon: 0.6,
+      alt_baro: 31000,
+      gs: 430,
+      track: 200,
+      category: 'A3',
+      t: 'B738',
+      r: 'G-DEMK',
+      squawk: '1555',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca017',
+      flight: 'EXAMPLE17 ',
+      lat: 51.8,
+      lon: -3.6,
+      alt_baro: 27000,
+      gs: 410,
+      track: 85,
+      category: 'A3',
+      t: 'A319',
+      r: 'G-DEML',
+      squawk: '1666',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca018',
+      flight: 'TEST918 ',
+      lat: 54.65,
+      lon: -5.9,
+      alt_baro: 12000,
+      gs: 250,
+      track: 120,
+      category: 'A3',
+      t: 'AT76',
+      r: 'G-DEMM',
+      squawk: '1777',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca019',
+      flight: 'DEMO219 ',
+      lat: 52.3,
+      lon: -4.8,
+      alt_baro: 40000,
+      gs: 500,
+      track: 260,
+      category: 'A3',
+      t: 'B77W',
+      r: 'G-DEMN',
+      squawk: '1888',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca01a',
+      flight: 'SAMPLE20 ',
+      lat: 51.2,
+      lon: 0.3,
+      alt_baro: 2500,
+      gs: 95,
+      track: 15,
+      category: 'A3',
+      t: 'C172',
+      r: 'G-DEMO',
+      squawk: '1999',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca01b',
+      flight: 'DEMO521 ',
+      lat: 53.9,
+      lon: 1.8,
+      alt_baro: 39000,
+      gs: 480,
+      track: 60,
+      category: 'A3',
+      t: 'A332',
+      r: 'G-DEMP',
+      squawk: '2110',
+      seen_pos: 1,
+    },
+    {
+      hex: '4ca01c',
+      flight: 'EXAMPLE22 ',
+      lat: 50.4,
+      lon: -4.1,
+      alt_baro: 17000,
+      gs: 330,
+      track: 300,
+      category: 'A3',
+      t: 'E145',
+      r: 'G-DEMQ',
+      squawk: '2221',
+      seen_pos: 1,
+    },
     {
       hex: '4ca001',
       flight: 'DEMO101 ',
@@ -205,6 +373,49 @@ const DEMO_REPEATERS = {
   ],
 }
 
+/**
+ * A real ISS position, four-orbit ground track and footprint, recorded once from
+ * the Space service's own SGP4 code with a fixed TLE and a fixed moment (over
+ * Morocco, heading north-east), so the Space map shows a satellite the same way
+ * every time.
+ */
+const DEMO_ISS = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'fixtures/docs-iss.json'), 'utf8'),
+)
+
+interface RecordedPass {
+  aos_utc: string
+  los_utc: string
+  max_el_utc: string
+  aos_unix_ms: number
+  los_unix_ms: number
+  max_elevation_deg: number
+}
+
+/**
+ * The recorded ISS passes, moved so the highest one rises 20 minutes from now
+ * (the app lists only passes still to come). Earlier ones are dropped; their
+ * shapes, lengths and sky tracks are kept.
+ */
+function upcomingIssPasses(now: number): RecordedPass[] {
+  const recorded = DEMO_ISS.passes as RecordedPass[]
+  const best = recorded.reduce((highest, candidate) =>
+    candidate.max_elevation_deg > highest.max_elevation_deg ? candidate : highest,
+  )
+  const shift = now + 20 * 60_000 - best.aos_unix_ms
+  const moved = (iso: string) => new Date(Date.parse(iso) + shift).toISOString()
+  return recorded
+    .filter((candidate) => candidate.aos_unix_ms >= best.aos_unix_ms)
+    .map((candidate) => ({
+      ...candidate,
+      aos_unix_ms: candidate.aos_unix_ms + shift,
+      los_unix_ms: candidate.los_unix_ms + shift,
+      aos_utc: moved(candidate.aos_utc),
+      los_utc: moved(candidate.los_utc),
+      max_el_utc: moved(candidate.max_el_utc),
+    }))
+}
+
 /** Real map style, fonts and sprites from the repo, so maps aren't blank. */
 async function serveRealMapAssets(page: Page): Promise<void> {
   await page.route('**/assets/**', (route) => {
@@ -260,6 +471,52 @@ async function prepare(page: Page, viewport = DESKTOP_VIEWPORT): Promise<void> {
   await page.route('**/api/land/repeaters', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(DEMO_REPEATERS) }),
   )
+  await page.route('/api/space/tle/list', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        satellites: [
+          {
+            norad_id: '25544',
+            name: 'ISS (ZARYA)',
+            category: 'space_station',
+            name_source: null,
+            updated_at: Date.now(),
+            downlink_hz: 145_800_000,
+            downlink_mode: 'FM',
+          },
+        ],
+      }),
+    }),
+  )
+  const satelliteNow = {
+    position: DEMO_ISS.position,
+    ground_track: DEMO_ISS.ground_track,
+    footprint: DEMO_ISS.footprint,
+  }
+  // The ISS has its own route; the demo satellites' details reuse its orbit.
+  await page.route(
+    (url) =>
+      url.pathname === '/api/space/iss' || /^\/api\/space\/satellite\/\d+$/.test(url.pathname),
+    (route) =>
+      route.fulfill({ contentType: 'application/json', body: JSON.stringify(satelliteNow) }),
+  )
+  await page.route(
+    (url) =>
+      url.pathname === '/api/space/iss/passes' ||
+      /^\/api\/space\/satellite\/\d+\/passes$/.test(url.pathname),
+    (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          passes: upcomingIssPasses(Date.now()),
+          obs_lat: DEMO_LOCATION.latitude,
+          obs_lon: DEMO_LOCATION.longitude,
+          lookahead_hours: 24,
+          computed_at: new Date().toISOString(),
+        }),
+      }),
+  )
   const now = Date.now()
   await page.route('/api/space/passes**', (route) =>
     route.fulfill({
@@ -303,6 +560,25 @@ async function prepare(page: Page, viewport = DESKTOP_VIEWPORT): Promise<void> {
   )
 }
 
+/**
+ * Zooms the map out around its centre, so what is selected is shown with its
+ * surroundings (a satellite's whole ground track, the aircraft and map layers
+ * around a selected aircraft). A wheel notch of 100 moves the map by about a
+ * quarter of a zoom level; MapLibre caps each event, so it scrolls in steps.
+ */
+async function zoomMapOut(page: Page, wheelDelta: number): Promise<void> {
+  const map = page.locator('.maplibregl-canvas').first()
+  await expect(map).toBeVisible()
+  const box = await map.boundingBox()
+  if (!box) throw new Error('The map has no size')
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  for (let remaining = wheelDelta; remaining > 0; remaining -= 300) {
+    await page.mouse.wheel(0, Math.min(300, remaining))
+    await page.waitForTimeout(250)
+  }
+  await page.waitForTimeout(800)
+}
+
 async function shoot(page: Page, name: string): Promise<void> {
   // Let map tiles and fonts arrive; the maps have no "done" event we can await.
   await page.mouse.move(DESKTOP_VIEWPORT.width / 2, DESKTOP_VIEWPORT.height - 20)
@@ -323,6 +599,10 @@ test.describe('docs screenshots', () => {
     await page.goto('/air/')
     await waitForShellHydration(page)
     await page.locator('[data-tab="search"]').first().click()
+    await page.getByRole('combobox').first().fill('DEMO101')
+    await page.getByRole('option').first().click()
+    await page.waitForTimeout(1500)
+    await zoomMapOut(page, 5400)
     await shoot(page, 'interface-air-screen')
   })
 
@@ -333,15 +613,30 @@ test.describe('docs screenshots', () => {
     await page.locator('[data-tab="search"]').first().click()
     await page.getByRole('combobox').first().fill('DEMO303')
     await page.getByRole('option').first().click()
+    await page.waitForTimeout(1500)
+    await zoomMapOut(page, 5400)
     await shoot(page, 'air-aircraft-details')
+  })
+
+  test('Space map with the ISS', async ({ page }) => {
+    await prepare(page)
+    await page.goto('/space/')
+    await waitForShellHydration(page)
+    await page.locator('[data-tab="search"]').first().click()
+    await page.getByRole('combobox').first().fill('ISS')
+    await page.getByRole('option').first().click()
+    await zoomMapOut(page, 150)
+    await shoot(page, 'space-iss')
   })
 
   test('Space passes', async ({ page }) => {
     await prepare(page)
     await page.goto('/space/')
     await waitForShellHydration(page)
+    await zoomMapOut(page, 150)
     await page.locator('[data-tab="passes"]').click()
     await expect(page.locator('.spp-pass-card').first()).toBeVisible({ timeout: 10_000 })
+    await page.locator('.spp-pass-card').first().click()
     await shoot(page, 'space-passes')
   })
 
