@@ -24,6 +24,7 @@
     "@sentinel/web-config": "*"
   },
   "dependencies": {
-    "@sentinel/ui": "*"
+    "@sentinel/ui": "*",
+    "monaco-editor": "0.57.0"
   }
 }

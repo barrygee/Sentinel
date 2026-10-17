@@ -4,6 +4,10 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import {
+  FakeJsonCodeEditor,
+  fakeJsonCodeEditorFormat,
+} from '@sentinel/shell-api/testing/fakeJsonCodeEditor'
 
 // Every mount registers a document listener; unmount so earlier tests' instances
 // cannot answer a later test's event.
@@ -23,6 +27,20 @@ function stubFetch(payload: unknown, ok = true): ReturnType<typeof vi.fn> {
   return fetchMock
 }
 
+/** Mounts the control with the editor swapped for a plain textarea (Monaco can't run in jsdom). */
+function mountControl() {
+  return mount(ConfigCurrentControl, {
+    global: { stubs: { JsonCodeEditor: FakeJsonCodeEditor } },
+  })
+}
+
+/** Clicks EDIT so the editor (the fake textarea) is on screen, and returns it. */
+async function openEditor(wrapper: ReturnType<typeof mountControl>) {
+  await wrapper.findAll('.settings-config-btn')[0]!.trigger('click')
+  await flushPromises()
+  return wrapper.find('textarea')
+}
+
 describe('ConfigCurrentControl', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -37,57 +55,64 @@ describe('ConfigCurrentControl', () => {
   })
 
   it('loads and pretty-prints the live config on mount', async () => {
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain('"latitude"')
+    const editor = await openEditor(wrapper)
+    expect((editor.element as HTMLTextAreaElement).value).toContain('"latitude"')
+    expect(editor.attributes('aria-label')).toBe('Editable app configuration JSON')
   })
 
   it('shows a load failure message', async () => {
     stubFetch({}, false)
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain(
+    expect(((await openEditor(wrapper)).element as HTMLTextAreaElement).value).toContain(
       'Failed to load config',
     )
   })
 
   it('restores the visible state from sessionStorage and persists toggles', async () => {
     sessionStorage.setItem(SS_KEY, '1')
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    expect(wrapper.find('textarea').classes()).not.toContain('settings-config-preview--hidden')
+    expect(wrapper.find('textarea').exists()).toBe(true)
     await wrapper.findAll('.settings-config-btn')[0]!.trigger('click')
     expect(sessionStorage.getItem(SS_KEY)).toBe('0')
   })
 
   it('persists the visible state when toggled on', async () => {
-    const wrapper = mount(ConfigCurrentControl)
+    sessionStorage.removeItem(SS_KEY)
+    const wrapper = mountControl()
     await flushPromises()
-    expect(wrapper.find('textarea').classes()).toContain('settings-config-preview--hidden')
+    expect(wrapper.find('textarea').exists()).toBe(false)
     await wrapper.findAll('.settings-config-btn')[0]!.trigger('click')
     expect(sessionStorage.getItem(SS_KEY)).toBe('1')
   })
 
   it('reloads on panel open and skips reload while dirty', async () => {
+    sessionStorage.removeItem(SS_KEY)
     const fetchMock = stubFetch({ app: {} })
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     const store = useSettingsStore()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     store.openPanel()
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    await wrapper.find('textarea').setValue('{}')
+    // Opening the editor reads the config once more; editing then makes it dirty.
+    const editor = await openEditor(wrapper)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    await editor.setValue('{}')
     store.closePanel()
     await flushPromises()
     store.openPanel()
     await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('refetches the config when another control announces a settings change', async () => {
     const fetchMock = stubFetch({ app: {} })
-    mount(ConfigCurrentControl)
+    mountControl()
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
@@ -97,18 +122,20 @@ describe('ConfigCurrentControl', () => {
 
   it('keeps unsaved JSON edits when a settings change is announced', async () => {
     const fetchMock = stubFetch({ app: {} })
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"app": {"edited": true}}')
+    const editor = await openEditor(wrapper)
+    const callsBeforeEdit = fetchMock.mock.calls.length
+    await editor.setValue('{"app": {"edited": true}}')
     document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
     await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(callsBeforeEdit)
     expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain('"edited"')
   })
 
   it('stops refetching on settings changes once unmounted', async () => {
     const fetchMock = stubFetch({ app: {} })
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     wrapper.unmount()
     document.dispatchEvent(new CustomEvent('sentinel:settings-changed'))
@@ -118,7 +145,7 @@ describe('ConfigCurrentControl', () => {
 
   it('refetches the config when the editor is revealed, but not when hidden', async () => {
     const fetchMock = stubFetch({ app: {} })
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     await wrapper.findAll('.settings-config-btn')[0]!.trigger('click') // EDIT → shown
@@ -134,9 +161,9 @@ describe('ConfigCurrentControl', () => {
     document.addEventListener('sentinel:config-uploaded', uploaded)
     localStorage.setItem(LOCATION_LS_KEY, JSON.stringify({ latitude: 51, longitude: 0 }))
     const fetchMock = stubFetch({})
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"app":{"location":{"latitude":51,"longitude":0}}}')
+    await (await openEditor(wrapper)).setValue('{"app":{"location":{"latitude":51,"longitude":0}}}')
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     await staged()
     expect(fetchMock).toHaveBeenCalledWith(
@@ -151,9 +178,9 @@ describe('ConfigCurrentControl', () => {
   it('clears the cached location when the config has no location', async () => {
     localStorage.setItem(LOCATION_LS_KEY, JSON.stringify({ latitude: 51, longitude: 0 }))
     stubFetch({})
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"app":{}}')
+    await (await openEditor(wrapper)).setValue('{"app":{}}')
     await (wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>)()
     expect(localStorage.getItem(LOCATION_LS_KEY)).toBeNull()
   })
@@ -161,9 +188,11 @@ describe('ConfigCurrentControl', () => {
   it('clears the cached location when the config location is invalid', async () => {
     localStorage.setItem(LOCATION_LS_KEY, JSON.stringify({ latitude: 51, longitude: 0 }))
     stubFetch({})
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"app":{"location":{"latitude":"","longitude":""}}}')
+    await (
+      await openEditor(wrapper)
+    ).setValue('{"app":{"location":{"latitude":"","longitude":""}}}')
     await (wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>)()
     expect(localStorage.getItem(LOCATION_LS_KEY)).toBeNull()
   })
@@ -171,9 +200,9 @@ describe('ConfigCurrentControl', () => {
   it('does not broadcast a config upload when the POST fails', async () => {
     const uploaded = vi.fn()
     document.addEventListener('sentinel:config-uploaded', uploaded)
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"app":{}}')
+    await (await openEditor(wrapper)).setValue('{"app":{}}')
     stubFetch({}, false)
     await (wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>)()
     expect(uploaded).not.toHaveBeenCalled()
@@ -181,58 +210,24 @@ describe('ConfigCurrentControl', () => {
   })
 
   it('throws from the staged callback for invalid JSON', async () => {
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{ not json')
+    await (await openEditor(wrapper)).setValue('{ not json')
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     expect(() => staged()).toThrow()
   })
 
-  it('indents at the caret on Tab', async () => {
-    const wrapper = mount(ConfigCurrentControl)
+  it('offers FORMAT only while editing, and it formats the editor', async () => {
+    sessionStorage.removeItem(SS_KEY)
+    fakeJsonCodeEditorFormat.mockClear()
+    const wrapper = mountControl()
     await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = 'abc'
-    element.selectionStart = element.selectionEnd = 0
-    await textarea.trigger('keydown.tab')
-    expect(element.value).toBe('  abc')
-  })
-
-  it('indents a multi-line selection on Tab', async () => {
-    const wrapper = mount(ConfigCurrentControl)
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = 'a\nb'
-    element.selectionStart = 0
-    element.selectionEnd = 3
-    await textarea.trigger('keydown.tab')
-    expect(element.value).toBe('  a\n  b')
-  })
-
-  it('outdents a single line on Shift+Tab', async () => {
-    const wrapper = mount(ConfigCurrentControl)
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = '  a'
-    element.selectionStart = 0
-    element.selectionEnd = 3
-    await textarea.trigger('keydown.tab', { shiftKey: true })
-    expect(element.value).toBe('a')
-  })
-
-  it('outdents a multi-line selection on Shift+Tab', async () => {
-    const wrapper = mount(ConfigCurrentControl)
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = '  a\n  b'
-    element.selectionStart = 0
-    element.selectionEnd = 7
-    await textarea.trigger('keydown.tab', { shiftKey: true })
-    expect(element.value).toBe('a\nb')
+    const labels = () => wrapper.findAll('.settings-config-btn').map((button) => button.text())
+    expect(labels()).toEqual(['EDIT', 'EXPORT'])
+    await openEditor(wrapper)
+    expect(labels()).toEqual(['HIDE', 'FORMAT', 'EXPORT'])
+    await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
+    expect(fakeJsonCodeEditorFormat).toHaveBeenCalledTimes(1)
   })
 
   it('exports via the File System Access API when available', async () => {
@@ -242,7 +237,7 @@ describe('ConfigCurrentControl', () => {
       createWritable: vi.fn().mockResolvedValue({ write, close }),
     })
     ;(window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
     await flushPromises()
@@ -256,7 +251,7 @@ describe('ConfigCurrentControl', () => {
       .fn()
       .mockRejectedValue(new DOMException('cancelled', 'AbortError'))
     ;(window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
     await flushPromises()
@@ -268,7 +263,7 @@ describe('ConfigCurrentControl', () => {
     const showSaveFilePicker = vi.fn().mockRejectedValue(new Error('boom'))
     ;(window as unknown as { showSaveFilePicker: unknown }).showSaveFilePicker = showSaveFilePicker
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
     await flushPromises()
@@ -279,7 +274,7 @@ describe('ConfigCurrentControl', () => {
 
   it('downloads via a blob when the File System Access API is unavailable', async () => {
     const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    const wrapper = mount(ConfigCurrentControl)
+    const wrapper = mountControl()
     await flushPromises()
     await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
     await flushPromises()
@@ -287,9 +282,16 @@ describe('ConfigCurrentControl', () => {
     expect(clickSpy).toHaveBeenCalled()
   })
 
-  it('has no accessibility violations', async () => {
-    const wrapper = mount(ConfigCurrentControl)
+  it('has no accessibility violations, closed or editing', async () => {
+    sessionStorage.removeItem(SS_KEY)
+    const wrapper = mountControl()
     await flushPromises()
+    expect(
+      await axe(wrapper.html(), {
+        rules: { region: { enabled: false } },
+      }),
+    ).toHaveNoViolations()
+    await openEditor(wrapper)
     expect(
       await axe(wrapper.html(), {
         rules: { region: { enabled: false } },

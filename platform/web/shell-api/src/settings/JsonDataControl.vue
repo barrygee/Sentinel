@@ -1,16 +1,12 @@
 <template>
   <div class="settings-config-wrap">
-    <textarea
-      ref="taRef"
+    <JsonCodeEditor
+      v-if="visible"
+      ref="editorRef"
       v-model="text"
-      class="settings-config-preview settings-config-preview--textarea"
-      :aria-label="`Editable JSON data (${filename})`"
-      :class="{ 'settings-config-preview--hidden': !visible }"
-      spellcheck="false"
-      autocomplete="off"
-      @input="onEdit"
-      @keydown.tab="onTab"
-    ></textarea>
+      :accessible-name="`Editable JSON data (${filename})`"
+      @update:model-value="onEdit"
+    />
     <div class="settings-config-action-row">
       <BaseButton
         variant="ghost"
@@ -20,6 +16,14 @@
       >
         {{ visible ? 'HIDE' : 'EDIT' }}
       </BaseButton>
+      <BaseButton
+        v-if="visible"
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="editorRef?.format()"
+        >FORMAT</BaseButton
+      >
       <BaseButton
         variant="ghost"
         class="settings-config-btn"
@@ -36,18 +40,18 @@
 import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import JsonCodeEditor from '@sentinel/shell-api/settings/JsonCodeEditor.vue'
 
-// Generic JSON-textarea editor that loads from `getUrl` and saves to `postUrl`
+// Generic JSON editor that loads from `getUrl` and saves to `postUrl`
 // (POSTing the raw JSON body). Mirrors ConfigCurrentControl's UX — EDIT/HIDE,
-// EXPORT, Tab-indent, stage-on-edit so the global APPLY CHANGES button commits
+// FORMAT, EXPORT, stage-on-edit so the global APPLY CHANGES button commits
 // it — but for a single dedicated data file rather than the whole app config.
 const props = defineProps<{ getUrl: string; postUrl: string; filename: string }>()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 const store = useSettingsStore()
 
-const INDENT = '  '
-const taRef = ref<HTMLTextAreaElement | null>(null)
+const editorRef = ref<InstanceType<typeof JsonCodeEditor> | null>(null)
 const text = ref('Loading…')
 const visible = ref(false)
 const dirty = ref(false)
@@ -74,39 +78,6 @@ watch(
 
 function toggleVisible(): void {
   visible.value = !visible.value
-}
-
-// Trap Tab so it indents the JSON instead of moving focus (same as the app
-// config editor).
-function onTab(e: KeyboardEvent): void {
-  const ta = taRef.value
-  /* v8 ignore start -- defensive: the textarea ref is always set while the
-     keydown handler is attached, so ta is never null here */
-  if (!ta) return
-  /* v8 ignore stop */
-  e.preventDefault()
-  const { selectionStart: start, selectionEnd: end, value } = ta
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1
-  const multiline = value.slice(start, end).includes('\n')
-
-  if (e.shiftKey) {
-    const block = value.slice(lineStart, end)
-    const outdented = block.replace(/^( {1,2}|\t)/gm, '')
-    ta.value = value.slice(0, lineStart) + outdented + value.slice(end)
-    ta.selectionStart = lineStart
-    ta.selectionEnd = lineStart + outdented.length
-  } else if (multiline) {
-    const block = value.slice(lineStart, end)
-    const indented = block.replace(/^/gm, INDENT)
-    ta.value = value.slice(0, lineStart) + indented + value.slice(end)
-    ta.selectionStart = start + INDENT.length
-    ta.selectionEnd = end + (indented.length - block.length)
-  } else {
-    ta.value = value.slice(0, start) + INDENT + value.slice(end)
-    ta.selectionStart = ta.selectionEnd = start + INDENT.length
-  }
-  text.value = ta.value
-  onEdit()
 }
 
 function onEdit(): void {

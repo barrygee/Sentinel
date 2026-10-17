@@ -45,7 +45,11 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 /**
  * Every module of the shared packages, as the specifier a section imports it
  * by: `.vue` files with their extension, `.ts` modules without. Specs, type
- * declarations and the `testing/` doubles are not app code and are left out.
+ * declarations and the `testing/` doubles are not app code and are left out,
+ * and so are modules under a `lazy/` folder: a shared module loads them with a
+ * dynamic `import()` (the Monaco code editor), so importing them here would put
+ * them in the shell's startup bundle. They still end up in the shell's build,
+ * as a chunk of their own, through that dynamic import.
  */
 export function sharedPackageModuleSpecifiers(): string[] {
   const specifiers: string[] = []
@@ -55,6 +59,7 @@ export function sharedPackageModuleSpecifiers(): string[] {
       if (!entry.isFile()) continue
       const path = relative(sourceDir, resolve(entry.parentPath, entry.name))
       if (/\.(spec|d)\.ts$/.test(path) || path.startsWith('testing/')) continue
+      if (path.split(/[\\/]/).includes('lazy')) continue
       if (path.endsWith('.vue')) specifiers.push(`${packageName}/${path}`)
       else if (path.endsWith('.ts'))
         specifiers.push(`${packageName}/${path.slice(0, -'.ts'.length)}`)
