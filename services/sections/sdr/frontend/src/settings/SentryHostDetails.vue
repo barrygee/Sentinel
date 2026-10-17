@@ -241,7 +241,15 @@ function formatTimestamp(epochMs: number | null): string {
   return epochMs === null ? UNSET_TEXT : new Date(epochMs).toLocaleString()
 }
 
-/** Seconds as `3d 4h 12m` / `4h 12m` / `12m 03s`, dropping empty leading units. */
+/** A count with its unit spelled out: `1 minute`, `3 seconds` (units are never abbreviated). */
+function countWithUnit(count: number, unit: string): string {
+  return `${count} ${unit}${count === 1 ? '' : 's'}`
+}
+
+/**
+ * Seconds as `3 days 4 hours 12 minutes` / `4 hours 12 minutes` /
+ * `12 minutes 3 seconds`, dropping empty leading units.
+ */
 function formatDuration(totalSeconds: number | null): string {
   if (totalSeconds === null) return UNSET_TEXT
   const wholeSeconds = Math.max(0, Math.floor(totalSeconds))
@@ -249,9 +257,11 @@ function formatDuration(totalSeconds: number | null): string {
   const hours = Math.floor((wholeSeconds % 86400) / 3600)
   const minutes = Math.floor((wholeSeconds % 3600) / 60)
   const seconds = wholeSeconds % 60
-  if (days > 0) return `${days}d ${hours}h ${minutes}m`
-  if (hours > 0) return `${hours}h ${minutes}m`
-  return `${minutes}m ${String(seconds).padStart(2, '0')}s`
+  const hoursText = countWithUnit(hours, 'hour')
+  const minutesText = countWithUnit(minutes, 'minute')
+  if (days > 0) return `${countWithUnit(days, 'day')} ${hoursText} ${minutesText}`
+  if (hours > 0) return `${hoursText} ${minutesText}`
+  return `${minutesText} ${countWithUnit(seconds, 'second')}`
 }
 
 async function loadInfo(hostId: number): Promise<void> {

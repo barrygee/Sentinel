@@ -26,23 +26,25 @@ describe('satellite category tables', () => {
 
 describe('formatPassCountdown', () => {
   it('formats hours, minutes and seconds', () => {
-    expect(formatPassCountdown((3 * 3600 + 4 * 60 + 5) * 1000)).toBe('IN 3h 4m 5s')
+    expect(formatPassCountdown((3 * 3600 + 4 * 60 + 5) * 1000)).toBe(
+      'IN 3 hours 4 minutes 5 seconds',
+    )
   })
   it('omits hours when under an hour', () => {
-    expect(formatPassCountdown((4 * 60 + 5) * 1000)).toBe('IN 4m 5s')
+    expect(formatPassCountdown((4 * 60 + 5) * 1000)).toBe('IN 4 minutes 5 seconds')
   })
   it('shows only seconds when under a minute', () => {
-    expect(formatPassCountdown(5000)).toBe('IN 5s')
+    expect(formatPassCountdown(5000)).toBe('IN 5 seconds')
   })
   it('clamps negative values to zero seconds', () => {
-    expect(formatPassCountdown(-1000)).toBe('IN 0s')
+    expect(formatPassCountdown(-1000)).toBe('IN 0 seconds')
   })
 })
 
 describe('formatPassDuration', () => {
   it('formats minutes and seconds', () => {
-    expect(formatPassDuration(125)).toBe('2m 5s')
-    expect(formatPassDuration(45)).toBe('0m 45s')
+    expect(formatPassDuration(125)).toBe('2 minutes 5 seconds')
+    expect(formatPassDuration(45)).toBe('0 minutes 45 seconds')
   })
 })
 
@@ -63,10 +65,10 @@ describe('formatTleAge', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it.each([
-    [30 * 1000, '30s ago'],
-    [5 * 60 * 1000, '5m ago'],
-    [3 * 3600 * 1000, '3h ago'],
-    [2 * 86400 * 1000, '2d ago'],
+    [30 * 1000, '30 seconds ago'],
+    [5 * 60 * 1000, '5 minutes ago'],
+    [3 * 3600 * 1000, '3 hours ago'],
+    [2 * 86400 * 1000, '2 days ago'],
   ])('formats an age of %i ms as %s', (ageMs, expected) => {
     vi.spyOn(Date, 'now').mockReturnValue(now)
     expect(formatTleAge(now - ageMs)).toBe(expected)

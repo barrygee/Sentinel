@@ -36,7 +36,7 @@ function buildStagedWriter(value: number): () => Promise<unknown> {
 <template>
   <BaseNumberSetting
     accessible-name="APRS station retention in minutes"
-    unit="MIN"
+    unit="MINUTES"
     :min-value="1"
     namespace="land"
     setting-key="aprsRetentionMinutes"
