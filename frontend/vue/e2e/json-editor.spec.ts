@@ -81,6 +81,35 @@ test.describe('Settings JSON editor', () => {
     await expect(card.locator('.json-code-editor .monaco-editor')).toBeVisible()
   })
 
+  test('moving over, hovering and searching the editor raises no page errors', async ({ page }) => {
+    // Regression: services Monaco's JSON support registered late threw
+    // "depends on UNKNOWN service ICodeLensCache" on every mouse move.
+    const pageErrors: string[] = []
+    page.on('pageerror', (error) => pageErrors.push(error.message))
+    const { card } = await openConfigEditor(page)
+    // The failure needed a second editor: the first one sets Monaco's services
+    // up before the JSON support finishes loading, and an editor opened after it
+    // used features whose services were never set up. Close and reopen.
+    await page.waitForTimeout(1500)
+    await card.getByRole('button', { name: 'HIDE', exact: true }).click()
+    await card.getByRole('button', { name: 'EDIT', exact: true }).click()
+    await expect(card.locator('.json-code-editor .monaco-editor')).toBeVisible()
+    const box = (await card.locator('.view-lines').boundingBox())!
+    for (let step = 0; step <= 10; step++)
+      await page.mouse.move(box.x + 20 + step * 30, box.y + 10 + step * 12)
+    // Hover a JSON error long enough for its hover to open.
+    await caretAtStart(card, page)
+    await page.keyboard.press('End')
+    await page.keyboard.insertText(' oops')
+    await page.mouse.move(box.x + 30, box.y + 12)
+    await page.waitForTimeout(1200)
+    await page.keyboard.press('ControlOrMeta+F')
+    await page.keyboard.insertText('app')
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+    expect(pageErrors).toEqual([])
+  })
+
   test('the open editor has no WCAG 2.2 AA violations', async ({ page }) => {
     await openConfigEditor(page)
     const results = await new AxeBuilder({ page })

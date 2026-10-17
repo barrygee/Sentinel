@@ -4,28 +4,23 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../workerImports.d.ts" />
 /**
- * The Monaco editor, trimmed to what Sentinel's JSON editors use: the editor
- * core plus line numbers, indenting, formatting, bracket matching, folding,
- * find, hovers (to read a JSON error) and the JSON language with its worker.
+ * The Monaco editor with the JSON language and its workers.
+ *
+ * `jsonMode` is imported here, up front, on purpose. Monaco's JSON support
+ * normally loads it lazily once a JSON model exists, and it brings most of the
+ * editor's features with it (hover, CodeLens, suggest…). Their services must be
+ * registered before the first editor is created: registered later, they are
+ * never seen, and moving the mouse over the editor throws "depends on UNKNOWN
+ * service ICodeLensCache". `JsonCodeEditor` switches off the features beyond
+ * the basics through its options.
  *
  * Loaded only by `loadMonaco()`, with a dynamic import, so none of it is in the
  * app's startup bundle; it lives under `lazy/` so the shell's shared-module
  * list skips it too (`sharedPackageModuleSpecifiers`).
  */
 import * as monaco from 'monaco-editor/editor/editor.api'
-import 'monaco-editor/editor/contrib/bracketMatching/browser/bracketMatching'
-import 'monaco-editor/editor/contrib/clipboard/browser/clipboard'
-import 'monaco-editor/editor/contrib/cursorUndo/browser/cursorUndo'
-import 'monaco-editor/editor/contrib/find/browser/findController'
-import 'monaco-editor/editor/contrib/folding/browser/folding'
-import 'monaco-editor/editor/contrib/format/browser/formatActions'
-import 'monaco-editor/editor/contrib/gotoError/browser/gotoError'
-import 'monaco-editor/editor/contrib/hover/browser/hoverContribution'
-import 'monaco-editor/editor/contrib/indentation/browser/indentation'
-import 'monaco-editor/editor/contrib/linesOperations/browser/linesOperations'
-import 'monaco-editor/editor/contrib/toggleTabFocusMode/browser/toggleTabFocusMode'
-import 'monaco-editor/editor/contrib/wordOperations/browser/wordOperations'
 import 'monaco-editor/language/json/monaco.contribution'
+import 'monaco-editor/languages/features/json/jsonMode'
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
 import JsonWorker from 'monaco-editor/language/json/json.worker?worker'
 

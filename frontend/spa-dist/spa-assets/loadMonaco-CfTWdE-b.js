@@ -1,0 +1,2 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["spa-assets/monacoEditor-CnqO2JK5.js","spa-assets/rolldown-runtime-QTnfLwEv.js","spa-assets/vite-preload-helper-zJ_50EbN.js","spa-assets/monacoEditor-B1z2ANkp.css"])))=>i.map(i=>d[i]);
+import{n as e}from"./rolldown-runtime-QTnfLwEv.js";import{t}from"./vite-preload-helper-zJ_50EbN.js";var n=e({loadMonaco:()=>i}),r=null;function i(){return r??=t(()=>import(`./monacoEditor-CnqO2JK5.js`).then(e=>e.monaco),__vite__mapDeps([0,1,2,3])),r}export{n,i as t};
