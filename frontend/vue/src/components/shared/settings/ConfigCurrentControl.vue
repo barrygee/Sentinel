@@ -1,16 +1,12 @@
 <template>
   <div class="settings-config-wrap">
-    <textarea
-      ref="taRef"
+    <JsonCodeEditor
+      v-if="visible"
+      ref="editorRef"
       v-model="configText"
-      class="settings-config-preview settings-config-preview--textarea"
-      aria-label="Editable app configuration JSON"
-      :class="{ 'settings-config-preview--hidden': !visible }"
-      spellcheck="false"
-      autocomplete="off"
-      @input="onEdit"
-      @keydown.tab="onTab"
-    ></textarea>
+      accessible-name="Editable app configuration JSON"
+      @update:model-value="onEdit"
+    />
     <div class="settings-config-action-row">
       <BaseButton
         variant="ghost"
@@ -20,6 +16,14 @@
       >
         {{ visible ? 'HIDE' : 'EDIT' }}
       </BaseButton>
+      <BaseButton
+        v-if="visible"
+        variant="ghost"
+        class="settings-config-btn"
+        style="--ba-ghost-hover-color: rgba(16, 19, 29, 0.95)"
+        @click="editorRef?.format()"
+        >FORMAT</BaseButton
+      >
       <BaseButton
         variant="ghost"
         class="settings-config-btn"
@@ -38,6 +42,7 @@ import { SETTINGS_CHANGED_EVENT } from '@sentinel/shell-api/services/settingsApi
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import JsonCodeEditor from '@sentinel/shell-api/settings/JsonCodeEditor.vue'
 
 // Same key useUserLocation seeds sharedLocation from on reload. Clearing it
 // here when the config location is emptied keeps the post-reload seed correct
@@ -49,8 +54,7 @@ const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const store = useSettingsStore()
 
 const SS_KEY = 'sentinel_config_preview_visible'
-const INDENT = '  ' // 2 spaces, matching JSON.stringify(data, null, 2)
-const taRef = ref<HTMLTextAreaElement | null>(null)
+const editorRef = ref<InstanceType<typeof JsonCodeEditor> | null>(null)
 const configText = ref('Loading…')
 const visible = ref(false)
 // Set once the user manually edits the JSON (EDIT mode). While dirty we never
@@ -100,46 +104,6 @@ function toggleVisible(): void {
   } catch {}
   // Revealing the editor is the moment the JSON is read: make sure it is current.
   if (visible.value) void loadPreview()
-}
-
-// Trap Tab so it indents the JSON instead of moving focus out of the editor.
-// Shift+Tab outdents. Multi-line selections are indented/outdented as a block.
-function onTab(e: KeyboardEvent): void {
-  const ta = taRef.value
-  /* v8 ignore start -- defensive: the textarea ref is always set while the
-     keydown handler is attached, so ta is never null here */
-  if (!ta) return
-  /* v8 ignore stop */
-  e.preventDefault()
-  const { selectionStart: start, selectionEnd: end, value } = ta
-  const lineStart = value.lastIndexOf('\n', start - 1) + 1
-  const multiline = value.slice(start, end).includes('\n')
-
-  if (e.shiftKey) {
-    // Outdent every line touched by the selection.
-    const block = value.slice(lineStart, end)
-    const outdented = block.replace(/^( {1,2}|\t)/gm, '')
-    const removedFirst =
-      block.length - block.split('\n')[0].length === 0
-        ? block.split('\n')[0].length - outdented.split('\n')[0].length
-        : 0
-    ta.value = value.slice(0, lineStart) + outdented + value.slice(end)
-    ta.selectionStart = Math.max(lineStart, start - removedFirst)
-    ta.selectionEnd = lineStart + outdented.length
-  } else if (multiline) {
-    // Indent every line touched by the selection.
-    const block = value.slice(lineStart, end)
-    const indented = block.replace(/^/gm, INDENT)
-    ta.value = value.slice(0, lineStart) + indented + value.slice(end)
-    ta.selectionStart = start + INDENT.length
-    ta.selectionEnd = end + (indented.length - block.length)
-  } else {
-    // Plain caret: insert an indent at the cursor.
-    ta.value = value.slice(0, start) + INDENT + value.slice(end)
-    ta.selectionStart = ta.selectionEnd = start + INDENT.length
-  }
-  configText.value = ta.value
-  onEdit()
 }
 
 function onEdit(): void {

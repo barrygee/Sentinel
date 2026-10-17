@@ -11,7 +11,7 @@ Every setting is in **Settings** (the gear, bottom right) and in one live file, 
 - **Shared**: settings live on the Sentinel computer, so every device sees the same.
 - **Connectivity Mode**: **ONLINE** or **OFF GRID** for every section; Air and Sea also have a **Source Override**.
 - **Export All Configuration**: settings, frequencies and band plan as three files.
-- **Application Config**: view, **EDIT** or **EXPORT** the config file in the browser.
+- **Application Config**: view, **EDIT** or **EXPORT** the config file in the browser. The editor has line numbers, marks JSON errors, and **FORMAT** (or Shift+Alt+F) tidies the indenting. Tab indents; press Ctrl+M (Ctrl+Shift+M on a Mac) first to move on with Tab instead.
 
 ![Settings › App Settings: the Settings menu down the left, SEARCH SETTINGS at the top, Connectivity Mode and Alert Sound, and APPLY CHANGES at the bottom right.](../images/settings-app.png)
 

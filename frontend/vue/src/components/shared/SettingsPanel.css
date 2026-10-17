@@ -1188,61 +1188,12 @@
 /* Fills its card. The editors used to sit in half-width cards and carried a
    1120px cap so a stray long line could not stretch one; now every editor card
    spans the row (.settings-item--full), and the cap only left a band of empty
-   card beside the textarea. */
+   card beside the editor (JsonCodeEditor, which styles itself). */
 .settings-config-wrap {
   display: flex;
   flex-direction: column;
   gap: 12px;
   width: 100%;
-}
-
-.settings-config-preview--hidden {
-  display: none;
-}
-
-.settings-config-preview--textarea {
-  resize: none;
-  width: 100%;
-  min-height: 520px;
-  box-sizing: border-box;
-  outline: none;
-  caret-color: var(--ink-strong);
-  font-family: 'Barlow Condensed', 'Barlow', monospace !important;
-  font-size: var(--settings-text-value) !important;
-  font-weight: 400;
-  letter-spacing: 0.02em;
-}
-
-.settings-config-preview--textarea:focus {
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-
-.settings-config-preview {
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
-  border-radius: 0;
-  padding: 16px;
-  font-family: 'Barlow Condensed', 'Barlow', monospace;
-  font-size: var(--settings-text-body);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  color: rgba(var(--ink-rgb), 0.7);
-  white-space: pre;
-  overflow: auto;
-  max-height: 600px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
-}
-
-/* Editable variant is an input field: the shared light-grey input fill with
-   square corners. Must sit AFTER the base .settings-config-preview rule (equal
-   specificity — source order decides); the read-only preview keeps its own
-   look above. */
-.settings-config-preview--textarea {
-  background: var(--surface);
-  border-color: transparent;
-  border-radius: 0;
-  color: rgba(var(--ink-rgb), 0.85);
 }
 
 .settings-config-action-row {

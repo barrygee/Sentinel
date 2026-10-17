@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import JsonDataControl from './JsonDataControl.vue'
 import { useSettingsStore } from '../stores/settings'
+import { FakeJsonCodeEditor, fakeJsonCodeEditorFormat } from '../testing/fakeJsonCodeEditor'
 
 function stubFetch(payload: unknown, ok = true): ReturnType<typeof vi.fn> {
   const fetchMock = vi.fn().mockResolvedValue({
@@ -19,7 +20,16 @@ function stubFetch(payload: unknown, ok = true): ReturnType<typeof vi.fn> {
 const PROPS = { getUrl: '/api/data/get', postUrl: '/api/data/post', filename: 'data.json' }
 
 function mountControl() {
-  return mount(JsonDataControl, { props: PROPS })
+  return mount(JsonDataControl, {
+    props: PROPS,
+    global: { stubs: { JsonCodeEditor: FakeJsonCodeEditor } },
+  })
+}
+
+/** Clicks EDIT so the editor (the fake textarea) is on screen, and returns it. */
+async function openEditor(wrapper: ReturnType<typeof mountControl>) {
+  await wrapper.findAll('.settings-config-btn')[0]!.trigger('click')
+  return wrapper.find('textarea')
 }
 
 describe('JsonDataControl', () => {
@@ -38,7 +48,7 @@ describe('JsonDataControl', () => {
   it('loads and pretty-prints the JSON on mount', async () => {
     const wrapper = mountControl()
     await flushPromises()
-    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe(
+    expect(((await openEditor(wrapper)).element as HTMLTextAreaElement).value).toBe(
       '{\n  "alpha": 1\n}',
     )
   })
@@ -47,20 +57,34 @@ describe('JsonDataControl', () => {
     stubFetch({}, false)
     const wrapper = mountControl()
     await flushPromises()
-    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain(
+    expect(((await openEditor(wrapper)).element as HTMLTextAreaElement).value).toContain(
       'Failed to load',
     )
   })
 
-  it('toggles the textarea visibility with the EDIT/HIDE button', async () => {
+  it('shows the editor only after EDIT, and removes it again on HIDE', async () => {
     const wrapper = mountControl()
     await flushPromises()
     const toggleBtn = wrapper.findAll('.settings-config-btn')[0]!
     expect(toggleBtn.text()).toBe('EDIT')
-    expect(wrapper.find('textarea').classes()).toContain('settings-config-preview--hidden')
+    expect(wrapper.find('textarea').exists()).toBe(false)
     await toggleBtn.trigger('click')
     expect(toggleBtn.text()).toBe('HIDE')
-    expect(wrapper.find('textarea').classes()).not.toContain('settings-config-preview--hidden')
+    expect(wrapper.find('textarea').attributes('aria-label')).toBe('Editable JSON data (data.json)')
+    await toggleBtn.trigger('click')
+    expect(wrapper.find('textarea').exists()).toBe(false)
+  })
+
+  it('offers FORMAT only while editing, and it formats the editor', async () => {
+    fakeJsonCodeEditorFormat.mockClear()
+    const wrapper = mountControl()
+    await flushPromises()
+    const labels = () => wrapper.findAll('.settings-config-btn').map((button) => button.text())
+    expect(labels()).toEqual(['EDIT', 'EXPORT'])
+    await openEditor(wrapper)
+    expect(labels()).toEqual(['HIDE', 'FORMAT', 'EXPORT'])
+    await wrapper.findAll('.settings-config-btn')[1]!.trigger('click')
+    expect(fakeJsonCodeEditorFormat).toHaveBeenCalledTimes(1)
   })
 
   it('reloads when the settings panel opens but skips reload while dirty', async () => {
@@ -76,7 +100,7 @@ describe('JsonDataControl', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
 
     // After an edit the control is dirty, so a re-open does not reload.
-    await wrapper.find('textarea').setValue('{"alpha":2}')
+    await (await openEditor(wrapper)).setValue('{"alpha":2}')
     store.closePanel()
     await flushPromises() // let the watcher observe the close (isOpen === false)
     store.openPanel()
@@ -90,7 +114,7 @@ describe('JsonDataControl', () => {
     const fetchMock = stubFetch({ alpha: 1 })
     const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"alpha":2}')
+    await (await openEditor(wrapper)).setValue('{"alpha":2}')
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     await staged()
     expect(fetchMock).toHaveBeenCalledWith(
@@ -104,7 +128,7 @@ describe('JsonDataControl', () => {
   it('rejects an invalid-JSON edit and shows an error', async () => {
     const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{ not json')
+    await (await openEditor(wrapper)).setValue('{ not json')
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     await expect(staged()).rejects.toThrow()
     expect(wrapper.find('.satradio-error').text()).toContain('Invalid JSON')
@@ -113,7 +137,7 @@ describe('JsonDataControl', () => {
   it('surfaces a save failure from the backend', async () => {
     const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"alpha":2}')
+    await (await openEditor(wrapper)).setValue('{"alpha":2}')
     stubFetch({ detail: 'rejected' }, false)
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     await expect(staged()).rejects.toThrow('rejected')
@@ -123,7 +147,7 @@ describe('JsonDataControl', () => {
   it('falls back to the status text when the error body is unreadable', async () => {
     const wrapper = mountControl()
     await flushPromises()
-    await wrapper.find('textarea').setValue('{"alpha":2}')
+    await (await openEditor(wrapper)).setValue('{"alpha":2}')
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -137,41 +161,6 @@ describe('JsonDataControl', () => {
     const staged = wrapper.emitted('stage')!.at(-1)![0] as () => Promise<unknown>
     await expect(staged()).rejects.toThrow('Server Error')
     expect(wrapper.find('.satradio-error').text()).toBe('Save failed: Server Error')
-  })
-
-  it('indents at the caret on Tab', async () => {
-    const wrapper = mountControl()
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = 'abc'
-    element.selectionStart = element.selectionEnd = 0
-    await textarea.trigger('keydown.tab')
-    expect(element.value).toBe('  abc')
-  })
-
-  it('indents a multi-line selection on Tab', async () => {
-    const wrapper = mountControl()
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = 'a\nb'
-    element.selectionStart = 0
-    element.selectionEnd = 3
-    await textarea.trigger('keydown.tab')
-    expect(element.value).toBe('  a\n  b')
-  })
-
-  it('outdents on Shift+Tab', async () => {
-    const wrapper = mountControl()
-    await flushPromises()
-    const textarea = wrapper.find('textarea')
-    const element = textarea.element as HTMLTextAreaElement
-    element.value = '  a'
-    element.selectionStart = 0
-    element.selectionEnd = 3
-    await textarea.trigger('keydown.tab', { shiftKey: true })
-    expect(element.value).toBe('a')
   })
 
   it('exports via the File System Access API when available', async () => {
@@ -227,9 +216,15 @@ describe('JsonDataControl', () => {
     expect(clickSpy).toHaveBeenCalled()
   })
 
-  it('has no accessibility violations', async () => {
+  it('has no accessibility violations, closed or editing', async () => {
     const wrapper = mountControl()
     await flushPromises()
+    expect(
+      await axe(wrapper.html(), {
+        rules: { region: { enabled: false } },
+      }),
+    ).toHaveNoViolations()
+    await openEditor(wrapper)
     expect(
       await axe(wrapper.html(), {
         rules: { region: { enabled: false } },
