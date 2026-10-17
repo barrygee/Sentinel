@@ -528,6 +528,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the docs groups and steady the docs menu
 - Drop the close button, show the phone nav bar, Sea and radio wording
 - Spell out time units instead of abbreviating them
+- Register Monaco's JSON features before the first editor
 
 ### Chores
 
@@ -1576,6 +1577,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #504 from barrygee/fix/docs-menu-names
 - Merge pull request #505 from barrygee/fix/spell-out-seconds
 - Merge pull request #506 from barrygee/feat/monaco-config-editor
+- Merge pull request #507 from barrygee/fix/monaco-missing-services
 
 ### Refactoring
 
@@ -1881,6 +1883,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the /docs path
 - Rebuild the bundle and section remotes for the unit wording
 - Rebuild the bundle with the Monaco JSON editor
+- Rebuild the bundle for the Monaco services fix
 
 ### Continuous Integration
 
