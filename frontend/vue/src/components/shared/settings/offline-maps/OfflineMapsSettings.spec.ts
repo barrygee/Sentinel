@@ -69,6 +69,21 @@ function mountSettings() {
   return mount(OfflineMapsSettings)
 }
 
+/** What DRAW AREA leads to: the map reports drawing armed, which shows the area fields. */
+async function startDrawing(wrapper: ReturnType<typeof mountSettings>): Promise<void> {
+  await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', true)
+}
+
+/** Whether the label, bounds, depth and content fields are on screen. */
+function areaFieldsShown(wrapper: ReturnType<typeof mountSettings>): boolean[] {
+  return [
+    wrapper.find('#oma-label-input').exists(),
+    wrapper.findComponent({ name: 'BboxFields' }).exists(),
+    wrapper.findComponent({ name: 'DepthPicker' }).exists(),
+    wrapper.findComponent({ name: 'ContentChecks' }).exists(),
+  ]
+}
+
 describe('OfflineMapsSettings', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -246,6 +261,59 @@ describe('OfflineMapsSettings', () => {
     })
   })
 
+  describe('area fields (label, bounds, depth, contents)', () => {
+    it('are hidden until an area is being chosen', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      expect(areaFieldsShown(wrapper)).toEqual([false, false, false, false])
+    })
+
+    it('show while DRAW AREA is armed and hide again when the draw is cancelled', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      await startDrawing(wrapper)
+      expect(areaFieldsShown(wrapper)).toEqual([true, true, true, true])
+      await wrapper.findComponent({ name: 'OfflineAreaMap' }).vm.$emit('armed-change', false)
+      expect(areaFieldsShown(wrapper)).toEqual([false, false, false, false])
+    })
+
+    it('stay shown once a drawn box ends the drawing', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      const areaMap = wrapper.findComponent({ name: 'OfflineAreaMap' })
+      await startDrawing(wrapper)
+      await areaMap.vm.$emit('draw-complete', { west: -3, south: 54, east: -2, north: 55 })
+      await areaMap.vm.$emit('armed-change', false)
+      expect(areaFieldsShown(wrapper)).toEqual([true, true, true, true])
+    })
+
+    it('show after USE CURRENT VIEW and hide on CLEAR AREA', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'USE CURRENT VIEW')!
+        .trigger('click')
+      expect(areaFieldsShown(wrapper)).toEqual([true, true, true, true])
+      await wrapper
+        .findAll('button')
+        .find((button) => button.text() === 'CLEAR AREA')!
+        .trigger('click')
+      expect(areaFieldsShown(wrapper)).toEqual([false, false, false, false])
+    })
+
+    it('has no accessibility violations with the fields shown', async () => {
+      const wrapper = mountSettings()
+      await flushPromises()
+      useOfflineMapsStore().setDraftBbox(-1, 50, 1, 52)
+      await wrapper.vm.$nextTick()
+      expect(areaFieldsShown(wrapper)).toEqual([true, true, true, true])
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
+  })
+
   describe('wiring between the map and the form', () => {
     it('arms the map draw handler from DRAW AREA, and cancels when pressed again before a box is drawn', async () => {
       const wrapper = mountSettings()
@@ -306,6 +374,7 @@ describe('OfflineMapsSettings', () => {
       const wrapper = mountSettings()
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
+      await startDrawing(wrapper)
       const northInput = wrapper
         .findAll('.oma-bbox-field')
         .find((field) => field.text().startsWith('NORTH'))!
@@ -319,6 +388,7 @@ describe('OfflineMapsSettings', () => {
       const wrapper = mountSettings()
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
+      await startDrawing(wrapper)
       await wrapper.find('input[type="range"]').setValue('9')
       expect(offlineMapsStore.draft.maxZoom).toBe(9)
     })
@@ -327,6 +397,7 @@ describe('OfflineMapsSettings', () => {
       const wrapper = mountSettings()
       await flushPromises()
       const offlineMapsStore = useOfflineMapsStore()
+      await startDrawing(wrapper)
       await wrapper.find('#oma-label-input').setValue('Lake District')
       expect(offlineMapsStore.draft.label).toBe('Lake District')
     })
@@ -462,6 +533,7 @@ describe('OfflineMapsSettings', () => {
     // The queued area becomes the region; the selection and its estimate go.
     expect(offlineMapsStore.hasDraftArea).toBe(false)
     expect(wrapper.find('.oma-estimate').exists()).toBe(false)
+    expect(areaFieldsShown(wrapper)).toEqual([false, false, false, false])
   })
 
   it('shows the store submitError as an alert', async () => {

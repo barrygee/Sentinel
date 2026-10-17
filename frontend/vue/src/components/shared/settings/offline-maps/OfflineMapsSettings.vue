@@ -18,36 +18,40 @@
         @clear="onClearArea"
       />
 
-      <div class="settings-location-field">
-        <label class="settings-location-label" for="oma-label-input">LABEL</label>
-        <input
-          id="oma-label-input"
-          type="text"
-          class="settings-location-input oma-label-input"
-          maxlength="60"
-          placeholder="e.g. Lake District"
-          spellcheck="false"
-          autocomplete="off"
-          :value="store.draft.label"
-          @input="store.setDraftLabel(($event.target as HTMLInputElement).value)"
+      <!-- The area's details only mean anything once one is being chosen:
+           hidden until DRAW AREA or USE CURRENT VIEW is pressed. -->
+      <template v-if="showsAreaFields">
+        <div class="settings-location-field">
+          <label class="settings-location-label" for="oma-label-input">LABEL</label>
+          <input
+            id="oma-label-input"
+            type="text"
+            class="settings-location-input oma-label-input"
+            maxlength="60"
+            placeholder="e.g. Lake District"
+            spellcheck="false"
+            autocomplete="off"
+            :value="store.draft.label"
+            @input="store.setDraftLabel(($event.target as HTMLInputElement).value)"
+          />
+        </div>
+
+        <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
+
+        <DepthPicker
+          v-model="maxZoomModel"
+          :min-zoom="OFFLINE_MIN_ZOOM"
+          :max-zoom="OFFLINE_MAX_ZOOM"
+          :terrain-max-zoom="terrainMaxZoom"
         />
-      </div>
 
-      <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
-
-      <DepthPicker
-        v-model="maxZoomModel"
-        :min-zoom="OFFLINE_MIN_ZOOM"
-        :max-zoom="OFFLINE_MAX_ZOOM"
-        :terrain-max-zoom="terrainMaxZoom"
-      />
-
-      <ContentChecks
-        :include-basemap="store.draft.includeBasemap"
-        :include-terrain="store.draft.includeTerrain"
-        @update:include-basemap="store.setDraftIncludeBasemap"
-        @update:include-terrain="store.setDraftIncludeTerrain"
-      />
+        <ContentChecks
+          :include-basemap="store.draft.includeBasemap"
+          :include-terrain="store.draft.includeTerrain"
+          @update:include-basemap="store.setDraftIncludeBasemap"
+          @update:include-terrain="store.setDraftIncludeTerrain"
+        />
+      </template>
 
       <!-- Estimate and DOWNLOAD only mean anything for an area being chosen. -->
       <DownloadEstimate
@@ -127,6 +131,8 @@ const areaMapRef = ref<InstanceType<typeof OfflineAreaMap> | null>(null)
 const drawArmed = ref(false)
 
 const hasArea = computed(() => store.hasDraftArea)
+/** Drawing in progress or an area chosen — the label, bounds, depth and content fields show. */
+const showsAreaFields = computed(() => drawArmed.value || hasArea.value)
 const draftBounds = computed<LngLatBounds>(() => ({
   west: store.draft.west,
   south: store.draft.south,

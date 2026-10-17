@@ -29,8 +29,8 @@
     <!-- Screen readers only: drawing and resizing on the map need a pointer,
          so point keyboard users at the equivalent fields (WCAG 2.5.7). -->
     <p :id="keyboardNoteId" class="sr-only">
-      Drawing on the map needs a mouse or touch. Keyboard users can enter the North, South, East and
-      West bounds below, or use Use Current View.
+      Drawing on the map needs a mouse or touch. Keyboard users can press Draw Area to show the
+      North, South, East and West bounds fields and enter them there, or use Use Current View.
     </p>
     <p v-if="currentViewError" class="settings-location-error oma-area-selector-error" role="alert">
       {{ currentViewError }}
