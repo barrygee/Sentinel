@@ -57,6 +57,12 @@ async function openOfflineMaps(page: Page): Promise<Locator> {
   return dialog
 }
 
+/** The keyboard route to the bounds fields: they only appear once DRAW AREA is pressed. */
+async function startDrawing(dialog: Locator): Promise<void> {
+  await dialog.getByRole('button', { name: 'DRAW AREA' }).press('Enter')
+  await expect(dialog.getByLabel('NORTH', { exact: true })).toBeVisible()
+}
+
 async function typeBound(dialog: Locator, label: string, value: string): Promise<void> {
   const field = dialog.getByLabel(label, { exact: true })
   await field.click()
@@ -87,6 +93,8 @@ test.describe('Offline Maps settings', () => {
     const dialog = await openOfflineMaps(page)
     await expect(dialog.getByRole('button', { name: 'USE CURRENT VIEW' })).toBeVisible()
     await expect(dialog.getByRole('heading', { name: /offline areas|downloaded/i })).toBeAttached()
+    // Audit with the area fields shown too: they stay hidden until an area is being chosen.
+    await startDrawing(dialog)
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
       .include('.oma-shell')
@@ -97,6 +105,7 @@ test.describe('Offline Maps settings', () => {
 
   test('USE CURRENT VIEW fills all four bounds', async ({ page }) => {
     const dialog = await openOfflineMaps(page)
+    await expect(dialog.getByLabel('NORTH', { exact: true })).toHaveCount(0)
     await dialog.getByRole('button', { name: 'USE CURRENT VIEW' }).click()
     for (const label of ['NORTH', 'SOUTH', 'EAST', 'WEST']) {
       await expect(dialog.getByLabel(label, { exact: true })).not.toHaveValue(/^(0\.00000)?$/)
@@ -110,6 +119,7 @@ test.describe('Offline Maps settings', () => {
     page,
   }) => {
     const dialog = await openOfflineMaps(page)
+    await startDrawing(dialog)
     await typeBound(dialog, 'NORTH', '54.470')
     await typeBound(dialog, 'SOUTH', '54.450')
     await typeBound(dialog, 'EAST', '-3.050')
@@ -144,6 +154,7 @@ test.describe('Offline Maps settings', () => {
     })
 
     const dialog = await openOfflineMaps(page)
+    await startDrawing(dialog)
     await typeBound(dialog, 'NORTH', '54.470')
     await typeBound(dialog, 'SOUTH', '54.450')
     await typeBound(dialog, 'EAST', '-3.050')

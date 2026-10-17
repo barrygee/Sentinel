@@ -18,7 +18,7 @@ All of these are in **Settings › App Settings**.
 Do this while online: downloading is turned off in **OFF GRID**.
 
 1. **Settings › App Settings › Offline Maps**.
-2. Choose the area: **DRAW AREA**, **USE CURRENT VIEW**, or type **NORTH**, **SOUTH**, **EAST**, **WEST**.
+2. Choose the area: **DRAW AREA** or **USE CURRENT VIEW**. The label, bounds, depth and content fields appear once you press either. You can then type or adjust **NORTH**, **SOUTH**, **EAST**, **WEST** (from the keyboard: press **DRAW AREA**, then type them).
 3. **DEPTH**: 6 (countries) to 14 (streets). Each step can take up to four times the space.
 4. Tick **Basemap** and/or **Terrain**.
 5. Check the size against **Free space**, then **DOWNLOAD**.
