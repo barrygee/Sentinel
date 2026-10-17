@@ -588,6 +588,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give every .env.example variable its own comment
 - Set every variable with a default to it in .env.example
 - Remove the last SENTINEL_EXTERNAL_SERVICES leftovers
+- Reinstall dependencies after a pull that changes a lockfile
 
 ### Reverts
 
@@ -1580,6 +1581,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #506 from barrygee/feat/monaco-config-editor
 - Merge pull request #507 from barrygee/fix/monaco-missing-services
 - Merge pull request #509 from barrygee/fix/offline-maps-hide-fields-until-area
+- Merge remote-tracking branch 'origin/main' into chore/reinstall-deps-after-pull
+- Merge pull request #508 from barrygee/chore/reinstall-deps-after-pull
 
 ### Refactoring
 
@@ -1887,6 +1890,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle and section remotes for the unit wording
 - Rebuild the bundle with the Monaco JSON editor
 - Rebuild the bundle for the Monaco services fix
+- Rebuild the bundle for the setup docs change
 - Rebuild the bundle for the offline area fields fix
 
 ### Continuous Integration
