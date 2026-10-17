@@ -20,6 +20,8 @@ docker compose up --build -d      # http://localhost:8080
 
 The wrong Node or npm fails with `EBADENGINE` on purpose.
 
+After that, a `git pull` or merge that changes `package-lock.json` runs `npm ci` for you, and one that changes `backend/uv.lock` runs `uv sync --project backend` (the `.husky/post-merge` hook). If either fails, the hook prints the command to run yourself.
+
 ## The dev loop
 
 - **Backend:** code is mounted into the containers with `uvicorn --reload`. Save a `.py` and that service restarts in a second or two (`docker compose logs -f <service>`).
