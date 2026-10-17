@@ -526,6 +526,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Patch the four open Dependabot alerts
 - Rename the docs groups and steady the docs menu
 - Drop the close button, show the phone nav bar, Sea and radio wording
+- Spell out time units instead of abbreviating them
 
 ### Chores
 
@@ -1572,6 +1573,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #501 from barrygee/fix/search-pick-selects-on-map
 - Merge pull request #503 from barrygee/chore/deps-security
 - Merge pull request #504 from barrygee/fix/docs-menu-names
+- Merge pull request #505 from barrygee/fix/spell-out-seconds
 
 ### Refactoring
 
@@ -1875,6 +1877,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the Sea wording
 - Rebuild the bundle for the docs page fixes
 - Rebuild the bundle for the /docs path
+- Rebuild the bundle and section remotes for the unit wording
 
 ### Continuous Integration
 
@@ -1946,6 +1949,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add vertical space in Offline Maps and Coverage Area
 - Put every settings view on one type scale
 - Drop borders from the docs page and rename Develop to Developer docs
+- Make the docs menu group headings regular weight and 11px
 
 ### Dependencies
 
