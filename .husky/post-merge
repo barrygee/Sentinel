@@ -1,0 +1,30 @@
+# Post-merge: reinstall dependencies when a pull or merge changed a lockfile.
+# `git pull` updates the code but never node_modules or the backend venv, so
+# without this the next build fails on whatever package the merge added
+# (e.g. "Cannot find module 'markdown-it'"). Never blocks: git has already
+# merged by the time this runs, so a failed install only prints how to retry.
+# husky runs hooks with `sh -e`, hence the `|| …` on every command that can fail.
+
+changed_files="$(git diff --name-only ORIG_HEAD HEAD 2>/dev/null)" || exit 0
+
+if printf '%s\n' "$changed_files" | grep -qx 'package-lock.json'; then
+  echo "post-merge: package-lock.json changed — running npm ci"
+  # The repo pins Node 24–25 (engine-strict); use .nvmrc's when nvm is around.
+  if [ -s "${NVM_DIR:-$HOME/.nvm}/nvm.sh" ]; then
+    { . "${NVM_DIR:-$HOME/.nvm}/nvm.sh" >/dev/null && nvm use >/dev/null; } || true
+  fi
+  npm ci --no-audit --no-fund ||
+    echo "post-merge: npm ci failed — run 'nvm use && npm ci' from the repo root"
+fi
+
+if printf '%s\n' "$changed_files" | grep -qx 'backend/uv.lock'; then
+  echo "post-merge: backend/uv.lock changed — running uv sync"
+  if command -v uv >/dev/null 2>&1; then
+    uv sync --project backend ||
+      echo "post-merge: uv sync failed — run 'uv sync --project backend' from the repo root"
+  else
+    echo "post-merge: uv not found — run 'uv sync --project backend' once it is installed"
+  fi
+fi
+
+exit 0
