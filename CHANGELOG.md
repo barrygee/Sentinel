@@ -230,6 +230,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the "On this page" panel
 - Collapsible page list in the app's side-panel style
 - Serve the docs at /docs, with /doc redirecting
+- Edit JSON in a Monaco editor styled like the app
 
 ### Bug Fixes
 
@@ -1574,6 +1575,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #503 from barrygee/chore/deps-security
 - Merge pull request #504 from barrygee/fix/docs-menu-names
 - Merge pull request #505 from barrygee/fix/spell-out-seconds
+- Merge pull request #506 from barrygee/feat/monaco-config-editor
 
 ### Refactoring
 
@@ -1878,6 +1880,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the docs page fixes
 - Rebuild the bundle for the /docs path
 - Rebuild the bundle and section remotes for the unit wording
+- Rebuild the bundle with the Monaco JSON editor
 
 ### Continuous Integration
 
