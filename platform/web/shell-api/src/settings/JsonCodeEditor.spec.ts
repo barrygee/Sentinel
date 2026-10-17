@@ -38,6 +38,7 @@ const monacoState: { editor: FakeEditor | null; createOptions: Record<string, un
 }
 const fakeMonaco = {
   editor: {
+    ShowLightbulbIconMode: { Off: 'off' },
     defineTheme: vi.fn(),
     create: vi.fn((_host: HTMLElement, options: Record<string, unknown>) => {
       monacoState.createOptions = options
@@ -101,6 +102,9 @@ describe('JsonCodeEditor', () => {
       insertSpaces: true,
       minimap: { enabled: false },
       bracketPairColorization: { enabled: false },
+      quickSuggestions: false,
+      codeLens: false,
+      lightbulb: { enabled: 'off' },
     })
     wrapper.unmount()
   })
