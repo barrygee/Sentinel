@@ -529,6 +529,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the close button, show the phone nav bar, Sea and radio wording
 - Spell out time units instead of abbreviating them
 - Register Monaco's JSON features before the first editor
+- Hide the offline area fields until an area is being chosen
 
 ### Chores
 
@@ -1578,6 +1579,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #505 from barrygee/fix/spell-out-seconds
 - Merge pull request #506 from barrygee/feat/monaco-config-editor
 - Merge pull request #507 from barrygee/fix/monaco-missing-services
+- Merge pull request #509 from barrygee/fix/offline-maps-hide-fields-until-area
 
 ### Refactoring
 
@@ -1732,6 +1734,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retake the Settings screenshots with the new label contrast
 - Retake the screenshots centred on the UK with tracks and realistic data
 - Say vessels near you, not ships
+- Retake the Offline Maps screenshot without the area fields
 
 ### Tests
 
@@ -1884,6 +1887,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle and section remotes for the unit wording
 - Rebuild the bundle with the Monaco JSON editor
 - Rebuild the bundle for the Monaco services fix
+- Rebuild the bundle for the offline area fields fix
 
 ### Continuous Integration
 
