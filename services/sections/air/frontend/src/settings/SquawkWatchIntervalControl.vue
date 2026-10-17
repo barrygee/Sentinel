@@ -56,7 +56,7 @@ function buildStagedWriter(value: number): () => Promise<unknown> {
 <template>
   <BaseNumberSetting
     :accessible-name="`${mode === 'online' ? 'Online' : 'Off grid'} squawk alert check interval in seconds`"
-    unit="SEC"
+    unit="SECONDS"
     :min-value="MIN_INTERVAL_SEC"
     :max-length="4"
     namespace="air"

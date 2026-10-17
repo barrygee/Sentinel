@@ -203,10 +203,10 @@ describe('SentryHostDetails', () => {
 
   describe('formatting', () => {
     it.each([
-      [59, '0m 59s'],
-      [3723, '1h 2m'],
-      [90_061, '1d 1h 1m'],
-      [-5, '0m 00s'],
+      [59, '0 minutes 59 seconds'],
+      [3723, '1 hour 2 minutes'],
+      [90_061, '1 day 1 hour 1 minute'],
+      [-5, '0 minutes 0 seconds'],
     ])('formats an uptime of %ss as %s', async (uptimeSeconds, expected) => {
       const info = makeInfo()
       ;(info.health as Record<string, unknown>).uptime_s = uptimeSeconds

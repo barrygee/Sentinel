@@ -33,7 +33,7 @@ describe('SquawkWatchIntervalControl', () => {
     const wrapper = mountFor('online')
     await flushPromises()
     expect(inputValue(wrapper)).toBe('20')
-    expect(wrapper.find('.number-setting-unit').text()).toBe('SEC')
+    expect(wrapper.find('.number-setting-unit').text()).toBe('SECONDS')
     expect(wrapper.find('input').attributes('maxlength')).toBe('4')
   })
 
