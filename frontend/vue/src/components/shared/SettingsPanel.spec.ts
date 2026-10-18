@@ -19,6 +19,10 @@ import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import SettingRow from './settings/SettingRow.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import {
+  forgetShownSettingsSourceModes,
+  showSettingsSourceMode,
+} from '@sentinel/shell-api/settings/settingsSourceModes'
 
 // Each section's Settings nav entry and items, as its register() adds them at boot.
 // APPLY refreshes the running app's settings in place (shell/applySettings,
@@ -59,6 +63,114 @@ describe('SettingsPanel', () => {
   })
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  describe('settings that belong to one mode (sourceMode)', () => {
+    beforeEach(() => {
+      localStorage.clear()
+      forgetShownSettingsSourceModes()
+      useAppStore().connectivityMode = 'online'
+    })
+
+    /** Every rendered row's id, and whether it is on screen (v-show) or only mounted. */
+    function rowVisibility(wrapper: ReturnType<typeof mountPanel>): Record<string, boolean> {
+      return Object.fromEntries(
+        wrapper
+          .findAllComponents(SettingRow)
+          .map((row) => [
+            (row.props('item') as { id: string }).id,
+            !(row.attributes('style') ?? '').includes('display: none'),
+          ]),
+      )
+    }
+
+    async function openSection(wrapper: ReturnType<typeof mountPanel>, label: string) {
+      await wrapper
+        .findAll('.settings-nav-item')
+        .find((node) => node.attributes('data-tooltip') === label)!
+        .trigger('click')
+    }
+
+    it('shows AIR its online settings, and keeps the off-grid ones mounted but hidden', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'AIR')
+      expect(rowVisibility(wrapper)).toMatchObject({
+        'air-source-override': true,
+        'air-offgrid-sdr-source': false,
+        'air-offgrid-squawk-watch-interval': false,
+        'air-online-source': true,
+        'air-online-squawk-watch-interval': true,
+        'map-layers': true,
+      })
+    })
+
+    it('swaps to the off-grid settings as soon as OFF GRID is picked, and back again', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'AIR')
+      showSettingsSourceMode('air', 'offgrid')
+      await wrapper.vm.$nextTick()
+      expect(rowVisibility(wrapper)).toMatchObject({
+        'air-offgrid-sdr-source': true,
+        'air-offgrid-squawk-watch-interval': true,
+        'air-online-source': false,
+        'air-online-squawk-watch-interval': false,
+      })
+      showSettingsSourceMode('air', 'online')
+      await wrapper.vm.$nextTick()
+      expect(rowVisibility(wrapper)['air-offgrid-sdr-source']).toBe(false)
+      expect(rowVisibility(wrapper)['air-online-source']).toBe(true)
+    })
+
+    it("follows a section's saved mode before its control has reported one", async () => {
+      localStorage.setItem('sentinel_sea_sourceOverride', 'offgrid')
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'SEA')
+      expect(rowVisibility(wrapper)).toMatchObject({
+        'sea-ais-sdr-source': true,
+        'sea-online-source': false,
+        'sea-ais-key': false,
+        'sea-coverage-area': false,
+      })
+    })
+
+    it('follows the app-wide mode when the section has none of its own', async () => {
+      useAppStore().connectivityMode = 'offgrid'
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'SPACE')
+      expect(rowVisibility(wrapper)).toMatchObject({
+        'space-source-override': true,
+        'space-online-source': false,
+        'space-manual-tle': true,
+        'space-tle-database': true,
+      })
+    })
+
+    it('drops a mode that was picked but not applied when another section is opened', async () => {
+      const wrapper = mountPanel()
+      await openSection(wrapper, 'AIR')
+      showSettingsSourceMode('air', 'offgrid')
+      await openSection(wrapper, 'SEA')
+      await openSection(wrapper, 'AIR')
+      expect(rowVisibility(wrapper)['air-offgrid-sdr-source']).toBe(false)
+    })
+
+    it('hides search results, and a section heading with none left, from the other mode', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('#settings-search-input').setValue('off grid sdr')
+      const shownHeadings = wrapper
+        .findAll('.settings-section-label')
+        .filter((label) => !(label.attributes('style') ?? '').includes('display: none'))
+        .map((label) => label.text())
+      expect(shownHeadings).toContain('LAND')
+      expect(shownHeadings).not.toContain('AIR')
+      expect(shownHeadings).not.toContain('SEA')
+    })
+
+    it('says no results when every match belongs to the other mode', async () => {
+      const wrapper = mountPanel()
+      await wrapper.find('#settings-search-input').setValue('Off Grid AIS SDR')
+      expect(wrapper.find('.settings-empty').text()).toBe('No results found')
+    })
   })
 
   describe('section navigation', () => {
@@ -771,7 +883,7 @@ describe('SettingsPanel', () => {
   })
 
   describe('AIR data sources', () => {
-    it('leads AIR with its data sources, the ADS-B receiver between Source Override and Online Data Source', async () => {
+    it('leads AIR with its data sources, then map layers, labels and alerts', async () => {
       const wrapper = mountPanel()
       await wrapper
         .findAll('.settings-nav-item')
@@ -790,14 +902,14 @@ describe('SettingsPanel', () => {
         'air-online-source',
         'air-online-squawk-watch-interval',
         'map-layers',
-        'air-overhead-alerts',
         'air-tag-fields',
+        'air-overhead-alerts',
       ])
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'DATA SOURCES',
         'MAP',
-        'ALERTS',
         'LABELS',
+        'ALERTS',
       ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',

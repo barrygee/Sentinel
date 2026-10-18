@@ -669,14 +669,15 @@
    label and right-aligned instead of stretching the card's full width. The
    amber confirm state still wins — its vars are set inline on the element,
    which outranks these. Hover is overridden too (the atom hardcodes a pink
-   hover fill). */
+   hover fill). One shade darker than --danger, which is under AA (4.35:1)
+   behind the white label; hover goes darker again. */
 #settings-panel .tle-action-btn--danger {
-  --ba-danger-bg: var(--danger);
+  --ba-danger-bg: var(--danger-hover);
   --ba-danger-color: var(--surface-raised);
   align-self: flex-end;
 }
 #settings-panel .tle-action-btn--danger:hover:not(:disabled) {
-  background: var(--danger-hover);
+  background: var(--danger-strong);
   color: var(--surface-raised);
 }
 
@@ -904,7 +905,8 @@
   font-size: var(--settings-text-small);
   font-weight: 500;
   letter-spacing: 0.06em;
-  color: rgba(var(--ink-rgb), 0.5);
+  /* Small text: 0.5 ink fell under AA (3.4:1) on the panel's surface. */
+  color: rgba(var(--ink-rgb), 0.68);
 }
 
 .tle-cat-table {

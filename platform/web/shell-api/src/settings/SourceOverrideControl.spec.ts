@@ -4,6 +4,10 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SourceOverrideControl from './SourceOverrideControl.vue'
 import { useAppStore } from '../stores/app'
+import {
+  forgetShownSettingsSourceModes,
+  shownSettingsSourceMode,
+} from '@sentinel/shell-api/settings/settingsSourceModes'
 
 vi.mock('../services/settingsApi', () => ({
   put: vi.fn(),
@@ -42,6 +46,17 @@ describe('SourceOverrideControl', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  it('tells the Settings panel which mode it shows, as it is clicked and before APPLY', async () => {
+    localStorage.removeItem(LS_KEY)
+    forgetShownSettingsSourceModes()
+    useAppStore().setConnectivityMode('online')
+    const wrapper = await mountControl()
+    expect(shownSettingsSourceMode(NS, 'offgrid')).toBe('online')
+    await radio(wrapper, 'OFF GRID').trigger('click')
+    expect(shownSettingsSourceMode(NS, 'online')).toBe('offgrid')
+    expect(localStorage.getItem(LS_KEY)).toBeNull()
   })
 
   it('offers exactly OFF GRID then ONLINE — no AUTO — as a named radio group', async () => {

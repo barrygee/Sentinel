@@ -31,8 +31,8 @@ Ships appear within a minute. The key never appears in the config file or export
 You need a dongle you can give to AIS full time and a marine VHF antenna (about 162 MHz), mounted high.
 
 1. `docker compose --profile ais up -d --build`
-2. **Settings › SEA › Off Grid AIS SDR**: pick the radio.
-3. Set **OFF GRID** (app-wide, or Sea's **Source Override**), then **APPLY CHANGES**.
+2. Set **OFF GRID** (app-wide, or Sea's **Source Override**).
+3. **Settings › SEA › Off Grid AIS SDR**: pick the radio, then **APPLY CHANGES**.
 
 The decoder keeps the radio on both AIS channels and runs in the background, even with no browser open.
 
@@ -42,7 +42,7 @@ All in **Settings › SEA**.
 
 | Setting | What it does |
 |---|---|
-| **Source Override** | **ONLINE** or **OFF GRID** for Sea only |
+| **Source Override** | **ONLINE** or **OFF GRID** for Sea only. **Off Grid AIS SDR** shows off grid; the AISStream settings below it show online |
 | **Off Grid AIS SDR** | The radio used off grid |
 | **Online Data Source** | The AISStream address |
 | **AIS Data API Key** | Your AISStream key |

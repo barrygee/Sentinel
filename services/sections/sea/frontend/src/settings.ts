@@ -12,6 +12,7 @@ import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideCo
 
 /**
  * SEA's Settings section (F3): AIS sources (AISStream or an SDR), the AISStream key and coverage area, map layers and vessel labels.
+ * Each AIS source setting shows only in the mode it belongs to (`sourceMode`).
  */
 export function registerSeaSettings(): void {
   registerSettingsSection({ key: 'sea', label: 'SEA', order: 30, domain: true })
@@ -35,6 +36,7 @@ export function registerSeaSettings(): void {
       searchTerms: 'ais sdr radio receiver off grid aivdm',
       control: { component: SeaAisSdrSourceControl, emits: ['stage'] },
       groupLabel: 'DATA SOURCES',
+      sourceMode: 'offgrid',
     },
     {
       section: 'sea',
@@ -49,6 +51,7 @@ export function registerSeaSettings(): void {
         emits: ['stage', 'commit'],
       },
       groupLabel: 'DATA SOURCES',
+      sourceMode: 'online',
     },
     {
       section: 'sea',
@@ -64,6 +67,7 @@ export function registerSeaSettings(): void {
         naturalHeight: true,
       },
       groupLabel: 'DATA SOURCES',
+      sourceMode: 'online',
     },
     {
       section: 'sea',
@@ -79,6 +83,7 @@ export function registerSeaSettings(): void {
         naturalHeight: true,
       },
       groupLabel: 'DATA SOURCES',
+      sourceMode: 'online',
     },
     {
       section: 'sea',
