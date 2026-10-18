@@ -55,6 +55,20 @@ test.describe('Settings JSON editor', () => {
     await expect(card.getByRole('button', { name: 'FORMAT', exact: true })).toBeVisible()
   })
 
+  test('opens folded to its top-level sections, each of which unfolds', async ({ page }) => {
+    const { card } = await openConfigEditor(page)
+    // Every section is one line until opened: only its first and last line show.
+    await expect
+      .poll(async () => (await visibleLines(card)).map((line) => line.trim()))
+      .toEqual(['{', '"app": {', '},', '"air": {', '}', '}'])
+    // The fold arrows only show while the mouse is over the editor.
+    await card.locator('.view-lines').hover()
+    await card.locator('.codicon-folding-collapsed').first().click()
+    await expect
+      .poll(async () => (await visibleLines(card)).map((line) => line.trim()))
+      .toContain('"connectivityMode": "online"')
+  })
+
   /** Puts the caret at the start of the first line. */
   async function caretAtStart(card: ReturnType<Page['locator']>, page: Page) {
     await card

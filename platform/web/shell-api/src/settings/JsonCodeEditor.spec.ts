@@ -7,6 +7,11 @@ function makeFakeEditor(initialText: string) {
   let text = initialText
   let contentListener: ((change: { isFlush: boolean }) => void) | null = null
   const formatAction = { run: vi.fn().mockResolvedValue(undefined) }
+  const foldSectionsAction = { run: vi.fn().mockResolvedValue(undefined) }
+  const actions: Record<string, typeof formatAction> = {
+    'editor.action.formatDocument': formatAction,
+    'editor.foldLevel2': foldSectionsAction,
+  }
   const model = { dispose: vi.fn() }
   return {
     getValue: vi.fn(() => text),
@@ -17,10 +22,11 @@ function makeFakeEditor(initialText: string) {
     onDidChangeModelContent: vi.fn((listener: (change: { isFlush: boolean }) => void) => {
       contentListener = listener
     }),
-    getAction: vi.fn((id: string) => (id === 'editor.action.formatDocument' ? formatAction : null)),
+    getAction: vi.fn((id: string): typeof formatAction | null => actions[id] ?? null),
     getModel: vi.fn(() => model),
     dispose: vi.fn(),
     formatAction,
+    foldSectionsAction,
     model,
     /** What the user typing does: new text, then a non-flush change event. */
     typeText(next: string) {
@@ -163,6 +169,39 @@ describe('JsonCodeEditor', () => {
     await flushPromises()
     // The editor is created from the latest text instead.
     expect(monacoState.createOptions?.value).toBe('{"early":true}')
+    wrapper.unmount()
+  })
+
+  it('opens folded to its top-level sections', async () => {
+    const wrapper = mountEditor()
+    await flushPromises()
+    expect(monacoState.editor!.foldSectionsAction.run).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('folds again when the parent sets new text, but not on an echo of the same text', async () => {
+    const wrapper = mountEditor('{}')
+    await flushPromises()
+    await wrapper.setProps({ modelValue: '{"c":3}' })
+    expect(monacoState.editor!.foldSectionsAction.run).toHaveBeenCalledTimes(2)
+    await wrapper.setProps({ modelValue: '{"c":3}' })
+    monacoState.editor!.typeText('{"d":4}')
+    expect(monacoState.editor!.foldSectionsAction.run).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('still opens when Monaco has no fold action', async () => {
+    fakeMonaco.editor.create.mockImplementationOnce(
+      (_host: HTMLElement, options: Record<string, unknown>) => {
+        monacoState.createOptions = options
+        monacoState.editor = makeFakeEditor(String(options.value))
+        monacoState.editor.getAction.mockReturnValue(null)
+        return monacoState.editor
+      },
+    )
+    const wrapper = mountEditor()
+    await flushPromises()
+    expect(wrapper.find('.json-code-editor__host--ready').exists()).toBe(true)
     wrapper.unmount()
   })
 
