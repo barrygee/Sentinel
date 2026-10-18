@@ -1593,6 +1593,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #510 from barrygee/feat/settings-rows-follow-source-mode
 - Merge pull request #511 from barrygee/feat/json-editor-fold-sections-pr
 - Merge pull request #512 from barrygee/feat/docs-service
+- Merge pull request #513 from barrygee/chore/claude-md-package-imports
 
 ### Refactoring
 
@@ -1748,6 +1749,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retake the screenshots centred on the UK with tracks and realistic data
 - Say vessels near you, not ships
 - Retake the Offline Maps screenshot without the area fields
+- Shared packages import their own modules by package name
 
 ### Tests
 
