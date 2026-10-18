@@ -10,7 +10,7 @@ import {
 /** The path of the welcome page, which is served at `/docs/`. */
 export const DOCS_INDEX_PATH = 'index'
 
-/** Thrown when `docs/nav.json` is malformed or names a file that was not bundled. */
+/** Thrown when `docs/nav.json` is malformed or names a file the docs service did not send. */
 export class DocsNavigationError extends Error {
   constructor(message: string) {
     super(`docs/nav.json: ${message}`)
@@ -32,14 +32,6 @@ export function docsPathFromParam(param: string): string {
   return trimmed === '' ? DOCS_INDEX_PATH : trimmed
 }
 
-/**
- * Turns a glob key (`../../../../docs/adr/x.md`) into the repo-relative file
- * (`docs/adr/x.md`) the manifest and the markdown links refer to.
- */
-export function repoFileFromGlobKey(globKey: string): string {
-  return globKey.replace(/^(\.\.\/)+/, '')
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -57,15 +49,15 @@ function isGroupKey(value: string): value is DocGroupKey {
 }
 
 /**
- * Validates the manifest against the bundled markdown and builds the library.
+ * Validates the manifest against the docs service's markdown and builds the library.
  *
  * Fails loudly (throws `DocsNavigationError`) on a malformed manifest, an
  * unknown group key, a duplicate page path, or a page whose markdown file was
- * not bundled — so a typo breaks the build or dev server instead of shipping a
+ * not sent — so a typo fails loudly when Docs opens instead of shipping a
  * dead page.
  *
  * @param manifest The parsed `docs/nav.json`.
- * @param markdownByFile Bundled markdown keyed by repo-relative file.
+ * @param markdownByFile The docs service's markdown keyed by repo-relative file.
  */
 export function buildDocsLibrary(
   manifest: unknown,
@@ -95,7 +87,7 @@ export function buildDocsLibrary(
     const markdown = markdownByFile[file]
     if (markdown === undefined) {
       throw new DocsNavigationError(
-        `${where}: "${path}" points at ${file}, which was not bundled (is the file missing, or under docs/plans?)`,
+        `${where}: "${path}" points at ${file}, which the docs service did not send (is the file missing, or under docs/plans?)`,
       )
     }
     const page: DocsPage = {

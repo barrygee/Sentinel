@@ -19,9 +19,10 @@ dependencies = [
     "websockets>=13",
     "pmtiles>=3.8.1",
     "nats-py>=2.9",
-    # Each section's backend package (services/sections/<id>/backend) and the radio hub's
-    # (services/radio/backend), installed editable.
+    # Each section's backend package (services/sections/<id>/backend), the radio hub's
+    # (services/radio/backend) and the docs service's (services/docs/backend), installed editable.
     "sentinel-air",
+    "sentinel-docs",
     "sentinel-land",
     "sentinel-radio",
     "sentinel-sdr",
@@ -31,6 +32,7 @@ dependencies = [
 
 [tool.uv.sources]
 sentinel-air = { path = "../services/sections/air/backend", editable = true }
+sentinel-docs = { path = "../services/docs/backend", editable = true }
 sentinel-land = { path = "../services/sections/land/backend", editable = true }
 sentinel-radio = { path = "../services/radio/backend", editable = true }
 sentinel-sdr = { path = "../services/sections/sdr/backend", editable = true }
@@ -101,9 +103,9 @@ ignore_missing_imports = true
 # until the per-service DB split (P6). Each ignore_imports entry is a known
 # crossing with the phase that removes it — delete the entry when it goes.
 [tool.importlinter]
-# Core plus each package that has moved out of backend/: the sections (services/sections/<id>/backend)
-# and the radio hub (services/radio/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sea", "sentinel_space"]
+# Core plus each package that has moved out of backend/: the sections (services/sections/<id>/backend),
+# the radio hub (services/radio/backend) and the docs service (services/docs/backend).
+root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core imports no section"
@@ -126,6 +128,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_docs",
 ]
 
 [[tool.importlinter.contracts]]
@@ -216,4 +219,20 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_land",
     "sentinel_sdr",
+]
+
+[[tool.importlinter.contracts]]
+name = "Docs service imports no section"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "sentinel_docs",
+]
+forbidden_modules = [
+    "sentinel_air",
+    "sentinel_space",
+    "sentinel_sea",
+    "sentinel_land",
+    "sentinel_sdr",
+    "sentinel_radio",
 ]

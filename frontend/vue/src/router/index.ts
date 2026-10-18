@@ -41,13 +41,14 @@ export function createAppRouter(): Router {
       // The Settings page. It renders no view of its own: the Settings panel
       // (App) is shown full-screen for it by `useSettingsRouteSync`.
       { path: '/settings/:section?', name: SETTINGS_ROUTE_NAME, component: { render: () => null } },
-      // The documentation. Loaded on demand: it carries the bundled markdown
-      // and renderer, which nothing else needs. The parameter is optional so both
+      // The documentation. Loaded on demand: it carries the renderer, which
+      // nothing else needs; the markdown comes from the optional docs service
+      // when the view opens (`DocsRouteView`). The parameter is optional so both
       // `/docs` and `/docs/` land on the welcome page.
       {
         path: '/docs/:docPath(.*)?',
         name: DOCS_ROUTE_NAME,
-        component: () => import('@/docs/DocsPage.vue'),
+        component: () => import('@/docs/DocsRouteView.vue'),
       },
       // The docs used to live at `/doc/`: old links and bookmarks land on the
       // same page, query and anchor at `/docs/`.

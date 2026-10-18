@@ -37,8 +37,9 @@
 
       <!-- Docs: the only way into /docs. A link, not a section button: it leaves
            Settings for another page (the route change closes this panel), so it
-           never takes the active bar. Sits straight under the section buttons. -->
-      <RouterLink v-slot="{ href, navigate }" to="/docs/" custom>
+           never takes the active bar. Sits straight under the section buttons.
+           Absent when the deployment leaves the optional docs service out. -->
+      <RouterLink v-if="docsDeployment.deployed" v-slot="{ href, navigate }" to="/docs/" custom>
         <BaseIconLink
           class="settings-nav-docs"
           :href="href"
@@ -151,6 +152,7 @@ import SectionIcon from './SectionIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useDocsDeploymentStore } from '@sentinel/shell-api/stores/docsDeployment'
 import {
   forgetShownSettingsSourceModes,
   shownSettingsSourceMode,
@@ -174,6 +176,7 @@ export type { SettingItem }
 
 const store = useSettingsStore()
 const appStore = useAppStore()
+const docsDeployment = useDocsDeploymentStore()
 
 const activeSection = ref('app')
 const searchQuery = ref('')

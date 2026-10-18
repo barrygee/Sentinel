@@ -5,8 +5,13 @@
  * this Settings section.
  *
  * Router-aware only through `RouterLink`, so it works in any app that mounts
- * the `/docs/<path>` route.
+ * the `/docs/<path>` route. Not shown when the deployment leaves the optional
+ * docs service out (`useDocsDeploymentStore`).
  */
+import { useDocsDeploymentStore } from '@sentinel/shell-api/stores/docsDeployment'
+
+const docsDeployment = useDocsDeploymentStore()
+
 defineProps<{
   /** Docs location below `/docs/`, with an optional anchor: `use/sdr/record#where-theyre-saved`. */
   docPath: string
@@ -16,7 +21,12 @@ defineProps<{
 </script>
 
 <template>
-  <RouterLink v-slot="{ href, navigate }" :to="`/docs/${docPath}`" custom>
+  <RouterLink
+    v-if="docsDeployment.deployed"
+    v-slot="{ href, navigate }"
+    :to="`/docs/${docPath}`"
+    custom
+  >
     <a
       class="doc-link"
       :href="href"

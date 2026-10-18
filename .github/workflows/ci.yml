@@ -37,10 +37,10 @@ jobs:
           enable-cache: true
 
       - name: Lint (ruff check)
-        run: uv run --project backend ruff check backend services/sections services/radio
+        run: uv run --project backend ruff check backend services/sections services/radio services/docs
 
       - name: Format check (ruff format)
-        run: uv run --project backend ruff format --check backend services/sections services/radio
+        run: uv run --project backend ruff format --check backend services/sections services/radio services/docs
 
       - name: Import boundaries (import-linter)
         # Sections may not import each other; core/platform may import no
@@ -314,7 +314,9 @@ jobs:
   # per deployment of the sections (section-containers plan P6: "e2e green with
   # the section present *and* absent"). The app never hosts a section under
   # compose (P8c), so "absent" just means its container isn't started:
-  #   sections-service  every section and the radio hub, as `docker compose up` runs them.
+  #   sections-service  every section, the radio hub and the docs service, as
+  #                     `docker compose up` runs them. The other two legs run
+  #                     without the (optional) docs service.
   #   sections-absent   only the SDR section's container, so the shell has a
   #                     section to show: Space, Land, Air, Sea and the hub are gone.
   #   sdr-absent        everything but the SDR section: the shell boots without
@@ -327,7 +329,7 @@ jobs:
       matrix:
         include:
           - deployment: sections-service
-            services: app gateway nats space land air sea radio sdr
+            services: app gateway nats space land air sea radio sdr docs
             sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service
           - deployment: sections-absent
             services: app gateway nats sdr

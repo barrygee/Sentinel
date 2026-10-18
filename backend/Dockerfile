@@ -24,11 +24,6 @@ WORKDIR /repo/frontend/vue
 COPY frontend/vue/ ./
 # template.css is imported via ../../../../frontend/assets/template.css
 COPY frontend/assets/ /repo/frontend/assets/
-# The in-app docs (/docs) bundle the repo's markdown at build time: docs/**/*.md
-# (docs/plans is left out by the glob) and the root CONTRIBUTING.md, resolved
-# from src/docs/ as ../../../../docs and ../../../../CONTRIBUTING.md.
-COPY docs/ /repo/docs/
-COPY CONTRIBUTING.md /repo/CONTRIBUTING.md
 # outDir is ../../frontend/spa-dist — resolves to /repo/frontend/spa-dist
 RUN npm run build
 
@@ -86,8 +81,9 @@ ENV UV_HTTP_TIMEOUT=120 \
 # Third-party dependencies first, cached until the lockfile changes; the
 # section packages are installed below, once their code is in the image.
 COPY backend/pyproject.toml backend/uv.lock ./backend/
-# The lock check reads each section package's (and the radio hub's) metadata from its pyproject.toml.
+# The lock check reads each section package's (and the radio hub's and docs service's) metadata from its pyproject.toml.
 COPY services/radio/backend/pyproject.toml ./services/radio/backend/
+COPY services/docs/backend/pyproject.toml ./services/docs/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
@@ -106,10 +102,11 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # (backend/data/sentinel_config.json) when no bind mount replaces it.
 COPY --chown=sentinel:sentinel backend/ ./backend/
 # Each section's backend package (services/sections/<id>/backend) and the
-# radio hub's (services/radio/backend), installed editable into the venv
-# like in a checkout. Only the backend folders: the
+# radio hub's (services/radio/backend) and the docs service's (services/docs/backend),
+# installed editable into the venv like in a checkout. Only the backend folders: the
 # frontend packages are compiled into spa-dist by the stage above.
 COPY --chown=sentinel:sentinel services/radio/backend/ ./services/radio/backend/
+COPY --chown=sentinel:sentinel services/docs/backend/ ./services/docs/backend/
 COPY --chown=sentinel:sentinel services/sections/air/backend/ ./services/sections/air/backend/
 COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
 COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/sections/sdr/backend/
@@ -118,6 +115,12 @@ COPY --chown=sentinel:sentinel services/sections/space/backend/ ./services/secti
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --project backend --locked --no-dev --no-install-project
 COPY frontend/assets/ ./frontend/assets/
+# What the docs service (sentinel_docs) serves to the in-app /docs page: the
+# repo's docs/ (docs/plans is left out by .dockerignore) and CONTRIBUTING.md.
+# Read from disk on each request, so the compose service bind-mounts the
+# checkout's copies over these for live edits.
+COPY docs/ ./docs/
+COPY CONTRIBUTING.md ./CONTRIBUTING.md
 COPY --from=spa-builder /repo/frontend/spa-dist/ ./frontend/spa-dist/
 COPY --chmod=0755 backend/docker-entrypoint.sh /usr/local/bin/sentinel-entrypoint
 

@@ -8,6 +8,7 @@ Everyday commands, health, logs and backups. Every container: [Ports and service
 docker compose up -d                          # start, or apply a change
 docker compose up -d --build                  # after an upgrade
 docker compose up -d --scale land=0           # without a section (repeat on every up)
+docker compose up -d --scale docs=0           # without the in-app docs
 docker compose ps                             # what runs, and whether it is healthy
 docker compose logs -f app sea                # follow logs
 docker compose logs --since 10m radio         # recent logs

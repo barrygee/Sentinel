@@ -348,6 +348,32 @@ services:
       SENTINEL_WRITABLE_DIRECTORIES: /app/data /recordings
     command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload
 
+  # The in-app docs (/docs) as their own service. Optional, and started by a
+  # plain `docker compose up` like everything above: leave it out with
+  # `--scale docs=0`, or for good with SENTINEL_DOCS_REPLICAS=0 in .env, and
+  # the app runs without Docs (no Docs entry in the Settings rail, no LEARN
+  # MORE links). Same image as the app, run with the docs entry point
+  # (sentinel_docs.service, in services/docs/backend). It registers with the
+  # app, which hands it /api/documentation/ in the gateway, and serves the
+  # repo's docs/ and CONTRIBUTING.md to the shell's docs page. No database and
+  # no settings. The checkout's docs are bind-mounted and read on each request,
+  # so an edited page shows on the next load — no SPA rebuild, no restart.
+  docs:
+    <<: *section-service
+    container_name: sentinel-docs
+    deploy:
+      replicas: ${SENTINEL_DOCS_REPLICAS:-1}
+    volumes:
+      - *backend-code
+      - ./services/docs/backend:/app/services/docs/backend  # live-reload docs service code
+      - ./docs:/app/docs:ro
+      - ./CONTRIBUTING.md:/app/CONTRIBUTING.md:ro
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/docs}}
+    environment:
+      <<: *section-env
+      SERVICE_INTERNAL_URL: http://docs:8000
+    command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload
+
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
   # low-rate control events (settings changes, decode events, hub requests);

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { createDocsTestRouter, mountComposable } from '@/test/docsHarness'
+import { loadRepoDocsLibrary } from '@/test/repoDocs'
 import { MINIMUM_QUERY_LENGTH, useDocsRouteState } from './useDocsRouteState'
 
 async function mountAt(url: string) {
@@ -11,6 +12,11 @@ async function mountAt(url: string) {
 }
 
 describe('useDocsRouteState', () => {
+  // The docs route mounts its page only once the library has loaded.
+  beforeAll(async () => {
+    await loadRepoDocsLibrary()
+  })
+
   beforeEach(() => {
     window.history.replaceState(null, '', '/')
   })

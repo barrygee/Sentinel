@@ -147,7 +147,7 @@ class TestGenerate:
         }
         assert after == before
         output = capsys.readouterr().out
-        assert "is up to date (7 users)" in output
+        assert "is up to date (8 users)" in output
         assert "created" not in output and "issued" not in output
 
     def test_a_changed_permissions_table_rewrites_the_config_only(

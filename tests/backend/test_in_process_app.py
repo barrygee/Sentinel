@@ -35,7 +35,7 @@ def test_registers_every_hosted_service_as_core_in_manifest_order(fresh_registry
     create_in_process_app()
 
     registered = fresh_registry.services()
-    assert [service.manifest.id for service in registered] == ["air", "space", "sea", "land", "sdr", "radio"]
+    assert [service.manifest.id for service in registered] == ["air", "space", "sea", "land", "sdr", "docs", "radio"]
     assert {service.instance_id for service in registered} == {"core"}
     assert all(service.in_process for service in registered)
 
@@ -76,4 +76,4 @@ def test_runs_core_first_then_every_section_and_the_hub():
 
 def test_hosts_one_manifest_per_service():
     ids = [manifest.id for manifest in IN_PROCESS_MANIFESTS]
-    assert len(ids) == len(set(ids)) == 6
+    assert len(ids) == len(set(ids)) == 7

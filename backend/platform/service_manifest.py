@@ -95,7 +95,9 @@ class ServiceManifest(BaseModel):
     model_config = ConfigDict(extra="allow", populate_by_name=True)
 
     id: str
-    kind: Literal["section", "radio", "decoder"]
+    # "docs" is the in-app documentation service (`sentinel_docs`): routed and
+    # probed like the others, and the shell shows Docs only while one is registered.
+    kind: Literal["section", "radio", "decoder", "docs"]
     version: str = Field(min_length=1, max_length=64)
     contracts: str = Field(default="^1", max_length=16)
     display_name: str = Field(default="", alias="displayName", max_length=64)

@@ -11,7 +11,7 @@ vi.mock('./renderMermaid', () => ({
 vi.mock('./docsSources', async () => {
   const fixtures = await import('@/test/docsFixtures')
   const library = fixtures.buildFixtureDocsLibrary()
-  return { getDocsLibrary: () => library, docsImageUrls: {} }
+  return { getDocsLibrary: () => library, getDocsImageUrls: () => ({}) }
 })
 
 import { createDocsTestRouter } from '@/test/docsHarness'

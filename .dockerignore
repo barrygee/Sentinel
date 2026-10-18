@@ -3,7 +3,7 @@
 .github
 .claude
 *.md
-# ...except the one the SPA build bundles into the in-app docs (/docs).
+# ...except the one the docs service serves on the in-app /docs page.
 !CONTRIBUTING.md
 __pycache__
 **/__pycache__
@@ -23,3 +23,6 @@ frontend/assets/tiles/
 **/.mypy_cache
 services/sections/*/backend/tests
 services/radio/backend/tests
+services/docs/backend/tests
+# Design notes: not part of the in-app docs.
+docs/plans

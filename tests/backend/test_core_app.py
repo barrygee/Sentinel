@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sentinel_air import adsb_source_router as adsb_source
 from sentinel_air import router as air
+from sentinel_docs import router as docs
 from sentinel_land import router as land
 from sentinel_radio.routers import (
     decode,
@@ -26,7 +27,7 @@ from sentinel_sdr import router as sdr
 from sentinel_sea import router as sea
 from sentinel_space import router as space
 
-from backend.core import app_sections, notifications, registry_router, settings_secrets
+from backend.core import app_docs, app_sections, notifications, registry_router, settings_secrets
 from backend.core.app import CORE_LIFECYCLES, core_routers, create_core_app
 from backend.modules import bus as bus_module
 from backend.modules import core as core_module
@@ -40,6 +41,7 @@ CORE_ROUTERS = [
     settings_router.router,
     offline_map.router,
     app_sections.router,
+    app_docs.router,
     registry_router.router,
     settings_secrets.router,
 ]
@@ -57,6 +59,7 @@ SECTION_AND_HUB_ROUTERS = [
     decoders.router,
     sentry.router,
     iq_captures.router,
+    docs.router,
 ]
 
 
@@ -86,8 +89,10 @@ class TestCoreRouters:
             adsb_source.router,
             offline_map.router,
             app_sections.router,
+            app_docs.router,
             registry_router.router,
             settings_secrets.router,
+            docs.router,
         ]
 
 

@@ -1108,6 +1108,14 @@
     ]
   },
   {
+    "path": "/api/app/docs",
+    "type": "Route",
+    "name": "get_docs_deployment",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/internal/registry/register",
     "type": "Route",
     "name": "register_service",
@@ -1137,6 +1145,22 @@
     "name": "delete_secret",
     "methods": [
       "DELETE"
+    ]
+  },
+  {
+    "path": "/api/documentation/library",
+    "type": "Route",
+    "name": "get_library",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/documentation/images/{image_path:path}",
+    "type": "Route",
+    "name": "get_image",
+    "methods": [
+      "GET"
     ]
   },
   {

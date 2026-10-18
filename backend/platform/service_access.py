@@ -50,6 +50,8 @@ SERVICE_ACCESS: dict[str, CallerAccess] = {
     # The AISStream key is Sea's: it holds the one connection the key allows.
     "sea": CallerAccess(registers_as="sea", secret_settings=frozenset({("sea", "aisstreamApiKey")})),
     "sdr": CallerAccess(registers_as="sdr", fetches_iq_captures=True),
+    # The in-app documentation: it only registers.
+    "docs": CallerAccess(registers_as="docs"),
 }
 """Services, keyed by the same name as their NATS user (`core` for the app)."""
 
