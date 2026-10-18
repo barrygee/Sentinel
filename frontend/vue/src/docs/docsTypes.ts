@@ -1,6 +1,6 @@
 /**
  * Shapes shared by the docs feature: the navigation manifest (`docs/nav.json`)
- * once validated against the bundled markdown, and the library built from it.
+ * once validated against the docs service's markdown, and the library built from it.
  */
 
 /**
@@ -33,7 +33,7 @@ export interface DocsPage {
   title: string
   /** Repo-relative source file, e.g. `docs/operations.md` or `CONTRIBUTING.md`. */
   file: string
-  /** The markdown source, bundled at build time. */
+  /** The markdown source, as the docs service sent it. */
   markdown: string
   groupKey: DocGroupKey
   groupTitle: string

@@ -12,6 +12,7 @@
 |---|---|---|
 | `COMPOSE_PROFILES` | none | Decoders to start every time: `all`, or a list such as `aprs,ais` |
 | `SENTINEL_RADIO_REPLICAS` | `1` | `0` when the radio hub runs on [a second computer](radio-host.md) |
+| `SENTINEL_DOCS_REPLICAS` | `1` | `0` to run without the in-app docs |
 
 ## Where files go
 

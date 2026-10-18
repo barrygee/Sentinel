@@ -1,4 +1,4 @@
-"""The test suite's app: core plus every section and the radio hub, in one process.
+"""The test suite's app: core plus every section, the radio hub and the docs service, in one process.
 
 No deployment runs this. `docker compose up` runs core (`backend.main`) and
 each section and the hub as a service of its own behind the gateway. The
@@ -16,6 +16,8 @@ from fastapi import APIRouter, FastAPI
 from sentinel_air import adsb_source_router
 from sentinel_air import module as air_module
 from sentinel_air import router as air_router
+from sentinel_docs import module as docs_module
+from sentinel_docs import router as docs_router
 from sentinel_land import module as land_module
 from sentinel_land import router as land_router
 from sentinel_radio import module as radio_module
@@ -32,7 +34,7 @@ from sentinel_sea import router as sea_router
 from sentinel_space import module as space_module
 from sentinel_space import router as space_router
 
-from backend.core import app_sections, notifications, registry_router, settings_secrets
+from backend.core import app_docs, app_sections, notifications, registry_router, settings_secrets
 from backend.core.app import CORE_LIFECYCLES, create_core_app
 from backend.core.service_registry import registry
 from backend.platform.lifecycle import ModuleLifecycle
@@ -67,6 +69,7 @@ IN_PROCESS_MANIFESTS: tuple[ServiceManifest, ...] = (
     land_module.manifest,
     sdr_module.manifest,
     radio_module.manifest,
+    docs_module.manifest,
 )
 
 
@@ -97,8 +100,11 @@ def in_process_routers() -> list[APIRouter]:
         adsb_source_router.router,
         offline_map.router,
         app_sections.router,
+        app_docs.router,
         registry_router.router,
         settings_secrets.router,
+        # The in-app documentation (its own `docs` service in a deployment).
+        docs_router.router,
     ]
 
 

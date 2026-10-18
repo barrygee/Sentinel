@@ -319,6 +319,12 @@ class Settings(BaseSettings):
     # the database.
     recordings_directory: str = ""
 
+    # ── In-app docs ──────────────────────────────────────────────────────────
+    # The folder holding `docs/` and `CONTRIBUTING.md` that the docs service
+    # (`sentinel_docs`) serves. Empty = the checkout's (or the image's) root,
+    # which is where the compose service bind-mounts them.
+    docs_source_directory: str = ""
+
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's
     # address on the internal network, e.g. `http://app:8000`. Empty means this

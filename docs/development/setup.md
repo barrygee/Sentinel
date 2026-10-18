@@ -26,7 +26,7 @@ After that, a `git pull` or merge that changes `package-lock.json` runs `npm ci`
 
 - **Backend:** code is mounted into the containers with `uvicorn --reload`. Save a `.py` and that service restarts in a second or two (`docker compose logs -f <service>`).
 - **Frontend:** `cd frontend/vue && npm run dev`, then open **http://localhost:5173**. Hot reload; API and WebSockets pass through to :8080.
-- **What :8080 serves** is the committed `frontend/spa-dist/`. Rebuild with `cd frontend/vue && npm run build` and reload; commit it. Docs are bundled too.
+- **What :8080 serves** is the committed `frontend/spa-dist/`. Rebuild with `cd frontend/vue && npm run build` and reload; commit it. The in-app docs are not in it: the `docs` service reads `docs/` from the checkout on each load, so an edited page shows on reload with no rebuild.
 - **Rebuild images** only when dependencies change (`pyproject.toml`, `package.json`).
 
 ## Run less

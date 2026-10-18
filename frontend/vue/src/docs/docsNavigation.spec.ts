@@ -6,7 +6,6 @@ import {
   docsPageUrl,
   docsPathFromParam,
   DocsNavigationError,
-  repoFileFromGlobKey,
 } from './docsNavigation'
 
 const MARKDOWN = {
@@ -74,17 +73,6 @@ describe('docsPathFromParam', () => {
   it('strips leading and trailing slashes but keeps inner ones', () => {
     expect(docsPathFromParam('/adr/0001-x/')).toBe('adr/0001-x')
     expect(docsPathFromParam('operations')).toBe('operations')
-  })
-})
-
-describe('repoFileFromGlobKey', () => {
-  it('removes the leading ../ segments', () => {
-    expect(repoFileFromGlobKey('../../../../docs/adr/x.md')).toBe('docs/adr/x.md')
-    expect(repoFileFromGlobKey('../../../../CONTRIBUTING.md')).toBe('CONTRIBUTING.md')
-  })
-
-  it('leaves a key without them alone and keeps inner dots', () => {
-    expect(repoFileFromGlobKey('docs/a/../b.md')).toBe('docs/a/../b.md')
   })
 })
 
@@ -270,14 +258,14 @@ describe('buildDocsLibrary: invalid manifests fail loudly', () => {
     )
   })
 
-  it('rejects a page whose markdown was not bundled and says which file', () => {
+  it('rejects a page whose markdown the docs service did not send and says which file', () => {
     expectNavigationError(
       () =>
         buildDocsLibrary(
           { groups: [{ key: 'develop', title: 'D', pages: [{ path: 'ghost', title: 'Ghost' }] }] },
           MARKDOWN,
         ),
-      'docs/ghost.md, which was not bundled',
+      'docs/ghost.md, which the docs service did not send',
     )
   })
 

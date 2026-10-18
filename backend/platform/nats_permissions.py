@@ -62,6 +62,8 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     "sdr": SubjectPermissions(requests=("hub.iq-capture.>",)),
     # Uses no subject today; it still connects, like every service.
     "space": SubjectPermissions(),
+    # Serves the in-app documentation and uses no subject; it still connects, like every service.
+    "docs": SubjectPermissions(),
 }
 """Keyed by NATS user name: `core` for the app, otherwise the service id."""
 

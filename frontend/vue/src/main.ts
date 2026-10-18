@@ -23,6 +23,7 @@ import { APP_MODE_STORAGE_KEY, asSourceMode } from '@sentinel/shell-api/utils/so
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useDocsDeploymentStore } from '@sentinel/shell-api/stores/docsDeployment'
 import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
 // The sections this build includes: imported in dev/tests, Module Federation
 // remotes in the built app (vite.config.ts swaps the module).
@@ -69,6 +70,9 @@ useThemeStore()
   // settings hydrators are part of what they register) and before the router
   // and App read the registries.
   const settingsResponse = fetch('/api/settings').catch(() => null)
+  // Whether the optional docs service is deployed, so Settings offers Docs only
+  // when it is. Never throws; awaited before mount so the entry never flickers.
+  const docsDeploymentLoaded = useDocsDeploymentStore().load()
   try {
     await loadSections(await sectionSources(), { pinia })
   } catch (error) {
@@ -86,6 +90,7 @@ useThemeStore()
     }
   } catch {}
   await enginesReady
+  await docsDeploymentLoaded
   const router = createAppRouter()
   app.use(router)
   // Mount only once the initial navigation has resolved, so App.vue's route

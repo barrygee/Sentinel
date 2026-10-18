@@ -7,6 +7,7 @@ import { mount, flushPromises, enableAutoUnmount, RouterLinkStub } from '@vue/te
 // here prevents that double-loading without affecting SettingsPanel test behaviour.
 vi.mock('./settings/ExportAllControl.vue', () => ({ default: { name: 'ExportAllControl' } }))
 import { setActivePinia, createPinia } from 'pinia'
+import { useDocsDeploymentStore } from '@sentinel/shell-api/stores/docsDeployment'
 import { axe } from 'jest-axe'
 import SettingsPanel from './SettingsPanel.vue'
 // The panel lists whatever is registered: core's 'app' section comes with it;
@@ -303,6 +304,13 @@ describe('SettingsPanel', () => {
       const wrapper = mountPanel()
       await wrapper.find('.settings-nav-docs').trigger('click')
       expect(wrapper.find('.settings-nav-docs').classes()).not.toContain('ba-btn--active')
+    })
+
+    it('is left out when the deployment has no docs service', async () => {
+      const wrapper = mountPanel()
+      useDocsDeploymentStore().deployed = false
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.settings-nav-docs').exists()).toBe(false)
     })
   })
 

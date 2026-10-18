@@ -20,7 +20,7 @@ import { useDocsResultAnnouncement } from './composables/useDocsResultAnnounceme
 import { useDocsSearch } from './composables/useDocsSearch'
 import { useDocsWindowTitle } from './composables/useDocsWindowTitle'
 import { adjacentDocsPages } from './docsNavigation'
-import { docsImageUrls } from './docsSources'
+import { getDocsImageUrls } from './docsSources'
 import { useDocsStore } from './docsStore'
 import { renderDocument } from './markdown/renderDocument'
 
@@ -33,6 +33,9 @@ import { renderDocument } from './markdown/renderDocument'
  *
  * Escape closes Docs (as it closes Settings) unless focus is in a field or an
  * open disclosure, which take the key first.
+ *
+ * Mounted by `DocsRouteView` once the docs service's library has loaded, so
+ * everything here reads it synchronously.
  */
 const docsStore = useDocsStore()
 const { closeDocs } = useDocsReturn()
@@ -54,7 +57,7 @@ const rendered = computed(() => {
     file: current.file,
     pageUrl: current.url,
     library,
-    imageUrls: docsImageUrls,
+    imageUrls: getDocsImageUrls(),
   })
 })
 

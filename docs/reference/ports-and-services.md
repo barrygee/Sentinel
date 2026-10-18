@@ -13,6 +13,7 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 | `air`, `space`, `sea`, `land` | Each section | `<id>_data` |
 | `sdr` | Frequencies, groups, ranges, recordings | `sdr_data`, `sdr_recordings` |
 | `radio` | Radio hub: radios, spectrum, audio, decoding, IQ capture | `radio_data` |
+| `docs` | The in-app docs (optional) | — |
 
 ## Decoders (profiles)
 
@@ -39,7 +40,7 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 
 | Port | Where | What |
 |---|---|---|
-| `8000` | app, sections, radio | HTTP API |
+| `8000` | app, sections, radio, docs | HTTP API |
 | `2019` | gateway | Caddy admin API (core pushes routes) |
 | `7355`, `7356` UDP | radio | Voice decoder audio out, decoded voice back |
 | `7357` | radio | APRS decoder audio |

@@ -30,7 +30,10 @@ Air works straight away. Land starts switched off ([switch it on](use/land.md#sw
 docker compose up -d gateway air sea           # just these
 docker compose up -d gateway sdr radio         # SDR needs the radio hub
 docker compose up -d --scale land=0            # everything but one
+docker compose up -d --scale docs=0            # without the in-app docs
 ```
+
+The in-app docs (Settings › DOCS) are their own service, `docs`, started by default. Leave it out and Sentinel runs without them: no DOCS entry and no LEARN MORE links. To leave it out for good, set `SENTINEL_DOCS_REPLICAS=0` in `.env`.
 
 ## Add decoders
 

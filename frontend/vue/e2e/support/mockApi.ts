@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test'
 import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json' }
 import landRepeatersFixture from '../fixtures/land-repeaters.json' with { type: 'json' }
+import { installDocsServiceMocks } from './docsService'
 
 /** A healthy offline-map status: both sources present, plenty of disk, and a
  *  tiny calibration table so estimates are easy to reason about. Exported for
@@ -68,6 +69,10 @@ export async function installDefaultMocks(page: Page): Promise<void> {
       body: JSON.stringify({ sections: DEPLOYED_SECTIONS }),
     })
   })
+
+  // The optional docs service, deployed (as `docker compose up` runs it): the
+  // Settings rail offers Docs and /docs/ reads the repo's real markdown.
+  await installDocsServiceMocks(page)
 
   // ADS-B point data — empty aircraft list
   await page.route('/api/adsb/point', (route) => {

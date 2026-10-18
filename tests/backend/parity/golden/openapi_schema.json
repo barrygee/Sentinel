@@ -408,6 +408,25 @@
         "title": "DisconnectIn",
         "type": "object"
       },
+      "DocsDeployment": {
+        "description": "Body of GET /api/app/docs.",
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          },
+          "deployed": {
+            "title": "Deployed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deployed",
+          "available"
+        ],
+        "title": "DocsDeployment",
+        "type": "object"
+      },
       "EstimateResponse": {
         "properties": {
           "basemap_bytes": {
@@ -2322,6 +2341,28 @@
         ]
       }
     },
+    "/api/app/docs": {
+      "get": {
+        "description": "Say whether the shell should offer Docs.",
+        "operationId": "get_docs_deployment_api_app_docs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocsDeployment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Docs Deployment",
+        "tags": [
+          "app"
+        ]
+      }
+    },
     "/api/app/sections": {
       "get": {
         "description": "List the sections the shell should load as federation remotes.",
@@ -2341,6 +2382,67 @@
         "summary": "List Sections",
         "tags": [
           "app"
+        ]
+      }
+    },
+    "/api/documentation/images/{image_path}": {
+      "get": {
+        "description": "One documentation image; 404 for anything that is not an image under docs/images/.",
+        "operationId": "get_image_api_documentation_images__image_path__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "image_path",
+            "required": true,
+            "schema": {
+              "title": "Image Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Image",
+        "tags": [
+          "documentation"
+        ]
+      }
+    },
+    "/api/documentation/library": {
+      "get": {
+        "description": "The whole documentation set; 503 when the docs folder is missing from this container.",
+        "operationId": "get_library_api_documentation_library_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Library",
+        "tags": [
+          "documentation"
         ]
       }
     },

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
+import { createPinia, setActivePinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
 import type { SettingControl, SettingItem } from '@sentinel/shell-api/types/settings'
@@ -25,9 +26,12 @@ function mountRow(item: Partial<SettingItem> = {}, control: Partial<SettingContr
     ...item,
     control: { component: StandInControl, ...control },
   }
+  // DocLink reads whether the docs service is deployed (offered by default).
+  const pinia = createPinia()
+  setActivePinia(pinia)
   return mount(SettingRow, {
     props: { item: fullItem, pending: new Map() },
-    global: { stubs: { RouterLink: RouterLinkStub } },
+    global: { plugins: [pinia], stubs: { RouterLink: RouterLinkStub } },
   })
 }
 
