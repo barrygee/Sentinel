@@ -10,7 +10,7 @@ import {
 /**
  * A JSON code editor (Monaco) in the app's own colours and type: line numbers,
  * auto-indent, Tab / Shift+Tab to indent and outdent, Shift+Alt+F (or
- * {@link format}) to format, bracket matching, folding and JSON errors marked
+ * {@link format}) to format, bracket matching, folding (opening folded to its top-level sections) and JSON errors marked
  * in place. Monaco loads on first use, so the editor shows a short loading
  * line until it arrives.
  *
@@ -29,6 +29,16 @@ const emit = defineEmits<{ 'update:modelValue': [text: string] }>()
 const hostRef = ref<HTMLDivElement | null>(null)
 const status = ref<'loading' | 'ready' | 'failed'>('loading')
 const editorInstance = shallowRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null)
+
+/**
+ * Folds every second-level block, so a document opens as its top-level
+ * sections (`"app": { … }`, `"air": { … }`…) and each opens on its own. Monaco's
+ * fold actions wait for the folding ranges the JSON worker computes, so this
+ * works straight after creating the editor or setting its text.
+ */
+function foldToSections(instance: MonacoEditorNamespace.IStandaloneCodeEditor): void {
+  void instance.getAction('editor.foldLevel2')?.run()
+}
 
 /** The app's value size (Settings' `--settings-text-value`), so the code reads at the field's size. */
 function fontSizeAt(host: HTMLElement): number {
@@ -87,6 +97,7 @@ onMounted(async () => {
     instance.onDidChangeModelContent((change) => {
       if (!change.isFlush) emit('update:modelValue', instance.getValue())
     })
+    foldToSections(instance)
     editorInstance.value = instance
     status.value = 'ready'
   } catch {
@@ -99,7 +110,10 @@ watch(
   () => props.modelValue,
   (text) => {
     const instance = editorInstance.value
-    if (instance && instance.getValue() !== text) instance.setValue(text)
+    if (instance && instance.getValue() !== text) {
+      instance.setValue(text)
+      foldToSections(instance)
+    }
   },
 )
 
