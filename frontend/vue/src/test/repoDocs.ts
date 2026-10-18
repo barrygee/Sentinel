@@ -1,5 +1,4 @@
 import { vi } from 'vitest'
-import navigation from '../../../../docs/nav.json'
 import { loadDocsLibrary, resetDocsLibraryCache } from '@/docs/docsSources'
 import type { DocsLibrary } from '@/docs/docsTypes'
 
@@ -10,6 +9,14 @@ import type { DocsLibrary } from '@/docs/docsTypes'
  * `sentinel_docs.library.read_library` does: `docs/**` plus `CONTRIBUTING.md`,
  * never `docs/plans/`.
  */
+// Globbed, not imported: the image's SPA stage type-checks src/ without the
+// repo's docs/ folder (the docs are no longer bundled), and a glob that
+// matches nothing still type-checks where a static JSON import would not.
+const navigationModules = import.meta.glob('../../../../docs/nav.json', {
+  import: 'default',
+  eager: true,
+})
+
 const markdownModules = import.meta.glob(
   ['../../../../docs/**/*.md', '../../../../CONTRIBUTING.md', '!../../../../docs/plans/**'],
   { query: '?raw', import: 'default', eager: true },
@@ -30,7 +37,7 @@ export function repoDocsLibraryResponse(): {
   images: string[]
 } {
   return {
-    navigation,
+    navigation: navigationModules['../../../../docs/nav.json'],
     documents: Object.fromEntries(
       Object.entries(markdownModules).map(([globKey, markdown]) => [repoFileOf(globKey), markdown]),
     ),
