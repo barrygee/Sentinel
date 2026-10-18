@@ -534,6 +534,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Register Monaco's JSON features before the first editor
 - Hide the offline area fields until an area is being chosen
 - Glob docs/nav.json so the image build type-checks without docs/
+- Fit the JSON editor to its content, up to 520px
 
 ### Chores
 
@@ -1594,6 +1595,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #511 from barrygee/feat/json-editor-fold-sections-pr
 - Merge pull request #512 from barrygee/feat/docs-service
 - Merge pull request #513 from barrygee/chore/claude-md-package-imports
+- Merge pull request #514 from barrygee/fix/json-editor-fit-height
+- Merge pull request #515 from barrygee/docs/readme-exclude-docs-service
 
 ### Refactoring
 
@@ -1750,6 +1753,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Say vessels near you, not ships
 - Retake the Offline Maps screenshot without the area fields
 - Shared packages import their own modules by package name
+- Explain how to run without the docs service
 
 ### Tests
 
