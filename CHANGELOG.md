@@ -232,6 +232,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Serve the docs at /docs, with /doc redirecting
 - Edit JSON in a Monaco editor styled like the app
 - Show each section's settings only in their source mode
+- Open JSON editors folded to their top-level sections
 
 ### Bug Fixes
 
@@ -590,6 +591,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Set every variable with a default to it in .env.example
 - Remove the last SENTINEL_EXTERNAL_SERVICES leftovers
 - Reinstall dependencies after a pull that changes a lockfile
+- Rebuild bundle with folded JSON editors
 
 ### Reverts
 
@@ -1585,6 +1587,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into chore/reinstall-deps-after-pull
 - Merge pull request #508 from barrygee/chore/reinstall-deps-after-pull
 - Merge pull request #510 from barrygee/feat/settings-rows-follow-source-mode
+- Merge pull request #511 from barrygee/feat/json-editor-fold-sections-pr
 
 ### Refactoring
 
