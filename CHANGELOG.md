@@ -231,6 +231,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Collapsible page list in the app's side-panel style
 - Serve the docs at /docs, with /doc redirecting
 - Edit JSON in a Monaco editor styled like the app
+- Show each section's settings only in their source mode
 
 ### Bug Fixes
 
@@ -1583,6 +1584,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #509 from barrygee/fix/offline-maps-hide-fields-until-area
 - Merge remote-tracking branch 'origin/main' into chore/reinstall-deps-after-pull
 - Merge pull request #508 from barrygee/chore/reinstall-deps-after-pull
+- Merge pull request #510 from barrygee/feat/settings-rows-follow-source-mode
 
 ### Refactoring
 
