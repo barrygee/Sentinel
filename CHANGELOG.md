@@ -233,6 +233,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Edit JSON in a Monaco editor styled like the app
 - Show each section's settings only in their source mode
 - Open JSON editors folded to their top-level sections
+- Serve the in-app docs from an optional docs service
 
 ### Bug Fixes
 
@@ -532,6 +533,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Spell out time units instead of abbreviating them
 - Register Monaco's JSON features before the first editor
 - Hide the offline area fields until an area is being chosen
+- Glob docs/nav.json so the image build type-checks without docs/
 
 ### Chores
 
@@ -592,6 +594,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the last SENTINEL_EXTERNAL_SERVICES leftovers
 - Reinstall dependencies after a pull that changes a lockfile
 - Rebuild bundle with folded JSON editors
+- Rebuild bundle for the docs service
+- Run ruff on services/docs in the pre-commit hook
 
 ### Reverts
 
@@ -1588,6 +1592,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #508 from barrygee/chore/reinstall-deps-after-pull
 - Merge pull request #510 from barrygee/feat/settings-rows-follow-source-mode
 - Merge pull request #511 from barrygee/feat/json-editor-fold-sections-pr
+- Merge pull request #512 from barrygee/feat/docs-service
 
 ### Refactoring
 
