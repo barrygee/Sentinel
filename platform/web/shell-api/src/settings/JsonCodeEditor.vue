@@ -30,6 +30,17 @@ const hostRef = ref<HTMLDivElement | null>(null)
 const status = ref<'loading' | 'ready' | 'failed'>('loading')
 const editorInstance = shallowRef<MonacoEditorNamespace.IStandaloneCodeEditor | null>(null)
 
+/** The tallest the editor grows; longer content scrolls inside it. */
+const MAXIMUM_HEIGHT_PX = 520
+
+/** The host's height: the content's (folded lines excluded), up to {@link MAXIMUM_HEIGHT_PX}. */
+const hostHeightPx = ref(MAXIMUM_HEIGHT_PX)
+
+/** Fits the host to what the editor shows, so a folded document leaves no empty space below it. */
+function fitHeightToContent(contentHeightPx: number): void {
+  hostHeightPx.value = Math.min(contentHeightPx, MAXIMUM_HEIGHT_PX)
+}
+
 /**
  * Folds every second-level block, so a document opens as its top-level
  * sections (`"app": { … }`, `"air": { … }`…) and each opens on its own. Monaco's
@@ -97,6 +108,9 @@ onMounted(async () => {
     instance.onDidChangeModelContent((change) => {
       if (!change.isFlush) emit('update:modelValue', instance.getValue())
     })
+    // Folding, unfolding and editing all change the content height.
+    instance.onDidContentSizeChange((change) => fitHeightToContent(change.contentHeight))
+    fitHeightToContent(instance.getContentHeight())
     foldToSections(instance)
     editorInstance.value = instance
     status.value = 'ready'
@@ -138,6 +152,7 @@ defineExpose({ format })
       ref="hostRef"
       class="json-code-editor__host"
       :class="{ 'json-code-editor__host--ready': status === 'ready' }"
+      :style="{ height: `${hostHeightPx}px` }"
     />
     <p v-if="status === 'loading'" class="json-code-editor__status" role="status">
       Loading editor…
@@ -163,7 +178,6 @@ defineExpose({ format })
 
 .json-code-editor__host {
   width: 100%;
-  height: 520px;
   background: var(--surface);
   font-family: 'Barlow Condensed', 'Barlow', monospace;
   letter-spacing: 0.02em;
