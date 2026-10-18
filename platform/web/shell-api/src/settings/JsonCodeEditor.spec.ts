@@ -6,6 +6,7 @@ import { axe } from 'jest-axe'
 function makeFakeEditor(initialText: string) {
   let text = initialText
   let contentListener: ((change: { isFlush: boolean }) => void) | null = null
+  let contentSizeListener: ((change: { contentHeight: number }) => void) | null = null
   const formatAction = { run: vi.fn().mockResolvedValue(undefined) }
   const foldSectionsAction = { run: vi.fn().mockResolvedValue(undefined) }
   const actions: Record<string, typeof formatAction> = {
@@ -22,6 +23,10 @@ function makeFakeEditor(initialText: string) {
     onDidChangeModelContent: vi.fn((listener: (change: { isFlush: boolean }) => void) => {
       contentListener = listener
     }),
+    onDidContentSizeChange: vi.fn((listener: (change: { contentHeight: number }) => void) => {
+      contentSizeListener = listener
+    }),
+    getContentHeight: vi.fn(() => monacoState.contentHeightPx),
     getAction: vi.fn((id: string): typeof formatAction | null => actions[id] ?? null),
     getModel: vi.fn(() => model),
     dispose: vi.fn(),
@@ -33,14 +38,24 @@ function makeFakeEditor(initialText: string) {
       text = next
       contentListener?.({ isFlush: false })
     },
+    /** What folding or unfolding does: Monaco reports the new content height. */
+    resizeContent(contentHeight: number) {
+      contentSizeListener?.({ contentHeight })
+    },
   }
 }
 
 type FakeEditor = ReturnType<typeof makeFakeEditor>
 
-const monacoState: { editor: FakeEditor | null; createOptions: Record<string, unknown> | null } = {
+const monacoState: {
+  editor: FakeEditor | null
+  createOptions: Record<string, unknown> | null
+  /** The content height a new editor reports before any fold or edit. */
+  contentHeightPx: number
+} = {
   editor: null,
   createOptions: null,
+  contentHeightPx: 900,
 }
 const fakeMonaco = {
   editor: {
@@ -72,6 +87,7 @@ describe('JsonCodeEditor', () => {
   beforeEach(() => {
     monacoState.editor = null
     monacoState.createOptions = null
+    monacoState.contentHeightPx = 900
     fakeMonaco.editor.create.mockClear()
     fakeMonaco.editor.defineTheme.mockClear()
     loadMonaco.mockImplementation(() => Promise.resolve(fakeMonaco))
@@ -176,6 +192,40 @@ describe('JsonCodeEditor', () => {
     const wrapper = mountEditor()
     await flushPromises()
     expect(monacoState.editor!.foldSectionsAction.run).toHaveBeenCalledTimes(1)
+    wrapper.unmount()
+  })
+
+  it('is only as tall as short content', async () => {
+    monacoState.contentHeightPx = 300
+    const wrapper = mountEditor()
+    await flushPromises()
+    expect(wrapper.get<HTMLElement>('.json-code-editor__host').element.style.height).toBe('300px')
+    wrapper.unmount()
+  })
+
+  it('stops growing at 520px when the content is taller', async () => {
+    const wrapper = mountEditor()
+    await flushPromises()
+    expect(wrapper.get<HTMLElement>('.json-code-editor__host').element.style.height).toBe('520px')
+    wrapper.unmount()
+  })
+
+  it('follows the content height as folding and edits change it, up to 520px', async () => {
+    const wrapper = mountEditor()
+    await flushPromises()
+    const host = wrapper.get<HTMLElement>('.json-code-editor__host').element
+    monacoState.editor!.resizeContent(240)
+    await wrapper.vm.$nextTick()
+    expect(host.style.height).toBe('240px')
+    monacoState.editor!.resizeContent(520)
+    await wrapper.vm.$nextTick()
+    expect(host.style.height).toBe('520px')
+    monacoState.editor!.resizeContent(521)
+    await wrapper.vm.$nextTick()
+    expect(host.style.height).toBe('520px')
+    monacoState.editor!.resizeContent(0)
+    await wrapper.vm.$nextTick()
+    expect(host.style.height).toBe('0px')
     wrapper.unmount()
   })
 
