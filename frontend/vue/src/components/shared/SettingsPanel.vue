@@ -80,15 +80,18 @@
       <div id="settings-body">
         <!-- Search results -->
         <template v-if="searchQuery.trim()">
-          <template v-if="searchResults.length === 0">
+          <template v-if="!anySearchResultShown">
             <div class="settings-empty">No results found</div>
           </template>
           <template v-else>
             <div class="settings-grid">
               <template v-for="group in searchResultGroups" :key="group.section">
-                <div class="settings-section-label">{{ group.sectionLabel }}</div>
+                <div v-show="group.items.some(isShownInSourceMode)" class="settings-section-label">
+                  {{ group.sectionLabel }}
+                </div>
                 <SettingRow
                   v-for="item in group.items"
+                  v-show="isShownInSourceMode(item)"
                   :key="item.id"
                   :item="item"
                   :pending="pending"
@@ -119,6 +122,7 @@
                   {{ item.groupLabel }}
                 </div>
                 <SettingRow
+                  v-show="isShownInSourceMode(item)"
                   :item="item"
                   :pending="pending"
                   @stage="stagePending"
@@ -146,6 +150,11 @@ import './SettingsPanel.css'
 import SectionIcon from './SectionIcon.vue'
 import { ref, computed, watch } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import {
+  forgetShownSettingsSourceModes,
+  shownSettingsSourceMode,
+} from '@sentinel/shell-api/settings/settingsSourceModes'
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import SettingRow from './settings/SettingRow.vue'
@@ -164,6 +173,7 @@ import { createSearchRecord, searchRecords } from '@/search/textSearch'
 export type { SettingItem }
 
 const store = useSettingsStore()
+const appStore = useAppStore()
 
 const activeSection = ref('app')
 const searchQuery = ref('')
@@ -202,6 +212,18 @@ const sectionHeading = computed(() => {
   return section.key === 'app' ? section.label : section.label + ' SETTINGS'
 })
 
+/**
+ * Whether a setting belongs to the ONLINE / OFF GRID mode its section shows
+ * right now. Rows that don't are hidden with v-show, not removed, so a choice
+ * staged in one survives switching the mode away and back.
+ */
+function isShownInSourceMode(setting: SettingItem): boolean {
+  return (
+    !setting.sourceMode ||
+    shownSettingsSourceMode(setting.section, appStore.connectivityMode) === setting.sourceMode
+  )
+}
+
 const currentSectionItems = computed(() =>
   allSettings.filter((setting) => setting.section === activeSection.value),
 )
@@ -228,6 +250,8 @@ const searchResults = computed<SettingItem[]>(() => {
     .filter((setting) => isSectionOffered(setting.section))
 })
 
+const anySearchResultShown = computed(() => searchResults.value.some(isShownInSourceMode))
+
 const searchResultGroups = computed(() => {
   const groups: Record<string, { section: string; sectionLabel: string; items: SettingItem[] }> = {}
   const sectionOrder: string[] = []
@@ -245,6 +269,8 @@ function selectSection(key: string): void {
   activeSection.value = key
   searchQuery.value = ''
   pending.value.clear()
+  // A mode clicked but not applied goes with the rest of the staged changes.
+  forgetShownSettingsSourceModes()
   // The store names the section too, so the URL follows it (`/settings/<key>`).
   store.activeSection = key
 }

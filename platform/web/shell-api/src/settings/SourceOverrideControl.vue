@@ -21,7 +21,7 @@
  * with no stored mode (or the retired 'auto') shows — and runs in — the
  * app-level mode.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watchEffect } from 'vue'
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
@@ -31,6 +31,7 @@ import {
   sectionModeStorageKey,
   type SourceMode,
 } from '@sentinel/shell-api/utils/sourceMode'
+import { showSettingsSourceMode } from '@sentinel/shell-api/settings/settingsSourceModes'
 
 const props = defineProps<{ ns: string }>()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -43,6 +44,9 @@ const appMode = computed<SourceMode>(() => appStore.connectivityMode)
 /** This section's own stored mode, or null when it has none. */
 const storedMode = ref<SourceMode | null>(null)
 const current = computed<SourceMode>(() => storedMode.value ?? appMode.value)
+
+// The section's other settings show or hide by this choice as it is clicked.
+watchEffect(() => showSettingsSourceMode(props.ns, current.value))
 
 try {
   storedMode.value = asSourceMode(localStorage.getItem(LS_KEY))

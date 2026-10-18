@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
 import sdrRadios from './fixtures/sdr-radios.json' with { type: 'json' }
 import { waitForShellHydration } from './support/hydrationGate'
 import { installDefaultMocks } from './support/mockApi'
@@ -8,6 +8,13 @@ import { clearPersistedState } from './support/seedStore'
  * Settings panel tests: open/close, focus trap, Escape to close, section
  * navigation, search filtering, and no-pending-changes state.
  */
+
+/** The Settings card titled exactly `title` (descriptions can name other settings). */
+function settingCard(page: Page, title: string) {
+  return page
+    .locator('#settings-body .settings-item')
+    .filter({ has: page.locator('.settings-item-label', { hasText: new RegExp(`^${title}$`) }) })
+}
 
 test.describe('Settings panel', () => {
   test.beforeEach(async ({ page }) => {
@@ -165,6 +172,46 @@ test.describe('Settings panel', () => {
     expect(hit).toMatch(/RTL-SDR v3/i)
   })
 
+  test('AIR shows only the data source settings of the mode picked, keeping the others mounted', async ({
+    page,
+  }) => {
+    await page.goto('/air/')
+    await waitForShellHydration(page)
+    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="AIR"]').click()
+    const offGridSdr = settingCard(page, 'Off Grid ADS-B SDR')
+    const onlineSource = settingCard(page, 'Online Data Source')
+    const modes = page.getByRole('radiogroup', { name: 'AIR data source mode' })
+
+    await modes.getByRole('radio', { name: 'ONLINE', exact: true }).click()
+    await expect(onlineSource).toBeVisible()
+    await expect(offGridSdr).toBeHidden()
+
+    await modes.getByRole('radio', { name: 'OFF GRID', exact: true }).click()
+    await expect(offGridSdr).toBeVisible()
+    await expect(onlineSource).toBeHidden()
+
+    // Hidden, not removed: whatever was picked in it is still there on the way back.
+    await modes.getByRole('radio', { name: 'ONLINE', exact: true }).click()
+    await expect(offGridSdr).toBeAttached()
+    await expect(offGridSdr).toBeHidden()
+  })
+
+  test('SPACE fetches TLEs online and imports them off grid', async ({ page }) => {
+    await page.goto('/space/')
+    await waitForShellHydration(page)
+    await page.getByRole('button', { name: /^settings$/i }).click()
+    await page.locator('#settings-sidebar .settings-nav-item[data-tooltip="SPACE"]').click()
+    const modes = page.getByRole('radiogroup', { name: 'SPACE data source mode' })
+    await modes.getByRole('radio', { name: 'OFF GRID', exact: true }).click()
+    await expect(settingCard(page, 'TLE Import')).toBeVisible()
+    await expect(settingCard(page, 'Online Data Source')).toBeHidden()
+    await expect(settingCard(page, 'TLE Database')).toBeVisible()
+    await modes.getByRole('radio', { name: 'ONLINE', exact: true }).click()
+    await expect(settingCard(page, 'Online Data Source')).toBeVisible()
+    await expect(settingCard(page, 'TLE Import')).toBeHidden()
+  })
+
   test('SPACE TLE category menu paints above the TLE import row beneath it', async ({ page }) => {
     await page.goto('/space/')
     await waitForShellHydration(page)
@@ -179,6 +226,9 @@ test.describe('Settings panel', () => {
     await onlineTrigger.dispatchEvent('mousedown')
     const openMenu = page.locator('.tle-dropdown-menu--open')
     await expect(openMenu).toBeVisible()
+    // The whole menu must be on screen for elementFromPoint to see it, and with
+    // Space's Source Override above it the menu runs past the bottom unscrolled.
+    await openMenu.evaluate((menu) => menu.scrollIntoView({ block: 'end' }))
 
     const overlap = await page.evaluate(() => {
       const menu = document.querySelector('.tle-dropdown-menu--open')!

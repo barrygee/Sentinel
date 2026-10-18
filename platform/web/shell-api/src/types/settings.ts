@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { SourceMode } from '@sentinel/shell-api/utils/sourceMode'
 
 /**
  * Shared types for the Settings panel's data-driven control registry.
@@ -59,5 +60,12 @@ export interface SettingItem {
    * the row shows a "LEARN MORE" link to it after the description.
    */
   docPath?: string
+  /**
+   * Shown only while the section's ONLINE / OFF GRID choice (its Source
+   * Override, as currently picked) is this mode — e.g. an off-grid SDR picker.
+   * Hidden, the control stays mounted, so a choice made in it before switching
+   * modes is still there on switching back. Omitted = shown in both modes.
+   */
+  sourceMode?: SourceMode
   control: SettingControl
 }

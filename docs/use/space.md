@@ -21,7 +21,7 @@ Satellites on a globe, and when they pass over you. Positions are worked out on 
 
 **Settings › SPACE › Online Data Source**: pick categories, then **UPDATE TLE**.
 
-With no internet, use **TLE Import**: a `.txt` file, three lines per satellite (name, then the two element lines).
+With no internet, set Space's **Source Override** to **OFF GRID** and use **TLE Import**: a `.txt` file, three lines per satellite (name, then the two element lines).
 
 ## Catch and record a pass
 
@@ -37,8 +37,9 @@ All in **Settings › SPACE**.
 
 | Setting | What it does |
 |---|---|
-| **Online Data Source** | TLE categories to download; **UPDATE TLE** |
-| **TLE Import** | Load TLEs from a `.txt` file |
+| **Source Override** | **ONLINE** or **OFF GRID** for Space only |
+| **Online Data Source** | Online: TLE categories to download; **UPDATE TLE** |
+| **TLE Import** | Off grid: load TLEs from a `.txt` file |
 | **TLE Database** | What is stored; clear one category or all |
 | **Satellite Frequencies (JSON)** | Downlinks used by auto-tune |
 | **Filter Hover Behaviour** | Whether hovering a satellite in **FILTER** moves the map |

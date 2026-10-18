@@ -22,8 +22,8 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 You need a dongle with a 1090 MHz antenna on a [Sentry host](sdr/add-a-radio.md#add-a-sentry-host), and the ADS-B decoder.
 
 1. `docker compose --profile adsb up -d --build`
-2. **Settings › AIR › Off Grid ADS-B SDR**: pick the dongle.
-3. Set **OFF GRID** (app-wide **Connectivity Mode**, or Air's **Source Override**), then **APPLY CHANGES**.
+2. Set **OFF GRID** (app-wide **Connectivity Mode**, or Air's **Source Override**).
+3. **Settings › AIR › Off Grid ADS-B SDR**: pick the dongle, then **APPLY CHANGES**.
 
 Opening Air claims the dongle and tunes it to 1090 MHz; closing it lets it go. It uses about 38 Mbps on your network while open.
 
@@ -33,13 +33,13 @@ All in **Settings › AIR**.
 
 | Setting | What it does |
 |---|---|
-| **Source Override** | **ONLINE** or **OFF GRID** for Air only |
+| **Source Override** | **ONLINE** or **OFF GRID** for Air only. The settings below show for the mode picked |
 | **Off Grid ADS-B SDR** | The Sentry dongle used off grid |
 | **Online Data Source** | The online feed. Default `https://api.adsb.lol/v2` |
-| **Online / Off Grid Squawk Checks** | Seconds between emergency checks while no Air map is open. Default 20 |
+| **Online Squawk Checks** / **Off Grid Squawk Checks** | Seconds between emergency checks while no Air map is open. Default 20 |
 | **Map Layers** | Layers on when the map opens |
-| **Overhead Aircraft Alerts** | Places to watch, civil or military, and how close |
 | **Label Data Points** | What each aircraft label shows |
+| **Overhead Aircraft Alerts** | Places to watch, civil or military, and how close |
 
 ## Tips
 

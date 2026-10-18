@@ -11,7 +11,8 @@ import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideCo
 import SquawkWatchIntervalControl from './settings/SquawkWatchIntervalControl.vue'
 
 /**
- * AIR's Settings section (F3): data sources, map layers, overhead alerts and aircraft labels.
+ * AIR's Settings section (F3): data sources, map layers, aircraft labels and overhead alerts.
+ * Each data source setting shows only in the mode it belongs to (`sourceMode`).
  */
 export function registerAirSettings(): void {
   registerSettingsSection({ key: 'air', label: 'AIR', order: 10, domain: true })
@@ -33,6 +34,7 @@ export function registerAirSettings(): void {
       label: 'Off Grid ADS-B SDR',
       desc: 'Which Sentry SDR receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
       control: { component: AdsbSdrSourceControl, emits: ['stage'] },
+      sourceMode: 'offgrid',
     },
     {
       section: 'air',
@@ -46,6 +48,7 @@ export function registerAirSettings(): void {
         props: { mode: 'offgrid' },
         emits: ['stage', 'commit'],
       },
+      sourceMode: 'offgrid',
     },
     {
       section: 'air',
@@ -58,6 +61,7 @@ export function registerAirSettings(): void {
         props: { ns: 'air', defaultUrl: 'https://api.adsb.lol/v2' },
         emits: ['stage', 'commit'],
       },
+      sourceMode: 'online',
     },
     {
       section: 'air',
@@ -71,6 +75,7 @@ export function registerAirSettings(): void {
         props: { mode: 'online' },
         emits: ['stage', 'commit'],
       },
+      sourceMode: 'online',
     },
     {
       section: 'air',
@@ -91,6 +96,17 @@ export function registerAirSettings(): void {
     {
       section: 'air',
       sectionLabel: 'AIR',
+      id: 'air-tag-fields',
+      label: 'Label Data Points',
+      desc: '',
+      // Keeps the setting findable by the words the removed description carried.
+      searchTerms: 'data fields aircraft labels civil military',
+      control: { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' },
+      groupLabel: 'LABELS',
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
       id: 'air-overhead-alerts',
       label: 'Overhead Aircraft Alerts',
       desc: 'Notify when aircraft are overhead, per location',
@@ -102,17 +118,6 @@ export function registerAirSettings(): void {
         naturalHeight: true,
       },
       groupLabel: 'ALERTS',
-    },
-    {
-      section: 'air',
-      sectionLabel: 'AIR',
-      id: 'air-tag-fields',
-      label: 'Label Data Points',
-      desc: '',
-      // Keeps the setting findable by the words the removed description carried.
-      searchTerms: 'data fields aircraft labels civil military',
-      control: { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' },
-      groupLabel: 'LABELS',
     },
   ])
 }

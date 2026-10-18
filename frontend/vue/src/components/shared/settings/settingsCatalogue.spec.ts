@@ -131,12 +131,17 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'map-layers',
     { component: MapLayersControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
+  ['air', 'air-tag-fields', { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' }],
   [
     'air',
     'air-overhead-alerts',
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
-  ['air', 'air-tag-fields', { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' }],
+  [
+    'space',
+    'space-source-override',
+    { component: SourceOverrideControl, props: { ns: 'space' }, emits: ['stage'] },
+  ],
   ['space', 'space-online-source', { component: SpaceTleOnlineControl, layout: 'half' }],
   ['space', 'space-manual-tle', { component: SpaceTleManualControl, layout: 'half' }],
   ['space', 'space-tle-database', { component: SpaceTleDatabaseControl, layout: 'half' }],
@@ -288,6 +293,26 @@ describe('Settings catalogue', () => {
   it.each(EXPECTED)('%s / %s is edited by the right control', (_section, id, control) => {
     const item = getSettingItems().find((candidate) => candidate.id === id)!
     expect(item.control).toEqual(control)
+  })
+
+  it('shows the data source settings only in the mode they belong to', () => {
+    const modes = Object.fromEntries(
+      getSettingItems()
+        .filter((item) => item.sourceMode)
+        .map((item) => [item.id, item.sourceMode]),
+    )
+    expect(modes).toEqual({
+      'air-offgrid-sdr-source': 'offgrid',
+      'air-offgrid-squawk-watch-interval': 'offgrid',
+      'air-online-source': 'online',
+      'air-online-squawk-watch-interval': 'online',
+      'space-online-source': 'online',
+      'space-manual-tle': 'offgrid',
+      'sea-ais-sdr-source': 'offgrid',
+      'sea-online-source': 'online',
+      'sea-ais-key': 'online',
+      'sea-coverage-area': 'online',
+    })
   })
 
   it('labels every item with its section’s nav label', () => {

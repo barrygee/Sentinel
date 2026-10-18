@@ -3,13 +3,16 @@ import {
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
 import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
+import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
 import SpaceHoverPreviewControl from './settings/SpaceHoverPreviewControl.vue'
 import SpaceTleDatabaseControl from './settings/SpaceTleDatabaseControl.vue'
 import SpaceTleManualControl from './settings/SpaceTleManualControl.vue'
 import SpaceTleOnlineControl from './settings/SpaceTleOnlineControl.vue'
 
 /**
- * SPACE's Settings section (F3): satellite (TLE) data, the satellite radio file and filter hover preview.
+ * SPACE's Settings section (F3): its ONLINE / OFF GRID mode, satellite (TLE) data, the satellite
+ * radio file and filter hover preview. TLEs come from the Online Data Source ONLINE and from
+ * TLE Import OFF GRID, so each shows only in its mode (`sourceMode`).
  */
 export function registerSpaceSettings(): void {
   registerSettingsSection({ key: 'space', label: 'SPACE', order: 20, domain: true })
@@ -18,11 +21,20 @@ export function registerSpaceSettings(): void {
     {
       section: 'space',
       sectionLabel: 'SPACE',
+      id: 'space-source-override',
+      label: 'Source Override',
+      desc: 'Overrides the app-wide Connectivity Mode for this section',
+      control: { component: SourceOverrideControl, props: { ns: 'space' }, emits: ['stage'] },
+      groupLabel: 'DATA SOURCES',
+    },
+    {
+      section: 'space',
+      sectionLabel: 'SPACE',
       id: 'space-online-source',
       label: 'Online Data Source',
       desc: 'URL to fetch TLE data from — select a category and click UPDATE TLE',
       control: { component: SpaceTleOnlineControl, layout: 'half' },
-      groupLabel: 'DATA SOURCES',
+      sourceMode: 'online',
     },
     {
       section: 'space',
@@ -31,6 +43,7 @@ export function registerSpaceSettings(): void {
       label: 'TLE Import',
       desc: 'Upload a .txt file of TLE data',
       control: { component: SpaceTleManualControl, layout: 'half' },
+      sourceMode: 'offgrid',
     },
     {
       section: 'space',
