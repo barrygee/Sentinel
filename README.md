@@ -23,6 +23,22 @@ docker compose up --build -d
 
 Open **http://localhost:8080**. The first build takes a few minutes. Starting only some sections, adding radio decoders and the first settings to make are in [Quick start](docs/install.md).
 
+### Without the in-app docs
+
+The in-app docs (**Settings › Docs**) run in their own container, `docs`, which starts by default. To run Sentinel without it:
+
+```bash
+docker compose up --build -d --scale docs=0
+```
+
+To leave it out for good, set this in `.env` and use plain `docker compose up -d` from then on:
+
+```bash
+SENTINEL_DOCS_REPLICAS=0
+```
+
+Without it, Sentinel works the same but the **Docs** entry and the **LEARN MORE** links in Settings are hidden. The same pages are still in [`docs/`](docs/index.md). To bring the docs back, run `docker compose up -d --scale docs=1` (or set `SENTINEL_DOCS_REPLICAS=1`).
+
 ## SDR recordings
 
 The **Record** button (●) in the SDR radio panel saves what you're listening
