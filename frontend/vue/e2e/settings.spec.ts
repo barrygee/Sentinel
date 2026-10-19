@@ -78,7 +78,7 @@ test.describe('Settings panel', () => {
     const searchInput = page.getByRole('textbox', { name: /search settings/i })
     await searchInput.fill('Connectivity')
 
-    // At least the "Connectivity Mode" setting should appear
+    // At least the "App Wide Connectivity Mode" setting should appear
     await expect(page.locator('.settings-empty')).not.toBeVisible()
   })
 
@@ -124,7 +124,7 @@ test.describe('Settings panel', () => {
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
     const searchInput = page.getByRole('textbox', { name: /search settings/i })
-    await searchInput.fill('Label Data Points')
+    await searchInput.fill('Aircraft Label Fields')
 
     const checkbox = page.getByRole('checkbox', { name: 'Callsign — civil' })
     const initiallyChecked = await checkbox.isChecked()

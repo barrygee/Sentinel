@@ -58,15 +58,15 @@ flowchart TB
 
 ## Switch over
 
-1. **Settings › App Settings › Connectivity Mode › OFF GRID**, then **APPLY CHANGES**.
+1. **Settings › App Settings › App Wide Connectivity Mode › OFF GRID**, then **APPLY CHANGES**.
 2. Give each section its radio, then **APPLY CHANGES**: **Off Grid ADS-B SDR** (AIR), **Off Grid AIS SDR** (SEA), **Off Grid APRS SDR** (LAND). Air's and Sea's only show once the section is off grid.
 3. Open each section. A notice at the top says what is missing, if anything.
 
-To keep one section online, set its **Source Override** afterwards. A section's override wins over **Connectivity Mode**.
+To keep one section online, set its **Source Override** afterwards. A section's override wins over **App Wide Connectivity Mode**.
 
 ## Coming back
 
-**Connectivity Mode › ONLINE**, **APPLY CHANGES**, then **UPDATE TLE**.
+**App Wide Connectivity Mode › ONLINE**, **APPLY CHANGES**, then **UPDATE TLE**.
 
 ## If it's not working
 
