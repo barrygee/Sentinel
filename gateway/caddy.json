@@ -1,7 +1,7 @@
 {
     "admin": {
-        "listen": "0.0.0.0:2019",
-        "origins": ["gateway:2019", "localhost:2019"],
+        "listen": "gateway-admin:2019",
+        "origins": ["gateway-admin:2019"],
         "config": { "persist": false }
     },
     "apps": {
