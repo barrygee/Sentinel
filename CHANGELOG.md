@@ -598,6 +598,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle with folded JSON editors
 - Rebuild bundle for the docs service
 - Run ruff on services/docs in the pre-commit hook
+- Rename two setting labels
+- Rebuild the bundle for the renamed setting labels
 
 ### Reverts
 
@@ -1599,6 +1601,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #514 from barrygee/fix/json-editor-fit-height
 - Merge pull request #515 from barrygee/docs/readme-exclude-docs-service
 - Merge pull request #516 from barrygee/fix/adsb-online-quota
+- Merge pull request #517 from barrygee/chore/settings-label-names
 
 ### Refactoring
 
