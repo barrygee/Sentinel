@@ -5,6 +5,7 @@ import {
 import AdsbSdrSourceControl from './settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from './settings/AdsbTagFieldsControl.vue'
 import MapLayersControl from './settings/MapLayersControl.vue'
+import OnlineRefreshIntervalControl from './settings/OnlineRefreshIntervalControl.vue'
 import OnlineSourceControl from '@sentinel/shell-api/settings/OnlineSourceControl.vue'
 import OverheadAlertsControl from './settings/OverheadAlertsControl.vue'
 import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
@@ -61,6 +62,16 @@ export function registerAirSettings(): void {
         props: { ns: 'air', defaultUrl: 'https://api.adsb.lol/v2' },
         emits: ['stage', 'commit'],
       },
+      sourceMode: 'online',
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
+      id: 'air-online-refresh-interval',
+      label: 'Online Refresh Interval',
+      desc: 'Seconds between calls to the Online Data Source, 5 to 280. adsb.lol allows 500 a day, so keep it at 173 or more',
+      searchTerms: 'refresh interval rate limit quota daily requests 429 adsb.lol poll online',
+      control: { component: OnlineRefreshIntervalControl, emits: ['stage', 'commit'] },
       sourceMode: 'online',
     },
     {

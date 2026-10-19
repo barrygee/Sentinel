@@ -118,7 +118,7 @@ def fetched(monkeypatch) -> list:
     """Centre and upstream host of every fetch the endpoint makes."""
     calls: list = []
 
-    async def _fetch(lat, lon, radius, base_url):
+    async def _fetch(lat, lon, radius, base_url, online_interval_seconds=None):
         calls.append(((round(lat, 6), round(lon, 6)), base_url.split("/")[2]))
         return {"ac": []}
 

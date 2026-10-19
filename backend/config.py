@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     # Path to the SQLite database file (relative to the project root)
     db_path: str = "backend/sentinel.db"
 
-    # How long ADS-B aircraft data is considered fresh (10 seconds — matches the upstream rate limit)
+    # How long ADS-B aircraft data from a local decoder (off grid) is considered
+    # fresh. Online snapshots stay fresh for the online refresh interval below.
     adsb_ttl_ms: int = 10000
     # How long a stale ADS-B response can still be served if the upstream fails (60 seconds)
     adsb_stale_ms: int = 60000
@@ -21,9 +22,15 @@ class Settings(BaseSettings):
     # endpoint behind an auth key ("403: Check auth key"), and this feed is the
     # keyless drop-in replacement — same response fields, no registration.
     adsb_upstream_base: str = "https://api.adsb.lol/v2"
-    # Minimum gap between two outbound ADS-B requests to the same upstream host
-    # (5 seconds — these feeds ban clients that poll faster than this).
+    # Minimum gap between two outbound ADS-B requests to the same local decoder
+    # host (5 seconds). The online feed is spaced by the refresh interval below.
     adsb_min_request_interval_ms: int = 5000
+    # Default gap between two calls to the online feed, whoever makes them (the
+    # map, the squawk watcher). adsb.lol allows 500 requests a day, one every
+    # 172.8 s; 180 s (480 a day) stays under it. The operator sets it in
+    # Settings › AIR (`air.onlineRefreshIntervalSec`); this applies while that
+    # is unset or not a number.
+    adsb_online_refresh_interval_s: float = 180.0
     # Longest a request will wait for a free upstream slot before giving up and
     # serving cached data instead. Capped at one interval so a burst of callers
     # cannot pile into an ever-growing queue.

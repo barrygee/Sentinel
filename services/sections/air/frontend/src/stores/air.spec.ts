@@ -8,6 +8,8 @@ import {
   sentryAlertLocationId,
   DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
   SQUAWK_WATCH_INTERVAL_SETTING,
+  DEFAULT_ONLINE_REFRESH_INTERVAL_SEC,
+  ONLINE_REFRESH_INTERVAL_SETTING,
 } from './air'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
@@ -22,6 +24,23 @@ describe('air store', () => {
   })
   afterEach(() => {
     vi.restoreAllMocks()
+  })
+
+  describe('online refresh interval', () => {
+    it('starts at the backend default of 180 seconds', () => {
+      expect(DEFAULT_ONLINE_REFRESH_INTERVAL_SEC).toBe(180)
+      expect(useAirStore().onlineRefreshIntervalSec).toBe(180)
+    })
+
+    it('sets the interval', () => {
+      const store = useAirStore()
+      store.setOnlineRefreshIntervalSec(240)
+      expect(store.onlineRefreshIntervalSec).toBe(240)
+    })
+
+    it('names the setting key the backend reads', () => {
+      expect(ONLINE_REFRESH_INTERVAL_SETTING).toBe('onlineRefreshIntervalSec')
+    })
   })
 
   describe('squawk watch interval', () => {

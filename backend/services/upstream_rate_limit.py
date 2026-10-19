@@ -39,7 +39,7 @@ class MinimumIntervalRateLimiter:
         # Monotonic timestamp of the next unreserved slot, per host key.
         self._next_free_slot_at: dict[str, float] = {}
 
-    async def acquire(self, host_key: str, max_wait_seconds: float) -> None:
+    async def acquire(self, host_key: str, max_wait_seconds: float, interval_seconds: float | None = None) -> None:
         """Reserve and wait for the next call slot for `host_key`.
 
         Args:
@@ -48,6 +48,10 @@ class MinimumIntervalRateLimiter:
             max_wait_seconds: Longest the caller is willing to wait. If the next
                 slot is further away than this, no slot is reserved and the call
                 is refused so the caller can serve cached data instead.
+            interval_seconds: Gap to hold before the slot after this one, in
+                place of the limiter's own interval. For a host whose budget is
+                an operator setting (Air's online refresh interval) rather than
+                a fixed property of the provider.
 
         Raises:
             UpstreamThrottledError: If the next free slot is beyond `max_wait_seconds`.
@@ -62,7 +66,8 @@ class MinimumIntervalRateLimiter:
                 )
             # Reserve this slot before releasing the lock so concurrent callers
             # queue behind it rather than all claiming the same instant.
-            self._next_free_slot_at[host_key] = slot_start_at + self._interval_seconds
+            gap_seconds = self._interval_seconds if interval_seconds is None else interval_seconds
+            self._next_free_slot_at[host_key] = slot_start_at + gap_seconds
 
         # Sleep outside the lock: holding it while waiting would serialise the
         # reservation bookkeeping behind the wait and break the max_wait check.

@@ -24,6 +24,7 @@ flowchart TB
 ```
 
 - The map asks Air for aircraft within 250 nm of its centre every few seconds; Air answers from cache or the live source ([Storage](storage.md#caching)).
+- Online, adsb.lol allows 500 calls a day, so Air calls it once per `air.onlineRefreshIntervalSec` (default 180 s), whoever asks (map or watcher), and answers in between from cache. After a 429 with nothing left, it waits for adsb.lol's reset (at most 10 minutes) before trying again.
 - Off grid, opening Air reserves the Sentry dongle through the hub and tunes it to 1090 MHz. readsb reads IQ directly; the decoder finds its dongle via `/api/sdr/adsb/config`.
 - Every snapshot feeds the `SquawkTracker`. With no map open, `AdsbWatcher` fetches on its own interval, so emergencies are still caught. The map only highlights; it never raises the alert.
 

@@ -23,6 +23,7 @@
         "enabled": true,
         "sourceOverride": "online",
         "onlineDataSourceURL": "https://api.adsb.lol/v2",
+        "onlineRefreshIntervalSec": 180,
         "squawkWatchOnlineIntervalSec": 20,
         "offgridDataSourceURL": {
             "url": ""

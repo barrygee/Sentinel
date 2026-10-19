@@ -431,6 +431,11 @@ def watch_setup(monkeypatch, clock):
 
     monkeypatch.setattr(adsb_squawk, "watch_interval_s", interval)
 
+    async def online_refresh_interval(db):
+        return 180.0
+
+    monkeypatch.setattr(adsb_squawk.adsb_service, "online_refresh_interval_s", online_refresh_interval)
+
     async def urls(domain, db, *, online_default, offgrid_default):
         return ("https://primary.example/v2", "https://fallback.example/v2")
 
@@ -444,7 +449,7 @@ def watch_setup(monkeypatch, clock):
 def fetch(monkeypatch, behaviour) -> list[tuple]:
     calls: list[tuple] = []
 
-    async def fake_fetch(lat, lon, radius, base_url):
+    async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
         calls.append((lat, lon, radius, base_url))
         return behaviour(base_url)
 
