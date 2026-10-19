@@ -100,6 +100,7 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source': false,
         'air-offgrid-squawk-watch-interval': false,
         'air-online-source': true,
+        'air-online-refresh-interval': true,
         'air-online-squawk-watch-interval': true,
         'map-layers': true,
       })
@@ -114,6 +115,7 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source': true,
         'air-offgrid-squawk-watch-interval': true,
         'air-online-source': false,
+        'air-online-refresh-interval': false,
         'air-online-squawk-watch-interval': false,
       })
       showSettingsSourceMode('air', 'online')
@@ -908,6 +910,7 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source',
         'air-offgrid-squawk-watch-interval',
         'air-online-source',
+        'air-online-refresh-interval',
         'air-online-squawk-watch-interval',
         'map-layers',
         'air-tag-fields',
@@ -921,6 +924,10 @@ describe('SettingsPanel', () => {
       ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
+      )
+      // The online feed's refresh interval sits right under the online source.
+      expect(airItems.find((item) => item.id === 'air-online-refresh-interval')!.label).toBe(
+        'Online Refresh Interval',
       )
       // Each mode's background squawk-check interval sits under that mode's source.
       expect(airItems.find((item) => item.id === 'air-offgrid-squawk-watch-interval')!.label).toBe(

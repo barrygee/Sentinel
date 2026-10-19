@@ -19,6 +19,7 @@ import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
+import OnlineRefreshIntervalControl from '@sentinel/section-air/settings/OnlineRefreshIntervalControl.vue'
 import AprsLabelFieldsControl from '@sentinel/section-land/settings/AprsLabelFieldsControl.vue'
 import AprsSdrSourceControl from '@sentinel/section-land/settings/AprsSdrSourceControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
@@ -116,6 +117,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       props: { ns: 'air', defaultUrl: 'https://api.adsb.lol/v2' },
       emits: ['stage', 'commit'],
     },
+  ],
+  [
+    'air',
+    'air-online-refresh-interval',
+    { component: OnlineRefreshIntervalControl, emits: ['stage', 'commit'] },
   ],
   [
     'air',
@@ -305,6 +311,7 @@ describe('Settings catalogue', () => {
       'air-offgrid-sdr-source': 'offgrid',
       'air-offgrid-squawk-watch-interval': 'offgrid',
       'air-online-source': 'online',
+      'air-online-refresh-interval': 'online',
       'air-online-squawk-watch-interval': 'online',
       'space-online-source': 'online',
       'space-manual-tle': 'offgrid',
