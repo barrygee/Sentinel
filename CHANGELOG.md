@@ -535,6 +535,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Hide the offline area fields until an area is being chosen
 - Glob docs/nav.json so the image build type-checks without docs/
 - Fit the JSON editor to its content, up to 520px
+- Keep online ADS-B inside adsb.lol's daily quota
 
 ### Chores
 
@@ -1597,6 +1598,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #513 from barrygee/chore/claude-md-package-imports
 - Merge pull request #514 from barrygee/fix/json-editor-fit-height
 - Merge pull request #515 from barrygee/docs/readme-exclude-docs-service
+- Merge pull request #516 from barrygee/fix/adsb-online-quota
 
 ### Refactoring
 
@@ -1852,6 +1854,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Audit every Settings section with axe
 - Audit the playing SDR radio panel and its tabs with axe
 - Drop the docs-page screenshot no docs page uses
+- List the AIR online refresh interval in the catalogue specs
 
 ### Build System
 
