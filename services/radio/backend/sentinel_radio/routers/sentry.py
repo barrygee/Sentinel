@@ -124,7 +124,10 @@ class SentryHostPatch(BaseModel):
     Mirrors Sentry's own hotspot-PUT convention (architecture: Sentry
     `HotspotConfigRequest`): omitting `auth_token` keeps the currently stored
     token, which is what keeps the secret write-only end to end — an operator
-    editing the address never has to re-paste a token they can no longer see.
+    editing only the name or enabled flag never has to re-paste a token they
+    can no longer see. Moving the host to a new address or port without a new
+    token clears the stored one instead: the poller would otherwise send the
+    console password to whichever machine the new address names.
     """
 
     name: str | None = None
@@ -537,6 +540,9 @@ async def update_host(host_id: int, body: SentryHostPatch, db: AsyncSession = De
                     "message": "A Sentry host at this address and port is already registered.",
                 },
             )
+        if (new_address, new_port) != (host.address, host.port) and body.auth_token is None:
+            # Never carry the console password over to a different machine.
+            host.auth_token = ""
         host.address = new_address
         host.port = new_port
     # `name` is the one field a null means something for: it is a cosmetic

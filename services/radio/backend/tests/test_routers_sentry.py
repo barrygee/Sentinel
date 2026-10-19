@@ -237,6 +237,31 @@ class TestUpdateHost:
         assert resp.json()["auth_token_set"] is True
         assert "new-token" not in resp.text
 
+    def test_update_omitting_auth_token_with_same_address_keeps_it(self, client):
+        created = _create_host(client, address="10.0.0.5", port=8000, auth_token="console-pw")
+        resp = client.put(
+            f"/api/sdr/sentry-hosts/{created['id']}",
+            json={"name": "Renamed", "address": "10.0.0.5", "port": 8000},
+        )
+        assert resp.json()["auth_token_set"] is True
+
+    @pytest.mark.parametrize("move", [{"address": "10.0.0.66"}, {"port": 9000}])
+    def test_moving_the_host_without_a_new_token_clears_the_stored_one(self, client, move):
+        # The poller would otherwise sign in to whatever the new address names
+        # with the console password meant for the old one.
+        created = _create_host(client, address="10.0.0.5", port=8000, auth_token="console-pw")
+        resp = client.put(f"/api/sdr/sentry-hosts/{created['id']}", json=move)
+        assert resp.status_code == 200
+        assert resp.json()["auth_token_set"] is False
+
+    def test_moving_the_host_with_a_new_token_stores_it(self, client):
+        created = _create_host(client, address="10.0.0.5", port=8000, auth_token="console-pw")
+        resp = client.put(
+            f"/api/sdr/sentry-hosts/{created['id']}",
+            json={"address": "10.0.0.66", "auth_token": "new-pw"},
+        )
+        assert resp.json()["auth_token_set"] is True
+
     def test_update_rejects_malformed_address(self, client):
         created = _create_host(client)
         resp = client.put(f"/api/sdr/sentry-hosts/{created['id']}", json={"address": "not a host"})
