@@ -537,6 +537,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Fit the JSON editor to its content, up to 520px
 - Keep online ADS-B inside adsb.lol's daily quota
 - Abbreviate minutes and seconds again
+- Only send the AISStream key to the AISStream host
+- Drop the Sentry console password when a host moves
+- Rebuild the SDR remote and update the OpenAPI golden
+- Keep Caddy's admin API off the shared compose network
 
 ### Chores
 
@@ -1604,6 +1608,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #516 from barrygee/fix/adsb-online-quota
 - Merge pull request #517 from barrygee/chore/settings-label-names
 - Merge pull request #518 from barrygee/fix/abbreviate-minutes-seconds
+- Merge pull request #519 from barrygee/fix/ais-key-destination
+- Merge pull request #520 from barrygee/fix/sentry-password-rebind
+- Merge pull request #521 from barrygee/fix/gateway-admin-isolation
 
 ### Refactoring
 
