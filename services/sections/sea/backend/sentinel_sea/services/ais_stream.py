@@ -62,6 +62,28 @@ FeedStatus = str  # 'disabled' | 'no-source' | 'missing-key' | 'connecting' | 'l
 #                 | 'reconnecting' | 'down' | 'auth-failed' | 'unsupported-source'
 
 
+def is_key_destination(url: str) -> bool:
+    """True when ``url`` may receive the AISStream API key.
+
+    Only ``wss://`` on the host (and port) of ``AISSTREAM_WS_URL`` — an
+    environment setting, not one the settings API can change — qualifies, so
+    pointing ``sea.onlineUrl`` at another server can't harvest the key.
+    """
+    try:
+        target = urlsplit(url)
+        trusted = urlsplit(settings.aisstream_ws_url)
+        return (
+            target.scheme == "wss"
+            and target.hostname is not None
+            and target.hostname == trusted.hostname
+            and (target.port or 443) == (trusted.port or 443)
+            and not target.username
+            and not target.password
+        )
+    except ValueError:
+        return False
+
+
 class AisStreamAuthError(Exception):
     """AISStream rejected the API key."""
 
@@ -212,6 +234,14 @@ class AisStreamReader:
             await self._close_socket()
             self.status = "unsupported-source"
             self.error = f"Off-grid source {config['url']!r} is not a supported AIS feed (use wss://)"
+            return self.status
+        if config["mode"] == "untrusted-destination":
+            await self._close_socket()
+            self.status = "unsupported-source"
+            self.error = (
+                f"Refusing to send the AISStream API key to {config['url']!r} — "
+                f"only {settings.aisstream_ws_url!r}'s host over wss:// is allowed (AISSTREAM_WS_URL)"
+            )
             return self.status
         if not config["api_key"]:
             await self._close_socket()
@@ -407,7 +437,10 @@ class AisStreamReader:
         if primary_url is None:
             mode = "no-source"
         elif urlsplit(primary_url).scheme in ("ws", "wss"):
-            mode = "aisstream"
+            # The subscription carries the API key, so it only goes to the
+            # AISStream host (AISSTREAM_WS_URL) — never to whatever URL a
+            # settings write points ``sea.onlineUrl`` at.
+            mode = "aisstream" if is_key_destination(primary_url) else "untrusted-destination"
         else:
             mode = "unsupported-source"
         return {

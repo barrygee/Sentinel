@@ -166,6 +166,13 @@ class TestGateStates:
         assert "tcp://x:1" in reader.error
         assert connect.calls == 0
 
+    async def test_untrusted_destination_never_connects(self):
+        connect = _never_connect()
+        reader, _ = make_reader(live_config(mode="untrusted-destination", url="ws://attacker:9000/"), connect)
+        assert await reader.ensure() == "unsupported-source"
+        assert "ws://attacker:9000/" in reader.error and "AISSTREAM_WS_URL" in reader.error
+        assert connect.calls == 0
+
     async def test_every_tick_reports_the_source_mode_to_the_store(self):
         # The tick runs with no browser attached, so it alone must notice a
         # switch; the store decides whether that means clearing.
@@ -457,6 +464,28 @@ class TestReadConfig:
         assert config["source_mode"] == "offgrid"
         assert config["mode"] == "unsupported-source" and config["url"] == "tcp://sentry:10110"
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "ws://attacker:9000/",
+            "wss://attacker.example/v0/stream",
+            "ws://stream.aisstream.io/v0/stream",
+            "wss://stream.aisstream.io:9000/v0/stream",
+            "wss://user:pw@stream.aisstream.io/v0/stream",
+            "wss://stream.aisstream.io.attacker.example/v0/stream",
+        ],
+    )
+    async def test_online_url_off_the_aisstream_host_is_untrusted(self, url):
+        async with self.factory() as db:
+            await upsert_setting(db, "sea", "onlineUrl", url)
+        config = await AisStreamReader(AisVesselStore())._read_config()
+        assert config["mode"] == "untrusted-destination" and config["url"].rstrip("/") == url.rstrip("/")
+
+    async def test_online_url_on_the_aisstream_host_is_trusted(self):
+        async with self.factory() as db:
+            await upsert_setting(db, "sea", "onlineUrl", "wss://stream.aisstream.io:443/v1/stream")
+        assert (await AisStreamReader(AisVesselStore())._read_config())["mode"] == "aisstream"
+
     async def test_offgrid_without_source_is_no_source(self):
         async with self.factory() as db:
             await upsert_setting(db, "sea", "sourceOverride", "offgrid")
@@ -465,6 +494,10 @@ class TestReadConfig:
 
 
 # ── frame handling edge cases ─────────────────────────────────────────────────
+
+
+def test_is_key_destination_rejects_unparseable_urls():
+    assert ais_stream.is_key_destination("wss://stream.aisstream.io:99999/") is False
 
 
 def test_handle_frame_raises_on_auth_error_and_ignores_non_dicts():
