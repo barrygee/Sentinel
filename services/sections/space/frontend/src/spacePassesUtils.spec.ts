@@ -99,8 +99,8 @@ describe('aosText', () => {
   it('uses the countdown format when AOS is under an hour away', () => {
     const now = 1_000_000_000_000
     const pass = makePass({ aos_unix_ms: now + 90_000, los_unix_ms: now + 600_000 })
-    // 90 seconds = 1 minute 30 seconds
-    expect(aosText(pass, now)).toBe('IN 1 minute 30 seconds')
+    // 90 seconds = 1m 30s
+    expect(aosText(pass, now)).toBe('IN 1m 30s')
   })
 
   it('uses a clock time when AOS is an hour or more away', () => {

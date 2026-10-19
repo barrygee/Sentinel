@@ -58,32 +58,30 @@ export const SATELLITE_CATEGORY_SECTION_LABELS: Record<string, string> = {
   unknown: 'UNKNOWN',
 }
 
-/** A count with its unit spelled out: `1 minute`, `12 seconds` (units are never abbreviated). */
+/** A count with its unit spelled out: `1 hour`, `2 days`. Minutes and seconds are abbreviated (`4m 12s`). */
 function countWithUnit(count: number, unit: string): string {
   return `${count} ${unit}${count === 1 ? '' : 's'}`
 }
 
 /**
- * Formats milliseconds until a satellite pass AOS as "IN 1 hour 4 minutes 12 seconds",
- * "IN 4 minutes 12 seconds" or "IN 12 seconds".
+ * Formats milliseconds until a satellite pass AOS as "IN 1 hour 4m 12s",
+ * "IN 4m 12s" or "IN 12s".
  */
 export function formatPassCountdown(milliseconds: number): string {
   const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000))
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
-  const secondsText = countWithUnit(seconds, 'second')
-  if (hours > 0)
-    return `IN ${countWithUnit(hours, 'hour')} ${countWithUnit(minutes, 'minute')} ${secondsText}`
-  if (minutes > 0) return `IN ${countWithUnit(minutes, 'minute')} ${secondsText}`
-  return `IN ${secondsText}`
+  if (hours > 0) return `IN ${countWithUnit(hours, 'hour')} ${minutes}m ${seconds}s`
+  if (minutes > 0) return `IN ${minutes}m ${seconds}s`
+  return `IN ${seconds}s`
 }
 
 /**
- * Formats a pass duration in seconds as "X minutes Y seconds".
+ * Formats a pass duration in seconds as "Xm Ys".
  */
 export function formatPassDuration(durationSeconds: number): string {
-  return `${countWithUnit(Math.floor(durationSeconds / 60), 'minute')} ${countWithUnit(durationSeconds % 60, 'second')}`
+  return `${Math.floor(durationSeconds / 60)}m ${durationSeconds % 60}s`
 }
 
 /**
@@ -101,13 +99,13 @@ export function formatPassDate(utcString: string): string {
 }
 
 /**
- * Formats a Unix timestamp (ms) as a human-readable age: "12 seconds ago",
- * "4 minutes ago", "3 hours ago", "2 days ago".
+ * Formats a Unix timestamp (ms) as a human-readable age: "12s ago",
+ * "4m ago", "3 hours ago", "2 days ago".
  */
 export function formatTleAge(timestampMs: number): string {
   const ageSeconds = Math.floor((Date.now() - timestampMs) / 1000)
-  if (ageSeconds < 60) return `${countWithUnit(ageSeconds, 'second')} ago`
-  if (ageSeconds < 3600) return `${countWithUnit(Math.floor(ageSeconds / 60), 'minute')} ago`
+  if (ageSeconds < 60) return `${ageSeconds}s ago`
+  if (ageSeconds < 3600) return `${Math.floor(ageSeconds / 60)}m ago`
   if (ageSeconds < 86400) return `${countWithUnit(Math.floor(ageSeconds / 3600), 'hour')} ago`
   return `${countWithUnit(Math.floor(ageSeconds / 86400), 'day')} ago`
 }

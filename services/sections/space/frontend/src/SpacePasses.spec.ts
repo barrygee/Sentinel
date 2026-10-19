@@ -201,7 +201,7 @@ describe('SpacePasses — initial fetch & list rendering', () => {
   it('renders the secondary line and the duration · max-elevation detail', async () => {
     const wrapper = await mountReady()
     expect(wrapper.find('.spp-pass-secondary').text()).toBe('STATION · NORAD 25544')
-    expect(wrapper.find('.spp-pass-detail').text()).toBe('5 minutes 5 seconds · 45.5°')
+    expect(wrapper.find('.spp-pass-detail').text()).toBe('5m 5s · 45.5°')
   })
 
   it('shows the empty-results message when the backend returns no passes', async () => {
