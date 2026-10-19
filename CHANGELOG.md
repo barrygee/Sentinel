@@ -536,6 +536,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Glob docs/nav.json so the image build type-checks without docs/
 - Fit the JSON editor to its content, up to 520px
 - Keep online ADS-B inside adsb.lol's daily quota
+- Abbreviate minutes and seconds again
 
 ### Chores
 
@@ -1602,6 +1603,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #515 from barrygee/docs/readme-exclude-docs-service
 - Merge pull request #516 from barrygee/fix/adsb-online-quota
 - Merge pull request #517 from barrygee/chore/settings-label-names
+- Merge pull request #518 from barrygee/fix/abbreviate-minutes-seconds
 
 ### Refactoring
 
