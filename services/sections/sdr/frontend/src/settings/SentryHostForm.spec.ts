@@ -72,6 +72,22 @@ describe('SentryHostForm', () => {
     expect(tokenInput.attributes('placeholder')).toBe('Password set — leave blank to keep it')
   })
 
+  it.each([
+    [0, '192.168.1.99'],
+    [2, '9000'],
+    [2, ''],
+  ])('asks for the password again once input %i moves the host', async (index, value) => {
+    // The backend drops the stored password when the address or port changes.
+    const wrapper = mount(SentryHostForm, { props: { host: EXISTING_HOST } })
+    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    await inputs[index]!.setValue(value)
+    const expected =
+      value === ''
+        ? 'Password set — leave blank to keep it'
+        : 'Address changed — enter the password again'
+    expect(inputs[3]!.attributes('placeholder')).toBe(expected)
+  })
+
   it('shows a plain optional-token placeholder for a host without a stored token', async () => {
     const wrapper = mount(SentryHostForm, {
       props: { host: { ...EXISTING_HOST, auth_token_set: false } },

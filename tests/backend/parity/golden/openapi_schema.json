@@ -1565,7 +1565,7 @@
         "type": "object"
       },
       "SentryHostPatch": {
-        "description": "Body for `PUT /api/sdr/sentry-hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors Sentry's own hotspot-PUT convention (architecture: Sentry\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting the address never has to re-paste a token they can no longer see.",
+        "description": "Body for `PUT /api/sdr/sentry-hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors Sentry's own hotspot-PUT convention (architecture: Sentry\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting only the name or enabled flag never has to re-paste a token they\ncan no longer see. Moving the host to a new address or port without a new\ntoken clears the stored one instead: the poller would otherwise send the\nconsole password to whichever machine the new address names.",
         "properties": {
           "address": {
             "anyOf": [

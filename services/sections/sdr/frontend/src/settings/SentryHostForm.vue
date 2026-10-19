@@ -44,11 +44,7 @@
         type="password"
         class="sdr-devices-form-input"
         aria-label="Sentry console password"
-        :placeholder="
-          host?.auth_token_set
-            ? 'Password set — leave blank to keep it'
-            : 'The password set on that Sentry\'s console'
-        "
+        :placeholder="passwordPlaceholder"
         autocomplete="new-password"
         spellcheck="false"
       />
@@ -108,7 +104,9 @@
  *
  * The password is write-only end to end — the API never returns it, so this
  * form never shows a stored value, only the "password set" placeholder text and
- * a blank field that keeps the stored one when left empty on edit.
+ * a blank field that keeps the stored one when left empty on edit — unless
+ * the address or port changes, when the backend drops it rather than send it
+ * to a different machine, and the placeholder asks for it again.
 
  * Below the fields (and above the actions) sits the collapsed `MORE`
  * disclosure — everything else known about this host, including its
@@ -117,7 +115,7 @@
  * It is Sentry's *console password*, not a token: Sentry has no token auth
  * (its ADR-0010), and the client exchanges this for a session cookie.
  */
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
 import SentryHostDetails from './SentryHostDetails.vue'
@@ -149,6 +147,16 @@ const form = ref({
   name: props.host?.name ?? '',
   port: props.host?.port ?? 8000,
   authToken: '',
+})
+
+const passwordPlaceholder = computed(() => {
+  if (!props.host?.auth_token_set) return "The password set on that Sentry's console"
+  const moved =
+    form.value.address.trim() !== props.host.address ||
+    (form.value.port || 8000) !== props.host.port
+  return moved
+    ? 'Address changed — enter the password again'
+    : 'Password set — leave blank to keep it'
 })
 
 onMounted(() => setTimeout(() => addressRef.value?.focus(), 0))
