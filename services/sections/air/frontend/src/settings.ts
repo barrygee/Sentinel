@@ -108,10 +108,11 @@ export function registerAirSettings(): void {
       section: 'air',
       sectionLabel: 'AIR',
       id: 'air-tag-fields',
-      label: 'Label Data Points',
+      label: 'Aircraft Label Fields',
       desc: '',
-      // Keeps the setting findable by the words the removed description carried.
-      searchTerms: 'data fields aircraft labels civil military',
+      // Keeps the setting findable by the words the removed description and the
+      // old label ("Label Data Points") carried.
+      searchTerms: 'data points fields aircraft labels civil military',
       control: { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' },
       groupLabel: 'LABELS',
     },

@@ -37,7 +37,7 @@
  * band plan, known-frequency labels, decode mute, raw IQ recording, waterfall
  * timestamps) with a
  * single list built on
- * the domains' "Label Data Points" table — name plus the Settings panel's
+ * the domains' label-fields table (Air's "Aircraft Label Fields") — name plus the Settings panel's
  * standard toggle switch, with no column headings and no per-option prose.
  *
  * Each option keeps the lifecycle the individual toggles had: hydrate from the

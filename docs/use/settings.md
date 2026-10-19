@@ -9,7 +9,7 @@ Every setting is in **Settings** (the gear, bottom right) and in one live file, 
 - **Doc links** beside a setting open its page here.
 - **APPLY CHANGES** saves everything at once and updates every browser in place, with no reload. **NO CHANGES** means nothing was changed.
 - **Shared**: settings live on the Sentinel computer, so every device sees the same.
-- **Connectivity Mode**: **ONLINE** or **OFF GRID** for every section; Air, Space and Sea also have a **Source Override**.
+- **App Wide Connectivity Mode**: **ONLINE** or **OFF GRID** for every section; Air, Space and Sea also have a **Source Override**.
 - **One mode at a time**: a section shows only the data source settings for the mode picked, and swaps them as soon as you switch. Anything chosen in the other mode is kept.
 - **Export All Configuration**: settings, frequencies and band plan as three files.
 - **Application Config**: view, **EDIT** or **EXPORT** the config file in the browser. The editor has line numbers, marks JSON errors, and **FORMAT** (or Shift+Alt+F) tidies the indenting. Tab indents; press Ctrl+M (Ctrl+Shift+M on a Mac) first to move on with Tab instead.
@@ -20,7 +20,7 @@ Every setting is in **Settings** (the gear, bottom right) and in one live file, 
 
 - Changes wait for **APPLY CHANGES**. Leaving the page without it throws them away.
 - These act at once: **UPDATE TLE**, adding or removing a radio or Sentry host, **DOWNLOAD**, **EXPORT**.
-- Choosing **Connectivity Mode** resets every **Source Override**.
+- Choosing **App Wide Connectivity Mode** resets every **Source Override**.
 
 ## The config file
 

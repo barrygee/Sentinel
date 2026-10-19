@@ -23,7 +23,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'connectivity-mode',
-    label: 'Connectivity Mode',
+    label: 'App Wide Connectivity Mode',
     desc: 'Sets every section to this mode, replacing any section overrides',
     control: { component: ConnectivityToggle, emits: ['stage'] },
     groupLabel: 'GENERAL',

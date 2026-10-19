@@ -15,16 +15,18 @@ test.describe('Connectivity', () => {
     await installDefaultMocks(page)
   })
 
-  test('"Connectivity Mode" setting is visible in App Settings section', async ({ page }) => {
+  test('"App Wide Connectivity Mode" setting is visible in App Settings section', async ({
+    page,
+  }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
     await page.getByRole('button', { name: /^settings$/i }).click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // The App Settings section should show the "Connectivity Mode" setting
+    // The App Settings section should show the "App Wide Connectivity Mode" setting
     // It should be visible by default (App Settings is the default section)
-    await expect(page.locator('#settings-body')).toContainText(/connectivity mode/i)
+    await expect(page.locator('#settings-body')).toContainText(/app wide connectivity mode/i)
   })
 
   test('NoUrlOverlay appears on Air when settings returns empty online URL', async ({ page }) => {

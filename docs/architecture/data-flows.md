@@ -1,6 +1,6 @@
 # Data flows
 
-Each section's data from source to map, with the **ONLINE** and **OFF GRID** paths drawn apart. Which one is live: the section's **Source Override**, else **Connectivity Mode** (`resolve_effective_mode`, `resolve_domain_urls` in `backend/utils.py`).
+Each section's data from source to map, with the **ONLINE** and **OFF GRID** paths drawn apart. Which one is live: the section's **Source Override**, else **App Wide Connectivity Mode** (`resolve_effective_mode`, `resolve_domain_urls` in `backend/utils.py`).
 
 ## Air
 
