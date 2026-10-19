@@ -53,7 +53,7 @@ Three failed probes mark it unavailable: its route answers 503 and the shell gre
 
 ## Routing
 
-Core keeps the gateway's routes in step through Caddy's admin API (:2019, compose network only): at once on a registration, and every 10 seconds, so a restarted gateway heals itself. Longest prefix wins:
+Core keeps the gateway's routes in step through Caddy's admin API (:2019, on the internal `gateway_admin` network that only core and the gateway join): at once on a registration, and every 10 seconds, so a restarted gateway heals itself. Longest prefix wins:
 
 | Path | Goes to |
 |---|---|

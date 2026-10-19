@@ -45,7 +45,7 @@
 
 ## Leave alone
 
-`NATS_URL` and `GATEWAY_ADMIN_URL` connect Sentinel's own containers.
+`NATS_URL` connects Sentinel's own containers. The gateway's admin API address is fixed in `docker-compose.yml` (`GATEWAY_ADMIN_URL` in `.env` is ignored).
 
 ## Anything else
 

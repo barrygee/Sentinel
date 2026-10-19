@@ -89,8 +89,11 @@ services:
       - INTERNAL_CERTIFICATE_AUTHORITY_FILE=/run/service-credentials/certificate-authority.pem
       - GATEWAY_UPSTREAM_CERTIFICATE_AUTHORITY_FILE=/run/service-credentials/certificate-authority.pem
       # The gateway's admin API, which core pushes the service registry's routes
-      # into. Set GATEWAY_ADMIN_URL= (empty) in .env to run without a gateway.
-      - GATEWAY_ADMIN_URL=${GATEWAY_ADMIN_URL-http://gateway:2019}
+      # into. Only reachable on the gateway_admin network (see the gateway), so
+      # it is fixed here rather than read from .env, where an old
+      # http://gateway:2019 line would point core at an address that no longer
+      # listens.
+      - GATEWAY_ADMIN_URL=http://gateway-admin:2019
       # The image never runs its process as root: the entrypoint hands the
       # volumes above to this uid/gid and drops to it. The default (1000) is the
       # image's own `sentinel` user. On a Linux host whose checkout is not owned
@@ -109,6 +112,7 @@ services:
     restart: unless-stopped
     networks:
       - sentinel
+      - gateway_admin
 
   # The gateway (section-containers plan §4.4): Caddy, the one origin browsers
   # use. Its static config (gateway/caddy.json) never routes /internal/, sends
@@ -116,7 +120,10 @@ services:
   # JSON 503. Every section / radio hub / remote prefix is pushed into it at
   # runtime by the app from the service registry (backend/core/gateway_sync.py),
   # so moving a section into its own container needs no gateway edit. The
-  # admin API (:2019) is reachable on the compose network only — never published.
+  # admin API (:2019) can rewrite every route, so it listens only on the
+  # internal gateway_admin network, which nothing but the app joins: a section
+  # or a decoder (third-party code parsing untrusted RF) on the sentinel network
+  # cannot reach it. Never published.
   #
   # It also serves core's TLS service entrypoint on :8443 (P7.5): every path
   # straight to the app, /internal/ included, for Sentinel processes on another
@@ -148,7 +155,7 @@ services:
       - /data:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
       - /config:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:2019/config/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://gateway-admin:2019/config/"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -159,7 +166,12 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
     networks:
-      - sentinel
+      sentinel:
+      # The admin API binds to the address `gateway-admin` resolves to, and the
+      # alias exists only on this network (gateway/caddy.json).
+      gateway_admin:
+        aliases:
+          - gateway-admin
 
   # The Space section as its own service (section-containers plan P6.1).
   # Started by a plain `docker compose up`, like every section below; leave
@@ -645,3 +657,8 @@ volumes:
 networks:
   sentinel:
     driver: bridge
+  # Core ↔ gateway admin API only. Internal: no route out, and no other
+  # service joins it.
+  gateway_admin:
+    driver: bridge
+    internal: true

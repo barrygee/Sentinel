@@ -273,7 +273,7 @@ class Settings(BaseSettings):
     registry_probe_failures: int = 3
 
     # ── Gateway (section-containers plan §4.4) ───────────────────────────────
-    # Caddy's admin API, e.g. `http://gateway:2019`, which core pushes the
+    # Caddy's admin API, e.g. `http://gateway-admin:2019`, which core pushes the
     # registry's routes into. Empty (the default) means no gateway fronts this
     # process — the test suite's in-process app serves every path itself.
     gateway_admin_url: str = ""

@@ -41,7 +41,7 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 | Port | Where | What |
 |---|---|---|
 | `8000` | app, sections, radio, docs | HTTP API |
-| `2019` | gateway | Caddy admin API (core pushes routes) |
+| `2019` | gateway | Caddy admin API (core pushes routes); only on the internal `gateway_admin` network |
 | `7355`, `7356` UDP | radio | Voice decoder audio out, decoded voice back |
 | `7357` | radio | APRS decoder audio |
 | `7358` | radio | AIS decoder stereo audio |
