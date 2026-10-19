@@ -37,6 +37,7 @@
     },
     "offgridSdrSource": null,
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
+    "onlineRefreshIntervalSec": 180,
     "overheadAlerts": {
       "civil": false,
       "mil": false,

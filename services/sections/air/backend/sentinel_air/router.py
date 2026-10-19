@@ -59,14 +59,14 @@ router = APIRouter(prefix="/api/air", tags=["air"])
 _NEARBY_FRACTION_OF_RADIUS = 0.5
 
 
-async def _nearest_recent_row(db: AsyncSession, lat: float, lon: float, radius: int) -> AdsbCache | None:
+async def _nearest_recent_row(db: AsyncSession, lat: float, lon: float, radius: int, stale_ms: int) -> AdsbCache | None:
     """Return the closest cached ADS-B row for the same radius, or None.
 
     Only rows still inside the stale window are considered, and only one whose
     centre lies within half the query radius of (lat, lon) — beyond that the
     borrowed aircraft list would miss too much of the area being asked about.
     """
-    oldest_usable = now_ms() - settings.adsb_stale_ms
+    oldest_usable = now_ms() - stale_ms
     lon_scale = math.cos(math.radians(lat))
     # Equirectangular squared distance in degrees: plenty accurate at these ranges,
     # and cheap enough for SQLite to order by.
@@ -120,12 +120,14 @@ async def get_aircraft_near_point(
     actually observed rather than when the response arrived.
 
     Cache strategy:
-      - HIT:    fresh row exists (within adsb_ttl_ms) → return immediately
+      - HIT:    fresh row exists (within adsb_ttl_ms; the online refresh
+                interval for an online snapshot) → return immediately
       - MISS:   no row or expired → fetch upstream, upsert row, return fresh data
       - RATED:  upstream returned 429 → serve the cache row if within adsb_stale_ms
       - THROTTLED: our own limiter declined the call (see adsb_min_request_interval_ms)
                 → serve the cache row if within adsb_stale_ms
       - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data
+      (Online, the stale window is adsb_stale_ms plus the online refresh interval.)
       - NEARBY: no row for this exact point and no fresh fetch → serve the nearest
                 recent row (the point tracks the map centre, so pans miss the cache)
       - FALLBACK: the primary failed and the fallback answered with no
@@ -152,6 +154,19 @@ async def get_aircraft_near_point(
         "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
     )
 
+    # The online feed has a daily request quota, so it is called once per
+    # operator-set refresh interval (Settings › AIR) and its snapshot has to
+    # stand in for that long — plus the usual stale window, since an online
+    # snapshot is never refreshed sooner.
+    sources = [url for url in (primary_url, fallback_url) if url]
+    if any(adsb_service.is_online_feed(url) for url in sources):
+        online_interval_seconds = await adsb_service.online_refresh_interval_s(db)
+    else:
+        online_interval_seconds = settings.adsb_online_refresh_interval_s
+    online_interval_ms = int(online_interval_seconds * 1000)
+    primary_is_online = primary_url is not None and adsb_service.is_online_feed(primary_url)
+    stale_ms = settings.adsb_stale_ms + (online_interval_ms if primary_is_online else 0)
+
     # Look up any existing cache row for this key
     result = await db.execute(select(AdsbCache).where(AdsbCache.cache_key == cache_key))
     row = result.scalar_one_or_none()
@@ -171,9 +186,12 @@ async def get_aircraft_near_point(
     empty_fallback: dict | None = None
     rate_limited = False
     throttled = False
-    for base_url in filter(None, [primary_url, fallback_url]):
+    fresh_for_ms = settings.adsb_ttl_ms
+    for base_url in sources:
         try:
-            data = await adsb_service.fetch_aircraft(lat, lon, radius, base_url)
+            data = await adsb_service.fetch_aircraft(lat, lon, radius, base_url, online_interval_seconds)
+            if adsb_service.is_online_feed(base_url):
+                fresh_for_ms = online_interval_ms
             if base_url != primary_url and not data.get("ac"):
                 # The fallback is the other mode's source (online, the operator's
                 # own decoder), which often has nothing for this area. An empty
@@ -233,7 +251,7 @@ async def get_aircraft_near_point(
             row.payload = payload_str
             row.ac_count = len(data.get("ac", []))
             row.fetched_at = ts
-            row.expires_at = ts + settings.adsb_ttl_ms
+            row.expires_at = ts + fresh_for_ms
         else:
             db.add(
                 AdsbCache(
@@ -244,7 +262,7 @@ async def get_aircraft_near_point(
                     payload=payload_str,
                     ac_count=len(data.get("ac", [])),
                     fetched_at=ts,
-                    expires_at=ts + settings.adsb_ttl_ms,
+                    expires_at=ts + fresh_for_ms,
                 )
             )
         # Best-effort cache write: if SQLite is locked beyond busy_timeout we
@@ -262,7 +280,7 @@ async def get_aircraft_near_point(
     # throttled/rate-limited/failed fetch shows the aircraft we already have
     # instead of a 503 (and a console error) until the next successful poll.
     if row is None:
-        nearby_row = await _nearest_recent_row(db, lat, lon, radius)
+        nearby_row = await _nearest_recent_row(db, lat, lon, radius, stale_ms)
         if nearby_row is not None:
             return _cached_response(nearby_row, "NEARBY")
 
@@ -271,7 +289,7 @@ async def get_aircraft_near_point(
     # a refresh is at most one rate-limit interval away) or failed (STALE). An
     # older row would put aircraft on the map minutes after they were last
     # seen there.
-    if row and is_within_stale(row.fetched_at, settings.adsb_stale_ms):
+    if row and is_within_stale(row.fetched_at, stale_ms):
         cache_state = "RATED" if rate_limited else "THROTTLED" if throttled else "STALE"
         return _cached_response(row, cache_state)
     # Nothing cached to prefer: the fallback's empty list is a truthful

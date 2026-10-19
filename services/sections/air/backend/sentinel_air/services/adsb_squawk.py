@@ -244,9 +244,15 @@ async def watch_once(db: AsyncSession) -> bool:
         "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
     )
     lat, lon = area
+    # The watcher shares the online feed's daily quota with the map, so its
+    # calls hold the same spacing; an online interval shorter than the refresh
+    # interval just has its extra fetches refused locally.
+    online_interval_seconds = await adsb_service.online_refresh_interval_s(db)
     for base_url in filter(None, [primary_url, fallback_url]):
         try:
-            snapshot = await adsb_service.fetch_aircraft(lat, lon, settings.adsb_watch_radius_nm, base_url)
+            snapshot = await adsb_service.fetch_aircraft(
+                lat, lon, settings.adsb_watch_radius_nm, base_url, online_interval_seconds
+            )
         except (UpstreamThrottledError, httpx.HTTPError):
             # The map's own fetches log upstream trouble; try the next source
             # and otherwise wait for the next tick.

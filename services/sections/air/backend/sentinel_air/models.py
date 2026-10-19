@@ -14,7 +14,8 @@ class AdsbCache(Base):
     """Cached ADS-B response from the online ADS-B feed.
 
     Each row stores one bounding-box query result (lat/lon/radius).
-    Served fresh within adsb_ttl_ms, or stale within adsb_stale_ms on upstream failure.
+    Served fresh within adsb_ttl_ms (online: the refresh interval), or stale within
+    adsb_stale_ms (online: plus that interval) on upstream failure.
     """
 
     __tablename__ = "adsb_cache"

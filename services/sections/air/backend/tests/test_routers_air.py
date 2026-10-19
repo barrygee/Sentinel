@@ -16,6 +16,12 @@ from sentinel_air.services import adsb as adsb_service
 # ── /api/air/messages ─────────────────────────────────────────────────────────
 
 
+def online_stale_window_ms() -> int:
+    """How long an online snapshot may stand in: the usual stale window plus the
+    online refresh interval, since the feed is called no more often than that."""
+    return settings.adsb_stale_ms + int(settings.adsb_online_refresh_interval_s * 1000)
+
+
 class TestAirMessages:
     def test_list_empty(self, client):
         resp = client.get("/api/air/messages")
@@ -200,7 +206,7 @@ class TestAdsbUpstreamFailover:
         """Replace the upstream fetch with `behaviour(base_url)`, recording calls."""
         calls: list[str] = []
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             calls.append(base_url)
             return behaviour(base_url)
 
@@ -315,7 +321,7 @@ class TestAdsbNearbyCacheFallback:
     def _prime(self, client, monkeypatch, lat, lon, payload, radius=None):
         """Cache `payload` for (lat, lon) through a successful upstream fetch."""
 
-        async def succeeding_fetch(fetch_lat, fetch_lon, fetch_radius, base_url):
+        async def succeeding_fetch(fetch_lat, fetch_lon, fetch_radius, base_url, online_interval_seconds=None):
             return payload
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", succeeding_fetch)
@@ -324,7 +330,7 @@ class TestAdsbNearbyCacheFallback:
 
     @staticmethod
     def _fail_every_fetch(monkeypatch, error: Exception):
-        async def failing_fetch(fetch_lat, fetch_lon, fetch_radius, base_url):
+        async def failing_fetch(fetch_lat, fetch_lon, fetch_radius, base_url, online_interval_seconds=None):
             raise error
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", failing_fetch)
@@ -429,7 +435,7 @@ class TestAdsbNearbyCacheFallback:
         self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
         # Jump the router's clock past the stale window since the row was cached.
         real_now = air_router.now_ms()
-        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms + 1_000)
+        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
 
         resp = client.get(self._point(54.3, -1.5))
 
@@ -460,7 +466,7 @@ class TestAdsbOffgridDecoderDefault:
     def _patch_fetch(self, monkeypatch):
         calls: list[str] = []
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             calls.append(base_url)
             return {"ac": [], "total": 0}
 
@@ -520,7 +526,7 @@ class TestAdsbFeedsSquawkAlerts:
         monkeypatch.setattr(tracker, "_squawks", {})
         snapshot = {"ac": [{"hex": "4ca123", "flight": "EIN123", "squawk": "7700", "alt_baro": 9000, "gs": 300}]}
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             return snapshot
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
@@ -537,7 +543,7 @@ class TestAdsbFeedsSquawkAlerts:
         monkeypatch.setattr(tracker, "_squawks", {})
         observed: list[dict] = []
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             return {"ac": []}
 
         async def record(snapshot, db):
@@ -582,7 +588,7 @@ class TestEmptyFallbackDoesNotHideCachedAircraft:
         """Primary raises or returns `primary`; the fallback returns `fallback` (default: empty)."""
         calls: list[str] = []
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             calls.append(base_url)
             outcome = primary if base_url == self.ONLINE else (fallback or self.EMPTY)
             if isinstance(outcome, Exception):
@@ -594,10 +600,11 @@ class TestEmptyFallbackDoesNotHideCachedAircraft:
 
     def _prime_expired(self, client, monkeypatch, point=None):
         """Cache CACHED for the point with a row that is already past its TTL."""
-        monkeypatch.setattr(settings, "adsb_ttl_ms", 0)
+        refresh_interval_s = settings.adsb_online_refresh_interval_s
+        monkeypatch.setattr(settings, "adsb_online_refresh_interval_s", 0)
         self._sources(monkeypatch, self.CACHED)
         assert client.get(point or self.POINT).headers["X-Cache"] == "MISS"
-        monkeypatch.setattr(settings, "adsb_ttl_ms", 10_000)
+        monkeypatch.setattr(settings, "adsb_online_refresh_interval_s", refresh_interval_s)
 
     def test_rate_limited_primary_serves_the_cached_row_not_the_empty_fallback(self, client, monkeypatch):
         self._configure_sources(client)
@@ -685,7 +692,7 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
     def test_a_cache_hit_still_counts_as_a_browser_poll(self, client, monkeypatch):
         from sentinel_air.services.adsb_squawk import tracker
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             return {"ac": []}
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
@@ -700,7 +707,7 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
     def test_a_poll_that_fails_outright_still_counts(self, client, monkeypatch):
         from sentinel_air.services.adsb_squawk import tracker
 
-        async def failing_fetch(lat, lon, radius, base_url):
+        async def failing_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             raise httpx.ConnectError("down")
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", failing_fetch)
@@ -739,7 +746,7 @@ class TestSnapshotAge:
 
     @staticmethod
     def _every_fetch(monkeypatch, outcome):
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             if isinstance(outcome, Exception):
                 raise outcome
             return outcome
@@ -792,7 +799,7 @@ class TestSnapshotAge:
         self, client, monkeypatch, clock, failure, cache_state
     ):
         self._prime(client, monkeypatch)
-        clock[0] += settings.adsb_stale_ms - 1
+        clock[0] += online_stale_window_ms() - 1
         error = {
             "rate_limited": self._rate_limited(),
             "throttled": UpstreamThrottledError(),
@@ -803,7 +810,7 @@ class TestSnapshotAge:
         response = client.get(self.POINT)
 
         assert response.headers["X-Cache"] == cache_state
-        assert response.headers["X-Snapshot-Age-Ms"] == str(settings.adsb_stale_ms - 1)
+        assert response.headers["X-Snapshot-Age-Ms"] == str(online_stale_window_ms() - 1)
         assert response.json() == self.SNAPSHOT
 
     @pytest.mark.parametrize(
@@ -814,7 +821,7 @@ class TestSnapshotAge:
         # Before: a rate-limited or throttled fetch served the row regardless of
         # age, so panning back to an area seen long ago showed old aircraft as live.
         self._prime(client, monkeypatch)
-        clock[0] += settings.adsb_stale_ms + 1
+        clock[0] += online_stale_window_ms() + 1
         error = {
             "rate_limited": self._rate_limited(),
             "throttled": UpstreamThrottledError(),
@@ -827,7 +834,7 @@ class TestSnapshotAge:
     def test_an_empty_fallback_answer_is_age_zero(self, client, monkeypatch, clock):
         self._configure_sources(client)
 
-        async def primary_fails(lat, lon, radius, base_url):
+        async def primary_fails(lat, lon, radius, base_url, online_interval_seconds=None):
             if base_url == self.ONLINE:
                 raise httpx.ConnectError("down")
             return {"ac": []}

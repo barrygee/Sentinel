@@ -4,7 +4,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 
 ## Features
 
-- **Live map** of aircraft within 250 nautical miles of the map centre, updated every few seconds.
+- **Live map** of aircraft within 250 nautical miles of the map centre: off grid every few seconds, online every **Online Refresh Interval** (3 minutes by default).
 - **Aircraft details**: height, speed, heading, climb, type, registration, category and squawk. **SIGNAL LOST** when it stops reporting.
 - **Track aircraft**: keep the map on it; it is listed under **TRACKING**.
 - **Landing and take-off alerts** for an aircraft you choose (**Enable alerts**).
@@ -36,7 +36,8 @@ All in **Settings › AIR**.
 | **Source Override** | **ONLINE** or **OFF GRID** for Air only. The settings below show for the mode picked |
 | **Off Grid ADS-B SDR** | The Sentry dongle used off grid |
 | **Online Data Source** | The online feed. Default `https://api.adsb.lol/v2` |
-| **Online Squawk Checks** / **Off Grid Squawk Checks** | Seconds between emergency checks while no Air map is open. Default 20 |
+| **Online Refresh Interval** | Seconds between calls to the online feed, 5 to 280. Default 180. adsb.lol allows 500 calls a day, so under 173 runs out |
+| **Online Squawk Checks** / **Off Grid Squawk Checks** | Seconds between emergency checks while no Air map is open. Default 20. Online, never more often than **Online Refresh Interval** |
 | **Map Layers** | Layers on when the map opens |
 | **Label Data Points** | What each aircraft label shows |
 | **Overhead Aircraft Alerts** | Places to watch, civil or military, and how close |
@@ -50,4 +51,5 @@ All in **Settings › AIR**.
 
 - **Empty off grid:** read the notice at the top of the map. Check **Off Grid ADS-B SDR** and `docker compose --profile adsb ps`. A decoder that streams but accepts 0 messages is an antenna or signal problem.
 - **"No data source configured":** **Online Data Source** is empty.
+- **Empty online, `503` in the browser console:** adsb.lol's 500 calls a day are used up. `docker compose logs air` says `rate limited us (HTTP 429)`; it resets within a day. Raise **Online Refresh Interval** if it happens again.
 - **AIR greyed out:** `docker compose logs air`.

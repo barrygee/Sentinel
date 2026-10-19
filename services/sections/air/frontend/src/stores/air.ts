@@ -111,6 +111,15 @@ const LS_OVERHEAD_ALERTS_KEY = 'overheadAlerts'
 
 export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
 
+/**
+ * Seconds between the backend's calls to the online ADS-B feed — its default
+ * (backend/config.py), sized for adsb.lol's 500 requests a day.
+ */
+export const DEFAULT_ONLINE_REFRESH_INTERVAL_SEC = 180
+
+/** The `air` setting holding it (services/sections/air/backend/sentinel_air/services/adsb.py). */
+export const ONLINE_REFRESH_INTERVAL_SETTING = 'onlineRefreshIntervalSec'
+
 /** Connectivity modes the background squawk watcher has its own interval for. */
 export type SquawkWatchMode = 'online' | 'offgrid'
 
@@ -301,6 +310,11 @@ export const useAirStore = defineStore('air', () => {
   function setSquawkWatchIntervalSec(mode: SquawkWatchMode, seconds: number): void {
     squawkWatchIntervalSec.value = { ...squawkWatchIntervalSec.value, [mode]: seconds }
   }
+  /** Gap between calls to the online feed; edited in Settings › AIR, enforced by the backend. */
+  const onlineRefreshIntervalSec = ref(DEFAULT_ONLINE_REFRESH_INTERVAL_SEC)
+  function setOnlineRefreshIntervalSec(seconds: number): void {
+    onlineRefreshIntervalSec.value = seconds
+  }
   const filterQuery = ref('')
   const filterOpen = ref(false)
   // The active FILTER category (aircraft / airports / military bases), driven by
@@ -458,6 +472,8 @@ export const useAirStore = defineStore('air', () => {
     forgetOverheadAlert,
     squawkWatchIntervalSec,
     setSquawkWatchIntervalSec,
+    onlineRefreshIntervalSec,
+    setOnlineRefreshIntervalSec,
     filterQuery,
     filterOpen,
     airFilterCategory,

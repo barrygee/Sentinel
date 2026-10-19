@@ -3,29 +3,68 @@ from urllib.parse import urlsplit
 
 import httpx
 from backend.config import settings
+from backend.platform.settings_client import read_setting
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Process-wide gate on outbound ADS-B traffic. Shared by every caller so the
 # wire rate stays within the upstream's published limit regardless of how many
 # distinct cache keys (map panes, tabs, clients) expire at the same moment.
 _adsb_rate_limiter = MinimumIntervalRateLimiter(settings.adsb_min_request_interval_ms / 1000)
 
+ONLINE_REFRESH_INTERVAL_SETTING = "onlineRefreshIntervalSec"
+"""The `air` setting holding the gap between calls to the online feed."""
 
-async def fetch_aircraft(lat: float, lon: float, radius: int, base_url: str) -> dict:
+MIN_ONLINE_REFRESH_INTERVAL_S = 5.0
+"""Matches the local decoder's spacing; faster gets a client banned from the public feeds."""
+
+MAX_ONLINE_REFRESH_INTERVAL_S = 280.0
+"""Under the map's 5-minute feed-silence limit (`FEED_SILENCE_LIMIT_MS`), past
+which it removes every aircraft between two refreshes."""
+
+
+async def online_refresh_interval_s(db: AsyncSession) -> float:
+    """Seconds between calls to the online feed: Settings › AIR's value, clamped.
+
+    Clamped rather than ignored when out of range, so a hand-edited config file
+    asking for 1 s or 900 s gets the nearest value Sentinel can honour, not the
+    default. Anything that isn't a number falls back to the config default.
+    """
+    value = await read_setting(db, "air", ONLINE_REFRESH_INTERVAL_SETTING)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return settings.adsb_online_refresh_interval_s
+    return min(max(float(value), MIN_ONLINE_REFRESH_INTERVAL_S), MAX_ONLINE_REFRESH_INTERVAL_S)
+
+
+def is_online_feed(base_url: str) -> bool:
+    """Whether this source is the online point API rather than a local readsb decoder."""
+    return not _is_readsb(base_url)
+
+
+async def fetch_aircraft(
+    lat: float,
+    lon: float,
+    radius: int,
+    base_url: str,
+    online_interval_seconds: float | None = None,
+) -> dict:
     """Fetch live aircraft data from the configured ADS-B upstream endpoint.
 
-    Outbound calls are rate limited per upstream host (see
-    `adsb_min_request_interval_ms`); a call that would have to wait too long for
-    a free slot is refused locally rather than queued, so the caller can serve
-    cached data instead. If the upstream answers 429 the host is put in a
-    cooldown (its `Retry-After`, else `adsb_rate_limit_penalty_ms`) so the next
-    poll is refused locally rather than repeating the breach.
+    Outbound calls are rate limited per upstream host: one per
+    `online_interval_seconds` to the online feed (its daily quota), one per
+    `adsb_min_request_interval_ms` to a local decoder. A call that would have to
+    wait too long for a free slot is refused locally rather than queued, so the
+    caller can serve cached data instead. If the upstream answers 429 the host
+    is put in a cooldown (`_cooldown_seconds`) so the next poll is refused
+    locally rather than repeating the breach.
 
     Args:
         lat: Centre latitude of the search area.
         lon: Centre longitude of the search area.
         radius: Search radius in nautical miles.
         base_url: Base URL for the ADS-B API (read from user settings).
+        online_interval_seconds: Gap before the next call to the online feed
+            (`online_refresh_interval_s`); the config default when omitted.
 
     Returns:
         Raw JSON dict from the API, shape: {"ac": [...], ...}
@@ -37,9 +76,16 @@ async def fetch_aircraft(lat: float, lon: float, radius: int, base_url: str) -> 
     # Host, not full URL: the limit belongs to the provider, and the same host
     # may be reached through differing base paths.
     upstream_host = urlsplit(base_url).netloc or base_url
+    if is_online_feed(base_url):
+        interval_seconds = (
+            settings.adsb_online_refresh_interval_s if online_interval_seconds is None else online_interval_seconds
+        )
+    else:
+        interval_seconds = None
     await _adsb_rate_limiter.acquire(
         upstream_host,
         max_wait_seconds=settings.adsb_rate_limit_max_wait_ms / 1000,
+        interval_seconds=interval_seconds,
     )
 
     async with httpx.AsyncClient(timeout=10.0) as client:
@@ -56,22 +102,40 @@ async def fetch_aircraft(lat: float, lon: float, radius: int, base_url: str) -> 
                 # retry a few seconds later does not compound the breach.
                 await _adsb_rate_limiter.penalize(
                     upstream_host,
-                    _cooldown_seconds(exc.response.headers.get("retry-after")),
+                    _cooldown_seconds(
+                        exc.response.headers.get("retry-after"),
+                        _quota_reset_header(exc.response.headers),
+                    ),
                 )
             raise
 
 
-def _cooldown_seconds(retry_after_header: str | None) -> float:
+def _quota_reset_header(headers: httpx.Headers) -> str | None:
+    """adsb.lol's `X-RateLimit-Reset` (seconds until it accepts calls again), when its budget is spent.
+
+    adsb.lol sends no `Retry-After`, only `X-RateLimit-Remaining` / `-Reset`.
+    The reset is used only when nothing remains: with budget left, a 429 is a
+    short-window breach and the reset may name a longer window's.
+    """
+    if headers.get("x-ratelimit-remaining", "").strip() != "0":
+        return None
+    return headers.get("x-ratelimit-reset")
+
+
+def _cooldown_seconds(retry_after_header: str | None, quota_reset_header: str | None = None) -> float:
     """How long to stop calling a host that answered 429.
 
     Prefers the upstream's own `Retry-After` when it gives one as a delay in
     seconds, since that is the only authoritative statement of when it will
-    accept traffic again. Anything else — absent, an HTTP-date, or unparseable
-    — falls back to the configured default rather than guessing, and the value
-    is clamped so a wild header cannot take the feed offline indefinitely.
+    accept traffic again; then its quota reset (`_quota_reset_header`). Anything
+    else — absent, an HTTP-date, or unparseable — falls back to the configured
+    default rather than guessing, and the value is clamped so a wild header
+    cannot take the feed offline indefinitely.
     """
     default_seconds = settings.adsb_rate_limit_penalty_ms / 1000
     max_seconds = settings.adsb_rate_limit_max_penalty_ms / 1000
+    if retry_after_header is None:
+        retry_after_header = quota_reset_header
     if retry_after_header is None:
         return default_seconds
     try:

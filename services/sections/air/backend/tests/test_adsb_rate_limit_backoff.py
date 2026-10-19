@@ -307,7 +307,7 @@ class TestRouterLogsRateLimiting:
     def test_a_429_warns_and_names_the_host(self, client, monkeypatch, caplog):
         client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             request = httpx.Request("GET", base_url)
             response = httpx.Response(429, request=request)
             raise httpx.HTTPStatusError("rate limited", request=request, response=response)
@@ -324,7 +324,7 @@ class TestRouterLogsRateLimiting:
     def test_a_successful_fetch_logs_no_rate_limit_warning(self, client, monkeypatch, caplog):
         client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
 
-        async def fake_fetch(lat, lon, radius, base_url):
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
             return {"ac": [], "total": 0}
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
