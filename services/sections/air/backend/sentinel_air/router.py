@@ -22,8 +22,8 @@ from backend.config import settings
 from backend.database import get_db
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
@@ -107,6 +107,28 @@ def _fresh_response(data: dict, cache_state: str, lifetime_ms: int) -> JSONRespo
     )
 
 
+# Why there was no snapshot to send: `no-source` (off grid with no decoder
+# set), `daily-limit` (the online feed's daily call limit is spent; with a
+# Retry-After until it resets) or `upstream` (the feed failed or the next call
+# slot wasn't due, with nothing cached nearby to stand in).
+UNAVAILABLE_REASON_HEADER = "X-Unavailable-Reason"
+
+
+def _nothing_to_serve(reason: str, retry_after_seconds: int | None = None) -> Response:
+    """No snapshot to send: `204 No Content`, not an error.
+
+    Every poll that found nothing used to answer 503, which the browser logs
+    in red in the console however the page handles it — a line every 10 s
+    while the daily limit was spent. "Nothing new" is the truthful answer: the
+    map keeps the aircraft it has and they age out as usual, and the quota
+    banner says why. `Retry-After` lets it stop polling until the limit resets.
+    """
+    headers = {"X-Cache": "UNAVAILABLE", UNAVAILABLE_REASON_HEADER: reason}
+    if retry_after_seconds is not None:
+        headers["Retry-After"] = str(retry_after_seconds)
+    return Response(status_code=204, headers=headers)
+
+
 def _cached_response(row: AdsbCache, cache_state: str) -> JSONResponse:
     """A snapshot from the cache, labelled with how long ago it was fetched and how long it was meant to stand."""
     age_ms = max(0, now_ms() - row.fetched_at)
@@ -147,7 +169,7 @@ async def get_aircraft_near_point(
                 recent row (the point tracks the map centre, so pans miss the cache)
       - FALLBACK: the primary failed and the fallback answered with no
                 aircraft, and nothing cached could stand in — served, not cached
-      - 503:    upstream failed and no usable cached entry
+      - 204:    nothing to serve (X-Cache: UNAVAILABLE, X-Unavailable-Reason says why)
     """
     # Any poll, cache hit or not, means a map is open: the squawk watcher stays
     # idle rather than compete with it for the upstream's rate budget.
@@ -187,13 +209,13 @@ async def get_aircraft_near_point(
     # Return immediately if the cached data is still within its TTL,
     # but only when there is a primary source to fetch from. If primary_url
     # is None (offgrid mode with no offgrid source configured) we skip
-    # the cache so callers get a 503 rather than stale data.
+    # the cache so callers hear there is nothing rather than stale data.
     if row and is_fresh(row.expires_at) and primary_url is not None:
         return _cached_response(row, "HIT")
 
     # offgrid mode with no offgrid source configured — nothing to fetch
     if primary_url is None:
-        raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
+        return _nothing_to_serve("no-source")
 
     data: dict | None = None
     empty_fallback: dict | None = None
@@ -292,7 +314,11 @@ async def get_aircraft_near_point(
     # primary again rather than serving it as a fresh HIT.
     if empty_fallback is not None:
         return _fresh_response(empty_fallback, "FALLBACK", settings.adsb_ttl_ms)
-    raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
+    if adsb_service.is_online_feed(primary_url):
+        quota = await online_quota.tracker.status(online_quota.feed_host(primary_url))
+        if quota.state == "reached":
+            return _nothing_to_serve("daily-limit", retry_after_seconds=quota.resets_in_seconds)
+    return _nothing_to_serve("upstream")
 
 
 @router.get("/adsb/online-quota")

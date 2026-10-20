@@ -99,13 +99,13 @@ describe('OnlineQuotaUsageControl', () => {
     expect(wrapper.findAll('.ba-data-cell-value')[2]!.classes()).toContain(
       'ba-data-cell-value--emphasis',
     )
-    expect(wrapper.find('[role="status"]').text()).toContain('daily call limit reached')
+    expect(wrapper.find('[role="status"]').text()).toContain('daily limit reached')
   })
 
   it('warns as the limit approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
-    expect(wrapper.find('[role="status"]').text()).toContain('running low: 400 of 500 calls used')
+    expect(wrapper.find('[role="status"]').text()).toContain('400 of 500 daily calls used')
   })
 
   it('shows dashes until the figure arrives, or if it cannot', async () => {

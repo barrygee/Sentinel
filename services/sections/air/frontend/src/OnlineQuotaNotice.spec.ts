@@ -54,15 +54,13 @@ describe('OnlineQuotaNotice', () => {
   it('warns as the limit approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
-    expect(wrapper.text()).toContain(
-      'api.adsb.lol daily call limit running low: 400 of 500 calls used.',
-    )
+    expect(wrapper.text()).toContain('api.adsb.lol: 400 of 500 daily calls used.')
   })
 
   it('warns once it is reached, as a status the screen reader announces', async () => {
     const wrapper = await mountWith(figure({ state: 'reached', used: 500, remaining: 0 }))
 
-    expect(wrapper.find('[role="status"]').text()).toContain("so aircraft won't update")
+    expect(wrapper.find('[role="status"]').text()).toContain('daily limit reached')
   })
 
   it('has no accessibility violations', async () => {

@@ -26,6 +26,7 @@ import time
 import httpx
 import pytest
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
+from tests.backend.air_test_helpers import assert_nothing_to_serve
 
 from sentinel_air import router as air_router
 from sentinel_air.services import adsb as adsb_service
@@ -397,7 +398,7 @@ class TestRouterOnlineFreshness:
 
         # An online primary would still serve this row (stale + interval);
         # off grid a minute-old receiver snapshot is too old to show as live.
-        assert client.get(self.POINT).status_code == 503
+        assert_nothing_to_serve(client.get(self.POINT))
 
     def test_with_no_online_source_the_setting_is_not_read(self, client, clock, fetches, monkeypatch):
         # An empty online URL falls back to the built-in default; blank that too.
