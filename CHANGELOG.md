@@ -543,6 +543,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SDR remote and update the OpenAPI golden
 - Keep Caddy's admin API off the shared compose network
 - Force monaco-editor onto the patched dompurify
+- Cache the squawk watcher's snapshots for the map
 
 ### Chores
 
@@ -1615,6 +1616,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #521 from barrygee/fix/gateway-admin-isolation
 - Merge pull request #522 from barrygee/fix/monaco-dompurify-override
 - Merge pull request #523 from barrygee/feat/air-online-quota-warnings
+- Merge pull request #524 from barrygee/fix/air-watcher-snapshots-cached
 
 ### Refactoring
 
