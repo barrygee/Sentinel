@@ -64,7 +64,7 @@ describe('OnlineQuotaNotice', () => {
 
     expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
     expect(wrapper.find('[role="status"]').text()).toContain(
-      'Online data source daily limit reached. Aircraft resume in about 5h 2m.',
+      'Online data source daily limit reached. Aircraft will resume in approximately 5h 2m.',
     )
   })
 

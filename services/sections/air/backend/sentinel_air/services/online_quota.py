@@ -332,7 +332,7 @@ class OnlineQuotaTracker:
             )
         else:
             title = "ADS-B CALL LIMIT REACHED"
-            resume = f" Aircraft resume in about {_format_duration(status.resets_in_seconds)}."
+            resume = f" Aircraft will resume in approximately {_format_duration(status.resets_in_seconds)}."
             if status.limit is None:
                 # No known limit: the feed itself refused, with a day-long reset.
                 detail = f"Online data source is refusing calls today.{resume}"

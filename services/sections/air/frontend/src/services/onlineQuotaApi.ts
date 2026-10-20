@@ -64,7 +64,7 @@ export function onlineQuotaWarning(quota: OnlineQuota | null): string | null {
   }
   const resume =
     quota.resetsInSeconds !== null
-      ? ` Aircraft resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
+      ? ` Aircraft will resume in approximately ${formatQuotaDuration(quota.resetsInSeconds)}.`
       : ''
   if (quota.limit === null) return `Online data source is refusing calls today.${resume}`
   return `Online data source daily limit reached.${resume}`
