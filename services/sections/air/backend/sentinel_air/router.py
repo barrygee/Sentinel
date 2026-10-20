@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_air.models import AdsbCache, AirTracking
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_source, online_quota
+from sentinel_air.services import adsb_cache, adsb_source, online_quota
 from sentinel_air.services.adsb_squawk import tracker as squawk_tracker
 
 logger = logging.getLogger(__name__)
@@ -163,7 +163,6 @@ async def get_aircraft_near_point(
             lat, lon = receiver
 
     # Build a deterministic cache key from the query parameters
-    cache_key = f"{lat:.4f}_{lon:.4f}_{radius}"
 
     primary_url, fallback_url = await resolve_domain_urls(
         "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
@@ -183,8 +182,7 @@ async def get_aircraft_near_point(
     stale_ms = settings.adsb_stale_ms + (online_interval_ms if primary_is_online else 0)
 
     # Look up any existing cache row for this key
-    result = await db.execute(select(AdsbCache).where(AdsbCache.cache_key == cache_key))
-    row = result.scalar_one_or_none()
+    row = await adsb_cache.find_snapshot(db, lat, lon, radius)
 
     # Return immediately if the cached data is still within its TTL,
     # but only when there is a primary source to fetch from. If primary_url
@@ -258,28 +256,7 @@ async def get_aircraft_near_point(
         # request's cache write.
         async with AsyncSession(db.bind, expire_on_commit=False) as alert_db:
             await squawk_tracker.observe(data, alert_db)
-        payload_str = json.dumps(data)
-        ts = now_ms()
-
-        # Upsert: update existing row or insert new one
-        if row:
-            row.payload = payload_str
-            row.ac_count = len(data.get("ac", []))
-            row.fetched_at = ts
-            row.expires_at = ts + fresh_for_ms
-        else:
-            db.add(
-                AdsbCache(
-                    cache_key=cache_key,
-                    lat=lat,
-                    lon=lon,
-                    radius_nm=radius,
-                    payload=payload_str,
-                    ac_count=len(data.get("ac", [])),
-                    fetched_at=ts,
-                    expires_at=ts + fresh_for_ms,
-                )
-            )
+        adsb_cache.store_snapshot(db, row, lat, lon, radius, data, now_ms(), fresh_for_ms)
         # Best-effort cache write: if SQLite is locked beyond busy_timeout we
         # still have fresh upstream data, so serve it rather than 500.
         try:

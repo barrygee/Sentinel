@@ -455,6 +455,11 @@ class TestWatcherSharesTheOnlineSpacing:
         monkeypatch.setattr(adsb_squawk.adsb_service, "online_refresh_interval_s", online_refresh_interval)
         monkeypatch.setattr(adsb_squawk.adsb_service, "fetch_aircraft", fake_fetch)
         monkeypatch.setattr(tracker, "observe", observe)
+
+        async def no_cache(db, lat, lon, snapshot, fresh_for_ms):
+            return None
+
+        monkeypatch.setattr(adsb_squawk, "_cache_for_the_map", no_cache)
         # Long after any browser poll or snapshot, so the watcher fetches.
         monkeypatch.setattr(adsb_squawk, "_now_ms", lambda: int(time.time() * 1000) + 10**9)
 
