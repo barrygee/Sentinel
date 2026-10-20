@@ -10,7 +10,7 @@ import {
   isStale,
   observedAt,
   reanchor,
-  snapshotAgeMs,
+  durationHeaderMs,
   startTracking,
   type TrackedPosition,
 } from './aircraftPosition'
@@ -40,9 +40,9 @@ describe('deadReckon', () => {
   })
 })
 
-describe('snapshotAgeMs', () => {
+describe('durationHeaderMs', () => {
   it('reads a positive age', () => {
-    expect(snapshotAgeMs('3089')).toBe(3089)
+    expect(durationHeaderMs('3089')).toBe(3089)
   })
 
   it.each([
@@ -53,7 +53,7 @@ describe('snapshotAgeMs', () => {
     ['an infinite age', 'Infinity'],
     ['zero', '0'],
   ])('treats %s as a fresh snapshot', (_label, headerValue) => {
-    expect(snapshotAgeMs(headerValue)).toBe(0)
+    expect(durationHeaderMs(headerValue)).toBe(0)
   })
 })
 
@@ -216,6 +216,18 @@ describe('isStale', () => {
   it('is fresh until DIM_AFTER_MS without a report, then stale', () => {
     expect(isStale(heard, 100_000 + DIM_AFTER_MS - 1)).toBe(false)
     expect(isStale(heard, 100_000 + DIM_AFTER_MS)).toBe(true)
+  })
+
+  it("waits out the snapshot's lifetime before counting DIM_AFTER_MS", () => {
+    // Online, a snapshot stands for the whole refresh interval: an aircraft in
+    // it isn't unheard while the next one is simply not due yet.
+    const lifetime = 60_000
+    expect(isStale(heard, 100_000 + lifetime + DIM_AFTER_MS - 1, lifetime)).toBe(false)
+    expect(isStale(heard, 100_000 + lifetime + DIM_AFTER_MS, lifetime)).toBe(true)
+  })
+
+  it('treats a missing lifetime as none, the old fixed dimming', () => {
+    expect(isStale(heard, 100_000 + DIM_AFTER_MS, 0)).toBe(true)
   })
 })
 

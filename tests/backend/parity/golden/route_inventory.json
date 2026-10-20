@@ -44,6 +44,14 @@
     ]
   },
   {
+    "path": "/api/air/adsb/online-quota",
+    "type": "Route",
+    "name": "get_online_quota",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/api/air/tracking",
     "type": "Route",
     "name": "list_tracked_aircraft",

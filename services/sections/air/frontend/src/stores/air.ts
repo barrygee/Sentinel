@@ -115,19 +115,32 @@ export const DEFAULT_OVERHEAD_ALERT_RADIUS_NM = 10
  * Seconds between the backend's calls to the online ADS-B feed — its default
  * (backend/config.py), sized for adsb.lol's 500 requests a day.
  */
-export const DEFAULT_ONLINE_REFRESH_INTERVAL_SEC = 180
+export const DEFAULT_ONLINE_REFRESH_INTERVAL_SEC = 60
 
 /** The `air` setting holding it (services/sections/air/backend/sentinel_air/services/adsb.py). */
 export const ONLINE_REFRESH_INTERVAL_SETTING = 'onlineRefreshIntervalSec'
+
+/**
+ * The online feed's daily call limit as set in Settings › AIR; 0 means "use
+ * the feed's own figure" (backend/default_config.json).
+ */
+export const DEFAULT_ONLINE_DAILY_CALL_LIMIT = 0
+
+/** The `air` setting holding it (services/sections/air/backend/sentinel_air/services/online_quota.py). */
+export const ONLINE_DAILY_CALL_LIMIT_SETTING = 'onlineDailyCallLimit'
 
 /** Connectivity modes the background squawk watcher has its own interval for. */
 export type SquawkWatchMode = 'online' | 'offgrid'
 
 /**
  * Seconds between the backend's own ADS-B checks for emergency squawks while no
- * AIR map is polling — the backend's default for both modes (backend/config.py).
+ * AIR map is polling — the backend's defaults (backend/config.py). Online each
+ * check uses one of the feed's daily calls, so it is far slower.
  */
-export const DEFAULT_SQUAWK_WATCH_INTERVAL_SEC = 20
+export const DEFAULT_SQUAWK_WATCH_INTERVAL_SEC: Record<SquawkWatchMode, number> = {
+  online: 300,
+  offgrid: 20,
+}
 
 /** The `air` setting holding each mode's interval (services/sections/air/backend/sentinel_air/services/adsb_squawk.py). */
 export const SQUAWK_WATCH_INTERVAL_SETTING: Record<SquawkWatchMode, string> = {
@@ -304,8 +317,7 @@ export const useAirStore = defineStore('air', () => {
   const overheadAlerts = ref<Record<string, OverheadAlertConfig>>(readPersistedOverheadAlerts())
   /** Background squawk-check interval per mode; edited in Settings › AIR, enforced by the backend. */
   const squawkWatchIntervalSec = ref<Record<SquawkWatchMode, number>>({
-    online: DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
-    offgrid: DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
+    ...DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
   })
   function setSquawkWatchIntervalSec(mode: SquawkWatchMode, seconds: number): void {
     squawkWatchIntervalSec.value = { ...squawkWatchIntervalSec.value, [mode]: seconds }
@@ -314,6 +326,11 @@ export const useAirStore = defineStore('air', () => {
   const onlineRefreshIntervalSec = ref(DEFAULT_ONLINE_REFRESH_INTERVAL_SEC)
   function setOnlineRefreshIntervalSec(seconds: number): void {
     onlineRefreshIntervalSec.value = seconds
+  }
+  /** The online feed's daily call limit override; 0 = the feed's own figure. Edited in Settings › AIR. */
+  const onlineDailyCallLimit = ref(DEFAULT_ONLINE_DAILY_CALL_LIMIT)
+  function setOnlineDailyCallLimit(calls: number): void {
+    onlineDailyCallLimit.value = calls
   }
   const filterQuery = ref('')
   const filterOpen = ref(false)
@@ -474,6 +491,8 @@ export const useAirStore = defineStore('air', () => {
     setSquawkWatchIntervalSec,
     onlineRefreshIntervalSec,
     setOnlineRefreshIntervalSec,
+    onlineDailyCallLimit,
+    setOnlineDailyCallLimit,
     filterQuery,
     filterOpen,
     airFilterCategory,

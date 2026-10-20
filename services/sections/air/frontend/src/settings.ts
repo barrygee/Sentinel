@@ -5,6 +5,8 @@ import {
 import AdsbSdrSourceControl from './settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from './settings/AdsbTagFieldsControl.vue'
 import MapLayersControl from './settings/MapLayersControl.vue'
+import OnlineDailyCallLimitControl from './settings/OnlineDailyCallLimitControl.vue'
+import OnlineQuotaUsageControl from './settings/OnlineQuotaUsageControl.vue'
 import OnlineRefreshIntervalControl from './settings/OnlineRefreshIntervalControl.vue'
 import OnlineSourceControl from '@sentinel/shell-api/settings/OnlineSourceControl.vue'
 import OverheadAlertsControl from './settings/OverheadAlertsControl.vue'
@@ -67,9 +69,19 @@ export function registerAirSettings(): void {
     {
       section: 'air',
       sectionLabel: 'AIR',
+      id: 'air-online-quota-usage',
+      label: 'Online API Usage',
+      desc: 'Calls made to the Online Data Source in the last 24 hours, against its daily limit. Warns as the limit approaches and once it is reached',
+      searchTerms: 'quota usage calls requests rate limit daily 500 adsb.lol remaining online api',
+      control: { component: OnlineQuotaUsageControl, layout: 'full', naturalHeight: true },
+      sourceMode: 'online',
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
       id: 'air-online-refresh-interval',
       label: 'Online Refresh Interval',
-      desc: 'Seconds between calls to the Online Data Source, 5 to 280. adsb.lol allows 500 a day, so keep it at 173 or more',
+      desc: 'Seconds between calls to the Online Data Source, 5 to 280. Lower uses the daily limit faster',
       searchTerms: 'refresh interval rate limit quota daily requests 429 adsb.lol poll online',
       control: { component: OnlineRefreshIntervalControl, emits: ['stage', 'commit'] },
       sourceMode: 'online',
@@ -77,9 +89,19 @@ export function registerAirSettings(): void {
     {
       section: 'air',
       sectionLabel: 'AIR',
+      id: 'air-online-daily-call-limit',
+      label: 'Daily Call Limit',
+      desc: "For a feed that doesn't state its daily limit. 0 uses the feed's own",
+      searchTerms: 'daily call limit quota requests rate limit override online api',
+      control: { component: OnlineDailyCallLimitControl, emits: ['stage', 'commit'] },
+      sourceMode: 'online',
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
       id: 'air-online-squawk-watch-interval',
       label: 'Online Squawk Checks',
-      desc: 'Seconds between background calls to the Online Data Source to check for emergency squawks while no AIR map is open',
+      desc: 'Seconds between background emergency checks while AIR is closed. Each uses one daily call',
       searchTerms: 'squawk emergency 7700 7600 7500 alerts background check interval online',
       control: {
         component: SquawkWatchIntervalControl,

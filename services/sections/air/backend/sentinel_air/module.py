@@ -4,6 +4,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_air.database import create_air_tables
+from sentinel_air.services import online_quota
 from sentinel_air.services.adsb_squawk import watcher
 
 # `/api/air/messages` stays core's (notifications); the gateway sends that
@@ -14,6 +15,8 @@ manifest = section_manifest("air", display_name="AIR", nav_order=10, routes=["/a
 
 
 async def _start() -> None:
+    # The day's online calls so far, so the quota count survives a restart.
+    await online_quota.tracker.load()
     # Fetches aircraft itself only while no browser is, so emergency squawks
     # raise alerts with no Air page open (docs/plans/adsb-server-alerts.md).
     watcher.start()

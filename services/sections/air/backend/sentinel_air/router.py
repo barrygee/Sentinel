@@ -31,7 +31,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_air.models import AdsbCache, AirTracking
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_source
+from sentinel_air.services import adsb_source, online_quota
 from sentinel_air.services.adsb_squawk import tracker as squawk_tracker
 
 logger = logging.getLogger(__name__)
@@ -91,18 +91,33 @@ async def _nearest_recent_row(db: AsyncSession, lat: float, lon: float, radius: 
 # wrong (an off-grid Pi with no RTC) can't make cached aircraft look live.
 SNAPSHOT_AGE_HEADER = "X-Snapshot-Age-Ms"
 
+# How long the snapshot is meant to stand before a newer one is fetched, in ms:
+# the online refresh interval for an online snapshot, the cache TTL for the
+# local decoder's. The map dims an aircraft only once it has gone unheard for
+# this plus its own margin, so the wait between two online refreshes doesn't
+# dim every aircraft the last one placed.
+SNAPSHOT_LIFETIME_HEADER = "X-Snapshot-Lifetime-Ms"
 
-def _fresh_response(data: dict, cache_state: str) -> JSONResponse:
-    """A snapshot fetched by this request."""
-    return JSONResponse(content=data, headers={"X-Cache": cache_state, SNAPSHOT_AGE_HEADER: "0"})
+
+def _fresh_response(data: dict, cache_state: str, lifetime_ms: int) -> JSONResponse:
+    """A snapshot fetched by this request, meant to stand for `lifetime_ms`."""
+    return JSONResponse(
+        content=data,
+        headers={"X-Cache": cache_state, SNAPSHOT_AGE_HEADER: "0", SNAPSHOT_LIFETIME_HEADER: str(lifetime_ms)},
+    )
 
 
 def _cached_response(row: AdsbCache, cache_state: str) -> JSONResponse:
-    """A snapshot from the cache, labelled with how long ago it was fetched."""
+    """A snapshot from the cache, labelled with how long ago it was fetched and how long it was meant to stand."""
     age_ms = max(0, now_ms() - row.fetched_at)
+    lifetime_ms = max(0, row.expires_at - row.fetched_at)
     return JSONResponse(
         content=json.loads(row.payload),
-        headers={"X-Cache": cache_state, SNAPSHOT_AGE_HEADER: str(age_ms)},
+        headers={
+            "X-Cache": cache_state,
+            SNAPSHOT_AGE_HEADER: str(age_ms),
+            SNAPSHOT_LIFETIME_HEADER: str(lifetime_ms),
+        },
     )
 
 
@@ -271,15 +286,18 @@ async def get_aircraft_near_point(
             await db.commit()
         except OperationalError:
             await db.rollback()
-            return _fresh_response(data, "BYPASS")
+            return _fresh_response(data, "BYPASS", fresh_for_ms)
 
-        return _fresh_response(data, "MISS")
+        return _fresh_response(data, "MISS", fresh_for_ms)
 
-    # No row for this exact point: the query point follows the map centre, so
-    # every pan lands on a fresh cache key. Borrow the nearest recent row so a
-    # throttled/rate-limited/failed fetch shows the aircraft we already have
-    # instead of a 503 (and a console error) until the next successful poll.
-    if row is None:
+    # No usable row for this exact point: the query point follows the map
+    # centre, so every pan (and the map's default centre on load) lands on a
+    # new cache key, or on one last fetched hours ago. Borrow the nearest recent
+    # row so a throttled/rate-limited/failed fetch shows the aircraft we already
+    # have instead of a 503 (and an empty map) until the next online call slot —
+    # up to a whole refresh interval away. An expired row must not block this:
+    # it is too old to serve below anyway.
+    if row is None or not is_within_stale(row.fetched_at, stale_ms):
         nearby_row = await _nearest_recent_row(db, lat, lon, radius, stale_ms)
         if nearby_row is not None:
             return _cached_response(nearby_row, "NEARBY")
@@ -296,8 +314,21 @@ async def get_aircraft_near_point(
     # answer, better than an outage. Not cached, so the next poll tries the
     # primary again rather than serving it as a fresh HIT.
     if empty_fallback is not None:
-        return _fresh_response(empty_fallback, "FALLBACK")
+        return _fresh_response(empty_fallback, "FALLBACK", settings.adsb_ttl_ms)
     raise HTTPException(status_code=503, detail="ADS-B upstream unavailable")
+
+
+@router.get("/adsb/online-quota")
+async def get_online_quota():
+    """How much of the online feed in use's daily call limit is used: `host`,
+    `used`, `limit` and `remaining` (null when the feed has no known limit),
+    `limitSource` (`setting` / `feed` / `default`), `state` (`ok` /
+    `approaching` / `reached` / `no_limit`) and `resetsInSeconds`. Answered
+    from Sentinel's own count — it never calls the feed — so the map can poll
+    it freely."""
+    host = online_quota.feed_host(await online_quota.online_feed_url())
+    status = await online_quota.tracker.status(host)
+    return JSONResponse(status.as_json())
 
 
 # ── Tracking ───────────────────────────────────────────────────────────────────

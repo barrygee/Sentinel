@@ -7,6 +7,8 @@ from backend.platform.settings_client import read_setting
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sentinel_air.services import online_quota
+
 # Process-wide gate on outbound ADS-B traffic. Shared by every caller so the
 # wire rate stays within the upstream's published limit regardless of how many
 # distinct cache keys (map panes, tabs, clients) expire at the same moment.
@@ -94,19 +96,26 @@ async def fetch_aircraft(
                 payload = await _get_json(client, _readsb_url(base_url))
                 return _readsb_to_airplanes(payload, lat, lon, radius)
             url = f"{base_url}/point/{lat}/{lon}/{radius}"
-            return await _get_json(client, url)
+            response = await _get_response(client, url)
+            # Counted only once it answered: a call that never reached the feed
+            # (connection error, timeout) can't have used its quota.
+            await online_quota.tracker.record_call(upstream_host, response.headers)
+            response.raise_for_status()
+            result: dict = response.json()
+            return result
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 429:
+                quota_reset = _quota_reset_header(exc.response.headers)
                 # The upstream has told us we are over its (undocumented,
                 # load-dependent) limit. Suspend calls to this host so the
                 # retry a few seconds later does not compound the breach.
                 await _adsb_rate_limiter.penalize(
                     upstream_host,
-                    _cooldown_seconds(
-                        exc.response.headers.get("retry-after"),
-                        _quota_reset_header(exc.response.headers),
-                    ),
+                    _cooldown_seconds(exc.response.headers.get("retry-after"), quota_reset),
                 )
+                daily_reset_seconds = _daily_quota_reset_seconds(quota_reset)
+                if daily_reset_seconds is not None:
+                    await online_quota.tracker.note_exhausted(upstream_host, daily_reset_seconds)
             raise
 
 
@@ -147,15 +156,35 @@ def _cooldown_seconds(retry_after_header: str | None, quota_reset_header: str | 
     return min(requested_seconds, max_seconds)
 
 
-async def _get_json(client: httpx.AsyncClient, url: str) -> dict:
-    """GET `url` and return its parsed body, raising on any non-2xx."""
-    response = await client.get(
+def _daily_quota_reset_seconds(quota_reset_header: str | None) -> float | None:
+    """Seconds until the daily quota resets, when a 429's reset is the daily window's.
+
+    `X-RateLimit-Remaining: 0` comes with the per-second and per-minute windows
+    too; only a reset longer than the per-minute window can be the daily one.
+    """
+    if quota_reset_header is None:
+        return None
+    try:
+        reset_seconds = float(quota_reset_header.strip())
+    except ValueError:
+        return None
+    return reset_seconds if reset_seconds > 60 else None
+
+
+async def _get_response(client: httpx.AsyncClient, url: str) -> httpx.Response:
+    """GET `url` with Sentinel's request headers, whatever the status."""
+    return await client.get(
         url,
         headers={
             "User-Agent": "SENTINEL/1.0",
             "Accept": "application/json",
         },
     )
+
+
+async def _get_json(client: httpx.AsyncClient, url: str) -> dict:
+    """GET `url` and return its parsed body, raising on any non-2xx."""
+    response = await _get_response(client, url)
     response.raise_for_status()  # raises HTTPStatusError on 4xx/5xx
     result: dict = response.json()
     return result

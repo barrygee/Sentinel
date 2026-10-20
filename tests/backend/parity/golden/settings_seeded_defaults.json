@@ -36,8 +36,9 @@
       "url": ""
     },
     "offgridSdrSource": null,
+    "onlineDailyCallLimit": 0,
     "onlineDataSourceURL": "https://api.adsb.lol/v2",
-    "onlineRefreshIntervalSec": 180,
+    "onlineRefreshIntervalSec": 60,
     "overheadAlerts": {
       "civil": false,
       "mil": false,
@@ -45,7 +46,7 @@
     },
     "sourceOverride": "online",
     "squawkWatchOffgridIntervalSec": 20,
-    "squawkWatchOnlineIntervalSec": 20
+    "squawkWatchOnlineIntervalSec": 300
   },
   "app": {
     "connectivityMode": "online",

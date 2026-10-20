@@ -23,9 +23,10 @@ interface BaseDataGridProps {
    * first section needs no caption of its own) — the title row is then not
    * rendered at all rather than left as an empty line. */
   title?: string
-  /** Grid column count. Real usage is either two (the RADIO section) or three
-   * (POSITION DATA / ORBITAL DATA). Defaults to 2. */
-  columns?: 2 | 3
+  /** Grid column count: two (the RADIO section), three (POSITION DATA /
+   * ORBITAL DATA) or four (AIR's Online API Usage, one line of short figures;
+   * two per line under 480px, where four would truncate). Defaults to 2. */
+  columns?: 2 | 3 | 4
   /** Collapses to a single column under 480px — matches the RADIO grid, whose
    * values (e.g. transponder type strings) need more room than POSITION/
    * ORBITAL's fixed-width telemetry numbers, which never collapse. Defaults
@@ -58,6 +59,7 @@ withDefaults(defineProps<BaseDataGridProps>(), {
       class="ba-data-grid"
       :class="{
         'ba-data-grid--three': columns === 3,
+        'ba-data-grid--four': columns === 4,
         'ba-data-grid--collapse-narrow': collapseOnNarrow,
       }"
     >
@@ -99,7 +101,17 @@ withDefaults(defineProps<BaseDataGridProps>(), {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
+.ba-data-grid.ba-data-grid--four {
+  /* Overridable so a row of short figures can sit at its natural widths
+     rather than spread across the full container. */
+  grid-template-columns: var(--ba-grid-four-columns, repeat(4, 1fr));
+}
+
 @media (max-width: 480px) {
+  .ba-data-grid.ba-data-grid--four {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .ba-data-grid.ba-data-grid--collapse-narrow {
     grid-template-columns: 1fr;
   }

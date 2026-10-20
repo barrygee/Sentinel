@@ -29,10 +29,14 @@ describe('SquawkWatchIntervalControl', () => {
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
   })
 
-  it('shows the 20-second default in seconds', async () => {
-    const wrapper = mountFor('online')
+  it.each([
+    ['online', '300'],
+    ['offgrid', '20'],
+  ] as const)('shows the %s default in seconds', async (mode, expected) => {
+    // Online each check uses one of the feed's daily calls, so it is far slower.
+    const wrapper = mountFor(mode)
     await flushPromises()
-    expect(inputValue(wrapper)).toBe('20')
+    expect(inputValue(wrapper)).toBe(expected)
     expect(wrapper.find('.number-setting-unit').text()).toBe('SECONDS')
     expect(wrapper.find('input').attributes('maxlength')).toBe('4')
   })
@@ -48,7 +52,7 @@ describe('SquawkWatchIntervalControl', () => {
 
   it.each([
     ['online', 'squawkWatchOnlineIntervalSec', { online: 45, offgrid: 20 }],
-    ['offgrid', 'squawkWatchOffgridIntervalSec', { online: 20, offgrid: 45 }],
+    ['offgrid', 'squawkWatchOffgridIntervalSec', { online: 300, offgrid: 45 }],
   ] as const)(
     'stages the %s value under its own key and mirrors only that mode',
     async (mode, key, expected) => {
@@ -78,7 +82,7 @@ describe('SquawkWatchIntervalControl', () => {
     await wrapper.find('input').setValue('4')
     expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
-    expect(useAirStore().squawkWatchIntervalSec.online).toBe(20)
+    expect(useAirStore().squawkWatchIntervalSec.online).toBe(300)
   })
 
   it('emits commit on Enter', async () => {
@@ -112,12 +116,12 @@ describe('SquawkWatchIntervalControl', () => {
     })
     const wrapper = mountFor('online')
     await flushPromises()
-    expect(inputValue(wrapper)).toBe('20')
-    expect(useAirStore().squawkWatchIntervalSec.online).toBe(20)
+    expect(inputValue(wrapper)).toBe('300')
+    expect(useAirStore().squawkWatchIntervalSec.online).toBe(300)
   })
 
   it('does not re-set when the stored value already matches the store', async () => {
-    vi.mocked(settingsApi.getNamespace).mockResolvedValue({ squawkWatchOnlineIntervalSec: 20 })
+    vi.mocked(settingsApi.getNamespace).mockResolvedValue({ squawkWatchOnlineIntervalSec: 300 })
     const store = useAirStore()
     const setSpy = vi.fn()
     store.setSquawkWatchIntervalSec = setSpy

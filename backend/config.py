@@ -26,11 +26,19 @@ class Settings(BaseSettings):
     # host (5 seconds). The online feed is spaced by the refresh interval below.
     adsb_min_request_interval_ms: int = 5000
     # Default gap between two calls to the online feed, whoever makes them (the
-    # map, the squawk watcher). adsb.lol allows 500 requests a day, one every
-    # 172.8 s; 180 s (480 a day) stays under it. The operator sets it in
-    # Settings › AIR (`air.onlineRefreshIntervalSec`); this applies while that
-    # is unset or not a number.
-    adsb_online_refresh_interval_s: float = 180.0
+    # map, the squawk watcher). adsb.lol allows 500 requests a day; 60 s spends
+    # that in about 8 hours of continuous use, traded for a livelier map — the
+    # quota tracker (sentinel_air.services.online_quota) warns as it runs out.
+    # The operator sets it in Settings › AIR (`air.onlineRefreshIntervalSec`);
+    # this applies while that is unset or not a number.
+    adsb_online_refresh_interval_s: float = 60.0
+    # The default feed's (adsb.lol's) daily call limit, used for it until its
+    # own `X-RateLimit-Limit` header (the `;w=86400` policy) says otherwise.
+    # Other feeds use their own header's figure, or Settings › AIR › Daily
+    # Call Limit (`air.onlineDailyCallLimit`), or are counted without one.
+    adsb_online_daily_quota: int = 500
+    # Share of the daily limit used before Sentinel warns that it is running out.
+    adsb_online_quota_warn_fraction: float = 0.8
     # Longest a request will wait for a free upstream slot before giving up and
     # serving cached data instead. Capped at one interval so a burst of callers
     # cannot pile into an ever-growing queue.
@@ -43,8 +51,12 @@ class Settings(BaseSettings):
     # (the public feed) and off grid (the local decoder). The operator sets
     # them in Settings › AIR (`air.squawkWatchOnlineIntervalSec` /
     # `air.squawkWatchOffgridIntervalSec`); these apply while those are unset
-    # or invalid. 20 s matches the cadence the watcher had before they existed.
-    adsb_watch_online_interval_s: float = 20.0
+    # or invalid. Online, every check uses one of the feed's daily calls and
+    # runs round the clock: 300 s is 288 a day, leaving adsb.lol's 500 room
+    # for the map (a faster check is held to the online refresh interval
+    # anyway). Off grid the local decoder has no limit: 20 s matches the
+    # cadence the watcher had before these existed.
+    adsb_watch_online_interval_s: float = 300.0
     adsb_watch_offgrid_interval_s: float = 20.0
     # Radius (nm) the watcher covers around the receiver (off grid) or
     # Settings › App › Location (online) — the same radius the map asks for.

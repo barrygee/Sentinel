@@ -449,6 +449,49 @@ class TestAdsbNearbyCacheFallback:
 
         assert resp.status_code == 503
 
+    def test_an_expired_row_for_the_point_does_not_block_borrowing(self, client, monkeypatch):
+        """The slow first load: the map opens on its default centre, whose row
+        was cached hours ago. That row is too old to serve, and it used to stop
+        the fresh row a few miles away from being borrowed, so the map stayed
+        empty (503) until the next online call slot — up to a refresh interval."""
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [{"hex": "hours-old"}]})
+        real_now = air_router.now_ms()
+        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
+        # Freshness and staleness judged on the same jumped clock.
+        monkeypatch.setattr(air_router, "is_fresh", lambda expires_at: expires_at > air_router.now_ms())
+        monkeypatch.setattr(
+            air_router,
+            "is_within_stale",
+            lambda fetched_at, stale_ms: air_router.now_ms() - fetched_at <= stale_ms,
+        )
+        # Cached at the jumped clock, so fresh now.
+        self._prime(client, monkeypatch, 54.3, -1.5, {"ac": [{"hex": "fresh-nearby"}]})
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "NEARBY"
+        assert resp.json() == {"ac": [{"hex": "fresh-nearby"}]}
+
+    def test_the_points_own_row_inside_the_stale_window_still_wins(self, client, monkeypatch):
+        """Borrowing is only for a point with nothing usable: its own recent row
+        beats a nearby one, even a fresher one."""
+        self._configure_sources(client)
+        self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [{"hex": "own"}]})
+        self._prime(client, monkeypatch, 54.3, -1.5, {"ac": [{"hex": "nearby"}]})
+        # Past the point's TTL (so it refetches) but inside its stale window.
+        real_now = air_router.now_ms()
+        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms // 2)
+        monkeypatch.setattr(air_router, "is_fresh", lambda expires_at: False)
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert resp.headers["X-Cache"] == "THROTTLED"
+        assert resp.json() == {"ac": [{"hex": "own"}]}
+
 
 # ── /api/air/adsb/point — off-grid source with no Settings field ──────────────
 
@@ -852,3 +895,67 @@ class TestSnapshotAge:
         response = client.get(self.POINT)
 
         assert response.headers["X-Snapshot-Age-Ms"] == "0"
+
+    # ── X-Snapshot-Lifetime-Ms ──────────────────────────────────────────────
+    # How long the snapshot was meant to stand: the online refresh interval
+    # online, the cache TTL from the local decoder. The map dims an aircraft
+    # only once it has gone unheard past that, so the wait between two online
+    # refreshes — a minute or more, to stay inside the feed's daily call
+    # limit — doesn't dim them all.
+
+    LIFETIME = "X-Snapshot-Lifetime-Ms"
+
+    def _configure_with_a_minute_refresh(self, client):
+        self._configure_sources(client)
+        client.put("/api/settings/air/onlineRefreshIntervalSec", json={"value": 60})
+
+    def test_an_online_snapshot_stands_for_the_refresh_interval(self, client, monkeypatch, clock):
+        self._configure_with_a_minute_refresh(client)
+        assert self._prime(client, monkeypatch).headers[self.LIFETIME] == "60000"
+
+    def test_a_cache_hit_keeps_the_lifetime_it_was_fetched_with(self, client, monkeypatch, clock):
+        self._configure_with_a_minute_refresh(client)
+        self._prime(client, monkeypatch)
+        clock[0] += 20_000
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == "HIT"
+        assert response.headers[self.LIFETIME] == "60000"
+
+    def test_a_borrowed_nearby_row_reports_its_own_lifetime(self, client, monkeypatch, clock):
+        self._configure_with_a_minute_refresh(client)
+        self._prime(client, monkeypatch)
+        clock[0] += 12_000
+        self._every_fetch(monkeypatch, UpstreamThrottledError())
+
+        response = client.get("/api/air/adsb/point/54.1/-1.5/100")
+
+        assert response.headers["X-Cache"] == "NEARBY"
+        assert response.headers[self.LIFETIME] == "60000"
+
+    def test_a_local_decoder_snapshot_stands_for_the_cache_ttl(self, client, monkeypatch, clock):
+        self._configure_with_a_minute_refresh(client)
+        client.put("/api/settings/air/sourceOverride", json={"value": "offgrid"})
+        self._every_fetch(monkeypatch, self.SNAPSHOT)
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == "MISS"
+        assert response.headers[self.LIFETIME] == str(settings.adsb_ttl_ms)
+
+    def test_an_uncached_empty_fallback_stands_for_the_cache_ttl(self, client, monkeypatch, clock):
+        self._configure_with_a_minute_refresh(client)
+        rate_limited = self._rate_limited()
+
+        async def primary_refuses_fallback_empty(lat, lon, radius, base_url, online_interval_seconds=None):
+            if base_url == self.ONLINE:
+                raise rate_limited
+            return {"ac": [], "total": 0}
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", primary_refuses_fallback_empty)
+
+        response = client.get(self.POINT)
+
+        assert response.headers["X-Cache"] == "FALLBACK"
+        assert response.headers[self.LIFETIME] == str(settings.adsb_ttl_ms)

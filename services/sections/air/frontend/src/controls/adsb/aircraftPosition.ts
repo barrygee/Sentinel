@@ -14,8 +14,8 @@
  *   dead-reckoned along its track. A new report re-anchors it on the reported
  *   position; the gap between where it was drawn and where it really is
  *   shrinks to nothing over `CORRECTION_MS`, so it glides into place.
- * - **Gone means the feed moved on without it.** An aircraft not heard from
- *   for `DIM_AFTER_MS` is drawn dimmed, but it is removed only once the feed
+ * - **Gone means the feed moved on without it.** An aircraft unheard for
+ *   `DIM_AFTER_MS` past its snapshot's lifetime is drawn dimmed, but it is removed only once the feed
  *   has delivered `GONE_AFTER_MS` of newer snapshots that leave it out. While
  *   the feed itself is silent (an upstream hanging or rate-limiting) nothing is
  *   removed — every aircraft came from the same last snapshot, so removing by
@@ -26,7 +26,7 @@
 /** How long a re-anchored aircraft takes to glide from where it was drawn onto its reported track. */
 export const CORRECTION_MS = 2000
 
-/** Not heard from for this long: drawn dimmed. */
+/** Not heard from for this long past its snapshot's lifetime: drawn dimmed. */
 export const DIM_AFTER_MS = 45_000
 
 /** Left out of this much newer feed: removed. */
@@ -84,12 +84,14 @@ export function deadReckon(
 }
 
 /**
- * The snapshot's age from the `X-Snapshot-Age-Ms` header, in ms.
+ * A duration header in ms: the snapshot's age (`X-Snapshot-Age-Ms`) or
+ * lifetime (`X-Snapshot-Lifetime-Ms`).
  *
  * A missing or malformed header (an older backend, a proxy that strips it)
- * counts as a fresh snapshot — today's behaviour — never as a negative age.
+ * counts as 0 — a fresh snapshot, or the old fixed dimming — never as a
+ * negative duration.
  */
-export function snapshotAgeMs(headerValue: string | null): number {
+export function durationHeaderMs(headerValue: string | null): number {
   const age = Number(headerValue)
   return headerValue !== null && Number.isFinite(age) && age > 0 ? age : 0
 }
@@ -161,9 +163,18 @@ export function reanchor(
   return next
 }
 
-/** Whether the aircraft has gone unheard long enough to be drawn dimmed. */
-export function isStale(position: TrackedPosition, nowMs: number): boolean {
-  return nowMs - position.lastSeen >= DIM_AFTER_MS
+/**
+ * Whether the aircraft has gone unheard long enough to be drawn dimmed.
+ *
+ * `snapshotLifetimeMs` is how long its snapshot was meant to stand before a
+ * newer one (`X-Snapshot-Lifetime-Ms`: about 10 s from the local decoder, the
+ * online refresh interval online — a minute or more, to stay inside the feed's
+ * daily call limit). Waiting out that lifetime is not silence, so the
+ * aircraft dims only `DIM_AFTER_MS` after it. Without one (an older backend),
+ * 45 s as before.
+ */
+export function isStale(position: TrackedPosition, nowMs: number, snapshotLifetimeMs = 0): boolean {
+  return nowMs - position.lastSeen >= snapshotLifetimeMs + DIM_AFTER_MS
 }
 
 /**

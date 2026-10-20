@@ -9,6 +9,7 @@
       :is-claiming="adsbSourceClaim.isClaiming.value"
       @take-control="adsbSourceClaim.takeControl"
     />
+    <OnlineQuotaNotice />
     <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
       <AirFilter
         ref="airFilterRef"
@@ -29,6 +30,7 @@ import AirSideMenu from './AirSideMenu.vue'
 import AirFilter from './AirFilter.vue'
 import NoUrlOverlay from '@sentinel/shell-api/overlays/NoUrlOverlay.vue'
 import AdsbSourceNotice from './AdsbSourceNotice.vue'
+import OnlineQuotaNotice from './OnlineQuotaNotice.vue'
 import { sidebarPaneSelector } from '@sentinel/shell-api/constants/sidebarPanes'
 import { useSidebarPaneTarget } from '@sentinel/shell-api/composables/useSidebarPaneTarget'
 import { useAdsbSourceClaim } from './composables/useAdsbSourceClaim'

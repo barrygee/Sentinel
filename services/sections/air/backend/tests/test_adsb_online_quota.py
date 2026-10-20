@@ -34,7 +34,7 @@ from sentinel_air.services.adsb import _cooldown_seconds, _quota_reset_header
 
 # Pinned rather than read from `settings`, so a `.env` on the machine running
 # the suite cannot quietly change what these tests assert.
-DEFAULT_REFRESH_INTERVAL_S = 180.0
+DEFAULT_REFRESH_INTERVAL_S = 60.0
 PENALTY_MS = 60_000
 MAX_PENALTY_MS = 600_000
 OFFGRID_TTL_MS = 10_000
@@ -277,12 +277,10 @@ class TestFetchAircraftHonoursTheQuotaReset:
 
     @staticmethod
     def _answer_429(monkeypatch, headers: dict[str, str]):
-        async def fake_get_json(client, url):
-            request = httpx.Request("GET", url)
-            response = httpx.Response(429, request=request, headers=headers)
-            raise httpx.HTTPStatusError("quota", request=request, response=response)
+        async def fake_get_response(client, url):
+            return httpx.Response(429, request=httpx.Request("GET", url), headers=headers)
 
-        monkeypatch.setattr(adsb_service, "_get_json", fake_get_json)
+        monkeypatch.setattr(adsb_service, "_get_response", fake_get_response)
 
     async def test_a_spent_quota_cools_down_until_its_reset(self, monkeypatch, limiter):
         self._answer_429(monkeypatch, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "90"})

@@ -35,6 +35,20 @@ describe('BaseDataGrid', () => {
     expect(wrapper.find('.ba-data-grid').classes()).toContain('ba-data-grid--three')
   })
 
+  it('applies only the four-column class when columns=4', () => {
+    const wrapper = mount(BaseDataGrid, { props: { columns: 4 } })
+    const classes = wrapper.find('.ba-data-grid').classes()
+    expect(classes).toContain('ba-data-grid--four')
+    expect(classes).not.toContain('ba-data-grid--three')
+  })
+
+  it('applies the four-column class for no other count', () => {
+    for (const columns of [2, 3] as const) {
+      const wrapper = mount(BaseDataGrid, { props: { columns } })
+      expect(wrapper.find('.ba-data-grid').classes()).not.toContain('ba-data-grid--four')
+    }
+  })
+
   it('does not collapse on narrow widths by default', () => {
     const wrapper = mount(BaseDataGrid, { props: { title: 'POSITION DATA' } })
     expect(wrapper.find('.ba-data-grid').classes()).not.toContain('ba-data-grid--collapse-narrow')

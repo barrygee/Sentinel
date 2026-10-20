@@ -9,6 +9,8 @@ import {
   DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
   SQUAWK_WATCH_INTERVAL_SETTING,
   DEFAULT_ONLINE_REFRESH_INTERVAL_SEC,
+  DEFAULT_ONLINE_DAILY_CALL_LIMIT,
+  ONLINE_DAILY_CALL_LIMIT_SETTING,
   ONLINE_REFRESH_INTERVAL_SETTING,
 } from './air'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
@@ -27,9 +29,9 @@ describe('air store', () => {
   })
 
   describe('online refresh interval', () => {
-    it('starts at the backend default of 180 seconds', () => {
-      expect(DEFAULT_ONLINE_REFRESH_INTERVAL_SEC).toBe(180)
-      expect(useAirStore().onlineRefreshIntervalSec).toBe(180)
+    it('starts at the backend default of 60 seconds', () => {
+      expect(DEFAULT_ONLINE_REFRESH_INTERVAL_SEC).toBe(60)
+      expect(useAirStore().onlineRefreshIntervalSec).toBe(60)
     })
 
     it('sets the interval', () => {
@@ -43,10 +45,27 @@ describe('air store', () => {
     })
   })
 
+  describe('online daily call limit', () => {
+    it("starts at 0, the feed's own figure", () => {
+      expect(DEFAULT_ONLINE_DAILY_CALL_LIMIT).toBe(0)
+      expect(useAirStore().onlineDailyCallLimit).toBe(0)
+    })
+
+    it('holds a limit set for it', () => {
+      const store = useAirStore()
+      store.setOnlineDailyCallLimit(750)
+      expect(store.onlineDailyCallLimit).toBe(750)
+    })
+
+    it('names the setting key the backend reads', () => {
+      expect(ONLINE_DAILY_CALL_LIMIT_SETTING).toBe('onlineDailyCallLimit')
+    })
+  })
+
   describe('squawk watch interval', () => {
-    it('starts both modes at the backend default of 20 seconds', () => {
-      expect(DEFAULT_SQUAWK_WATCH_INTERVAL_SEC).toBe(20)
-      expect(useAirStore().squawkWatchIntervalSec).toEqual({ online: 20, offgrid: 20 })
+    it('starts each mode at its backend default: 300 s online, 20 s off grid', () => {
+      expect(DEFAULT_SQUAWK_WATCH_INTERVAL_SEC).toEqual({ online: 300, offgrid: 20 })
+      expect(useAirStore().squawkWatchIntervalSec).toEqual({ online: 300, offgrid: 20 })
     })
 
     it('sets one mode without touching the other', () => {

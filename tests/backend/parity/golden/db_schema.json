@@ -78,6 +78,44 @@
       }
     ]
   },
+  "adsb_online_call": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "host",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "called_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "called_at"
+        ],
+        "name": "ix_adsb_online_call_called_at",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
   "air_messages": {
     "columns": [
       {

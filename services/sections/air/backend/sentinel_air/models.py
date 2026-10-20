@@ -31,6 +31,21 @@ class AdsbCache(Base):
     expires_at = Column(Integer, nullable=False)  # fetched_at + TTL_MS
 
 
+class AdsbOnlineCall(Base):
+    """One call made to an online ADS-B feed, counted against its daily call limit.
+
+    Persisted rather than counted in memory so a restart (or a `--reload`)
+    doesn't reset the count and hide how much of the day's limit is gone. Rows
+    older than the window are pruned as new ones arrive.
+    """
+
+    __tablename__ = "adsb_online_call"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    host = Column(Text, nullable=False)  # the feed's host: each has its own limit
+    called_at = Column(Integer, nullable=False, index=True)  # Unix ms
+
+
 class AirTracking(Base):
     """Aircraft currently being tracked by the user (selected in the ADS-B panel)."""
 
