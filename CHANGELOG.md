@@ -541,6 +541,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the Sentry console password when a host moves
 - Rebuild the SDR remote and update the OpenAPI golden
 - Keep Caddy's admin API off the shared compose network
+- Force monaco-editor onto the patched dompurify
 
 ### Chores
 
@@ -1611,6 +1612,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #519 from barrygee/fix/ais-key-destination
 - Merge pull request #520 from barrygee/fix/sentry-password-rebind
 - Merge pull request #521 from barrygee/fix/gateway-admin-isolation
+- Merge pull request #522 from barrygee/fix/monaco-dompurify-override
 
 ### Refactoring
 
