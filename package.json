@@ -41,6 +41,9 @@
         "mermaid": {
             "katex": "^0.18.2"
         },
+        "monaco-editor": {
+            "dompurify": "^3.4.16"
+        },
         "sigplot": {
             "budo": "npm:empty-npm-package@1.0.0",
             "travis": "npm:empty-npm-package@1.0.0"
