@@ -181,10 +181,11 @@ class TestFetchAircraftSpacing:
 
     @pytest.fixture(autouse=True)
     def no_network(self, monkeypatch):
-        async def fake_get_json(client, url):
-            return {"ac": [], "now": 0}
+        # At `_get_response`, under both the online path and the readsb one.
+        async def fake_get_response(client, url):
+            return httpx.Response(200, json={"ac": [], "now": 0}, request=httpx.Request("GET", url))
 
-        monkeypatch.setattr(adsb_service, "_get_json", fake_get_json)
+        monkeypatch.setattr(adsb_service, "_get_response", fake_get_response)
 
     async def test_an_online_call_holds_the_given_interval(self, limiter):
         await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE, 240.0)

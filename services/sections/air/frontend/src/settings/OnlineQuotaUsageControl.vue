@@ -2,7 +2,7 @@
   <div class="online-quota-usage">
     <BaseDataGrid :columns="4">
       <BaseDataCell label="DAILY LIMIT" :value="limitText" />
-      <BaseDataCell label="CALLS USED (24 H)" :value="usedText" />
+      <BaseDataCell label="CALLS USED TODAY" :value="usedText" />
       <BaseDataCell
         label="REMAINING"
         :value="remainingText"
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 /**
  * Settings › AIR row showing how many calls Sentinel has made to the online
- * ADS-B feed in use over the last 24 hours, against that feed's daily limit,
+ * ADS-B feed in use today (UTC, the day adsb.lol counts), against that feed's daily limit,
  * so the limit is easy to see coming before the map stops updating.
  * Read-only: it edits nothing, so it emits nothing to the panel.
  *
@@ -64,11 +64,9 @@ const usedText = computed(() => {
 const remainingText = computed(() =>
   quota.value?.remaining != null ? String(quota.value.remaining) : '—',
 )
-// Reached: when calls resume. Otherwise: when the oldest counted call drops
-// out of the rolling day and frees a call.
-const resetLabel = computed(() =>
-  quota.value?.state === 'reached' ? 'RESUMES IN' : 'NEXT CALL FREED IN',
-)
+// Reached: when calls resume. Otherwise: when the count starts again at the
+// next 00:00 UTC.
+const resetLabel = computed(() => (quota.value?.state === 'reached' ? 'RESUMES IN' : 'RESETS IN'))
 const resetText = computed(() =>
   quota.value?.resetsInSeconds != null ? formatQuotaDuration(quota.value.resetsInSeconds) : '—',
 )

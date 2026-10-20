@@ -52,14 +52,14 @@ function cells(wrapper: Awaited<ReturnType<typeof mountWith>>): string[] {
 }
 
 describe('OnlineQuotaUsageControl', () => {
-  it('shows the limit, calls used, calls left and when the next one frees up, on one line', async () => {
+  it('shows the limit, calls used today, calls left and when the count resets, on one line', async () => {
     const wrapper = await mountWith(figure())
 
     expect(cells(wrapper)).toEqual([
       'DAILY LIMIT: 500 (stated by the feed)',
-      'CALLS USED (24 H): 5 / 500',
+      'CALLS USED TODAY: 5 / 500',
       'REMAINING: 495',
-      'NEXT CALL FREED IN: 23h 52m',
+      'RESETS IN: 23h 52m',
     ])
     expect(wrapper.find('.ba-data-grid').classes()).toContain('ba-data-grid--four')
   })
@@ -84,7 +84,7 @@ describe('OnlineQuotaUsageControl', () => {
 
     expect(cells(wrapper)).toEqual([
       'DAILY LIMIT: None stated',
-      'CALLS USED (24 H): 12',
+      'CALLS USED TODAY: 12',
       'REMAINING: —',
     ])
     expect(wrapper.find('[role="status"]').exists()).toBe(false)
@@ -111,13 +111,13 @@ describe('OnlineQuotaUsageControl', () => {
   it('shows dashes until the figure arrives, or if it cannot', async () => {
     const wrapper = await mountWith(null)
 
-    expect(cells(wrapper)).toEqual(['DAILY LIMIT: —', 'CALLS USED (24 H): —', 'REMAINING: —'])
+    expect(cells(wrapper)).toEqual(['DAILY LIMIT: —', 'CALLS USED TODAY: —', 'REMAINING: —'])
   })
 
-  it('shows a dash for when the next call frees up before any call is counted', async () => {
+  it('shows a dash for the reset time from an older backend that sends none', async () => {
     const wrapper = await mountWith(figure({ used: 0, remaining: 500, resetsInSeconds: null }))
 
-    expect(cells(wrapper)[3]).toBe('NEXT CALL FREED IN: —')
+    expect(cells(wrapper)[3]).toBe('RESETS IN: —')
   })
 
   it('has no accessibility violations', async () => {

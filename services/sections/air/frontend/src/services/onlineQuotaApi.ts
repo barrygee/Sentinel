@@ -28,7 +28,7 @@ export interface OnlineQuota {
   limit: number | null
   limitSource: OnlineQuotaLimitSource | null
   remaining: number | null
-  /** Until calls are allowed again (reached), else until the oldest counted call drops out; null with none counted. */
+  /** Until calls are allowed again (reached), else until the count starts again at 00:00 UTC; null from an older backend. */
   resetsInSeconds: number | null
 }
 
@@ -66,6 +66,13 @@ export function onlineQuotaWarning(quota: OnlineQuota | null): string | null {
     quota.resetsInSeconds !== null
       ? ` Calls resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
       : ''
+  if (quota.limit !== null && quota.used < quota.limit) {
+    // The feed refused before Sentinel's own count reached the limit: it
+    // counts every call from this address, including other devices' and any
+    // made before counting began, so "all used" beside a lower count would
+    // read as a bug.
+    return `${quota.host} is refusing calls until its daily limit resets: it also counts calls Sentinel didn't make or see. Aircraft won't update.${resume}`
+  }
   const spent =
     quota.limit !== null ? `all ${quota.limit} daily calls used` : 'it is refusing calls for today'
   return `${quota.host} daily call limit reached: ${spent}, so aircraft won't update.${resume}`

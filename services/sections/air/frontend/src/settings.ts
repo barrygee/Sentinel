@@ -71,7 +71,7 @@ export function registerAirSettings(): void {
       sectionLabel: 'AIR',
       id: 'air-online-quota-usage',
       label: 'Online API Usage',
-      desc: 'Calls made to the Online Data Source in the last 24 hours, against its daily limit. Warns as the limit approaches and once it is reached',
+      desc: 'Calls made to the Online Data Source today (UTC), against its daily limit. Warns as the limit approaches and once it is reached',
       searchTerms: 'quota usage calls requests rate limit daily 500 adsb.lol remaining online api',
       control: { component: OnlineQuotaUsageControl, layout: 'full', naturalHeight: true },
       sourceMode: 'online',
