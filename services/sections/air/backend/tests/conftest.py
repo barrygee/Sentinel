@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from backend.config import settings
 
+from sentinel_air.services import adsb as adsb_service
 from sentinel_air.services import online_quota
 
 
@@ -31,6 +32,22 @@ class InMemoryQuotaTracker(online_quota.OnlineQuotaTracker):
     async def _announce_if_worse(self, status, previous_state) -> None:
         if online_quota._SEVERITY[status.state] > online_quota._SEVERITY[previous_state]:
             self.announced.append((status.host, status.state))
+
+
+@pytest.fixture(autouse=True)
+def no_real_feed_calls(monkeypatch):
+    """Fail any test that would reach a real ADS-B feed.
+
+    A test that stubbed the wrong layer once called adsb.lol from the
+    developer's machine on every run, spending their daily call limit. Tests
+    stub `_get_response` (or `fetch_aircraft`) themselves; anything that gets
+    this far was going to the network.
+    """
+
+    async def refuse_real_call(client, url):
+        raise AssertionError(f"test tried to call a real ADS-B feed: {url}")
+
+    monkeypatch.setattr(adsb_service, "_get_response", refuse_real_call)
 
 
 @pytest.fixture(autouse=True)

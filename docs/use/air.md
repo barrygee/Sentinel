@@ -38,7 +38,7 @@ All in **Settings › AIR**.
 | **Online Data Source** | The online feed. Default `https://api.adsb.lol/v2` |
 | **Online Refresh Interval** | Seconds between calls to the online feed, 5 to 280. Default 60. Each call counts against the feed's daily limit: with adsb.lol (500 a day), 60 lasts about 8 hours of use, 173 or more never runs out |
 | **Daily Call Limit** | The online feed's daily call limit, for a feed that has one but doesn't state it. 0 (default) uses the feed's own figure |
-| **Online API Usage** | The feed in use, its daily limit and where that came from, and the calls made in the last 24 hours, with a warning once 80% is used and when it runs out. The Air map and the alerts panel warn too. Each feed is counted separately; one with no known limit is counted without warnings |
+| **Online API Usage** | The feed in use, its daily limit and where that came from, and the calls made today (UTC days, as adsb.lol counts them), with a warning once 80% is used and when it runs out. The Air map and the alerts panel warn too. Each feed is counted separately; one with no known limit is counted without warnings |
 | **Online Squawk Checks** | Seconds between emergency checks of the online feed while no Air map is open. Default 300. Never more often than **Online Refresh Interval**, and each check uses one daily call (300 is 288 a day) |
 | **Off Grid Squawk Checks** | Seconds between emergency checks of the local decoder while no Air map is open. Default 20 |
 | **Map Layers** | Layers on when the map opens |

@@ -37,6 +37,9 @@ OTHER_FEED = "opendata.adsb.fi"
 ADSB_LOL_LIMIT_HEADER = "4, 4;w=1, 60;w=60, 500;w=86400"
 START_MS = 1_800_000_000_000
 DAY_MS = QUOTA_WINDOW_SECONDS * 1000
+# START_MS is 2027-01-15 08:00 UTC.
+TODAY_START_MS = START_MS - 8 * 3_600_000
+NEXT_MIDNIGHT_MS = TODAY_START_MS + DAY_MS
 
 
 @pytest.fixture
@@ -270,7 +273,8 @@ class TestCountedPerFeed:
 
     async def test_a_feed_never_called_has_used_nothing(self, quota_tracker, clock):
         status = await quota_tracker.status("never.example")
-        assert (status.used, status.resets_in_seconds) == (0, None)
+        # The count still starts again at midnight UTC.
+        assert (status.used, status.resets_in_seconds) == (0, 16 * 3600)
 
 
 # ── States as the day's calls are used ────────────────────────────────────────
@@ -298,25 +302,33 @@ class TestStates:
         assert (status.used, status.remaining, status.state) == (510, 0, "reached")
 
 
-class TestRollingWindow:
-    async def test_a_call_leaves_the_count_a_day_later(self, quota_tracker, clock):
+class TestUtcDay:
+    """adsb.lol's daily limit resets at 00:00 UTC: a refusal's reset always points
+    there. The test clock is 08:00 UTC, 16 hours before the next midnight."""
+
+    async def test_calls_count_until_the_next_utc_midnight(self, quota_tracker, clock):
         await record_calls(quota_tracker, ADSB_LOL, 1)
-        clock[0] += DAY_MS - 1
+        clock[0] = NEXT_MIDNIGHT_MS - 1
         assert (await quota_tracker.status(ADSB_LOL)).used == 1
-        clock[0] += 1
-        assert (await quota_tracker.status(ADSB_LOL)).used == 1
-        clock[0] += 1
+        clock[0] = NEXT_MIDNIGHT_MS
         assert (await quota_tracker.status(ADSB_LOL)).used == 0
 
-    async def test_reports_when_the_oldest_call_frees_up(self, quota_tracker, clock):
+    async def test_a_call_late_yesterday_does_not_count_today(self, quota_tracker, clock):
+        clock[0] = TODAY_START_MS - 1
         await record_calls(quota_tracker, ADSB_LOL, 1)
-        clock[0] += 3_600_000
-        await record_calls(quota_tracker, ADSB_LOL, 1)
-        assert (await quota_tracker.status(ADSB_LOL)).resets_in_seconds == QUOTA_WINDOW_SECONDS - 3600
+        clock[0] = TODAY_START_MS
+        assert (await quota_tracker.status(ADSB_LOL)).used == 0
 
-    async def test_a_reached_limit_recovers_as_calls_age_out(self, quota_tracker, clock):
+    async def test_reports_when_the_count_starts_again(self, quota_tracker, clock):
+        await record_calls(quota_tracker, ADSB_LOL, 1)
+        assert (await quota_tracker.status(ADSB_LOL)).resets_in_seconds == 16 * 3600
+        clock[0] += 3_600_000
+        assert (await quota_tracker.status(ADSB_LOL)).resets_in_seconds == 15 * 3600
+
+    async def test_a_reached_limit_recovers_at_utc_midnight(self, quota_tracker, clock):
         await record_calls(quota_tracker, ADSB_LOL, 500)
-        clock[0] += DAY_MS + 1
+        assert (await quota_tracker.status(ADSB_LOL)).state == "reached"
+        clock[0] = NEXT_MIDNIGHT_MS
         assert (await quota_tracker.status(ADSB_LOL)).state == "ok"
 
 
@@ -414,12 +426,25 @@ class TestTheNotification:
         await record_calls(tracker, ADSB_LOL, 400)
         assert bus.published[0][1]["msg_id"] == "adsb-online-quota:api.adsb.lol:approaching:2027-01-15"
 
-    async def test_reached_says_when_calls_resume(self, tracker, bus, clock):
+    async def test_reached_by_count_says_all_were_used_and_when_calls_resume(self, tracker, bus, clock):
+        await record_calls(tracker, ADSB_LOL, 500)
+        payload = bus.published[-1][1]
+        assert payload["title"] == "ADS-B CALL LIMIT REACHED"
+        assert payload["detail"] == (
+            "All 500 daily api.adsb.lol calls used: aircraft won't update. Calls resume in about 16h 0m."
+        )
+
+    async def test_a_refusal_before_the_count_reaches_the_limit_says_the_feed_counts_more(self, tracker, bus, clock):
+        # The feed counts every call from this address, including other
+        # devices' and any before counting began: "all 500 used" beside a count
+        # of 161 read as a bug.
+        await record_calls(tracker, ADSB_LOL, 161)
         await tracker.note_exhausted(ADSB_LOL, 2 * 3600 + 15 * 60)
         payload = bus.published[0][1]
         assert payload["title"] == "ADS-B CALL LIMIT REACHED"
         assert payload["detail"] == (
-            "All 500 daily api.adsb.lol calls used: aircraft won't update. Calls resume in about 2h 15m."
+            "api.adsb.lol is refusing calls until its daily limit resets: it also counts calls "
+            "Sentinel didn't make or see. Aircraft won't update. Calls resume in about 2h 15m."
         )
 
     async def test_reached_without_a_known_limit_says_the_feed_refused(self, tracker, bus, clock):
@@ -455,8 +480,8 @@ class TestPersistence:
                     AdsbOnlineCall(host=ADSB_LOL, called_at=START_MS - 1000),
                     AdsbOnlineCall(host=ADSB_LOL, called_at=START_MS - 2000),
                     AdsbOnlineCall(host=OTHER_FEED, called_at=START_MS - 3000),
-                    # Older than a day: not counted.
-                    AdsbOnlineCall(host=ADSB_LOL, called_at=START_MS - DAY_MS - 1),
+                    # Late yesterday (UTC): not counted today.
+                    AdsbOnlineCall(host=ADSB_LOL, called_at=TODAY_START_MS - 1),
                 ]
             )
             await db.commit()
@@ -474,10 +499,10 @@ class TestPersistence:
         await record_calls(tracker, ADSB_LOL, 1)
         assert (await tracker.status(ADSB_LOL)).used == 2
 
-    async def test_storing_a_call_prunes_rows_older_than_a_day(self, quota_database, clock, monkeypatch):
+    async def test_storing_a_call_prunes_rows_from_before_today(self, quota_database, clock, monkeypatch):
         monkeypatch.setattr(online_quota, "bus", RecordingBus())
         async with quota_database() as db:
-            db.add(AdsbOnlineCall(host=ADSB_LOL, called_at=START_MS - DAY_MS - 1))
+            db.add(AdsbOnlineCall(host=ADSB_LOL, called_at=TODAY_START_MS - 1))
             await db.commit()
         tracker = OnlineQuotaTracker()
         tracker._loaded = True
@@ -610,7 +635,7 @@ class TestOnlineQuotaEndpoint:
             "limit": 500,
             "limitSource": "default",
             "remaining": 497,
-            "resetsInSeconds": QUOTA_WINDOW_SECONDS - 1,
+            "resetsInSeconds": 16 * 3600,
         }
 
     def test_another_selected_feed_reports_its_own_count(self, client, quota_tracker, clock, monkeypatch):

@@ -17,8 +17,10 @@ daily-length reset, which is "reached" whatever the limit.
 
 A feed's `X-RateLimit-Remaining` only ever reports its tightest window (the
 per-second one), so it can't say how much of the day is left: Sentinel counts
-its own calls over a rolling 24 hours instead (`adsb_online_call`, so a restart
-doesn't reset the count).
+its own calls instead (`adsb_online_call`, so a restart doesn't reset the
+count). Counted per UTC day, because that is adsb.lol's day: its limit resets
+at 00:00 UTC (a refusal's `X-RateLimit-Reset` always points there), so a
+rolling 24 hours would disagree with the feed for most of the day.
 
 - `OnlineQuotaTracker.record_call` is called for every call that reaches an
   online feed, whoever made it (the map, the background alerts, the squawk
@@ -55,6 +57,8 @@ logger = logging.getLogger(__name__)
 QUOTA_WINDOW_SECONDS = 86_400
 """The limit's window: a day, the `;w=86400` policy."""
 
+DAY_MS = QUOTA_WINDOW_SECONDS * 1000
+
 NOTIFICATIONS_RAISE_SUBJECT = "notifications.raise"
 
 ONLINE_SOURCE_SETTING = "onlineDataSourceURL"
@@ -80,9 +84,9 @@ class OnlineQuotaStatus:
     limit: int | None
     limit_source: LimitSource | None
     remaining: int | None
-    # Seconds until a call is next allowed (reached), else until the oldest
-    # counted call leaves the window; None with nothing counted.
-    resets_in_seconds: int | None
+    # Seconds until a call is next allowed (reached), else until the count
+    # starts again at the next UTC midnight.
+    resets_in_seconds: int
 
     def as_json(self) -> dict[str, int | str | None]:
         return {
@@ -171,6 +175,11 @@ def _now_ms() -> int:
     return int(time.time() * 1000)
 
 
+def _utc_day_start_ms(at_ms: int) -> int:
+    """00:00 UTC on the day of `at_ms`: where the feed's count starts."""
+    return at_ms - at_ms % DAY_MS
+
+
 def _format_duration(seconds: int) -> str:
     """`3h 20m`, `45m`, `under a minute` — for a notification's detail line."""
     hours, remainder = divmod(max(0, seconds), 3600)
@@ -181,7 +190,7 @@ def _format_duration(seconds: int) -> str:
 
 
 class OnlineQuotaTracker:
-    """Counts calls per online feed host over a rolling day and announces when a limit runs low."""
+    """Counts calls per online feed host each UTC day and announces when a limit runs low."""
 
     def __init__(self) -> None:
         self._hosts: dict[str, _HostCount] = {}
@@ -195,7 +204,7 @@ class OnlineQuotaTracker:
         from this call, which only understates the limit used — far better
         than a counting error stopping aircraft from being fetched.
         """
-        oldest_counted_ms = _now_ms() - QUOTA_WINDOW_SECONDS * 1000
+        oldest_counted_ms = _utc_day_start_ms(_now_ms())
         try:
             async with AsyncSessionLocal() as db:
                 result = await db.execute(
@@ -263,10 +272,8 @@ class OnlineQuotaTracker:
                 resets_in_seconds=(count.exhausted_until_ms - now_ms + 999) // 1000,
             )
 
-        resets_in_seconds = None
-        if count.call_times_ms:
-            oldest_leaves_window_ms = count.call_times_ms[0] + QUOTA_WINDOW_SECONDS * 1000
-            resets_in_seconds = max(0, (oldest_leaves_window_ms - now_ms + 999) // 1000)
+        # The count starts again at the next UTC midnight, whatever has been used.
+        resets_in_seconds = (_utc_day_start_ms(now_ms) + DAY_MS - now_ms + 999) // 1000
 
         if limit is None:
             return OnlineQuotaStatus(host, used, "no_limit", None, None, None, resets_in_seconds)
@@ -293,7 +300,7 @@ class OnlineQuotaTracker:
 
     @staticmethod
     def _forget_outside_window(count: _HostCount, now_ms: int) -> None:
-        oldest_counted_ms = now_ms - QUOTA_WINDOW_SECONDS * 1000
+        oldest_counted_ms = _utc_day_start_ms(now_ms)
         while count.call_times_ms and count.call_times_ms[0] < oldest_counted_ms:
             count.call_times_ms.popleft()
 
@@ -305,7 +312,7 @@ class OnlineQuotaTracker:
             async with AsyncSessionLocal() as db:
                 db.add(AdsbOnlineCall(host=host, called_at=called_at_ms))
                 await db.execute(
-                    delete(AdsbOnlineCall).where(AdsbOnlineCall.called_at < called_at_ms - QUOTA_WINDOW_SECONDS * 1000)
+                    delete(AdsbOnlineCall).where(AdsbOnlineCall.called_at < _utc_day_start_ms(called_at_ms))
                 )
                 await db.commit()
         except Exception:
@@ -323,16 +330,21 @@ class OnlineQuotaTracker:
             )
         else:
             title = "ADS-B CALL LIMIT REACHED"
-            wait = (
-                f" Calls resume in about {_format_duration(status.resets_in_seconds)}."
-                if status.resets_in_seconds is not None
-                else ""
-            )
-            if status.limit is not None:
-                detail = f"All {status.limit} daily {status.host} calls used: aircraft won't update.{wait}"
-            else:
+            wait = f" Calls resume in about {_format_duration(status.resets_in_seconds)}."
+            if status.limit is None:
                 # No known limit: the feed itself refused, with a day-long reset.
                 detail = f"{status.host} is refusing calls for today: aircraft won't update.{wait}"
+            elif status.used < status.limit:
+                # The feed refused before Sentinel's own count reached the
+                # limit: it counts every call from this address, including
+                # other devices' and any made before counting began, so saying
+                # "all used" beside a lower count would read as a bug.
+                detail = (
+                    f"{status.host} is refusing calls until its daily limit resets: it also counts "
+                    f"calls Sentinel didn't make or see. Aircraft won't update.{wait}"
+                )
+            else:
+                detail = f"All {status.limit} daily {status.host} calls used: aircraft won't update.{wait}"
         now_ms = _now_ms()
         # One per state per host per UTC day: core ignores a msg_id it already
         # stored, so a count hovering around the threshold (or a restart)

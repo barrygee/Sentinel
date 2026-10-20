@@ -102,6 +102,17 @@ describe('onlineQuotaWarning', () => {
     )
   })
 
+  it('says the feed counts more than Sentinel saw when it refuses before the count reaches the limit', () => {
+    // "all 500 daily calls used" beside 161 / 500 read as a bug.
+    expect(
+      onlineQuotaWarning(
+        quota({ state: 'reached', used: 161, remaining: 0, resetsInSeconds: 5 * 3600 + 57 * 60 }),
+      ),
+    ).toBe(
+      "api.adsb.lol is refusing calls until its daily limit resets: it also counts calls Sentinel didn't make or see. Aircraft won't update. Calls resume in about 5h 57m.",
+    )
+  })
+
   it('says the feed refused when its limit is unknown, and leaves out an unknown resume time', () => {
     expect(
       onlineQuotaWarning(
