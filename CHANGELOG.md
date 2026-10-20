@@ -608,6 +608,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run ruff on services/docs in the pre-commit hook
 - Rename two setting labels
 - Rebuild the bundle for the renamed setting labels
+- Commit the Air backend package's uv.lock
 
 ### Reverts
 
@@ -1617,6 +1618,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #522 from barrygee/fix/monaco-dompurify-override
 - Merge pull request #523 from barrygee/feat/air-online-quota-warnings
 - Merge pull request #524 from barrygee/fix/air-watcher-snapshots-cached
+- Merge pull request #525 from barrygee/chore/air-uv-lock
 
 ### Refactoring
 
