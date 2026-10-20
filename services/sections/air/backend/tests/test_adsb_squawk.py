@@ -596,20 +596,26 @@ class TestAdsbWatcher:
 
 
 class TestWatchIntervalDefaults:
-    def test_both_modes_keep_the_cadence_the_watcher_had_before_the_settings(self):
-        # The watcher used to fetch every ~20 s (a 15 s idle window on a 5 s
-        # tick); the settings were added without changing that.
+    def test_online_checks_default_to_five_minutes_to_spare_the_daily_limit(self):
+        # Online, every check is one of the feed's daily calls, made round the
+        # clock: 300 s is 288 a day, leaving adsb.lol's 500 room for the map.
         from backend.config import Settings
 
-        assert Settings.model_fields["adsb_watch_online_interval_s"].default == 20.0
+        assert Settings.model_fields["adsb_watch_online_interval_s"].default == 300.0
+
+    def test_off_grid_checks_keep_the_cadence_the_watcher_had_before_the_settings(self):
+        # The local decoder has no limit: the watcher used to fetch every ~20 s
+        # (a 15 s idle window on a 5 s tick), and off grid it still does.
+        from backend.config import Settings
+
         assert Settings.model_fields["adsb_watch_offgrid_interval_s"].default == 20.0
 
-    def test_both_settings_are_seeded_at_20_seconds(self):
+    def test_settings_are_seeded_at_the_config_defaults(self):
         import json
         from pathlib import Path
 
         seeded = json.loads((Path(__file__).resolve().parents[5] / "backend" / "default_config.json").read_text())[
             "air"
         ]
-        assert seeded["squawkWatchOnlineIntervalSec"] == 20
+        assert seeded["squawkWatchOnlineIntervalSec"] == 300
         assert seeded["squawkWatchOffgridIntervalSec"] == 20

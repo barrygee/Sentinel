@@ -9,7 +9,7 @@ import {
   isStale,
   observedAt,
   reanchor,
-  snapshotAgeMs,
+  durationHeaderMs,
   startTracking,
   type TrackedPosition,
 } from './aircraftPosition'
@@ -119,6 +119,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
   // Observation time of the newest snapshot received: how far the feed has got.
   // Aircraft are removed by how much newer feed has left them out, not by age.
   private _feedObservedAt = 0
+  // How long the newest snapshot was meant to stand (`X-Snapshot-Lifetime-Ms`):
+  // online, a whole refresh interval, which must not dim every aircraft.
+  private _snapshotLifetimeMs = 0
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
   _selectedHex: string | null = null
@@ -1493,7 +1496,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates
       /* v8 ignore stop */
       const pos2 = this._lastPositions[hex]
-      const isDim = pos2 ? isStale(pos2, Date.now()) : false
+      const isDim = pos2 ? isStale(pos2, Date.now(), this._snapshotLifetimeMs) : false
       if (this._callsignMarkers[hex]) {
         this._callsignMarkers[hex].setLngLat(lngLat)
         const labelEl = this._callsignMarkers[hex].getElement()
@@ -1897,7 +1900,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const hex = f.properties.hex
       const pos = this._lastPositions[hex]
       const coords = pos ? displayedPosition(pos, now) : f.geometry.coordinates
-      const stale = pos && isStale(pos, now) ? 1 : 0
+      const stale = pos && isStale(pos, now, this._snapshotLifetimeMs) ? 1 : 0
       return {
         ...f,
         geometry: { type: 'Point' as const, coordinates: coords },
@@ -1995,8 +1998,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       // Taken before parsing, and the server's snapshot age with it: every
       // report below is dated by when it was observed, not when it arrived.
       const receivedAt = Date.now()
-      const snapshotAge = snapshotAgeMs(resp.headers.get('X-Snapshot-Age-Ms'))
+      const snapshotAge = durationHeaderMs(resp.headers.get('X-Snapshot-Age-Ms'))
       this._feedObservedAt = Math.max(this._feedObservedAt, receivedAt - snapshotAge)
+      this._snapshotLifetimeMs = durationHeaderMs(resp.headers.get('X-Snapshot-Lifetime-Ms'))
       const data = await resp.json()
       if (!this.map) return
       const aircraft = (data.ac || []) as AircraftApiEntry[]

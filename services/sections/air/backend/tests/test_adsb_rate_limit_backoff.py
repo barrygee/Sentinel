@@ -183,12 +183,23 @@ class TestFetchAircraftBacksOffOn429:
 
     @staticmethod
     def _patch_get_json(monkeypatch, behaviour):
-        """Replace the HTTP round-trip with `behaviour()`."""
+        """Replace the HTTP round-trip with `behaviour()`: a payload, an
+        `HTTPStatusError` (its response is what the feed answers) or a
+        transport error (no answer at all).
 
-        async def fake_get_json(client, url):
-            return behaviour()
+        Patched at `_get_response`, under both the readsb path (`_get_json`)
+        and the online path, which reads the response itself to count the call.
+        """
+        request = httpx.Request("GET", "https://api.adsb.lol/v2/point/54.0/-1.5/100")
 
-        monkeypatch.setattr(adsb_service, "_get_json", fake_get_json)
+        async def fake_get_response(client, url):
+            try:
+                payload = behaviour()
+            except httpx.HTTPStatusError as error:
+                return error.response
+            return httpx.Response(200, json=payload, request=request)
+
+        monkeypatch.setattr(adsb_service, "_get_response", fake_get_response)
 
     @staticmethod
     def _status_error(status_code: int, headers: dict | None = None):

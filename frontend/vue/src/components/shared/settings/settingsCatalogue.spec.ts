@@ -20,6 +20,8 @@ import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceCo
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
 import OnlineRefreshIntervalControl from '@sentinel/section-air/settings/OnlineRefreshIntervalControl.vue'
+import OnlineQuotaUsageControl from '@sentinel/section-air/settings/OnlineQuotaUsageControl.vue'
+import OnlineDailyCallLimitControl from '@sentinel/section-air/settings/OnlineDailyCallLimitControl.vue'
 import AprsLabelFieldsControl from '@sentinel/section-land/settings/AprsLabelFieldsControl.vue'
 import AprsSdrSourceControl from '@sentinel/section-land/settings/AprsSdrSourceControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
@@ -120,8 +122,18 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   ],
   [
     'air',
+    'air-online-quota-usage',
+    { component: OnlineQuotaUsageControl, layout: 'full', naturalHeight: true },
+  ],
+  [
+    'air',
     'air-online-refresh-interval',
     { component: OnlineRefreshIntervalControl, emits: ['stage', 'commit'] },
+  ],
+  [
+    'air',
+    'air-online-daily-call-limit',
+    { component: OnlineDailyCallLimitControl, emits: ['stage', 'commit'] },
   ],
   [
     'air',
@@ -311,7 +323,9 @@ describe('Settings catalogue', () => {
       'air-offgrid-sdr-source': 'offgrid',
       'air-offgrid-squawk-watch-interval': 'offgrid',
       'air-online-source': 'online',
+      'air-online-quota-usage': 'online',
       'air-online-refresh-interval': 'online',
+      'air-online-daily-call-limit': 'online',
       'air-online-squawk-watch-interval': 'online',
       'space-online-source': 'online',
       'space-manual-tle': 'offgrid',

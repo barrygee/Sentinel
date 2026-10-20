@@ -2046,6 +2046,26 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/air/adsb/online-quota": {
+      "get": {
+        "description": "How much of the online feed in use's daily call limit is used: `host`,\n`used`, `limit` and `remaining` (null when the feed has no known limit),\n`limitSource` (`setting` / `feed` / `default`), `state` (`ok` /\n`approaching` / `reached` / `no_limit`) and `resetsInSeconds`. Answered\nfrom Sentinel's own count — it never calls the feed — so the map can poll\nit freely.",
+        "operationId": "get_online_quota_api_air_adsb_online_quota_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Online Quota",
+        "tags": [
+          "air"
+        ]
+      }
+    },
     "/api/air/adsb/point/{lat}/{lon}/{radius}": {
       "get": {
         "description": "Proxy the upstream /v2/point endpoint with a SQLite write-through cache.\n\nEvery response says how old its snapshot is in `X-Snapshot-Age-Ms` (0 when\nfetched by this request), so the map can age aircraft by when they were\nactually observed rather than when the response arrived.\n\nCache strategy:\n  - HIT:    fresh row exists (within adsb_ttl_ms; the online refresh\n            interval for an online snapshot) → return immediately\n  - MISS:   no row or expired → fetch upstream, upsert row, return fresh data\n  - RATED:  upstream returned 429 → serve the cache row if within adsb_stale_ms\n  - THROTTLED: our own limiter declined the call (see adsb_min_request_interval_ms)\n            → serve the cache row if within adsb_stale_ms\n  - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data\n  (Online, the stale window is adsb_stale_ms plus the online refresh interval.)\n  - NEARBY: no row for this exact point and no fresh fetch → serve the nearest\n            recent row (the point tracks the map centre, so pans miss the cache)\n  - FALLBACK: the primary failed and the fallback answered with no\n            aircraft, and nothing cached could stand in — served, not cached\n  - 503:    upstream failed and no usable cached entry",

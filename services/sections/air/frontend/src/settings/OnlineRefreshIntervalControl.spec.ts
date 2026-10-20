@@ -29,10 +29,10 @@ describe('OnlineRefreshIntervalControl', () => {
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
   })
 
-  it('shows the 180-second default in seconds, three digits at most', async () => {
+  it('shows the 60-second default in seconds, three digits at most', async () => {
     const wrapper = mountControl()
     await flushPromises()
-    expect(inputValue(wrapper)).toBe('180')
+    expect(inputValue(wrapper)).toBe('60')
     expect(wrapper.find('.number-setting-unit').text()).toBe('SECONDS')
     expect(wrapper.find('input').attributes('maxlength')).toBe('3')
   })
@@ -71,7 +71,7 @@ describe('OnlineRefreshIntervalControl', () => {
     await wrapper.find('input').setValue('4')
     expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
     expect(wrapper.emitted('stage')).toBeUndefined()
-    expect(useAirStore().onlineRefreshIntervalSec).toBe(180)
+    expect(useAirStore().onlineRefreshIntervalSec).toBe(60)
   })
 
   it('emits commit on Enter', async () => {
@@ -114,12 +114,12 @@ describe('OnlineRefreshIntervalControl', () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({ onlineRefreshIntervalSec: stored })
     const wrapper = mountControl()
     await flushPromises()
-    expect(inputValue(wrapper)).toBe('180')
-    expect(useAirStore().onlineRefreshIntervalSec).toBe(180)
+    expect(inputValue(wrapper)).toBe('60')
+    expect(useAirStore().onlineRefreshIntervalSec).toBe(60)
   })
 
   it('does not re-set when the stored value already matches the store', async () => {
-    vi.mocked(settingsApi.getNamespace).mockResolvedValue({ onlineRefreshIntervalSec: 180 })
+    vi.mocked(settingsApi.getNamespace).mockResolvedValue({ onlineRefreshIntervalSec: 60 })
     const store = useAirStore()
     const setSpy = vi.fn()
     store.setOnlineRefreshIntervalSec = setSpy

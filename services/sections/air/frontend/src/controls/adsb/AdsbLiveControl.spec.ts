@@ -1649,6 +1649,32 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(1)
   })
 
+  it("keeps an aircraft bright while its online snapshot's lifetime runs", async () => {
+    // Online the snapshot stands for the whole refresh interval: 46 s into a
+    // 60 s lifetime the next one simply isn't due, so nothing has gone unheard.
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '46000', 'X-Snapshot-Lifetime-Ms': '60000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry()] }),
+    } as Response)
+    await priv(control)._fetch()
+    expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(0)
+  })
+
+  it('dims it once the lifetime and the usual 45 s have both passed', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '105000', 'X-Snapshot-Lifetime-Ms': '60000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry()] }),
+    } as Response)
+    await priv(control)._fetch()
+    expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(1)
+  })
+
   it('shows an aircraft from a snapshot over a minute old dimmed, since the feed has nothing newer', async () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({

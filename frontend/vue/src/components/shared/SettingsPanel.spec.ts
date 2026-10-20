@@ -100,7 +100,9 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source': false,
         'air-offgrid-squawk-watch-interval': false,
         'air-online-source': true,
+        'air-online-quota-usage': true,
         'air-online-refresh-interval': true,
+        'air-online-daily-call-limit': true,
         'air-online-squawk-watch-interval': true,
         'map-layers': true,
       })
@@ -115,7 +117,9 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source': true,
         'air-offgrid-squawk-watch-interval': true,
         'air-online-source': false,
+        'air-online-quota-usage': false,
         'air-online-refresh-interval': false,
+        'air-online-daily-call-limit': false,
         'air-online-squawk-watch-interval': false,
       })
       showSettingsSourceMode('air', 'online')
@@ -910,7 +914,9 @@ describe('SettingsPanel', () => {
         'air-offgrid-sdr-source',
         'air-offgrid-squawk-watch-interval',
         'air-online-source',
+        'air-online-quota-usage',
         'air-online-refresh-interval',
+        'air-online-daily-call-limit',
         'air-online-squawk-watch-interval',
         'map-layers',
         'air-tag-fields',
@@ -925,7 +931,14 @@ describe('SettingsPanel', () => {
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',
       )
-      // The online feed's refresh interval sits right under the online source.
+      // The online feed's usage sits right under the online source, then its
+      // refresh interval and daily call limit.
+      expect(airItems.find((item) => item.id === 'air-online-quota-usage')!.label).toBe(
+        'Online API Usage',
+      )
+      expect(airItems.find((item) => item.id === 'air-online-daily-call-limit')!.label).toBe(
+        'Daily Call Limit',
+      )
       expect(airItems.find((item) => item.id === 'air-online-refresh-interval')!.label).toBe(
         'Online Refresh Interval',
       )

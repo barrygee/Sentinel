@@ -52,7 +52,7 @@ class TestCreateAirTables:
         await air_database.create_air_tables()
 
         # air_messages is core's (notifications), despite the name.
-        assert set(await table_columns(air_engine)) == {"adsb_cache", "air_tracking"}
+        assert set(await table_columns(air_engine)) == {"adsb_cache", "air_tracking", "adsb_online_call"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, air_engine):
         await air_database.create_air_tables()
@@ -68,7 +68,7 @@ class TestCreateAirTables:
         finally:
             await monolith.dispose()
 
-        for table in air_database.AIR_TABLES:
+        for table in air_database.AIR_TABLES + air_database.AIR_SERVICE_ONLY_TABLES:
             assert air_schema[table] == monolith_schema[table]
 
 
