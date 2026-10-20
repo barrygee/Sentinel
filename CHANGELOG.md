@@ -544,6 +544,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep Caddy's admin API off the shared compose network
 - Force monaco-editor onto the patched dompurify
 - Cache the squawk watcher's snapshots for the map
+- Count the online feed's calls per UTC day and stop tests calling it
 
 ### Chores
 
@@ -1619,6 +1620,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #523 from barrygee/feat/air-online-quota-warnings
 - Merge pull request #524 from barrygee/fix/air-watcher-snapshots-cached
 - Merge pull request #525 from barrygee/chore/air-uv-lock
+- Merge pull request #526 from barrygee/fix/air-quota-refusal-wording
 
 ### Refactoring
 
