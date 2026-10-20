@@ -13,17 +13,24 @@ sees exactly what was published without the rest of the app reacting.
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 import pytest
+from backend.database import Base
 from backend.db_helpers import upsert_setting
 from backend.platform.bus import EventBus
 from backend.services.upstream_rate_limit import UpstreamThrottledError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.pool import StaticPool
 
-from sentinel_air.services import adsb_squawk
+from sentinel_air.models import AdsbCache
+from sentinel_air.services import adsb_cache, adsb_squawk
 from sentinel_air.services.adsb_squawk import (
     EMERGENCY_SQUAWKS,
     FORGET_AFTER_MS,
@@ -443,6 +450,16 @@ def watch_setup(monkeypatch, clock):
     monkeypatch.setattr(adsb_squawk, "resolve_domain_urls", urls)
     monkeypatch.setattr(adsb_squawk.settings, "adsb_watch_idle_s", 15.0)
     monkeypatch.setattr(adsb_squawk.settings, "adsb_watch_radius_nm", 250)
+    monkeypatch.setattr(adsb_squawk.settings, "adsb_ttl_ms", 10_000)
+
+    # What the watcher leaves in the cache for the map (TestCacheForTheMap
+    # covers the write itself, against a real database).
+    tracker.cached = []
+
+    async def record_cache(db, lat, lon, snapshot, fresh_for_ms):
+        tracker.cached.append((lat, lon, snapshot, fresh_for_ms))
+
+    monkeypatch.setattr(adsb_squawk, "_cache_for_the_map", record_cache)
     return tracker
 
 
@@ -560,6 +577,86 @@ class TestWatchOnce:
         calls = fetch(monkeypatch, lambda base_url: {"ac": []})
         assert await watch_once(DB) is True
         assert [call[3] for call in calls] == ["https://fallback.example/v2"]
+
+    async def test_leaves_an_online_snapshot_for_the_map_for_the_refresh_interval(self, watch_setup, monkeypatch):
+        # The call it spent may be the one holding the map's next fetch back:
+        # without this the map, opening then, had nothing nearby to show.
+        fetch(monkeypatch, lambda base_url: {"ac": ["snapshot"]})
+        await watch_once(DB)
+        assert watch_setup.cached == [(51.5, -0.12, {"ac": ["snapshot"]}, 180_000)]
+
+    async def test_leaves_a_local_decoder_snapshot_for_the_cache_ttl(self, watch_setup, monkeypatch):
+        async def urls(domain, db, *, online_default, offgrid_default):
+            return ("http://decoder.example/data/aircraft.json", None)
+
+        monkeypatch.setattr(adsb_squawk, "resolve_domain_urls", urls)
+        fetch(monkeypatch, lambda base_url: {"ac": []})
+        await watch_once(DB)
+        assert watch_setup.cached == [(51.5, -0.12, {"ac": []}, 10_000)]
+
+    async def test_leaves_nothing_when_every_source_fails(self, watch_setup, monkeypatch):
+        def behaviour(base_url):
+            raise httpx.ConnectError("down")
+
+        fetch(monkeypatch, behaviour)
+        await watch_once(DB)
+        assert watch_setup.cached == []
+
+
+class TestCacheForTheMap:
+    """The watcher's snapshot, written where the map's endpoint borrows from."""
+
+    @pytest.fixture
+    async def session(self, monkeypatch):
+        engine = create_async_engine(
+            "sqlite+aiosqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+        async with engine.begin() as connection:
+            await connection.run_sync(
+                lambda sync_connection: Base.metadata.create_all(
+                    sync_connection, tables=[Base.metadata.tables["adsb_cache"]]
+                )
+            )
+        monkeypatch.setattr(adsb_squawk.settings, "adsb_watch_radius_nm", 250)
+        monkeypatch.setattr(adsb_squawk, "_now_ms", lambda: 1_800_000_000_000)
+        async with AsyncSession(engine, expire_on_commit=False) as db:
+            yield db
+        await engine.dispose()
+
+    async def test_stores_the_snapshot_for_the_watch_area(self, session):
+        await adsb_squawk._cache_for_the_map(session, 51.5, -0.12, {"ac": [{"hex": "abc"}]}, 60_000)
+
+        row = await adsb_cache.find_snapshot(session, 51.5, -0.12, 250)
+        assert row is not None
+        assert json.loads(row.payload) == {"ac": [{"hex": "abc"}]}
+        assert (row.fetched_at, row.expires_at, row.ac_count) == (1_800_000_000_000, 1_800_000_060_000, 1)
+
+    async def test_replaces_the_previous_snapshot_rather_than_adding_another(self, session):
+        await adsb_squawk._cache_for_the_map(session, 51.5, -0.12, {"ac": [{"hex": "old"}]}, 60_000)
+        await adsb_squawk._cache_for_the_map(session, 51.5, -0.12, {"ac": [{"hex": "new"}]}, 60_000)
+
+        rows = (await session.execute(select(AdsbCache))).scalars().all()
+        assert [json.loads(row.payload) for row in rows] == [{"ac": [{"hex": "new"}]}]
+
+    async def test_a_locked_database_is_logged_not_raised(self, monkeypatch, caplog):
+        class LockedSession:
+            rolled_back = False
+
+            async def commit(self):
+                raise OperationalError("COMMIT", {}, Exception("database is locked"))
+
+            async def rollback(self):
+                LockedSession.rolled_back = True
+
+        async def no_row(db, lat, lon, radius):
+            return None
+
+        monkeypatch.setattr(adsb_squawk.adsb_cache, "find_snapshot", no_row)
+        monkeypatch.setattr(adsb_squawk.adsb_cache, "store_snapshot", lambda *args: None)
+        with caplog.at_level(logging.WARNING, logger=adsb_squawk.__name__):
+            await adsb_squawk._cache_for_the_map(LockedSession(), 51.5, -0.12, {"ac": []}, 60_000)
+        assert LockedSession.rolled_back is True
+        assert "could not cache its snapshot" in caplog.text
 
 
 class TestAdsbWatcher:

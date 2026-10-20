@@ -27,10 +27,11 @@ from backend.platform.bus import EventPayload, bus
 from backend.platform.settings_client import read_setting
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_source
+from sentinel_air.services import adsb_cache, adsb_source
 
 logger = logging.getLogger(__name__)
 
@@ -258,8 +259,30 @@ async def watch_once(db: AsyncSession) -> bool:
             # and otherwise wait for the next tick.
             continue
         await tracker.observe(snapshot, db)
+        fresh_for_ms = (
+            int(online_interval_seconds * 1000) if adsb_service.is_online_feed(base_url) else settings.adsb_ttl_ms
+        )
+        await _cache_for_the_map(db, lat, lon, snapshot, fresh_for_ms)
         return True
     return False
+
+
+async def _cache_for_the_map(db: AsyncSession, lat: float, lon: float, snapshot: dict, fresh_for_ms: int) -> None:
+    """Keep the watcher's snapshot where the map can borrow it (`adsb_cache`).
+
+    The call it cost may be the one that holds the map's next fetch back, and
+    a map opening then would otherwise have nothing nearby to show. Best
+    effort: a locked database only costs that stand-in, so it is logged, not
+    raised.
+    """
+    radius = settings.adsb_watch_radius_nm
+    try:
+        row = await adsb_cache.find_snapshot(db, lat, lon, radius)
+        adsb_cache.store_snapshot(db, row, lat, lon, radius, snapshot, _now_ms(), fresh_for_ms)
+        await db.commit()
+    except OperationalError:
+        await db.rollback()
+        logger.warning("ADS-B squawk watcher could not cache its snapshot for the map")
 
 
 class AdsbWatcher:
