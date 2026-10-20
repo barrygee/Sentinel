@@ -57,33 +57,22 @@ describe('OnlineQuotaNotice', () => {
     expect(wrapper.text()).toContain('Online Data Source: 400 of 500 daily calls used.')
   })
 
-  it('dims the map once it is reached, instead of the banner', async () => {
+  it('dims the map once it is reached, and keeps the warning banner over it', async () => {
     const wrapper = await mountWith(
       figure({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 5 * 3600 + 2 * 60 }),
     )
 
-    expect(wrapper.find('.map-paused-overlay-headline').text()).toBe(
-      'Online Data Source daily limit reached.',
+    expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
+    expect(wrapper.find('[role="status"]').text()).toContain(
+      'Online Data Source daily limit reached. Aircraft resume in about 5h 2m.',
     )
-    expect(wrapper.find('.map-paused-overlay-detail').text()).toBe(
-      'Aircraft resume in about 5h 2m.',
-    )
-    expect(wrapper.find('.map-notice').exists()).toBe(false)
   })
 
-  it('dims the map with no detail line when the feed gives no reset time', async () => {
-    const wrapper = await mountWith(
-      figure({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: null }),
-    )
-
-    expect(wrapper.find('.map-paused-overlay-detail').exists()).toBe(false)
-  })
-
-  it('shows the banner, not the dimmed map, while the limit only approaches', async () => {
+  it('does not dim the map while the limit only approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
     expect(wrapper.find('.map-notice').exists()).toBe(true)
-    expect(wrapper.find('.map-paused-overlay').exists()).toBe(false)
+    expect(wrapper.find('.map-dim-overlay').exists()).toBe(false)
   })
 
   it('has no accessibility violations once reached', async () => {

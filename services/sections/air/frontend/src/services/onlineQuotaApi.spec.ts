@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchOnlineQuota,
   formatQuotaDuration,
-  onlineQuotaPause,
   onlineQuotaWarning,
   ONLINE_QUOTA_URL,
   type OnlineQuota,
@@ -124,41 +123,5 @@ describe('onlineQuotaWarning', () => {
         }),
       ),
     ).toBe('Online Data Source is refusing calls today.')
-  })
-})
-
-describe('onlineQuotaPause', () => {
-  it('is null until the limit is reached', () => {
-    expect(onlineQuotaPause(null)).toBeNull()
-    expect(onlineQuotaPause(quota())).toBeNull()
-    expect(onlineQuotaPause(quota({ state: 'approaching', used: 400, remaining: 100 }))).toBeNull()
-    expect(
-      onlineQuotaPause(
-        quota({ state: 'no_limit', limit: null, limitSource: null, remaining: null }),
-      ),
-    ).toBeNull()
-  })
-
-  it('says the limit is reached and when aircraft resume', () => {
-    expect(
-      onlineQuotaPause(quota({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 8100 })),
-    ).toEqual({
-      headline: 'Online Data Source daily limit reached.',
-      detail: 'Aircraft resume in about 2h 15m.',
-    })
-  })
-
-  it('says the feed is refusing calls when its limit is unknown, with no detail without a reset time', () => {
-    expect(
-      onlineQuotaPause(
-        quota({
-          state: 'reached',
-          limit: null,
-          limitSource: null,
-          remaining: 0,
-          resetsInSeconds: null,
-        }),
-      ),
-    ).toEqual({ headline: 'Online Data Source is refusing calls today.', detail: null })
   })
 })
