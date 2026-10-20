@@ -44,7 +44,7 @@ import {
 const LIMIT_SOURCE_LABEL: Record<OnlineQuotaLimitSource, string> = {
   setting: 'from Daily Call Limit',
   feed: 'stated by the feed',
-  default: 'adsb.lol default',
+  default: 'built-in default',
 }
 
 const { quota } = useOnlineQuota()

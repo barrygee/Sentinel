@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   fetchOnlineQuota,
   formatQuotaDuration,
+  onlineQuotaPause,
   onlineQuotaWarning,
   ONLINE_QUOTA_URL,
   type OnlineQuota,
@@ -88,7 +89,7 @@ describe('onlineQuotaWarning', () => {
 
   it('names the feed and what to do as the limit approaches', () => {
     expect(onlineQuotaWarning(quota({ state: 'approaching', used: 400, remaining: 100 }))).toBe(
-      'api.adsb.lol: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last.',
+      'Online Data Source: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last.',
     )
   })
 
@@ -97,18 +98,17 @@ describe('onlineQuotaWarning', () => {
       onlineQuotaWarning(
         quota({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 8100 }),
       ),
-    ).toBe('api.adsb.lol daily limit reached. Aircraft resume in about 2h 15m.')
+    ).toBe('Online Data Source daily limit reached. Aircraft resume in about 2h 15m.')
   })
 
-  it('says the feed counts more than Sentinel saw when it refuses before the count reaches the limit', () => {
-    // "all 500 daily calls used" beside 161 / 500 read as a bug.
+  it('names no figure when the feed refuses before the count reaches the limit', () => {
+    // The feed also counts calls Sentinel didn't see: "all 500 daily calls
+    // used" beside 161 / 500 would read as a bug.
     expect(
       onlineQuotaWarning(
         quota({ state: 'reached', used: 161, remaining: 0, resetsInSeconds: 5 * 3600 + 57 * 60 }),
       ),
-    ).toBe(
-      'api.adsb.lol daily limit reached (it counts other calls too). Aircraft resume in about 5h 57m.',
-    )
+    ).toBe('Online Data Source daily limit reached. Aircraft resume in about 5h 57m.')
   })
 
   it('says the feed refused when its limit is unknown, and leaves out an unknown resume time', () => {
@@ -123,6 +123,42 @@ describe('onlineQuotaWarning', () => {
           resetsInSeconds: null,
         }),
       ),
-    ).toBe('feed.example is refusing calls today.')
+    ).toBe('Online Data Source is refusing calls today.')
+  })
+})
+
+describe('onlineQuotaPause', () => {
+  it('is null until the limit is reached', () => {
+    expect(onlineQuotaPause(null)).toBeNull()
+    expect(onlineQuotaPause(quota())).toBeNull()
+    expect(onlineQuotaPause(quota({ state: 'approaching', used: 400, remaining: 100 }))).toBeNull()
+    expect(
+      onlineQuotaPause(
+        quota({ state: 'no_limit', limit: null, limitSource: null, remaining: null }),
+      ),
+    ).toBeNull()
+  })
+
+  it('says the limit is reached and when aircraft resume', () => {
+    expect(
+      onlineQuotaPause(quota({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 8100 })),
+    ).toEqual({
+      headline: 'Online Data Source daily limit reached.',
+      detail: 'Aircraft resume in about 2h 15m.',
+    })
+  })
+
+  it('says the feed is refusing calls when its limit is unknown, with no detail without a reset time', () => {
+    expect(
+      onlineQuotaPause(
+        quota({
+          state: 'reached',
+          limit: null,
+          limitSource: null,
+          remaining: 0,
+          resetsInSeconds: null,
+        }),
+      ),
+    ).toEqual({ headline: 'Online Data Source is refusing calls today.', detail: null })
   })
 })

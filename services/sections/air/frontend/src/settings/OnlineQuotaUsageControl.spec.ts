@@ -70,7 +70,7 @@ describe('OnlineQuotaUsageControl', () => {
 
   it.each([
     ['setting', '40 (from Daily Call Limit)'],
-    ['default', '40 (adsb.lol default)'],
+    ['default', '40 (built-in default)'],
   ] as const)('says where a %s limit came from', async (limitSource, expected) => {
     const wrapper = await mountWith(figure({ limit: 40, limitSource }))
 

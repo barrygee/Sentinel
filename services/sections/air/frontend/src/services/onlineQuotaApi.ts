@@ -53,23 +53,41 @@ export function formatQuotaDuration(seconds: number): string {
   return minutes ? `${minutes}m` : 'under a minute'
 }
 
+/** What the map's paused overlay says once the limit is reached. */
+export interface OnlineQuotaPause {
+  headline: string
+  /** When aircraft resume; null when the feed gave no reset time. */
+  detail: string | null
+}
+
 /**
- * The warning to show, or null when there is none. Shared by the map banner
- * and the Settings usage row so both say the same thing.
+ * Why the map has paused, or null while it hasn't: only once the daily limit
+ * is reached (or the feed refuses calls for the day).
+ */
+export function onlineQuotaPause(quota: OnlineQuota | null): OnlineQuotaPause | null {
+  if (!quota || quota.state !== 'reached') return null
+  return {
+    headline:
+      quota.limit === null
+        ? 'Online Data Source is refusing calls today.'
+        : 'Online Data Source daily limit reached.',
+    detail:
+      quota.resetsInSeconds !== null
+        ? `Aircraft resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
+        : null,
+  }
+}
+
+/**
+ * The warning to show as one line, or null when there is none: the map's
+ * banner while the limit approaches, and the Settings usage row. Once reached
+ * it is the paused overlay's two lines run together, so both say the same.
  */
 export function onlineQuotaWarning(quota: OnlineQuota | null): string | null {
-  if (!quota || quota.state === 'ok' || quota.state === 'no_limit') return null
-  if (quota.state === 'approaching') {
-    return `${quota.host}: ${quota.used} of ${quota.limit} daily calls used. Raise the Online Refresh Interval to make them last.`
+  if (quota?.state === 'approaching') {
+    return `Online Data Source: ${quota.used} of ${quota.limit} daily calls used. Raise the Online Refresh Interval to make them last.`
   }
-  const resume =
-    quota.resetsInSeconds !== null
-      ? ` Aircraft resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
-      : ''
-  if (quota.limit === null) return `${quota.host} is refusing calls today.${resume}`
-  // The feed refused before Sentinel's own count reached the limit: it counts
-  // every call from this address (other devices', and any made before
-  // counting began), so "reached" beside a lower count needs saying why.
-  const why = quota.used < quota.limit ? ' (it counts other calls too)' : ''
-  return `${quota.host} daily limit reached${why}.${resume}`
+  const pause = onlineQuotaPause(quota)
+  if (!pause) return null
+  return pause.detail ? `${pause.headline} ${pause.detail}` : pause.headline
 }

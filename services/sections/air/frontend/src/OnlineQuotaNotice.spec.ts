@@ -54,13 +54,44 @@ describe('OnlineQuotaNotice', () => {
   it('warns as the limit approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
-    expect(wrapper.text()).toContain('api.adsb.lol: 400 of 500 daily calls used.')
+    expect(wrapper.text()).toContain('Online Data Source: 400 of 500 daily calls used.')
   })
 
-  it('warns once it is reached, as a status the screen reader announces', async () => {
+  it('dims the map once it is reached, instead of the banner', async () => {
+    const wrapper = await mountWith(
+      figure({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 5 * 3600 + 2 * 60 }),
+    )
+
+    expect(wrapper.find('.map-paused-overlay-headline').text()).toBe(
+      'Online Data Source daily limit reached.',
+    )
+    expect(wrapper.find('.map-paused-overlay-detail').text()).toBe(
+      'Aircraft resume in about 5h 2m.',
+    )
+    expect(wrapper.find('.map-notice').exists()).toBe(false)
+  })
+
+  it('dims the map with no detail line when the feed gives no reset time', async () => {
+    const wrapper = await mountWith(
+      figure({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: null }),
+    )
+
+    expect(wrapper.find('.map-paused-overlay-detail').exists()).toBe(false)
+  })
+
+  it('shows the banner, not the dimmed map, while the limit only approaches', async () => {
+    const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
+
+    expect(wrapper.find('.map-notice').exists()).toBe(true)
+    expect(wrapper.find('.map-paused-overlay').exists()).toBe(false)
+  })
+
+  it('has no accessibility violations once reached', async () => {
     const wrapper = await mountWith(figure({ state: 'reached', used: 500, remaining: 0 }))
 
-    expect(wrapper.find('[role="status"]').text()).toContain('daily limit reached')
+    expect(
+      await axe(wrapper.element, { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
   })
 
   it('has no accessibility violations', async () => {
