@@ -322,12 +322,12 @@ class OnlineQuotaTracker:
         """Raise a notification when a host's state moves to `approaching` or `reached`."""
         if _SEVERITY[status.state] <= _SEVERITY[previous_state]:
             return
-        # "Online Data Source", the setting the feed comes from, rather than the
-        # feed's address: the alert names the setting the operator would change.
+        # "Online data source" (the Online Data Source setting the feed comes
+        # from) rather than the feed's address, so it stays right for any feed.
         if status.state == "approaching":
             title = "ADS-B CALL LIMIT LOW"
             detail = (
-                f"Online Data Source: {status.used} of {status.limit} daily calls used. "
+                f"Online data source: {status.used} of {status.limit} daily calls used. "
                 "Raise the Online Refresh Interval to make them last."
             )
         else:
@@ -335,9 +335,9 @@ class OnlineQuotaTracker:
             resume = f" Aircraft resume in about {_format_duration(status.resets_in_seconds)}."
             if status.limit is None:
                 # No known limit: the feed itself refused, with a day-long reset.
-                detail = f"Online Data Source is refusing calls today.{resume}"
+                detail = f"Online data source is refusing calls today.{resume}"
             else:
-                detail = f"Online Data Source daily limit reached.{resume}"
+                detail = f"Online data source daily limit reached.{resume}"
         now_ms = _now_ms()
         # One per state per host per UTC day: core ignores a msg_id it already
         # stored, so a count hovering around the threshold (or a restart)

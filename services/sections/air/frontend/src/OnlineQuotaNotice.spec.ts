@@ -54,7 +54,7 @@ describe('OnlineQuotaNotice', () => {
   it('warns as the limit approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
-    expect(wrapper.text()).toContain('Online Data Source: 400 of 500 daily calls used.')
+    expect(wrapper.text()).toContain('Online data source: 400 of 500 daily calls used.')
   })
 
   it('dims the map once it is reached, and keeps the warning banner over it', async () => {
@@ -64,7 +64,7 @@ describe('OnlineQuotaNotice', () => {
 
     expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
     expect(wrapper.find('[role="status"]').text()).toContain(
-      'Online Data Source daily limit reached. Aircraft resume in about 5h 2m.',
+      'Online data source daily limit reached. Aircraft resume in about 5h 2m.',
     )
   })
 

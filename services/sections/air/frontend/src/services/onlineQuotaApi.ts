@@ -60,12 +60,12 @@ export function formatQuotaDuration(seconds: number): string {
 export function onlineQuotaWarning(quota: OnlineQuota | null): string | null {
   if (!quota || quota.state === 'ok' || quota.state === 'no_limit') return null
   if (quota.state === 'approaching') {
-    return `Online Data Source: ${quota.used} of ${quota.limit} daily calls used. Raise the Online Refresh Interval to make them last.`
+    return `Online data source: ${quota.used} of ${quota.limit} daily calls used. Raise the Online Refresh Interval to make them last.`
   }
   const resume =
     quota.resetsInSeconds !== null
       ? ` Aircraft resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
       : ''
-  if (quota.limit === null) return `Online Data Source is refusing calls today.${resume}`
-  return `Online Data Source daily limit reached.${resume}`
+  if (quota.limit === null) return `Online data source is refusing calls today.${resume}`
+  return `Online data source daily limit reached.${resume}`
 }

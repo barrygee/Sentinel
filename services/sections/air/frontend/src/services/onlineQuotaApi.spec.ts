@@ -88,7 +88,7 @@ describe('onlineQuotaWarning', () => {
 
   it('names the feed and what to do as the limit approaches', () => {
     expect(onlineQuotaWarning(quota({ state: 'approaching', used: 400, remaining: 100 }))).toBe(
-      'Online Data Source: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last.',
+      'Online data source: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last.',
     )
   })
 
@@ -97,7 +97,7 @@ describe('onlineQuotaWarning', () => {
       onlineQuotaWarning(
         quota({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 8100 }),
       ),
-    ).toBe('Online Data Source daily limit reached. Aircraft resume in about 2h 15m.')
+    ).toBe('Online data source daily limit reached. Aircraft resume in about 2h 15m.')
   })
 
   it('names no figure when the feed refuses before the count reaches the limit', () => {
@@ -107,7 +107,7 @@ describe('onlineQuotaWarning', () => {
       onlineQuotaWarning(
         quota({ state: 'reached', used: 161, remaining: 0, resetsInSeconds: 5 * 3600 + 57 * 60 }),
       ),
-    ).toBe('Online Data Source daily limit reached. Aircraft resume in about 5h 57m.')
+    ).toBe('Online data source daily limit reached. Aircraft resume in about 5h 57m.')
   })
 
   it('says the feed refused when its limit is unknown, and leaves out an unknown resume time', () => {
@@ -122,6 +122,6 @@ describe('onlineQuotaWarning', () => {
           resetsInSeconds: null,
         }),
       ),
-    ).toBe('Online Data Source is refusing calls today.')
+    ).toBe('Online data source is refusing calls today.')
   })
 })
