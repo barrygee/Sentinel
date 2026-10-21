@@ -550,6 +550,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the warning banner over the dimmed map
 - Write "Online data source" in the daily-limit warnings
 - "Aircraft will resume in approximately" in the daily-limit warnings
+- Stop polling the map while its browser tab is hidden
 
 ### Chores
 
@@ -1627,6 +1628,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #525 from barrygee/chore/air-uv-lock
 - Merge pull request #526 from barrygee/fix/air-quota-refusal-wording
 - Merge pull request #527 from barrygee/fix/air-no-console-503s
+- Merge pull request #528 from barrygee/fix/air-pause-hidden-tab
 
 ### Refactoring
 
