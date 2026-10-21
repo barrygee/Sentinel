@@ -40,6 +40,29 @@
         "title": "AisKeyIn",
         "type": "object"
       },
+      "AppMode": {
+        "description": "Body of GET /api/app/mode.",
+        "properties": {
+          "landingPath": {
+            "title": "Landingpath",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "full",
+              "sdr-manager-local-only"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "landingPath"
+        ],
+        "title": "AppMode",
+        "type": "object"
+      },
       "AreaRequest": {
         "description": "A bounding box, depth and content selection — the shared shape behind\nboth the estimate and the region-creation endpoints.",
         "properties": {
@@ -280,7 +303,7 @@
         "type": "object"
       },
       "DeployedSection": {
-        "description": "One section the shell should load.",
+        "description": "One UI remote the shell should load.",
         "properties": {
           "available": {
             "title": "Available",
@@ -290,6 +313,10 @@
             "title": "Id",
             "type": "string"
           },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
           "remoteEntry": {
             "title": "Remoteentry",
             "type": "string"
@@ -297,6 +324,7 @@
         },
         "required": [
           "id",
+          "kind",
           "remoteEntry",
           "available"
         ],
@@ -2383,9 +2411,31 @@
         ]
       }
     },
+    "/api/app/mode": {
+      "get": {
+        "description": "Say which shell to mount, and where it starts.",
+        "operationId": "get_app_mode_api_app_mode_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppMode"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get App Mode",
+        "tags": [
+          "app"
+        ]
+      }
+    },
     "/api/app/sections": {
       "get": {
-        "description": "List the sections the shell should load as federation remotes.",
+        "description": "List the UI remotes (sections and SDR Manager) the shell should load as federation remotes.",
         "operationId": "list_sections_api_app_sections_get",
         "responses": {
           "200": {

@@ -20,6 +20,7 @@ from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 
 from backend.core import app_docs as app_docs_router
+from backend.core import app_mode as app_mode_router
 from backend.core import app_sections as app_sections_router
 from backend.core import notifications as notifications_router
 from backend.core import registry_router, settings_secrets
@@ -48,6 +49,8 @@ def core_routers() -> list[APIRouter]:
         app_sections_router.router,
         # Whether the optional docs service is deployed (the shell offers Docs only then).
         app_docs_router.router,
+        # Full app or SDR Manager-only: which shell the SPA mounts (ADR 0007).
+        app_mode_router.router,
         registry_router.router,
         # Secret settings for their owning service (Sea's AISStream key), per-service credential gated.
         settings_secrets.router,

@@ -225,3 +225,117 @@ class TestRegister:
 
 def test_the_endpoint_is_not_in_the_public_api_schema(client):
     assert REGISTER_URL not in client.get("/api/openapi.json").json()["paths"]
+
+
+
+# ── GET /internal/registry/services ───────────────────────────────────────────
+
+LIST_URL = "/internal/registry/services"
+
+
+def register_sdr_manager_local(client: TestClient, **manifest_overrides) -> None:
+    """Register an sdr-manager-local through the endpoint, as core may for any id."""
+    body = registration(
+        "sdr-manager-local-1",
+        id="sdr-manager-local",
+        kind="sdr-manager-local",
+        internalUrl="http://host.docker.internal:8000",
+        routes=["/api/sdr-manager/local/"],
+        ui={"remoteEntry": "/remotes/sdr-manager-local/remoteEntry.js"},
+        **manifest_overrides,
+    )
+    assert client.post(REGISTER_URL, json=body, headers=AUTHORIZED).status_code == 200
+
+
+class TestListServicesCredential:
+    def test_disabled_when_core_accepts_no_callers(self, isolated_registry, client, monkeypatch):
+        monkeypatch.setattr(settings, "accepted_callers_file", "")
+
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+
+        assert response.status_code == 503
+
+    @pytest.mark.parametrize(
+        "headers",
+        [
+            {},
+            {"Authorization": "Bearer wrong-token"},
+            {"Authorization": TOKENS["sdr-manager-remote"]},
+            {"Authorization": f"Bearer {TOKENS['sdr-manager-remote']}x"},
+        ],
+    )
+    def test_refuses_a_missing_or_wrong_credential(self, isolated_registry, client, headers):
+        register_sdr_manager_local(client)
+
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=headers)
+
+        assert response.status_code == 401
+        assert "host.docker.internal" not in response.text
+
+    @pytest.mark.parametrize("caller", ["air", "sdr", "radio", "sdr-manager-local", "docs", "stub-decoder"])
+    def test_a_caller_without_the_grant_is_forbidden(self, isolated_registry, client, caller):
+        register_sdr_manager_local(client)
+
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer(caller))
+
+        assert response.status_code == 403
+        assert "host.docker.internal" not in response.text
+
+    @pytest.mark.parametrize("kind", ["section", "radio", "sdr-manager-remote", "no-such-kind"])
+    def test_sdr_manager_remote_may_list_no_other_kind(self, isolated_registry, client, kind):
+        response = client.get(LIST_URL, params={"kind": kind}, headers=bearer("sdr-manager-remote"))
+
+        # A known and an unknown kind answer alike, so nothing is learned from the refusal.
+        assert response.status_code == 403
+        assert response.json() == {"detail": "This service may not do that"}
+
+    @pytest.mark.parametrize("params", [{}, {"kind": ""}, {"kind": "x" * 33}])
+    def test_a_missing_or_unbounded_kind_is_unprocessable(self, isolated_registry, client, params):
+        response = client.get(LIST_URL, params=params, headers=bearer("sdr-manager-remote"))
+
+        assert response.status_code == 422
+
+
+class TestListServices:
+    def test_lists_the_registered_services_of_the_kind(self, isolated_registry, client):
+        register_sdr_manager_local(client)
+
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "services": [
+                {
+                    "id": "sdr-manager-local",
+                    "kind": "sdr-manager-local",
+                    "internalUrl": "http://host.docker.internal:8000",
+                    "available": True,
+                }
+            ]
+        }
+
+    def test_an_empty_list_when_none_is_registered(self, isolated_registry, client):
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+
+        assert response.status_code == 200
+        assert response.json() == {"services": []}
+
+    def test_leaves_out_other_kinds(self, isolated_registry, client):
+        # The fixture's in-process `sea` section must not appear.
+        register_sdr_manager_local(client)
+
+        response = client.get(LIST_URL, params={"kind": "section"}, headers=AUTHORIZED)
+
+        assert [service["id"] for service in response.json()["services"]] == ["sea"]
+
+    def test_follows_the_probes_availability(self, isolated_registry, client):
+        register_sdr_manager_local(client)
+        isolated_registry.get("sdr-manager-local").available = False
+
+        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+
+        assert response.json()["services"][0]["available"] is False
+
+
+def test_the_listing_is_not_in_the_public_api_schema(client):
+    assert LIST_URL not in client.get("/api/openapi.json").json()["paths"]

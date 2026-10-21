@@ -194,6 +194,19 @@ class TestCoreModule:
         await core.lifecycle.start()
         assert core.notifications.streams._closing is False
 
+    @pytest.mark.parametrize("mode", ["full", "sdr-manager-local-only"])
+    async def test_start_logs_the_mode_core_runs_in(self, monkeypatch, caplog, mode):
+        monkeypatch.setattr(core.settings, "sentinel_mode", mode)
+        monkeypatch.setattr(core.app_config_file.sync, "start", recorder([], "config"))
+        monkeypatch.setattr(core.offline_map_job_runner, "start", recorder([], "offline"))
+        monkeypatch.setattr(core.registry, "start", recorder([], "registry", is_async=False))
+        monkeypatch.setattr(core.gateway_sync, "start", recorder([], "gateway", is_async=False))
+
+        with caplog.at_level(logging.INFO, logger="backend.modules.core"):
+            await core.lifecycle.start()
+
+        assert f"core: starting in {mode} mode" in caplog.messages
+
     async def test_starts_the_gateway_sync_after_the_registry_and_stops_it_first(
         self, monkeypatch
     ):

@@ -2,6 +2,8 @@
 section serves, the address it advertises, and the order its lifecycle runs in."""
 
 import asyncio
+import contextlib
+import time
 
 import httpx
 import pytest
@@ -284,3 +286,213 @@ class TestLifespan:
             pass
 
         assert calls == ["registration.start", "registration.stop"]
+
+
+class TestServeBeforeCore:
+    """`serve_before_core` (ADR 0007): sdr-manager-local keeps serving while core is down."""
+
+    @pytest.fixture
+    def calls(self, monkeypatch) -> list[str]:
+        calls: list[str] = []
+
+        async def stop(self):
+            calls.append("registration.stop")
+
+        monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
+        monkeypatch.setattr(ServiceRegistrar, "stop", stop)
+        return calls
+
+    @pytest.fixture
+    def core_answered(self, monkeypatch, calls) -> asyncio.Event:
+        """Core answers once this is set; until then `wait_for_core` blocks, as it does for real."""
+        answered = asyncio.Event()
+
+        async def wait_for_core(waiting_for):
+            assert waiting_for == "space service startup"
+            try:
+                await answered.wait()
+            except asyncio.CancelledError:
+                calls.append("core-wait.cancelled")
+                raise
+
+        monkeypatch.setattr(sdk_module, "wait_for_core", wait_for_core)
+        return answered
+
+    def lifecycle(self, calls: list[str], name: str, *, failing_prepare: bool = False) -> ModuleLifecycle:
+        async def prepare():
+            calls.append(f"{name}.prepare")
+            if failing_prepare:
+                raise RuntimeError(f"{name} prepare failed")
+
+        async def start():
+            calls.append(f"{name}.start")
+
+        async def stop():
+            calls.append(f"{name}.stop")
+
+        return ModuleLifecycle(name=name, prepare=prepare, start=start, stop=stop)
+
+    def build(self, calls: list[str], **overrides):
+        options = {
+            "manifest": make_manifest(),
+            "routers": [make_router()],
+            "lifecycles": [self.lifecycle(calls, "section")],
+            "serve_before_core": True,
+            "core_independent_lifecycles": [self.lifecycle(calls, "local")],
+        }
+        options.update(overrides)
+        return create_service(**options)
+
+    @contextlib.asynccontextmanager
+    async def serving(self, app):
+        """Run the app's lifespan; a startup or shutdown that blocks (on core) fails the test rather than hanging it."""
+        lifespan = app.router.lifespan_context(app)
+        await asyncio.wait_for(lifespan.__aenter__(), timeout=5)
+        try:
+            yield
+        finally:
+            await asyncio.wait_for(lifespan.__aexit__(None, None, None), timeout=5)
+
+    async def until(self, calls: list[str], expected: str) -> None:
+        """Let the background startup run until `expected` has been called (fails, not hangs)."""
+
+        async def poll():
+            while expected not in calls:
+                await asyncio.sleep(0.01)
+
+        await asyncio.wait_for(poll(), timeout=5)
+
+    def test_core_independent_lifecycles_need_serve_before_core(self, calls):
+        with pytest.raises(ValueError, match="serve_before_core"):
+            create_service(
+                manifest=make_manifest(),
+                routers=[],
+                lifecycles=[],
+                core_independent_lifecycles=[self.lifecycle(calls, "local")],
+            )
+
+    async def test_off_by_default_nothing_serves_before_core(self, calls, core_answered):
+        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.lifecycle(calls, "section")])
+        started = asyncio.Event()
+
+        async def run_service():
+            async with self.serving(app):
+                started.set()
+
+        service = asyncio.create_task(run_service())
+        await asyncio.sleep(0.05)
+        assert not started.is_set()
+        assert calls == []
+
+        core_answered.set()
+        await asyncio.wait_for(service, timeout=5)
+
+    async def test_serves_and_runs_its_core_independent_work_while_core_is_down(self, calls, core_answered):
+        app = self.build(calls)
+
+        async with self.serving(app):
+            await asyncio.sleep(0.05)
+            async with client_for(app) as client:
+                echo = await client.get("/api/space/echo", params={"count": 1})
+                health = (await client.get("/health")).json()
+
+            assert echo.json() == {"count": 1}
+            assert health["registered"] is False
+            # Nothing that needs core has run: no section work, no registration.
+            assert calls == ["local.prepare", "local.start"]
+            core_answered.set()  # let the background task finish before shutdown
+
+    async def test_the_rest_starts_once_core_answers(self, calls, core_answered):
+        app = self.build(calls)
+
+        async with self.serving(app):
+            core_answered.set()
+            await self.until(calls, "registration.start")
+
+            assert calls == [
+                "local.prepare",
+                "local.start",
+                "section.prepare",
+                "section.start",
+                "registration.start",
+            ]
+
+        # Registration stops first, the core-independent work last.
+        assert calls[5:] == ["registration.stop", "section.stop", "local.stop"]
+
+    async def test_stopping_while_waiting_for_core_cancels_the_wait(self, calls, core_answered):
+        app = self.build(calls)
+
+        async with self.serving(app):
+            await asyncio.sleep(0.05)
+            stopping = time.monotonic()
+
+        # Shutdown cancels the wait rather than waiting out a core that never answers.
+        assert time.monotonic() - stopping < 1
+        # Core never answered: the wait is cancelled, and only the
+        # core-independent work started, so only it stops.
+        assert calls == ["local.prepare", "local.start", "core-wait.cancelled", "local.stop"]
+
+    async def test_a_failed_startup_after_core_is_logged_and_it_keeps_serving(self, calls, core_answered, caplog):
+        app = self.build(calls, lifecycles=[self.lifecycle(calls, "section", failing_prepare=True)])
+
+        async with self.serving(app):
+            core_answered.set()
+            await self.until(calls, "section.prepare")
+            await asyncio.sleep(0.05)
+            async with client_for(app) as client:
+                assert (await client.get("/api/space/echo", params={"count": 2})).json() == {"count": 2}
+
+        assert "space: startup after core answered failed; serving without it" in caplog.messages
+        # Never started, so never registered or stopped; the core-independent work still stops.
+        assert calls == ["local.prepare", "local.start", "section.prepare", "local.stop"]
+
+    async def test_needs_no_core_independent_lifecycles(self, calls, core_answered):
+        app = self.build(calls, core_independent_lifecycles=[])
+
+        async with self.serving(app):
+            assert calls == []
+            core_answered.set()
+            await self.until(calls, "registration.start")
+
+        assert calls == [
+            "section.prepare",
+            "section.start",
+            "registration.start",
+            "registration.stop",
+            "section.stop",
+        ]
+
+    async def test_the_bus_connects_only_after_core_answers(self, calls, core_answered, monkeypatch):
+        class FakeTransport:
+            def __init__(self, bus, url, *, client_name, open_session):
+                pass
+
+            async def start(self):
+                calls.append("bus.start")
+
+            async def stop(self):
+                calls.append("bus.stop")
+
+        monkeypatch.setattr(settings, "nats_url", "nats://nats:4222")
+        monkeypatch.setattr(sdk_module, "NatsTransport", FakeTransport)
+        app = self.build(calls)
+
+        async with self.serving(app):
+            await asyncio.sleep(0.05)
+            assert "bus.start" not in calls
+            core_answered.set()
+            await self.until(calls, "registration.start")
+
+        assert calls == [
+            "local.prepare",
+            "local.start",
+            "section.prepare",
+            "bus.start",
+            "section.start",
+            "registration.start",
+            "registration.stop",
+            "section.stop",
+            "bus.stop",
+            "local.stop",
+        ]

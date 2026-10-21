@@ -1,5 +1,8 @@
 """Core lifecycle: database schema and settings, the live config file, offline maps, the service registry, the gateway."""
 
+import logging
+
+from backend.config import settings
 from backend.core import notifications
 from backend.core.gateway_sync import gateway_sync
 from backend.core.service_registry import registry
@@ -14,6 +17,8 @@ from backend.platform.lifecycle import ModuleLifecycle
 from backend.services import app_config_file
 from backend.services.offline_map.job_runner import runner as offline_map_job_runner
 
+logger = logging.getLogger(__name__)
+
 
 async def _prepare() -> None:
     await create_tables()
@@ -26,6 +31,9 @@ async def _prepare() -> None:
 
 
 async def _start() -> None:
+    # Which shell this deployment runs (ADR 0007): the first thing to check when
+    # an SDR Manager-only box shows the full app, or the reverse.
+    logger.info("core: starting in %s mode", settings.sentinel_mode)
     notifications.streams.reopen()
     # Live config file: apply an edit made while Sentinel was stopped, write the
     # seeded/migrated settings out, then keep file and database in sync both ways.

@@ -27,7 +27,7 @@ from sentinel_sdr import router as sdr
 from sentinel_sea import router as sea
 from sentinel_space import router as space
 
-from backend.core import app_docs, app_sections, notifications, registry_router, settings_secrets
+from backend.core import app_docs, app_mode, app_sections, notifications, registry_router, settings_secrets
 from backend.core.app import CORE_LIFECYCLES, core_routers, create_core_app
 from backend.modules import bus as bus_module
 from backend.modules import core as core_module
@@ -42,6 +42,7 @@ CORE_ROUTERS = [
     offline_map.router,
     app_sections.router,
     app_docs.router,
+    app_mode.router,
     registry_router.router,
     settings_secrets.router,
 ]
@@ -90,6 +91,7 @@ class TestCoreRouters:
             offline_map.router,
             app_sections.router,
             app_docs.router,
+            app_mode.router,
             registry_router.router,
             settings_secrets.router,
             docs.router,

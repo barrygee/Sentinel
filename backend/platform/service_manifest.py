@@ -97,7 +97,9 @@ class ServiceManifest(BaseModel):
     id: str
     # "docs" is the in-app documentation service (`sentinel_docs`): routed and
     # probed like the others, and the shell shows Docs only while one is registered.
-    kind: Literal["section", "radio", "decoder", "docs"]
+    # The two SDR Manager kinds (ADR 0007) each contribute a group to the shared
+    # "SDR Manager" Settings section through their UI remote, but no map section.
+    kind: Literal["section", "radio", "decoder", "docs", "sdr-manager-local", "sdr-manager-remote"]
     version: str = Field(min_length=1, max_length=64)
     contracts: str = Field(default="^1", max_length=16)
     display_name: str = Field(default="", alias="displayName", max_length=64)

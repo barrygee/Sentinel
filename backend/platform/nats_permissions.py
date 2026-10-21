@@ -64,6 +64,18 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     "space": SubjectPermissions(),
     # Serves the in-app documentation and uses no subject; it still connects, like every service.
     "docs": SubjectPermissions(),
+    # This machine's dongles (ADR 0007). It never connects: it talks to core
+    # over HTTPS and to sdr-manager-remote through the SDR Manager API. Listed
+    # with no subjects so its HTTP credential has an entry here too.
+    "sdr-manager-local": SubjectPermissions(),
+    # SDR hosts on other machines: answers the reservation, device-address,
+    # host-location and host-snapshot requests, and tells the hub which
+    # dongles are claimed so it never retunes one.
+    "sdr-manager-remote": SubjectPermissions(
+        publish=("sdr-manager.claims.>",),
+        subscribe=("sdr-manager.remote.>",),
+        answers_requests=True,
+    ),
 }
 """Keyed by NATS user name: `core` for the app, otherwise the service id."""
 

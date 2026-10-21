@@ -10,6 +10,13 @@ standalone app that:
   - serves `/health` (core's probe) and its own UI remote under
     `/remotes/<id>/`.
 
+By default nothing is served until core answers. A service that must keep
+working while core is down (`sdr-manager-local`, whose dongles keep streaming,
+ADR 0007) opts in with `serve_before_core=True`: its
+`core_independent_lifecycles` run at startup and it serves at once, while the
+core-ready wait, the bus, its other lifecycles and registration follow in the
+background once core answers.
+
 Settings stay in core: with `SENTINEL_CORE_URL` set, the settings client reads
 and writes them over HTTP (`backend/platform/settings_client.py`). The service's
 own data lives in its own SQLite file (`DB_PATH`); `legacy_import.py` copies it
@@ -21,10 +28,12 @@ routers and lifecycles, so what the tests exercise is what a service runs.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncIterator, Sequence
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 
 from backend.config import settings
@@ -40,6 +49,8 @@ from backend.platform.settings_client import wait_for_core
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceMisconfigured(RuntimeError):
@@ -106,12 +117,43 @@ def _registration_lifecycle(registrar: ServiceRegistrar) -> ModuleLifecycle:
     return ModuleLifecycle(name="registration", start=start, stop=registrar.stop)
 
 
+@asynccontextmanager
+async def _run_once_core_answers(service_id: str, modules: Sequence[ModuleLifecycle]) -> AsyncIterator[None]:
+    """Run `modules` in the background once core answers, without holding up startup.
+
+    For `serve_before_core`: the service is already serving when this yields.
+    On exit, a wait (or startup) still in progress is cancelled, and modules
+    that did start are stopped in reverse order, as `run_lifecycles` does.
+    """
+    started_modules = AsyncExitStack()
+
+    async def wait_then_start() -> None:
+        await wait_for_core(f"{service_id} service startup")
+        try:
+            await started_modules.enter_async_context(run_lifecycles(modules))
+        except Exception:
+            # The core-independent part keeps serving, so say clearly that the
+            # rest never came up rather than letting the task die silently.
+            logger.exception("%s: startup after core answered failed; serving without it", service_id)
+
+    task = asyncio.create_task(wait_then_start(), name=f"{service_id}-after-core")
+    try:
+        yield
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await started_modules.aclose()
+
+
 def create_service(
     *,
     manifest: ServiceManifest,
     routers: Sequence[APIRouter],
     lifecycles: Sequence[ModuleLifecycle],
     remote_dir: Path | None = None,
+    serve_before_core: bool = False,
+    core_independent_lifecycles: Sequence[ModuleLifecycle] = (),
 ) -> FastAPI:
     """Build the FastAPI app for one standalone service.
 
@@ -119,16 +161,27 @@ def create_service(
     the bus connects and before registration starts, so a service is only
     routed to once its own `prepare`/`start` have run (and it deregisters —
     stops re-registering — before they stop). `remote_dir` is the built UI
-    remote served at `/remotes/<id>/` (sections only).
+    remote served at `/remotes/<id>/` (sections and SDR Manager).
 
-    Raises `ServiceMisconfigured` when the environment can't place the service.
+    With `serve_before_core`, the service starts serving without waiting for
+    core: `core_independent_lifecycles` (which must not read settings or use
+    the bus) run at startup, and everything else — the core-ready wait, the
+    bus, `lifecycles`, registration — runs in the background once core
+    answers. Off by default; only a service that must outlive a core outage
+    should opt in.
+
+    Raises `ServiceMisconfigured` when the environment can't place the service,
+    and `ValueError` for `core_independent_lifecycles` without `serve_before_core`.
     """
+    if core_independent_lifecycles and not serve_before_core:
+        # Without serve_before_core, nothing would run before core anyway, so
+        # the split would silently mean nothing.
+        raise ValueError("core_independent_lifecycles needs serve_before_core=True")
     # Core configures logging in its entry point (backend/main.py); a service has no other entry.
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
     advertised = advertised_manifest(manifest)
     registrar = ServiceRegistrar(advertised)
-    modules = (
-        _core_ready_lifecycle(advertised.id),
+    core_dependent = (
         _bus_lifecycle(advertised.id),
         *lifecycles,
         _registration_lifecycle(registrar),
@@ -136,8 +189,13 @@ def create_service(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        async with run_lifecycles(modules):
-            yield
+        if not serve_before_core:
+            async with run_lifecycles((_core_ready_lifecycle(advertised.id), *core_dependent)):
+                yield
+            return
+        async with run_lifecycles(core_independent_lifecycles):
+            async with _run_once_core_answers(advertised.id, core_dependent):
+                yield
 
     app = FastAPI(
         title=f"SENTINEL {advertised.display_name or advertised.id} service",

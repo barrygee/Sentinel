@@ -34,7 +34,14 @@ from sentinel_sea import router as sea_router
 from sentinel_space import module as space_module
 from sentinel_space import router as space_router
 
-from backend.core import app_docs, app_sections, notifications, registry_router, settings_secrets
+from backend.core import (
+    app_docs,
+    app_mode,
+    app_sections,
+    notifications,
+    registry_router,
+    settings_secrets,
+)
 from backend.core.app import CORE_LIFECYCLES, create_core_app
 from backend.core.service_registry import registry
 from backend.platform.lifecycle import ModuleLifecycle
@@ -101,6 +108,7 @@ def in_process_routers() -> list[APIRouter]:
         offline_map.router,
         app_sections.router,
         app_docs.router,
+        app_mode.router,
         registry_router.router,
         settings_secrets.router,
         # The in-app documentation (its own `docs` service in a deployment).
