@@ -304,7 +304,7 @@ def generate(output_directory: Path) -> None:
     }
     tokens = {caller: ensure_http_credentials(callers_directory / caller, caller) for caller in CALLER_ACCESS}
     # Rewritten every run (cheap, and a verifier re-reads it when it changes):
-    # core and the hub accept every caller; what each may do is service_access.py's.
+    # core, the hub and sdr-manager-local accept every caller; what each may do is service_access.py's.
     for verifier in VERIFYING_SERVICES:
         _write_private(callers_directory / verifier / ACCEPTED_CALLERS_FILE, accepted_callers(tokens))
     print(f"service-credentials: {len(tokens)} HTTP callers accepted by {', '.join(VERIFYING_SERVICES)}")

@@ -13,6 +13,7 @@ import { isDeployed } from './support/sectionDeployment';
  *   3. The shell and its section remotes load with no CSP violation.
  *   4. The alerts SSE stream is flushed, not buffered by the proxy.
  *   5. /ws/sdr/* WebSockets upgrade through the gateway.
+ *   6. /api/app/mode reaches core and says the composed stack is the full app.
  */
 
 test('the gateway never routes /internal/, whatever the method or spelling', async ({
@@ -22,6 +23,7 @@ test('the gateway never routes /internal/, whatever the method or spelling', asy
     // only the gateway's own block turns every one of these into a JSON 404.
     for (const path of [
         '/internal/registry/register',
+        '/internal/registry/services?kind=sdr-manager-local',
         '/internal',
         '/INTERNAL/registry/register',
         '/%69nternal/registry/register',
@@ -119,4 +121,11 @@ test('the SDR WebSocket upgrades through the gateway', async ({ page }) => {
         new URL(page.url()).host,
     );
     expect(opened).toBe(true);
+});
+
+test('the app mode reaches core through the gateway and is the full app', async ({ request }) => {
+    // The compose stack sets no SENTINEL_MODE, so the shell mounts the full app at /.
+    const response = await request.get('/api/app/mode');
+    expect(response.status()).toBe(200);
+    expect(await response.json()).toEqual({ mode: 'full', landingPath: '/' });
 });

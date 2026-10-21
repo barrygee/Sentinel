@@ -68,7 +68,7 @@ class TestValidManifest:
     def test_strips_a_trailing_slash_from_the_internal_url(self):
         assert validate(internalUrl="https://wx.lan:9000/").internal_url == "https://wx.lan:9000"
 
-    @pytest.mark.parametrize("kind", ["section", "radio", "decoder"])
+    @pytest.mark.parametrize("kind", ["section", "radio", "decoder", "docs", "sdr-manager-local", "sdr-manager-remote"])
     def test_accepts_each_service_kind(self, kind: str):
         assert validate(kind=kind).kind == kind
 
@@ -93,7 +93,7 @@ class TestRejectedManifest:
         with pytest.raises(ValidationError, match="id must be"):
             validate(id=bad_id, ui=None)
 
-    @pytest.mark.parametrize("kind", ["plugin", "radio-hub"])
+    @pytest.mark.parametrize("kind", ["plugin", "radio-hub", "sdr-manager", "sentry"])
     def test_rejects_an_unknown_kind(self, kind: str):
         # `radio-hub` was the hub's kind before it was renamed `radio`.
         with pytest.raises(ValidationError):

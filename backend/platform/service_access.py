@@ -12,6 +12,10 @@ caller is allowed to do:
   - fetch the hub's staged IQ captures (the SDR section collects them)
   - act as a decoder of one kind: read its config, post its events, register
     its manifest
+  - list core's registered services of given kinds (`sdr-manager-remote`
+    finds `sdr-manager-local` this way)
+  - manage this machine's SDRs through `sdr-manager-local`'s SDR Manager API
+    with a service bearer instead of the console password
 
 A caller the table doesn't mention gets nothing. Like the NATS table
 (`nats_permissions.py`), a new service or decoder kind must be added here, and
@@ -36,6 +40,10 @@ class CallerAccess:
     fetches_iq_captures: bool = False
     decoder_kind: str | None = None
     """The decoder kind it may act as (ingest, config, manifest registration)."""
+    lists_service_kinds: frozenset[str] = field(default_factory=frozenset)
+    """The manifest kinds it may list from core's registry (`GET /internal/registry/services`)."""
+    manages_local_sdrs: bool = False
+    """It may call `sdr-manager-local`'s SDR Manager API with its service bearer (ADR 0007)."""
 
 
 SERVICE_ACCESS: dict[str, CallerAccess] = {
@@ -52,6 +60,15 @@ SERVICE_ACCESS: dict[str, CallerAccess] = {
     "sdr": CallerAccess(registers_as="sdr", fetches_iq_captures=True),
     # The in-app documentation: it only registers.
     "docs": CallerAccess(registers_as="docs"),
+    # This machine's dongles: it only registers, and checks the bearer
+    # sdr-manager-remote presents (it is a verifying service, below).
+    "sdr-manager-local": CallerAccess(registers_as="sdr-manager-local"),
+    # Finds sdr-manager-local in the registry and manages it as "This machine".
+    "sdr-manager-remote": CallerAccess(
+        registers_as="sdr-manager-remote",
+        lists_service_kinds=frozenset({"sdr-manager-local"}),
+        manages_local_sdrs=True,
+    ),
 }
 """Services, keyed by the same name as their NATS user (`core` for the app)."""
 
@@ -65,7 +82,7 @@ DECODER_ACCESS: dict[str, CallerAccess] = {
 
 CALLER_ACCESS: dict[str, CallerAccess] = {**SERVICE_ACCESS, **DECODER_ACCESS}
 
-VERIFYING_SERVICES: tuple[str, ...] = (CORE_USER, "radio")
+VERIFYING_SERVICES: tuple[str, ...] = (CORE_USER, "radio", "sdr-manager-local")
 """The processes that serve internal routes, so get the list of accepted callers."""
 
 assert set(SERVICE_ACCESS) == set(SERVICE_PERMISSIONS), "every NATS user needs an HTTP entry, and back"
@@ -91,6 +108,22 @@ def may_fetch_iq_captures(caller: str) -> bool:
     """True when `caller` may fetch or discard the hub's staged IQ captures."""
     access = _access(caller)
     return caller == CORE_USER or (access is not None and access.fetches_iq_captures)
+
+
+def may_list_services(caller: str, kind: str) -> bool:
+    """True when `caller` may list core's registered services of manifest `kind`."""
+    access = _access(caller)
+    return caller == CORE_USER or (access is not None and kind in access.lists_service_kinds)
+
+
+def may_manage_local_sdrs(caller: str) -> bool:
+    """True when `caller` may manage this machine's SDRs with its service bearer.
+
+    Core is deliberately not let through: only sdr-manager-remote manages
+    SDR hosts, and every other manager signs in with the console password.
+    """
+    access = _access(caller)
+    return access is not None and access.manages_local_sdrs
 
 
 def may_decode(caller: str, kind: str) -> bool:

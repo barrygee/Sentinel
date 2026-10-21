@@ -55,6 +55,7 @@ const PRESENT_SECTIONS = EXTRACTED_SECTIONS.filter(
 
 interface DeployedSection {
     id: string;
+    kind: string;
     remoteEntry: string;
     available: boolean;
 }
@@ -100,6 +101,7 @@ for (const section of EXTRACTED_SECTIONS) {
             if (deployed) {
                 expect(listed).toEqual({
                     id: section.id,
+                    kind: 'section',
                     remoteEntry: `/remotes/${section.id}/remoteEntry.js`,
                     available: true,
                 });

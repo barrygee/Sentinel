@@ -94,7 +94,9 @@ class TestGenerate:
                 "http-credentials.json",
                 "nats-credentials.json",
             ]
-            if user in ("core", "radio"):
+            # The verifiers: core, the hub, and sdr-manager-local (which checks
+            # sdr-manager-remote's bearer).
+            if user in ("core", "radio", "sdr-manager-local"):
                 expected.insert(0, "accepted-callers.json")
             assert sorted(path.name for path in folder.iterdir()) == expected
         # Nothing left over from issuing the certificate.
@@ -147,7 +149,7 @@ class TestGenerate:
         }
         assert after == before
         output = capsys.readouterr().out
-        assert "is up to date (8 users)" in output
+        assert "is up to date (10 users)" in output
         assert "created" not in output and "issued" not in output
 
     def test_a_changed_permissions_table_rewrites_the_config_only(

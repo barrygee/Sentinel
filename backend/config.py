@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings
 
@@ -343,6 +344,13 @@ class Settings(BaseSettings):
     # (`sentinel_docs`) serves. Empty = the checkout's (or the image's) root,
     # which is where the compose service bind-mounts them.
     docs_source_directory: str = ""
+
+    # ── App mode (ADR 0007) ──────────────────────────────────────────────────
+    # Which shell core serves: `full` (the map, every section) or
+    # `sdr-manager-local-only` (just this machine's SDRs, shared with other
+    # Sentinels). Set by the compose file, not by the user; served to the shell
+    # as `GET /api/app/mode`. Anything else fails at startup.
+    sentinel_mode: Literal["full", "sdr-manager-local-only"] = "full"
 
     # ── Running as a separate service (section-containers plan §4.2, P6) ─────
     # Set only in a service's own container (`backend/platform/sdk/`). Core's

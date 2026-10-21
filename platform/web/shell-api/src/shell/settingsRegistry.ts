@@ -29,12 +29,27 @@ export interface SettingsSection {
 const sections = new Map<string, SettingsSection>()
 const items: SettingItem[] = []
 
-/** Registers a nav entry. Each key once. */
+function isSameSection(first: SettingsSection, second: SettingsSection): boolean {
+  return (
+    first.label === second.label && first.order === second.order && first.domain === second.domain
+  )
+}
+
+/**
+ * Registers a nav entry. A key may be registered again only with the identical
+ * label, order and domain flag: two remotes can then share one section, each
+ * adding its own items (SDR Manager's local and remote groups, ADR 0007), and
+ * whichever loads first creates it. A conflicting re-registration throws.
+ */
 export function registerSettingsSection(section: SettingsSection): void {
-  if (sections.has(section.key)) {
+  const existing = sections.get(section.key)
+  if (existing === undefined) {
+    sections.set(section.key, section)
+    return
+  }
+  if (!isSameSection(existing, section)) {
     throw new Error(`Settings section "${section.key}" is already registered`)
   }
-  sections.set(section.key, section)
 }
 
 /** Registers items, listed in this order within their section. Ids must be unique. */

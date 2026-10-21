@@ -15,11 +15,13 @@ from backend.platform.service_access import (
     VERIFYING_SERVICES,
     may_decode,
     may_fetch_iq_captures,
+    may_list_services,
+    may_manage_local_sdrs,
     may_register,
     may_use_secret,
 )
 
-SECTION_SERVICES = ["radio", "space", "land", "air", "sea", "sdr"]
+SECTION_SERVICES = ["radio", "space", "land", "air", "sea", "sdr", "sdr-manager-local", "sdr-manager-remote"]
 
 
 class TestTheTable:
@@ -30,8 +32,9 @@ class TestTheTable:
         assert not set(SERVICE_ACCESS) & set(DECODER_ACCESS)
         assert CALLER_ACCESS == {**SERVICE_ACCESS, **DECODER_ACCESS}
 
-    def test_core_and_the_radio_hub_are_the_verifiers(self):
-        assert VERIFYING_SERVICES == ("core", "radio")
+    def test_core_the_radio_hub_and_sdr_manager_local_are_the_verifiers(self):
+        # sdr-manager-local checks the bearer sdr-manager-remote presents.
+        assert VERIFYING_SERVICES == ("core", "radio", "sdr-manager-local")
 
     def test_each_decoder_owns_a_distinct_kind(self):
         kinds = [access.decoder_kind for access in DECODER_ACCESS.values()]
@@ -119,6 +122,37 @@ class TestMayDecode:
 
     def test_an_unknown_caller_is_no_decoder(self):
         assert not may_decode("weather", "weather")
+
+
+class TestMayListServices:
+    def test_sdr_manager_remote_lists_sdr_manager_local(self):
+        assert may_list_services("sdr-manager-remote", "sdr-manager-local")
+
+    @pytest.mark.parametrize("kind", ["section", "radio", "decoder", "docs", "sdr-manager-remote", ""])
+    def test_sdr_manager_remote_lists_no_other_kind(self, kind):
+        assert not may_list_services("sdr-manager-remote", kind)
+
+    @pytest.mark.parametrize("caller", [c for c in CALLER_ACCESS if c not in ("sdr-manager-remote", "core")])
+    def test_no_other_caller_lists_sdr_manager_local(self, caller):
+        assert not may_list_services(caller, "sdr-manager-local")
+
+    def test_core_lists_any_kind(self):
+        assert may_list_services("core", "section")
+
+    def test_an_unknown_caller_lists_nothing(self):
+        assert not may_list_services("weather", "sdr-manager-local")
+
+
+class TestMayManageLocalSdrs:
+    def test_sdr_manager_remote_may(self):
+        assert may_manage_local_sdrs("sdr-manager-remote")
+
+    @pytest.mark.parametrize("caller", [c for c in CALLER_ACCESS if c != "sdr-manager-remote"])
+    def test_no_one_else_may_not_even_core(self, caller):
+        assert not may_manage_local_sdrs(caller)
+
+    def test_an_unknown_caller_may_not(self):
+        assert not may_manage_local_sdrs("weather")
 
 
 def test_the_table_lookup_is_by_exact_name():

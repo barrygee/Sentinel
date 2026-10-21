@@ -41,6 +41,42 @@ describe('settings sections', () => {
       registerSettingsSection({ key: 'air', label: 'AIR 2', order: 11, domain: true }),
     ).toThrow('Settings section "air" is already registered')
   })
+
+  describe('a section two remotes share (SDR Manager, ADR 0007)', () => {
+    const sdrManager = { key: 'sdr-manager', label: 'SDR Manager', order: 15, domain: false }
+
+    it('accepts an identical re-registration and lists the section once', () => {
+      registerSettingsSection(sdrManager)
+
+      expect(() => registerSettingsSection({ ...sdrManager })).not.toThrow()
+      expect(getSettingsSections()).toEqual([sdrManager])
+    })
+
+    it('keeps the items both remotes add, in registration order', () => {
+      registerSettingsSection(sdrManager)
+      registerSettingItems([item('sdr-manager', 'local-devices')])
+      registerSettingsSection({ ...sdrManager })
+      registerSettingItems([item('sdr-manager', 'remote-hosts')])
+
+      expect(getSettingItems().map((setting) => setting.id)).toEqual([
+        'local-devices',
+        'remote-hosts',
+      ])
+    })
+
+    it.each([
+      ['label', { label: 'SDR MANAGER' }],
+      ['order', { order: 16 }],
+      ['domain flag', { domain: true }],
+    ])('refuses a re-registration with a different %s, keeping the first', (_field, change) => {
+      registerSettingsSection(sdrManager)
+
+      expect(() => registerSettingsSection({ ...sdrManager, ...change })).toThrow(
+        'Settings section "sdr-manager" is already registered',
+      )
+      expect(getSettingsSections()).toEqual([sdrManager])
+    })
+  })
 })
 
 describe('setting items', () => {

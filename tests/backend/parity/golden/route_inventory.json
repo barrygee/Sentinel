@@ -1124,11 +1124,27 @@
     ]
   },
   {
+    "path": "/api/app/mode",
+    "type": "Route",
+    "name": "get_app_mode",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/internal/registry/register",
     "type": "Route",
     "name": "register_service",
     "methods": [
       "POST"
+    ]
+  },
+  {
+    "path": "/internal/registry/services",
+    "type": "Route",
+    "name": "list_services",
+    "methods": [
+      "GET"
     ]
   },
   {

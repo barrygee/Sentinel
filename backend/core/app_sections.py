@@ -1,6 +1,6 @@
 """The sections this deployment includes — what the shell loads at boot.
 
-  GET /api/app/sections — `{"sections": [{"id", "remoteEntry", "available"}, …]}`
+  GET /api/app/sections — `{"sections": [{"id", "kind", "remoteEntry", "available"}, …]}`
 
 Each section's UI is a Module Federation remote served from `/remotes/<id>/`
 (P4 of docs/plans/section-containers.md). The list is the service registry's
@@ -15,6 +15,11 @@ its own container serves its remote itself, so it is listed as registered, and
 `available` follows its health probes. The shell registers every listed remote;
 one that fails to load gets the "section unavailable" page instead of taking
 the app down.
+
+The two SDR Manager services (ADR 0007) are listed too: they are not map
+sections, but each ships a UI remote that adds its group to the shared
+"SDR Manager" Settings section, so the shell must load it the same way.
+`kind` tells the shell which is which.
 """
 
 from pathlib import Path
@@ -31,11 +36,15 @@ router = APIRouter(prefix="/api/app", tags=["app"])
 SPA_DIR = Path(__file__).resolve().parents[2] / "frontend" / "spa-dist"
 REMOTES_DIR = SPA_DIR / "remotes"
 
+UI_REMOTE_KINDS = frozenset({"section", "sdr-manager-local", "sdr-manager-remote"})
+"""Manifest kinds whose UI remote the shell loads. The radio hub's settings UI is not one of them."""
+
 
 class DeployedSection(BaseModel):
-    """One section the shell should load."""
+    """One UI remote the shell should load."""
 
     id: str
+    kind: str
     remoteEntry: str  # camelCase: the wire name the shell reads
     available: bool
 
@@ -47,21 +56,26 @@ class DeployedSections(BaseModel):
 
 
 def deployed_sections(service_registry: ServiceRegistry, remotes_dir: Path) -> list[DeployedSection]:
-    """The registered sections with a UI remote the shell can load, in nav order."""
+    """The registered services with a UI remote the shell can load, in nav order."""
     sections: list[DeployedSection] = []
     for registration in service_registry.services():
         manifest = registration.manifest
-        if manifest.kind != "section" or manifest.ui is None:
+        if manifest.kind not in UI_REMOTE_KINDS or manifest.ui is None:
             continue
         if registration.in_process and not (remotes_dir / manifest.id / REMOTE_ENTRY_FILENAME).is_file():
             continue
         sections.append(
-            DeployedSection(id=manifest.id, remoteEntry=manifest.ui.remote_entry, available=registration.available)
+            DeployedSection(
+                id=manifest.id,
+                kind=manifest.kind,
+                remoteEntry=manifest.ui.remote_entry,
+                available=registration.available,
+            )
         )
     return sections
 
 
 @router.get("/sections", response_model=DeployedSections)
 async def list_sections() -> DeployedSections:
-    """List the sections the shell should load as federation remotes."""
+    """List the UI remotes (sections and SDR Manager) the shell should load as federation remotes."""
     return DeployedSections(sections=deployed_sections(registry, REMOTES_DIR))

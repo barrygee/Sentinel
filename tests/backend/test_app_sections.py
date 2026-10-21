@@ -72,7 +72,7 @@ class TestDeployedSections:
         build_remote(tmp_path, "sea")
 
         assert [section.model_dump() for section in deployed_sections(service_registry, tmp_path)] == [
-            {"id": "sea", "remoteEntry": "/remotes/sea/remoteEntry.js", "available": True}
+            {"id": "sea", "kind": "section", "remoteEntry": "/remotes/sea/remoteEntry.js", "available": True}
         ]
 
     def test_an_in_process_section_needs_its_entry_not_just_a_directory(self, tmp_path: Path):
@@ -120,6 +120,43 @@ class TestDeployedSections:
 
         assert listed(service_registry, tmp_path) == []
 
+    async def test_skips_the_docs_service_even_with_a_ui(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        # Not id "docs": /api/docs/ is reserved for core's OpenAPI page.
+        await service_registry.register(make_manifest("documentation", kind="docs"), "docs-1")
+
+        assert listed(service_registry, tmp_path) == []
+
+    async def test_lists_both_sdr_manager_kinds_with_their_kind(self, tmp_path: Path):
+        """Not map sections, but each adds a group to Settings › SDR Manager (ADR 0007)."""
+        service_registry = ServiceRegistry()
+        await service_registry.register(make_manifest("weather", nav_order=60), "weather-1")
+        await service_registry.register(
+            make_manifest("sdr-manager-local", nav_order=70, kind="sdr-manager-local"), "local-1"
+        )
+        await service_registry.register(
+            make_manifest("sdr-manager-remote", nav_order=80, kind="sdr-manager-remote"), "remote-1"
+        )
+
+        assert [
+            (section.id, section.kind) for section in deployed_sections(service_registry, tmp_path)
+        ] == [
+            ("weather", "section"),
+            ("sdr-manager-local", "sdr-manager-local"),
+            ("sdr-manager-remote", "sdr-manager-remote"),
+        ]
+
+    async def test_skips_an_sdr_manager_service_without_a_ui(self, tmp_path: Path):
+        service_registry = ServiceRegistry()
+        await service_registry.register(
+            make_manifest("sdr-manager-remote", kind="sdr-manager-remote", with_ui=False), "remote-1"
+        )
+
+        assert listed(service_registry, tmp_path) == []
+
+    def test_the_ui_remote_kinds_leave_out_the_radio_hub_decoders_and_docs(self):
+        assert app_sections.UI_REMOTE_KINDS == {"section", "sdr-manager-local", "sdr-manager-remote"}
+
     async def test_lists_in_nav_order_whoever_registered_first(self, tmp_path: Path):
         service_registry = ServiceRegistry()
         await service_registry.register(make_manifest("weather", nav_order=60), "weather-1")
@@ -149,7 +186,12 @@ class TestListSectionsEndpoint:
         assert response.status_code == 200
         assert response.json() == {
             "sections": [
-                {"id": section_id, "remoteEntry": f"/remotes/{section_id}/remoteEntry.js", "available": True}
+                {
+                    "id": section_id,
+                    "kind": "section",
+                    "remoteEntry": f"/remotes/{section_id}/remoteEntry.js",
+                    "available": True,
+                }
                 for section_id in ("air", "space", "sea", "land", "sdr")
             ]
         }
@@ -166,7 +208,7 @@ class TestListSectionsEndpoint:
 
         assert client.get("/api/app/sections").json() == {
             "sections": [
-                {"id": "sdr", "remoteEntry": "/remotes/sdr/remoteEntry.js", "available": True}
+                {"id": "sdr", "kind": "section", "remoteEntry": "/remotes/sdr/remoteEntry.js", "available": True}
             ]
         }
 
@@ -192,7 +234,7 @@ class TestListSectionsEndpoint:
 
         assert response.json() == {
             "sections": [
-                {"id": "weather", "remoteEntry": "/remotes/weather/remoteEntry.js", "available": True}
+                {"id": "weather", "kind": "section", "remoteEntry": "/remotes/weather/remoteEntry.js", "available": True}
             ]
         }
 
