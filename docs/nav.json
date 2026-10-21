@@ -82,6 +82,7 @@
         {
           "title": "Design decisions",
           "pages": [
+            { "path": "adr/0007-sdr-manager", "title": "0007 SDR Manager" },
             { "path": "adr/0006-section-containers", "title": "0006 Section containers" },
             { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },
             { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
