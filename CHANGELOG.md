@@ -552,6 +552,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - "Aircraft will resume in approximately" in the daily-limit warnings
 - Stop polling the map while its browser tab is hidden
 - Stop calling the online feed until its daily limit resets
+- Keep the online feed's daily-limit refusal across restarts
 
 ### Chores
 
@@ -617,6 +618,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename two setting labels
 - Rebuild the bundle for the renamed setting labels
 - Commit the Air backend package's uv.lock
+- Trace greenlets so backend coverage counts route bodies
 
 ### Reverts
 
@@ -1631,6 +1633,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #527 from barrygee/fix/air-no-console-503s
 - Merge pull request #528 from barrygee/fix/air-pause-hidden-tab
 - Merge pull request #529 from barrygee/fix/air-honour-daily-limit-reset
+- Merge pull request #531 from barrygee/fix/air-persist-daily-limit-refusal
+- Merge pull request #530 from barrygee/chore/backend-coverage-greenlet
 
 ### Refactoring
 
