@@ -84,6 +84,9 @@ COPY backend/pyproject.toml backend/uv.lock ./backend/
 # The lock check reads each section package's (and the radio hub's and docs service's) metadata from its pyproject.toml.
 COPY services/radio/backend/pyproject.toml ./services/radio/backend/
 COPY services/docs/backend/pyproject.toml ./services/docs/backend/
+# sdr-manager-local runs from its own image (services/sdr-manager-local/Dockerfile);
+# only its metadata is here, for the lock check, and it is never installed.
+COPY services/sdr-manager-local/backend/pyproject.toml ./services/sdr-manager-local/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
@@ -113,7 +116,7 @@ COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/section
 COPY --chown=sentinel:sentinel services/sections/sea/backend/ ./services/sections/sea/backend/
 COPY --chown=sentinel:sentinel services/sections/space/backend/ ./services/sections/space/backend/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --project backend --locked --no-dev --no-install-project
+    uv sync --project backend --locked --no-dev --no-install-project --no-install-package sentinel-sdr-manager-local
 COPY frontend/assets/ ./frontend/assets/
 # What the docs service (sentinel_docs) serves to the in-app /docs page: the
 # repo's docs/ (docs/plans is left out by .dockerignore) and CONTRIBUTING.md.

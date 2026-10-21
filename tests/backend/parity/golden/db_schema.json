@@ -362,6 +362,146 @@
       }
     ]
   },
+  "console_auth": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "password_hash",
+        "nullable": true,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "password_version",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "session_secret",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
+  "device_reservations": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "identity_kind",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "identity_key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "holder",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "label",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "reserved_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "expires_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "identity_kind",
+          "identity_key"
+        ],
+        "name": "uq_device_reservations_identity"
+      }
+    ]
+  },
+  "host_control_settings": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": "'0'",
+        "name": "hotspot_control_enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": []
+  },
   "offline_map_region": {
     "columns": [
       {
@@ -673,6 +813,220 @@
     "indexes": [],
     "primary_key_columns": [
       "norad_id"
+    ],
+    "unique_constraints": []
+  },
+  "sdr_devices": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "identity_kind",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "identity_key",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "description",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "notes",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "antenna",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "output_port",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": "'1'",
+        "name": "enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": "'private'",
+        "name": "visibility",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "center_hz",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "sample_rate",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "gain_db",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": "'1'",
+        "name": "gain_auto",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": "'0'",
+        "name": "ppm_correction",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "bias_tee",
+        "nullable": true,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "direct_sampling",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": "''",
+        "name": "last_topology_path",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "last_vendor_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "last_product_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "last_manufacturer",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "last_product",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": "''",
+        "name": "last_serial",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
+        "default": null,
+        "name": "last_seen_at",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "pending_replug_until",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "updated_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "identity_kind",
+          "identity_key"
+        ],
+        "name": "ux_sdr_devices_identity",
+        "unique": true
+      },
+      {
+        "column_names": [
+          "output_port"
+        ],
+        "name": "ux_sdr_devices_port",
+        "unique": true
+      }
+    ],
+    "primary_key_columns": [
+      "id"
     ],
     "unique_constraints": []
   },

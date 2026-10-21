@@ -109,6 +109,10 @@ services:
       nats:
         condition: service_healthy
     command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+    # sdr-manager-local runs on the host's network and registers at
+    # host.docker.internal; the app health-probes it there.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
     networks:
       - sentinel
@@ -154,6 +158,10 @@ services:
     tmpfs:
       - /data:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
       - /config:uid=${SENTINEL_RUNTIME_USER_ID:-1000},gid=${SENTINEL_RUNTIME_GROUP_ID:-1000}
+    # It proxies /api/sdr-manager/local/ to sdr-manager-local on the host's
+    # network, at host.docker.internal (a host firewall can block this path).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://gateway-admin:2019/config/"]
       interval: 10s
@@ -385,6 +393,68 @@ services:
       <<: *section-env
       SERVICE_INTERNAL_URL: http://docs:8000
     command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload
+
+  # SDR Manager for the RTL-SDRs plugged into THIS machine (ADR 0007): Sentry,
+  # moved into Sentinel. OPT-IN and Linux only: it starts with the
+  # `sdr-manager-local` profile — COMPOSE_PROFILES=sdr-manager-local in .env
+  # (add decoder profiles after a comma) — and needs a dongle on this host. On
+  # a Mac it runs as a native process instead (Docker Desktop has no USB
+  # passthrough). Its own image (services/sdr-manager-local/Dockerfile), not
+  # the app's, and the one service that runs as root and privileged, with
+  # the host's network: each dongle gets its own rtl_tcp/relay ports, and the
+  # SDR Manager API answers on :8000 (SDR_MANAGER_LOCAL_HTTP_PORT) for other
+  # Sentinels as well as this one. It registers with the app at
+  # host.docker.internal, which hands it /api/sdr-manager/local/ in the
+  # gateway, and reads Sentinel's Location setting through core's TLS service
+  # entrypoint on localhost:8443. It serves before core answers, so dongles
+  # keep streaming through a core restart. No NATS. Code is bind-mounted but
+  # not reloaded (a reload would restart every dongle's stream): after an edit,
+  # `docker compose restart sdr-manager-local`.
+  # Without a dongle, add compose.sdr-manager-local-mock.yaml (two simulated SDRs).
+  sdr-manager-local:
+    build:
+      context: .
+      dockerfile: services/sdr-manager-local/Dockerfile
+    container_name: sentinel-sdr-manager-local
+    profiles: ["sdr-manager-local"]
+    network_mode: host
+    privileged: true
+    device_cgroup_rules:
+      - 'c 189:* rmw'  # 189 = USB char-major: the whole bus, so a replugged dongle is still reachable
+    # Every SDR_MANAGER_LOCAL_* variable set in .env (services/sdr-manager-local/
+    # backend/sentinel_sdr_manager_local/config.py lists them). The platform
+    # variables below are set here and win over the file.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - sdr_manager_local_data:/data
+      # The host's NetworkManager, for the Wi-Fi hotspot (nmcli talks to it over
+      # D-Bus; the lease files say who joined). Hotspot control is off until
+      # switched on in its settings.
+      - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
+      - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
+      - ./backend:/app/backend
+      - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}
+    environment:
+      PYTHONUNBUFFERED: "1"
+      DB_PATH: /data/sdr-manager-local.db
+      # Core's TLS service entrypoint (the gateway's :8443, published on
+      # 127.0.0.1), which this host-networked process reaches as localhost.
+      SENTINEL_CORE_URL: https://localhost:8443
+      # Where the app and the gateway reach it: the host, from their bridge network.
+      SERVICE_INTERNAL_URL: http://host.docker.internal:${SDR_MANAGER_LOCAL_HTTP_PORT:-8000}
+      # No event bus: it talks to core over HTTPS only (ADR 0007).
+      NATS_URL: ""
+      SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json
+      ACCEPTED_CALLERS_FILE: /run/service-credentials/accepted-callers.json
+      INTERNAL_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
+    depends_on:
+      service-credentials:
+        condition: service_completed_successfully
+    restart: unless-stopped
 
   # Event bus broker (section-containers plan §3.3). NATS core only — no
   # JetStream, nothing persisted: consumers reconcile on restart. Carries only
@@ -653,6 +723,7 @@ volumes:
   radio_data:
   sdr_data:
   sdr_recordings:
+  sdr_manager_local_data:
 
 networks:
   sentinel:

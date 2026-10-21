@@ -24,5 +24,6 @@ frontend/assets/tiles/
 services/sections/*/backend/tests
 services/radio/backend/tests
 services/docs/backend/tests
+services/sdr-manager-local/backend/tests
 # Design notes: not part of the in-app docs.
 docs/plans
