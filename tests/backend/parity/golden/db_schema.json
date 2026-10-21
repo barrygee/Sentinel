@@ -116,6 +116,29 @@
     ],
     "unique_constraints": []
   },
+  "adsb_online_refusal": {
+    "columns": [
+      {
+        "default": null,
+        "name": "host",
+        "nullable": false,
+        "primary_key": true,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "until_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [],
+    "primary_key_columns": [
+      "host"
+    ],
+    "unique_constraints": []
+  },
   "air_messages": {
     "columns": [
       {

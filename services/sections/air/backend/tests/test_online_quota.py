@@ -19,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from sentinel_air.models import AdsbOnlineCall
+from sentinel_air.models import AdsbOnlineCall, AdsbOnlineRefusal
 from sentinel_air.services import adsb as adsb_service
 from sentinel_air.services import adsb_squawk, online_quota
 from sentinel_air.services.adsb import _daily_quota_reset_seconds
@@ -61,14 +61,15 @@ def pinned_settings(monkeypatch):
 
 @pytest.fixture
 async def quota_database(monkeypatch):
-    """A real in-memory SQLite database holding `adsb_online_call`, used by the tracker."""
+    """A real in-memory SQLite database holding `adsb_online_call` and `adsb_online_refusal`, used by the tracker."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
     async with engine.begin() as connection:
         await connection.run_sync(
             lambda sync_connection: Base.metadata.create_all(
-                sync_connection, tables=[Base.metadata.tables["adsb_online_call"]]
+                sync_connection,
+                tables=[Base.metadata.tables["adsb_online_call"], Base.metadata.tables["adsb_online_refusal"]],
             )
         )
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -381,6 +382,7 @@ class TestRefusedForSeconds:
     async def test_a_refusal_lasts_the_feeds_stated_reset(self, quota_tracker, clock):
         await quota_tracker.note_exhausted(ADSB_LOL, 7200)
         assert quota_tracker.refused_for_seconds(ADSB_LOL) == 7200
+        assert quota_tracker.persisted_refusals == [(ADSB_LOL, START_MS + 7_200_000)]
 
     async def test_a_reset_before_utc_midnight_is_not_stretched_to_it(self, quota_tracker, clock):
         # START_MS is 08:00 UTC, so midnight is 16 hours away; the feed said 10 minutes.
@@ -568,6 +570,102 @@ class TestPersistence:
         assert (await tracker.status(ADSB_LOL)).used == 1
         assert "counting from now" in caplog.text
         assert "could not store" in caplog.text
+
+
+class TestRefusalPersistence:
+    """A feed's daily-limit refusal survives a restart, so the first call after one isn't wasted on a "no"."""
+
+    @pytest.fixture
+    def tracker(self, quota_database, monkeypatch) -> OnlineQuotaTracker:
+        monkeypatch.setattr(online_quota, "bus", RecordingBus())
+        tracker = OnlineQuotaTracker()
+        tracker._loaded = True
+        return tracker
+
+    @staticmethod
+    async def stored_refusals(quota_database) -> list[tuple[str, int]]:
+        async with quota_database() as db:
+            rows = (await db.execute(select(AdsbOnlineRefusal.host, AdsbOnlineRefusal.until_ms))).all()
+        return sorted((host, until_ms) for host, until_ms in rows)
+
+    async def test_a_refusal_is_stored_until_its_reset(self, tracker, quota_database, clock):
+        await tracker.note_exhausted(ADSB_LOL, 7200)
+        assert await self.stored_refusals(quota_database) == [(ADSB_LOL, START_MS + 7_200_000)]
+
+    async def test_one_row_per_feed_holding_the_later_reset(self, tracker, quota_database, clock):
+        await tracker.note_exhausted(ADSB_LOL, 600)
+        await tracker.note_exhausted(ADSB_LOL, 7200)
+        # A shorter one after it must not shorten what is stored either.
+        await tracker.note_exhausted(ADSB_LOL, 120)
+        await tracker.note_exhausted(OTHER_FEED, 900)
+        assert await self.stored_refusals(quota_database) == [
+            (ADSB_LOL, START_MS + 7_200_000),
+            (OTHER_FEED, START_MS + 900_000),
+        ]
+
+    async def test_storing_a_refusal_prunes_ones_whose_reset_has_passed(self, tracker, quota_database, clock):
+        await tracker.note_exhausted(OTHER_FEED, 600)
+        clock[0] += 600_000
+        await tracker.note_exhausted(ADSB_LOL, 7200)
+        assert await self.stored_refusals(quota_database) == [(ADSB_LOL, START_MS + 600_000 + 7_200_000)]
+
+    async def test_a_restart_keeps_refusing_until_the_stated_reset(self, quota_database, clock):
+        async with quota_database() as db:
+            db.add_all(
+                [
+                    AdsbOnlineRefusal(host=ADSB_LOL, until_ms=START_MS + 6_200_000),
+                    AdsbOnlineRefusal(host=OTHER_FEED, until_ms=START_MS + 1_000),
+                ]
+            )
+            await db.commit()
+        tracker = OnlineQuotaTracker()
+        await tracker.load()
+        assert tracker.refused_for_seconds(ADSB_LOL) == 6200
+        assert tracker.refused_for_seconds(OTHER_FEED) == 1
+        assert (await tracker.status(ADSB_LOL)).state == "reached"
+
+    async def test_a_restart_after_the_reset_does_not_refuse(self, quota_database, clock):
+        async with quota_database() as db:
+            # Ended exactly now, and earlier: both over.
+            db.add_all(
+                [
+                    AdsbOnlineRefusal(host=ADSB_LOL, until_ms=START_MS),
+                    AdsbOnlineRefusal(host=OTHER_FEED, until_ms=START_MS - 1),
+                ]
+            )
+            await db.commit()
+        tracker = OnlineQuotaTracker()
+        await tracker.load()
+        assert tracker.refused_for_seconds(ADSB_LOL) is None
+        assert tracker.refused_for_seconds(OTHER_FEED) is None
+
+    async def test_a_restart_keeps_the_count_alongside_the_refusal(self, quota_database, clock):
+        async with quota_database() as db:
+            db.add_all(
+                [
+                    AdsbOnlineCall(host=ADSB_LOL, called_at=START_MS - 1000),
+                    AdsbOnlineRefusal(host=ADSB_LOL, until_ms=START_MS + 600_000),
+                ]
+            )
+            await db.commit()
+        tracker = OnlineQuotaTracker()
+        await tracker.load()
+        status = await tracker.status(ADSB_LOL)
+        assert (status.used, status.state, status.resets_in_seconds) == (1, "reached", 600)
+
+    async def test_a_failure_to_store_it_still_refuses_in_memory(self, clock, monkeypatch, caplog):
+        def broken_session():
+            raise RuntimeError("disk gone")
+
+        monkeypatch.setattr(online_quota, "AsyncSessionLocal", broken_session)
+        monkeypatch.setattr(online_quota, "bus", RecordingBus())
+        tracker = OnlineQuotaTracker()
+        tracker._loaded = True
+        with caplog.at_level(logging.ERROR, logger=online_quota.__name__):
+            # Storing it must never stop the refusal taking effect.
+            await tracker.note_exhausted(ADSB_LOL, 7200)
+        assert tracker.refused_for_seconds(ADSB_LOL) == 7200
+        assert "could not store an online ADS-B feed's daily limit refusal" in caplog.text
 
 
 # ── fetch_aircraft counts what reaches the feed ───────────────────────────────

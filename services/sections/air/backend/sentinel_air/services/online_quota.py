@@ -50,7 +50,7 @@ from backend.platform.bus import bus
 from backend.platform.settings_client import read_setting
 from sqlalchemy import delete, select
 
-from sentinel_air.models import AdsbOnlineCall
+from sentinel_air.models import AdsbOnlineCall, AdsbOnlineRefusal
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +198,7 @@ class OnlineQuotaTracker:
         self._lock = asyncio.Lock()
 
     async def load(self) -> None:
-        """Read the calls still inside the window from the database (on start).
+        """Read the calls still inside the window, and refusals still in force, from the database (on start).
 
         A failure to read them is logged, not raised: the count then starts
         from this call, which only understates the limit used — far better
@@ -215,6 +215,15 @@ class OnlineQuotaTracker:
                 hosts: dict[str, _HostCount] = {}
                 for host, called_at in result.all():
                     hosts.setdefault(host, _HostCount()).call_times_ms.append(called_at)
+                # A refusal still in force: without it, the first call after a
+                # restart would go to a feed that has already said no.
+                refusals = await db.execute(
+                    select(AdsbOnlineRefusal.host, AdsbOnlineRefusal.until_ms).where(
+                        AdsbOnlineRefusal.until_ms > _now_ms()
+                    )
+                )
+                for host, until_ms in refusals.all():
+                    hosts.setdefault(host, _HostCount()).exhausted_until_ms = until_ms
                 self._hosts = hosts
         except Exception:
             logger.exception("could not read the stored online ADS-B calls; counting from now")
@@ -248,6 +257,7 @@ class OnlineQuotaTracker:
             count = self._hosts.setdefault(host, _HostCount())
             previous_state = self._status(host, count, configured_limit).state
             count.exhausted_until_ms = max(count.exhausted_until_ms, _now_ms() + int(reset_in_seconds * 1000))
+            await self._persist_refusal(host, count.exhausted_until_ms)
             await self._announce_if_worse(self._status(host, count, configured_limit), previous_state)
 
     def refused_for_seconds(self, host: str) -> int | None:
@@ -332,6 +342,17 @@ class OnlineQuotaTracker:
                 await db.commit()
         except Exception:
             logger.exception("could not store an online ADS-B call for the daily count")
+
+    async def _persist_refusal(self, host: str, until_ms: int) -> None:
+        # Like `_persist`: a failure only costs one refused call after a
+        # restart, so it is logged rather than raised.
+        try:
+            async with AsyncSessionLocal() as db:
+                await db.merge(AdsbOnlineRefusal(host=host, until_ms=until_ms))
+                await db.execute(delete(AdsbOnlineRefusal).where(AdsbOnlineRefusal.until_ms <= _now_ms()))
+                await db.commit()
+        except Exception:
+            logger.exception("could not store an online ADS-B feed's daily limit refusal")
 
     async def _announce_if_worse(self, status: OnlineQuotaStatus, previous_state: QuotaState) -> None:
         """Raise a notification when a host's state moves to `approaching` or `reached`."""

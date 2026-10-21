@@ -21,6 +21,7 @@ class InMemoryQuotaTracker(online_quota.OnlineQuotaTracker):
         super().__init__()
         self._loaded = True
         self.persisted: list[tuple[str, int]] = []
+        self.persisted_refusals: list[tuple[str, int]] = []
         self.announced: list[tuple[str, str]] = []
 
     async def load(self) -> None:
@@ -28,6 +29,9 @@ class InMemoryQuotaTracker(online_quota.OnlineQuotaTracker):
 
     async def _persist(self, host: str, called_at_ms: int) -> None:
         self.persisted.append((host, called_at_ms))
+
+    async def _persist_refusal(self, host: str, until_ms: int) -> None:
+        self.persisted_refusals.append((host, until_ms))
 
     async def _announce_if_worse(self, status, previous_state) -> None:
         if online_quota._SEVERITY[status.state] > online_quota._SEVERITY[previous_state]:

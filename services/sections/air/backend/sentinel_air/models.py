@@ -46,6 +46,19 @@ class AdsbOnlineCall(Base):
     called_at = Column(Integer, nullable=False, index=True)  # Unix ms
 
 
+class AdsbOnlineRefusal(Base):
+    """An online ADS-B feed refusing calls for its daily limit, until the reset it stated.
+
+    Persisted so a restart doesn't spend a call finding out again. One row
+    per feed host; a row whose reset has passed is ignored and pruned.
+    """
+
+    __tablename__ = "adsb_online_refusal"
+
+    host = Column(Text, primary_key=True)  # the feed's host: each has its own limit
+    until_ms = Column(Integer, nullable=False)  # Unix ms the feed accepts calls again
+
+
 class AirTracking(Base):
     """Aircraft currently being tracked by the user (selected in the ADS-B panel)."""
 
