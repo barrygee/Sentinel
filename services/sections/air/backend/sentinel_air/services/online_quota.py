@@ -322,29 +322,22 @@ class OnlineQuotaTracker:
         """Raise a notification when a host's state moves to `approaching` or `reached`."""
         if _SEVERITY[status.state] <= _SEVERITY[previous_state]:
             return
+        # "Online data source" (the Online Data Source setting the feed comes
+        # from) rather than the feed's address, so it stays right for any feed.
         if status.state == "approaching":
             title = "ADS-B CALL LIMIT LOW"
             detail = (
-                f"{status.used} of {status.limit} daily {status.host} calls used. "
-                "Raise Settings › AIR › Online Refresh Interval to make the rest last."
+                f"Online data source: {status.used} of {status.limit} daily calls used. "
+                "Raise the Online Refresh Interval to make them last."
             )
         else:
             title = "ADS-B CALL LIMIT REACHED"
-            wait = f" Calls resume in about {_format_duration(status.resets_in_seconds)}."
+            resume = f" Aircraft will resume in approximately {_format_duration(status.resets_in_seconds)}."
             if status.limit is None:
                 # No known limit: the feed itself refused, with a day-long reset.
-                detail = f"{status.host} is refusing calls for today: aircraft won't update.{wait}"
-            elif status.used < status.limit:
-                # The feed refused before Sentinel's own count reached the
-                # limit: it counts every call from this address, including
-                # other devices' and any made before counting began, so saying
-                # "all used" beside a lower count would read as a bug.
-                detail = (
-                    f"{status.host} is refusing calls until its daily limit resets: it also counts "
-                    f"calls Sentinel didn't make or see. Aircraft won't update.{wait}"
-                )
+                detail = f"Online data source is refusing calls today.{resume}"
             else:
-                detail = f"All {status.limit} daily {status.host} calls used: aircraft won't update.{wait}"
+                detail = f"Online data source daily limit reached.{resume}"
         now_ms = _now_ms()
         # One per state per host per UTC day: core ignores a msg_id it already
         # stored, so a count hovering around the threshold (or a restart)

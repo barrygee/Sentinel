@@ -9,6 +9,7 @@ import httpx
 import pytest
 from backend.config import settings
 from backend.services.upstream_rate_limit import UpstreamThrottledError
+from tests.backend.air_test_helpers import assert_nothing_to_serve
 
 from sentinel_air import router as air_router
 from sentinel_air.services import adsb as adsb_service
@@ -251,8 +252,8 @@ class TestAdsbUpstreamFailover:
         with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
-        # No cached row exists, so an all-sources failure is a 503.
-        assert resp.status_code == 503
+        # No cached row exists, so an all-sources failure has nothing to serve.
+        assert_nothing_to_serve(resp)
         # The "returned HTTP" warning belongs to the non-429 branch only.
         assert "returned HTTP" not in self._air_warnings(caplog)
 
@@ -268,7 +269,7 @@ class TestAdsbUpstreamFailover:
         with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
             resp = client.get(self.POINT)
 
-        assert resp.status_code == 503
+        assert_nothing_to_serve(resp)
         warnings = self._air_warnings(caplog)
         assert "unreachable" in warnings
         assert "ConnectError" in warnings
@@ -404,7 +405,7 @@ class TestAdsbNearbyCacheFallback:
         # 0.9 degrees of latitude = 54 nm, over the 50 nm limit.
         resp = client.get(self._point(54.9, -1.5))
 
-        assert resp.status_code == 503
+        assert_nothing_to_serve(resp)
 
     def test_longitude_is_scaled_by_latitude(self, client, monkeypatch):
         """At 54N a degree of longitude is ~35 nm, not 60 nm.
@@ -427,7 +428,7 @@ class TestAdsbNearbyCacheFallback:
 
         resp = client.get(self._point(54.0, -1.5))
 
-        assert resp.status_code == 503
+        assert_nothing_to_serve(resp)
 
     def test_a_row_past_the_stale_window_is_not_borrowed(self, client, monkeypatch):
         self._configure_sources(client)
@@ -439,21 +440,65 @@ class TestAdsbNearbyCacheFallback:
 
         resp = client.get(self._point(54.3, -1.5))
 
-        assert resp.status_code == 503
+        assert_nothing_to_serve(resp)
 
-    def test_an_empty_cache_still_answers_503(self, client, monkeypatch):
+    def test_an_empty_cache_still_has_nothing_to_serve(self, client, monkeypatch):
         self._configure_sources(client)
         self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
 
         resp = client.get(self._point(54.0, -1.5))
 
-        assert resp.status_code == 503
+        assert_nothing_to_serve(resp)
+
+    def test_nothing_to_serve_names_no_reset_time_when_the_feed_just_failed(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert_nothing_to_serve(resp, "upstream")
+        assert "Retry-After" not in resp.headers
+
+    async def test_a_spent_daily_limit_says_so_and_when_it_resets(self, client, monkeypatch, quota_tracker):
+        """So the map can stop polling until then instead of asking every 10 s."""
+        self._configure_sources(client)
+        await quota_tracker.note_exhausted("online.example", 7200)
+        self._fail_every_fetch(monkeypatch, self._rate_limited())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert_nothing_to_serve(resp, "daily-limit")
+        assert resp.headers["Retry-After"] == "7200"
+
+    async def test_a_feed_with_calls_to_spare_is_not_called_spent(self, client, monkeypatch, quota_tracker):
+        self._configure_sources(client)
+        await quota_tracker.record_call("online.example", None)
+        self._fail_every_fetch(monkeypatch, self._rate_limited())
+
+        assert_nothing_to_serve(client.get(self._point(54.0, -1.5)), "upstream")
+
+    async def test_off_grid_the_online_limit_is_not_the_reason(self, client, monkeypatch, quota_tracker):
+        # The local decoder has no daily limit, whatever the online feed's state.
+        self._configure_sources(client)
+        client.put("/api/settings/air/sourceOverride", json={"value": "offgrid"})
+        await quota_tracker.note_exhausted("online.example", 7200)
+        self._fail_every_fetch(monkeypatch, httpx.ConnectError("decoder down"))
+
+        assert_nothing_to_serve(client.get(self._point(54.0, -1.5)), "upstream")
+
+    def test_off_grid_with_no_decoder_set_says_there_is_no_source(self, client, monkeypatch):
+        async def no_sources(domain, db, *, online_default, offgrid_default):
+            return (None, None)
+
+        monkeypatch.setattr(air_router, "resolve_domain_urls", no_sources)
+
+        assert_nothing_to_serve(client.get(self._point(54.0, -1.5)), "no-source")
 
     def test_an_expired_row_for_the_point_does_not_block_borrowing(self, client, monkeypatch):
         """The slow first load: the map opens on its default centre, whose row
         was cached hours ago. That row is too old to serve, and it used to stop
         the fresh row a few miles away from being borrowed, so the map stayed
-        empty (503) until the next online call slot — up to a refresh interval."""
+        empty (then a 503) until the next online call slot — up to a refresh interval."""
         self._configure_sources(client)
         self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [{"hex": "hours-old"}]})
         real_now = air_router.now_ms()
@@ -756,7 +801,7 @@ class TestEveryPollKeepsTheSquawkWatcherIdle:
         monkeypatch.setattr(adsb_service, "fetch_aircraft", failing_fetch)
         monkeypatch.setattr(tracker, "last_browser_poll_ms", 0)
 
-        assert client.get(self.POINT).status_code == 503
+        assert_nothing_to_serve(client.get(self.POINT))
         assert tracker.last_browser_poll_ms > 0
 
 
@@ -872,7 +917,7 @@ class TestSnapshotAge:
         }[failure]
         self._every_fetch(monkeypatch, error)
 
-        assert client.get(self.POINT).status_code == 503
+        assert_nothing_to_serve(client.get(self.POINT))
 
     def test_an_empty_fallback_answer_is_age_zero(self, client, monkeypatch, clock):
         self._configure_sources(client)

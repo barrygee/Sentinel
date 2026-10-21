@@ -415,8 +415,7 @@ class TestTheNotification:
         assert payload["type"] == "system"
         assert payload["title"] == "ADS-B CALL LIMIT LOW"
         assert payload["detail"] == (
-            "400 of 500 daily api.adsb.lol calls used. "
-            "Raise Settings › AIR › Online Refresh Interval to make the rest last."
+            "Online data source: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last."
         )
         assert payload["ts"] == START_MS
         assert payload["db"] is not None
@@ -431,26 +430,24 @@ class TestTheNotification:
         payload = bus.published[-1][1]
         assert payload["title"] == "ADS-B CALL LIMIT REACHED"
         assert payload["detail"] == (
-            "All 500 daily api.adsb.lol calls used: aircraft won't update. Calls resume in about 16h 0m."
+            "Online data source daily limit reached. Aircraft will resume in approximately 16h 0m."
         )
 
-    async def test_a_refusal_before_the_count_reaches_the_limit_says_the_feed_counts_more(self, tracker, bus, clock):
-        # The feed counts every call from this address, including other
-        # devices' and any before counting began: "all 500 used" beside a count
-        # of 161 read as a bug.
+    async def test_a_refusal_before_the_count_reaches_the_limit_names_no_figure(self, tracker, bus, clock):
+        # The feed also counts calls Sentinel didn't see, so a figure such as
+        # "all 500 used" beside a count of 161 would read as a bug.
         await record_calls(tracker, ADSB_LOL, 161)
         await tracker.note_exhausted(ADSB_LOL, 2 * 3600 + 15 * 60)
         payload = bus.published[0][1]
         assert payload["title"] == "ADS-B CALL LIMIT REACHED"
         assert payload["detail"] == (
-            "api.adsb.lol is refusing calls until its daily limit resets: it also counts calls "
-            "Sentinel didn't make or see. Aircraft won't update. Calls resume in about 2h 15m."
+            "Online data source daily limit reached. Aircraft will resume in approximately 2h 15m."
         )
 
     async def test_reached_without_a_known_limit_says_the_feed_refused(self, tracker, bus, clock):
         await tracker.note_exhausted(OTHER_FEED, 600)
         assert bus.published[0][1]["detail"] == (
-            "opendata.adsb.fi is refusing calls for today: aircraft won't update. Calls resume in about 10m."
+            "Online data source is refusing calls today. Aircraft will resume in approximately 10m."
         )
 
     async def test_a_failure_to_raise_it_is_logged_not_raised(self, tracker, clock, monkeypatch, caplog):

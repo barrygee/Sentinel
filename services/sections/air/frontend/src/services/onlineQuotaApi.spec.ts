@@ -88,7 +88,7 @@ describe('onlineQuotaWarning', () => {
 
   it('names the feed and what to do as the limit approaches', () => {
     expect(onlineQuotaWarning(quota({ state: 'approaching', used: 400, remaining: 100 }))).toBe(
-      'api.adsb.lol daily call limit running low: 400 of 500 calls used. Raise the Online Refresh Interval in Settings › AIR to make the rest last.',
+      'Online data source: 400 of 500 daily calls used. Raise the Online Refresh Interval to make them last.',
     )
   })
 
@@ -97,20 +97,17 @@ describe('onlineQuotaWarning', () => {
       onlineQuotaWarning(
         quota({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 8100 }),
       ),
-    ).toBe(
-      "api.adsb.lol daily call limit reached: all 500 daily calls used, so aircraft won't update. Calls resume in about 2h 15m.",
-    )
+    ).toBe('Online data source daily limit reached. Aircraft will resume in approximately 2h 15m.')
   })
 
-  it('says the feed counts more than Sentinel saw when it refuses before the count reaches the limit', () => {
-    // "all 500 daily calls used" beside 161 / 500 read as a bug.
+  it('names no figure when the feed refuses before the count reaches the limit', () => {
+    // The feed also counts calls Sentinel didn't see: "all 500 daily calls
+    // used" beside 161 / 500 would read as a bug.
     expect(
       onlineQuotaWarning(
         quota({ state: 'reached', used: 161, remaining: 0, resetsInSeconds: 5 * 3600 + 57 * 60 }),
       ),
-    ).toBe(
-      "api.adsb.lol is refusing calls until its daily limit resets: it also counts calls Sentinel didn't make or see. Aircraft won't update. Calls resume in about 5h 57m.",
-    )
+    ).toBe('Online data source daily limit reached. Aircraft will resume in approximately 5h 57m.')
   })
 
   it('says the feed refused when its limit is unknown, and leaves out an unknown resume time', () => {
@@ -125,8 +122,6 @@ describe('onlineQuotaWarning', () => {
           resetsInSeconds: null,
         }),
       ),
-    ).toBe(
-      "feed.example daily call limit reached: it is refusing calls for today, so aircraft won't update.",
-    )
+    ).toBe('Online data source is refusing calls today.')
   })
 })

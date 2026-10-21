@@ -107,6 +107,20 @@ describe('useAirAlertsService', () => {
     service.stop()
   })
 
+  it('treats "nothing new" (204) as no update, without reading the empty body', async () => {
+    locationRef.value = { lon: 0, lat: 0, accuracy: 0 }
+    const json = vi.fn()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 204, json }))
+    const air = useAirStore()
+    air.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true })
+    const service = await loadService()
+    service.start()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(json).not.toHaveBeenCalled()
+    expect(detectorInstance.process).not.toHaveBeenCalled()
+    service.stop()
+  })
+
   it('swallows fetch errors', async () => {
     locationRef.value = { lon: 0, lat: 0, accuracy: 0 }
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('aborted')))

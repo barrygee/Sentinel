@@ -157,6 +157,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _isFetching = false
   private _fetchAbort: AbortController | null = null
   private _fetchFailCount = 0
+  // Resumes polling once the online feed's spent daily limit resets.
+  private _resumePollingTimer: ReturnType<typeof setTimeout> | null = null
 
   private _emergencySquawks: Set<string> = new Set(['7700', '7600', '7500'])
   _typeFilter: 'all' | 'civil' | 'mil' = 'all'
@@ -1970,6 +1972,16 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const url = `${origin}/api/air/adsb/point/${lat.toFixed(4)}/${lon.toFixed(4)}/250`
       const resp = await fetch(url, { signal: this._fetchAbort.signal })
       if (!this.map) return
+      if (resp.status === 204) {
+        // Nothing new to send (X-Unavailable-Reason says why) — not a failure:
+        // keep the aircraft we have; they dim and age out as usual.
+        this._fetchFailCount = 0
+        const retryAfterMs = durationHeaderMs(resp.headers.get('Retry-After')) * 1000
+        if (resp.headers.get('X-Unavailable-Reason') === 'daily-limit' && retryAfterMs > 0) {
+          this._pausePollingFor(retryAfterMs)
+        }
+        return
+      }
       if (!resp.ok) {
         if (resp.status === 429) {
           this._isFetching = false
@@ -2385,9 +2397,31 @@ export class AdsbLiveControl implements maplibregl.IControl {
       clearInterval(this._pollInterval)
       this._pollInterval = null
     }
+    this._cancelResume()
     if (this._interpolateInterval) {
       clearInterval(this._interpolateInterval)
       this._interpolateInterval = null
+    }
+  }
+
+  /**
+   * Stop asking for aircraft until the online feed's daily limit resets: every
+   * poll before then would only be told there is nothing new. Showing the
+   * layer again (`_startPolling`) asks once, and pauses again if still spent.
+   */
+  private _pausePollingFor(milliseconds: number): void {
+    this._stopFetching()
+    this._cancelResume()
+    this._resumePollingTimer = setTimeout(() => {
+      this._resumePollingTimer = null
+      if (this.visible) this._startPolling()
+    }, milliseconds)
+  }
+
+  private _cancelResume(): void {
+    if (this._resumePollingTimer) {
+      clearTimeout(this._resumePollingTimer)
+      this._resumePollingTimer = null
     }
   }
 

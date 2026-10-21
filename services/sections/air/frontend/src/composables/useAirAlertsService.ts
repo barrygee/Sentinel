@@ -85,7 +85,9 @@ function start(): void {
     try {
       const url = `/api/air/adsb/point/${l.lat.toFixed(4)}/${l.lon.toFixed(4)}/250`
       const resp = await fetch(url, { signal: _aborter.signal })
-      if (!resp.ok) return
+      // 204: nothing new to send (the feed failed or its daily limit is
+      // spent). Keep the last list rather than read an empty body.
+      if (!resp.ok || resp.status === 204) return
       const data = (await resp.json()) as { ac?: AdsbApiEntry[] }
       _latest = parseAircraftList(data.ac || [])
       detector.process(_latest)

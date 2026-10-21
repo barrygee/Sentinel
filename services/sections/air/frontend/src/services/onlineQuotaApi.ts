@@ -60,20 +60,12 @@ export function formatQuotaDuration(seconds: number): string {
 export function onlineQuotaWarning(quota: OnlineQuota | null): string | null {
   if (!quota || quota.state === 'ok' || quota.state === 'no_limit') return null
   if (quota.state === 'approaching') {
-    return `${quota.host} daily call limit running low: ${quota.used} of ${quota.limit} calls used. Raise the Online Refresh Interval in Settings › AIR to make the rest last.`
+    return `Online data source: ${quota.used} of ${quota.limit} daily calls used. Raise the Online Refresh Interval to make them last.`
   }
   const resume =
     quota.resetsInSeconds !== null
-      ? ` Calls resume in about ${formatQuotaDuration(quota.resetsInSeconds)}.`
+      ? ` Aircraft will resume in approximately ${formatQuotaDuration(quota.resetsInSeconds)}.`
       : ''
-  if (quota.limit !== null && quota.used < quota.limit) {
-    // The feed refused before Sentinel's own count reached the limit: it
-    // counts every call from this address, including other devices' and any
-    // made before counting began, so "all used" beside a lower count would
-    // read as a bug.
-    return `${quota.host} is refusing calls until its daily limit resets: it also counts calls Sentinel didn't make or see. Aircraft won't update.${resume}`
-  }
-  const spent =
-    quota.limit !== null ? `all ${quota.limit} daily calls used` : 'it is refusing calls for today'
-  return `${quota.host} daily call limit reached: ${spent}, so aircraft won't update.${resume}`
+  if (quota.limit === null) return `Online data source is refusing calls today.${resume}`
+  return `Online data source daily limit reached.${resume}`
 }

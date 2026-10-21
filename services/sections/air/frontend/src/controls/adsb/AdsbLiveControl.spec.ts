@@ -4266,3 +4266,135 @@ describe('AdsbLiveControl branch completion V', () => {
     expect(priv(control)._callsignMarkers['cav']).toBeDefined()
   })
 })
+
+describe('AdsbLiveControl: "nothing new" (204) instead of an error', () => {
+  // The backend answers 204 when it has no snapshot to send, rather than a 503
+  // the browser logs in red every poll — a line every 10 s while the online
+  // feed's daily limit was spent.
+
+  function nothingNew(headers: Record<string, string> = {}): Response {
+    return {
+      ok: true,
+      status: 204,
+      headers: new Headers({ 'X-Cache': 'UNAVAILABLE', ...headers }),
+      json: () => Promise.reject(new SyntaxError('no body')),
+    } as Response
+  }
+
+  function snapshot(): Response {
+    return {
+      ok: true,
+      status: 200,
+      headers: new Headers(),
+      json: () => Promise.resolve({ ac: [apiEntry()] }),
+    } as Response
+  }
+
+  it('keeps the aircraft it has however many times there is nothing new', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce(snapshot())
+    await priv(control)._fetch()
+    expect(priv(control)._geojson.features).toHaveLength(1)
+
+    // Three failed polls in a row clear the map; three 204s must not.
+    fetchMock.mockResolvedValue(nothingNew({ 'X-Unavailable-Reason': 'upstream' }))
+    for (let poll = 0; poll < 3; poll++) await priv(control)._fetch()
+
+    expect(priv(control)._geojson.features).toHaveLength(1)
+    expect(priv(control)._fetchFailCount).toBe(0)
+    expect(priv(control)._isFetching).toBe(false)
+  })
+
+  it('does not count towards clearing the map after real failures', async () => {
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 502 } as Response)
+    await priv(control)._fetch()
+    expect(priv(control)._fetchFailCount).toBe(1)
+    fetchMock.mockResolvedValueOnce(nothingNew({ 'X-Unavailable-Reason': 'upstream' }))
+    await priv(control)._fetch()
+    expect(priv(control)._fetchFailCount).toBe(0)
+  })
+
+  it('keeps polling when the feed simply had nothing this time', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    priv(control)._pollInterval = setInterval(() => {}, 99999)
+    fetchMock.mockResolvedValueOnce(nothingNew({ 'X-Unavailable-Reason': 'upstream' }))
+    await priv(control)._fetch()
+    expect(priv(control)._pollInterval).not.toBeNull()
+    expect(priv(control)._resumePollingTimer).toBeNull()
+  })
+
+  it('stops polling until a spent daily limit resets, then resumes', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    control.visible = true
+    priv(control)._pollInterval = setInterval(() => {}, 99999)
+    fetchMock.mockResolvedValueOnce(
+      nothingNew({ 'X-Unavailable-Reason': 'daily-limit', 'Retry-After': '7200' }),
+    )
+    await priv(control)._fetch()
+    expect(priv(control)._pollInterval).toBeNull()
+
+    const startSpy = vi.spyOn(priv(control), '_startPolling')
+    vi.advanceTimersByTime(7200 * 1000 - 1)
+    expect(startSpy).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1)
+    expect(startSpy).toHaveBeenCalledTimes(1)
+    expect(priv(control)._resumePollingTimer).toBeNull()
+  })
+
+  it('does not resume polling a layer that was hidden meanwhile', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce(
+      nothingNew({ 'X-Unavailable-Reason': 'daily-limit', 'Retry-After': '60' }),
+    )
+    await priv(control)._fetch()
+    control.visible = false
+    const startSpy = vi.spyOn(priv(control), '_startPolling')
+    vi.advanceTimersByTime(60_000)
+    expect(startSpy).not.toHaveBeenCalled()
+  })
+
+  it('cancels the pending resume when polling stops (layer hidden or control removed)', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    control.visible = true
+    fetchMock.mockResolvedValueOnce(
+      nothingNew({ 'X-Unavailable-Reason': 'daily-limit', 'Retry-After': '60' }),
+    )
+    await priv(control)._fetch()
+    priv(control)._stopPolling()
+    expect(priv(control)._resumePollingTimer).toBeNull()
+    const startSpy = vi.spyOn(priv(control), '_startPolling')
+    vi.advanceTimersByTime(60_000)
+    expect(startSpy).not.toHaveBeenCalled()
+  })
+
+  it('a second pause replaces the first rather than stacking resumes', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    control.visible = true
+    fetchMock.mockResolvedValue(
+      nothingNew({ 'X-Unavailable-Reason': 'daily-limit', 'Retry-After': '60' }),
+    )
+    await priv(control)._fetch()
+    vi.advanceTimersByTime(30_000)
+    await priv(control)._fetch()
+    const startSpy = vi.spyOn(priv(control), '_startPolling').mockImplementation(() => {})
+    vi.advanceTimersByTime(30_000)
+    expect(startSpy).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(30_000)
+    expect(startSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps polling on a daily-limit answer that names no reset time', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    priv(control)._pollInterval = setInterval(() => {}, 99999)
+    fetchMock.mockResolvedValueOnce(nothingNew({ 'X-Unavailable-Reason': 'daily-limit' }))
+    await priv(control)._fetch()
+    expect(priv(control)._pollInterval).not.toBeNull()
+  })
+})

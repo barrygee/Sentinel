@@ -54,15 +54,33 @@ describe('OnlineQuotaNotice', () => {
   it('warns as the limit approaches', async () => {
     const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
 
-    expect(wrapper.text()).toContain(
-      'api.adsb.lol daily call limit running low: 400 of 500 calls used.',
+    expect(wrapper.text()).toContain('Online data source: 400 of 500 daily calls used.')
+  })
+
+  it('dims the map once it is reached, and keeps the warning banner over it', async () => {
+    const wrapper = await mountWith(
+      figure({ state: 'reached', used: 500, remaining: 0, resetsInSeconds: 5 * 3600 + 2 * 60 }),
+    )
+
+    expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
+    expect(wrapper.find('[role="status"]').text()).toContain(
+      'Online data source daily limit reached. Aircraft will resume in approximately 5h 2m.',
     )
   })
 
-  it('warns once it is reached, as a status the screen reader announces', async () => {
+  it('does not dim the map while the limit only approaches', async () => {
+    const wrapper = await mountWith(figure({ state: 'approaching', used: 400, remaining: 100 }))
+
+    expect(wrapper.find('.map-notice').exists()).toBe(true)
+    expect(wrapper.find('.map-dim-overlay').exists()).toBe(false)
+  })
+
+  it('has no accessibility violations once reached', async () => {
     const wrapper = await mountWith(figure({ state: 'reached', used: 500, remaining: 0 }))
 
-    expect(wrapper.find('[role="status"]').text()).toContain("so aircraft won't update")
+    expect(
+      await axe(wrapper.element, { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
   })
 
   it('has no accessibility violations', async () => {

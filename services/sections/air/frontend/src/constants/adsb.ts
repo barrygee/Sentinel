@@ -9,7 +9,7 @@
  * them makes some requests fall back to older cached data.
  *
  * Online, the backend calls the feed once per Settings › AIR › Online Refresh
- * Interval (180s by default — adsb.lol's daily quota) and answers polls in
+ * Interval (60 s by default, inside the feed's daily call limit) and answers polls in
  * between from its cache, so this cadence costs no upstream calls and a new
  * snapshot reaches the map within one poll of arriving.
  *
