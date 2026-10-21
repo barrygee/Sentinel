@@ -14,13 +14,14 @@ import logging
 import httpx
 import pytest
 from backend.database import Base
+from backend.services.upstream_rate_limit import UpstreamThrottledError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from sentinel_air.models import AdsbOnlineCall
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import online_quota
+from sentinel_air.services import adsb_squawk, online_quota
 from sentinel_air.services.adsb import _daily_quota_reset_seconds
 from sentinel_air.services.online_quota import (
     QUOTA_WINDOW_SECONDS,
@@ -360,6 +361,52 @@ class TestFeedRefusingCalls:
         assert (await quota_tracker.status(ADSB_LOL)).resets_in_seconds == 91
 
 
+class TestRefusedForSeconds:
+    """Only the feed's own refusal stops calls, and only until the reset it stated."""
+
+    async def test_a_feed_never_heard_from_is_not_refusing(self, quota_tracker, clock):
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) is None
+
+    async def test_a_feed_answering_normally_is_not_refusing(self, quota_tracker, clock):
+        await record_calls(quota_tracker, ADSB_LOL, 1)
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) is None
+
+    async def test_a_count_at_the_limit_alone_is_not_a_refusal(self, quota_tracker, clock):
+        # "reached" by Sentinel's count, but the feed hasn't said so: its next
+        # answer is what says when calls stop, and for how long.
+        await record_calls(quota_tracker, ADSB_LOL, 500)
+        assert (await quota_tracker.status(ADSB_LOL)).state == "reached"
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) is None
+
+    async def test_a_refusal_lasts_the_feeds_stated_reset(self, quota_tracker, clock):
+        await quota_tracker.note_exhausted(ADSB_LOL, 7200)
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) == 7200
+
+    async def test_a_reset_before_utc_midnight_is_not_stretched_to_it(self, quota_tracker, clock):
+        # START_MS is 08:00 UTC, so midnight is 16 hours away; the feed said 10 minutes.
+        await quota_tracker.note_exhausted(ADSB_LOL, 600)
+        clock[0] += 600_000
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) is None
+
+    async def test_it_counts_down(self, quota_tracker, clock):
+        await quota_tracker.note_exhausted(ADSB_LOL, 7200)
+        clock[0] += 3_600_000
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) == 3600
+
+    async def test_the_last_millisecond_still_refuses(self, quota_tracker, clock):
+        await quota_tracker.note_exhausted(ADSB_LOL, 600)
+        clock[0] += 600_000 - 1
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) == 1
+
+    async def test_a_partial_second_rounds_up(self, quota_tracker, clock):
+        await quota_tracker.note_exhausted(ADSB_LOL, 90.4)
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) == 91
+
+    async def test_another_feed_is_not_refused_with_it(self, quota_tracker, clock):
+        await quota_tracker.note_exhausted(ADSB_LOL, 7200)
+        assert quota_tracker.refused_for_seconds(OTHER_FEED) is None
+
+
 # ── Announcing it ─────────────────────────────────────────────────────────────
 
 
@@ -603,12 +650,197 @@ class TestFetchAircraftCounts:
         assert (await quota_tracker.status(ADSB_LOL)).state == "ok"
 
 
+class TestNoCallsWhileTheFeedRefuses:
+    """Once the feed refuses a call for its daily limit, nothing calls it until its stated reset.
+
+    The failure this guards against: the 429 cooldown is clamped to 10
+    minutes, so a spent limit was retried — and refused — every 10 minutes
+    until the feed's reset.
+    """
+
+    ONLINE = "https://api.adsb.lol/v2"
+    READSB = "http://offgrid.local/data/aircraft.json"
+    DAILY_REFUSAL = {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "7200"}
+
+    @pytest.fixture(autouse=True)
+    def slots(self, monkeypatch) -> list[str]:
+        """No spacing between calls; records each host a call slot was taken for."""
+        taken: list[str] = []
+
+        class RecordingNoLimit:
+            async def acquire(self, host_key, max_wait_seconds, interval_seconds=None):
+                taken.append(host_key)
+
+            async def penalize(self, host_key, cooldown_seconds):
+                return None
+
+        monkeypatch.setattr(adsb_service, "_adsb_rate_limiter", RecordingNoLimit())
+        return taken
+
+    @pytest.fixture
+    def feed(self, monkeypatch) -> list[str]:
+        """Every call answers 200 with no aircraft, unless `refusing` is set; records the URLs called."""
+        called: list[str] = []
+
+        async def fake_get_response(client, url):
+            called.append(url)
+            if self.refusing:
+                return httpx.Response(429, headers=self.refusing, request=httpx.Request("GET", url))
+            return httpx.Response(200, json={"ac": [], "aircraft": [], "now": 0}, request=httpx.Request("GET", url))
+
+        self.refusing: dict[str, str] | None = None
+        monkeypatch.setattr(adsb_service, "_get_response", fake_get_response)
+        return called
+
+    async def _refuse_for_the_day(self, headers: dict[str, str] | None = None) -> None:
+        self.refusing = headers or self.DAILY_REFUSAL
+        with pytest.raises(httpx.HTTPStatusError):
+            await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        self.refusing = None
+
+    async def test_the_next_call_is_refused_locally(self, quota_tracker, clock, feed, slots):
+        await self._refuse_for_the_day()
+
+        with pytest.raises(adsb_service.DailyLimitReachedError, match=r"api\.adsb\.lol.*7200s"):
+            await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+
+        assert len(feed) == 1
+        # Refused before the rate limiter: no call slot is spent on it.
+        assert slots == [ADSB_LOL]
+
+    async def test_callers_handling_a_throttled_call_handle_it(self, quota_tracker, clock, feed):
+        # The map and the watcher catch UpstreamThrottledError; this must be one.
+        await self._refuse_for_the_day()
+        with pytest.raises(UpstreamThrottledError):
+            await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+
+    async def test_still_refused_long_after_the_clamped_cooldown(self, quota_tracker, clock, feed):
+        await self._refuse_for_the_day()
+        clock[0] += 7200_000 - 1000
+
+        with pytest.raises(adsb_service.DailyLimitReachedError):
+            await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 1
+
+    async def test_calls_resume_at_the_feeds_stated_reset_not_midnight(self, quota_tracker, clock, feed):
+        await self._refuse_for_the_day()
+        clock[0] += 7200_000
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 2
+
+    async def test_a_wild_reset_stops_calls_for_a_day_at_most(self, quota_tracker, clock, feed):
+        await self._refuse_for_the_day({"x-ratelimit-remaining": "0", "x-ratelimit-reset": "9999999"})
+        assert quota_tracker.refused_for_seconds(ADSB_LOL) == QUOTA_WINDOW_SECONDS
+
+        clock[0] += DAY_MS
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 2
+
+    async def test_a_per_minute_refusal_does_not_stop_calls(self, quota_tracker, clock, feed):
+        # Short-window 429s keep the limiter's clamped cooldown only.
+        self.refusing = {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "30"}
+        with pytest.raises(httpx.HTTPStatusError):
+            await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        self.refusing = None
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 2
+
+    async def test_a_429_with_calls_left_does_not_stop_calls(self, quota_tracker, clock, feed):
+        await self._refuse_for_the_day({"x-ratelimit-remaining": "3", "x-ratelimit-reset": "7200"})
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 2
+
+    async def test_a_count_at_the_limit_alone_does_not_stop_calls(self, quota_tracker, clock, feed):
+        await record_calls(quota_tracker, ADSB_LOL, 500)
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.ONLINE)
+        assert len(feed) == 1
+
+    async def test_a_feed_with_no_known_limit_is_unaffected(self, quota_tracker, clock, feed):
+        await self._refuse_for_the_day()
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, f"https://{OTHER_FEED}/v2")
+        assert feed[-1].startswith(f"https://{OTHER_FEED}/v2/point/")
+
+    async def test_the_local_decoder_is_never_refused(self, quota_tracker, clock, feed):
+        await quota_tracker.note_exhausted("offgrid.local", 7200)
+
+        await adsb_service.fetch_aircraft(54.0, -1.5, 100, self.READSB)
+        assert feed == [self.READSB]
+
+    async def test_the_squawk_watcher_makes_no_call_and_tries_its_next_source(
+        self, monkeypatch, quota_tracker, clock, feed
+    ):
+        await self._refuse_for_the_day()
+        observed = await self._watch_once(monkeypatch, (self.ONLINE, self.READSB))
+
+        assert observed is True
+        assert feed[1:] == [self.READSB]
+
+    async def test_the_squawk_watcher_with_no_other_source_waits(self, monkeypatch, quota_tracker, clock, feed):
+        await self._refuse_for_the_day()
+        observed = await self._watch_once(monkeypatch, (self.ONLINE, None))
+
+        assert observed is False
+        assert len(feed) == 1
+
+    @staticmethod
+    async def _watch_once(monkeypatch, sources: tuple[str, str | None]) -> bool:
+        """One squawk watcher tick against `sources`, due to fetch and with nothing cached or alerted."""
+        squawk_tracker = adsb_squawk.SquawkTracker()
+
+        async def online_mode(domain, db):
+            return "online"
+
+        async def interval(db, watch_mode):
+            return 20.0
+
+        async def area(db, watch_mode=None):
+            return (54.0, -1.5)
+
+        async def urls(domain, db, *, online_default, offgrid_default):
+            return sources
+
+        async def refresh_interval(db):
+            return 60.0
+
+        async def observe(snapshot, db):
+            return None
+
+        async def no_cache(db, lat, lon, snapshot, fresh_for_ms):
+            return None
+
+        monkeypatch.setattr(adsb_squawk, "tracker", squawk_tracker)
+        monkeypatch.setattr(adsb_squawk, "resolve_effective_mode", online_mode)
+        monkeypatch.setattr(adsb_squawk, "watch_interval_s", interval)
+        monkeypatch.setattr(adsb_squawk, "watch_area", area)
+        monkeypatch.setattr(adsb_squawk, "resolve_domain_urls", urls)
+        monkeypatch.setattr(adsb_squawk.adsb_service, "online_refresh_interval_s", refresh_interval)
+        monkeypatch.setattr(squawk_tracker, "observe", observe)
+        monkeypatch.setattr(adsb_squawk, "_cache_for_the_map", no_cache)
+        # Long after any browser poll or snapshot, so the watcher fetches.
+        monkeypatch.setattr(adsb_squawk, "_now_ms", lambda: START_MS + 10**9)
+        return await adsb_squawk.watch_once(object())
+
+
 class TestDailyQuotaResetSeconds:
     @pytest.mark.parametrize(
         ("header", "expected"),
         [("7200", 7200.0), (" 61 ", 61.0), ("60", None), ("30", None), ("soon", None), (None, None)],
     )
     def test_only_a_reset_longer_than_a_minute_is_the_days(self, header, expected):
+        assert _daily_quota_reset_seconds(header) == expected
+
+    @pytest.mark.parametrize(
+        ("header", "expected"),
+        [("86400", 86400.0), ("86401", 86400.0), ("9999999", 86400.0)],
+    )
+    def test_a_reset_is_capped_at_the_daily_window(self, header, expected):
+        # A daily limit can't reset further off than a day: a wild header
+        # mustn't stop calls for longer.
         assert _daily_quota_reset_seconds(header) == expected
 
 

@@ -8,7 +8,7 @@ import logging
 import httpx
 import pytest
 from backend.config import settings
-from backend.services.upstream_rate_limit import UpstreamThrottledError
+from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
 from tests.backend.air_test_helpers import assert_nothing_to_serve
 
 from sentinel_air import router as air_router
@@ -469,6 +469,40 @@ class TestAdsbNearbyCacheFallback:
 
         assert_nothing_to_serve(resp, "daily-limit")
         assert resp.headers["Retry-After"] == "7200"
+
+    async def test_a_spent_daily_limit_is_not_called_again_before_its_reset(self, client, monkeypatch, quota_tracker):
+        """End to end through the real fetch: the refused feed is never called, only the other source."""
+        self._configure_sources(client)
+        await quota_tracker.note_exhausted("online.example", 600)
+        monkeypatch.setattr(adsb_service, "_adsb_rate_limiter", MinimumIntervalRateLimiter(0))
+        called: list[str] = []
+
+        async def decoder_down(http_client, url):
+            called.append(url)
+            raise httpx.ConnectError("decoder down")
+
+        monkeypatch.setattr(adsb_service, "_get_response", decoder_down)
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert_nothing_to_serve(resp, "daily-limit")
+        # The feed's stated reset, not the next UTC midnight.
+        assert resp.headers["Retry-After"] == "600"
+        assert called == [self.OFFGRID]
+
+    async def test_a_count_at_the_limit_alone_is_not_a_spent_daily_limit(self, client, monkeypatch, quota_tracker):
+        """The map mustn't pause until midnight on Sentinel's count: the feed hasn't refused yet."""
+        self._configure_sources(client)
+        limit_headers = httpx.Headers({"x-ratelimit-limit": "4, 4;w=1, 60;w=60, 2;w=86400"})
+        await quota_tracker.record_call("online.example", limit_headers)
+        await quota_tracker.record_call("online.example", limit_headers)
+        assert (await quota_tracker.status("online.example")).state == "reached"
+        self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
+
+        resp = client.get(self._point(54.0, -1.5))
+
+        assert_nothing_to_serve(resp, "upstream")
+        assert "Retry-After" not in resp.headers
 
     async def test_a_feed_with_calls_to_spare_is_not_called_spent(self, client, monkeypatch, quota_tracker):
         self._configure_sources(client)

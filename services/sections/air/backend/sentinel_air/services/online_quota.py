@@ -250,6 +250,21 @@ class OnlineQuotaTracker:
             count.exhausted_until_ms = max(count.exhausted_until_ms, _now_ms() + int(reset_in_seconds * 1000))
             await self._announce_if_worse(self._status(host, count, configured_limit), previous_state)
 
+    def refused_for_seconds(self, host: str) -> int | None:
+        """Seconds until `host` accepts calls again after refusing one for its daily limit.
+
+        None when it isn't refusing. Only the feed's own refusal counts, not
+        Sentinel's count reaching the limit: the feed's stated reset is when it
+        really accepts calls again (it can move on the feed's side, and other
+        clients behind the same address share the limit), so a count that says
+        "reached" still lets the next call find out.
+        """
+        count = self._hosts.get(host)
+        if count is None:
+            return None
+        remaining_ms = count.exhausted_until_ms - _now_ms()
+        return (remaining_ms + 999) // 1000 if remaining_ms > 0 else None
+
     async def status(self, host: str) -> OnlineQuotaStatus:
         """The limit for `host` as of now."""
         configured_limit = await daily_limit_override(host)
