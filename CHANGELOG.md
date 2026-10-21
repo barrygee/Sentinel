@@ -551,6 +551,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Write "Online data source" in the daily-limit warnings
 - "Aircraft will resume in approximately" in the daily-limit warnings
 - Stop polling the map while its browser tab is hidden
+- Stop calling the online feed until its daily limit resets
 
 ### Chores
 
@@ -1629,6 +1630,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #526 from barrygee/fix/air-quota-refusal-wording
 - Merge pull request #527 from barrygee/fix/air-no-console-503s
 - Merge pull request #528 from barrygee/fix/air-pause-hidden-tab
+- Merge pull request #529 from barrygee/fix/air-honour-daily-limit-reset
 
 ### Refactoring
 
