@@ -1,0 +1,6 @@
+# Backend coverage (pytest-cov), read from the repo root where pytest runs.
+[run]
+# SQLAlchemy's async engine runs each database call on a greenlet. Without
+# `greenlet`, coverage's tracer loses its place at the first switch, so every
+# route body exercised through the TestClient reads as never run.
+concurrency = greenlet,thread
