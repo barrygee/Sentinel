@@ -171,6 +171,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     mil: { aircraftType: true },
   }
   private _onTagFieldsChanged: ((e: Event) => void) | null = null
+  private _onPageVisibilityChange: (() => void) | null = null
 
   constructor(
     airStore: AirStore,
@@ -395,6 +396,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
     window.addEventListener('adsb:tagFieldsChanged', this._onTagFieldsChanged)
 
+    // A hidden tab still polls (browsers only slow its timers to once a
+    // minute), and online every poll can cost a call from the feed's daily
+    // limit. Nobody is looking at a hidden map, so stop asking until the tab is
+    // shown again. Overhead alerts poll separately and the server's squawk
+    // watcher takes over, so neither depends on this.
+    this._onPageVisibilityChange = () => {
+      if (document.hidden) {
+        this._stopFetching()
+      } else if (this.visible && !this._resumePollingTimer) {
+        this._startPolling()
+      }
+    }
+    document.addEventListener('visibilitychange', this._onPageVisibilityChange)
+
     return this.container
   }
 
@@ -405,6 +420,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (this._onTagFieldsChanged) {
       window.removeEventListener('adsb:tagFieldsChanged', this._onTagFieldsChanged)
       this._onTagFieldsChanged = null
+    }
+    if (this._onPageVisibilityChange) {
+      document.removeEventListener('visibilitychange', this._onPageVisibilityChange)
+      this._onPageVisibilityChange = null
     }
     if (this.container && this.container.parentNode)
       this.container.parentNode.removeChild(this.container)
@@ -2384,7 +2403,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
   // ---- Polling control ----
 
   private _startPolling(): void {
-    if (this._pollInterval) return
+    // Hidden: the visibilitychange listener starts polling when the tab returns.
+    if (this._pollInterval || document.hidden) return
     if (Date.now() - this._lastFetchTime > ADSB_REFETCH_GUARD_MS) this._fetch()
     this._pollInterval = setInterval(() => this._fetch(), ADSB_POLL_INTERVAL_MS)
     if (!this._interpolateInterval) {
