@@ -4,7 +4,7 @@ from urllib.parse import urlsplit
 import httpx
 from backend.config import settings
 from backend.platform.settings_client import read_setting
-from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter
+from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_air.services import online_quota
@@ -13,6 +13,15 @@ from sentinel_air.services import online_quota
 # wire rate stays within the upstream's published limit regardless of how many
 # distinct cache keys (map panes, tabs, clients) expire at the same moment.
 _adsb_rate_limiter = MinimumIntervalRateLimiter(settings.adsb_min_request_interval_ms / 1000)
+
+
+class DailyLimitReachedError(UpstreamThrottledError):
+    """Raised instead of calling an online feed that is refusing calls for its daily limit.
+
+    A kind of `UpstreamThrottledError` ("we chose not to call"), so every
+    caller already falls back to cached data or its next source.
+    """
+
 
 ONLINE_REFRESH_INTERVAL_SETTING = "onlineRefreshIntervalSec"
 """The `air` setting holding the gap between calls to the online feed."""
@@ -72,6 +81,8 @@ async def fetch_aircraft(
         Raw JSON dict from the API, shape: {"ac": [...], ...}
 
     Raises:
+        DailyLimitReachedError: If the online feed refused a call for its daily
+            limit and its stated reset hasn't passed yet.
         UpstreamThrottledError: If the local rate limiter refused the call.
         httpx.HTTPError: If the upstream request fails or returns a non-2xx status.
     """
@@ -79,6 +90,14 @@ async def fetch_aircraft(
     # may be reached through differing base paths.
     upstream_host = urlsplit(base_url).netloc or base_url
     if is_online_feed(base_url):
+        # Checked before taking a call slot: the rate limiter's 429 cooldown is
+        # clamped (a wild Retry-After mustn't take the feed offline), so on its
+        # own it would retry a spent daily limit every few minutes until reset.
+        refused_for_seconds = online_quota.tracker.refused_for_seconds(upstream_host)
+        if refused_for_seconds is not None:
+            raise DailyLimitReachedError(
+                f"{upstream_host} daily call limit is spent; it resets in {refused_for_seconds}s"
+            )
         interval_seconds = (
             settings.adsb_online_refresh_interval_s if online_interval_seconds is None else online_interval_seconds
         )
@@ -161,6 +180,8 @@ def _daily_quota_reset_seconds(quota_reset_header: str | None) -> float | None:
 
     `X-RateLimit-Remaining: 0` comes with the per-second and per-minute windows
     too; only a reset longer than the per-minute window can be the daily one.
+    Capped at the daily window: a daily limit can't reset further away than
+    that, so a wild header can't stop calls for longer.
     """
     if quota_reset_header is None:
         return None
@@ -168,7 +189,9 @@ def _daily_quota_reset_seconds(quota_reset_header: str | None) -> float | None:
         reset_seconds = float(quota_reset_header.strip())
     except ValueError:
         return None
-    return reset_seconds if reset_seconds > 60 else None
+    if reset_seconds <= 60:
+        return None
+    return min(reset_seconds, online_quota.QUOTA_WINDOW_SECONDS)
 
 
 async def _get_response(client: httpx.AsyncClient, url: str) -> httpx.Response:

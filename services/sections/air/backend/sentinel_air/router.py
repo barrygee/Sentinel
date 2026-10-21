@@ -315,9 +315,11 @@ async def get_aircraft_near_point(
     if empty_fallback is not None:
         return _fresh_response(empty_fallback, "FALLBACK", settings.adsb_ttl_ms)
     if adsb_service.is_online_feed(primary_url):
-        quota = await online_quota.tracker.status(online_quota.feed_host(primary_url))
-        if quota.state == "reached":
-            return _nothing_to_serve("daily-limit", retry_after_seconds=quota.resets_in_seconds)
+        # The feed's own stated reset, not the next UTC midnight: it is when
+        # calls are made again, and it can move on the feed's side.
+        refused_for_seconds = online_quota.tracker.refused_for_seconds(online_quota.feed_host(primary_url))
+        if refused_for_seconds is not None:
+            return _nothing_to_serve("daily-limit", retry_after_seconds=refused_for_seconds)
     return _nothing_to_serve("upstream")
 
 
