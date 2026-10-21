@@ -15,7 +15,8 @@ manifest = section_manifest("air", display_name="AIR", nav_order=10, routes=["/a
 
 
 async def _start() -> None:
-    # The day's online calls so far, so the quota count survives a restart.
+    # The day's online calls so far and any refusal still in force, so the
+    # quota survives a restart.
     await online_quota.tracker.load()
     # Fetches aircraft itself only while no browser is, so emergency squawks
     # raise alerts with no Air page open (docs/plans/adsb-server-alerts.md).

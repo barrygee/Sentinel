@@ -7,7 +7,7 @@ from sentinel_air import models  # noqa: F401 — registers Air's tables with Ba
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 """The tables copied from the legacy shared database on first boot."""
 
-AIR_SERVICE_ONLY_TABLES: tuple[str, ...] = ("adsb_online_call",)
+AIR_SERVICE_ONLY_TABLES: tuple[str, ...] = ("adsb_online_call", "adsb_online_refusal")
 """Tables added after the split: nothing to import, so only created."""
 
 
