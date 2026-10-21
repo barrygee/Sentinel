@@ -37,10 +37,10 @@ jobs:
           enable-cache: true
 
       - name: Lint (ruff check)
-        run: uv run --project backend ruff check backend services/sections services/radio services/docs
+        run: uv run --project backend ruff check backend services/sections services/radio services/docs services/sdr-manager-local
 
       - name: Format check (ruff format)
-        run: uv run --project backend ruff format --check backend services/sections services/radio services/docs
+        run: uv run --project backend ruff format --check backend services/sections services/radio services/docs services/sdr-manager-local
 
       - name: Import boundaries (import-linter)
         # Sections may not import each other; core/platform may import no
@@ -274,6 +274,29 @@ jobs:
             *.cache-from=type=gha,scope=multi-arch-build
             *.cache-to=type=gha,mode=max,scope=multi-arch-build
 
+  # sdr-manager-local's own image (ADR 0007), for both architectures, built
+  # without pushing — the same check multi-arch-build makes for the backend
+  # image: librtlsdr compiles and the Python dependencies install on arm64,
+  # where it usually runs (a Pi with the dongles plugged in).
+  sdr-manager-local-image:
+    name: sdr-manager-local-image (amd64 + arm64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-qemu-action@v4
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build sdr-manager-local image (docker buildx bake)
+        uses: docker/bake-action@v7
+        with:
+          source: .
+          targets: sdr-manager-local
+          set: |
+            *.cache-from=type=gha,scope=sdr-manager-local-image
+            *.cache-to=type=gha,mode=max,scope=sdr-manager-local-image
+
   root-tooling:
     name: root-tooling (eslint + prettier + tsc)
     runs-on: ubuntu-latest
@@ -379,7 +402,9 @@ jobs:
       - name: No backend container runs as root
         run: |
           for service in $(docker compose ps --services); do
-            case "$service" in gateway|nats) continue ;; esac
+            # sdr-manager-local is the documented exception: its own image,
+            # root and privileged for the USB bus (ADR 0007).
+            case "$service" in gateway|nats|sdr-manager-local) continue ;; esac
             server_process_user_id=$(docker compose exec -T "$service" awk '/^Uid:/ { print $2 }' /proc/1/status)
             echo "$service runs as user id $server_process_user_id"
             if [ "$server_process_user_id" = "0" ]; then

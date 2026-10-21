@@ -56,6 +56,17 @@ target "backend" {
   tags       = ["${IMAGE_REPOSITORY}/backend:${IMAGE_TAG}"]
 }
 
+# sdr-manager-local's own image (ADR 0007): librtlsdr + the SDR Manager API,
+# for whichever machine the dongles are plugged into — often an arm64 Pi.
+# Opt-in like its compose profile, so not part of `default`:
+#   docker buildx bake sdr-manager-local
+target "sdr-manager-local" {
+  inherits   = ["_multi-platform"]
+  context    = "."
+  dockerfile = "services/sdr-manager-local/Dockerfile"
+  tags       = ["${IMAGE_REPOSITORY}/sdr-manager-local:${IMAGE_TAG}"]
+}
+
 target "voice-decoder" {
   inherits = ["_multi-platform"]
   context  = "decoder"

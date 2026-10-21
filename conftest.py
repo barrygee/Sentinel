@@ -32,6 +32,7 @@ import sentinel_air.models  # noqa: E402,F401
 import sentinel_land.models  # noqa: E402,F401
 import sentinel_radio.models  # noqa: E402,F401
 import sentinel_sdr.models  # noqa: E402,F401
+import sentinel_sdr_manager_local.models  # noqa: E402,F401
 import sentinel_sea.models  # noqa: E402,F401
 import sentinel_space.models  # noqa: E402,F401
 from backend.database import Base, get_db  # noqa: E402

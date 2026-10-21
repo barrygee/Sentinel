@@ -19,13 +19,18 @@ dependencies = [
     "websockets>=13",
     "pmtiles>=3.8.1",
     "nats-py>=2.9",
+    # argon2id for SDR Manager's console password (sentinel_sdr_manager_local, Sentry ADR-0010):
+    # memory-hard, so a stolen database is expensive to attack offline.
+    "argon2-cffi>=23.1",
     # Each section's backend package (services/sections/<id>/backend), the radio hub's
-    # (services/radio/backend) and the docs service's (services/docs/backend), installed editable.
+    # (services/radio/backend), the docs service's (services/docs/backend) and
+    # sdr-manager-local's (services/sdr-manager-local/backend), installed editable.
     "sentinel-air",
     "sentinel-docs",
     "sentinel-land",
     "sentinel-radio",
     "sentinel-sdr",
+    "sentinel-sdr-manager-local",
     "sentinel-sea",
     "sentinel-space",
 ]
@@ -36,6 +41,7 @@ sentinel-docs = { path = "../services/docs/backend", editable = true }
 sentinel-land = { path = "../services/sections/land/backend", editable = true }
 sentinel-radio = { path = "../services/radio/backend", editable = true }
 sentinel-sdr = { path = "../services/sections/sdr/backend", editable = true }
+sentinel-sdr-manager-local = { path = "../services/sdr-manager-local/backend", editable = true }
 sentinel-sea = { path = "../services/sections/sea/backend", editable = true }
 sentinel-space = { path = "../services/sections/space/backend", editable = true }
 
@@ -104,8 +110,9 @@ ignore_missing_imports = true
 # crossing with the phase that removes it — delete the entry when it goes.
 [tool.importlinter]
 # Core plus each package that has moved out of backend/: the sections (services/sections/<id>/backend),
-# the radio hub (services/radio/backend) and the docs service (services/docs/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sea", "sentinel_space"]
+# the radio hub (services/radio/backend), the docs service (services/docs/backend) and
+# sdr-manager-local (services/sdr-manager-local/backend).
+root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sdr_manager_local", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core imports no section"
@@ -129,6 +136,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_docs",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -144,6 +152,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -159,6 +168,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -174,6 +184,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -189,6 +200,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -204,6 +216,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_land",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -219,6 +232,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_land",
     "sentinel_sdr",
+    "sentinel_sdr_manager_local",
 ]
 
 [[tool.importlinter.contracts]]
@@ -235,4 +249,22 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_sdr_manager_local",
+]
+
+[[tool.importlinter.contracts]]
+name = "sdr-manager-local imports no section"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "sentinel_sdr_manager_local",
+]
+forbidden_modules = [
+    "sentinel_air",
+    "sentinel_space",
+    "sentinel_sea",
+    "sentinel_land",
+    "sentinel_sdr",
+    "sentinel_radio",
+    "sentinel_docs",
 ]

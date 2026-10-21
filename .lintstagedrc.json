@@ -1,7 +1,7 @@
 {
     "{tests,scripts}/**/*.{ts,mts}": ["eslint --fix", "prettier --write"],
     "*.{js,ts}": ["prettier --write"],
-    "{backend,services/sections,services/radio,services/docs}/**/*.py": [
+    "{backend,services/sections,services/radio,services/docs,services/sdr-manager-local}/**/*.py": [
         "uv run --project backend ruff check --fix",
         "uv run --project backend ruff format"
     ]
