@@ -235,6 +235,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Open JSON editors folded to their top-level sections
 - Serve the in-app docs from an optional docs service
 - Warn as the online feed's daily call limit runs out
+- Dim the map while the daily call limit is spent
 
 ### Bug Fixes
 
@@ -545,6 +546,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Force monaco-editor onto the patched dompurify
 - Cache the squawk watcher's snapshots for the map
 - Count the online feed's calls per UTC day and stop tests calling it
+- Answer "nothing new" instead of 503 so the console stays clean
+- Keep the warning banner over the dimmed map
+- Write "Online data source" in the daily-limit warnings
+- "Aircraft will resume in approximately" in the daily-limit warnings
 
 ### Chores
 
@@ -1621,6 +1626,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #524 from barrygee/fix/air-watcher-snapshots-cached
 - Merge pull request #525 from barrygee/chore/air-uv-lock
 - Merge pull request #526 from barrygee/fix/air-quota-refusal-wording
+- Merge pull request #527 from barrygee/fix/air-no-console-503s
 
 ### Refactoring
 
