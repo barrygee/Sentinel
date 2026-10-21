@@ -237,6 +237,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Warn as the online feed's daily call limit runs out
 - Dim the map while the daily call limit is spent
 - Sdr-manager kinds, serve-before-core, app mode, shared settings section
+- Port Sentry backend
 
 ### Bug Fixes
 
@@ -1638,6 +1639,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #530 from barrygee/chore/backend-coverage-greenlet
 - Merge pull request #532 from barrygee/docs/sdr-manager-adr
 - Merge pull request #533 from barrygee/feat/sdr-manager-platform
+- Merge pull request #534 from barrygee/feat/sdr-manager-local-backend
 
 ### Refactoring
 
