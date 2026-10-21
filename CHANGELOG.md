@@ -236,6 +236,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Serve the in-app docs from an optional docs service
 - Warn as the online feed's daily call limit runs out
 - Dim the map while the daily call limit is spent
+- Sdr-manager kinds, serve-before-core, app mode, shared settings section
 
 ### Bug Fixes
 
@@ -1636,6 +1637,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #531 from barrygee/fix/air-persist-daily-limit-refusal
 - Merge pull request #530 from barrygee/chore/backend-coverage-greenlet
 - Merge pull request #532 from barrygee/docs/sdr-manager-adr
+- Merge pull request #533 from barrygee/feat/sdr-manager-platform
 
 ### Refactoring
 
