@@ -10,10 +10,12 @@ uv run --project backend ruff format --check backend services/sections services/
 PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml
 uv run --project backend pytest
 uv run --project backend pytest tests/backend/test_routers_air.py::test_name
+uv run --project backend pytest services/sections/air --cov=sentinel_air --cov-report=term-missing
 ```
 
 - Tests need no Docker: one all-in-one app (`tests/in_process_app.py`), an in-memory database, and your `.env` ignored.
 - Format one file with `--config backend/pyproject.toml`, or it uses a different line length.
+- Coverage is measured on request, not gated. `.coveragerc` sets `concurrency = greenlet,thread`; without it, route bodies run through the TestClient show as uncovered.
 - mypy is informational, not a gate.
 
 ## Frontend
