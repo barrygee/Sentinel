@@ -1635,6 +1635,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #529 from barrygee/fix/air-honour-daily-limit-reset
 - Merge pull request #531 from barrygee/fix/air-persist-daily-limit-refusal
 - Merge pull request #530 from barrygee/chore/backend-coverage-greenlet
+- Merge pull request #532 from barrygee/docs/sdr-manager-adr
 
 ### Refactoring
 
@@ -1792,6 +1793,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Retake the Offline Maps screenshot without the area fields
 - Shared packages import their own modules by package name
 - Explain how to run without the docs service
+- 0007 SDR Manager
 
 ### Tests
 
