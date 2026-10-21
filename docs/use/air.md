@@ -4,7 +4,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 
 ## Features
 
-- **Live map** of aircraft within 250 nautical miles of the map centre: off grid every few seconds, online every **Online Refresh Interval** (3 minutes by default).
+- **Live map** of aircraft within 250 nautical miles of the map centre: off grid every few seconds, online every **Online Refresh Interval** (1 minute by default). The map stops asking while its browser tab is hidden and catches up when you return to it.
 - **Aircraft details**: height, speed, heading, climb, type, registration, category and squawk. **SIGNAL LOST** when it stops reporting.
 - **Track aircraft**: keep the map on it; it is listed under **TRACKING**.
 - **Landing and take-off alerts** for an aircraft you choose (**Enable alerts**).
@@ -39,7 +39,7 @@ All in **Settings › AIR**.
 | **Online Refresh Interval** | Seconds between calls to the online feed, 5 to 280. Default 60. Each call counts against the feed's daily limit: with adsb.lol (500 a day), 60 lasts about 8 hours of use, 173 or more never runs out |
 | **Daily Call Limit** | The online feed's daily call limit, for a feed that has one but doesn't state it. 0 (default) uses the feed's own figure |
 | **Online API Usage** | The feed in use, its daily limit and where that came from, and the calls made today (UTC days, as adsb.lol counts them), with a warning once 80% is used and when it runs out. The Air map and the alerts panel warn too. Each feed is counted separately; one with no known limit is counted without warnings |
-| **Online Squawk Checks** | Seconds between emergency checks of the online feed while no Air map is open. Default 300. Never more often than **Online Refresh Interval**, and each check uses one daily call (300 is 288 a day) |
+| **Online Squawk Checks** | Seconds between emergency checks of the online feed while no Air map is open and showing. Default 300. Never more often than **Online Refresh Interval**, and each check uses one daily call (300 is 288 a day) |
 | **Off Grid Squawk Checks** | Seconds between emergency checks of the local decoder while no Air map is open. Default 20 |
 | **Map Layers** | Layers on when the map opens |
 | **Aircraft Label Fields** | What each aircraft label shows |
@@ -54,5 +54,5 @@ All in **Settings › AIR**.
 
 - **Empty off grid:** read the notice at the top of the map. Check **Off Grid ADS-B SDR** and `docker compose --profile adsb ps`. A decoder that streams but accepts 0 messages is an antenna or signal problem.
 - **"No data source configured":** **Online Data Source** is empty.
-- **Empty online, `503` in the browser console:** adsb.lol's 500 calls a day are used up. `docker compose logs air` says `rate limited us (HTTP 429)`; it resets within a day. Raise **Online Refresh Interval** if it happens again.
+- **Map dimmed with a daily limit warning:** the online feed's daily calls are used up; aircraft return at 00:00 UTC. `docker compose logs air` says `rate limited us (HTTP 429)`. Raise **Online Refresh Interval** if it happens again.
 - **AIR greyed out:** `docker compose logs air`.

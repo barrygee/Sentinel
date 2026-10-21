@@ -4398,3 +4398,100 @@ describe('AdsbLiveControl: "nothing new" (204) instead of an error', () => {
     expect(priv(control)._pollInterval).not.toBeNull()
   })
 })
+
+describe('AdsbLiveControl pauses while the browser tab is hidden', () => {
+  let tabHidden = false
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    tabHidden = false
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => tabHidden })
+  })
+  afterEach(() => {
+    // Drop the own-property override so jsdom's prototype getter applies again.
+    delete (document as unknown as Record<string, unknown>).hidden
+  })
+
+  function setTabHidden(hidden: boolean): void {
+    tabHidden = hidden
+    document.dispatchEvent(new Event('visibilitychange'))
+  }
+
+  function pollingControl(): AdsbLiveControl {
+    const { control } = mounted()
+    control.visible = true
+    priv(control)._startPolling()
+    return control
+  }
+
+  it('stops polling when the tab is hidden', () => {
+    const control = pollingControl()
+    expect(priv(control)._pollInterval).not.toBeNull()
+
+    setTabHidden(true)
+
+    expect(priv(control)._pollInterval).toBeNull()
+    const fetchSpy = vi.spyOn(priv(control), '_fetch')
+    vi.advanceTimersByTime(60_000)
+    expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('fetches at once and polls again when the tab is shown', () => {
+    const control = pollingControl()
+    setTabHidden(true)
+    priv(control)._lastFetchTime = 0 // the last poll is long past
+    const fetchSpy = vi.spyOn(priv(control), '_fetch').mockResolvedValue(undefined)
+
+    setTabHidden(false)
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    expect(priv(control)._pollInterval).not.toBeNull()
+  })
+
+  it('stays stopped when the tab is shown with the ADS-B layer switched off', () => {
+    const control = pollingControl()
+    setTabHidden(true)
+    control.visible = false
+
+    setTabHidden(false)
+
+    expect(priv(control)._pollInterval).toBeNull()
+  })
+
+  it('keeps a daily-limit pause when the tab is shown before the reset', () => {
+    const control = pollingControl()
+    priv(control)._pausePollingFor(60_000)
+    setTabHidden(true)
+
+    setTabHidden(false)
+
+    expect(priv(control)._pollInterval).toBeNull()
+    expect(priv(control)._resumePollingTimer).not.toBeNull()
+  })
+
+  it('does not start polling while hidden, even when a pause ends', () => {
+    const control = pollingControl()
+    priv(control)._pausePollingFor(60_000)
+    setTabHidden(true)
+
+    vi.advanceTimersByTime(60_000)
+
+    expect(priv(control)._resumePollingTimer).toBeNull()
+    expect(priv(control)._pollInterval).toBeNull()
+    setTabHidden(false)
+    expect(priv(control)._pollInterval).not.toBeNull()
+  })
+
+  it('stops listening once removed from the map', () => {
+    const control = pollingControl()
+    const removeSpy = vi.spyOn(document, 'removeEventListener')
+    control.onRemove()
+    expect(removeSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
+    expect(priv(control)._onPageVisibilityChange).toBeNull()
+
+    const startSpy = vi.spyOn(priv(control), '_startPolling')
+    setTabHidden(true)
+    setTabHidden(false)
+    expect(startSpy).not.toHaveBeenCalled()
+  })
+})
