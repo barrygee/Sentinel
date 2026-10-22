@@ -31,6 +31,7 @@ dependencies = [
     "sentinel-radio",
     "sentinel-sdr",
     "sentinel-sdr-manager-local",
+    "sentinel-sdr-manager-remote",
     "sentinel-sea",
     "sentinel-space",
 ]
@@ -42,6 +43,7 @@ sentinel-land = { path = "../services/sections/land/backend", editable = true }
 sentinel-radio = { path = "../services/radio/backend", editable = true }
 sentinel-sdr = { path = "../services/sections/sdr/backend", editable = true }
 sentinel-sdr-manager-local = { path = "../services/sdr-manager-local/backend", editable = true }
+sentinel-sdr-manager-remote = { path = "../services/sdr-manager-remote/backend", editable = true }
 sentinel-sea = { path = "../services/sections/sea/backend", editable = true }
 sentinel-space = { path = "../services/sections/space/backend", editable = true }
 
@@ -111,8 +113,8 @@ ignore_missing_imports = true
 [tool.importlinter]
 # Core plus each package that has moved out of backend/: the sections (services/sections/<id>/backend),
 # the radio hub (services/radio/backend), the docs service (services/docs/backend) and
-# sdr-manager-local (services/sdr-manager-local/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sdr_manager_local", "sentinel_sea", "sentinel_space"]
+# sdr-manager-local and sdr-manager-remote (services/sdr-manager-{local,remote}/backend).
+root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sdr_manager_local", "sentinel_sdr_manager_remote", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core imports no section"
@@ -137,6 +139,7 @@ forbidden_modules = [
     "sentinel_radio",
     "sentinel_docs",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -153,6 +156,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -169,6 +173,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -185,6 +190,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -201,6 +207,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -217,6 +224,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -233,6 +241,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -250,6 +259,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
 ]
 
 [[tool.importlinter.contracts]]
@@ -267,4 +277,23 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_docs",
+    "sentinel_sdr_manager_remote",
+]
+
+[[tool.importlinter.contracts]]
+name = "sdr-manager-remote imports no section"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "sentinel_sdr_manager_remote",
+]
+forbidden_modules = [
+    "sentinel_air",
+    "sentinel_space",
+    "sentinel_sea",
+    "sentinel_land",
+    "sentinel_sdr",
+    "sentinel_radio",
+    "sentinel_docs",
+    "sentinel_sdr_manager_local",
 ]

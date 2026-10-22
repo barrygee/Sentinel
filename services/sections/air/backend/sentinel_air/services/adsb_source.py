@@ -14,11 +14,12 @@ window where the device is ours but still on the wrong frequency, and a second
 request that can fail on its own means handling "claimed but not tuned" — a
 state nothing wants to be in and nothing would clean up.
 
-**Air never talks to Sentry itself.** The Sentry hosts and their console
-passwords belong to the radio hub, so every claim, release and address lookup
-is a bus request to the hub's reservation proxy
-(`sentinel_radio/services/sentry_reservations.py`, plan item B6). The hub supplies the lease
-holder — this Sentinel's `app.instanceId` — so Air does not handle that either.
+**Air never talks to an SDR host itself.** The SDR hosts and their console
+passwords belong to sdr-manager-remote, so every claim, release and address
+lookup is a bus request to its reservation proxy
+(`sentinel_sdr_manager_remote/services/reservations.py`, ADR 0007). It supplies
+the lease holder — this Sentinel's `app.instanceId` — so Air does not handle
+that either.
 """
 
 from __future__ import annotations
@@ -61,14 +62,14 @@ or two without leaving a dongle held for minutes after its user has gone."""
 SOURCE_SETTING_NAMESPACE = "air"
 SOURCE_SETTING_KEY = "offgridSdrSource"
 
-# Request subjects answered by the radio hub's reservation proxy.
-ACQUIRE_SUBJECT = "hub.sentry.reservation.acquire"
-RELEASE_SUBJECT = "hub.sentry.reservation.release"
-DEVICE_ADDRESS_SUBJECT = "hub.sentry.device.address"
-HOST_LOCATION_SUBJECT = "hub.sentry.host.location"
-HUB_REQUEST_TIMEOUT: float | None = None
-"""No bus-level limit: the hub's Sentry client already bounds every call with
-its connect/read timeouts, and one claim may be several Sentry round trips."""
+# Request subjects answered by sdr-manager-remote's reservation proxy.
+ACQUIRE_SUBJECT = "sdr-manager.remote.reservation.acquire"
+RELEASE_SUBJECT = "sdr-manager.remote.reservation.release"
+DEVICE_ADDRESS_SUBJECT = "sdr-manager.remote.device.address"
+HOST_LOCATION_SUBJECT = "sdr-manager.remote.host.location"
+SDR_MANAGER_REQUEST_TIMEOUT: float | None = None
+"""No bus-level limit: sdr-manager-remote's client already bounds every call
+with its connect/read timeouts, and one claim may be several round trips to the host."""
 
 RESERVATION_LABEL = "Sentinel — AIR (ADS-B)"
 """What Sentry's console shows against the claimed device. Names the *view*, not
@@ -130,7 +131,7 @@ async def clear_source(db: AsyncSession) -> None:
 
 
 def _host_error(reply: dict[str, Any]) -> AdsbSourceError | None:
-    """The operator-facing error for a host the hub could not use, if that is what failed."""
+    """The operator-facing error for a host sdr-manager-remote could not use, if that is what failed."""
     if reply["reason"] == "unknown_host":
         return AdsbSourceError(
             "unknown_host",
@@ -210,7 +211,7 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
                 "enabled": True,
             },
         },
-        timeout=HUB_REQUEST_TIMEOUT,
+        timeout=SDR_MANAGER_REQUEST_TIMEOUT,
     )
     if not reply["ok"]:
         raise _acquire_error(reply)
@@ -236,7 +237,7 @@ async def release(db: AsyncSession) -> bool:
     reply = await bus.request(
         RELEASE_SUBJECT,
         {"db": db, "host_id": source.host_id, "device_id": source.device_id},
-        timeout=HUB_REQUEST_TIMEOUT,
+        timeout=SDR_MANAGER_REQUEST_TIMEOUT,
     )
     return bool(reply["ok"])
 
@@ -259,7 +260,7 @@ async def get_decoder_config(db: AsyncSession) -> dict[str, Any]:
     reply = await bus.request(
         DEVICE_ADDRESS_SUBJECT,
         {"db": db, "host_id": source.host_id, "device_id": source.device_id},
-        timeout=HUB_REQUEST_TIMEOUT,
+        timeout=SDR_MANAGER_REQUEST_TIMEOUT,
     )
     if not reply["ok"] or not reply["found"]:
         return {"configured": False, "rtl_tcp": None}
@@ -274,13 +275,15 @@ async def receiver_location(db: AsyncSession) -> tuple[float, float] | None:
     """``(lat, lon)`` of the receiver the off-grid ADS-B source decodes from, if known.
 
     The receiver is the Sentry device picked in Settings › AIR; its position is
-    its Sentry host's. None when no source is picked, or the hub has no
+    its Sentry host's. None when no source is picked, or sdr-manager-remote has no
     position for that host yet.
     """
     source = await get_source(db)
     if source is None:
         return None
-    reply = await bus.request(HOST_LOCATION_SUBJECT, {"db": db, "host_id": source.host_id}, timeout=HUB_REQUEST_TIMEOUT)
+    reply = await bus.request(
+        HOST_LOCATION_SUBJECT, {"db": db, "host_id": source.host_id}, timeout=SDR_MANAGER_REQUEST_TIMEOUT
+    )
     if not reply.get("found"):
         return None
     return reply["latitude"], reply["longitude"]

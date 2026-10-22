@@ -1,0 +1,22 @@
+# sdr-manager-remote's backend: `sentinel_sdr_manager_remote`, the SDR hosts on other machines (ADR 0007).
+# Installed editable into the backend venv as a path dependency of backend/pyproject.toml, so
+# `uv run --project backend …` and the shared backend image see it like any other package. Its
+# third-party dependencies stay declared in backend/pyproject.toml (one venv, one lock).
+[project]
+name = "sentinel-sdr-manager-remote"
+version = "0.1.0"
+description = "SENTINEL SDR Manager (SDR hosts on other machines) backend"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.10,<0.11"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "sentinel_sdr_manager_remote"
+module-root = ""
+
+[tool.ruff]
+# Same rules and line length as the rest of the backend.
+extend = "../../../backend/pyproject.toml"

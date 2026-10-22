@@ -59,7 +59,9 @@ Core keeps the gateway's routes in step through Caddy's admin API (:2019, on the
 |---|---|
 | `/api/air/messages…` | core (alerts) |
 | `/api/air/…`, `/api/sdr/adsb/…` | air |
-| `/api/sdr/radios`, `/connect`, `/decode/…`, `/aprs/…`, `/ais/…`, `/sentry-hosts`, `/decoders`, `/ws/sdr/…` | radio |
+| `/api/sdr/radios`, `/connect`, `/decode/…`, `/aprs/…`, `/ais/…`, `/decoders`, `/ws/sdr/…` | radio |
+| `/api/sdr-manager/remote/…` | sdr-manager-remote |
+| `/api/sdr-manager/local/…` | sdr-manager-local |
 | `/api/sdr/…` | sdr |
 | `/api/<id>/…`, `/remotes/<id>/…` | that section |
 | anything else | core |

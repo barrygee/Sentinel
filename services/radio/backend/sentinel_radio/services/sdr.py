@@ -1080,7 +1080,7 @@ def get_connection(host: str, port: int) -> RtlTcpConnection | None:
 async def yield_to_claim(host: str, port: int) -> None:
     """Hand back the relay tuning token for a dongle that has just been claimed.
 
-    Called by the reservation proxy before it sends the claim's retune to Sentry,
+    Called on sdr-manager-remote's claim event, before it sends the claim's retune,
     so the claim's tuning is the only change the relay sees. Followers are told
     at once, so the SDR panel turns read-only without waiting for a retune.
     """

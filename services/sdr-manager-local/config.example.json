@@ -2,7 +2,7 @@
   "_comment": "Example SDR Manager configuration file (this machine's SDRs). Export a real one from a working machine (Settings > SDR Manager, or GET /api/sdr-manager/local/config) rather than hand-writing this — the shape is validated on import and an exported file is always correct. An export NEVER contains a password: not the hotspot's, and not the console's. Two import-only keys may be hand-added to provision a fresh machine in one step: \"console_password\" at the top level (sets the SDR Manager console password, and only when the destination has none — a file cannot replace an existing one), and \"passphrase\" inside the hotspot section. Both are read on import and can never reappear in an exported file. Treat any file you add either to as a secret. Still absent entirely: the .env-only gate SDR_MANAGER_LOCAL_HOTSPOT_CONTROL_ENABLED. There is no position here: this machine's position is Sentinel's own Location setting.",
   "version": 1,
   "generated_at": 0,
-  "sentry_version": "1.0.0",
+  "sdr_manager_version": "1.0.0",
   "devices": [
     {
       "identity_kind": "serial",

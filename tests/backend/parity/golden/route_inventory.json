@@ -812,174 +812,6 @@
     ]
   },
   {
-    "path": "/api/sdr/sentry-hosts",
-    "type": "Route",
-    "name": "list_hosts",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts",
-    "type": "Route",
-    "name": "create_host",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/locations",
-    "type": "Route",
-    "name": "list_host_locations",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}",
-    "type": "Route",
-    "name": "get_host",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}",
-    "type": "Route",
-    "name": "update_host",
-    "methods": [
-      "PUT"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}",
-    "type": "Route",
-    "name": "delete_host",
-    "methods": [
-      "DELETE"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/test",
-    "type": "Route",
-    "name": "test_host",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/info",
-    "type": "Route",
-    "name": "get_host_info",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/devices",
-    "type": "Route",
-    "name": "get_host_devices",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/devices/records",
-    "type": "Route",
-    "name": "get_host_device_records",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}",
-    "type": "Route",
-    "name": "patch_host_device",
-    "methods": [
-      "PATCH"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}",
-    "type": "Route",
-    "name": "delete_host_device",
-    "methods": [
-      "DELETE"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}/serial",
-    "type": "Route",
-    "name": "flash_host_device_serial",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
-    "type": "Route",
-    "name": "get_host_wifi",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
-    "type": "Route",
-    "name": "put_host_wifi",
-    "methods": [
-      "PUT"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi",
-    "type": "Route",
-    "name": "delete_host_wifi",
-    "methods": [
-      "DELETE"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/enable",
-    "type": "Route",
-    "name": "enable_host_wifi",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/disable",
-    "type": "Route",
-    "name": "disable_host_wifi",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/confirm",
-    "type": "Route",
-    "name": "confirm_host_wifi",
-    "methods": [
-      "POST"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/interfaces",
-    "type": "Route",
-    "name": "list_host_wifi_interfaces",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sdr/sentry-hosts/{host_id}/wifi/clients",
-    "type": "Route",
-    "name": "list_host_wifi_clients",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
     "path": "/internal/radio-hub/iq-captures/{capture_id}",
     "type": "Route",
     "name": "download_capture",
@@ -1183,6 +1015,174 @@
     "path": "/api/documentation/images/{image_path:path}",
     "type": "Route",
     "name": "get_image",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts",
+    "type": "Route",
+    "name": "list_hosts",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts",
+    "type": "Route",
+    "name": "create_host",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/locations",
+    "type": "Route",
+    "name": "list_host_locations",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}",
+    "type": "Route",
+    "name": "get_host",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}",
+    "type": "Route",
+    "name": "update_host",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}",
+    "type": "Route",
+    "name": "delete_host",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/test",
+    "type": "Route",
+    "name": "test_host",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/info",
+    "type": "Route",
+    "name": "get_host_info",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/devices",
+    "type": "Route",
+    "name": "get_host_devices",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/devices/records",
+    "type": "Route",
+    "name": "get_host_device_records",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}",
+    "type": "Route",
+    "name": "patch_host_device",
+    "methods": [
+      "PATCH"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}",
+    "type": "Route",
+    "name": "delete_host_device",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}/serial",
+    "type": "Route",
+    "name": "flash_host_device_serial",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "get_host_wifi",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "put_host_wifi",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi",
+    "type": "Route",
+    "name": "delete_host_wifi",
+    "methods": [
+      "DELETE"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi/enable",
+    "type": "Route",
+    "name": "enable_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi/disable",
+    "type": "Route",
+    "name": "disable_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi/confirm",
+    "type": "Route",
+    "name": "confirm_host_wifi",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi/interfaces",
+    "type": "Route",
+    "name": "list_host_wifi_interfaces",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/wifi/clients",
+    "type": "Route",
+    "name": "list_host_wifi_clients",
     "methods": [
       "GET"
     ]

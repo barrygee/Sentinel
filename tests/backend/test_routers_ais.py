@@ -118,11 +118,10 @@ class TestAisStart:
     def test_unavailable_device_returns_503_with_a_reason(self, client, monkeypatch):
         # A bare connection refusal tells the operator nothing about what to do.
         radio_id = _add_radio(client)
-        monkeypatch.setattr(
-            radio_registry,
-            "device_availability",
-            lambda radio: (False, "Dongle unplugged."),
-        )
+        async def unplugged(radio):
+            return False, "Dongle unplugged."
+
+        monkeypatch.setattr(radio_registry, "device_availability", unplugged)
         resp = client.post("/api/sdr/ais/start", json={"radio_id": radio_id})
         assert resp.status_code == 503
         assert "Dongle unplugged." in resp.json()["detail"]

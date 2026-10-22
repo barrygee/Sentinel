@@ -182,7 +182,7 @@ class SdrManagerConfig(BaseModel):
     in the uniform `{"detail": {"code", "message"}}` envelope.
     """
     generated_at: int = Field(default=0, description="Unix ms the file was exported")
-    sentry_version: str = Field(default="", description="The app version that wrote it")
+    sdr_manager_version: str = Field(default="", description="The app version that wrote it")
     devices: tuple[DeviceConfigEntry, ...] = ()
     hotspot: HotspotConfigEntry | None = None
 

@@ -6,8 +6,8 @@ plus `/api/sdr/adsb/` (the Sentry dongle behind Off Grid ADS-B). Core keeps
 `/api/air/messages` — notifications are core's — and the gateway sends that
 longer prefix to core.
 
-Everything Air needs from elsewhere already crosses processes: the radio hub
-answers its Sentry reservation and receiver-location requests over the bus,
+Everything Air needs from elsewhere already crosses processes: sdr-manager-remote
+answers its reservation and receiver-location requests over the bus,
 and its squawk watcher raises alerts by publishing `notifications.raise`, which
 core stores and streams — so `NATS_URL` must be set. Settings (data sources,
 the Off Grid source device, the user's location) stay in core and are read over

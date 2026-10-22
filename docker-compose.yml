@@ -284,12 +284,12 @@ services:
   # The radio hub as its own service (P6.5).
   # Same image and pattern as the sections above, but it is not a section: no
   # nav entry and no UI remote (the radio panes are the SDR section's). It owns
-  # everything that touches a physical radio — rtl_tcp/Sentry IQ, radio CRUD,
+  # everything that touches a physical radio — rtl_tcp IQ, radio CRUD,
   # connect/status, all four /ws/sdr/* sockets, the decode bridges and their
-  # PCM ports, IQ capture and the Sentry fleet — and takes those prefixes over
-  # from the app in the gateway when it registers. Its one table (the Sentry
-  # hosts and their tokens) lives in its own database on radio_data, copied
-  # from the app's on first boot; the radios themselves stay an app setting.
+  # PCM ports and IQ capture — and takes those prefixes over
+  # from the app in the gateway when it registers. It has no table of its own
+  # (the SDR hosts are sdr-manager-remote's); the radios themselves stay an app
+  # setting. radio_data holds its staged IQ captures.
   # Air, Sea, Land and the SDR section reach it over NATS.
   #
   # Decoders find it wherever it runs: their HTTP goes through the gateway,
@@ -302,9 +302,9 @@ services:
     container_name: sentinel-radio
     deploy:
       replicas: ${SENTINEL_RADIO_REPLICAS:-1}
-    # It dials rtl_tcp and Sentry hosts, so it may need to address services
-    # listening on the DOCKER HOST as `host.docker.internal`. Needed when Sentry
-    # runs on the same machine: it uses `network_mode: host`, so it never joins
+    # It dials rtl_tcp relays, so it may need to address services listening on
+    # the DOCKER HOST as `host.docker.internal`. Needed for this machine's own
+    # dongles: sdr-manager-local uses `network_mode: host`, so it never joins
     # this bridge network and has no container-DNS name, while its per-dongle
     # relays bind 0.0.0.0 on the host. Configure an SDR device's host as
     # `host.docker.internal` (the host's LAN IP also works, but does not survive
@@ -314,7 +314,6 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - radio_data:/app/data
-      - *legacy-db
       - *backend-code
       - ./services/radio/backend:/app/services/radio/backend  # live-reload hub code
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/radio}}
@@ -393,6 +392,37 @@ services:
       <<: *section-env
       SERVICE_INTERNAL_URL: http://docs:8000
     command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload
+
+  # SDR Manager for SDR hosts on OTHER machines (ADR 0007): the hosts this
+  # Sentinel manages, polled for their live status, and the leases Air takes
+  # on their dongles. Always on in the full app. Registers with the app and
+  # takes /api/sdr-manager/remote/ over. Its one table (each host's address and
+  # console password) lives in its own database on sdr_manager_remote_data.
+  # Reaches hosts over the SDR Manager API on :8000 — including this machine's
+  # sdr-manager-local, on the host's network as `host.docker.internal`. Over
+  # NATS it answers Air's reservations and the hub's host snapshot, and tells
+  # the hub which dongles are claimed.
+  sdr-manager-remote:
+    <<: *section-service
+    container_name: sentinel-sdr-manager-remote
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Every SDR_MANAGER_REMOTE_* variable set in .env (services/sdr-manager-remote/
+    # backend/sentinel_sdr_manager_remote/config.py lists them; all optional). The
+    # platform variables below are set here and win over the file.
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - sdr_manager_remote_data:/app/data
+      - *backend-code
+      - ./services/sdr-manager-remote/backend:/app/services/sdr-manager-remote/backend  # live-reload its code
+      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-remote}}
+    environment:
+      <<: *section-env
+      DB_PATH: /app/data/sdr-manager-remote.db
+      SERVICE_INTERNAL_URL: http://sdr-manager-remote:8000
+    command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --reload
 
   # SDR Manager for the RTL-SDRs plugged into THIS machine (ADR 0007): Sentry,
   # moved into Sentinel. OPT-IN and Linux only: it starts with the
@@ -724,6 +754,7 @@ volumes:
   sdr_data:
   sdr_recordings:
   sdr_manager_local_data:
+  sdr_manager_remote_data:
 
 networks:
   sentinel:

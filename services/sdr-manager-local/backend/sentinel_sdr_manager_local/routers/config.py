@@ -120,7 +120,7 @@ async def _build_export(
     return SdrManagerConfig(
         version=CONFIG_VERSION,
         generated_at=clock.now_ms(),
-        sentry_version=SDR_MANAGER_LOCAL_VERSION,
+        sdr_manager_version=SDR_MANAGER_LOCAL_VERSION,
         devices=devices,
         hotspot=hotspot,
     )

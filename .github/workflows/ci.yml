@@ -37,10 +37,10 @@ jobs:
           enable-cache: true
 
       - name: Lint (ruff check)
-        run: uv run --project backend ruff check backend services/sections services/radio services/docs services/sdr-manager-local
+        run: uv run --project backend ruff check backend services/sections services/radio services/docs services/sdr-manager-local services/sdr-manager-remote
 
       - name: Format check (ruff format)
-        run: uv run --project backend ruff format --check backend services/sections services/radio services/docs services/sdr-manager-local
+        run: uv run --project backend ruff format --check backend services/sections services/radio services/docs services/sdr-manager-local services/sdr-manager-remote
 
       - name: Import boundaries (import-linter)
         # Sections may not import each other; core/platform may import no
@@ -352,13 +352,13 @@ jobs:
       matrix:
         include:
           - deployment: sections-service
-            services: app gateway nats space land air sea radio sdr docs
+            services: app gateway nats space land air sea radio sdr docs sdr-manager-remote
             sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service
           - deployment: sections-absent
             services: app gateway nats sdr
             sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:service
           - deployment: sdr-absent
-            services: app gateway nats space land air sea radio
+            services: app gateway nats space land air sea radio sdr-manager-remote
             sections: space:service,land:service,air:service,sea:service,radio:service,sdr:absent
     env:
       SENTINEL_E2E_SECTIONS: ${{ matrix.sections }}

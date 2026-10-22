@@ -56,6 +56,7 @@ class TestModuleOrder:
             "sdr",
             "space",
             "radio",
+            "sdr-manager-remote",
             "land",
             "sea",
             "air",
@@ -397,18 +398,7 @@ class TestSpaceModule:
 
 
 class TestRadioHubModule:
-    async def test_prepare_creates_its_table(self, monkeypatch):
-        # Core no longer creates sentry_hosts, so an in-process hub must.
-        calls: list[str] = []
-        monkeypatch.setattr(
-            radio_hub, "create_radio_hub_tables", recorder(calls, "tables")
-        )
-
-        await radio_hub.lifecycle.prepare()
-
-        assert calls == ["tables"]
-
-    async def test_start_resumes_decodes_then_starts_the_poller(self, monkeypatch):
+    async def test_start_resumes_decodes(self, monkeypatch):
         calls: list[str] = []
         monkeypatch.setattr(
             radio_hub.decode_router, "resume_persisted_aprs", recorder(calls, "aprs")
@@ -416,21 +406,13 @@ class TestRadioHubModule:
         monkeypatch.setattr(
             radio_hub.decode_router, "resume_persisted_ais", recorder(calls, "ais")
         )
-        monkeypatch.setattr(
-            radio_hub.fleet_poller, "start_all", recorder(calls, "fleet.start")
-        )
 
         await radio_hub.lifecycle.start()
 
-        assert calls == ["aprs", "ais", "fleet.start"]
+        assert calls == ["aprs", "ais"]
 
-    async def test_stop_stops_the_poller_then_decoders_then_broadcasters(
-        self, monkeypatch
-    ):
+    async def test_stop_stops_decoders_then_broadcasters(self, monkeypatch):
         calls: list[str] = []
-        monkeypatch.setattr(
-            radio_hub.fleet_poller, "stop_all", recorder(calls, "fleet.stop")
-        )
         monkeypatch.setattr(
             radio_hub.sdr_decode_service,
             "shutdown_all_decoders",
@@ -442,7 +424,7 @@ class TestRadioHubModule:
 
         await radio_hub.lifecycle.stop()
 
-        assert calls == ["fleet.stop", "decoders", "broadcasters"]
+        assert calls == ["decoders", "broadcasters"]
 
     def test_wake_wakes_subscribers_and_decoders(self, monkeypatch):
         calls: list[str] = []

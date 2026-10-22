@@ -214,7 +214,7 @@ class TestTheMonolithsRoutes:
             ("/api/sdr/aprs/start", "radio"),
             ("/api/sdr/ais/status/3", "radio"),
             ("/api/sdr/decoders/register", "radio"),
-            ("/api/sdr/sentry-hosts/locations", "radio"),
+            ("/api/sdr-manager/remote/hosts/locations", "sdr-manager-remote"),
             ("/ws/sdr/3/iq", "radio"),
             ("/api/sdr/groups", "sdr"),
             ("/api/sdr/data/bandplan", "sdr"),

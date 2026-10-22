@@ -635,7 +635,7 @@ describe('SdrDeviceForm', () => {
       expect(mockPatchSentryDevice).not.toHaveBeenCalled()
     })
 
-    it('PATCHes /api/sdr/sentry-hosts/... for a Sentry-backed radio, then syncs the mirrored radio row', async () => {
+    it('PATCHes /api/sdr-manager/remote/hosts/... for a Sentry-backed radio, then syncs the mirrored radio row', async () => {
       mockPatchSentryDevice.mockResolvedValue({
         device_id: 'rtl-9',
         record_id: 1,

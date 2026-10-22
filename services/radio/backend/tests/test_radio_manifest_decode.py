@@ -313,11 +313,11 @@ class TestStart:
 
     async def test_an_unavailable_device_says_why(self, broadcasters, monkeypatch):
         manifest_decode.register(_manifest())
-        monkeypatch.setattr(
-            radio_registry,
-            "device_availability",
-            lambda radio: (False, "The dongle is unplugged."),
-        )
+
+        async def unplugged(radio):
+            return False, "The dongle is unplugged."
+
+        monkeypatch.setattr(radio_registry, "device_availability", unplugged)
         assert await manifest_decode.start_on_radio("pocsag", None, 3) == {
             "ok": False,
             "reason": "unavailable",

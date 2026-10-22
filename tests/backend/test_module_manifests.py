@@ -9,7 +9,16 @@ from backend.platform.service_manifest import route_is_reserved
 
 
 def test_the_monolith_hosts_every_section_and_the_radio_hub():
-    assert [manifest.id for manifest in MANIFESTS] == ["air", "space", "sea", "land", "sdr", "radio", "docs"]
+    assert [manifest.id for manifest in MANIFESTS] == [
+        "air",
+        "space",
+        "sea",
+        "land",
+        "sdr",
+        "radio",
+        "docs",
+        "sdr-manager-remote",
+    ]
 
 
 def test_sections_are_in_the_shell_registration_order():

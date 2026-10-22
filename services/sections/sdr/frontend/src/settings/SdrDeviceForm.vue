@@ -171,7 +171,7 @@
  *   `/api/sdr/radios` record — name/IP/port/status, exactly as before this
  *   feature existed.
  * - A Sentry-mirrored radio writes through `PATCH
- *   /api/sdr/sentry-hosts/{host_id}/devices/{device_id}` — Sentry owns the
+ *   /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}` — Sentry owns the
  *   device's configuration (ADR-0009), so this form never writes tuning/
  *   visibility/notes/antenna to Sentinel directly. After a successful patch,
  *   the mirrored Sentinel radio row (name/port/enabled/visibility/notes/

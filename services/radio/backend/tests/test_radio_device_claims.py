@@ -10,8 +10,9 @@ and the three places that honour it:
     ADS-B decode;
   * channel-owning decode bridges (AIS, APRS, manifest kinds) pause their retunes
     while it is claimed and resume once it is not;
-  * the reservation proxy records the claim with Sentry's expiry and takes
-    Sentinel's own connection off the tuning token *before* the claim's retune.
+  * sdr-manager-remote's reservation proxy announces the claim with the host's
+    expiry (`sdr-manager.claims.*`), and the hub records it and takes its own
+    connection off the tuning token *before* the claim's retune.
 """
 
 from __future__ import annotations
@@ -23,8 +24,9 @@ from types import SimpleNamespace
 
 import pytest
 from backend.platform.bus import bus
+from sentinel_sdr_manager_remote.services import reservations
 
-from sentinel_radio.services import device_claims, sentry_reservations
+from sentinel_radio.services import claim_events, device_claims
 from sentinel_radio.services import sdr as sdr_svc
 from sentinel_radio.services.sdr_decode import AisDecodeBridge, AprsDecodeBridge
 
@@ -346,7 +348,7 @@ class TestBridgesPauseWhileClaimed:
 
 @pytest.fixture()
 def proxy(monkeypatch):
-    """The proxy with Sentry, the instance id and the fleet snapshot faked."""
+    """The proxy with the SDR host, the instance id and the host snapshot faked."""
     order: list[str] = []
     state = SimpleNamespace(
         order=order,
@@ -376,11 +378,11 @@ def proxy(monkeypatch):
     async def _yield(host, port):
         order.append(f"yield {host}:{port}")
 
-    monkeypatch.setattr(sentry_reservations, "_client_for_host", _client_for_host)
-    monkeypatch.setattr(sentry_reservations, "get_instance_id", _instance_id)
-    monkeypatch.setattr(sentry_reservations.sdr_svc, "yield_to_claim", _yield)
+    monkeypatch.setattr(reservations, "_client_for_host", _client_for_host)
+    monkeypatch.setattr(reservations, "get_instance_id", _instance_id)
+    monkeypatch.setattr(claim_events.sdr_svc, "yield_to_claim", _yield)
     monkeypatch.setattr(
-        sentry_reservations.fleet_poller,
+        reservations.host_poller,
         "get_snapshot",
         lambda host_id: SimpleNamespace(status_payload={"sdrs": state.snapshot_sdrs}) if host_id == 1 else None,
     )
@@ -397,7 +399,7 @@ def _acquire(**overrides):
         "patch": {"center_hz": 1_090_000_000, "sample_rate": 2_400_000},
     }
     payload.update(overrides)
-    return bus.request(sentry_reservations.ACQUIRE_SUBJECT, payload, timeout=None)
+    return bus.request(reservations.ACQUIRE_SUBJECT, payload, timeout=None)
 
 
 class TestReservationProxyRecordsTheClaim:
@@ -443,7 +445,7 @@ class TestReservationProxyRecordsTheClaim:
     async def test_release_forgets_the_claim(self, proxy):
         await _acquire()
         reply = await bus.request(
-            sentry_reservations.RELEASE_SUBJECT,
+            reservations.RELEASE_SUBJECT,
             {"db": None, "host_id": 1, "device_id": "usb:1-1.1"},
         )
         assert reply == {"ok": True}
@@ -452,7 +454,7 @@ class TestReservationProxyRecordsTheClaim:
     async def test_release_of_an_unknown_address_still_releases_on_sentry(self, proxy):
         proxy.snapshot_sdrs = []
         reply = await bus.request(
-            sentry_reservations.RELEASE_SUBJECT,
+            reservations.RELEASE_SUBJECT,
             {"db": None, "host_id": 1, "device_id": "usb:1-1.1"},
         )
         assert reply == {"ok": True} and proxy.order == ["release"]

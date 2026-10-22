@@ -89,7 +89,7 @@
  * where the Sentry is (its latitude/longitude), what software it runs, how
  * long it has been up, how many dongles it can see, when it was last reached —
  * had nowhere to be shown. This component fills that gap, fetching
- * `GET /api/sdr/sentry-hosts/{id}/info` once per expansion.
+ * `GET /api/sdr-manager/remote/hosts/{id}/info` once per expansion.
  *
  * Renders through `BaseDataGrid`/`BaseDataCell` (the same label/value grid the
  * Space tracking panels use) rather than inventing a second detail layout.

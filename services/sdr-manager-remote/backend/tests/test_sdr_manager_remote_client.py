@@ -1,4 +1,4 @@
-"""Tests for sentinel_radio.services.sentry_client — the typed async HTTP client for
+"""Tests for sentinel_sdr_manager_remote.services.sdr_manager_client — the typed async HTTP client for
 one Sentry host's `/api` surface (ADR-0009).
 
 No network is used anywhere here: every request is routed through an
@@ -14,21 +14,21 @@ import json
 import httpx
 import pytest
 
-from sentinel_radio.services.sentry_client import (
-    SentryApiError,
-    SentryClient,
-    SentryUnreachableError,
+from sentinel_sdr_manager_remote.services.sdr_manager_client import (
+    SdrManagerApiError,
+    SdrManagerClient,
+    SdrManagerUnreachableError,
     _describe_validation_errors,
     _encode_path_segment,
     _parse_error_envelope,
-    forget_sentry_sessions,
-    validate_sentry_address,
-    validate_sentry_port,
+    forget_sdr_manager_sessions,
+    validate_host_address,
+    validate_host_port,
 )
 
 
 def _install_mock_transport(monkeypatch, handler) -> None:
-    """Route every httpx.AsyncClient built inside sentry_client through an
+    """Route every httpx.AsyncClient built inside sdr_manager_client through an
     in-process MockTransport instead of the network, for the life of one test."""
 
     class _MockedAsyncClient(httpx.AsyncClient):
@@ -54,7 +54,7 @@ def _capturing_handler(status_code: int = 200, json_body=None, headers: dict | N
     return handler, captured
 
 
-# ── validate_sentry_address ───────────────────────────────────────────────────
+# ── validate_host_address ───────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
@@ -74,15 +74,15 @@ def _capturing_handler(status_code: int = 200, json_body=None, headers: dict | N
         "bad!host",  # not a valid hostname (forbidden char, not caught above)
     ],
 )
-def test_validate_sentry_address_rejects_malformed_input(address):
+def test_validate_host_address_rejects_malformed_input(address):
     with pytest.raises(ValueError):
-        validate_sentry_address(address)
+        validate_host_address(address)
 
 
-def test_validate_sentry_address_rejects_whitespace_only_after_strip():
+def test_validate_host_address_rejects_whitespace_only_after_strip():
     # A lone trailing space is stripped first, so this alone must NOT raise —
     # confirms strip() runs before the emptiness check, not after.
-    assert validate_sentry_address("10.0.0.5 ") == "10.0.0.5"
+    assert validate_host_address("10.0.0.5 ") == "10.0.0.5"
 
 
 @pytest.mark.parametrize(
@@ -94,64 +94,64 @@ def test_validate_sentry_address_rejects_whitespace_only_after_strip():
         "sentry_host",  # underscore — deliberately allowed, see module docstring
     ],
 )
-def test_validate_sentry_address_accepts_well_formed_input(address):
-    assert validate_sentry_address(address) == address
+def test_validate_host_address_accepts_well_formed_input(address):
+    assert validate_host_address(address) == address
 
 
-def test_validate_sentry_address_strips_surrounding_whitespace():
-    assert validate_sentry_address("  sentry-host  ") == "sentry-host"
+def test_validate_host_address_strips_surrounding_whitespace():
+    assert validate_host_address("  sentry-host  ") == "sentry-host"
 
 
-def test_validate_sentry_address_boundary_length_253_is_accepted():
+def test_validate_host_address_boundary_length_253_is_accepted():
     candidate = ".".join(["a" * 63, "a" * 63, "a" * 63, "a" * 61])  # 63*3 + 61 + 3 dots = 253
     assert len(candidate) == 253
-    assert validate_sentry_address(candidate) == candidate
+    assert validate_host_address(candidate) == candidate
 
 
-# ── validate_sentry_port ──────────────────────────────────────────────────────
+# ── validate_host_port ──────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize("port", [0, -1, 65536, -65535])
-def test_validate_sentry_port_rejects_out_of_range_values(port):
+def test_validate_host_port_rejects_out_of_range_values(port):
     with pytest.raises(ValueError):
-        validate_sentry_port(port)
+        validate_host_port(port)
 
 
 @pytest.mark.parametrize("port", [1, 65535, 8000])
-def test_validate_sentry_port_accepts_in_range_values(port):
-    assert validate_sentry_port(port) == port
+def test_validate_host_port_accepts_in_range_values(port):
+    assert validate_host_port(port) == port
 
 
-# ── SentryClient construction ─────────────────────────────────────────────────
+# ── SdrManagerClient construction ─────────────────────────────────────────────────
 
 
 def test_client_rejects_invalid_address_at_construction():
     with pytest.raises(ValueError):
-        SentryClient("bad host", 8000, "token")
+        SdrManagerClient("bad host", 8000, "token")
 
 
 def test_client_rejects_invalid_port_at_construction():
     with pytest.raises(ValueError):
-        SentryClient("10.0.0.5", 0, "token")
+        SdrManagerClient("10.0.0.5", 0, "token")
 
 
 def test_client_base_url_combines_validated_address_and_port():
-    client = SentryClient("10.0.0.5", 8000, "token")
+    client = SdrManagerClient("10.0.0.5", 8000, "token")
     assert client.base_url == "http://10.0.0.5:8000"
 
 
 def test_client_uses_explicit_timeouts_when_provided():
-    client = SentryClient("10.0.0.5", 8000, "token", connect_timeout_s=1.5, read_timeout_s=2.5)
+    client = SdrManagerClient("10.0.0.5", 8000, "token", connect_timeout_s=1.5, read_timeout_s=2.5)
     assert client._timeout.connect == 1.5
     assert client._timeout.read == 2.5
 
 
 def test_client_falls_back_to_settings_timeouts_when_not_provided():
-    from backend.config import settings
+    from sentinel_sdr_manager_remote.config import get_settings
 
-    client = SentryClient("10.0.0.5", 8000, "token")
-    assert client._timeout.connect == settings.sentry_connect_timeout_s
-    assert client._timeout.read == settings.sentry_read_timeout_s
+    client = SdrManagerClient("10.0.0.5", 8000, "token")
+    assert client._timeout.connect == get_settings().connect_timeout_s
+    assert client._timeout.read == get_settings().read_timeout_s
 
 
 # ── request headers ───────────────────────────────────────────────────────────
@@ -165,7 +165,7 @@ async def test_request_never_sends_a_bearer_token(monkeypatch):
     """
     handler, captured = _capturing_handler(200, {"ok": True})
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "console-password")
+    client = SdrManagerClient("10.0.0.5", 8000, "console-password")
     await client.get_health()
     assert "Authorization" not in captured["request"].headers
     assert captured["request"].headers["Accept"] == "application/json"
@@ -174,7 +174,7 @@ async def test_request_never_sends_a_bearer_token(monkeypatch):
 async def test_unauthenticated_request_carries_no_cookie(monkeypatch):
     handler, captured = _capturing_handler(200, {"ok": True})
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "")
+    client = SdrManagerClient("10.0.0.5", 8000, "")
     await client.get_health()
     assert "Cookie" not in captured["request"].headers
 
@@ -186,19 +186,19 @@ async def test_a_401_signs_in_and_retries_with_the_session_cookie(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         if request.url.path == "/api/auth/login":
-            return httpx.Response(204, headers={"set-cookie": "sentry_session=granted-cookie; Path=/"})
+            return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted-cookie; Path=/"})
         if "Cookie" not in request.headers:
             return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
         return httpx.Response(200, json={"devices": []})
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "console-password")
+    client = SdrManagerClient("10.0.0.5", 8000, "console-password")
 
     await client.get_devices()
 
     paths = [request.url.path for request in seen]
     assert paths == ["/api/devices", "/api/auth/login", "/api/devices"]
-    assert seen[-1].headers["Cookie"] == "sentry_session=granted-cookie"
+    assert seen[-1].headers["Cookie"] == "sdr_manager_session=granted-cookie"
 
 
 async def test_the_session_is_reused_rather_than_signing_in_each_call(monkeypatch):
@@ -208,13 +208,13 @@ async def test_the_session_is_reused_rather_than_signing_in_each_call(monkeypatc
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request.url.path)
         if request.url.path == "/api/auth/login":
-            return httpx.Response(204, headers={"set-cookie": "sentry_session=granted-cookie; Path=/"})
+            return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted-cookie; Path=/"})
         if "Cookie" not in request.headers:
             return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
         return httpx.Response(200, json={"ok": True})
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "console-password")
+    client = SdrManagerClient("10.0.0.5", 8000, "console-password")
 
     await client.get_status()
     await client.get_status()
@@ -233,9 +233,9 @@ async def test_a_wrong_password_is_not_retried_for_ever(monkeypatch):
         return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "wrong-password")
+    client = SdrManagerClient("10.0.0.5", 8000, "wrong-password")
 
-    with pytest.raises(SentryApiError) as raised:
+    with pytest.raises(SdrManagerApiError) as raised:
         await client.get_devices()
 
     assert raised.value.status_code == 401
@@ -246,7 +246,7 @@ async def test_a_wrong_password_is_not_retried_for_ever(monkeypatch):
 
 
 def _sessioned_handler(seen: list[httpx.Request], accepted_cookies: set[str], logins_refused: list[bool] | None = None):
-    """A Sentry that grants `sentry_session=cookie-<password>-<n>` on the n-th login
+    """A Sentry that grants `sdr_manager_session=cookie-<password>-<n>` on the n-th login
     and accepts only the cookies in `accepted_cookies`. While `logins_refused`
     holds True it refuses every login instead (a mutable switch, because a
     second mocked transport would not replace the first)."""
@@ -259,8 +259,8 @@ def _sessioned_handler(seen: list[httpx.Request], accepted_cookies: set[str], lo
             password = json.loads(request.content)["password"]
             granted = f"cookie-{password}-{sum(r.url.path == '/api/auth/login' for r in seen)}"
             accepted_cookies.add(granted)
-            return httpx.Response(204, headers={"set-cookie": f"sentry_session={granted}; Path=/"})
-        cookie = request.headers.get("Cookie", "").removeprefix("sentry_session=")
+            return httpx.Response(204, headers={"set-cookie": f"sdr_manager_session={granted}; Path=/"})
+        cookie = request.headers.get("Cookie", "").removeprefix("sdr_manager_session=")
         if cookie not in accepted_cookies:
             return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
         return httpx.Response(200, json={"ok": True})
@@ -278,11 +278,11 @@ async def test_a_new_client_for_the_same_host_reuses_the_session(monkeypatch):
     seen: list[httpx.Request] = []
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
 
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
     assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status", "/api/status"]
-    assert seen[-1].headers["Cookie"] == "sentry_session=cookie-console-password-1"
+    assert seen[-1].headers["Cookie"] == "sdr_manager_session=cookie-console-password-1"
 
 
 async def test_a_different_password_never_presents_another_passwords_session(monkeypatch):
@@ -290,9 +290,9 @@ async def test_a_different_password_never_presents_another_passwords_session(mon
     seen: list[httpx.Request] = []
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
 
-    await SentryClient("10.0.0.5", 8000, "old-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "old-password").get_status()
     seen.clear()
-    await SentryClient("10.0.0.5", 8000, "new-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "new-password").get_status()
 
     assert "Cookie" not in seen[0].headers
     assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status"]
@@ -304,9 +304,9 @@ async def test_another_host_never_receives_this_hosts_session(monkeypatch, addre
     seen: list[httpx.Request] = []
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
 
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
     seen.clear()
-    await SentryClient(address, port, "console-password").get_status()
+    await SdrManagerClient(address, port, "console-password").get_status()
 
     assert "Cookie" not in seen[0].headers
 
@@ -318,14 +318,14 @@ async def test_a_lapsed_session_is_replaced_by_the_next_sign_in(monkeypatch):
     accepted_cookies: set[str] = set()
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, accepted_cookies))
 
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
     accepted_cookies.clear()  # Sentry forgets the session
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
     seen.clear()
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
     assert _paths(seen) == ["/api/status"]
-    assert seen[0].headers["Cookie"] == "sentry_session=cookie-console-password-2"
+    assert seen[0].headers["Cookie"] == "sdr_manager_session=cookie-console-password-2"
 
 
 async def test_a_refused_session_is_forgotten_when_the_sign_in_fails(monkeypatch):
@@ -334,15 +334,15 @@ async def test_a_refused_session_is_forgotten_when_the_sign_in_fails(monkeypatch
     accepted_cookies: set[str] = set()
     logins_refused = [False]
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, accepted_cookies, logins_refused))
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
     accepted_cookies.clear()
     logins_refused[0] = True
-    with pytest.raises(SentryApiError):
-        await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    with pytest.raises(SdrManagerApiError):
+        await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
     seen.clear()
-    with pytest.raises(SentryApiError):
-        await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    with pytest.raises(SdrManagerApiError):
+        await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
     assert "Cookie" not in seen[0].headers
 
@@ -360,10 +360,10 @@ def _refusing_sentry(seen: list[httpx.Request], login_reply):
 
 
 def _remember_stale_session(address: str = "10.0.0.5", port: int = 8000, password: str = "console-password"):
-    from sentinel_radio.services import sentry_client
+    from sentinel_sdr_manager_remote.services import sdr_manager_client
 
-    key = SentryClient(address, port, password)._session_key
-    sentry_client._session_cookies[key] = "stale-cookie"
+    key = SdrManagerClient(address, port, password)._session_key
+    sdr_manager_client._session_cookies[key] = "stale-cookie"
 
 
 def _unreachable_login(request: httpx.Request) -> httpx.Response:
@@ -402,26 +402,26 @@ async def test_a_sign_in_that_cannot_complete_still_drops_the_refused_session(
     _install_mock_transport(monkeypatch, _refusing_sentry(seen, login_reply))
     _remember_stale_session(password=password)
 
-    with pytest.raises(SentryApiError) as raised:
-        await SentryClient("10.0.0.5", 8000, password).get_status()
+    with pytest.raises(SdrManagerApiError) as raised:
+        await SdrManagerClient("10.0.0.5", 8000, password).get_status()
 
     assert raised.value.status_code == 401
-    assert seen[0].headers["Cookie"] == "sentry_session=stale-cookie"
+    assert seen[0].headers["Cookie"] == "sdr_manager_session=stale-cookie"
     seen.clear()
-    with pytest.raises(SentryApiError):
-        await SentryClient("10.0.0.5", 8000, password).get_status()
+    with pytest.raises(SdrManagerApiError):
+        await SdrManagerClient("10.0.0.5", 8000, password).get_status()
     assert "Cookie" not in seen[0].headers
     assert _paths(seen) == expected_paths
 
 
-async def test_forget_sentry_sessions_drops_every_remembered_session(monkeypatch):
+async def test_forget_sdr_manager_sessions_drops_every_remembered_session(monkeypatch):
     seen: list[httpx.Request] = []
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
-    forget_sentry_sessions()
+    forget_sdr_manager_sessions()
     seen.clear()
-    await SentryClient("10.0.0.5", 8000, "console-password").get_status()
+    await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
 
     assert "Cookie" not in seen[0].headers
     assert _paths(seen) == ["/api/status", "/api/auth/login", "/api/status"]
@@ -486,7 +486,7 @@ async def test_endpoint_sends_correct_method_path_and_body(
 ):
     handler, captured = _capturing_handler(200, {"echo": expected_path})
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
     result = await getattr(client, method_name)(*args)
 
     request = captured["request"]
@@ -500,9 +500,9 @@ async def test_endpoint_sends_correct_method_path_and_body(
 
 
 async def test_response_carries_api_version_header(monkeypatch):
-    handler, _ = _capturing_handler(200, {"ok": True}, headers={"X-Sentry-Api-Version": "1.4"})
+    handler, _ = _capturing_handler(200, {"ok": True}, headers={"X-Sdr-Manager-Api-Version": "1.4"})
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
     response = await client.get_health()
     assert response.api_version == "1.4"
 
@@ -510,7 +510,7 @@ async def test_response_carries_api_version_header(monkeypatch):
 async def test_response_api_version_is_none_when_header_absent(monkeypatch):
     handler, _ = _capturing_handler(200, {"ok": True})
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
     response = await client.get_health()
     assert response.api_version is None
 
@@ -523,7 +523,7 @@ async def test_204_response_has_no_data(monkeypatch):
         return httpx.Response(204)
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
     response = await client.delete_hotspot()
     assert response.data is None
 
@@ -533,7 +533,7 @@ async def test_empty_body_with_200_status_has_no_data(monkeypatch):
         return httpx.Response(200, content=b"")
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
     response = await client.get_health()
     assert response.data is None
 
@@ -543,8 +543,8 @@ async def test_non_json_success_body_raises_invalid_response_error(monkeypatch):
         return httpx.Response(200, content=b"not json at all")
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
-    with pytest.raises(SentryApiError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
+    with pytest.raises(SdrManagerApiError) as excinfo:
         await client.get_health()
     assert excinfo.value.code == "invalid_response"
     assert excinfo.value.status_code == 200
@@ -558,8 +558,8 @@ async def test_connect_failure_raises_sentry_unreachable_error(monkeypatch):
         raise httpx.ConnectError("simulated connect failure")
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
-    with pytest.raises(SentryUnreachableError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
+    with pytest.raises(SdrManagerUnreachableError) as excinfo:
         await client.get_health()
     assert "10.0.0.5:8000" in str(excinfo.value)
 
@@ -569,8 +569,8 @@ async def test_timeout_raises_sentry_unreachable_error(monkeypatch):
         raise httpx.ReadTimeout("simulated timeout")
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
-    with pytest.raises(SentryUnreachableError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
+    with pytest.raises(SdrManagerUnreachableError) as excinfo:
         await client.get_health()
     assert "Timed out" in str(excinfo.value)
 
@@ -586,8 +586,8 @@ async def test_error_status_raises_sentry_api_error_with_parsed_envelope(monkeyp
         )
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "tok")
-    with pytest.raises(SentryApiError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "tok")
+    with pytest.raises(SdrManagerApiError) as excinfo:
         await client.get_status()
     assert excinfo.value.status_code == 422
     assert excinfo.value.code == "bad_port"
@@ -603,8 +603,8 @@ async def test_auth_token_never_appears_in_unreachable_exception_message(monkeyp
         raise httpx.ConnectError("simulated")
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "TOP-SECRET-TOKEN")
-    with pytest.raises(SentryUnreachableError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "TOP-SECRET-TOKEN")
+    with pytest.raises(SdrManagerUnreachableError) as excinfo:
         await client.get_health()
     assert "TOP-SECRET-TOKEN" not in str(excinfo.value)
 
@@ -614,8 +614,8 @@ async def test_auth_token_never_appears_in_api_error_exception(monkeypatch):
         return httpx.Response(500, json={"detail": "internal error"})
 
     _install_mock_transport(monkeypatch, handler)
-    client = SentryClient("10.0.0.5", 8000, "TOP-SECRET-TOKEN")
-    with pytest.raises(SentryApiError) as excinfo:
+    client = SdrManagerClient("10.0.0.5", 8000, "TOP-SECRET-TOKEN")
+    with pytest.raises(SdrManagerApiError) as excinfo:
         await client.get_health()
     assert "TOP-SECRET-TOKEN" not in str(excinfo.value)
     assert "TOP-SECRET-TOKEN" not in excinfo.value.message
@@ -652,7 +652,7 @@ def test_parse_error_envelope_defaults_code_and_message_when_absent():
     response = _response_with_json(400, {"detail": {}})
     code, message, context = _parse_error_envelope(response)
     assert code == "upstream_error"
-    assert message == "Sentry returned HTTP 400."
+    assert message == "The SDR host returned HTTP 400."
     assert context == {}
 
 
@@ -677,7 +677,7 @@ def test_parse_error_envelope_falls_back_on_non_json_body():
     response = httpx.Response(502, content=b"<html>Bad Gateway</html>")
     code, message, context = _parse_error_envelope(response)
     assert code == "upstream_error"
-    assert message == "Sentry returned HTTP 502."
+    assert message == "The SDR host returned HTTP 502."
     assert context == {}
 
 
@@ -686,7 +686,7 @@ def test_parse_error_envelope_falls_back_when_detail_key_has_unexpected_shape():
     response = _response_with_json(400, {"detail": True})
     code, message, context = _parse_error_envelope(response)
     assert code == "upstream_error"
-    assert message == "Sentry returned HTTP 400."
+    assert message == "The SDR host returned HTTP 400."
     assert context == {}
 
 
@@ -694,7 +694,7 @@ def test_parse_error_envelope_falls_back_when_body_has_no_detail_key():
     response = _response_with_json(500, {"error": "unexpected"})
     code, message, context = _parse_error_envelope(response)
     assert code == "upstream_error"
-    assert message == "Sentry returned HTTP 500."
+    assert message == "The SDR host returned HTTP 500."
     assert context == {}
 
 
@@ -703,7 +703,7 @@ def test_parse_error_envelope_falls_back_when_body_is_a_json_list():
     response = _response_with_json(500, ["oops"])
     code, message, context = _parse_error_envelope(response)
     assert code == "upstream_error"
-    assert message == "Sentry returned HTTP 500."
+    assert message == "The SDR host returned HTTP 500."
     assert context == {}
 
 

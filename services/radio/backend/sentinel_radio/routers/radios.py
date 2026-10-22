@@ -33,9 +33,9 @@ class RadioIn(BaseModel):
     bandwidth: int | None = None
     rf_gain: float | None = None
     agc: bool | None = None
-    # Sentry mirror fields (ADR-0009). `sentry_host_id` is None for a radio the
+    # SDR host mirror fields (ADR 0007). `sentry_host_id` is None for a radio the
     # operator typed in by hand — that radio must keep behaving exactly as it
-    # does today. When set, this radio mirrors one device on that Sentry host,
+    # does today. When set, this radio mirrors one device on that SDR host,
     # identified by `sentry_device_id` ("serial:<value>" or "usb:<path>").
     sentry_host_id: int | None = None
     sentry_device_id: str | None = None
@@ -69,7 +69,7 @@ class RadioIn(BaseModel):
 async def list_radios(db: AsyncSession = Depends(get_db)):
     radios = await radio_registry.get_radios(db)
     for radio in radios:
-        available, reason = radio_registry.device_availability(radio)
+        available, reason = await radio_registry.device_availability(radio)
         radio["device_available"] = available
         radio["unavailable_reason"] = reason
     return JSONResponse(radios)

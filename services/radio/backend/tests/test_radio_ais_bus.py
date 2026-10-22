@@ -91,11 +91,10 @@ class TestStartOverTheBus:
         assert await get_setting(db, "sdr", "ais_radio_id") is None
 
     async def test_an_unavailable_device_is_a_reply(self, db, monkeypatch):
-        monkeypatch.setattr(
-            radio_registry,
-            "device_availability",
-            lambda radio: (False, "The dongle is unplugged."),
-        )
+        async def unplugged(radio):
+            return False, "The dongle is unplugged."
+
+        monkeypatch.setattr(radio_registry, "device_availability", unplugged)
         reply = await bus.request("hub.decode.ais.start", {"radio_id": 2, "db": db})
         assert reply == {
             "ok": False,

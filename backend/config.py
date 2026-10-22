@@ -213,26 +213,6 @@ class Settings(BaseSettings):
     # Upstream fetch timeout (seconds) — the export is ~150 KB from a small site.
     repeaters_fetch_timeout_s: float = 20.0
 
-    # ── Sentry integration (ADR-0009: Sentry owns SDR device state, Sentinel is a client) ──
-    # How often each enabled Sentry host is polled for GET /api/status, in seconds.
-    sentry_poll_interval_s: float = 2.0
-    # Starting backoff (seconds) applied after a failed poll; doubles on each
-    # further consecutive failure up to sentry_poll_backoff_max_s.
-    sentry_poll_backoff_start_s: float = 2.0
-    # Cap on the exponential poll-retry backoff, so a long-dead host is still
-    # retried periodically rather than abandoned.
-    sentry_poll_backoff_max_s: float = 30.0
-    # How often a host's self-reported position (GET /api/v1/sdrs `source.location`)
-    # is refreshed, in seconds. Far slower than the status poll on purpose: a
-    # Sentry is a fixed installation, so its position changes when an operator
-    # re-sites it, not between one status frame and the next.
-    sentry_location_refresh_s: float = 60.0
-    # TCP connect timeout (seconds) for calls to a Sentry host — the Pi may be
-    # slow to respond or simply off the network.
-    sentry_connect_timeout_s: float = 3.0
-    # Read timeout (seconds) for calls to a Sentry host, once connected.
-    sentry_read_timeout_s: float = 5.0
-
     # ── Live application config file ──────────────────────────────────────────
     # Every setting is mirrored to this JSON file (rewritten on each change) and
     # edits saved to it are applied to the app — see services/app_config_file.py.

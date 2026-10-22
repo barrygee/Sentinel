@@ -35,7 +35,8 @@ Rules:
 | `notifications.raise` | a section | Store and push an alert |
 | `decode.<kind>.<radioId>` | radio hub | A decoder heard something |
 | `hub.decode.<kind>.{start,stop,status}` | a section | Control a decoder |
-| `hub.sentry.…` | air | Reserve a Sentry dongle, receiver location |
+| `sdr-manager.remote.…` | air, radio hub | Reserve an SDR host's dongle, receiver location (air); host snapshot (radio hub) |
+| `sdr-manager.claims.{granted,released}` | sdr-manager-remote | A dongle was claimed (a request: the radio hub acknowledges before the claim's retune) or given back; the hub leaves a claimed dongle alone |
 | `hub.iq-capture.{locate,list,discard}` | sdr | IQ capture hand-over |
 | `air.squawk.changed` | air | A squawk changed |
 

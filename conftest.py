@@ -30,9 +30,9 @@ from backend import models  # noqa: E402,F401 — register ORM models with Base
 # Each moved section's tables, so `db_setup` builds the whole schema.
 import sentinel_air.models  # noqa: E402,F401
 import sentinel_land.models  # noqa: E402,F401
-import sentinel_radio.models  # noqa: E402,F401
 import sentinel_sdr.models  # noqa: E402,F401
 import sentinel_sdr_manager_local.models  # noqa: E402,F401
+import sentinel_sdr_manager_remote.models  # noqa: E402,F401
 import sentinel_sea.models  # noqa: E402,F401
 import sentinel_space.models  # noqa: E402,F401
 from backend.database import Base, get_db  # noqa: E402
@@ -76,14 +76,25 @@ def core_is_up(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def no_remembered_sentry_sessions():
-    """Sentry session cookies are kept per process, so one test's sign-in would
-    otherwise carry into the next and change which requests it makes."""
-    from sentinel_radio.services.sentry_client import forget_sentry_sessions
+def no_remembered_sdr_manager_sessions():
+    """SDR Manager session cookies are kept per process, so one test's sign-in
+    would otherwise carry into the next and change which requests it makes."""
+    from sentinel_sdr_manager_remote.services.sdr_manager_client import forget_sdr_manager_sessions
 
-    forget_sentry_sessions()
+    forget_sdr_manager_sessions()
     yield
-    forget_sentry_sessions()
+    forget_sdr_manager_sessions()
+
+
+@pytest.fixture(autouse=True)
+def no_cached_sdr_host_snapshot():
+    """The hub caches sdr-manager-remote's host snapshot for a few seconds, so
+    one test's hosts would otherwise answer the next test's radio listing."""
+    from sentinel_radio.radios import forget_hosts_snapshot
+
+    forget_hosts_snapshot()
+    yield
+    forget_hosts_snapshot()
 
 
 @pytest.fixture(autouse=True)

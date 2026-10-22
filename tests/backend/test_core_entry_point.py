@@ -38,7 +38,7 @@ SECTION_PATHS = {
     "/api/sdr/connect",
     "/api/sdr/status/{radio_id}",
     "/api/sdr/decoders/register",
-    "/api/sdr/sentry-hosts",
+    "/api/sdr-manager/remote/hosts",
     "/ws/sdr/{radio_id}",
 }
 
