@@ -238,6 +238,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Dim the map while the daily call limit is spent
 - Sdr-manager kinds, serve-before-core, app mode, shared settings section
 - Port Sentry backend
+- Link this machine
 
 ### Bug Fixes
 
@@ -1642,6 +1643,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #533 from barrygee/feat/sdr-manager-platform
 - Merge pull request #534 from barrygee/feat/sdr-manager-local-backend
 - Merge pull request #535 from barrygee/refactor/sdr-manager-remote
+- Merge pull request #536 from barrygee/feat/sdr-manager-remote-local-link
 
 ### Refactoring
 
