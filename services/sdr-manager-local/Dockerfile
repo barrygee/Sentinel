@@ -70,6 +70,7 @@ ENV UV_HTTP_TIMEOUT=120 \
 # each pyproject.toml is copied; only this service's code is installed below.
 COPY backend/pyproject.toml backend/uv.lock ./backend/
 COPY services/sdr-manager-local/backend/pyproject.toml ./services/sdr-manager-local/backend/
+COPY services/sdr-manager-remote/backend/pyproject.toml ./services/sdr-manager-remote/backend/
 COPY services/radio/backend/pyproject.toml ./services/radio/backend/
 COPY services/docs/backend/pyproject.toml ./services/docs/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
