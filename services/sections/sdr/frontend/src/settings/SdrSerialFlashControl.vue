@@ -1,7 +1,7 @@
 <template>
   <div class="sdr-serial-flash">
     <p class="sdr-serial-flash-note">
-      This dongle needs a unique serial before Sentry can identify it reliably.
+      This dongle needs a unique serial before its SDR Manager can identify it reliably.
     </p>
     <BaseButton
       v-if="!confirming"
@@ -67,7 +67,7 @@
  */
 import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import { flashSentryDeviceSerial, SentryApiRequestError } from '../services/sentryApi'
+import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
 
 const GHOST_BUTTON_STYLE =
   '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +
@@ -96,12 +96,12 @@ async function confirmFlash(): Promise<void> {
   flashing.value = true
   errorMsg.value = ''
   try {
-    await flashSentryDeviceSerial(props.hostId, props.deviceId, trimmed)
+    await requireSdrManagerHosts().flashHostDeviceSerial(props.hostId, props.deviceId, trimmed)
     confirming.value = false
     serial.value = ''
     emit('flashed')
   } catch (error) {
-    errorMsg.value = error instanceof SentryApiRequestError ? error.message : 'Flash failed.'
+    errorMsg.value = hostErrorMessage(error, 'Flash failed.')
   } finally {
     flashing.value = false
   }

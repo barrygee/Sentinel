@@ -574,8 +574,8 @@ describe('SentrySitesControl', () => {
       addControl()
       siteMarkers()[0]!.element.dispatchEvent(new Event('click'))
       expect(settingsStore.open).toBe(true)
-      expect(settingsStore.activeSection).toBe('sdr')
-      expect(settingsStore.focusSentryHostId).toBe(7)
+      expect(settingsStore.activeSection).toBe('sdr-manager')
+      expect(settingsStore.focusSdrManagerHostId).toBe(7)
     })
 
     it('opens from a click on the details panel too — the whole marker is the button', () => {
@@ -586,7 +586,7 @@ describe('SentrySitesControl', () => {
       details(marker)
         .querySelector('.sentry-map-marker-name')!
         .dispatchEvent(new Event('click', { bubbles: true }))
-      expect(settingsStore.focusSentryHostId).toBe(7)
+      expect(settingsStore.focusSdrManagerHostId).toBe(7)
     })
 
     it('is a single tab stop carrying a single name', () => {

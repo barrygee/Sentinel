@@ -8,10 +8,18 @@ export interface SectionRegisterModule {
   default: (shell: ShellContext) => void
 }
 
+/**
+ * What a remote is: a map section, or one of the SDR Manager services, whose
+ * remote adds settings and capabilities but no section (ADR 0007).
+ */
+export type RemoteKind = 'section' | 'sdr-manager-local' | 'sdr-manager-remote'
+
 /** One section the deployment includes, and how to fetch its `./register` entry. */
 export interface SectionSource {
   /** e.g. `air` — also its route (`/air/`) and settings namespace. */
   id: string
+  /** Absent means `section`. */
+  kind?: RemoteKind
   load: () => Promise<SectionRegisterModule>
 }
 
@@ -47,7 +55,10 @@ export async function loadSections(
       unavailable.push(source.id)
       // A register() that threw part-way may already have registered the
       // section itself; it then keeps whatever it managed rather than a stand-in.
-      if (!getRegisteredSections().some((section) => section.id === source.id)) {
+      // An SDR Manager remote has no section to stand in for: its settings
+      // group is simply missing.
+      const isSection = (source.kind ?? 'section') === 'section'
+      if (isSection && !getRegisteredSections().some((section) => section.id === source.id)) {
         registerUnavailableSection(source.id, (index + 1) * 10)
       }
     }

@@ -9,7 +9,8 @@ import type { SectionSource } from './sectionLoader'
  * instead, so sections ship and deploy separately from the shell. Both expose
  * the same `sectionSources()`, and `loadSections` treats them identically.
  *
- * The order is nav order: AIR, SPACE, SEA, LAND, SDR.
+ * The order is nav order: AIR, SPACE, SEA, LAND, SDR, then the SDR Manager
+ * remotes, which add settings but no map section (`kind`).
  */
 export async function sectionSources(): Promise<SectionSource[]> {
   return [
@@ -18,5 +19,10 @@ export async function sectionSources(): Promise<SectionSource[]> {
     { id: 'sea', load: () => import('@sentinel/section-sea/section') },
     { id: 'land', load: () => import('@sentinel/section-land/section') },
     { id: 'sdr', load: () => import('@sentinel/section-sdr/section') },
+    {
+      id: 'sdr-manager-remote',
+      kind: 'sdr-manager-remote',
+      load: () => import('@sentinel/sdr-manager-remote/register'),
+    },
   ]
 }

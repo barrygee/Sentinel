@@ -89,11 +89,11 @@
  * manual radios only, so both groupings can reuse it instead of duplicating
  * the row chrome per grouping.
  */
-import SdrSourceStatusDot from './SdrSourceStatusDot.vue'
+import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import { computed } from 'vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
-import type { SentryDeviceStatus } from '../services/sentryApi'
+import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 
 const props = defineProps<{
   radio: SdrRadioRecord
@@ -104,7 +104,7 @@ const props = defineProps<{
   open: boolean
   confirming: boolean
   /** Live Sentry status for this radio's device, when it mirrors one. */
-  sentryDeviceStatus?: SentryDeviceStatus | null
+  sentryDeviceStatus?: SdrManagerDeviceStatus | null
 }>()
 
 /**

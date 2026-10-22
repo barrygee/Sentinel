@@ -283,4 +283,76 @@ describe('shell/sectionLoader', () => {
       expect.objectContaining({ message: expect.stringContaining("not using the shell's Pinia") }),
     )
   })
+
+  describe('SDR Manager remotes (ADR 0007), which add settings but no section', () => {
+    it('registers no stand-in section when one fails to load', async () => {
+      const { loader, registry } = await freshModules()
+      const calls: string[] = []
+      const loadError = new Error('remote entry 502')
+      const sources: SectionSource[] = [
+        { id: 'sdr', load: () => Promise.resolve(registeringModule(registry, 'sdr', 50, calls)) },
+        {
+          id: 'sdr-manager-remote',
+          kind: 'sdr-manager-remote',
+          load: () => Promise.reject(loadError),
+        },
+      ]
+
+      const unavailable = await loader.loadSections(sources, shell)
+
+      // Still reported and logged, but no map section, nav entry or route appears for it.
+      expect(unavailable).toEqual(['sdr-manager-remote'])
+      expect(registry.getRegisteredSections().map((section) => section.id)).toEqual(['sdr'])
+      expect(registry.isSectionUnavailable('sdr-manager-remote')).toBe(false)
+      expect(console.error).toHaveBeenCalledWith(
+        '[sentinel] section "sdr-manager-remote" is unavailable:',
+        loadError,
+      )
+    })
+
+    it('registers no stand-in when its register() throws', async () => {
+      const { loader, registry } = await freshModules()
+      const sources: SectionSource[] = [
+        {
+          id: 'sdr-manager-local',
+          kind: 'sdr-manager-local',
+          load: () =>
+            Promise.resolve({
+              default: () => {
+                throw new Error('settings section conflict')
+              },
+            }),
+        },
+      ]
+
+      expect(await loader.loadSections(sources, shell)).toEqual(['sdr-manager-local'])
+      expect(registry.getRegisteredSections()).toEqual([])
+    })
+
+    it('still calls its register() with the shell context when it loads', async () => {
+      const { loader } = await freshModules()
+      const register = vi.fn()
+      const sources: SectionSource[] = [
+        {
+          id: 'sdr-manager-remote',
+          kind: 'sdr-manager-remote',
+          load: () => Promise.resolve({ default: register }),
+        },
+      ]
+
+      expect(await loader.loadSections(sources, shell)).toEqual([])
+      expect(register).toHaveBeenCalledExactlyOnceWith(shell)
+    })
+
+    it('an explicit section kind still gets its stand-in', async () => {
+      const { loader, registry } = await freshModules()
+      const sources: SectionSource[] = [
+        { id: 'sea', kind: 'section', load: () => Promise.reject(new Error('down')) },
+      ]
+
+      await loader.loadSections(sources, shell)
+
+      expect(registry.isSectionUnavailable('sea')).toBe(true)
+    })
+  })
 })

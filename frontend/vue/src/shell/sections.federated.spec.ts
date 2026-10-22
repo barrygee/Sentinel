@@ -134,6 +134,86 @@ describe('shell/sections.federated', () => {
     })
   })
 
+  describe('remote kinds (sections and the SDR Manager remotes, ADR 0007)', () => {
+    it('turns the dashes of an SDR Manager id into underscores in its container name', async () => {
+      serveSectionList({
+        sections: [
+          { ...section('sdr-manager-remote'), kind: 'sdr-manager-remote' },
+          { ...section('sdr-manager-local'), kind: 'sdr-manager-local' },
+        ],
+      })
+
+      await sectionSources()
+
+      expect(registerRemotes).toHaveBeenCalledWith([
+        {
+          name: 'section_sdr_manager_remote',
+          entry: '/remotes/sdr-manager-remote/remoteEntry.js',
+          type: 'module',
+        },
+        {
+          name: 'section_sdr_manager_local',
+          entry: '/remotes/sdr-manager-local/remoteEntry.js',
+          type: 'module',
+        },
+      ])
+    })
+
+    it('loads an SDR Manager remote through its underscored container name', async () => {
+      serveSectionList({
+        sections: [{ ...section('sdr-manager-remote'), kind: 'sdr-manager-remote' }],
+      })
+      loadRemote.mockResolvedValue({ default: vi.fn() })
+
+      const [remote] = await sectionSources()
+      await remote!.load()
+
+      expect(loadRemote).toHaveBeenCalledWith('section_sdr_manager_remote/register')
+    })
+
+    it('passes each listed kind on to the loader', async () => {
+      serveSectionList({
+        sections: [
+          { ...section('air'), kind: 'section' },
+          { ...section('sdr-manager-remote'), kind: 'sdr-manager-remote' },
+          { ...section('sdr-manager-local'), kind: 'sdr-manager-local' },
+        ],
+      })
+
+      const sources = await sectionSources()
+
+      expect(sources.map((source) => [source.id, source.kind])).toEqual([
+        ['air', 'section'],
+        ['sdr-manager-remote', 'sdr-manager-remote'],
+        ['sdr-manager-local', 'sdr-manager-local'],
+      ])
+    })
+
+    it('treats an entry without a kind as a section, as older backends list them', async () => {
+      serveSectionList({ sections: [section('sea')] })
+
+      const [sea] = await sectionSources()
+
+      expect(sea!.kind).toBe('section')
+      expect(console.error).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['an unknown kind', 'decoder'],
+      ['a non-string kind', 7],
+      ['a null kind', null],
+    ])('refuses an entry with %s and loads the rest', async (_description, kind) => {
+      serveSectionList({ sections: [section('space'), { ...section('radio'), kind }] })
+
+      const sources = await sectionSources()
+
+      expect(sources.map((source) => source.id)).toEqual(['space'])
+      expect(console.error).toHaveBeenCalledWith(
+        '[sentinel] ignored section list entries that are not same-origin remotes',
+      )
+    })
+  })
+
   describe('loading a section', () => {
     it("loads the remote's ./register entry", async () => {
       serveSectionList({ sections: [section('land')] })

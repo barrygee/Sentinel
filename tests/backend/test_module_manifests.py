@@ -35,9 +35,10 @@ def test_every_manifest_points_at_this_process():
     assert {manifest.version for manifest in MANIFESTS} == {SENTINEL_VERSION}
 
 
-def test_each_section_has_a_remote_and_the_radio_hub_has_none():
+def test_each_section_and_sdr_manager_remote_has_a_remote_and_the_radio_hub_has_none():
+    # sdr-manager-remote's remote adds Settings › SDR Manager's REMOTE SDR HOSTS group.
     for manifest in MANIFESTS:
-        if manifest.kind == "section":
+        if manifest.kind in ("section", "sdr-manager-remote"):
             assert manifest.ui is not None
             assert manifest.ui.remote_entry == f"/remotes/{manifest.id}/remoteEntry.js"
         else:

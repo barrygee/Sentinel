@@ -14,6 +14,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import httpx
 import pytest
 from backend.config import settings
 
@@ -53,7 +54,8 @@ class TestTheServiceApp:
 
     def test_every_route_sits_under_the_prefix_it_registers(self, remote_service):
         prefixes = tuple(remote_service.app.state.registrar.manifest.routes)
-        paths = route_paths(remote_service.app) - {"/health"}
+        # /health is core's probe and /remotes/sdr-manager-remote its UI remote, not API routes.
+        paths = route_paths(remote_service.app) - {"/health", "/remotes/sdr-manager-remote"}
 
         assert prefixes == ("/api/sdr-manager/remote/",)
         assert paths and all(path.startswith(prefixes) for path in paths)
@@ -63,16 +65,72 @@ class TestTheServiceApp:
 
         assert not any(
             path.startswith(("/api/sdr", "/api/air", "/api/settings", "/internal", "/remotes"))
-            and not path.startswith("/api/sdr-manager/remote/")
+            and not path.startswith(("/api/sdr-manager/remote/", "/remotes/sdr-manager-remote"))
             for path in paths
         )
 
-    def test_registers_as_sdr_manager_remote_at_its_own_address_without_a_remote(self, remote_service):
+    def test_registers_as_sdr_manager_remote_at_its_own_address_with_its_remote(self, remote_service):
         manifest = remote_service.app.state.registrar.manifest
 
         assert (manifest.id, manifest.kind) == ("sdr-manager-remote", "sdr-manager-remote")
         assert manifest.internal_url == SERVICE_URL
-        assert manifest.ui is None
+        assert manifest.ui is not None
+        assert manifest.ui.remote_entry == "/remotes/sdr-manager-remote/remoteEntry.js"
+
+
+class TestItsUiRemote:
+    """Settings › SDR Manager's REMOTE SDR HOSTS group: the service serves its own remote build."""
+
+    @pytest.fixture
+    def built_remotes(self, monkeypatch, tmp_path):
+        from backend.platform import remote_files
+
+        for remote_id in ("sdr-manager-remote", "sdr"):
+            (tmp_path / remote_id / "spa-assets").mkdir(parents=True)
+            (tmp_path / remote_id / "remoteEntry.js").write_text(f"export const remote = '{remote_id}'")
+            (tmp_path / remote_id / "spa-assets" / "register-abc.js").write_text("export default 1")
+        monkeypatch.setattr(remote_files, "remotes_dir", lambda: tmp_path)
+        return tmp_path
+
+    async def get(self, monkeypatch, path: str) -> httpx.Response:
+        monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
+        monkeypatch.setattr(settings, "service_internal_url", SERVICE_URL)
+        monkeypatch.delitem(sys.modules, "sentinel_sdr_manager_remote.service", raising=False)
+        service = importlib.import_module("sentinel_sdr_manager_remote.service")
+        try:
+            transport = httpx.ASGITransport(app=service.app)
+            async with httpx.AsyncClient(transport=transport, base_url=SERVICE_URL) as client:
+                return await client.get(path)
+        finally:
+            sys.modules.pop("sentinel_sdr_manager_remote.service", None)
+
+    async def test_serves_its_own_remote_entry_uncached(self, monkeypatch, built_remotes):
+        response = await self.get(monkeypatch, "/remotes/sdr-manager-remote/remoteEntry.js")
+
+        assert response.status_code == 200
+        assert response.text == "export const remote = 'sdr-manager-remote'"
+        # The entry names the hashed chunks, so a cached one would pin an old build.
+        assert response.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+
+    async def test_serves_its_hashed_chunks_cacheable(self, monkeypatch, built_remotes):
+        response = await self.get(monkeypatch, "/remotes/sdr-manager-remote/spa-assets/register-abc.js")
+
+        assert response.status_code == 200
+        assert "no-store" not in response.headers.get("cache-control", "")
+
+    async def test_never_serves_another_services_remote(self, monkeypatch, built_remotes):
+        response = await self.get(monkeypatch, "/remotes/sdr/remoteEntry.js")
+
+        assert response.status_code == 404
+
+    async def test_a_missing_build_is_a_404_not_a_500(self, monkeypatch, tmp_path):
+        from backend.platform import remote_files
+
+        monkeypatch.setattr(remote_files, "remotes_dir", lambda: tmp_path / "not-built")
+
+        response = await self.get(monkeypatch, "/remotes/sdr-manager-remote/remoteEntry.js")
+
+        assert response.status_code == 404
 
 
 def probe_fresh_interpreter(probe: str) -> list:

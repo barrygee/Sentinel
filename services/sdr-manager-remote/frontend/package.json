@@ -1,0 +1,33 @@
+{
+  "name": "@sentinel/sdr-manager-remote",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SDR Manager's REMOTE SDR HOSTS settings and the radioSites capability: the SDR hosts sdr-manager-remote manages, this machine's included.",
+  "type": "module",
+  "exports": {
+    "./*.vue": "./src/*.vue",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "vite build",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "prettier": "@sentinel/web-config/prettier",
+  "dependencies": {
+    "@sentinel/map-kit": "*",
+    "@sentinel/shell-api": "*",
+    "@sentinel/ui": "*"
+  },
+  "peerDependencies": {
+    "maplibre-gl": "^6.10.0",
+    "pinia": "^2.2.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
+  },
+  "devDependencies": {
+    "@sentinel/web-config": "*"
+  }
+}

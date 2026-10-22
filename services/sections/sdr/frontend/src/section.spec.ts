@@ -64,13 +64,11 @@ describe('components/sdr/section — radio capability', () => {
     expect(typeof radio!.frequencies.save).toBe('function')
   })
 
-  it('provides the Sentry fleet as the radioSites capability', async () => {
+  it('leaves the radioSites capability to sdr-manager-remote', async () => {
     await registerOnce()
     const { getCapability } = await import('@sentinel/shell-api/shell/capabilities')
 
-    const radioSites = getCapability('radioSites')
-    expect(typeof radioSites?.listSites).toBe('function')
-    expect(typeof radioSites?.listDevices).toBe('function')
+    expect(getCapability('radioSites')).toBeUndefined()
   })
 
   it('registers its tuned-frequency footer readout', async () => {

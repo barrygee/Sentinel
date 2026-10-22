@@ -56,11 +56,17 @@ export const SPA_DIST_DIR = resolve(REPO_ROOT, 'frontend/spa-dist')
  *
  * @param sectionId e.g. `air`.
  * @param packageUrl `import.meta.url` of the section's vite.config.ts.
+ * @param options.registerEntry the module exposed as `./register`, when it is
+ *   not `./src/section.ts` (the SDR Manager packages, which are not sections).
  */
-export function sentinelSectionViteConfig(sectionId: string, packageUrl: string): UserConfig {
+export function sentinelSectionViteConfig(
+  sectionId: string,
+  packageUrl: string,
+  options: { registerEntry?: string } = {},
+): UserConfig {
   return defineConfig({
     base: sectionRemoteBase(sectionId),
-    plugins: [sentinelVuePlugin(), sectionFederationPlugin(sectionId)],
+    plugins: [sentinelVuePlugin(), sectionFederationPlugin(sectionId, options.registerEntry)],
     resolve: { alias: maplibreContourAlias(packageUrl) },
     build: {
       outDir: resolve(SPA_DIST_DIR, 'remotes', sectionId),
@@ -75,11 +81,16 @@ export function sentinelSectionViteConfig(sectionId: string, packageUrl: string)
   })
 }
 
+/** The SDR Manager remotes (ADR 0007): settings-only, never a map section. */
+const SDR_MANAGER_REMOTE_IDS = new Set(['sdr-manager-local', 'sdr-manager-remote'])
+
 /**
  * The section remotes built into `distDir/remotes/`, as `GET /api/app/sections`
  * lists them: those with a remote entry, in registration order.
  */
-export function builtSections(distDir: string): Array<{ id: string; remoteEntry: string }> {
+export function builtSections(
+  distDir: string,
+): Array<{ id: string; kind: string; remoteEntry: string }> {
   const remotesDir = resolve(distDir, 'remotes')
   if (!existsSync(remotesDir)) return []
   const ids = readdirSync(remotesDir, { withFileTypes: true })
@@ -88,6 +99,8 @@ export function builtSections(distDir: string): Array<{ id: string; remoteEntry:
     .filter((sectionId) => existsSync(resolve(remotesDir, sectionId, REMOTE_ENTRY_FILENAME)))
   return inRegistrationOrder(ids).map((sectionId) => ({
     id: sectionId,
+    // Like the backend's manifests: each SDR Manager service's id is its kind.
+    kind: SDR_MANAGER_REMOTE_IDS.has(sectionId) ? sectionId : 'section',
     remoteEntry: `${sectionRemoteBase(sectionId)}${REMOTE_ENTRY_FILENAME}`,
   }))
 }

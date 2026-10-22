@@ -4,7 +4,6 @@ import { registerFooterItem } from '@sentinel/shell-api/shell/footerRegistry'
 import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
 import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import { createSdrRadioCapability } from './radioCapability'
-import { createSdrRadioSitesCapability } from './radioSitesCapability'
 import SdrFooterIndicator from './SdrFooterIndicator.vue'
 import { registerSdrSettings } from './settings'
 
@@ -40,10 +39,8 @@ export default function register(shell: ShellContext): void {
 
   // The `radio` capability other sections tune and file frequencies through
   // (F6) — provided here, at registration, so it exists before the app mounts.
+  // `radioSites` (the SDR hosts) is sdr-manager-remote's, not this section's.
   provideCapability('radio', createSdrRadioCapability())
-  // The Sentry fleet (site positions, published devices) for core's map
-  // markers and Air's ADS-B receiver picker.
-  provideCapability('radioSites', createSdrRadioSitesCapability())
 
   // The footer's tuned-frequency readout, shown on every page.
   registerFooterItem({ id: 'sdr-frequency', order: 10, component: SdrFooterIndicator })

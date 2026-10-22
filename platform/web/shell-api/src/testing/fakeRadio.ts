@@ -7,7 +7,12 @@ import type {
   RadioDecoders,
   RadioSummary,
 } from '@sentinel/shell-api/shell/radioCapability'
-import type { RadioSite, RadioSiteDevices } from '@sentinel/shell-api/shell/radioSitesCapability'
+import type {
+  RadioSite,
+  RadioSiteDevices,
+  RadioSitesCapability,
+} from '@sentinel/shell-api/shell/radioSitesCapability'
+import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 
 /**
  * A stand-in `radio` capability for specs of the sections that *use* the SDR
@@ -75,16 +80,72 @@ export function provideFakeRadio(
 }
 
 /**
- * A stand-in `radioSites` capability (the Sentry fleet) for core's site
- * markers and Air's receiver picker. Withdraw it afterwards, like the radio.
+ * A stand-in `radioSites` capability (the SDR hosts) for core's site markers,
+ * Air's receiver picker and the SDR section's host groups. Withdraw it
+ * afterwards, like the radio. `notifyHostsChanged` calls every
+ * `onHostsChanged` listener, as an add/edit/delete in SDR Manager would.
  */
 export function provideFakeRadioSites(
-  initial: { sites?: RadioSite[]; devices?: RadioSiteDevices } = {},
+  initial: {
+    sites?: RadioSite[]
+    devices?: RadioSiteDevices
+    hosts?: SdrManagerHost[]
+  } = {},
 ) {
   const listSites = vi.fn<() => Promise<RadioSite[]>>().mockResolvedValue(initial.sites ?? [])
   const listDevices = vi
     .fn<() => Promise<RadioSiteDevices>>()
     .mockResolvedValue(initial.devices ?? { hostCount: 0, hosts: [] })
-  const withdraw = provideCapability('radioSites', { listSites, listDevices })
-  return { listSites, listDevices, withdraw }
+  const listHosts = vi
+    .fn<RadioSitesCapability['listHosts']>()
+    .mockResolvedValue(initial.hosts ?? [])
+  const getHostDevices = vi.fn<RadioSitesCapability['getHostDevices']>().mockResolvedValue({
+    reachable: true,
+    last_error: null,
+    last_polled_at: null,
+    last_success_at: null,
+    api_version: null,
+    status: { generated_at: 0, sdrs: [] },
+  })
+  const getHostDeviceRecords = vi
+    .fn<RadioSitesCapability['getHostDeviceRecords']>()
+    .mockResolvedValue({
+      devices: [],
+      port_suggestion: null,
+      constraints: { min_port: 1024, max_port: 65535, control_port_offset: 1, reserved_ports: [] },
+    })
+  const patchHostDevice = vi.fn<RadioSitesCapability['patchHostDevice']>()
+  const flashHostDeviceSerial = vi
+    .fn<RadioSitesCapability['flashHostDeviceSerial']>()
+    .mockResolvedValue(undefined)
+  const hostsChangedListeners = new Set<() => void>()
+  const onHostsChanged = vi.fn((listener: () => void) => {
+    hostsChangedListeners.add(listener)
+    return () => hostsChangedListeners.delete(listener)
+  })
+  const notifyHostsChanged = (): void => {
+    for (const listener of hostsChangedListeners) listener()
+  }
+  const withdraw = provideCapability('radioSites', {
+    listSites,
+    listDevices,
+    listHosts,
+    getHostDevices,
+    getHostDeviceRecords,
+    patchHostDevice,
+    flashHostDeviceSerial,
+    onHostsChanged,
+  })
+  return {
+    listSites,
+    listDevices,
+    listHosts,
+    getHostDevices,
+    getHostDeviceRecords,
+    patchHostDevice,
+    flashHostDeviceSerial,
+    onHostsChanged,
+    notifyHostsChanged,
+    withdraw,
+  }
 }

@@ -170,8 +170,8 @@
  * - A manual radio (`sentry_host_id === null`) edits Sentinel's own
  *   `/api/sdr/radios` record — name/IP/port/status, exactly as before this
  *   feature existed.
- * - A Sentry-mirrored radio writes through `PATCH
- *   /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}` — Sentry owns the
+ * - A host-mirrored radio writes through the `radioSites` capability
+ *   (sdr-manager-remote's `PATCH /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}`) — the host owns the
  *   device's configuration (ADR-0009), so this form never writes tuning/
  *   visibility/notes/antenna to Sentinel directly. After a successful patch,
  *   the mirrored Sentinel radio row (name/port/enabled/visibility/notes/
@@ -195,13 +195,11 @@ import {
   type SdrRadioRecord,
   type SdrRadioInput,
 } from '../services/sdrRadiosApi'
-import {
-  getSentryDeviceRecords,
-  patchSentryDevice,
-  SentryApiRequestError,
-  type SentryDeviceRecord,
-  type SentryDeviceStatus,
-} from '../services/sentryApi'
+import type {
+  SdrManagerDeviceRecord,
+  SdrManagerDeviceStatus,
+} from '@sentinel/shell-api/types/sdrManager'
+import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
 
 // The original `.sdr-devices-btn--primary` never had a disabled visual
 // treatment at all (unlike BaseButton's shared dimmed/not-allowed default),
@@ -219,7 +217,7 @@ const props = defineProps<{
    * currently has a snapshot for it; null for a manual radio or before the
    * first successful poll.
    */
-  sentryDeviceStatus?: SentryDeviceStatus | null
+  sentryDeviceStatus?: SdrManagerDeviceStatus | null
 }>()
 const emit = defineEmits<{ save: []; cancel: [] }>()
 
@@ -267,7 +265,7 @@ const tuningLoaded = ref(false)
 const tuningLoadError = ref('')
 
 /**
- * Fetch this device's persisted configuration from Sentry.
+ * Fetch this device's persisted configuration from its host, through sdr-manager-remote.
  *
  * Live rather than cached — the operator is about to edit these values.
  */
@@ -278,9 +276,9 @@ async function loadSentryDeviceRecord(): Promise<void> {
     return
   }
   try {
-    const payload = await getSentryDeviceRecords(radio.sentry_host_id)
+    const payload = await requireSdrManagerHosts().getHostDeviceRecords(radio.sentry_host_id)
     const record = payload.devices.find(
-      (candidate: SentryDeviceRecord) => candidate.device_id === radio.sentry_device_id,
+      (candidate: SdrManagerDeviceRecord) => candidate.device_id === radio.sentry_device_id,
     )
     if (record) {
       form.value.sampleRate = record.sample_rate ?? null
@@ -371,20 +369,25 @@ async function saveSentryBackedDevice(): Promise<void> {
   saving.value = true
   errorMsg.value = ''
   try {
-    const updatedDevice = await patchSentryDevice(radio.sentry_host_id, radio.sentry_device_id, {
-      name: form.value.name.trim(),
-      enabled: form.value.enabled,
-      visibility: form.value.visibility,
-      notes: form.value.notes,
-      antenna: form.value.antenna,
-      output_port: form.value.outputPort ?? undefined,
-      sample_rate: form.value.sampleRate ?? undefined,
-      gain_db: form.value.gainAuto ? undefined : (form.value.gainDb ?? undefined),
-      gain_auto: form.value.gainAuto,
-      ppm_correction: form.value.ppmCorrection,
-      bias_tee: form.value.biasTee,
-      direct_sampling: form.value.directSampling,
-    })
+    const hosts = requireSdrManagerHosts()
+    const updatedDevice = await hosts.patchHostDevice(
+      radio.sentry_host_id,
+      radio.sentry_device_id,
+      {
+        name: form.value.name.trim(),
+        enabled: form.value.enabled,
+        visibility: form.value.visibility,
+        notes: form.value.notes,
+        antenna: form.value.antenna,
+        output_port: form.value.outputPort ?? undefined,
+        sample_rate: form.value.sampleRate ?? undefined,
+        gain_db: form.value.gainAuto ? undefined : (form.value.gainDb ?? undefined),
+        gain_auto: form.value.gainAuto,
+        ppm_correction: form.value.ppmCorrection,
+        bias_tee: form.value.biasTee,
+        direct_sampling: form.value.directSampling,
+      },
+    )
     // Keep Sentinel's mirrored radio row in sync with what Sentry actually
     // accepted, rather than waiting for the next poll tick to reconcile it.
     await updateRadio(radio.id, {
@@ -404,7 +407,7 @@ async function saveSentryBackedDevice(): Promise<void> {
     })
     emit('save')
   } catch (error) {
-    errorMsg.value = error instanceof SentryApiRequestError ? error.message : 'Save failed.'
+    errorMsg.value = hostErrorMessage(error, 'Save failed.')
   } finally {
     saving.value = false
   }

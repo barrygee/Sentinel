@@ -135,7 +135,7 @@ test.describe('Sentry sites on the map', () => {
     await expect(details).toContainText('1.53300° W')
   })
 
-  test('clicking the marker opens that host in the SDR settings section', async ({ page }) => {
+  test('clicking the marker opens that host in Settings › SDR Manager', async ({ page }) => {
     await openMapWithSites(page)
     // The details panel starts at the mark's own centre with a circle masked out
     // of it, and a mask hides pixels without giving up pointer events — so this
@@ -144,7 +144,7 @@ test.describe('Sentry sites on the map', () => {
 
     const settings = page.getByRole('dialog', { name: /settings/i })
     await expect(settings).toBeVisible()
-    await expect(settings).toContainText('SDR SETTINGS')
+    await expect(settings).toContainText('SDR Manager SETTINGS')
   })
 
   test('a count holds while the marks overlap, at any zoom, and splits when they clear', async ({

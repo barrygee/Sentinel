@@ -17,13 +17,22 @@ snapshot — and tells the radio hub about Air's claims
 (`sdr-manager.claims.granted`, a request the hub acknowledges before the
 claim's retune goes out, and the `sdr-manager.claims.released` event), so the
 hub never retunes a dongle Air has claimed.
+
+It serves its own UI remote under `/remotes/sdr-manager-remote/`: the REMOTE
+SDR HOSTS group of Settings › SDR Manager.
 """
 
 from __future__ import annotations
 
+from backend.platform.remote_files import remotes_dir
 from backend.platform.sdk import create_service
 
 from sentinel_sdr_manager_remote.module import lifecycle, manifest
 from sentinel_sdr_manager_remote.routers import hosts
 
-app = create_service(manifest=manifest, routers=[hosts.router], lifecycles=[lifecycle])
+app = create_service(
+    manifest=manifest,
+    routers=[hosts.router],
+    lifecycles=[lifecycle],
+    remote_dir=remotes_dir() / "sdr-manager-remote",
+)

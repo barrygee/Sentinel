@@ -1,11 +1,19 @@
 import { loadRemote, registerRemotes } from '@module-federation/runtime'
-import type { SectionRegisterModule, SectionSource } from './sectionLoader'
+import type { RemoteKind, SectionRegisterModule, SectionSource } from './sectionLoader'
 
 /** One entry of `GET /api/app/sections`: a section this deployment includes. */
 export interface DeployedSection {
   id: string
   /** Same-origin URL of its federation remote entry, e.g. `/remotes/air/remoteEntry.js`. */
   remoteEntry: string
+  /** `section`, or an SDR Manager service's settings-only remote. Absent means `section`. */
+  kind?: string
+}
+
+const REMOTE_KINDS: readonly RemoteKind[] = ['section', 'sdr-manager-local', 'sdr-manager-remote']
+
+function isRemoteKind(kind: unknown): kind is RemoteKind {
+  return (REMOTE_KINDS as readonly unknown[]).includes(kind)
 }
 
 const SECTION_ID_PATTERN = /^[a-z][a-z0-9-]*$/
@@ -18,17 +26,22 @@ const SECTION_ID_PATTERN = /^[a-z][a-z0-9-]*$/
  */
 function isTrustedSection(entry: unknown): entry is DeployedSection {
   if (typeof entry !== 'object' || entry === null) return false
-  const { id, remoteEntry } = entry as Record<string, unknown>
+  const { id, remoteEntry, kind } = entry as Record<string, unknown>
   return (
     typeof id === 'string' &&
     SECTION_ID_PATTERN.test(id) &&
-    remoteEntry === `/remotes/${id}/remoteEntry.js`
+    remoteEntry === `/remotes/${id}/remoteEntry.js` &&
+    (kind === undefined || isRemoteKind(kind))
   )
 }
 
-/** The federation container name a section's remote is built with (`@sentinel/web-config/federation`). */
+/**
+ * The federation container name a section's remote is built with
+ * (`sectionRemoteName` in `@sentinel/web-config/federation`): a dash in the id
+ * becomes an underscore, so the name is a valid JS identifier.
+ */
 function remoteName(sectionId: string): string {
-  return `section_${sectionId}`
+  return `section_${sectionId.replaceAll('-', '_')}`
 }
 
 /**
@@ -66,6 +79,7 @@ export async function sectionSources(): Promise<SectionSource[]> {
   )
   return sections.map((section) => ({
     id: section.id,
+    kind: isRemoteKind(section.kind) ? section.kind : 'section',
     load: async () => {
       const module = await loadRemote<SectionRegisterModule>(`${remoteName(section.id)}/register`)
       if (!module) throw new Error(`remote "${section.id}" exposed no ./register`)

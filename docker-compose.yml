@@ -416,6 +416,7 @@ services:
     volumes:
       - sdr_manager_remote_data:/app/data
       - *backend-code
+      - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-remote/
       - ./services/sdr-manager-remote/backend:/app/services/sdr-manager-remote/backend  # live-reload its code
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-remote}}
     environment:

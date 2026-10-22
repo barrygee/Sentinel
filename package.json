@@ -4,7 +4,8 @@
     "workspaces": [
         "frontend/vue",
         "platform/web/*",
-        "services/sections/*/frontend"
+        "services/sections/*/frontend",
+        "services/sdr-manager-remote/frontend"
     ],
     "engines": {
         "node": ">=24.0.0 <26.0.0",

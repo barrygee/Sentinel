@@ -1,9 +1,9 @@
 """sdr-manager-remote lifecycle and manifest: its own table, the host poller and the "This machine" link."""
 
 from backend.config import settings
-from backend.modules.manifest import SENTINEL_VERSION
+from backend.modules.manifest import SECTION_EXPOSES, SENTINEL_VERSION
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.platform.service_manifest import ServiceManifest
+from backend.platform.service_manifest import ServiceManifest, UiRemote, remote_entry_path
 
 from sentinel_sdr_manager_remote.database import create_sdr_manager_remote_tables
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
@@ -34,8 +34,9 @@ async def _stop() -> None:
 
 lifecycle = ModuleLifecycle(name=SERVICE_ID, prepare=_prepare, start=_start, stop=_stop)
 
-# No UI remote yet: the REMOTE SDR HOSTS screens are still the SDR section's
-# Settings, and move into `@sentinel/sdr-manager-remote` with their own PR.
+# Its UI remote (`@sentinel/sdr-manager-remote`, services/sdr-manager-remote/frontend)
+# adds the REMOTE SDR HOSTS group to Settings › SDR Manager and provides the
+# `radioSites` capability; it registers no map section.
 manifest = ServiceManifest(
     id=SERVICE_ID,
     kind="sdr-manager-remote",
@@ -43,4 +44,5 @@ manifest = ServiceManifest(
     displayName="SDR MANAGER",
     internalUrl=settings.core_internal_url,
     routes=[f"{GATEWAY_API_PREFIX}/"],
+    ui=UiRemote(remoteEntry=remote_entry_path(SERVICE_ID), exposes=SECTION_EXPOSES),
 )

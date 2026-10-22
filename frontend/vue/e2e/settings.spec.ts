@@ -43,16 +43,16 @@ test.describe('Settings panel', () => {
     await expect(page.locator('[role="dialog"]')).not.toBeVisible()
   })
 
-  test('settings dialog has 6 section nav items', async ({ page }) => {
+  test('settings dialog has 7 section nav items', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
 
     await page.getByRole('button', { name: /^settings$/i }).click()
     await expect(page.locator('[role="dialog"]')).toBeVisible()
 
-    // Sections: App Settings, AIR, SPACE, SEA, LAND, SDR
+    // Sections: App Settings, AIR, SDR Manager, SPACE, SEA, LAND, SDR
     const navItems = page.locator('#settings-sidebar .settings-nav-item')
-    await expect(navItems).toHaveCount(6)
+    await expect(navItems).toHaveCount(7)
   })
 
   test('clicking a section nav item updates the section heading', async ({ page }) => {
