@@ -1644,6 +1644,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #534 from barrygee/feat/sdr-manager-local-backend
 - Merge pull request #535 from barrygee/refactor/sdr-manager-remote
 - Merge pull request #536 from barrygee/feat/sdr-manager-remote-local-link
+- Merge pull request #537 from barrygee/refactor/sdr-manager-settings-section
 
 ### Refactoring
 
@@ -1742,6 +1743,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the hub's runtime names to radio and its credentials folder **(breaking change)**
 - Stop hosting sections in-process
 - Move remote host management out of the radio hub
+- SDR Manager settings section
 
 ### Documentation
 
