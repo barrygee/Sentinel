@@ -16,6 +16,9 @@ differences are visible right here:
 
 Routes that must stay reachable regardless — `GET /api/health` for the Docker
 healthcheck, and `GET /api/v1/sdrs` for Sentinel — simply do not depend on this.
+
+This Sentinel's own sdr-manager-remote is the one caller that needs no session:
+it presents the service bearer instead (`service_auth.py`, ADR 0007).
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from __future__ import annotations
 from fastapi import Depends, HTTPException, Request, status
 
 from sentinel_sdr_manager_local.dependencies import get_console_auth_service
+from sentinel_sdr_manager_local.service_auth import presents_service_bearer
 from sentinel_sdr_manager_local.services.console_auth import SESSION_COOKIE_NAME, ConsoleAuthService
 
 _UNAUTHENTICATED = HTTPException(
@@ -42,13 +46,17 @@ async def require_console_session(
     request: Request,
     console_auth: ConsoleAuthService = Depends(get_console_auth_service),
 ) -> None:
-    """Require a valid session on every management route.
+    """Require a valid session, or the service bearer, on every management route.
 
     A no-op while no password is set, which is the documented open default. The
     check is made per request rather than cached: setting a password must lock
-    the API immediately, not at the next restart.
+    the API immediately, not at the next restart. A bearer that isn't the
+    service's falls through to the session check, so it is refused exactly as
+    a missing cookie is.
     """
     if not await console_auth.is_password_set():
+        return
+    if presents_service_bearer(request.headers.get("authorization")):
         return
     cookie = request.cookies.get(SESSION_COOKIE_NAME)
     if not await console_auth.session_is_valid(cookie):

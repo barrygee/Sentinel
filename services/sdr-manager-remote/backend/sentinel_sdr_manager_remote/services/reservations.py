@@ -60,6 +60,7 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
     SdrManagerClient,
     SdrManagerUnreachableError,
+    client_for_host,
 )
 
 logger = logging.getLogger(__name__)
@@ -90,7 +91,7 @@ async def _client_for_host(db: AsyncSession, host_id: int, *, require_enabled: b
         raise _HostUnavailable({"ok": False, "reason": "unknown_host"})
     if require_enabled and not host.enabled:
         raise _HostUnavailable({"ok": False, "reason": "host_disabled", "host_label": host.name or host.address})
-    return SdrManagerClient(host.address, host.port, host.auth_token)
+    return client_for_host(host)
 
 
 def _failure_from(error: SdrManagerUnreachableError | SdrManagerApiError) -> dict[str, Any]:

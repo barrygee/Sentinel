@@ -24,9 +24,14 @@ from backend.database import Base
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
-from sentinel_sdr_manager_remote.models import RemoteSdrHost  # noqa: F401 — register the ORM model with Base
+from sentinel_sdr_manager_remote.models import (  # noqa: F401 — register the ORM model with Base
+    AUTH_MODE_SERVICE,
+    RemoteSdrHost,
+)
 from sentinel_sdr_manager_remote.services import host_poller as poller_module
+from sentinel_sdr_manager_remote.services import sdr_manager_client as client_module
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
     SdrManagerResponse,
@@ -133,7 +138,7 @@ def _export_with_location(latitude: float = 51.5) -> SdrManagerResponse:
 async def test_poll_caches_the_hosts_self_reported_position(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location()])
-    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
     poller = poller_module.HostPoller()
 
     await poller._poll_once(host_id)
@@ -148,7 +153,7 @@ async def test_position_is_not_refetched_within_the_refresh_window(session_facto
     """The status poll runs every couple of seconds; the position must not."""
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location()])
-    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
     poller = poller_module.HostPoller()
 
     await poller._poll_once(host_id)
@@ -162,7 +167,7 @@ async def test_position_is_not_refetched_within_the_refresh_window(session_facto
 async def test_position_is_refetched_once_the_window_has_elapsed(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location(51.5), _export_with_location(52.5)])
-    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
     poller = poller_module.HostPoller()
 
     now = time.time()
@@ -192,7 +197,7 @@ async def test_a_failed_position_read_keeps_the_last_one_and_does_not_hammer(ses
     """An older Sentry without the versioned export must not be retried every poll."""
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location(), failure])
-    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
     poller = poller_module.HostPoller()
 
     now = time.time()
@@ -212,7 +217,7 @@ async def test_a_failed_position_read_keeps_the_last_one_and_does_not_hammer(ses
 async def test_an_unexpected_error_reading_the_position_is_caught_and_logged(session_factory, monkeypatch, caplog):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_ok()], [ValueError("boom")]),
     )
@@ -229,7 +234,7 @@ async def test_an_unexpected_error_reading_the_position_is_caught_and_logged(ses
 async def test_no_position_read_when_the_status_poll_itself_failed(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([SdrManagerUnreachableError("down")], [_export_with_location()])
-    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
     poller = poller_module.HostPoller()
 
     ok = await poller._poll_once(host_id)
@@ -245,7 +250,7 @@ async def test_no_position_read_when_the_status_poll_itself_failed(session_facto
 async def test_poll_once_success_updates_snapshot_and_persists_last_seen_at(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([SdrManagerResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0")]),
     )
@@ -269,7 +274,7 @@ async def test_poll_once_success_updates_snapshot_and_persists_last_seen_at(sess
 async def test_poll_once_unreachable_sets_last_error_without_touching_last_seen_at(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class(
             [
@@ -296,7 +301,7 @@ async def test_poll_once_unreachable_sets_last_error_without_touching_last_seen_
 async def test_poll_once_api_error_uses_code_and_message_as_last_error(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([SdrManagerApiError(500, "boom", "things broke")]),
     )
@@ -312,7 +317,7 @@ async def test_poll_once_unexpected_exception_is_caught_logged_and_treated_as_fa
 ):
     caplog.set_level(logging.ERROR, logger="sentinel_sdr_manager_remote.services.host_poller")
     host_id = await _create_host(session_factory)
-    monkeypatch.setattr(poller_module, "SdrManagerClient", _fake_client_class([ValueError("boom")]))
+    monkeypatch.setattr(client_module, "SdrManagerClient", _fake_client_class([ValueError("boom")]))
     poller = poller_module.HostPoller()
 
     ok = await poller._poll_once(host_id)
@@ -646,7 +651,7 @@ async def test_a_poll_repoints_a_radio_whose_device_moved_port(session_factory, 
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -660,7 +665,7 @@ async def test_a_poll_leaves_an_already_correct_radio_alone(session_factory, mon
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=4343, host_id=host_id)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -680,7 +685,7 @@ async def test_a_poll_never_deletes_a_radio_whose_device_vanished(session_factor
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:GONE", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("usb:1-1.4", 6565)]),
     )
@@ -698,7 +703,7 @@ async def test_a_poll_does_not_touch_another_hosts_radios(session_factory, monke
     host_id = await _create_host(session_factory)
     other_radio = await _create_radio(session_factory, device_id="serial:AAA", port=1111, host_id=host_id + 99)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -715,7 +720,7 @@ async def test_a_poll_leaves_a_malformed_radios_setting_alone(session_factory, m
     async with session_factory() as db:
         await db_helpers.upsert_setting(db, "sdr", "radios", {"not": "a list"})
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -735,7 +740,7 @@ async def test_a_port_follow_is_announced_like_a_settings_write(session_factory,
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -756,7 +761,7 @@ async def test_an_unchanged_poll_announces_nothing(session_factory, monkeypatch)
     host_id = await _create_host(session_factory)
     await _create_radio(session_factory, device_id="serial:AAA", port=4343, host_id=host_id)
     monkeypatch.setattr(
-        poller_module,
+        client_module,
         "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
@@ -768,3 +773,38 @@ async def test_an_unchanged_poll_announces_nothing(session_factory, monkeypatch)
         unsubscribe()
 
     assert announced == []
+
+
+async def test_the_local_row_is_polled_with_the_service_bearer(session_factory, monkeypatch, tmp_path):
+    # The real client, not the fake: this is about what goes on the wire.
+    present_credential(monkeypatch, tmp_path, "sdr-manager-remote")
+    host_id = await _create_host(
+        session_factory,
+        address="host.docker.internal",
+        auth_token="",
+        auth_mode=AUTH_MODE_SERVICE,
+        is_local=True,
+    )
+    received: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        received.append(request)
+        return httpx.Response(200, json={"generated_at": 1, "sdrs": []})
+
+    real_client = httpx.AsyncClient
+
+    class _MockedAsyncClient(real_client):
+        def __init__(self, *args, **kwargs) -> None:
+            kwargs["transport"] = httpx.MockTransport(handler)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", _MockedAsyncClient)
+    monkeypatch.setattr(poller_module, "read_setting", AsyncMock(return_value=[]))
+
+    assert await poller_module.HostPoller()._poll_once(host_id) is True
+
+    assert received[0].url.path == "/api/status"
+    assert all(
+        request.headers["Authorization"] == bearer("sdr-manager-remote")["Authorization"] for request in received
+    )
+    assert "/api/auth/login" not in [request.url.path for request in received]

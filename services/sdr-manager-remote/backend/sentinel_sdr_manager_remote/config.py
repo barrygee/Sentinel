@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     )
     connect_timeout_s: float = Field(default=3.0, gt=0, description="TCP connect timeout for calls to a host")
     read_timeout_s: float = Field(default=5.0, gt=0, description="Read timeout for calls to a host, once connected")
+    local_link_interval_s: float = Field(
+        default=10.0,
+        gt=0,
+        description="How often core's registry is asked for this machine's sdr-manager-local (the This machine row)",
+    )
 
 
 @lru_cache

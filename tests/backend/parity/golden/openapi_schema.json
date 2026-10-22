@@ -1499,6 +1499,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_local": {
+            "title": "Is Local",
+            "type": "boolean"
+          },
           "last_error": {
             "anyOf": [
               {
@@ -1590,6 +1594,7 @@
           "port",
           "enabled",
           "auth_token_set",
+          "is_local",
           "created_at",
           "last_seen_at",
           "last_error",
@@ -1633,6 +1638,10 @@
           "id": {
             "title": "Id",
             "type": "integer"
+          },
+          "is_local": {
+            "title": "Is Local",
+            "type": "boolean"
           },
           "last_error": {
             "anyOf": [
@@ -1683,6 +1692,7 @@
           "port",
           "enabled",
           "auth_token_set",
+          "is_local",
           "created_at",
           "last_seen_at",
           "last_error",

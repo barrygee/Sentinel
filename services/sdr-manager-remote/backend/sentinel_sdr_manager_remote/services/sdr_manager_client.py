@@ -14,7 +14,9 @@ Security notes:
   embedded credentials, no path, no port suffix (the port is a separate,
   independently-bounded field).
 - The console password is never logged, never included in an exception
-  message, and never echoed back by any caller of this module.
+  message, and never echoed back by any caller of this module. Nor is the
+  service bearer (this machine's own sdr-manager-local only), which is this
+  process's own HTTP credential, read fresh per client and never stored.
 """
 
 from __future__ import annotations
@@ -27,8 +29,10 @@ from typing import Any
 from urllib.parse import quote
 
 import httpx
+from backend.platform.service_credentials import own_token
 
 from sentinel_sdr_manager_remote.config import get_settings
+from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, RemoteSdrHost
 
 # The SDR Manager API's wire contract (sdr-manager-local). Duplicated here
 # rather than imported: the host is usually another machine, and the two
@@ -161,6 +165,7 @@ class SdrManagerClient:
         *,
         connect_timeout_s: float | None = None,
         read_timeout_s: float | None = None,
+        service_token: str | None = None,
     ) -> None:
         """`console_password` is the host's console password, not a bearer token.
 
@@ -168,10 +173,16 @@ class SdrManagerClient:
         password, proved by a signed session cookie, is all it accepts — an
         `Authorization: Bearer` header would be ignored, leaving every
         management call 401 against a protected host.
+
+        `service_token` is the exception: this machine's own sdr-manager-local
+        accepts sdr-manager-remote's HTTP credential as a bearer (ADR 0007), so
+        a client given one presents it on every request and never signs in.
+        Use `client_for_host`, which decides that from the host's row.
         """
         self._address = validate_host_address(address)
         self._port = validate_host_port(port)
         self._console_password = console_password
+        self._service_token = service_token
         self._session_key = (
             self._address,
             self._port,
@@ -195,6 +206,12 @@ class SdrManagerClient:
         process-wide `_session_cookies` for the same reason.
         """
         headers = {"Accept": "application/json"}
+        if self._service_token is not None:
+            # Bearer mode carries no session: an empty token (no credential
+            # file) sends nothing, and a protected host then answers 401.
+            if self._service_token:
+                headers["Authorization"] = f"Bearer {self._service_token}"
+            return headers
         session_cookie = _session_cookies.get(self._session_key)
         if session_cookie:
             headers["Cookie"] = f"{SESSION_COOKIE_NAME}={session_cookie}"
@@ -240,10 +257,11 @@ class SdrManagerClient:
         operator changes the host's password — so the first call after that would
         otherwise fail for a reason the caller can do nothing about. Retried once
         only: a second 401 means the password is wrong, and looping on it would
-        turn a typo into a login flood.
+        turn a typo into a login flood. Never in bearer mode: there is no
+        password to sign in with, and a refused bearer is not going to change.
         """
         response = await self._send(method, path, json_body=json_body, holder=holder)
-        if response.status_code == 401 and await self._sign_in():
+        if response.status_code == 401 and self._service_token is None and await self._sign_in():
             response = await self._send(method, path, json_body=json_body, holder=holder)
 
         api_version = response.headers.get(API_VERSION_HEADER)
@@ -412,6 +430,17 @@ class SdrManagerClient:
     async def delete_hotspot(self) -> SdrManagerResponse:
         """`DELETE /api/hotspot` — forget the hotspot configuration entirely, including its password."""
         return await self._request("DELETE", "/api/hotspot")
+
+
+def client_for_host(host: RemoteSdrHost) -> SdrManagerClient:
+    """The client for one host's row: its console password, or for this machine the service bearer.
+
+    Copies what it needs from the row, so the client outlives the session the
+    row was loaded in.
+    """
+    if host.auth_mode == AUTH_MODE_SERVICE:
+        return SdrManagerClient(host.address, host.port, "", service_token=own_token())
+    return SdrManagerClient(host.address, host.port, host.auth_token)
 
 
 def _encode_path_segment(value: str) -> str:

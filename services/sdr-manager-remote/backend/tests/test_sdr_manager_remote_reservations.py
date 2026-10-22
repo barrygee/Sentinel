@@ -31,8 +31,9 @@ from backend.core.instance_identity import get_instance_id
 from backend.platform.bus import bus
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
+from tests.backend.service_credentials_test_helpers import bearer, present_credential
 
-from sentinel_sdr_manager_remote.models import RemoteSdrHost
+from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, RemoteSdrHost
 from sentinel_sdr_manager_remote.services.reservations import (
     ACQUIRE_SUBJECT,
     DEVICE_ADDRESS_SUBJECT,
@@ -378,3 +379,36 @@ class TestDeviceAddress:
 
         assert reply["ok"] is False
         assert reply["reason"] == "unreachable"
+
+
+class TestThisMachine:
+    """The "This machine" row is claimed with the service bearer, never the console password."""
+
+    async def test_a_claim_on_the_local_row_presents_the_bearer_and_never_signs_in(self, db, monkeypatch, tmp_path):
+        present_credential(monkeypatch, tmp_path, "sdr-manager-remote")
+        host = RemoteSdrHost(
+            address="host.docker.internal",
+            port=8000,
+            auth_token="",
+            auth_mode=AUTH_MODE_SERVICE,
+            is_local=True,
+            enabled=True,
+            created_at=1,
+        )
+        db.add(host)
+        await db.commit()
+
+        def bearer_only_host(request: httpx.Request) -> httpx.Response:
+            if request.headers.get("authorization") != bearer("sdr-manager-remote")["Authorization"]:
+                return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
+            if request.url.path.endswith("/reservation"):
+                return httpx.Response(200, json=RESERVATION)
+            return httpx.Response(200, json={"device_id": DEVICE_ID})
+
+        seen = install_sentry(monkeypatch, bearer_only_host)
+
+        reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host.id))
+
+        assert reply == {"ok": True, "reservation": RESERVATION}
+        assert "/api/auth/login" not in [request.url.path for request in seen]
+        assert {request.method for request in seen} == {"POST", "PATCH"}
