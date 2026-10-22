@@ -555,6 +555,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop polling the map while its browser tab is hidden
 - Stop calling the online feed until its daily limit resets
 - Keep the online feed's daily-limit refusal across restarts
+- Copy sdr-manager-remote's pyproject into the image
 
 ### Chores
 
@@ -1640,6 +1641,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #532 from barrygee/docs/sdr-manager-adr
 - Merge pull request #533 from barrygee/feat/sdr-manager-platform
 - Merge pull request #534 from barrygee/feat/sdr-manager-local-backend
+- Merge pull request #535 from barrygee/refactor/sdr-manager-remote
 
 ### Refactoring
 
@@ -1737,6 +1739,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the radio hub's backend into services/radio/backend
 - Rename the hub's runtime names to radio and its credentials folder **(breaking change)**
 - Stop hosting sections in-process
+- Move remote host management out of the radio hub
 
 ### Documentation
 
