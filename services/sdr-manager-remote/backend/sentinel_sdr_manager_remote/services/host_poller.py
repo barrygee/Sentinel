@@ -29,6 +29,7 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
     SdrManagerClient,
     SdrManagerUnreachableError,
+    client_for_host,
 )
 
 logger = logging.getLogger(__name__)
@@ -147,12 +148,11 @@ class HostPoller:
             host = await db.get(RemoteSdrHost, host_id)
             if host is None or not host.enabled:
                 return False
-            address, port, auth_token = host.address, host.port, host.auth_token
+            client = client_for_host(host)
 
         snapshot = self._snapshots.setdefault(host_id, HostSnapshot(host_id=host_id))
         polled_at = int(time.time() * 1000)
         snapshot.last_polled_at = polled_at
-        client = SdrManagerClient(address, port, auth_token)
         try:
             response = await client.get_status()
         except SdrManagerUnreachableError as exc:

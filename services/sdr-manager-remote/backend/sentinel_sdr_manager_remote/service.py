@@ -4,7 +4,10 @@ Owns the remote SDR hosts this Sentinel manages (ADR 0007): their table
 (`remote_sdr_hosts`, with each host's console password) in its own database
 (`DB_PATH`), the SDR Manager API client, the poller that caches each host's
 live status and follows mirrored radios to their device's current port, and
-the REST surface under `/api/sdr-manager/remote/hosts`.
+the REST surface under `/api/sdr-manager/remote/hosts`. It also links this
+machine's own sdr-manager-local, found in core's registry, as the "This
+machine" host, which it manages with its service bearer rather than the
+console password.
 
 Settings stay in core and are read over HTTP: the radios (`sdr.radios`, whose
 ports the poller follows) and this Sentinel's `app.instanceId` (the holder

@@ -1,4 +1,4 @@
-"""sdr-manager-remote lifecycle and manifest: its own table and the host poller."""
+"""sdr-manager-remote lifecycle and manifest: its own table, the host poller and the "This machine" link."""
 
 from backend.config import settings
 from backend.modules.manifest import SENTINEL_VERSION
@@ -7,6 +7,7 @@ from backend.platform.service_manifest import ServiceManifest
 
 from sentinel_sdr_manager_remote.database import create_sdr_manager_remote_tables
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
+from sentinel_sdr_manager_remote.services.local_link import local_link
 
 SERVICE_ID = "sdr-manager-remote"
 
@@ -20,11 +21,14 @@ async def _prepare() -> None:
 
 
 async def _start() -> None:
-    # One poller task per enabled host.
+    # One poller task per enabled host, then the link, which starts or stops
+    # the "This machine" row's poller as sdr-manager-local comes and goes.
     await host_poller.start_all()
+    local_link.start()
 
 
 async def _stop() -> None:
+    await local_link.stop()
     await host_poller.stop_all()
 
 

@@ -33,6 +33,10 @@ Endpoints:
 
 `auth_token` is write-only: accepted on POST/PUT, never returned in any
 response body (only a boolean `auth_token_set`).
+
+The "This machine" row (`is_local`) is kept by `services/local_link.py`, not by
+the operator: DELETE on it, or a PUT that changes anything but its `name`,
+answers 409 `local_host_managed`.
 """
 
 from __future__ import annotations
@@ -57,8 +61,8 @@ from sentinel_sdr_manager_remote.services import reservations  # noqa: F401
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
-    SdrManagerClient,
     SdrManagerUnreachableError,
+    client_for_host,
     validate_host_address,
     validate_host_port,
 )
@@ -200,6 +204,9 @@ class RemoteSdrHostOut(BaseModel):
     port: int
     enabled: bool
     auth_token_set: bool
+    # This machine's own sdr-manager-local, linked from core's registry: it
+    # signs in with the service bearer, so `auth_token_set` stays false.
+    is_local: bool
     created_at: int
     last_seen_at: int | None
     last_error: str | None
@@ -395,8 +402,17 @@ async def _get_host_or_404(host_id: int, db: AsyncSession) -> RemoteSdrHost:
     return host
 
 
-def _client_for(host: RemoteSdrHost) -> SdrManagerClient:
-    return SdrManagerClient(host.address, host.port, host.auth_token)
+_LOCAL_HOST_MANAGED = HTTPException(
+    status_code=409,
+    detail={
+        "code": "local_host_managed",
+        "message": "This machine's SDR host is kept in step with sdr-manager-local and can't be removed or changed.",
+    },
+)
+
+# The fields the local link owns on the "This machine" row. `name` is the one
+# left to the operator: a cosmetic label, nothing the link reads or writes.
+_LOCAL_HOST_LINKED_FIELDS = frozenset({"address", "port", "auth_token", "enabled"})
 
 
 def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
@@ -409,6 +425,7 @@ def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         port=host.port,
         enabled=host.enabled,
         auth_token_set=bool(host.auth_token),
+        is_local=host.is_local,
         created_at=host.created_at,
         last_seen_at=host.last_seen_at,
         last_error=host.last_error,
@@ -524,6 +541,10 @@ async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession =
     waiting for the previous poller iteration to notice.
     """
     host = await _get_host_or_404(host_id, db)
+    if host.is_local and body.model_fields_set & _LOCAL_HOST_LINKED_FIELDS:
+        # The link would undo the change within one interval, and a readdressed
+        # row would point the service bearer at some other machine.
+        raise _LOCAL_HOST_MANAGED
     if body.address is not None or body.port is not None:
         new_address = body.address if body.address is not None else host.address
         new_port = body.port if body.port is not None else host.port
@@ -569,6 +590,10 @@ async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession =
 async def delete_host(host_id: int, db: AsyncSession = Depends(get_db)) -> None:
     """Forget an SDR host. Does not affect the Pi itself — only Sentinel's record of it."""
     host = await _get_host_or_404(host_id, db)
+    if host.is_local:
+        # `sdr.radios` references the row by id; the link disables it when
+        # sdr-manager-local goes away instead.
+        raise _LOCAL_HOST_MANAGED
     await host_poller.stop_host(host_id)
     await db.delete(host)
     await db.commit()
@@ -584,7 +609,7 @@ async def test_host(host_id: int, db: AsyncSession = Depends(get_db)) -> HealthP
     Sentinel's own error.
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.get_health()
     except SdrManagerUnreachableError as exc:
@@ -629,7 +654,7 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Rem
     `detail`, and null live blocks.
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     snapshot = host_poller.get_snapshot(host.id)
 
     detail = "ok"
@@ -726,7 +751,7 @@ async def get_host_device_records(host_id: int, db: AsyncSession = Depends(get_d
     field needs to suggest a free port rather than guess.
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.get_devices()
     except SdrManagerApiError as exc:
@@ -751,7 +776,7 @@ async def patch_host_device(
     reshape it beyond being valid JSON.
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.patch_device(device_id, patch)
     except SdrManagerApiError as exc:
@@ -766,7 +791,7 @@ async def patch_host_device(
 async def delete_host_device(host_id: int, device_id: str, db: AsyncSession = Depends(get_db)) -> Response:
     """Proxy `DELETE /api/devices/{device_id}` — removes the host's persisted config for that device."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         await client.delete_device(device_id)
     except SdrManagerApiError as exc:
@@ -783,7 +808,7 @@ async def flash_host_device_serial(
 ) -> JSONResponse:
     """Proxy `POST /api/devices/{device_id}/serial` — begins the host's guarded EEPROM flash."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.flash_serial(device_id, body.serial)
     except SdrManagerApiError as exc:
@@ -801,7 +826,7 @@ async def flash_host_device_serial(
 async def get_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `GET /api/hotspot` — the host's response never includes the passphrase."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.get_hotspot()
     except SdrManagerApiError as exc:
@@ -815,7 +840,7 @@ async def get_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> JSO
 async def put_host_wifi(host_id: int, body: WifiConfigIn, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `PUT /api/hotspot` — a full replace, matching the host's own semantics."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.put_hotspot(body.model_dump())
     except SdrManagerApiError as exc:
@@ -829,7 +854,7 @@ async def put_host_wifi(host_id: int, body: WifiConfigIn, db: AsyncSession = Dep
 async def delete_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> Response:
     """Proxy `DELETE /api/hotspot` — forgets the hotspot configuration, including its password."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         await client.delete_hotspot()
     except SdrManagerApiError as exc:
@@ -847,7 +872,7 @@ async def enable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSessio
     own timeout; Sentinel never calls confirm automatically (see that route).
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.enable_hotspot(body.confirm_uplink_loss)
     except SdrManagerApiError as exc:
@@ -861,7 +886,7 @@ async def enable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSessio
 async def disable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `POST /api/hotspot/disable`."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.disable_hotspot(body.confirm_uplink_loss)
     except SdrManagerApiError as exc:
@@ -881,7 +906,7 @@ async def confirm_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) ->
     backend on the operator's behalf.
     """
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.confirm_hotspot()
     except SdrManagerApiError as exc:
@@ -895,7 +920,7 @@ async def confirm_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) ->
 async def list_host_wifi_interfaces(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `GET /api/hotspot/interfaces`."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.get_hotspot_interfaces()
     except SdrManagerApiError as exc:
@@ -909,7 +934,7 @@ async def list_host_wifi_interfaces(host_id: int, db: AsyncSession = Depends(get
 async def list_host_wifi_clients(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `GET /api/hotspot/clients`."""
     host = await _get_host_or_404(host_id, db)
-    client = _client_for(host)
+    client = client_for_host(host)
     try:
         response = await client.get_hotspot_clients()
     except SdrManagerApiError as exc:

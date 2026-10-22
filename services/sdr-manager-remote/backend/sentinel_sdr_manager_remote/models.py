@@ -9,6 +9,11 @@ are not this service's to store: they are a core setting (`sdr.radios`).
 from backend.database import Base
 from sqlalchemy import Boolean, Column, Index, Integer, Text, UniqueConstraint, text
 
+AUTH_MODE_PASSWORD = "password"
+"""Signs in with the host's console password (any host an operator adds)."""
+AUTH_MODE_SERVICE = "service"
+"""Presents this service's own HTTP credential as a bearer (this machine's row only)."""
+
 
 class RemoteSdrHost(Base):
     """A machine running sdr-manager-local that this Sentinel manages over the SDR Manager API.
@@ -37,7 +42,7 @@ class RemoteSdrHost(Base):
     is_local = Column(Boolean, nullable=False, default=False, server_default=text("0"))
     # How the client proves itself: `password` signs in with the console
     # password; `service` (this machine only) presents the service bearer.
-    auth_mode = Column(Text, nullable=False, default="password", server_default=text("'password'"))
+    auth_mode = Column(Text, nullable=False, default=AUTH_MODE_PASSWORD, server_default=text(f"'{AUTH_MODE_PASSWORD}'"))
 
     __table_args__ = (
         UniqueConstraint("address", "port", name="uq_remote_sdr_hosts_address_port"),
