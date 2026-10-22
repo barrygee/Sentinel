@@ -11,28 +11,28 @@ export const useSettingsStore = defineStore('settings', () => {
   const activeSection = ref<string | null>(null)
   const allSettings = ref<Record<string, Record<string, unknown>>>({})
   /**
-   * The Sentry host the SDR section should expand when it next renders, or
-   * null. Set by the Sentry markers on the domain maps (`SentrySitesControl`)
-   * so "MORE" on a marker lands the operator on that host's own row rather than
-   * on the section and a hunt through the list. `SentryHostsControl` clears it
+   * The SDR host Settings › SDR Manager should expand when it next renders, or
+   * null. Set by the host markers on the domain maps (`SentrySitesControl`) so
+   * "MORE" on a marker lands the operator on that host's own row rather than on
+   * the section and a hunt through the list. `RemoteHostsControl` clears it
    * once it has acted on it, so a later manual visit opens as usual.
    */
-  const focusSentryHostId = ref<number | null>(null)
+  const focusSdrManagerHostId = ref<number | null>(null)
 
   function openPanel(section?: string) {
     open.value = true
     if (section) activeSection.value = section
   }
 
-  /** Open the settings panel on the SDR section with one Sentry host expanded. */
-  function openSentryHost(hostId: number) {
-    focusSentryHostId.value = hostId
-    openPanel('sdr')
+  /** Open the settings panel on SDR Manager with one SDR host expanded. */
+  function openSdrManagerHost(hostId: number) {
+    focusSdrManagerHostId.value = hostId
+    openPanel('sdr-manager')
   }
 
-  /** Forget a pending Sentry-host focus, once it has been acted on. */
-  function clearSentryHostFocus() {
-    focusSentryHostId.value = null
+  /** Forget a pending SDR-host focus, once it has been acted on. */
+  function clearSdrManagerHostFocus() {
+    focusSdrManagerHostId.value = null
   }
 
   function closePanel() {
@@ -85,10 +85,10 @@ export const useSettingsStore = defineStore('settings', () => {
     sidebarOpen,
     activeSection,
     allSettings,
-    focusSentryHostId,
+    focusSdrManagerHostId,
     openPanel,
-    openSentryHost,
-    clearSentryHostFocus,
+    openSdrManagerHost,
+    clearSdrManagerHostFocus,
     closePanel,
     togglePanel,
     toggleSidebar,

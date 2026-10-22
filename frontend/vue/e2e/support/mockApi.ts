@@ -23,11 +23,22 @@ export const OFFLINE_MAP_STATUS = {
 }
 
 /** Every section, as `GET /api/app/sections` lists a full deployment: the
- *  shell loads each as a federation remote from `/remotes/<id>/`. */
-export const DEPLOYED_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr'].map((id) => ({
-  id,
-  remoteEntry: `/remotes/${id}/remoteEntry.js`,
-}))
+ *  shell loads each as a federation remote from `/remotes/<id>/`. Then the
+ *  sdr-manager-remote service's settings-only remote (ADR 0007), which
+ *  provides Settings › SDR Manager's REMOTE SDR HOSTS and the `radioSites`
+ *  capability the host markers read. */
+export const DEPLOYED_SECTIONS = [
+  ...['air', 'space', 'sea', 'land', 'sdr'].map((id) => ({
+    id,
+    kind: 'section',
+    remoteEntry: `/remotes/${id}/remoteEntry.js`,
+  })),
+  {
+    id: 'sdr-manager-remote',
+    kind: 'sdr-manager-remote',
+    remoteEntry: '/remotes/sdr-manager-remote/remoteEntry.js',
+  },
+]
 
 /**
  * Install default catch-all API stubs for every Sentinel `/api/**` route.
@@ -61,7 +72,7 @@ export async function installDefaultMocks(page: Page): Promise<void> {
 
   // The sections the shell loads as federation remotes, before it mounts.
   // Stubbed rather than left to `vite preview` (which lists whatever is built)
-  // so every spec sees all five, whatever happens to be in spa-dist/remotes/;
+  // so every spec sees all of them, whatever happens to be in spa-dist/remotes/;
   // remote-down.spec breaks one remote's files to show the stand-in page.
   await page.route('/api/app/sections', (route) => {
     void route.fulfill({

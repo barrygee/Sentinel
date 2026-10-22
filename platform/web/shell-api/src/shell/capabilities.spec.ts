@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import { computed } from 'vue'
 import { getCapability, provideCapability } from './capabilities'
 import type { RadioCapability } from './radioCapability'
@@ -80,6 +80,12 @@ describe('shell/capabilities', () => {
     const radioSites = {
       listSites: async () => [],
       listDevices: async () => ({ hostCount: 0, hosts: [] }),
+      listHosts: async () => [],
+      getHostDevices: vi.fn(),
+      getHostDeviceRecords: vi.fn(),
+      patchHostDevice: vi.fn(),
+      flashHostDeviceSerial: async () => {},
+      onHostsChanged: () => () => {},
     }
     withdrawals.push(provideCapability('radioSites', radioSites))
 

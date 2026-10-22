@@ -3,16 +3,17 @@ import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
 
-vi.mock('../services/sentryApi', async () => {
-  const actual =
-    await vi.importActual<typeof import('../services/sentryApi')>('../services/sentryApi')
-  return { ...actual, flashSentryDeviceSerial: vi.fn() }
-})
-import { flashSentryDeviceSerial, SentryApiRequestError } from '../services/sentryApi'
+import {
+  fakeSdrManagerHosts,
+  hostRejection,
+  useFakeSdrManagerHosts,
+  withdrawFakeSdrManagerHosts,
+} from '../testing/fakeSdrManagerHosts'
+useFakeSdrManagerHosts()
 
 describe('SdrSerialFlashControl', () => {
   beforeEach(() => {
-    vi.mocked(flashSentryDeviceSerial).mockReset()
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockReset()
   })
 
   it('shows only the FLASH SERIAL button and no confirmation form before it is clicked', () => {
@@ -28,7 +29,7 @@ describe('SdrSerialFlashControl', () => {
     // no way to reach confirmFlash() without going through this step first.
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('CONFIRM PERMANENT WRITE')
-    expect(flashSentryDeviceSerial).not.toHaveBeenCalled()
+    expect(fakeSdrManagerHosts.flashHostDeviceSerial).not.toHaveBeenCalled()
 
     await wrapper.find('button').trigger('click')
     expect(wrapper.find('.sdr-serial-flash-confirm').exists()).toBe(true)
@@ -48,7 +49,7 @@ describe('SdrSerialFlashControl', () => {
     expect(confirmButton.attributes('disabled')).toBeDefined()
 
     await confirmButton.trigger('click')
-    expect(flashSentryDeviceSerial).not.toHaveBeenCalled()
+    expect(fakeSdrManagerHosts.flashHostDeviceSerial).not.toHaveBeenCalled()
   })
 
   it("re-checks the trimmed serial inside the handler itself, not only via the button's disabled attribute", async () => {
@@ -70,11 +71,11 @@ describe('SdrSerialFlashControl', () => {
     inputElement.dispatchEvent(new Event('input'))
     await confirmButton.trigger('click')
 
-    expect(flashSentryDeviceSerial).not.toHaveBeenCalled()
+    expect(fakeSdrManagerHosts.flashHostDeviceSerial).not.toHaveBeenCalled()
   })
 
   it('enables the confirm button and trims the serial once a non-blank value is entered', async () => {
-    vi.mocked(flashSentryDeviceSerial).mockResolvedValue({})
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockResolvedValue(undefined)
     const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
     await wrapper.find('button').trigger('click')
     await wrapper.find('input').setValue('  AIS-01  ')
@@ -85,11 +86,11 @@ describe('SdrSerialFlashControl', () => {
 
     await confirmButton.trigger('click')
     await flushPromises()
-    expect(flashSentryDeviceSerial).toHaveBeenCalledWith(1, 'usb:1/2', 'AIS-01')
+    expect(fakeSdrManagerHosts.flashHostDeviceSerial).toHaveBeenCalledWith(1, 'usb:1/2', 'AIS-01')
   })
 
   it('collapses the form and emits flashed after a successful flash', async () => {
-    vi.mocked(flashSentryDeviceSerial).mockResolvedValue({})
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockResolvedValue(undefined)
     const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
     await wrapper.find('button').trigger('click')
     await wrapper.find('input').setValue('AIS-01')
@@ -104,9 +105,9 @@ describe('SdrSerialFlashControl', () => {
   })
 
   it('shows a busy label and disables both buttons while the flash request is in flight', async () => {
-    let resolveFlash: (value: unknown) => void = () => {}
-    vi.mocked(flashSentryDeviceSerial).mockReturnValue(
-      new Promise((resolve) => {
+    let resolveFlash: () => void = () => {}
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockReturnValue(
+      new Promise<void>((resolve) => {
         resolveFlash = resolve
       }),
     )
@@ -123,13 +124,13 @@ describe('SdrSerialFlashControl', () => {
     expect(wrapper.findAll('button')[1]!.text()).toBe('FLASHING…')
     expect(wrapper.findAll('button')[1]!.attributes('disabled')).toBeDefined()
 
-    resolveFlash({})
+    resolveFlash()
     await flushPromises()
   })
 
-  it("shows the Sentry rejection's message when the flash fails with SentryApiRequestError", async () => {
-    vi.mocked(flashSentryDeviceSerial).mockRejectedValue(
-      new SentryApiRequestError(409, 'serial_conflict', 'That serial is already in use.'),
+  it("shows the host's rejection message when the flash fails", async () => {
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockRejectedValue(
+      hostRejection(409, 'serial_conflict', 'That serial is already in use.'),
     )
     const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
     await wrapper.find('button').trigger('click')
@@ -146,8 +147,28 @@ describe('SdrSerialFlashControl', () => {
     expect(wrapper.find('.sdr-serial-flash-confirm').exists()).toBe(true)
   })
 
-  it('shows a generic failure message when the flash rejects with a non-Sentry error', async () => {
-    vi.mocked(flashSentryDeviceSerial).mockRejectedValue(new Error('network down'))
+  it('says SDR Manager is not running, and flashes nothing, when it is not deployed', async () => {
+    withdrawFakeSdrManagerHosts()
+    const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
+    await wrapper.find('button').trigger('click')
+    await wrapper.find('input').setValue('AIS-01')
+    const confirmButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('CONFIRM'))!
+    await confirmButton.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+      "SDR Manager isn't running, so this device's settings can't be reached.",
+    )
+    expect(fakeSdrManagerHosts.flashHostDeviceSerial).not.toHaveBeenCalled()
+    expect(wrapper.emitted('flashed')).toBeUndefined()
+  })
+
+  it('shows a generic failure message when the flash rejects with an error that is not a host rejection', async () => {
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockRejectedValue(
+      new Error('network down'),
+    )
     const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
     await wrapper.find('button').trigger('click')
     await wrapper.find('input').setValue('AIS-01')
@@ -161,7 +182,9 @@ describe('SdrSerialFlashControl', () => {
   })
 
   it('CANCEL clears the serial value and error message and hides the confirmation form', async () => {
-    vi.mocked(flashSentryDeviceSerial).mockRejectedValue(new Error('network down'))
+    vi.mocked(fakeSdrManagerHosts.flashHostDeviceSerial).mockRejectedValue(
+      new Error('network down'),
+    )
     const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
     await wrapper.find('button').trigger('click')
     await wrapper.find('input').setValue('AIS-01')

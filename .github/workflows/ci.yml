@@ -237,7 +237,7 @@ jobs:
       - run: npm ci
 
       # The shared @sentinel/* packages under platform/web and the section
-      # packages under services/sections/*/frontend (P4 of the
+      # packages under services/sections/*/frontend and services/sdr-manager-*/frontend (P4 of the
       # section-containers plan); scripts/web-packages.sh runs the script in
       # each. Every package gates its own coverage at 100%.
       - name: Lint (ESLint + Prettier)

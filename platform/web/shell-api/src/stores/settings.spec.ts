@@ -33,39 +33,39 @@ describe('settings store', () => {
     expect(store.activeSection).toBe('air')
   })
 
-  it('openSentryHost opens the SDR section and flags the host to expand', () => {
+  it('openSdrManagerHost opens SDR Manager and flags the host to expand', () => {
     const store = useSettingsStore()
-    store.openSentryHost(7)
+    store.openSdrManagerHost(7)
     expect(store.open).toBe(true)
-    expect(store.activeSection).toBe('sdr')
-    expect(store.focusSentryHostId).toBe(7)
+    expect(store.activeSection).toBe('sdr-manager')
+    expect(store.focusSdrManagerHostId).toBe(7)
   })
 
   it('starts with no Sentry host in focus', () => {
-    expect(useSettingsStore().focusSentryHostId).toBeNull()
+    expect(useSettingsStore().focusSdrManagerHostId).toBeNull()
   })
 
-  it('openSentryHost replaces an earlier request rather than queueing it', () => {
+  it('openSdrManagerHost replaces an earlier request rather than queueing it', () => {
     const store = useSettingsStore()
-    store.openSentryHost(7)
-    store.openSentryHost(9)
-    expect(store.focusSentryHostId).toBe(9)
+    store.openSdrManagerHost(7)
+    store.openSdrManagerHost(9)
+    expect(store.focusSdrManagerHostId).toBe(9)
   })
 
-  it('clearSentryHostFocus forgets the request, so a later manual visit opens as usual', () => {
+  it('clearSdrManagerHostFocus forgets the request, so a later manual visit opens as usual', () => {
     const store = useSettingsStore()
-    store.openSentryHost(7)
-    store.clearSentryHostFocus()
-    expect(store.focusSentryHostId).toBeNull()
+    store.openSdrManagerHost(7)
+    store.clearSdrManagerHostFocus()
+    expect(store.focusSdrManagerHostId).toBeNull()
     // The panel itself stays open — only the pending expand is dropped.
     expect(store.open).toBe(true)
-    expect(store.activeSection).toBe('sdr')
+    expect(store.activeSection).toBe('sdr-manager')
   })
 
-  it('clearSentryHostFocus with nothing in focus is a safe no-op', () => {
+  it('clearSdrManagerHostFocus with nothing in focus is a safe no-op', () => {
     const store = useSettingsStore()
-    expect(() => store.clearSentryHostFocus()).not.toThrow()
-    expect(store.focusSentryHostId).toBeNull()
+    expect(() => store.clearSdrManagerHostFocus()).not.toThrow()
+    expect(store.focusSdrManagerHostId).toBeNull()
   })
 
   it('closePanel closes the panel and dispatches a close event', () => {

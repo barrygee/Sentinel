@@ -285,7 +285,7 @@ export class SentrySitesControl extends SentinelControlBase {
     element.appendChild(this._buildDetails(site))
     element.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
-      this._settingsStore.openSentryHost(site.id)
+      this._settingsStore.openSdrManagerHost(site.id)
     })
     return element
   }

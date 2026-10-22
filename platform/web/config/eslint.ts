@@ -74,14 +74,14 @@ export const sentinelEslintBase = tseslint.config(
 )
 
 const NO_SECTION_IMPORTS = {
-  group: ['@sentinel/section-*'],
+  group: ['@sentinel/section-*', '@sentinel/sdr-manager-*'],
   message:
-    'Sections are federation remotes: reach another section through the shell registries and capabilities (@sentinel/shell-api), never by import.',
+    'Sections and the SDR Manager packages are federation remotes: reach one through the shell registries and capabilities (@sentinel/shell-api), never by import.',
 }
 
 /**
- * No package imports a section (section-containers plan): sections are
- * federation remotes the shell discovers at runtime, so another package
+ * No package imports a section or an SDR Manager package (section-containers
+ * plan, ADR 0007): they are federation remotes the shell discovers at runtime, so another package
  * importing one would bundle it twice and couple their releases. A section
  * reaches another only through the shell's registries and capabilities.
  * The SPA's composition root opts out explicitly.

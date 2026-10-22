@@ -16,6 +16,7 @@ import { registerSpaceSettings } from '@sentinel/section-space/settings'
 import { registerSeaSettings } from '@sentinel/section-sea/settings'
 import { registerLandSettings } from '@sentinel/section-land/settings'
 import { registerSdrSettings } from '@sentinel/section-sdr/settings'
+import { registerSdrManagerRemoteSettings } from '@sentinel/sdr-manager-remote/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
@@ -48,7 +49,7 @@ import SeaAisSdrSourceControl from '@sentinel/section-sea/settings/SeaAisSdrSour
 import SeaCoverageAreaControl from '@sentinel/section-sea/settings/SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from '@sentinel/section-sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@sentinel/section-sea/settings/SeaMapLayersControl.vue'
-import SentryHostsControl from '@sentinel/section-sdr/settings/SentryHostsControl.vue'
+import RemoteHostsControl from '@sentinel/sdr-manager-remote/components/RemoteHostsControl.vue'
 import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
 import SpaceHoverPreviewControl from '@sentinel/section-space/settings/SpaceHoverPreviewControl.vue'
 import SpaceTleDatabaseControl from '@sentinel/section-space/settings/SpaceTleDatabaseControl.vue'
@@ -61,6 +62,7 @@ registerSpaceSettings()
 registerSeaSettings()
 registerLandSettings()
 registerSdrSettings()
+registerSdrManagerRemoteSettings()
 
 /**
  * The full Settings catalogue as the sections register it (F3). This pins
@@ -155,6 +157,7 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'air-overhead-alerts',
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
+  ['sdr-manager', 'sdr-manager-remote-hosts', { component: RemoteHostsControl, layout: 'half' }],
   [
     'space',
     'space-source-override',
@@ -253,7 +256,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       layout: 'full',
     },
   ],
-  ['sdr', 'sdr-sentry-hosts', { component: SentryHostsControl, layout: 'half' }],
   ['sdr', 'sdr-devices', { component: SdrDevicesControl, layout: 'half' }],
   [
     'sdr',
@@ -291,10 +293,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
 ]
 
 describe('Settings catalogue', () => {
-  it('offers the core section then every domain section, in nav order', () => {
+  it('offers the core section, SDR Manager and every domain section, in nav order', () => {
     expect(getSettingsSections()).toEqual([
       { key: 'app', label: 'App Settings', order: 0, domain: false },
       { key: 'air', label: 'AIR', order: 10, domain: true },
+      { key: 'sdr-manager', label: 'SDR Manager', order: 15, domain: false },
       { key: 'space', label: 'SPACE', order: 20, domain: true },
       { key: 'sea', label: 'SEA', order: 30, domain: true },
       { key: 'land', label: 'LAND', order: 40, domain: true },

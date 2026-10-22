@@ -5,10 +5,10 @@ import {
 import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
 import SdrDevicesControl from './settings/SdrDevicesControl.vue'
 import SdrOptionsControl from './settings/SdrOptionsControl.vue'
-import SentryHostsControl from './settings/SentryHostsControl.vue'
 
 /**
- * SDR's Settings section (F3): Sentry hosts, devices, receiver options and the frequency / band-plan files.
+ * SDR's Settings section (F3): devices, receiver options and the frequency / band-plan files.
+ * The SDR hosts themselves are Settings › SDR Manager's (`@sentinel/sdr-manager-remote`).
  */
 export function registerSdrSettings(): void {
   registerSettingsSection({ key: 'sdr', label: 'SDR', order: 50, domain: true })
@@ -17,21 +17,9 @@ export function registerSdrSettings(): void {
     {
       section: 'sdr',
       sectionLabel: 'SDR',
-      id: 'sdr-sentry-hosts',
-      label: 'Sentry Hosts',
-      // No description: the SENTRY HOSTS group heading already names the card.
-      // The former blurb stays as search terms so the card is still findable.
-      desc: '',
-      searchTerms: 'register raspberry pi sentry remote sdr devices',
-      control: { component: SentryHostsControl, layout: 'half' },
-      groupLabel: 'SENTRY HOSTS',
-    },
-    {
-      section: 'sdr',
-      sectionLabel: 'SDR',
       id: 'sdr-devices',
       label: 'SDR Devices',
-      desc: 'Configure RTL-SDR devices reachable via rtl_tcp, or mirror one from a registered Sentry host',
+      desc: 'Configure RTL-SDR devices reachable via rtl_tcp, or mirror one from an SDR host in SDR Manager',
       control: { component: SdrDevicesControl, layout: 'half' },
       groupLabel: 'DEVICES',
     },

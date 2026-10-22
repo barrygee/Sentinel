@@ -116,9 +116,14 @@ export function inRegistrationOrder(sectionIds: string[]): string[] {
   )
 }
 
-/** Federation container name for a section, e.g. `section_air` — a valid JS identifier. */
+/**
+ * Federation container name for a remote, e.g. `section_air` or
+ * `section_sdr_manager_remote` — a valid JS identifier, so a dash in the id
+ * becomes an underscore. The shell's loader (`sections.federated.ts`) derives
+ * the same name.
+ */
 export function sectionRemoteName(sectionId: string): string {
-  return `section_${sectionId}`
+  return `section_${sectionId.replaceAll('-', '_')}`
 }
 
 /** Where a section's remote is published, relative to the site root. */
@@ -128,6 +133,9 @@ export function sectionRemoteBase(sectionId: string): string {
 
 /** The file the shell loads to reach a section's remote. Served `no-cache`. */
 export const REMOTE_ENTRY_FILENAME = 'remoteEntry.js'
+
+/** The module a remote exposes as `./register`, relative to its package. */
+export const DEFAULT_REGISTER_ENTRY = './src/section.ts'
 
 /** The federation host plugin for the shell. Remotes are registered at runtime, never at build time. */
 export function shellFederationPlugin(): PluginOption {
@@ -149,18 +157,21 @@ export function shellFederationPlugin(): PluginOption {
 }
 
 /**
- * The federation remote plugin for a section: it exposes `./register` (the
- * section's `src/section.ts`, whose default export registers it with the
- * shell).
+ * The federation remote plugin for a section: it exposes `./register` (by
+ * default the section's `src/section.ts`; an SDR Manager package names its
+ * own `registerEntry`), whose default export registers it with the shell.
  */
-export function sectionFederationPlugin(sectionId: string): PluginOption {
+export function sectionFederationPlugin(
+  sectionId: string,
+  registerEntry = DEFAULT_REGISTER_ENTRY,
+): PluginOption {
   const shared: Record<string, { singleton: true; import?: false }> = {}
   for (const name of HOST_PROVIDED_LIBRARIES) shared[name] = { singleton: true, import: false }
   for (const prefix of SHARED_PACKAGE_PREFIXES) shared[prefix] = { singleton: true, import: false }
   return federation({
     name: sectionRemoteName(sectionId),
     filename: REMOTE_ENTRY_FILENAME,
-    exposes: { './register': './src/section.ts' },
+    exposes: { './register': registerEntry },
     shared,
     dts: false,
   })

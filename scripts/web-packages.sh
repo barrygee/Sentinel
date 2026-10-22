@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Runs one npm script in every web package: the shared @sentinel/* packages
-# (platform/web/*) and the section packages (services/sections/*/frontend).
+# (platform/web/*), the section packages (services/sections/*/frontend) and the
+# SDR Manager packages (services/sdr-manager-*/frontend).
 # The SPA (frontend/vue) is not included; it has its own CI jobs.
 #
 # `npm run X -w <folder>` only matches workspaces directly below <folder>, so
@@ -14,6 +15,7 @@ set -euo pipefail
 script_name="${1:?usage: npm run web-packages -- <script>}"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for package_dir in "$repo_root"/platform/web/*/ "$repo_root"/services/sections/*/frontend/; do
+shopt -s nullglob
+for package_dir in "$repo_root"/platform/web/*/ "$repo_root"/services/sections/*/frontend/ "$repo_root"/services/sdr-manager-*/frontend/; do
     (cd "$package_dir" && npm run "$script_name" --if-present)
 done

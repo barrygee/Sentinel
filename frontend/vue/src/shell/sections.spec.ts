@@ -3,7 +3,7 @@ import { createPinia, setActivePinia } from 'pinia'
 
 /**
  * `sections.ts` has no logic of its own — it lists every section's `./register`
- * module in nav order. This spec loads each one and calls its `register()`, as
+ * module in nav order (then the SDR Manager remote). This spec loads each one and calls its `register()`, as
  * `loadSections` does at boot, and proves that reaches the shared registry for
  * all five domains, including the sdr persistent radio pane, rather than just
  * asserting the file "doesn't throw".
@@ -26,7 +26,14 @@ describe('shell/sections', () => {
     vi.resetModules()
     const { sectionSources } = await import('./sections')
     const sources = await sectionSources()
-    expect(sources.map((source) => source.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
+    expect(sources.map((source) => source.id)).toEqual([
+      'air',
+      'space',
+      'sea',
+      'land',
+      'sdr',
+      'sdr-manager-remote',
+    ])
     const pinia = createPinia()
     setActivePinia(pinia)
     for (const source of sources) (await source.load()).default({ pinia })
@@ -34,6 +41,7 @@ describe('shell/sections', () => {
       await import('@sentinel/shell-api/shell/sectionRegistry')
     const { default: SdrTabPanel } = await import('@sentinel/section-sdr/SdrTabPanel.vue')
 
+    // sdr-manager-remote adds settings, never a map section.
     const sections = getRegisteredSections()
     expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)

@@ -4,7 +4,7 @@ import { axe } from 'jest-axe'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
-import type { SentryDeviceStatus } from '../services/sentryApi'
+import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 
 // SdrRadioRow's own concern is the row chrome; it renders a real SdrDeviceForm
 // when open, so its service calls must be neutralised the same way
@@ -13,14 +13,10 @@ vi.mock('../services/sdrRadiosApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/sdrRadiosApi')>()
   return { ...actual, listRadios: vi.fn(), createRadio: vi.fn(), updateRadio: vi.fn() }
 })
-vi.mock('../services/sentryApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services/sentryApi')>()
-  return { ...actual, getSentryDeviceRecords: vi.fn() }
-})
+import { fakeSdrManagerHosts, useFakeSdrManagerHosts } from '../testing/fakeSdrManagerHosts'
+useFakeSdrManagerHosts()
 
-import { getSentryDeviceRecords } from '../services/sentryApi'
-
-const mockGetSentryDeviceRecords = vi.mocked(getSentryDeviceRecords)
+const mockGetSdrManagerDeviceRecords = vi.mocked(fakeSdrManagerHosts.getHostDeviceRecords)
 
 const MANUAL_RADIO: SdrRadioRecord = {
   id: 1,
@@ -39,7 +35,7 @@ const MANUAL_RADIO: SdrRadioRecord = {
   visibility: 'public',
 }
 
-const SENTRY_DEVICE_STATUS: SentryDeviceStatus = {
+const SENTRY_DEVICE_STATUS: SdrManagerDeviceStatus = {
   device_id: 'rtl-1',
   name: 'Attic RTL',
   present: true,
@@ -58,7 +54,7 @@ const SENTRY_DEVICE_STATUS: SentryDeviceStatus = {
 describe('SdrRadioRow', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSentryDeviceRecords.mockResolvedValue({
+    mockGetSdrManagerDeviceRecords.mockResolvedValue({
       devices: [],
       port_suggestion: null,
       constraints: { min_port: 1, max_port: 65535, control_port_offset: 1, reserved_ports: [] },

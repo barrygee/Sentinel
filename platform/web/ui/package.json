@@ -8,6 +8,7 @@
     "./base/*": "./src/base/*",
     "./icons/*": "./src/icons/*",
     "./overlays/*": "./src/overlays/*",
+    "./sdr/*": "./src/sdr/*",
     "./composables/*": "./src/composables/*.ts",
     "./utils/*": "./src/utils/*.ts"
   },

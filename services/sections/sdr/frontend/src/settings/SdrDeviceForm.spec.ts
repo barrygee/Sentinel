@@ -4,28 +4,29 @@ import { axe } from 'jest-axe'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
-import {
-  SentryApiRequestError,
-  type SentryDeviceRecord,
-  type SentryDeviceStatus,
-} from '../services/sentryApi'
+import type {
+  SdrManagerDeviceRecord,
+  SdrManagerDeviceStatus,
+} from '@sentinel/shell-api/types/sdrManager'
 
 vi.mock('../services/sdrRadiosApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../services/sdrRadiosApi')>()
   return { ...actual, createRadio: vi.fn(), updateRadio: vi.fn() }
 })
-vi.mock('../services/sentryApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../services/sentryApi')>()
-  return { ...actual, getSentryDeviceRecords: vi.fn(), patchSentryDevice: vi.fn() }
-})
+import {
+  fakeSdrManagerHosts,
+  hostRejection,
+  useFakeSdrManagerHosts,
+  withdrawFakeSdrManagerHosts,
+} from '../testing/fakeSdrManagerHosts'
+useFakeSdrManagerHosts()
 
 import { createRadio, updateRadio } from '../services/sdrRadiosApi'
-import { getSentryDeviceRecords, patchSentryDevice } from '../services/sentryApi'
 
 const mockCreateRadio = vi.mocked(createRadio)
 const mockUpdateRadio = vi.mocked(updateRadio)
-const mockGetSentryDeviceRecords = vi.mocked(getSentryDeviceRecords)
-const mockPatchSentryDevice = vi.mocked(patchSentryDevice)
+const mockGetHostDeviceRecords = vi.mocked(fakeSdrManagerHosts.getHostDeviceRecords)
+const mockPatchHostDevice = vi.mocked(fakeSdrManagerHosts.patchHostDevice)
 
 const EXISTING: SdrRadioRecord = {
   id: 7,
@@ -61,7 +62,7 @@ const EXISTING_SENTRY: SdrRadioRecord = {
   visibility: 'public',
 }
 
-const SENTRY_STATUS: SentryDeviceStatus = {
+const SENTRY_STATUS: SdrManagerDeviceStatus = {
   device_id: 'rtl-9',
   name: 'Attic RTL',
   present: true,
@@ -79,14 +80,16 @@ const SENTRY_STATUS: SentryDeviceStatus = {
 
 function emptyRecordsPayload() {
   return {
-    devices: [] as SentryDeviceRecord[],
+    devices: [] as SdrManagerDeviceRecord[],
     port_suggestion: null,
     constraints: { min_port: 1, max_port: 65535, control_port_offset: 1, reserved_ports: [] },
   }
 }
 
 /** One persisted Sentry device record for `rtl-9`, with the given fields overridden. */
-function sentryDeviceRecord(overrides: Partial<SentryDeviceRecord> = {}): SentryDeviceRecord {
+function sentryDeviceRecord(
+  overrides: Partial<SdrManagerDeviceRecord> = {},
+): SdrManagerDeviceRecord {
   return {
     device_id: 'rtl-9',
     record_id: 1,
@@ -110,14 +113,14 @@ function sentryDeviceRecord(overrides: Partial<SentryDeviceRecord> = {}): Sentry
 }
 
 /** The records payload Sentry returns for host 3, carrying the given records. */
-function recordsPayloadWith(...records: SentryDeviceRecord[]) {
+function recordsPayloadWith(...records: SdrManagerDeviceRecord[]) {
   return { ...emptyRecordsPayload(), devices: records }
 }
 
 describe('SdrDeviceForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetSentryDeviceRecords.mockResolvedValue(emptyRecordsPayload())
+    mockGetHostDeviceRecords.mockResolvedValue(emptyRecordsPayload())
   })
   afterEach(() => {
     vi.unstubAllGlobals()
@@ -288,7 +291,7 @@ describe('SdrDeviceForm', () => {
     it('does not fetch persisted tuning for a manual radio', async () => {
       mount(SdrDeviceForm, { props: { radio: EXISTING } })
       await flushPromises()
-      expect(mockGetSentryDeviceRecords).not.toHaveBeenCalled()
+      expect(mockGetHostDeviceRecords).not.toHaveBeenCalled()
     })
 
     it('has no accessibility violations', async () => {
@@ -403,7 +406,7 @@ describe('SdrDeviceForm', () => {
       // (sample rate, gain, PPM, bias-tee, direct sampling) are no longer in
       // this form, so the contract that matters is that the values loaded from
       // Sentry survive a save of the fields that ARE editable, unchanged.
-      mockGetSentryDeviceRecords.mockResolvedValue(
+      mockGetHostDeviceRecords.mockResolvedValue(
         recordsPayloadWith(
           sentryDeviceRecord({
             sample_rate: 2048000,
@@ -415,7 +418,7 @@ describe('SdrDeviceForm', () => {
           }),
         ),
       )
-      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockPatchHostDevice.mockResolvedValue(sentryDeviceRecord())
       mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
@@ -424,7 +427,7 @@ describe('SdrDeviceForm', () => {
       await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('Renamed RTL')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      expect(mockPatchSentryDevice.mock.calls[0]![2]).toMatchObject({
+      expect(mockPatchHostDevice.mock.calls[0]![2]).toMatchObject({
         name: 'Renamed RTL',
         sample_rate: 2048000,
         gain_db: 20.5,
@@ -505,22 +508,22 @@ describe('SdrDeviceForm', () => {
     it("adopts the record's output port when the form opens, so OUTPUT PORT shows Sentry's value", async () => {
       // The one loaded field that is still visible: `record.output_port` wins
       // over the mirrored radio row's port (1234) when the two have drifted.
-      mockGetSentryDeviceRecords.mockResolvedValue(
+      mockGetHostDeviceRecords.mockResolvedValue(
         recordsPayloadWith(sentryDeviceRecord({ output_port: 4321, control_port: 4322 })),
       )
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
       await flushPromises()
-      expect(mockGetSentryDeviceRecords).toHaveBeenCalledWith(3)
+      expect(mockGetHostDeviceRecords).toHaveBeenCalledWith(3)
       expect(
         (wrapper.find('[aria-label="Output IQ port"]').element as HTMLInputElement).value,
       ).toBe('4321')
     })
 
     it('leaves tuning at its defaults when the device id is not found in the records payload', async () => {
-      mockGetSentryDeviceRecords.mockResolvedValue(emptyRecordsPayload())
-      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockGetHostDeviceRecords.mockResolvedValue(emptyRecordsPayload())
+      mockPatchHostDevice.mockResolvedValue(sentryDeviceRecord())
       mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
@@ -528,7 +531,7 @@ describe('SdrDeviceForm', () => {
       await flushPromises()
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      const patch = mockPatchHostDevice.mock.calls[0]![2]
       // No record to load from → the unknown fields stay out of the patch
       // entirely (so Sentry keeps whatever it holds) and the ones with a real
       // default are sent as that default.
@@ -543,8 +546,8 @@ describe('SdrDeviceForm', () => {
     })
 
     it('does not write blank tuning values back to Sentry when the persisted-tuning load fails', async () => {
-      mockGetSentryDeviceRecords.mockRejectedValue(new Error('offline'))
-      mockPatchSentryDevice.mockResolvedValue({
+      mockGetHostDeviceRecords.mockRejectedValue(new Error('offline'))
+      mockPatchHostDevice.mockResolvedValue({
         device_id: 'rtl-9',
         record_id: 1,
         name: 'Attic RTL',
@@ -572,7 +575,7 @@ describe('SdrDeviceForm', () => {
       // saving now must not stamp blanks over Sentry's stored configuration.
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      const patch = mockPatchHostDevice.mock.calls[0]![2]
       // JSON.stringify (the real wire encoding in sentryApi.ts) drops an
       // `undefined`-valued key entirely, so Sentry's stored value survives —
       // assert the value stays undefined rather than a literal blank/0/null.
@@ -580,10 +583,10 @@ describe('SdrDeviceForm', () => {
       expect(patch.gain_db).toBeUndefined()
     })
 
-    it('tolerates a non-Error rejection from getSentryDeviceRecords without crashing the form', async () => {
+    it('tolerates a non-Error rejection from getSdrManagerDeviceRecords without crashing the form', async () => {
       // A thrown non-Error value (e.g. a raw string) is a real possibility
       // from an arbitrary rejected promise — the fallback message covers it.
-      mockGetSentryDeviceRecords.mockRejectedValue('offline')
+      mockGetHostDeviceRecords.mockRejectedValue('offline')
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
@@ -597,10 +600,10 @@ describe('SdrDeviceForm', () => {
       // Every optional tuning field left unset — each must fall back to its own
       // default rather than the record's absent value, and output_port must
       // fall back to the form's existing value rather than the record's null.
-      mockGetSentryDeviceRecords.mockResolvedValue(
+      mockGetHostDeviceRecords.mockResolvedValue(
         recordsPayloadWith(sentryDeviceRecord({ output_port: null, control_port: null })),
       )
-      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockPatchHostDevice.mockResolvedValue(sentryDeviceRecord())
       mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
@@ -612,7 +615,7 @@ describe('SdrDeviceForm', () => {
 
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      const patch = mockPatchHostDevice.mock.calls[0]![2]
       expect(patch.sample_rate).toBeUndefined()
       expect(patch).toMatchObject({
         output_port: 1234,
@@ -632,11 +635,11 @@ describe('SdrDeviceForm', () => {
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
       expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Name is required.')
-      expect(mockPatchSentryDevice).not.toHaveBeenCalled()
+      expect(mockPatchHostDevice).not.toHaveBeenCalled()
     })
 
     it('PATCHes /api/sdr-manager/remote/hosts/... for a Sentry-backed radio, then syncs the mirrored radio row', async () => {
-      mockPatchSentryDevice.mockResolvedValue({
+      mockPatchHostDevice.mockResolvedValue({
         device_id: 'rtl-9',
         record_id: 1,
         name: 'Attic RTL',
@@ -662,7 +665,7 @@ describe('SdrDeviceForm', () => {
       await flushPromises()
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      expect(mockPatchSentryDevice).toHaveBeenCalledWith(
+      expect(mockPatchHostDevice).toHaveBeenCalledWith(
         3,
         'rtl-9',
         expect.objectContaining({
@@ -692,7 +695,7 @@ describe('SdrDeviceForm', () => {
       // `port`, so it cannot go null through normal typing (an emptied input
       // becomes `''`, not null) — this exercises the null-coalescing guard
       // directly, the same defensive path the tuning fields rely on.
-      mockPatchSentryDevice.mockResolvedValue({
+      mockPatchHostDevice.mockResolvedValue({
         device_id: 'rtl-9',
         record_id: 1,
         name: 'Attic RTL',
@@ -719,12 +722,12 @@ describe('SdrDeviceForm', () => {
       ;(wrapper.vm as unknown as { form: { outputPort: number | null } }).form.outputPort = null
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      const patch = mockPatchHostDevice.mock.calls[0]![2]
       expect(patch.output_port).toBeUndefined()
     })
 
     it("falls back to the radio's existing port when Sentry's response omits output_port", async () => {
-      mockPatchSentryDevice.mockResolvedValue({
+      mockPatchHostDevice.mockResolvedValue({
         device_id: 'rtl-9',
         record_id: 1,
         name: 'Attic RTL',
@@ -761,10 +764,10 @@ describe('SdrDeviceForm', () => {
       // field are gone with the TUNING section): AGC now comes from Sentry's own
       // record, and while it is on a manual gain must not be sent at all —
       // otherwise the patch would fight the device's own AGC.
-      mockGetSentryDeviceRecords.mockResolvedValue(
+      mockGetHostDeviceRecords.mockResolvedValue(
         recordsPayloadWith(sentryDeviceRecord({ gain_auto: true, gain_db: 20 })),
       )
-      mockPatchSentryDevice.mockResolvedValue(sentryDeviceRecord())
+      mockPatchHostDevice.mockResolvedValue(sentryDeviceRecord())
       mockUpdateRadio.mockResolvedValue(EXISTING_SENTRY)
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
@@ -772,19 +775,16 @@ describe('SdrDeviceForm', () => {
       await flushPromises()
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
-      const patch = mockPatchSentryDevice.mock.calls[0]![2]
+      const patch = mockPatchHostDevice.mock.calls[0]![2]
       expect(patch.gain_db).toBeUndefined()
       expect(patch).toMatchObject({ gain_auto: true })
     })
 
     it("surfaces Sentry's rejection verbatim, including the conflicting device id, without flattening it", async () => {
-      mockPatchSentryDevice.mockRejectedValue(
-        new SentryApiRequestError(
-          409,
-          'port_conflict',
-          'Port 1234 is already in use by device rtl-3.',
-          { conflicting_device_id: 'rtl-3' },
-        ),
+      mockPatchHostDevice.mockRejectedValue(
+        hostRejection(409, 'port_conflict', 'Port 1234 is already in use by device rtl-3.', {
+          conflicting_device_id: 'rtl-3',
+        }),
       )
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
@@ -800,7 +800,7 @@ describe('SdrDeviceForm', () => {
     })
 
     it('falls back to a generic save-failed message for a non-SentryApiRequestError failure', async () => {
-      mockPatchSentryDevice.mockRejectedValue(new Error('boom'))
+      mockPatchHostDevice.mockRejectedValue(new Error('boom'))
       const wrapper = mount(SdrDeviceForm, {
         props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
       })
@@ -820,7 +820,7 @@ describe('SdrDeviceForm', () => {
       await (
         wrapper.vm as unknown as { saveSentryBackedDevice: () => Promise<void> }
       ).saveSentryBackedDevice()
-      expect(mockPatchSentryDevice).not.toHaveBeenCalled()
+      expect(mockPatchHostDevice).not.toHaveBeenCalled()
     })
 
     it('exposes only the STATUS and VISIBILITY radio groups — no tuning switches or radios', async () => {
@@ -839,7 +839,7 @@ describe('SdrDeviceForm', () => {
     })
 
     it('has no accessibility violations with the flash-serial action offered', async () => {
-      mockGetSentryDeviceRecords.mockResolvedValue(emptyRecordsPayload())
+      mockGetHostDeviceRecords.mockResolvedValue(emptyRecordsPayload())
       const wrapper = mount(SdrDeviceForm, {
         props: {
           radio: EXISTING_SENTRY,
@@ -851,6 +851,50 @@ describe('SdrDeviceForm', () => {
       expect(
         await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
       ).toHaveNoViolations()
+    })
+  })
+
+  describe('a host-backed radio while SDR Manager is not deployed', () => {
+    beforeEach(() => {
+      withdrawFakeSdrManagerHosts()
+    })
+
+    it('still opens, without asking any host for its tuning', async () => {
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
+      })
+      await flushPromises()
+      expect(mockGetHostDeviceRecords).not.toHaveBeenCalled()
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+      expect(wrapper.find('.sdr-devices-btn--primary').exists()).toBe(true)
+    })
+
+    it('refuses to save, saying SDR Manager is not running, and leaves the radio untouched', async () => {
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SENTRY, sentryDeviceStatus: SENTRY_STATUS },
+      })
+      await flushPromises()
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        "SDR Manager isn't running, so this device's settings can't be reached.",
+      )
+      expect(mockPatchHostDevice).not.toHaveBeenCalled()
+      expect(mockUpdateRadio).not.toHaveBeenCalled()
+      expect(wrapper.emitted('save')).toBeUndefined()
+    })
+
+    it('still saves a manual radio, which needs no host', async () => {
+      mockCreateRadio.mockResolvedValue(EXISTING)
+      const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
+      await flushPromises()
+      const inputs = wrapper.findAll('.sdr-devices-form-input')
+      await inputs[0]!.setValue('Roof')
+      await inputs[1]!.setValue('192.168.1.50')
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      expect(mockCreateRadio).toHaveBeenCalledOnce()
+      expect(wrapper.emitted('save')).toHaveLength(1)
     })
   })
 })
