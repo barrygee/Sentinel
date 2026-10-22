@@ -196,7 +196,7 @@ async def start_on_radio(
     radio = radio_registry.get_radio_by_id(radios, radio_id)
     if radio is None:
         return {"ok": False, "reason": "unknown_radio"}
-    available, why = radio_registry.device_availability(radio)
+    available, why = await radio_registry.device_availability(radio)
     if not available:
         return {
             "ok": False,

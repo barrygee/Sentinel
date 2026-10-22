@@ -1,7 +1,7 @@
-"""The radio hub as its own service (sentinel_radio/service.py, P6.5): its
-schema, its first-boot work, the app it serves, what it imports and answers on
-the bus, and the settings it reads and writes in core over HTTP — the radios,
-the APRS/AIS decode radios, the APRS channel and this Sentinel's instance id."""
+"""The radio hub as its own service (sentinel_radio/service.py, P6.5): the app
+it serves, what it imports and answers on the bus, and the settings it reads and
+writes in core over HTTP — the radios, the APRS/AIS decode radios and the APRS
+channel — plus core's instance id, read the same way by sdr-manager-remote."""
 
 import importlib
 import json
@@ -12,17 +12,13 @@ from pathlib import Path
 
 import httpx
 import pytest
-from backend import database
 from backend.config import settings
 from backend.core import instance_identity
 from backend.database import get_db
 from backend.platform import settings_client
-from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 
-from sentinel_radio import database as radio_hub_database
 from sentinel_radio import radios as radio_registry
 from sentinel_radio.routers import decode
 
@@ -34,91 +30,6 @@ RADIO = {"id": 4, "name": "Shack dongle", "host": "dongle.local", "port": 1234}
 RealAsyncClient = httpx.AsyncClient
 
 INTERNAL_IQ_CAPTURES = "/internal/radio-hub/iq-captures/"
-
-
-# ── schema ────────────────────────────────────────────────────────────────────
-
-
-@pytest.fixture
-async def hub_engine(monkeypatch):
-    """An empty in-memory database wired in as `database.engine`."""
-    engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    monkeypatch.setattr(database, "engine", engine)
-    yield engine
-    await engine.dispose()
-
-
-async def table_columns(engine) -> dict[str, set[str]]:
-    async with engine.connect() as connection:
-        return await connection.run_sync(
-            lambda sync: {
-                table: {column["name"] for column in inspect(sync).get_columns(table)}
-                for table in inspect(sync).get_table_names()
-            }
-        )
-
-
-class TestCreateRadioHubTables:
-    async def test_creates_only_the_sentry_hosts_table(self, hub_engine):
-        await radio_hub_database.create_radio_hub_tables()
-
-        # No user_settings: the radios are a setting, kept in core.
-        assert set(await table_columns(hub_engine)) == {"sentry_hosts"}
-
-    async def test_matches_the_monoliths_schema_for_it(self, hub_engine):
-        await radio_hub_database.create_radio_hub_tables()
-        hub_schema = await table_columns(hub_engine)
-
-        monolith = create_async_engine(
-            "sqlite+aiosqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
-        )
-        try:
-            async with monolith.begin() as connection:
-                await connection.run_sync(database.Base.metadata.create_all)
-            monolith_schema = await table_columns(monolith)
-        finally:
-            await monolith.dispose()
-
-        assert radio_hub_database.RADIO_HUB_TABLES == ("sentry_hosts",)
-        assert hub_schema["sentry_hosts"] == monolith_schema["sentry_hosts"]
-
-    async def test_is_idempotent(self, hub_engine):
-        await radio_hub_database.create_radio_hub_tables()
-        await radio_hub_database.create_radio_hub_tables()
-
-        assert set(await table_columns(hub_engine)) == {"sentry_hosts"}
-
-    async def test_the_hub_lifecycle_prepare_builds_it_on_an_empty_database(self, hub_engine):
-        from sentinel_radio import module as radio_hub_module
-
-        await radio_hub_module.lifecycle.prepare()
-
-        assert set(await table_columns(hub_engine)) == {"sentry_hosts"}
-
-    def test_registers_its_model_itself_in_a_fresh_interpreter(self, tmp_path):
-        # Core's backend.models no longer defines SentryHost, so nothing else
-        # registers the table with Base before the hub's prepare runs.
-        database_file = tmp_path / "radio.db"
-        probe = (
-            "import asyncio, json, sqlite3, sys\n"
-            "from sentinel_radio.database import create_radio_hub_tables\n"
-            "assert 'sentinel_radio.models' not in sys.modules\n"
-            "asyncio.run(create_radio_hub_tables())\n"
-            f"connection = sqlite3.connect({str(database_file)!r})\n"
-            "print(json.dumps(sorted(row[0] for row in connection.execute("
-            "\"SELECT name FROM sqlite_master WHERE type = 'table'\"))))\n"
-        )
-        environment = {**os.environ, "PYTHONPATH": str(REPO_ROOT), "DB_PATH": str(database_file)}
-
-        result = subprocess.run(
-            [sys.executable, "-c", probe], cwd=REPO_ROOT, env=environment, capture_output=True, text=True, check=True
-        )
-
-        assert json.loads(result.stdout.strip().splitlines()[-1]) == ["sentry_hosts"]
 
 
 # ── a fake core ───────────────────────────────────────────────────────────────
@@ -382,7 +293,7 @@ class TestResumeAtStartupOverHttp:
 
 
 class TestInstanceIdentity:
-    """`app.instanceId` is core's; the hub names itself with it on Sentry reservations."""
+    """`app.instanceId` is core's; sdr-manager-remote names itself with it on SDR host reservations."""
 
     async def test_reads_the_stored_id_from_core(self, core):
         core.namespaces["app"] = {"instanceId": "sentinel:kept"}
@@ -463,7 +374,6 @@ HUB_PATHS = {
     "/api/sdr/decode/config",
     "/api/sdr/decoders",
     "/api/sdr/decoders/register",
-    "/api/sdr/sentry-hosts",
     "/ws/sdr/{radio_id}",
     "/ws/sdr/{radio_id}/iq",
     "/ws/sdr/{radio_id}/decode",
@@ -575,19 +485,19 @@ class TestWhatTheHubServiceLoads:
         assert {
             "hub.iq-capture.start",
             "hub.iq-capture.stop",
-            "hub.sentry.reservation.acquire",
-            "hub.sentry.reservation.release",
-            "hub.sentry.device.address",
-            "hub.sentry.host.location",
             "hub.decode.ais.start",
             "hub.decode.ais.stop",
             "hub.decode.ais.status",
+            # sdr-manager-remote's claim grant waits for this reply.
+            "sdr-manager.claims.granted",
         } <= patterns
+        # The SDR hosts are sdr-manager-remote's now: the hub answers none of their subjects.
+        assert not [pattern for pattern in patterns if pattern.startswith(("sdr-manager.remote.", "hub.sentry."))]
 
     def test_hears_the_events_core_publishes_for_it_and_no_sections(self):
         patterns = set(probe_fresh_interpreter(BUS_PATTERNS_PROBE))
 
-        assert {"settings.changed.land", "sdr.decode.radio-reassigned"} <= patterns
+        assert {"settings.changed.land", "sdr.decode.radio-reassigned", "sdr-manager.claims.released"} <= patterns
         # Decoded packets are the sections' to consume, not the hub's.
         assert not {"decode.aprs.*", "decode.ais.*", "settings.changed.sea"} & patterns
 
@@ -596,29 +506,7 @@ class TestWhatTheHubServiceLoads:
 
 
 class TestRadioHubServiceLifecycle:
-    async def test_prepare_builds_the_schema_then_imports_the_sentry_hosts(self, hub_service, monkeypatch):
-        calls: list = []
-
-        async def create_radio_hub_tables():
-            calls.append("create_radio_hub_tables")
-
-        def import_legacy_tables(target, legacy, tables):
-            calls.append(("import", target, legacy, tuple(tables)))
-            return {}
-
-        monkeypatch.setattr(settings, "db_path", "/data/radio.db")
-        monkeypatch.setattr(settings, "legacy_db_path", "/legacy/sentinel.db")
-        monkeypatch.setattr(hub_service, "create_radio_hub_tables", create_radio_hub_tables)
-        monkeypatch.setattr(hub_service, "import_legacy_tables", import_legacy_tables)
-
-        await hub_service._prepare()
-
-        assert calls == [
-            "create_radio_hub_tables",
-            ("import", "/data/radio.db", "/legacy/sentinel.db", ("sentry_hosts",)),
-        ]
-
-    async def test_runs_its_schema_then_the_hub_lifecycle_then_registration(self, monkeypatch):
+    async def test_runs_the_hub_lifecycle_then_registration(self, monkeypatch):
         from backend.platform.lifecycle import ModuleLifecycle
         from backend.platform.sdk.registration import ServiceRegistrar
 
@@ -632,16 +520,12 @@ class TestRadioHubServiceLifecycle:
         async def hub_stop():
             calls.append("radio.stop")
 
-        async def create_radio_hub_tables():
-            calls.append("schema")
-
         async def registrar_stop(self):
             calls.append("registration.stop")
 
         monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL)
         monkeypatch.setattr(settings, "service_internal_url", HUB_URL)
         monkeypatch.setattr(settings, "nats_url", "")
-        monkeypatch.setattr(settings, "legacy_db_path", "")
         # The service composes the monolith's hub lifecycle at import, so swap it first.
         monkeypatch.setattr(
             radio_hub_module, "lifecycle", ModuleLifecycle(name="radio", start=hub_start, stop=hub_stop)
@@ -650,7 +534,6 @@ class TestRadioHubServiceLifecycle:
         monkeypatch.setattr(ServiceRegistrar, "stop", registrar_stop)
         monkeypatch.delitem(sys.modules, "sentinel_radio.service", raising=False)
         service = importlib.import_module("sentinel_radio.service")
-        monkeypatch.setattr(service, "create_radio_hub_tables", create_radio_hub_tables)
 
         try:
             async with service.app.router.lifespan_context(service.app):
@@ -658,4 +541,4 @@ class TestRadioHubServiceLifecycle:
         finally:
             sys.modules.pop("sentinel_radio.service", None)
 
-        assert calls == ["schema", "radio.start", "registration.start", "registration.stop", "radio.stop"]
+        assert calls == ["radio.start", "registration.start", "registration.stop", "radio.stop"]

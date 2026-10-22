@@ -58,7 +58,7 @@ def _map_to_export_item(record: DeviceRecord, reservation: DeviceReservation | N
     if not description:
         description = f"{record.identity_kind}:{record.identity_key} @ USB {record.last_topology_path}"
     return SdrExportItem(
-        sentry_device_id=record.device_id,
+        sdr_manager_device_id=record.device_id,
         name=record.name,
         host="",  # overwritten by the caller, which knows the request/settings
         port=record.output_port or 0,

@@ -644,6 +644,108 @@
     ],
     "unique_constraints": []
   },
+  "remote_sdr_hosts": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "name",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "address",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "port",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "auth_token",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "enabled",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": null,
+        "name": "created_at",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_seen_at",
+        "nullable": true,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "last_error",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": "0",
+        "name": "is_local",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
+      },
+      {
+        "default": "'password'",
+        "name": "auth_mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "is_local"
+        ],
+        "name": "uq_remote_sdr_hosts_one_local",
+        "unique": true
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "address",
+          "port"
+        ],
+        "name": "uq_remote_sdr_hosts_address_port"
+      }
+    ]
+  },
   "repeater_cache": {
     "columns": [
       {
@@ -1667,86 +1769,6 @@
           "mmsi"
         ],
         "name": null
-      }
-    ]
-  },
-  "sentry_hosts": {
-    "columns": [
-      {
-        "default": null,
-        "name": "id",
-        "nullable": false,
-        "primary_key": true,
-        "type": "INTEGER"
-      },
-      {
-        "default": null,
-        "name": "name",
-        "nullable": true,
-        "primary_key": false,
-        "type": "TEXT"
-      },
-      {
-        "default": null,
-        "name": "address",
-        "nullable": false,
-        "primary_key": false,
-        "type": "TEXT"
-      },
-      {
-        "default": null,
-        "name": "port",
-        "nullable": false,
-        "primary_key": false,
-        "type": "INTEGER"
-      },
-      {
-        "default": null,
-        "name": "auth_token",
-        "nullable": false,
-        "primary_key": false,
-        "type": "TEXT"
-      },
-      {
-        "default": null,
-        "name": "enabled",
-        "nullable": false,
-        "primary_key": false,
-        "type": "BOOLEAN"
-      },
-      {
-        "default": null,
-        "name": "created_at",
-        "nullable": false,
-        "primary_key": false,
-        "type": "INTEGER"
-      },
-      {
-        "default": null,
-        "name": "last_seen_at",
-        "nullable": true,
-        "primary_key": false,
-        "type": "INTEGER"
-      },
-      {
-        "default": null,
-        "name": "last_error",
-        "nullable": true,
-        "primary_key": false,
-        "type": "TEXT"
-      }
-    ],
-    "indexes": [],
-    "primary_key_columns": [
-      "id"
-    ],
-    "unique_constraints": [
-      {
-        "column_names": [
-          "address",
-          "port"
-        ],
-        "name": "uq_sentry_hosts_address_port"
       }
     ]
   },

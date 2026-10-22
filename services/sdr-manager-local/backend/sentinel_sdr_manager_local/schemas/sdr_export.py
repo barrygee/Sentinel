@@ -22,7 +22,7 @@ class SdrExportSource(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    name: Literal["sentry"] = "sentry"
+    name: Literal["sdr-manager"] = "sdr-manager"
     version: str
     host: str = Field(description="Never 0.0.0.0 or a container-internal address")
     http_port: int
@@ -53,7 +53,7 @@ class SdrExportItem(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    sentry_device_id: str = Field(description="Idempotency key for Sentinel's import")
+    sdr_manager_device_id: str = Field(description="Idempotency key for Sentinel's import")
     name: str
     host: str
     port: int = Field(description="The relay's IQ port P")

@@ -1227,6 +1227,7 @@ dependencies = [
     { name = "sentinel-radio" },
     { name = "sentinel-sdr" },
     { name = "sentinel-sdr-manager-local" },
+    { name = "sentinel-sdr-manager-remote" },
     { name = "sentinel-sea" },
     { name = "sentinel-space" },
     { name = "sgp4" },
@@ -1265,6 +1266,7 @@ requires-dist = [
     { name = "sentinel-radio", editable = "../services/radio/backend" },
     { name = "sentinel-sdr", editable = "../services/sections/sdr/backend" },
     { name = "sentinel-sdr-manager-local", editable = "../services/sdr-manager-local/backend" },
+    { name = "sentinel-sdr-manager-remote", editable = "../services/sdr-manager-remote/backend" },
     { name = "sentinel-sea", editable = "../services/sections/sea/backend" },
     { name = "sentinel-space", editable = "../services/sections/space/backend" },
     { name = "sgp4", specifier = ">=2.23" },
@@ -1307,6 +1309,11 @@ source = { editable = "../services/sections/sdr/backend" }
 name = "sentinel-sdr-manager-local"
 version = "0.1.0"
 source = { editable = "../services/sdr-manager-local/backend" }
+
+[[package]]
+name = "sentinel-sdr-manager-remote"
+version = "0.1.0"
+source = { editable = "../services/sdr-manager-remote/backend" }
 
 [[package]]
 name = "sentinel-sea"

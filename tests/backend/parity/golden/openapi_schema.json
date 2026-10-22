@@ -349,7 +349,7 @@
         "type": "object"
       },
       "DeviceSnapshotOut": {
-        "description": "Response for `GET /api/sdr/sentry-hosts/{host_id}/devices` — the cached poll snapshot.",
+        "description": "Response for `GET /api/sdr-manager/remote/hosts/{host_id}/devices` — the cached poll snapshot.",
         "properties": {
           "api_version": {
             "anyOf": [
@@ -668,7 +668,7 @@
         "type": "object"
       },
       "HealthProbeResult": {
-        "description": "Response for `POST /api/sdr/sentry-hosts/{host_id}/test`.",
+        "description": "Response for `POST /api/sdr-manager/remote/hosts/{host_id}/test`.",
         "properties": {
           "api_version": {
             "anyOf": [
@@ -707,6 +707,169 @@
           "detail"
         ],
         "title": "HealthProbeResult",
+        "type": "object"
+      },
+      "HostLocationOut": {
+        "description": "Where the host itself is, as it reports it in `/api/v1/sdrs`'s `source.location`.\n\nEvery field is optional: a host that has never had its position set\nreports `location: null`, which is a normal state, not an error.",
+        "properties": {
+          "latitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latitude"
+          },
+          "longitude": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Longitude"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "title": "HostLocationOut",
+        "type": "object"
+      },
+      "HostSiteOut": {
+        "description": "One SDR host that has told Sentinel where it is — a point for the domain maps.\n\nOnly hosts with a usable position appear, so every entry carries a real\nlatitude/longitude rather than the nullable pair `HostLocationOut` uses:\na map plots points, and \"somewhere unknown\" is not one.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "port": {
+            "title": "Port",
+            "type": "integer"
+          },
+          "reachable": {
+            "title": "Reachable",
+            "type": "boolean"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "address",
+          "port",
+          "reachable",
+          "latitude",
+          "longitude"
+        ],
+        "title": "HostSiteOut",
+        "type": "object"
+      },
+      "HostSourceOut": {
+        "description": "The `source` block of `/api/v1/sdrs` — the host's own description of itself.",
+        "properties": {
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "http_port": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Http Port"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HostLocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "HostSourceOut",
         "type": "object"
       },
       "ManifestDecodeControlIn": {
@@ -1235,71 +1398,8 @@
         "title": "RegionResponse",
         "type": "object"
       },
-      "SearchRangeIn": {
-        "properties": {
-          "band_name": {
-            "default": "",
-            "title": "Band Name",
-            "type": "string"
-          },
-          "dwell_ms": {
-            "default": 250,
-            "title": "Dwell Ms",
-            "type": "integer"
-          },
-          "enabled": {
-            "default": true,
-            "title": "Enabled",
-            "type": "boolean"
-          },
-          "high_hz": {
-            "title": "High Hz",
-            "type": "integer"
-          },
-          "label": {
-            "title": "Label",
-            "type": "string"
-          },
-          "low_hz": {
-            "title": "Low Hz",
-            "type": "integer"
-          },
-          "mode": {
-            "default": "NFM",
-            "title": "Mode",
-            "type": "string"
-          },
-          "notes": {
-            "default": "",
-            "title": "Notes",
-            "type": "string"
-          },
-          "sort_order": {
-            "default": 0,
-            "title": "Sort Order",
-            "type": "integer"
-          },
-          "step_hz": {
-            "default": 12500,
-            "title": "Step Hz",
-            "type": "integer"
-          },
-          "threshold_dbfs": {
-            "default": -35.0,
-            "title": "Threshold Dbfs",
-            "type": "number"
-          }
-        },
-        "required": [
-          "label",
-          "low_hz",
-          "high_hz"
-        ],
-        "title": "SearchRangeIn",
-        "type": "object"
-      },
-      "SentryHostIn": {
-        "description": "Body for `POST /api/sdr/sentry-hosts` — register a new Sentry host.",
+      "RemoteSdrHostIn": {
+        "description": "Body for `POST /api/sdr-manager/remote/hosts` — register a new SDR host.",
         "properties": {
           "address": {
             "title": "Address",
@@ -1335,11 +1435,11 @@
         "required": [
           "address"
         ],
-        "title": "SentryHostIn",
+        "title": "RemoteSdrHostIn",
         "type": "object"
       },
-      "SentryHostInfoOut": {
-        "description": "Everything Sentinel knows about one Sentry host, for the details view.\n\nA superset of `SentryHostOut`: the stored record, the poller's telemetry,\nand a live read of the two *unauthenticated* Sentry endpoints that carry\nthe rest — `GET /api/health` (version, uptime, database/hotplug health,\ndevice counts) and `GET /api/v1/sdrs` (the `source` block, which is the\nonly place the Sentry's latitude/longitude is published). Both are\nunauthenticated by Sentry's design (its ADR-0010), so this still fills in\nfor a host whose console password Sentinel does not hold.\n\nNever raises for an unreachable host — `reachable`/`detail` report that,\nand the live blocks come back null, so a Pi that is off the network renders\nas a details view with gaps rather than as an error.",
+      "RemoteSdrHostInfoOut": {
+        "description": "Everything Sentinel knows about one SDR host, for the details view.\n\nA superset of `RemoteSdrHostOut`: the stored record, the poller's telemetry,\nand a live read of the two *unauthenticated* SDR Manager API endpoints that carry\nthe rest — `GET /api/health` (version, uptime, database/hotplug health,\ndevice counts) and `GET /api/v1/sdrs` (the `source` block, which is the\nonly place the host's latitude/longitude is published). Both are\nunauthenticated by design (the host's ADR-0010, kept by sdr-manager-local), so this still fills in\nfor a host whose console password Sentinel does not hold.\n\nNever raises for an unreachable host — `reachable`/`detail` report that,\nand the live blocks come back null, so a Pi that is off the network renders\nas a details view with gaps rather than as an error.",
         "properties": {
           "address": {
             "title": "Address",
@@ -1446,7 +1546,7 @@
           "location": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SentryLocationOut"
+                "$ref": "#/components/schemas/HostLocationOut"
               },
               {
                 "type": "null"
@@ -1475,7 +1575,7 @@
           "source": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/SentrySourceOut"
+                "$ref": "#/components/schemas/HostSourceOut"
               },
               {
                 "type": "null"
@@ -1497,11 +1597,11 @@
           "api_version",
           "detail"
         ],
-        "title": "SentryHostInfoOut",
+        "title": "RemoteSdrHostInfoOut",
         "type": "object"
       },
-      "SentryHostOut": {
-        "description": "Response shape for a Sentry host — never carries the auth token itself.",
+      "RemoteSdrHostOut": {
+        "description": "Response shape for an SDR host — never carries the auth token itself.",
         "properties": {
           "address": {
             "title": "Address",
@@ -1589,11 +1689,11 @@
           "reachable",
           "api_version"
         ],
-        "title": "SentryHostOut",
+        "title": "RemoteSdrHostOut",
         "type": "object"
       },
-      "SentryHostPatch": {
-        "description": "Body for `PUT /api/sdr/sentry-hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors Sentry's own hotspot-PUT convention (architecture: Sentry\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting only the name or enabled flag never has to re-paste a token they\ncan no longer see. Moving the host to a new address or port without a new\ntoken clears the stored one instead: the poller would otherwise send the\nconsole password to whichever machine the new address names.",
+      "RemoteSdrHostPatch": {
+        "description": "Body for `PUT /api/sdr-manager/remote/hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors the host's own hotspot-PUT convention (architecture: the host's\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting only the name or enabled flag never has to re-paste a token they\ncan no longer see. Moving the host to a new address or port without a new\ntoken clears the stored one instead: the poller would otherwise send the\nconsole password to whichever machine the new address names.",
         "properties": {
           "address": {
             "anyOf": [
@@ -1651,174 +1751,74 @@
             "title": "Port"
           }
         },
-        "title": "SentryHostPatch",
+        "title": "RemoteSdrHostPatch",
         "type": "object"
       },
-      "SentryLocationOut": {
-        "description": "Where the Sentry itself is, as it reports it in `/api/v1/sdrs`'s `source.location`.\n\nEvery field is optional: a Sentry that has never had its position set\nreports `location: null`, which is a normal state, not an error.",
+      "SearchRangeIn": {
         "properties": {
-          "latitude": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Latitude"
-          },
-          "longitude": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Longitude"
-          },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
-          }
-        },
-        "title": "SentryLocationOut",
-        "type": "object"
-      },
-      "SentrySiteOut": {
-        "description": "One Sentry host that has told Sentinel where it is — a point for the domain maps.\n\nOnly hosts with a usable position appear, so every entry carries a real\nlatitude/longitude rather than the nullable pair `SentryLocationOut` uses:\na map plots points, and \"somewhere unknown\" is not one.",
-        "properties": {
-          "address": {
-            "title": "Address",
+          "band_name": {
+            "default": "",
+            "title": "Band Name",
             "type": "string"
           },
-          "id": {
-            "title": "Id",
+          "dwell_ms": {
+            "default": 250,
+            "title": "Dwell Ms",
             "type": "integer"
           },
-          "latitude": {
-            "title": "Latitude",
-            "type": "number"
-          },
-          "longitude": {
-            "title": "Longitude",
-            "type": "number"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "port": {
-            "title": "Port",
-            "type": "integer"
-          },
-          "reachable": {
-            "title": "Reachable",
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
             "type": "boolean"
           },
-          "updated_at": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Updated At"
+          "high_hz": {
+            "title": "High Hz",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "low_hz": {
+            "title": "Low Hz",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "NFM",
+            "title": "Mode",
+            "type": "string"
+          },
+          "notes": {
+            "default": "",
+            "title": "Notes",
+            "type": "string"
+          },
+          "sort_order": {
+            "default": 0,
+            "title": "Sort Order",
+            "type": "integer"
+          },
+          "step_hz": {
+            "default": 12500,
+            "title": "Step Hz",
+            "type": "integer"
+          },
+          "threshold_dbfs": {
+            "default": -35.0,
+            "title": "Threshold Dbfs",
+            "type": "number"
           }
         },
         "required": [
-          "id",
-          "name",
-          "address",
-          "port",
-          "reachable",
-          "latitude",
-          "longitude"
+          "label",
+          "low_hz",
+          "high_hz"
         ],
-        "title": "SentrySiteOut",
-        "type": "object"
-      },
-      "SentrySourceOut": {
-        "description": "The `source` block of `/api/v1/sdrs` — the Sentry's own description of itself.",
-        "properties": {
-          "host": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Host"
-          },
-          "http_port": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Http Port"
-          },
-          "location": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SentryLocationOut"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "version": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Version"
-          }
-        },
-        "title": "SentrySourceOut",
+        "title": "SearchRangeIn",
         "type": "object"
       },
       "SerialFlashIn": {
-        "description": "Body for `POST .../devices/{device_id}/serial` — mirrors Sentry's own `SerialFlashRequest`.\n\nValidated here too (defence-in-depth, not a substitute for Sentry's own\ncheck) so an obviously malformed serial never leaves Sentinel.",
+        "description": "Body for `POST .../devices/{device_id}/serial` — mirrors the host's own `SerialFlashRequest`.\n\nValidated here too (defence-in-depth, not a substitute for the host's own\ncheck) so an obviously malformed serial never leaves Sentinel.",
         "properties": {
           "confirm": {
             "title": "Confirm",
@@ -1990,7 +1990,7 @@
         "type": "object"
       },
       "WifiConfigIn": {
-        "description": "Body for `PUT /api/sdr/sentry-hosts/{host_id}/wifi` — mirrors Sentry's `HotspotConfigRequest`.\n\n`passphrase` is optional and write-only: omit it to keep the currently\nstored one (Sentry's own semantics), and it is never present on any\nresponse this router returns.",
+        "description": "Body for `PUT /api/sdr-manager/remote/hosts/{host_id}/wifi` — mirrors the host's `HotspotConfigRequest`.\n\n`passphrase` is optional and write-only: omit it to keep the currently\nstored one (the host's own semantics), and it is never present on any\nresponse this router returns.",
         "properties": {
           "band": {
             "default": "bg",
@@ -2936,6 +2936,910 @@
         "summary": "Get Terrain Tile",
         "tags": [
           "offline-map"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts": {
+      "get": {
+        "description": "List every SDR host Sentinel knows about.",
+        "operationId": "list_hosts_api_sdr_manager_remote_hosts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RemoteSdrHostOut"
+                  },
+                  "title": "Response List Hosts Api Sdr Manager Remote Hosts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Hosts",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "post": {
+        "description": "Register a new SDR host and, if enabled, start polling it immediately.",
+        "operationId": "create_host_api_sdr_manager_remote_hosts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteSdrHostIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteSdrHostOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/locations": {
+      "get": {
+        "description": "List every enabled SDR host that reports a position, for plotting on the domain maps.\n\nReads only the fleet poller's cached export — never the network — because\nevery domain map polls this while it is open: a round trip per host per poll\nwould make a slow Pi stall the map. A host that has gone unreachable keeps\nits last known position and is reported with `reachable: false`, so an\noperator sees a site that is off the air rather than a site that vanished.\n\nDeclared before `/{host_id}` on purpose: FastAPI matches routes in\ndeclaration order, so the reverse would parse \"locations\" as a host id.",
+        "operationId": "list_host_locations_api_sdr_manager_remote_hosts_locations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/HostSiteOut"
+                  },
+                  "title": "Response List Host Locations Api Sdr Manager Remote Hosts Locations Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Host Locations",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}": {
+      "delete": {
+        "description": "Forget an SDR host. Does not affect the Pi itself — only Sentinel's record of it.",
+        "operationId": "delete_host_api_sdr_manager_remote_hosts__host_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "get": {
+        "description": "Return one SDR host's record.",
+        "operationId": "get_host_api_sdr_manager_remote_hosts__host_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteSdrHostOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "put": {
+        "description": "Update an SDR host's connection details and/or enabled state.\n\nRestarts the poller (or starts/stops it as appropriate) so a changed\naddress, port, token, or enabled flag takes effect immediately rather than\nwaiting for the previous poller iteration to notice.",
+        "operationId": "update_host_api_sdr_manager_remote_hosts__host_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RemoteSdrHostPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteSdrHostOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/devices": {
+      "get": {
+        "description": "Return the fleet poller's cached `GET /api/status` snapshot for one host.\n\nServed from memory, never a live round-trip, by design: Sentinel's\ndevice list is a cache refreshed on a 2s poll, and this route surfaces\nexactly that cache plus its own reachability so a dead host still renders\nsomething instead of blocking the request.",
+        "operationId": "get_host_devices_api_sdr_manager_remote_hosts__host_id__devices_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceSnapshotOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Host Devices",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/devices/records": {
+      "get": {
+        "description": "Proxy `GET /api/devices` — the host's persisted device configuration.\n\nDistinct from the cached snapshot above, and both are needed. `/api/status`\nreturns `DeviceStatus`, which describes what a device is *doing* — present,\nstate, live tuner readout — and deliberately carries none of the persisted\ntuning intent. The stored `sample_rate`, `gain_db`, `gain_auto`,\n`ppm_correction`, `bias_tee` and `direct_sampling` live only on\n`DeviceRecord`, so an edit form driven off the snapshot alone would show\nevery tuning field blank and silently clear them on save.\n\nLive rather than cached: it is fetched when a form opens, not on a timer,\nand the operator is about to edit these values so they must be current. It\nalso carries the host's `port_suggestion` and `constraints`, which the port\nfield needs to suggest a free port rather than guess.",
+        "operationId": "get_host_device_records_api_sdr_manager_remote_hosts__host_id__devices_records_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Host Device Records",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}": {
+      "delete": {
+        "description": "Proxy `DELETE /api/devices/{device_id}` — removes the host's persisted config for that device.",
+        "operationId": "delete_host_device_api_sdr_manager_remote_hosts__host_id__devices__device_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Host Device",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "patch": {
+        "description": "Proxy `PATCH /api/devices/{device_id}` to the host, propagating its response verbatim.\n\nThe body is forwarded as-is: The host owns the full `DevicePatch` validation\n(bounds, enums, port allocation, name uniqueness) and its rejection code\nmust reach the caller unchanged, so this router does not re-validate or\nreshape it beyond being valid JSON.",
+        "operationId": "patch_host_device_api_sdr_manager_remote_hosts__host_id__devices__device_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Patch",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Host Device",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}/serial": {
+      "post": {
+        "description": "Proxy `POST /api/devices/{device_id}/serial` — begins the host's guarded EEPROM flash.",
+        "operationId": "flash_host_device_serial_api_sdr_manager_remote_hosts__host_id__devices__device_id__serial_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "device_id",
+            "required": true,
+            "schema": {
+              "title": "Device Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SerialFlashIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Flash Host Device Serial",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/info": {
+      "get": {
+        "description": "Return every known detail of one SDR host — record, telemetry, and live self-report.\n\nAlways 200. Reading a details view must not fail because the Pi is asleep,\nso an unreachable host answers with `reachable: false`, a human-readable\n`detail`, and null live blocks.",
+        "operationId": "get_host_info_api_sdr_manager_remote_hosts__host_id__info_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteSdrHostInfoOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Host Info",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/test": {
+      "post": {
+        "description": "Probe `GET /api/health` on a host — always 200, the result reports reachability.\n\nDeliberately never raises on an unreachable host: this endpoint exists so\nan operator can check connectivity without the negative case looking like\nSentinel's own error.",
+        "operationId": "test_host_api_sdr_manager_remote_hosts__host_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthProbeResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi": {
+      "delete": {
+        "description": "Proxy `DELETE /api/hotspot` — forgets the hotspot configuration, including its password.",
+        "operationId": "delete_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "get": {
+        "description": "Proxy `GET /api/hotspot` — the host's response never includes the passphrase.",
+        "operationId": "get_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "put": {
+        "description": "Proxy `PUT /api/hotspot` — a full replace, matching the host's own semantics.",
+        "operationId": "put_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WifiConfigIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi/clients": {
+      "get": {
+        "description": "Proxy `GET /api/hotspot/clients`.",
+        "operationId": "list_host_wifi_clients_api_sdr_manager_remote_hosts__host_id__wifi_clients_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Host Wifi Clients",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi/confirm": {
+      "post": {
+        "description": "Proxy `POST /api/hotspot/confirm`.\n\nSafety-critical (Sentry ADR-0007, carried into sdr-manager-local): this route must only ever be\nreached by an explicit operator action in the UI — never invoked\nautomatically after `enable`, and never called speculatively by this\nbackend on the operator's behalf.",
+        "operationId": "confirm_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_confirm_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirm Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi/disable": {
+      "post": {
+        "description": "Proxy `POST /api/hotspot/disable`.",
+        "operationId": "disable_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_disable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WifiActivationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Disable Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi/enable": {
+      "post": {
+        "description": "Proxy `POST /api/hotspot/enable` — brings the hotspot up provisionally.\n\nThe host rolls this back unless `POST .../wifi/confirm` arrives within its\nown timeout; Sentinel never calls confirm automatically (see that route).",
+        "operationId": "enable_host_wifi_api_sdr_manager_remote_hosts__host_id__wifi_enable_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WifiActivationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enable Host Wifi",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/wifi/interfaces": {
+      "get": {
+        "description": "Proxy `GET /api/hotspot/interfaces`.",
+        "operationId": "list_host_wifi_interfaces_api_sdr_manager_remote_hosts__host_id__wifi_interfaces_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Host Wifi Interfaces",
+        "tags": [
+          "sdr-manager-remote"
         ]
       }
     },
@@ -5076,910 +5980,6 @@
         "summary": "Update Search Range",
         "tags": [
           "sdr"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts": {
-      "get": {
-        "description": "List every Sentry host Sentinel knows about.",
-        "operationId": "list_hosts_api_sdr_sentry_hosts_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SentryHostOut"
-                  },
-                  "title": "Response List Hosts Api Sdr Sentry Hosts Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "List Hosts",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "post": {
-        "description": "Register a new Sentry host and, if enabled, start polling it immediately.",
-        "operationId": "create_host_api_sdr_sentry_hosts_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SentryHostIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SentryHostOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Create Host",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/locations": {
-      "get": {
-        "description": "List every enabled Sentry host that reports a position, for plotting on the domain maps.\n\nReads only the fleet poller's cached export — never the network — because\nevery domain map polls this while it is open: a round trip per host per poll\nwould make a slow Pi stall the map. A host that has gone unreachable keeps\nits last known position and is reported with `reachable: false`, so an\noperator sees a site that is off the air rather than a site that vanished.\n\nDeclared before `/{host_id}` on purpose: FastAPI matches routes in\ndeclaration order, so the reverse would parse \"locations\" as a host id.",
-        "operationId": "list_host_locations_api_sdr_sentry_hosts_locations_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SentrySiteOut"
-                  },
-                  "title": "Response List Host Locations Api Sdr Sentry Hosts Locations Get",
-                  "type": "array"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "List Host Locations",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}": {
-      "delete": {
-        "description": "Forget a Sentry host. Does not affect the Pi itself — only Sentinel's record of it.",
-        "operationId": "delete_host_api_sdr_sentry_hosts__host_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Host",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "get": {
-        "description": "Return one Sentry host's record.",
-        "operationId": "get_host_api_sdr_sentry_hosts__host_id__get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SentryHostOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Host",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "put": {
-        "description": "Update a Sentry host's connection details and/or enabled state.\n\nRestarts the poller (or starts/stops it as appropriate) so a changed\naddress, port, token, or enabled flag takes effect immediately rather than\nwaiting for the previous poller iteration to notice.",
-        "operationId": "update_host_api_sdr_sentry_hosts__host_id__put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SentryHostPatch"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SentryHostOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Update Host",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/devices": {
-      "get": {
-        "description": "Return the fleet poller's cached `GET /api/status` snapshot for one host.\n\nServed from memory, never a live round-trip, per ADR-0009: Sentinel's\ndevice list is a cache refreshed on a 2s poll, and this route surfaces\nexactly that cache plus its own reachability so a dead host still renders\nsomething instead of blocking the request.",
-        "operationId": "get_host_devices_api_sdr_sentry_hosts__host_id__devices_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/DeviceSnapshotOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Host Devices",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/devices/records": {
-      "get": {
-        "description": "Proxy `GET /api/devices` — Sentry's persisted device configuration.\n\nDistinct from the cached snapshot above, and both are needed. `/api/status`\nreturns `DeviceStatus`, which describes what a device is *doing* — present,\nstate, live tuner readout — and deliberately carries none of the persisted\ntuning intent. The stored `sample_rate`, `gain_db`, `gain_auto`,\n`ppm_correction`, `bias_tee` and `direct_sampling` live only on\n`DeviceRecord`, so an edit form driven off the snapshot alone would show\nevery tuning field blank and silently clear them on save.\n\nLive rather than cached: it is fetched when a form opens, not on a timer,\nand the operator is about to edit these values so they must be current. It\nalso carries Sentry's `port_suggestion` and `constraints`, which the port\nfield needs to suggest a free port rather than guess.",
-        "operationId": "get_host_device_records_api_sdr_sentry_hosts__host_id__devices_records_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Host Device Records",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}": {
-      "delete": {
-        "description": "Proxy `DELETE /api/devices/{device_id}` — removes Sentry's persisted config for that device.",
-        "operationId": "delete_host_device_api_sdr_sentry_hosts__host_id__devices__device_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "device_id",
-            "required": true,
-            "schema": {
-              "title": "Device Id",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Host Device",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "patch": {
-        "description": "Proxy `PATCH /api/devices/{device_id}` to Sentry, propagating its response verbatim.\n\nThe body is forwarded as-is: Sentry owns the full `DevicePatch` validation\n(bounds, enums, port allocation, name uniqueness) and its rejection code\nmust reach the caller unchanged, so this router does not re-validate or\nreshape it beyond being valid JSON.",
-        "operationId": "patch_host_device_api_sdr_sentry_hosts__host_id__devices__device_id__patch",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "device_id",
-            "required": true,
-            "schema": {
-              "title": "Device Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "additionalProperties": true,
-                "title": "Patch",
-                "type": "object"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Patch Host Device",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/devices/{device_id}/serial": {
-      "post": {
-        "description": "Proxy `POST /api/devices/{device_id}/serial` — begins Sentry's guarded EEPROM flash.",
-        "operationId": "flash_host_device_serial_api_sdr_sentry_hosts__host_id__devices__device_id__serial_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          },
-          {
-            "in": "path",
-            "name": "device_id",
-            "required": true,
-            "schema": {
-              "title": "Device Id",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SerialFlashIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Flash Host Device Serial",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/info": {
-      "get": {
-        "description": "Return every known detail of one Sentry host — record, telemetry, and live self-report.\n\nAlways 200. Reading a details view must not fail because the Pi is asleep,\nso an unreachable host answers with `reachable: false`, a human-readable\n`detail`, and null live blocks.",
-        "operationId": "get_host_info_api_sdr_sentry_hosts__host_id__info_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SentryHostInfoOut"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Host Info",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/test": {
-      "post": {
-        "description": "Probe `GET /api/health` on a host — always 200, the result reports reachability.\n\nDeliberately never raises on an unreachable host: this endpoint exists so\nan operator can check connectivity without the negative case looking like\nSentinel's own error.",
-        "operationId": "test_host_api_sdr_sentry_hosts__host_id__test_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HealthProbeResult"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Test Host",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi": {
-      "delete": {
-        "description": "Proxy `DELETE /api/hotspot` — forgets the hotspot configuration, including its password.",
-        "operationId": "delete_host_wifi_api_sdr_sentry_hosts__host_id__wifi_delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "get": {
-        "description": "Proxy `GET /api/hotspot` — Sentry's response never includes the passphrase.",
-        "operationId": "get_host_wifi_api_sdr_sentry_hosts__host_id__wifi_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Get Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      },
-      "put": {
-        "description": "Proxy `PUT /api/hotspot` — a full replace, matching Sentry's own semantics.",
-        "operationId": "put_host_wifi_api_sdr_sentry_hosts__host_id__wifi_put",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WifiConfigIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Put Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi/clients": {
-      "get": {
-        "description": "Proxy `GET /api/hotspot/clients`.",
-        "operationId": "list_host_wifi_clients_api_sdr_sentry_hosts__host_id__wifi_clients_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Host Wifi Clients",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi/confirm": {
-      "post": {
-        "description": "Proxy `POST /api/hotspot/confirm`.\n\nSafety-critical (ADR-0009 / Sentry ADR-0007): this route must only ever be\nreached by an explicit operator action in the UI — never invoked\nautomatically after `enable`, and never called speculatively by this\nbackend on the operator's behalf.",
-        "operationId": "confirm_host_wifi_api_sdr_sentry_hosts__host_id__wifi_confirm_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Confirm Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi/disable": {
-      "post": {
-        "description": "Proxy `POST /api/hotspot/disable`.",
-        "operationId": "disable_host_wifi_api_sdr_sentry_hosts__host_id__wifi_disable_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WifiActivationIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Disable Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi/enable": {
-      "post": {
-        "description": "Proxy `POST /api/hotspot/enable` — brings the hotspot up provisionally.\n\nSentry rolls this back unless `POST .../wifi/confirm` arrives within its\nown timeout; Sentinel never calls confirm automatically (see that route).",
-        "operationId": "enable_host_wifi_api_sdr_sentry_hosts__host_id__wifi_enable_post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/WifiActivationIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Enable Host Wifi",
-        "tags": [
-          "sentry"
-        ]
-      }
-    },
-    "/api/sdr/sentry-hosts/{host_id}/wifi/interfaces": {
-      "get": {
-        "description": "Proxy `GET /api/hotspot/interfaces`.",
-        "operationId": "list_host_wifi_interfaces_api_sdr_sentry_hosts__host_id__wifi_interfaces_get",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "host_id",
-            "required": true,
-            "schema": {
-              "title": "Host Id",
-              "type": "integer"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "List Host Wifi Interfaces",
-        "tags": [
-          "sentry"
         ]
       }
     },

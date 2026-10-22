@@ -1,16 +1,19 @@
-"""Dongles this Sentinel has claimed through Sentry, keyed by their rtl_tcp address.
+"""Dongles claimed through sdr-manager-remote, keyed by their rtl_tcp address.
 
-AIR's ADS-B claim reserves a Sentry device and tunes it to 1090 MHz at 2.4 MS/s
-(``sentry_reservations``). With one dongle doubling as, say, the AIS radio, the
-rest of the hub would otherwise fight that claim: the AIS bridge pulls the radio
-back to 162 MHz every 15 s, and a radio connection that becomes the relay's
-tuning owner re-asserts its own default sample rate — which is how ADS-B ended
-up decoding nothing at 2.048 MS/s. The owner's rule is that the claim wins: while
-a claim holds, nothing in the hub retunes that dongle (``ReadOnlyTuningError``
-for radio connections, a paused retune for the channel-owning bridges).
+AIR's ADS-B claim reserves an SDR host's device and tunes it to 1090 MHz at
+2.4 MS/s (sdr-manager-remote's reservation proxy, which publishes each claim
+to the hub — ``claim_events``). With one dongle doubling as, say, the AIS
+radio, the rest of the hub would otherwise fight that claim: the AIS bridge
+pulls the radio back to 162 MHz every 15 s, and a radio connection that
+becomes the relay's tuning owner re-asserts its own default sample rate —
+which is how ADS-B ended up decoding nothing at 2.048 MS/s. The owner's rule is
+that the claim wins: while a claim holds, nothing in the hub retunes that
+dongle (``ReadOnlyTuningError`` for radio connections, a paused retune for the
+channel-owning bridges).
 
-Claims are recorded with Sentry's ``expires_at``, so a claim AIR stops renewing
-(the page closed without releasing) lapses here exactly when Sentry lets it go.
+Claims are recorded with the host's ``expires_at``, so a claim AIR stops
+renewing (the page closed without releasing) lapses here exactly when the host
+lets it go — and a lost release event costs no more than that.
 """
 
 from __future__ import annotations

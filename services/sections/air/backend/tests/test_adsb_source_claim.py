@@ -63,7 +63,7 @@ def _install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx
 def sentry_ok(request: httpx.Request) -> httpx.Response:
     """A Sentry that signs us in, grants the claim and accepts the tuning."""
     if request.url.path == "/api/auth/login":
-        return httpx.Response(204, headers={"set-cookie": "sentry_session=granted; Path=/"})
+        return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted; Path=/"})
     if request.url.path.endswith("/reservation"):
         if request.method == "DELETE":
             return httpx.Response(204)
@@ -81,7 +81,7 @@ def sentry_ok(request: httpx.Request) -> httpx.Response:
 
 
 def register_host(client: Any) -> int:
-    return client.post("/api/sdr/sentry-hosts", json=HOST_BODY).json()["id"]
+    return client.post("/api/sdr-manager/remote/hosts", json=HOST_BODY).json()["id"]
 
 
 def set_source(client: Any, host_id: int) -> Any:
@@ -238,7 +238,7 @@ class TestClaimingAndTuning:
         client.post("/api/sdr/adsb/claim", json={})
 
         patch = next(r for r in seen if r.method == "PATCH")
-        assert patch.headers["X-Sentry-Reservation-Holder"].startswith("sentinel:")
+        assert patch.headers["X-Sdr-Manager-Reservation-Holder"].startswith("sentinel:")
 
     def test_tells_the_caller_when_to_renew(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_sentry(monkeypatch, sentry_ok)
@@ -280,7 +280,7 @@ class TestFailuresAnOperatorCanAct_On:
     def test_a_device_someone_else_holds_reports_who(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def busy(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
+                return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=g; Path=/"})
             return httpx.Response(
                 409,
                 json={
@@ -333,7 +333,7 @@ class TestFailuresAnOperatorCanAct_On:
         self, client: Any, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         host_id = register_host(client)
-        client.put(f"/api/sdr/sentry-hosts/{host_id}", json={"enabled": False})
+        client.put(f"/api/sdr-manager/remote/hosts/{host_id}", json={"enabled": False})
         set_source(client, host_id)
         seen = _install_sentry(monkeypatch, sentry_ok)
 
@@ -351,7 +351,7 @@ class TestHubFailuresInOperatorWords:
         seen = _install_sentry(monkeypatch, sentry_ok)
         host_id = register_host(client)
         set_source(client, host_id)
-        client.delete(f"/api/sdr/sentry-hosts/{host_id}")
+        client.delete(f"/api/sdr-manager/remote/hosts/{host_id}")
 
         response = client.post("/api/sdr/adsb/claim", json={})
 
@@ -363,7 +363,7 @@ class TestHubFailuresInOperatorWords:
     def test_a_disabled_host_is_named_in_the_message(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         _install_sentry(monkeypatch, sentry_ok)
         host_id = register_host(client)
-        client.put(f"/api/sdr/sentry-hosts/{host_id}", json={"enabled": False})
+        client.put(f"/api/sdr-manager/remote/hosts/{host_id}", json={"enabled": False})
         set_source(client, host_id)
 
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
@@ -410,7 +410,7 @@ class TestHubFailuresInOperatorWords:
     ) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
+                return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=g; Path=/"})
             return httpx.Response(503, json={"detail": {"code": "", "message": "Down."}})
 
         _install_sentry(monkeypatch, broken)
@@ -424,7 +424,7 @@ class TestHubFailuresInOperatorWords:
     def test_another_sentry_error_passes_its_code_through(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
-                return httpx.Response(204, headers={"set-cookie": "sentry_session=g; Path=/"})
+                return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=g; Path=/"})
             return httpx.Response(503, json={"detail": {"code": "usb_reset", "message": "Dongle resetting."}})
 
         _install_sentry(monkeypatch, broken)
@@ -479,12 +479,12 @@ class TestTheDecoderConfig:
                 json={
                     "sdrs": [
                         {
-                            "sentry_device_id": "serial:OTHER",
+                            "sdr_manager_device_id": "serial:OTHER",
                             "host": "10.0.0.5",
                             "port": 1234,
                         },
                         {
-                            "sentry_device_id": DEVICE_ID,
+                            "sdr_manager_device_id": DEVICE_ID,
                             "host": "10.0.0.5",
                             "port": 2345,
                         },

@@ -150,7 +150,7 @@ async def aprs_start(body: PacketDecodeControlIn, db: AsyncSession = Depends(get
     # Checked before dialling: a mirrored radio whose device has been unplugged
     # or replugged elsewhere would otherwise fail as a bare connection refusal,
     # which tells the operator nothing about what to do.
-    available, reason = radio_registry.device_availability(radio)
+    available, reason = await radio_registry.device_availability(radio)
     if not available:
         raise HTTPException(
             503,
@@ -397,7 +397,7 @@ async def start_ais_on_radio(db: AsyncSession, radio_id: int, *, bw_hz: int = 0)
     # Checked before dialling: a mirrored radio whose device has been unplugged
     # or replugged elsewhere would otherwise fail as a bare connection refusal,
     # which tells the operator nothing about what to do.
-    available, reason = radio_registry.device_availability(radio)
+    available, reason = await radio_registry.device_availability(radio)
     if not available:
         return {
             "ok": False,

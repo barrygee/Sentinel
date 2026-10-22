@@ -1,5 +1,5 @@
 /**
- * Typed client for `/api/sdr/sentry-hosts` — Sentinel's remote-client surface
+ * Typed client for `/api/sdr-manager/remote/hosts` — Sentinel's remote-client surface
  * onto one or more Sentry hosts (a Raspberry Pi running rtl_tcp dongles, per
  * ADR-0009). Modelled on `sdrSearchApi.ts`'s house style: one function per
  * route, typed request/response shapes, and — because this surface proxies a
@@ -15,7 +15,7 @@
  * name which device holds the port).
  */
 
-const BASE = '/api/sdr/sentry-hosts'
+const BASE = '/api/sdr-manager/remote/hosts'
 
 /** One Sentry host Sentinel knows about. Never carries the auth token itself. */
 export interface SentryHost {
@@ -49,7 +49,7 @@ export interface SentrySource {
 }
 
 /**
- * Everything Sentinel knows about one host — `GET /api/sdr/sentry-hosts/{id}/info`.
+ * Everything Sentinel knows about one host — `GET /api/sdr-manager/remote/hosts/{id}/info`.
  *
  * A superset of `SentryHost` carrying the poller's telemetry plus a live read
  * of Sentry's two unauthenticated self-report endpoints: `health` (raw
@@ -90,7 +90,7 @@ export interface SentrySite {
   updated_at: number | null
 }
 
-/** Body for `POST /api/sdr/sentry-hosts` — register a new host. */
+/** Body for `POST /api/sdr-manager/remote/hosts` — register a new host. */
 export interface SentryHostCreateInput {
   name?: string | null
   address: string
@@ -100,7 +100,7 @@ export interface SentryHostCreateInput {
 }
 
 /**
- * Body for `PUT /api/sdr/sentry-hosts/{id}` — a patch. Every field is
+ * Body for `PUT /api/sdr-manager/remote/hosts/{id}` — a patch. Every field is
  * optional; an omitted key keeps the stored value, EXCEPT `name`, where an
  * explicit `null` clears it (send the key with value `null`, not omit it).
  * Omit `auth_token` entirely to keep the currently stored token — the API
@@ -114,7 +114,7 @@ export interface SentryHostPatchInput {
   enabled?: boolean
 }
 
-/** Response for `POST /api/sdr/sentry-hosts/{id}/test` — always HTTP 200. */
+/** Response for `POST /api/sdr-manager/remote/hosts/{id}/test` — always HTTP 200. */
 export interface SentryHealthProbeResult {
   reachable: boolean
   detail: string
@@ -220,7 +220,7 @@ export interface SentryPortConstraints {
   reserved_ports: number[]
 }
 
-/** Response body of `GET /api/sdr/sentry-hosts/{id}/devices/records`. */
+/** Response body of `GET /api/sdr-manager/remote/hosts/{id}/devices/records`. */
 export interface SentryDeviceRecordsPayload {
   devices: SentryDeviceRecord[]
   port_suggestion: number | null
@@ -233,7 +233,7 @@ export interface SentryStatusPayload {
   sdrs: SentryDeviceStatus[]
 }
 
-/** Response for `GET /api/sdr/sentry-hosts/{id}/devices` — the poller's cached snapshot. */
+/** Response for `GET /api/sdr-manager/remote/hosts/{id}/devices` — the poller's cached snapshot. */
 export interface SentryDeviceSnapshot {
   reachable: boolean
   last_error: string | null

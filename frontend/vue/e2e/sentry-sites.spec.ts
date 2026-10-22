@@ -65,7 +65,7 @@ async function openMapWithSites(page: Page): Promise<void> {
   await page.route('**/assets/{fiord,osm-light}*.json', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(BLANK_MAP_STYLE) }),
   )
-  await page.route('**/api/sdr/sentry-hosts/locations', (route) =>
+  await page.route('**/api/sdr-manager/remote/hosts/locations', (route) =>
     route.fulfill({ contentType: 'application/json', body: JSON.stringify(SITES) }),
   )
   await page.goto('/air/')
@@ -162,7 +162,7 @@ test.describe('Sentry sites on the map', () => {
     await page.route('**/assets/{fiord,osm-light}*.json', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(BLANK_MAP_STYLE) }),
     )
-    await page.route('**/api/sdr/sentry-hosts/locations', (route) =>
+    await page.route('**/api/sdr-manager/remote/hosts/locations', (route) =>
       route.fulfill({ contentType: 'application/json', body: JSON.stringify(closeSites) }),
     )
     await page.goto('/air/')

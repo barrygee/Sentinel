@@ -1,35 +1,35 @@
-"""Sentry-host router — Sentinel's client surface onto one or more Sentry instances.
+"""Remote SDR hosts router — this Sentinel's client surface onto other machines' SDR Manager API.
 
-Per ADR-0009, Sentry (a Raspberry Pi running rtl_tcp dongles) stays the source
-of truth for device configuration; Sentinel is a full remote client of its
-`/api` surface plus a small local record of which hosts exist. This router
-never reimplements Sentry's validation (port allocation, name uniqueness,
-device state) — every device/hotspot mutation is proxied to Sentry and its
+sdr-manager-local on each host stays the source of truth for device
+configuration (ADR 0007); this service is a full remote client of its `/api`
+surface plus a small local record of which hosts exist. This router never
+reimplements the host's validation (port allocation, name uniqueness, device
+state) — every device/hotspot mutation is proxied to the host and its
 rejection propagated verbatim.
 
 Endpoints:
-  GET    /api/sdr/sentry-hosts                                   — list known Sentry hosts
-  POST   /api/sdr/sentry-hosts                                   — register a new host
-  GET    /api/sdr/sentry-hosts/{host_id}                         — one host's record
-  PUT    /api/sdr/sentry-hosts/{host_id}                         — update a host
-  DELETE /api/sdr/sentry-hosts/{host_id}                         — forget a host
-  POST   /api/sdr/sentry-hosts/{host_id}/test                    — probe GET /api/health
-  GET    /api/sdr/sentry-hosts/{host_id}/info                    — everything known about a host
-  GET    /api/sdr/sentry-hosts/locations                         — every host with a known position
+  GET    /api/sdr-manager/remote/hosts                                   — list known SDR hosts
+  POST   /api/sdr-manager/remote/hosts                                   — register a new host
+  GET    /api/sdr-manager/remote/hosts/{host_id}                         — one host's record
+  PUT    /api/sdr-manager/remote/hosts/{host_id}                         — update a host
+  DELETE /api/sdr-manager/remote/hosts/{host_id}                         — forget a host
+  POST   /api/sdr-manager/remote/hosts/{host_id}/test                    — probe GET /api/health
+  GET    /api/sdr-manager/remote/hosts/{host_id}/info                    — everything known about a host
+  GET    /api/sdr-manager/remote/hosts/locations                         — every host with a known position
 
-  GET    /api/sdr/sentry-hosts/{host_id}/devices                 — cached status snapshot
-  PATCH  /api/sdr/sentry-hosts/{host_id}/devices/{device_id}     — proxy PATCH /api/devices/{id}
-  DELETE /api/sdr/sentry-hosts/{host_id}/devices/{device_id}     — proxy DELETE /api/devices/{id}
-  POST   /api/sdr/sentry-hosts/{host_id}/devices/{device_id}/serial — proxy the EEPROM flash
+  GET    /api/sdr-manager/remote/hosts/{host_id}/devices                 — cached status snapshot
+  PATCH  /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}     — proxy PATCH /api/devices/{id}
+  DELETE /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}     — proxy DELETE /api/devices/{id}
+  POST   /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}/serial — proxy the EEPROM flash
 
-  GET    /api/sdr/sentry-hosts/{host_id}/wifi                    — proxy GET /api/hotspot
-  PUT    /api/sdr/sentry-hosts/{host_id}/wifi                    — proxy PUT /api/hotspot
-  DELETE /api/sdr/sentry-hosts/{host_id}/wifi                    — proxy DELETE /api/hotspot
-  POST   /api/sdr/sentry-hosts/{host_id}/wifi/enable             — proxy POST /api/hotspot/enable
-  POST   /api/sdr/sentry-hosts/{host_id}/wifi/disable            — proxy POST /api/hotspot/disable
-  POST   /api/sdr/sentry-hosts/{host_id}/wifi/confirm            — proxy POST /api/hotspot/confirm
-  GET    /api/sdr/sentry-hosts/{host_id}/wifi/interfaces         — proxy GET /api/hotspot/interfaces
-  GET    /api/sdr/sentry-hosts/{host_id}/wifi/clients            — proxy GET /api/hotspot/clients
+  GET    /api/sdr-manager/remote/hosts/{host_id}/wifi                    — proxy GET /api/hotspot
+  PUT    /api/sdr-manager/remote/hosts/{host_id}/wifi                    — proxy PUT /api/hotspot
+  DELETE /api/sdr-manager/remote/hosts/{host_id}/wifi                    — proxy DELETE /api/hotspot
+  POST   /api/sdr-manager/remote/hosts/{host_id}/wifi/enable             — proxy POST /api/hotspot/enable
+  POST   /api/sdr-manager/remote/hosts/{host_id}/wifi/disable            — proxy POST /api/hotspot/disable
+  POST   /api/sdr-manager/remote/hosts/{host_id}/wifi/confirm            — proxy POST /api/hotspot/confirm
+  GET    /api/sdr-manager/remote/hosts/{host_id}/wifi/interfaces         — proxy GET /api/hotspot/interfaces
+  GET    /api/sdr-manager/remote/hosts/{host_id}/wifi/clients            — proxy GET /api/hotspot/clients
 
 `auth_token` is write-only: accepted on POST/PUT, never returned in any
 response body (only a boolean `auth_token_set`).
@@ -48,24 +48,24 @@ from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sentinel_radio.models import SentryHost
+from sentinel_sdr_manager_remote.models import RemoteSdrHost
 
-# Imported for its side effect (B6): registers the hub's Sentry reservation
-# proxy (hub.sentry.*) on the bus at import time, so Air's ADS-B claim reaches
-# it even in tests, which skip the app lifespan.
-from sentinel_radio.services import sentry_reservations  # noqa: F401
-from sentinel_radio.services.sentry_client import (
-    SentryApiError,
-    SentryClient,
-    SentryUnreachableError,
-    validate_sentry_address,
-    validate_sentry_port,
+# Imported for its side effect: registers the reservation proxy
+# (sdr-manager.remote.*) on the bus at import time, so Air's ADS-B claim
+# reaches it even in tests, which skip the app lifespan.
+from sentinel_sdr_manager_remote.services import reservations  # noqa: F401
+from sentinel_sdr_manager_remote.services.host_poller import host_poller
+from sentinel_sdr_manager_remote.services.sdr_manager_client import (
+    SdrManagerApiError,
+    SdrManagerClient,
+    SdrManagerUnreachableError,
+    validate_host_address,
+    validate_host_port,
 )
-from sentinel_radio.services.sentry_fleet import fleet_poller
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/sdr/sentry-hosts", tags=["sentry"])
+router = APIRouter(prefix="/api/sdr-manager/remote/hosts", tags=["sdr-manager-remote"])
 
 _MAX_NAME_LEN = 120
 _MAX_TOKEN_LEN = 512
@@ -75,8 +75,8 @@ _SERIAL_PATTERN = r"^[A-Za-z0-9_-]{1,32}$"
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
 
-class SentryHostIn(BaseModel):
-    """Body for `POST /api/sdr/sentry-hosts` — register a new Sentry host."""
+class RemoteSdrHostIn(BaseModel):
+    """Body for `POST /api/sdr-manager/remote/hosts` — register a new SDR host."""
 
     name: str | None = None
     address: str
@@ -88,7 +88,7 @@ class SentryHostIn(BaseModel):
     @classmethod
     def _validate_address(cls, value: str) -> str:
         try:
-            return validate_sentry_address(value)
+            return validate_host_address(value)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -96,7 +96,7 @@ class SentryHostIn(BaseModel):
     @classmethod
     def _validate_port(cls, value: int) -> int:
         try:
-            return validate_sentry_port(value)
+            return validate_host_port(value)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -118,10 +118,10 @@ class SentryHostIn(BaseModel):
         return value
 
 
-class SentryHostPatch(BaseModel):
-    """Body for `PUT /api/sdr/sentry-hosts/{host_id}` — all fields optional, at least one required.
+class RemoteSdrHostPatch(BaseModel):
+    """Body for `PUT /api/sdr-manager/remote/hosts/{host_id}` — all fields optional, at least one required.
 
-    Mirrors Sentry's own hotspot-PUT convention (architecture: Sentry
+    Mirrors the host's own hotspot-PUT convention (architecture: the host's
     `HotspotConfigRequest`): omitting `auth_token` keeps the currently stored
     token, which is what keeps the secret write-only end to end — an operator
     editing only the name or enabled flag never has to re-paste a token they
@@ -142,7 +142,7 @@ class SentryHostPatch(BaseModel):
         if value is None:
             return None
         try:
-            return validate_sentry_address(value)
+            return validate_host_address(value)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -152,7 +152,7 @@ class SentryHostPatch(BaseModel):
         if value is None:
             return None
         try:
-            return validate_sentry_port(value)
+            return validate_host_port(value)
         except ValueError as exc:
             raise ValueError(str(exc)) from exc
 
@@ -176,7 +176,7 @@ class SentryHostPatch(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _require_at_least_one_field(self) -> SentryHostPatch:
+    def _require_at_least_one_field(self) -> RemoteSdrHostPatch:
         """Reject a body that names no fields at all.
 
         Tested against `model_fields_set` — which fields the client actually
@@ -191,8 +191,8 @@ class SentryHostPatch(BaseModel):
         return self
 
 
-class SentryHostOut(BaseModel):
-    """Response shape for a Sentry host — never carries the auth token itself."""
+class RemoteSdrHostOut(BaseModel):
+    """Response shape for an SDR host — never carries the auth token itself."""
 
     id: int
     name: str | None
@@ -208,7 +208,7 @@ class SentryHostOut(BaseModel):
 
 
 class HealthProbeResult(BaseModel):
-    """Response for `POST /api/sdr/sentry-hosts/{host_id}/test`."""
+    """Response for `POST /api/sdr-manager/remote/hosts/{host_id}/test`."""
 
     reachable: bool
     detail: str
@@ -216,10 +216,10 @@ class HealthProbeResult(BaseModel):
     health: dict[str, Any] | None = None
 
 
-class SentryLocationOut(BaseModel):
-    """Where the Sentry itself is, as it reports it in `/api/v1/sdrs`'s `source.location`.
+class HostLocationOut(BaseModel):
+    """Where the host itself is, as it reports it in `/api/v1/sdrs`'s `source.location`.
 
-    Every field is optional: a Sentry that has never had its position set
+    Every field is optional: a host that has never had its position set
     reports `location: null`, which is a normal state, not an error.
     """
 
@@ -228,25 +228,25 @@ class SentryLocationOut(BaseModel):
     updated_at: int | None = None
 
 
-class SentrySourceOut(BaseModel):
-    """The `source` block of `/api/v1/sdrs` — the Sentry's own description of itself."""
+class HostSourceOut(BaseModel):
+    """The `source` block of `/api/v1/sdrs` — the host's own description of itself."""
 
     name: str | None = None
     version: str | None = None
     host: str | None = None
     http_port: int | None = None
-    location: SentryLocationOut | None = None
+    location: HostLocationOut | None = None
 
 
-class SentryHostInfoOut(SentryHostOut):
-    """Everything Sentinel knows about one Sentry host, for the details view.
+class RemoteSdrHostInfoOut(RemoteSdrHostOut):
+    """Everything Sentinel knows about one SDR host, for the details view.
 
-    A superset of `SentryHostOut`: the stored record, the poller's telemetry,
-    and a live read of the two *unauthenticated* Sentry endpoints that carry
+    A superset of `RemoteSdrHostOut`: the stored record, the poller's telemetry,
+    and a live read of the two *unauthenticated* SDR Manager API endpoints that carry
     the rest — `GET /api/health` (version, uptime, database/hotplug health,
     device counts) and `GET /api/v1/sdrs` (the `source` block, which is the
-    only place the Sentry's latitude/longitude is published). Both are
-    unauthenticated by Sentry's design (its ADR-0010), so this still fills in
+    only place the host's latitude/longitude is published). Both are
+    unauthenticated by design (the host's ADR-0010, kept by sdr-manager-local), so this still fills in
     for a host whose console password Sentinel does not hold.
 
     Never raises for an unreachable host — `reachable`/`detail` report that,
@@ -258,16 +258,16 @@ class SentryHostInfoOut(SentryHostOut):
     last_polled_at: int | None = None
     last_success_at: int | None = None
     health: dict[str, Any] | None = None
-    source: SentrySourceOut | None = None
-    location: SentryLocationOut | None = None
+    source: HostSourceOut | None = None
+    location: HostLocationOut | None = None
     control_port_offset: int | None = None
 
 
-class SentrySiteOut(BaseModel):
-    """One Sentry host that has told Sentinel where it is — a point for the domain maps.
+class HostSiteOut(BaseModel):
+    """One SDR host that has told Sentinel where it is — a point for the domain maps.
 
     Only hosts with a usable position appear, so every entry carries a real
-    latitude/longitude rather than the nullable pair `SentryLocationOut` uses:
+    latitude/longitude rather than the nullable pair `HostLocationOut` uses:
     a map plots points, and "somewhere unknown" is not one.
     """
 
@@ -278,12 +278,12 @@ class SentrySiteOut(BaseModel):
     reachable: bool
     latitude: float
     longitude: float
-    # When the Sentry says it last updated its own position (Unix ms), if it says.
+    # When the host says it last updated its own position (Unix ms), if it says.
     updated_at: int | None = None
 
 
 class DeviceSnapshotOut(BaseModel):
-    """Response for `GET /api/sdr/sentry-hosts/{host_id}/devices` — the cached poll snapshot."""
+    """Response for `GET /api/sdr-manager/remote/hosts/{host_id}/devices` — the cached poll snapshot."""
 
     reachable: bool
     last_error: str | None
@@ -294,9 +294,9 @@ class DeviceSnapshotOut(BaseModel):
 
 
 class SerialFlashIn(BaseModel):
-    """Body for `POST .../devices/{device_id}/serial` — mirrors Sentry's own `SerialFlashRequest`.
+    """Body for `POST .../devices/{device_id}/serial` — mirrors the host's own `SerialFlashRequest`.
 
-    Validated here too (defence-in-depth, not a substitute for Sentry's own
+    Validated here too (defence-in-depth, not a substitute for the host's own
     check) so an obviously malformed serial never leaves Sentinel.
     """
 
@@ -321,10 +321,10 @@ class SerialFlashIn(BaseModel):
 
 
 class WifiConfigIn(BaseModel):
-    """Body for `PUT /api/sdr/sentry-hosts/{host_id}/wifi` — mirrors Sentry's `HotspotConfigRequest`.
+    """Body for `PUT /api/sdr-manager/remote/hosts/{host_id}/wifi` — mirrors the host's `HotspotConfigRequest`.
 
     `passphrase` is optional and write-only: omit it to keep the currently
-    stored one (Sentry's own semantics), and it is never present on any
+    stored one (the host's own semantics), and it is never present on any
     response this router returns.
     """
 
@@ -387,22 +387,22 @@ class WifiActivationIn(BaseModel):
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
 
-async def _get_host_or_404(host_id: int, db: AsyncSession) -> SentryHost:
-    """Fetch a SentryHost row or raise 404 without leaking anything about its token."""
-    host = await db.get(SentryHost, host_id)
+async def _get_host_or_404(host_id: int, db: AsyncSession) -> RemoteSdrHost:
+    """Fetch a RemoteSdrHost row or raise 404 without leaking anything about its token."""
+    host = await db.get(RemoteSdrHost, host_id)
     if host is None:
-        raise HTTPException(status_code=404, detail={"code": "unknown_host", "message": "No such Sentry host."})
+        raise HTTPException(status_code=404, detail={"code": "unknown_host", "message": "No such SDR host."})
     return host
 
 
-def _client_for(host: SentryHost) -> SentryClient:
-    return SentryClient(host.address, host.port, host.auth_token)
+def _client_for(host: RemoteSdrHost) -> SdrManagerClient:
+    return SdrManagerClient(host.address, host.port, host.auth_token)
 
 
-def _host_to_out(host: SentryHost) -> SentryHostOut:
+def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
     """Build the response schema for a host, overlaying the poller's live reachability."""
-    snapshot = fleet_poller.get_snapshot(host.id)
-    return SentryHostOut(
+    snapshot = host_poller.get_snapshot(host.id)
+    return RemoteSdrHostOut(
         id=host.id,
         name=host.name,
         address=host.address,
@@ -417,41 +417,41 @@ def _host_to_out(host: SentryHost) -> SentryHostOut:
     )
 
 
-def _raise_for_sentry_error(exc: SentryApiError) -> NoReturn:
-    """Propagate Sentry's own status code and `{code, message, ...context}` envelope verbatim."""
+def _raise_for_host_error(exc: SdrManagerApiError) -> NoReturn:
+    """Propagate the host's own status code and `{code, message, ...context}` envelope verbatim."""
     raise HTTPException(status_code=exc.status_code, detail={"code": exc.code, "message": exc.message, **exc.context})
 
 
-def _raise_for_unreachable(exc: SentryUnreachableError) -> NoReturn:
-    """502: Sentinel never got a response to interpret, so there is no Sentry code to surface."""
-    raise HTTPException(status_code=502, detail={"code": "sentry_unreachable", "message": str(exc)})
+def _raise_for_unreachable(exc: SdrManagerUnreachableError) -> NoReturn:
+    """502: Sentinel never got a response to interpret, so there is no host code to surface."""
+    raise HTTPException(status_code=502, detail={"code": "host_unreachable", "message": str(exc)})
 
 
 # ── Host CRUD ──────────────────────────────────────────────────────────────────
 
 
-@router.get("", response_model=list[SentryHostOut])
-async def list_hosts(db: AsyncSession = Depends(get_db)) -> list[SentryHostOut]:
-    """List every Sentry host Sentinel knows about."""
-    hosts = (await db.execute(select(SentryHost).order_by(SentryHost.id))).scalars().all()
+@router.get("", response_model=list[RemoteSdrHostOut])
+async def list_hosts(db: AsyncSession = Depends(get_db)) -> list[RemoteSdrHostOut]:
+    """List every SDR host Sentinel knows about."""
+    hosts = (await db.execute(select(RemoteSdrHost).order_by(RemoteSdrHost.id))).scalars().all()
     return [_host_to_out(host) for host in hosts]
 
 
-@router.post("", response_model=SentryHostOut, status_code=201)
-async def create_host(body: SentryHostIn, db: AsyncSession = Depends(get_db)) -> SentryHostOut:
-    """Register a new Sentry host and, if enabled, start polling it immediately."""
+@router.post("", response_model=RemoteSdrHostOut, status_code=201)
+async def create_host(body: RemoteSdrHostIn, db: AsyncSession = Depends(get_db)) -> RemoteSdrHostOut:
+    """Register a new SDR host and, if enabled, start polling it immediately."""
     existing = await db.execute(
-        select(SentryHost).where(SentryHost.address == body.address, SentryHost.port == body.port)
+        select(RemoteSdrHost).where(RemoteSdrHost.address == body.address, RemoteSdrHost.port == body.port)
     )
     if existing.scalar_one_or_none() is not None:
         raise HTTPException(
             status_code=409,
             detail={
                 "code": "host_conflict",
-                "message": "A Sentry host at this address and port is already registered.",
+                "message": "An SDR host at this address and port is already registered.",
             },
         )
-    host = SentryHost(
+    host = RemoteSdrHost(
         name=body.name,
         address=body.address,
         port=body.port,
@@ -463,13 +463,13 @@ async def create_host(body: SentryHostIn, db: AsyncSession = Depends(get_db)) ->
     await db.commit()
     await db.refresh(host)
     if host.enabled:
-        await fleet_poller.start_host(host.id)
+        await host_poller.start_host(host.id)
     return _host_to_out(host)
 
 
-@router.get("/locations", response_model=list[SentrySiteOut])
-async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[SentrySiteOut]:
-    """List every enabled Sentry host that reports a position, for plotting on the domain maps.
+@router.get("/locations", response_model=list[HostSiteOut])
+async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[HostSiteOut]:
+    """List every enabled SDR host that reports a position, for plotting on the domain maps.
 
     Reads only the fleet poller's cached export — never the network — because
     every domain map polls this while it is open: a round trip per host per poll
@@ -480,20 +480,20 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[Sentry
     Declared before `/{host_id}` on purpose: FastAPI matches routes in
     declaration order, so the reverse would parse "locations" as a host id.
     """
-    hosts = (await db.execute(select(SentryHost).order_by(SentryHost.id))).scalars().all()
-    sites: list[SentrySiteOut] = []
+    hosts = (await db.execute(select(RemoteSdrHost).order_by(RemoteSdrHost.id))).scalars().all()
+    sites: list[HostSiteOut] = []
     for host in hosts:
         if not host.enabled:
             continue
-        snapshot = fleet_poller.get_snapshot(host.id)
+        snapshot = host_poller.get_snapshot(host.id)
         source = _coerce_source(snapshot.export_payload if snapshot is not None else None)
         location = source.location if source is not None else None
         if location is None or location.latitude is None or location.longitude is None:
             continue
         sites.append(
-            SentrySiteOut(
+            HostSiteOut(
                 id=host.id,
-                # Sentry's own name for itself is the better label when Sentinel
+                # the host's own name for itself is the better label when Sentinel
                 # has not been given one — it is what the operator set on the Pi.
                 # `source` is never None here: the position came out of it.
                 name=host.name or source.name,
@@ -508,16 +508,16 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[Sentry
     return sites
 
 
-@router.get("/{host_id}", response_model=SentryHostOut)
-async def get_host(host_id: int, db: AsyncSession = Depends(get_db)) -> SentryHostOut:
-    """Return one Sentry host's record."""
+@router.get("/{host_id}", response_model=RemoteSdrHostOut)
+async def get_host(host_id: int, db: AsyncSession = Depends(get_db)) -> RemoteSdrHostOut:
+    """Return one SDR host's record."""
     host = await _get_host_or_404(host_id, db)
     return _host_to_out(host)
 
 
-@router.put("/{host_id}", response_model=SentryHostOut)
-async def update_host(host_id: int, body: SentryHostPatch, db: AsyncSession = Depends(get_db)) -> SentryHostOut:
-    """Update a Sentry host's connection details and/or enabled state.
+@router.put("/{host_id}", response_model=RemoteSdrHostOut)
+async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession = Depends(get_db)) -> RemoteSdrHostOut:
+    """Update an SDR host's connection details and/or enabled state.
 
     Restarts the poller (or starts/stops it as appropriate) so a changed
     address, port, token, or enabled flag takes effect immediately rather than
@@ -528,8 +528,8 @@ async def update_host(host_id: int, body: SentryHostPatch, db: AsyncSession = De
         new_address = body.address if body.address is not None else host.address
         new_port = body.port if body.port is not None else host.port
         conflict = await db.execute(
-            select(SentryHost).where(
-                SentryHost.address == new_address, SentryHost.port == new_port, SentryHost.id != host_id
+            select(RemoteSdrHost).where(
+                RemoteSdrHost.address == new_address, RemoteSdrHost.port == new_port, RemoteSdrHost.id != host_id
             )
         )
         if conflict.scalar_one_or_none() is not None:
@@ -537,7 +537,7 @@ async def update_host(host_id: int, body: SentryHostPatch, db: AsyncSession = De
                 status_code=409,
                 detail={
                     "code": "host_conflict",
-                    "message": "A Sentry host at this address and port is already registered.",
+                    "message": "An SDR host at this address and port is already registered.",
                 },
             )
         if (new_address, new_port) != (host.address, host.port) and body.auth_token is None:
@@ -559,17 +559,17 @@ async def update_host(host_id: int, body: SentryHostPatch, db: AsyncSession = De
     await db.commit()
     await db.refresh(host)
     if host.enabled:
-        await fleet_poller.restart_host(host.id)
+        await host_poller.restart_host(host.id)
     else:
-        await fleet_poller.stop_host(host.id)
+        await host_poller.stop_host(host.id)
     return _host_to_out(host)
 
 
 @router.delete("/{host_id}", status_code=204)
 async def delete_host(host_id: int, db: AsyncSession = Depends(get_db)) -> None:
-    """Forget a Sentry host. Does not affect the Pi itself — only Sentinel's record of it."""
+    """Forget an SDR host. Does not affect the Pi itself — only Sentinel's record of it."""
     host = await _get_host_or_404(host_id, db)
-    await fleet_poller.stop_host(host_id)
+    await host_poller.stop_host(host_id)
     await db.delete(host)
     await db.commit()
     return None
@@ -587,18 +587,18 @@ async def test_host(host_id: int, db: AsyncSession = Depends(get_db)) -> HealthP
     client = _client_for(host)
     try:
         response = await client.get_health()
-    except SentryUnreachableError as exc:
+    except SdrManagerUnreachableError as exc:
         return HealthProbeResult(reachable=False, detail=str(exc))
-    except SentryApiError as exc:
+    except SdrManagerApiError as exc:
         return HealthProbeResult(reachable=False, detail=f"{exc.code}: {exc.message}")
     return HealthProbeResult(reachable=True, detail="ok", api_version=response.api_version, health=response.data)
 
 
-def _coerce_source(export_payload: dict[str, Any] | None) -> SentrySourceOut | None:
+def _coerce_source(export_payload: dict[str, Any] | None) -> HostSourceOut | None:
     """Pull the `source` block out of a `/api/v1/sdrs` body, tolerating any shape.
 
     The export is a remote service's response, so nothing about it is
-    guaranteed: an older Sentry may omit `source` entirely, and a newer one may
+    guaranteed: an older host may omit `source` entirely, and a newer one may
     add keys. Anything unrecognised is dropped rather than allowed to fail the
     whole details read.
     """
@@ -607,13 +607,11 @@ def _coerce_source(export_payload: dict[str, Any] | None) -> SentrySourceOut | N
         return None
     raw_location = source.get("location")
     location = (
-        SentryLocationOut(
-            **{key: value for key, value in raw_location.items() if key in SentryLocationOut.model_fields}
-        )
+        HostLocationOut(**{key: value for key, value in raw_location.items() if key in HostLocationOut.model_fields})
         if isinstance(raw_location, dict)
         else None
     )
-    return SentrySourceOut(
+    return HostSourceOut(
         name=source.get("name") if isinstance(source.get("name"), str) else None,
         version=source.get("version") if isinstance(source.get("version"), str) else None,
         host=source.get("host") if isinstance(source.get("host"), str) else None,
@@ -622,9 +620,9 @@ def _coerce_source(export_payload: dict[str, Any] | None) -> SentrySourceOut | N
     )
 
 
-@router.get("/{host_id}/info", response_model=SentryHostInfoOut)
-async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> SentryHostInfoOut:
-    """Return every known detail of one Sentry host — record, telemetry, and live self-report.
+@router.get("/{host_id}/info", response_model=RemoteSdrHostInfoOut)
+async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> RemoteSdrHostInfoOut:
+    """Return every known detail of one SDR host — record, telemetry, and live self-report.
 
     Always 200. Reading a details view must not fail because the Pi is asleep,
     so an unreachable host answers with `reachable: false`, a human-readable
@@ -632,7 +630,7 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Sen
     """
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
-    snapshot = fleet_poller.get_snapshot(host.id)
+    snapshot = host_poller.get_snapshot(host.id)
 
     detail = "ok"
     health: dict[str, Any] | None = None
@@ -640,9 +638,9 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Sen
     reachable = False
     try:
         health_response = await client.get_health()
-    except SentryUnreachableError as exc:
+    except SdrManagerUnreachableError as exc:
         detail = str(exc)
-    except SentryApiError as exc:
+    except SdrManagerApiError as exc:
         detail = f"{exc.code}: {exc.message}"
     else:
         reachable = True
@@ -652,11 +650,11 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Sen
     export_payload: dict[str, Any] | None = None
     if reachable:
         # Only worth a second round trip once the host has answered at all —
-        # and a failure here (an older Sentry without the v1 export) leaves the
+        # and a failure here (an older host without the v1 export) leaves the
         # location blank rather than downgrading the host to unreachable.
         try:
             export_payload = (await client.get_sdr_export()).data
-        except (SentryUnreachableError, SentryApiError):
+        except (SdrManagerUnreachableError, SdrManagerApiError):
             export_payload = None
 
     source = _coerce_source(export_payload)
@@ -670,7 +668,7 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Sen
     base_fields["reachable"] = reachable
     if api_version is not None:
         base_fields["api_version"] = api_version
-    return SentryHostInfoOut(
+    return RemoteSdrHostInfoOut(
         **base_fields,
         detail=detail,
         last_polled_at=snapshot.last_polled_at if snapshot is not None else None,
@@ -689,13 +687,13 @@ async def get_host_info(host_id: int, db: AsyncSession = Depends(get_db)) -> Sen
 async def get_host_devices(host_id: int, db: AsyncSession = Depends(get_db)) -> DeviceSnapshotOut:
     """Return the fleet poller's cached `GET /api/status` snapshot for one host.
 
-    Served from memory, never a live round-trip, per ADR-0009: Sentinel's
+    Served from memory, never a live round-trip, by design: Sentinel's
     device list is a cache refreshed on a 2s poll, and this route surfaces
     exactly that cache plus its own reachability so a dead host still renders
     something instead of blocking the request.
     """
     await _get_host_or_404(host_id, db)
-    snapshot = fleet_poller.get_snapshot(host_id)
+    snapshot = host_poller.get_snapshot(host_id)
     if snapshot is None:
         return DeviceSnapshotOut(
             reachable=False, last_error=None, last_polled_at=None, last_success_at=None, api_version=None, status=None
@@ -712,7 +710,7 @@ async def get_host_devices(host_id: int, db: AsyncSession = Depends(get_db)) -> 
 
 @router.get("/{host_id}/devices/records")
 async def get_host_device_records(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Proxy `GET /api/devices` — Sentry's persisted device configuration.
+    """Proxy `GET /api/devices` — the host's persisted device configuration.
 
     Distinct from the cached snapshot above, and both are needed. `/api/status`
     returns `DeviceStatus`, which describes what a device is *doing* — present,
@@ -724,30 +722,30 @@ async def get_host_device_records(host_id: int, db: AsyncSession = Depends(get_d
 
     Live rather than cached: it is fetched when a form opens, not on a timer,
     and the operator is about to edit these values so they must be current. It
-    also carries Sentry's `port_suggestion` and `constraints`, which the port
+    also carries the host's `port_suggestion` and `constraints`, which the port
     field needs to suggest a free port rather than guess.
     """
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         response = await client.get_devices()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
 
-# ── Device proxy — writes go straight to Sentry, never reimplemented here ──────
+# ── Device proxy — writes go straight to the host, never reimplemented here ──────
 
 
 @router.patch("/{host_id}/devices/{device_id}")
 async def patch_host_device(
     host_id: int, device_id: str, patch: dict[str, Any], db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
-    """Proxy `PATCH /api/devices/{device_id}` to Sentry, propagating its response verbatim.
+    """Proxy `PATCH /api/devices/{device_id}` to the host, propagating its response verbatim.
 
-    The body is forwarded as-is: Sentry owns the full `DevicePatch` validation
+    The body is forwarded as-is: The host owns the full `DevicePatch` validation
     (bounds, enums, port allocation, name uniqueness) and its rejection code
     must reach the caller unchanged, so this router does not re-validate or
     reshape it beyond being valid JSON.
@@ -756,26 +754,26 @@ async def patch_host_device(
     client = _client_for(host)
     try:
         response = await client.patch_device(device_id, patch)
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
-    await fleet_poller.refresh_now(host_id)
+    await host_poller.refresh_now(host_id)
     return JSONResponse(response.data)
 
 
 @router.delete("/{host_id}/devices/{device_id}", status_code=204)
 async def delete_host_device(host_id: int, device_id: str, db: AsyncSession = Depends(get_db)) -> Response:
-    """Proxy `DELETE /api/devices/{device_id}` — removes Sentry's persisted config for that device."""
+    """Proxy `DELETE /api/devices/{device_id}` — removes the host's persisted config for that device."""
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         await client.delete_device(device_id)
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
-    await fleet_poller.refresh_now(host_id)
+    await host_poller.refresh_now(host_id)
     return Response(status_code=204)
 
 
@@ -783,16 +781,16 @@ async def delete_host_device(host_id: int, device_id: str, db: AsyncSession = De
 async def flash_host_device_serial(
     host_id: int, device_id: str, body: SerialFlashIn, db: AsyncSession = Depends(get_db)
 ) -> JSONResponse:
-    """Proxy `POST /api/devices/{device_id}/serial` — begins Sentry's guarded EEPROM flash."""
+    """Proxy `POST /api/devices/{device_id}/serial` — begins the host's guarded EEPROM flash."""
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         response = await client.flash_serial(device_id, body.serial)
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
-    await fleet_poller.refresh_now(host_id)
+    await host_poller.refresh_now(host_id)
     return JSONResponse(response.data, status_code=202)
 
 
@@ -801,28 +799,28 @@ async def flash_host_device_serial(
 
 @router.get("/{host_id}/wifi")
 async def get_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Proxy `GET /api/hotspot` — Sentry's response never includes the passphrase."""
+    """Proxy `GET /api/hotspot` — the host's response never includes the passphrase."""
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         response = await client.get_hotspot()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
 
 @router.put("/{host_id}/wifi")
 async def put_host_wifi(host_id: int, body: WifiConfigIn, db: AsyncSession = Depends(get_db)) -> JSONResponse:
-    """Proxy `PUT /api/hotspot` — a full replace, matching Sentry's own semantics."""
+    """Proxy `PUT /api/hotspot` — a full replace, matching the host's own semantics."""
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         response = await client.put_hotspot(body.model_dump())
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
@@ -834,9 +832,9 @@ async def delete_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> 
     client = _client_for(host)
     try:
         await client.delete_hotspot()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return Response(status_code=204)
 
@@ -845,16 +843,16 @@ async def delete_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> 
 async def enable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `POST /api/hotspot/enable` — brings the hotspot up provisionally.
 
-    Sentry rolls this back unless `POST .../wifi/confirm` arrives within its
+    The host rolls this back unless `POST .../wifi/confirm` arrives within its
     own timeout; Sentinel never calls confirm automatically (see that route).
     """
     host = await _get_host_or_404(host_id, db)
     client = _client_for(host)
     try:
         response = await client.enable_hotspot(body.confirm_uplink_loss)
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
@@ -866,9 +864,9 @@ async def disable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSessi
     client = _client_for(host)
     try:
         response = await client.disable_hotspot(body.confirm_uplink_loss)
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
@@ -877,7 +875,7 @@ async def disable_host_wifi(host_id: int, body: WifiActivationIn, db: AsyncSessi
 async def confirm_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) -> JSONResponse:
     """Proxy `POST /api/hotspot/confirm`.
 
-    Safety-critical (ADR-0009 / Sentry ADR-0007): this route must only ever be
+    Safety-critical (Sentry ADR-0007, carried into sdr-manager-local): this route must only ever be
     reached by an explicit operator action in the UI — never invoked
     automatically after `enable`, and never called speculatively by this
     backend on the operator's behalf.
@@ -886,9 +884,9 @@ async def confirm_host_wifi(host_id: int, db: AsyncSession = Depends(get_db)) ->
     client = _client_for(host)
     try:
         response = await client.confirm_hotspot()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
@@ -900,9 +898,9 @@ async def list_host_wifi_interfaces(host_id: int, db: AsyncSession = Depends(get
     client = _client_for(host)
     try:
         response = await client.get_hotspot_interfaces()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)
 
@@ -914,8 +912,8 @@ async def list_host_wifi_clients(host_id: int, db: AsyncSession = Depends(get_db
     client = _client_for(host)
     try:
         response = await client.get_hotspot_clients()
-    except SentryApiError as exc:
-        _raise_for_sentry_error(exc)
-    except SentryUnreachableError as exc:
+    except SdrManagerApiError as exc:
+        _raise_for_host_error(exc)
+    except SdrManagerUnreachableError as exc:
         _raise_for_unreachable(exc)
     return JSONResponse(response.data)

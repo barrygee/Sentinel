@@ -1,4 +1,4 @@
-"""The test suite's app: core plus every section, the radio hub and the docs service, in one process.
+"""The test suite's app: core plus every section, the radio hub, the docs service and sdr-manager-remote, in one process.
 
 No deployment runs this. `docker compose up` runs core (`backend.main`) and
 each section and the hub as a service of its own behind the gateway. The
@@ -26,9 +26,10 @@ from sentinel_radio.routers import decoders as radio_decoders_router
 from sentinel_radio.routers import iq_captures as radio_iq_captures_router
 from sentinel_radio.routers import radio_control as radio_control_router
 from sentinel_radio.routers import radios as radio_radios_router
-from sentinel_radio.routers import sentry as radio_sentry_router
 from sentinel_sdr import module as sdr_module
 from sentinel_sdr import router as sdr_router
+from sentinel_sdr_manager_remote import module as sdr_manager_remote_module
+from sentinel_sdr_manager_remote.routers import hosts as sdr_manager_remote_hosts_router
 from sentinel_sea import module as sea_module
 from sentinel_sea import router as sea_router
 from sentinel_space import module as space_module
@@ -54,8 +55,8 @@ from backend.routers import settings as settings_router
 #   prepare: core (schema, migrations, settings seed) → sdr (frequency +
 #            band-plan seed) → space (its tables, satellite radio backfill) → …
 #   start:   bus (NATS, when configured) → core (config file sync, offline
-#            maps) → radio hub (resumed APRS/AIS decode, Sentry poller) →
-#            land → sea → air (squawk watcher; it asks the hub where the
+#            maps) → radio hub (resumed APRS/AIS decode) → sdr-manager-remote
+#            (host poller) → land → sea → air (squawk watcher; it asks the hub where the
 #            receiver is)
 #   stop:    the reverse.
 IN_PROCESS_LIFECYCLES: tuple[ModuleLifecycle, ...] = (
@@ -63,6 +64,7 @@ IN_PROCESS_LIFECYCLES: tuple[ModuleLifecycle, ...] = (
     sdr_module.lifecycle,
     space_module.lifecycle,
     radio_module.lifecycle,
+    sdr_manager_remote_module.lifecycle,
     land_module.lifecycle,
     sea_module.lifecycle,
     air_module.lifecycle,
@@ -77,6 +79,7 @@ IN_PROCESS_MANIFESTS: tuple[ServiceManifest, ...] = (
     sdr_module.manifest,
     radio_module.manifest,
     docs_module.manifest,
+    sdr_manager_remote_module.manifest,
 )
 
 
@@ -101,7 +104,6 @@ def in_process_routers() -> list[APIRouter]:
         radio_control_router.router,
         radio_decode_router.router,
         radio_decoders_router.router,
-        radio_sentry_router.router,
         radio_iq_captures_router.router,
         # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
         adsb_source_router.router,
@@ -113,6 +115,8 @@ def in_process_routers() -> list[APIRouter]:
         settings_secrets.router,
         # The in-app documentation (its own `docs` service in a deployment).
         docs_router.router,
+        # The remote SDR hosts (its own `sdr-manager-remote` service in a deployment).
+        sdr_manager_remote_hosts_router.router,
     ]
 
 

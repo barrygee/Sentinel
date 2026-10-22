@@ -90,7 +90,7 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
     # Checked before dialling: a mirrored radio whose device has been unplugged
     # or replugged elsewhere would otherwise fail as a bare connection refusal,
     # which tells the operator nothing about what to do.
-    available, reason = radio_registry.device_availability(radio)
+    available, reason = await radio_registry.device_availability(radio)
     if not available:
         raise HTTPException(
             503,

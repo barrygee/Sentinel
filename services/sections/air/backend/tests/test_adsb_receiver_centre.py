@@ -8,10 +8,10 @@ Where the ADS-B query is centred (owner's rule, 2026-10-05):
     operator's own receiver, which only hears what is around it, so a
     map-centred area hid its aircraft once the map was panned away.
 
-Covers the hub's ``hub.sentry.host.location`` reply (sentinel_radio/services/
-sentry_reservations.py), Air's ``adsb_source.receiver_location`` and the swap in
+Covers sdr-manager-remote's ``sdr-manager.remote.host.location`` reply
+(sentinel_sdr_manager_remote/services/reservations.py), Air's ``adsb_source.receiver_location`` and the swap in
 ``GET /api/air/adsb/point/{lat}/{lon}/{radius}`` (backend/routers/air.py). The
-upstream fetch is replaced by a recorder, and the Sentry fleet snapshot by a stub.
+upstream fetch is replaced by a recorder, and the host poller's snapshot by a stub.
 """
 
 from __future__ import annotations
@@ -21,14 +21,14 @@ from types import SimpleNamespace
 import pytest
 from backend.db_helpers import upsert_setting
 from backend.platform.bus import bus
-from sentinel_radio.services import sentry_reservations
+from sentinel_sdr_manager_remote.services import reservations
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from sentinel_air.services import adsb as adsb_service
 from sentinel_air.services import adsb_source
 
-RECEIVER = (54.951186, -1.532995)  # the Sentry host's reported position
+RECEIVER = (54.951186, -1.532995)  # the SDR host's reported position
 SOURCE = {"sentry_host_id": 1, "sentry_device_id": "usb:1-1.1"}
 
 
@@ -38,18 +38,18 @@ def _snapshot_with(location):
 
 @pytest.fixture()
 def snapshots(monkeypatch) -> dict:
-    """host id → snapshot the fake fleet poller returns (absent = never polled)."""
+    """host id → snapshot the fake host poller returns (absent = never polled)."""
     by_host: dict = {1: _snapshot_with({"latitude": RECEIVER[0], "longitude": RECEIVER[1]})}
-    monkeypatch.setattr(sentry_reservations.fleet_poller, "get_snapshot", by_host.get)
+    monkeypatch.setattr(reservations.host_poller, "get_snapshot", by_host.get)
     return by_host
 
 
-# ── the hub's reply ──────────────────────────────────────────────────────────
+# ── sdr-manager-remote's reply ──────────────────────────────────────────────────────────
 
 
 class TestHostLocationReply:
     async def test_reports_the_hosts_position(self, snapshots):
-        reply = await bus.request(sentry_reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
+        reply = await bus.request(reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
         assert reply == {
             "ok": True,
             "found": True,
@@ -59,7 +59,7 @@ class TestHostLocationReply:
 
     async def test_integer_coordinates_are_returned_as_floats(self, snapshots):
         snapshots[1] = _snapshot_with({"latitude": 55, "longitude": -2})
-        reply = await bus.request(sentry_reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
+        reply = await bus.request(reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
         assert (reply["latitude"], reply["longitude"]) == (55.0, -2.0)
         assert isinstance(reply["latitude"], float)
 
@@ -78,12 +78,12 @@ class TestHostLocationReply:
     )
     async def test_anything_but_a_valid_position_is_not_found(self, snapshots, snapshot):
         snapshots[1] = snapshot
-        reply = await bus.request(sentry_reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
+        reply = await bus.request(reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
         assert reply == {"ok": True, "found": False}
 
     async def test_the_extreme_valid_positions_are_found(self, snapshots):
         snapshots[1] = _snapshot_with({"latitude": -90, "longitude": 180})
-        reply = await bus.request(sentry_reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
+        reply = await bus.request(reservations.HOST_LOCATION_SUBJECT, {"db": None, "host_id": 1})
         assert reply["found"] is True
 
 

@@ -84,6 +84,7 @@ COPY backend/pyproject.toml backend/uv.lock ./backend/
 # The lock check reads each section package's (and the radio hub's and docs service's) metadata from its pyproject.toml.
 COPY services/radio/backend/pyproject.toml ./services/radio/backend/
 COPY services/docs/backend/pyproject.toml ./services/docs/backend/
+COPY services/sdr-manager-remote/backend/pyproject.toml ./services/sdr-manager-remote/backend/
 # sdr-manager-local runs from its own image (services/sdr-manager-local/Dockerfile);
 # only its metadata is here, for the lock check, and it is never installed.
 COPY services/sdr-manager-local/backend/pyproject.toml ./services/sdr-manager-local/backend/
@@ -105,11 +106,13 @@ ENV PATH="/app/.venv/bin:${PATH}"
 # (backend/data/sentinel_config.json) when no bind mount replaces it.
 COPY --chown=sentinel:sentinel backend/ ./backend/
 # Each section's backend package (services/sections/<id>/backend) and the
-# radio hub's (services/radio/backend) and the docs service's (services/docs/backend),
+# radio hub's (services/radio/backend), the docs service's (services/docs/backend) and
+# sdr-manager-remote's (services/sdr-manager-remote/backend),
 # installed editable into the venv like in a checkout. Only the backend folders: the
 # frontend packages are compiled into spa-dist by the stage above.
 COPY --chown=sentinel:sentinel services/radio/backend/ ./services/radio/backend/
 COPY --chown=sentinel:sentinel services/docs/backend/ ./services/docs/backend/
+COPY --chown=sentinel:sentinel services/sdr-manager-remote/backend/ ./services/sdr-manager-remote/backend/
 COPY --chown=sentinel:sentinel services/sections/air/backend/ ./services/sections/air/backend/
 COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
 COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/sections/sdr/backend/

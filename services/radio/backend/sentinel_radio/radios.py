@@ -12,15 +12,31 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
+from typing import Any
 
+from backend.platform.bus import bus
 from backend.platform.settings_client import read_setting, write_setting
 from fastapi import WebSocket
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_radio.services import sdr as sdr_svc
-from sentinel_radio.services.sentry_fleet import fleet_poller
 
 logger = logging.getLogger(__name__)
+
+HOSTS_SNAPSHOT_SUBJECT = "sdr-manager.remote.hosts.snapshot"
+"""sdr-manager-remote's reply: every polled SDR host's reachability and devices."""
+
+HOSTS_SNAPSHOT_TTL_S = 5.0
+"""How long one snapshot answers every radio listing — the host poll itself runs every 2 s."""
+
+HOSTS_SNAPSHOT_TIMEOUT_S = 2.0
+"""A radio listing waits no longer than this for sdr-manager-remote before reporting availability unknown."""
+
+UNKNOWN_AVAILABILITY_REASON = "Its SDR host's status is unknown: SDR Manager is not answering."
+
+# (monotonic time fetched, hosts keyed by str(host_id) — or None when nobody answered).
+_hosts_snapshot_cache: tuple[float, dict[str, Any] | None] | None = None
 
 
 async def get_radios(db: AsyncSession) -> list[dict]:
@@ -39,36 +55,72 @@ def get_radio_by_id(radios: list[dict], radio_id: int) -> dict | None:
     return next((r for r in radios if r.get("id") == radio_id), None)
 
 
-def device_availability(radio: dict) -> tuple[bool, str]:
-    """Whether a Sentry-mirrored radio's device is currently there.
+async def _hosts_snapshot() -> dict[str, Any] | None:
+    """The SDR hosts' live status from sdr-manager-remote, cached for `HOSTS_SNAPSHOT_TTL_S`.
 
-    A radio created from a Sentry device is a mirror, and the device can be
-    unplugged, disabled or made private at any moment. Reporting that here is
-    what lets the UI grey the radio out instead of offering a connection that
-    can only fail — and what turns the old bare socket error into a sentence
-    naming the actual reason.
+    None when sdr-manager-remote isn't deployed, doesn't answer in time or
+    answers with something unusable. Cached either way, so a missing service
+    costs one short wait per TTL rather than one per listing.
+    """
+    global _hosts_snapshot_cache
+    now = time.monotonic()
+    if _hosts_snapshot_cache is not None and now - _hosts_snapshot_cache[0] < HOSTS_SNAPSHOT_TTL_S:
+        return _hosts_snapshot_cache[1]
+    hosts: dict[str, Any] | None = None
+    try:
+        reply = await bus.request(HOSTS_SNAPSHOT_SUBJECT, {}, timeout=HOSTS_SNAPSHOT_TIMEOUT_S)
+    except (LookupError, TimeoutError, RuntimeError) as error:
+        # No responder, no reply in time, or the responder failed (NATS
+        # surfaces that as a RuntimeError subclass): availability is unknown.
+        logger.debug("No SDR host snapshot from sdr-manager-remote: %s", error)
+    else:
+        if isinstance(reply, dict) and reply.get("ok") and isinstance(reply.get("hosts"), dict):
+            hosts = reply["hosts"]
+    _hosts_snapshot_cache = (now, hosts)
+    return hosts
 
-    A manually-entered radio has no Sentry device behind it and is always
+
+def forget_hosts_snapshot() -> None:
+    """Drop the cached SDR host snapshot, so the next listing asks again (tests)."""
+    global _hosts_snapshot_cache
+    _hosts_snapshot_cache = None
+
+
+async def device_availability(radio: dict) -> tuple[bool, str]:
+    """Whether an SDR-host-mirrored radio's device is currently there.
+
+    A radio created from an SDR host's device is a mirror, and the device can
+    be unplugged, disabled or made private at any moment. Reporting that here
+    is what lets the UI grey the radio out instead of offering a connection
+    that can only fail — and what turns the old bare socket error into a
+    sentence naming the actual reason.
+
+    A manually-entered radio has no SDR host device behind it and is always
     reported available: nothing here knows any better than the operator did.
+    Neither is a mirrored radio greyed out when sdr-manager-remote can't say:
+    the hub fails open rather than blocking a radio that may well work.
     """
     host_id = radio.get("sentry_host_id")
     device_id = radio.get("sentry_device_id")
     if not isinstance(host_id, int) or not isinstance(device_id, str):
         return True, ""
 
-    snapshot = fleet_poller.get_snapshot(host_id)
-    if snapshot is None or not snapshot.reachable:
-        return False, "Its Sentry host is not reachable."
+    hosts = await _hosts_snapshot()
+    if hosts is None:
+        return True, UNKNOWN_AVAILABILITY_REASON
+    host = hosts.get(str(host_id))
+    if not isinstance(host, dict) or not host.get("reachable"):
+        return False, "Its SDR host is not reachable."
 
-    for device in (snapshot.status_payload or {}).get("sdrs", []):
-        if device.get("device_id") != device_id:
+    for device in host.get("sdrs") or []:
+        if not isinstance(device, dict) or device.get("device_id") != device_id:
             continue
         if not device.get("present"):
             return False, "The dongle is unplugged."
         if not device.get("enabled"):
-            return False, "The device is disabled on its Sentry."
+            return False, "The device is disabled on its SDR host."
         if (device.get("output") or {}).get("iq_port") is None:
-            return False, "Sentry has not assigned this device an output port."
+            return False, "Its SDR host has not assigned this device an output port."
         return True, ""
 
     # Known host, live snapshot, no such device: the dongle it mirrors is gone —

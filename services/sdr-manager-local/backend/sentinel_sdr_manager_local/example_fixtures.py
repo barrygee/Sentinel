@@ -121,7 +121,7 @@ EXAMPLE_HEALTH_RESPONSE = HealthResponse(
 )
 
 EXAMPLE_SDR_EXPORT_ITEM = SdrExportItem(
-    sentry_device_id=EXAMPLE_DEVICE_ID,
+    sdr_manager_device_id=EXAMPLE_DEVICE_ID,
     name="ADSB SDR",
     host="192.168.1.45",
     port=1234,
@@ -138,5 +138,5 @@ EXAMPLE_SDR_EXPORT_ITEM = SdrExportItem(
 )
 
 EXAMPLE_SDR_EXPORT_SOURCE = SdrExportSource(
-    name="sentry", version=SDR_MANAGER_LOCAL_VERSION, host="192.168.1.45", http_port=8000
+    name="sdr-manager", version=SDR_MANAGER_LOCAL_VERSION, host="192.168.1.45", http_port=8000
 )

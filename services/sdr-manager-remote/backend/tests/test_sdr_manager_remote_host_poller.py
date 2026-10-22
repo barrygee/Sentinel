@@ -1,10 +1,10 @@
-"""Tests for sentinel_radio.services.sentry_fleet — the per-Sentry-host background
+"""Tests for sentinel_sdr_manager_remote.services.host_poller — the per-Sentry-host background
 poller that caches each enabled host's live device status (ADR-0009).
 
 `AsyncSessionLocal` (imported directly by this module, not via `get_db`) is
 redirected at a per-test in-memory engine, matching the pattern already used
 by `test_aprs_store.py`/`test_routers_aprs.py` for other modules with the same
-self-opened-session shape. `SentryClient` itself is faked for most tests (per
+self-opened-session shape. `SdrManagerClient` itself is faked for most tests (per
 the task's "drive it with a fake/patched client" guidance); one test uses the
 real client over an httpx.MockTransport to prove the auth token never reaches
 a log record even through the genuine error-formatting path.
@@ -25,18 +25,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from sentinel_radio.models import SentryHost  # noqa: F401 — register the ORM model with Base
-from sentinel_radio.services import sentry_fleet
-from sentinel_radio.services.sentry_client import (
-    SentryApiError,
-    SentryResponse,
-    SentryUnreachableError,
+from sentinel_sdr_manager_remote.models import RemoteSdrHost  # noqa: F401 — register the ORM model with Base
+from sentinel_sdr_manager_remote.services import host_poller as poller_module
+from sentinel_sdr_manager_remote.services.sdr_manager_client import (
+    SdrManagerApiError,
+    SdrManagerResponse,
+    SdrManagerUnreachableError,
 )
 
 
 @pytest.fixture()
 async def session_factory(monkeypatch):
-    """Per-test in-memory DB; redirect sentry_fleet's AsyncSessionLocal at it."""
+    """Per-test in-memory DB; redirect poller_module's AsyncSessionLocal at it."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
@@ -45,7 +45,7 @@ async def session_factory(monkeypatch):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     factory = sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
-    monkeypatch.setattr(sentry_fleet, "AsyncSessionLocal", factory)
+    monkeypatch.setattr(poller_module, "AsyncSessionLocal", factory)
     yield factory
     await engine.dispose()
 
@@ -61,20 +61,20 @@ async def _create_host(session_factory, **overrides) -> int:
     )
     defaults.update(overrides)
     async with session_factory() as session:
-        host = SentryHost(**defaults)
+        host = RemoteSdrHost(**defaults)
         session.add(host)
         await session.commit()
         await session.refresh(host)
         return host.id
 
 
-async def _reload_host(session_factory, host_id: int) -> SentryHost:
+async def _reload_host(session_factory, host_id: int) -> RemoteSdrHost:
     async with session_factory() as session:
-        return await session.get(SentryHost, host_id)
+        return await session.get(RemoteSdrHost, host_id)
 
 
 def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
-    """A SentryClient stand-in whose get_status() yields `outcomes` in order
+    """A SdrManagerClient stand-in whose get_status() yields `outcomes` in order
     (repeating the last entry), raising anything that is an Exception.
 
     get_sdr_export() behaves the same way over `export_outcomes`, and records
@@ -82,9 +82,9 @@ def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
     rate-limited position refresh can be asserted.
     """
     state = {"count": 0, "export_count": 0}
-    exports = export_outcomes if export_outcomes is not None else [SentryResponse(data={}, api_version=None)]
+    exports = export_outcomes if export_outcomes is not None else [SdrManagerResponse(data={}, api_version=None)]
 
-    class _FakeSentryClient:
+    class _FakeSdrManagerClient:
         calls = state
 
         def __init__(self, address, port, auth_token) -> None:
@@ -92,7 +92,7 @@ def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
             self.port = port
             self.auth_token = auth_token
 
-        async def get_status(self) -> SentryResponse:
+        async def get_status(self) -> SdrManagerResponse:
             index = min(state["count"], len(outcomes) - 1)
             state["count"] += 1
             outcome = outcomes[index]
@@ -100,7 +100,7 @@ def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
                 raise outcome
             return outcome
 
-        async def get_sdr_export(self) -> SentryResponse:
+        async def get_sdr_export(self) -> SdrManagerResponse:
             index = min(state["export_count"], len(exports) - 1)
             state["export_count"] += 1
             outcome = exports[index]
@@ -108,15 +108,15 @@ def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
                 raise outcome
             return outcome
 
-    return _FakeSentryClient
+    return _FakeSdrManagerClient
 
 
-def _status_ok() -> SentryResponse:
-    return SentryResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0")
+def _status_ok() -> SdrManagerResponse:
+    return SdrManagerResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0")
 
 
-def _export_with_location(latitude: float = 51.5) -> SentryResponse:
-    return SentryResponse(
+def _export_with_location(latitude: float = 51.5) -> SdrManagerResponse:
+    return SdrManagerResponse(
         data={
             "source": {
                 "name": "sentry-roof",
@@ -133,8 +133,8 @@ def _export_with_location(latitude: float = 51.5) -> SentryResponse:
 async def test_poll_caches_the_hosts_self_reported_position(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location()])
-    monkeypatch.setattr(sentry_fleet, "SentryClient", client_class)
-    poller = sentry_fleet.SentryFleetPoller()
+    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    poller = poller_module.HostPoller()
 
     await poller._poll_once(host_id)
 
@@ -148,8 +148,8 @@ async def test_position_is_not_refetched_within_the_refresh_window(session_facto
     """The status poll runs every couple of seconds; the position must not."""
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location()])
-    monkeypatch.setattr(sentry_fleet, "SentryClient", client_class)
-    poller = sentry_fleet.SentryFleetPoller()
+    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    poller = poller_module.HostPoller()
 
     await poller._poll_once(host_id)
     await poller._poll_once(host_id)
@@ -162,17 +162,17 @@ async def test_position_is_not_refetched_within_the_refresh_window(session_facto
 async def test_position_is_refetched_once_the_window_has_elapsed(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location(51.5), _export_with_location(52.5)])
-    monkeypatch.setattr(sentry_fleet, "SentryClient", client_class)
-    poller = sentry_fleet.SentryFleetPoller()
+    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    poller = poller_module.HostPoller()
 
     now = time.time()
-    monkeypatch.setattr(sentry_fleet.time, "time", lambda: now)
+    monkeypatch.setattr(poller_module.time, "time", lambda: now)
     await poller._poll_once(host_id)
     # Move past the refresh interval; the next poll reads the position again.
     monkeypatch.setattr(
-        sentry_fleet.time,
+        poller_module.time,
         "time",
-        lambda: now + sentry_fleet.settings.sentry_location_refresh_s + 1,
+        lambda: now + poller_module.get_settings().location_refresh_s + 1,
     )
     await poller._poll_once(host_id)
 
@@ -184,22 +184,22 @@ async def test_position_is_refetched_once_the_window_has_elapsed(session_factory
 @pytest.mark.parametrize(
     "failure",
     [
-        SentryUnreachableError("connection refused"),
-        SentryApiError(404, "not_found", "No such endpoint."),
+        SdrManagerUnreachableError("connection refused"),
+        SdrManagerApiError(404, "not_found", "No such endpoint."),
     ],
 )
 async def test_a_failed_position_read_keeps_the_last_one_and_does_not_hammer(session_factory, monkeypatch, failure):
     """An older Sentry without the versioned export must not be retried every poll."""
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location(), failure])
-    monkeypatch.setattr(sentry_fleet, "SentryClient", client_class)
-    poller = sentry_fleet.SentryFleetPoller()
+    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    poller = poller_module.HostPoller()
 
     now = time.time()
-    monkeypatch.setattr(sentry_fleet.time, "time", lambda: now)
+    monkeypatch.setattr(poller_module.time, "time", lambda: now)
     await poller._poll_once(host_id)
-    later = now + sentry_fleet.settings.sentry_location_refresh_s + 1
-    monkeypatch.setattr(sentry_fleet.time, "time", lambda: later)
+    later = now + poller_module.get_settings().location_refresh_s + 1
+    monkeypatch.setattr(poller_module.time, "time", lambda: later)
     ok = await poller._poll_once(host_id)
 
     assert ok is True  # a position that cannot be read is not a poll failure
@@ -212,25 +212,25 @@ async def test_a_failed_position_read_keeps_the_last_one_and_does_not_hammer(ses
 async def test_an_unexpected_error_reading_the_position_is_caught_and_logged(session_factory, monkeypatch, caplog):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_ok()], [ValueError("boom")]),
     )
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     with caplog.at_level(logging.ERROR):
         ok = await poller._poll_once(host_id)
 
     assert ok is True  # the loop keeping device state fresh survives
     assert poller.get_snapshot(host_id).export_payload is None
-    assert "Unexpected error reading the Sentry export" in caplog.text
+    assert "Unexpected error reading the SDR export" in caplog.text
 
 
 async def test_no_position_read_when_the_status_poll_itself_failed(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
-    client_class = _fake_client_class([SentryUnreachableError("down")], [_export_with_location()])
-    monkeypatch.setattr(sentry_fleet, "SentryClient", client_class)
-    poller = sentry_fleet.SentryFleetPoller()
+    client_class = _fake_client_class([SdrManagerUnreachableError("down")], [_export_with_location()])
+    monkeypatch.setattr(poller_module, "SdrManagerClient", client_class)
+    poller = poller_module.HostPoller()
 
     ok = await poller._poll_once(host_id)
 
@@ -245,11 +245,11 @@ async def test_no_position_read_when_the_status_poll_itself_failed(session_facto
 async def test_poll_once_success_updates_snapshot_and_persists_last_seen_at(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
-        _fake_client_class([SentryResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0")]),
+        poller_module,
+        "SdrManagerClient",
+        _fake_client_class([SdrManagerResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0")]),
     )
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     ok = await poller._poll_once(host_id)
 
@@ -269,16 +269,16 @@ async def test_poll_once_success_updates_snapshot_and_persists_last_seen_at(sess
 async def test_poll_once_unreachable_sets_last_error_without_touching_last_seen_at(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class(
             [
-                SentryResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0"),
-                SentryUnreachableError("Could not reach Sentry host 10.0.0.5:8000."),
+                SdrManagerResponse(data={"generated_at": 1, "sdrs": []}, api_version="1.0"),
+                SdrManagerUnreachableError("Could not reach SDR host 10.0.0.5:8000."),
             ]
         ),
     )
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     assert await poller._poll_once(host_id) is True
     successful_seen_at = (await _reload_host(session_factory, host_id)).last_seen_at
@@ -286,21 +286,21 @@ async def test_poll_once_unreachable_sets_last_error_without_touching_last_seen_
     assert await poller._poll_once(host_id) is False
     snapshot = poller.get_snapshot(host_id)
     assert snapshot.reachable is False
-    assert snapshot.last_error == "Could not reach Sentry host 10.0.0.5:8000."
+    assert snapshot.last_error == "Could not reach SDR host 10.0.0.5:8000."
 
     host_row = await _reload_host(session_factory, host_id)
     assert host_row.last_seen_at == successful_seen_at  # unchanged by the failed poll
-    assert host_row.last_error == "Could not reach Sentry host 10.0.0.5:8000."
+    assert host_row.last_error == "Could not reach SDR host 10.0.0.5:8000."
 
 
 async def test_poll_once_api_error_uses_code_and_message_as_last_error(session_factory, monkeypatch):
     host_id = await _create_host(session_factory)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
-        _fake_client_class([SentryApiError(500, "boom", "things broke")]),
+        poller_module,
+        "SdrManagerClient",
+        _fake_client_class([SdrManagerApiError(500, "boom", "things broke")]),
     )
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     assert await poller._poll_once(host_id) is False
     assert poller.get_snapshot(host_id).last_error == "boom: things broke"
@@ -310,22 +310,22 @@ async def test_poll_once_api_error_uses_code_and_message_as_last_error(session_f
 async def test_poll_once_unexpected_exception_is_caught_logged_and_treated_as_failure(
     session_factory, monkeypatch, caplog
 ):
-    caplog.set_level(logging.ERROR, logger="sentinel_radio.services.sentry_fleet")
+    caplog.set_level(logging.ERROR, logger="sentinel_sdr_manager_remote.services.host_poller")
     host_id = await _create_host(session_factory)
-    monkeypatch.setattr(sentry_fleet, "SentryClient", _fake_client_class([ValueError("boom")]))
-    poller = sentry_fleet.SentryFleetPoller()
+    monkeypatch.setattr(poller_module, "SdrManagerClient", _fake_client_class([ValueError("boom")]))
+    poller = poller_module.HostPoller()
 
     ok = await poller._poll_once(host_id)
 
     assert ok is False
     assert poller.get_snapshot(host_id).last_error == "Unexpected error while polling."
-    assert any("Unexpected error polling Sentry host" in record.getMessage() for record in caplog.records)
+    assert any("Unexpected error polling SDR host" in record.getMessage() for record in caplog.records)
 
 
 async def test_poll_once_returns_false_and_creates_no_snapshot_for_unknown_host(
     session_factory,
 ):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     assert await poller._poll_once(999999) is False
     assert poller.get_snapshot(999999) is None
 
@@ -334,7 +334,7 @@ async def test_poll_once_returns_false_and_creates_no_snapshot_for_disabled_host
     session_factory,
 ):
     host_id = await _create_host(session_factory, enabled=False)
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     assert await poller._poll_once(host_id) is False
     assert poller.get_snapshot(host_id) is None
 
@@ -343,12 +343,12 @@ async def test_poll_once_returns_false_and_creates_no_snapshot_for_disabled_host
 
 
 async def test_refresh_now_is_a_noop_when_host_has_no_running_poller():
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     await poller.refresh_now(123)  # must not raise
 
 
 async def test_refresh_now_sets_the_hosts_refresh_event():
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     poller._refresh_events[42] = asyncio.Event()
 
     await poller.refresh_now(42)
@@ -357,7 +357,7 @@ async def test_refresh_now_sets_the_hosts_refresh_event():
 
 
 async def test_refresh_now_triggers_an_immediate_poll(monkeypatch):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     poll_calls = {"count": 0}
 
     async def fake_poll_once(host_id: int) -> bool:
@@ -366,7 +366,7 @@ async def test_refresh_now_triggers_an_immediate_poll(monkeypatch):
 
     monkeypatch.setattr(poller, "_poll_once", fake_poll_once)
     # Long enough that only refresh_now (never the interval) can wake iteration 2.
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 10.0)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 10.0)
 
     await poller.start_host(1)
     await asyncio.sleep(0.05)
@@ -385,7 +385,7 @@ async def test_refresh_now_triggers_an_immediate_poll(monkeypatch):
 async def test_backoff_grows_on_repeated_failure_caps_and_resets_on_success(
     monkeypatch,
 ):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     # False, False, False, True, False, False — see gap arithmetic in the assertions.
     outcomes = [False, False, False, True, False, False]
     call_times: list[float] = []
@@ -395,9 +395,9 @@ async def test_backoff_grows_on_repeated_failure_caps_and_resets_on_success(
         return outcomes[min(len(call_times) - 1, len(outcomes) - 1)]
 
     monkeypatch.setattr(poller, "_poll_once", fake_poll_once)
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_backoff_start_s", 0.02)
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_backoff_max_s", 0.08)
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 0.05)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_backoff_start_s", 0.02)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_backoff_max_s", 0.08)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 0.05)
 
     await poller.start_host(1)
     await asyncio.sleep(0.02 + 0.08 + 0.08 + 0.05 + 0.04 + 0.3)  # generous margin past all 6 calls
@@ -423,9 +423,9 @@ async def test_backoff_grows_on_repeated_failure_caps_and_resets_on_success(
 
 
 async def test_start_host_is_idempotent_while_already_running(monkeypatch):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     monkeypatch.setattr(poller, "_poll_once", AsyncMock(return_value=True))
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 10.0)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 10.0)
 
     await poller.start_host(5)
     first_task = poller._tasks[5]
@@ -436,9 +436,9 @@ async def test_start_host_is_idempotent_while_already_running(monkeypatch):
 
 
 async def test_stop_host_cancels_task_and_clears_all_state(monkeypatch):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     monkeypatch.setattr(poller, "_poll_once", AsyncMock(return_value=True))
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 10.0)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 10.0)
 
     await poller.start_host(5)
     task = poller._tasks[5]
@@ -451,12 +451,12 @@ async def test_stop_host_cancels_task_and_clears_all_state(monkeypatch):
 
 
 async def test_stop_host_is_a_noop_for_a_host_with_no_running_poller():
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     await poller.stop_host(999)  # must not raise
 
 
 async def test_restart_host_stops_then_starts_in_order(monkeypatch):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     calls: list[tuple[str, int]] = []
 
     async def fake_stop(host_id: int) -> None:
@@ -477,9 +477,9 @@ async def test_start_all_starts_only_enabled_hosts(session_factory, monkeypatch)
     enabled_id = await _create_host(session_factory, address="10.0.0.1", enabled=True)
     disabled_id = await _create_host(session_factory, address="10.0.0.2", enabled=False)
 
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     monkeypatch.setattr(poller, "_poll_once", AsyncMock(return_value=True))
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 10.0)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 10.0)
 
     await poller.start_all()
 
@@ -490,9 +490,9 @@ async def test_start_all_starts_only_enabled_hosts(session_factory, monkeypatch)
 
 
 async def test_stop_all_cancels_every_running_task(monkeypatch):
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     monkeypatch.setattr(poller, "_poll_once", AsyncMock(return_value=True))
-    monkeypatch.setattr(sentry_fleet.settings, "sentry_poll_interval_s", 10.0)
+    monkeypatch.setattr(poller_module.get_settings(), "poll_interval_s", 10.0)
 
     await poller.start_host(1)
     await poller.start_host(2)
@@ -507,9 +507,9 @@ async def test_stop_all_cancels_every_running_task(monkeypatch):
 
 
 async def test_auth_token_never_appears_in_log_record_on_poll_failure(session_factory, monkeypatch, caplog):
-    """Uses the real SentryClient (over a MockTransport) so the failure message
+    """Uses the real SdrManagerClient (over a MockTransport) so the failure message
     is genuinely produced by the production error path, not a test double."""
-    caplog.set_level(logging.DEBUG, logger="sentinel_radio.services.sentry_fleet")
+    caplog.set_level(logging.DEBUG, logger="sentinel_sdr_manager_remote.services.host_poller")
     host_id = await _create_host(session_factory, auth_token="ULTRA-SECRET-TOKEN")
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -522,7 +522,7 @@ async def test_auth_token_never_appears_in_log_record_on_poll_failure(session_fa
 
     monkeypatch.setattr(httpx, "AsyncClient", _MockedAsyncClient)
 
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
     result = await poller._poll_once(host_id)
 
     assert result is False
@@ -537,7 +537,7 @@ async def test_auth_token_never_appears_in_log_record_on_poll_failure(session_fa
 
 
 async def test_consecutive_polls_sign_in_to_the_sentry_only_once(session_factory, monkeypatch):
-    """Each poll builds a fresh SentryClient; the session must outlive it, or every
+    """Each poll builds a fresh SdrManagerClient; the session must outlive it, or every
     poll is 401 → sign in → retry — a login against the Sentry every few seconds."""
     host_id = await _create_host(session_factory, auth_token="console-password")
     seen: list[str] = []
@@ -545,8 +545,8 @@ async def test_consecutive_polls_sign_in_to_the_sentry_only_once(session_factory
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request.url.path)
         if request.url.path == "/api/auth/login":
-            return httpx.Response(204, headers={"set-cookie": "sentry_session=granted; Path=/"})
-        if request.headers.get("Cookie") != "sentry_session=granted":
+            return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted; Path=/"})
+        if request.headers.get("Cookie") != "sdr_manager_session=granted":
             return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
         return httpx.Response(200, json={"generated_at": 1, "sdrs": []})
 
@@ -556,7 +556,7 @@ async def test_consecutive_polls_sign_in_to_the_sentry_only_once(session_factory
             super().__init__(*args, **kwargs)
 
     monkeypatch.setattr(httpx, "AsyncClient", _MockedAsyncClient)
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     assert await poller._poll_once(host_id) is True
     assert await poller._poll_once(host_id) is True
@@ -577,7 +577,7 @@ async def test_update_host_row_tolerates_the_host_being_deleted_mid_poll(
     record, and an exception here would kill the task rather than let it exit
     cleanly on the next cancellation.
     """
-    poller = sentry_fleet.SentryFleetPoller()
+    poller = poller_module.HostPoller()
 
     await poller._update_host_row(4242, last_seen_at=123, last_error=None)
 
@@ -615,8 +615,8 @@ async def _reload_radio(session_factory, radio_id: int) -> dict | None:
     return next((r for r in radios if r.get("id") == radio_id), None)
 
 
-def _status_with_device(device_id: str, iq_port: int) -> SentryResponse:
-    return SentryResponse(
+def _status_with_device(device_id: str, iq_port: int) -> SdrManagerResponse:
+    return SdrManagerResponse(
         data={
             "generated_at": 1,
             "sdrs": [
@@ -646,12 +646,12 @@ async def test_a_poll_repoints_a_radio_whose_device_moved_port(session_factory, 
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
 
-    await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    await poller_module.HostPoller()._poll_once(host_id)
 
     assert (await _reload_radio(session_factory, radio_id))["port"] == 4343
 
@@ -660,12 +660,12 @@ async def test_a_poll_leaves_an_already_correct_radio_alone(session_factory, mon
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=4343, host_id=host_id)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
 
-    await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    await poller_module.HostPoller()._poll_once(host_id)
 
     assert (await _reload_radio(session_factory, radio_id))["port"] == 4343
 
@@ -680,12 +680,12 @@ async def test_a_poll_never_deletes_a_radio_whose_device_vanished(session_factor
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:GONE", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("usb:1-1.4", 6565)]),
     )
 
-    await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    await poller_module.HostPoller()._poll_once(host_id)
 
     radio = await _reload_radio(session_factory, radio_id)
     assert radio is not None
@@ -698,14 +698,32 @@ async def test_a_poll_does_not_touch_another_hosts_radios(session_factory, monke
     host_id = await _create_host(session_factory)
     other_radio = await _create_radio(session_factory, device_id="serial:AAA", port=1111, host_id=host_id + 99)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
 
-    await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+    await poller_module.HostPoller()._poll_once(host_id)
 
     assert (await _reload_radio(session_factory, other_radio))["port"] == 1111
+
+
+async def test_a_poll_leaves_a_malformed_radios_setting_alone(session_factory, monkeypatch):
+    # `sdr.radios` is hand-editable in the config file; a value that is not a
+    # list is not this poller's to repair, and must not be overwritten.
+    host_id = await _create_host(session_factory)
+    async with session_factory() as db:
+        await db_helpers.upsert_setting(db, "sdr", "radios", {"not": "a list"})
+    monkeypatch.setattr(
+        poller_module,
+        "SdrManagerClient",
+        _fake_client_class([_status_with_device("serial:AAA", 4343)]),
+    )
+
+    assert await poller_module.HostPoller()._poll_once(host_id) is True
+
+    async with session_factory() as db:
+        assert await db_helpers.get_setting(db, "sdr", "radios") == {"not": "a list"}
 
 
 async def test_a_port_follow_is_announced_like_a_settings_write(session_factory, monkeypatch):
@@ -717,14 +735,14 @@ async def test_a_port_follow_is_announced_like_a_settings_write(session_factory,
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:AAA", port=2345, host_id=host_id)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
     announced: list[dict] = []
     unsubscribe = bus.subscribe("settings.changed.sdr", announced.append)
     try:
-        await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+        await poller_module.HostPoller()._poll_once(host_id)
     finally:
         unsubscribe()
 
@@ -738,14 +756,14 @@ async def test_an_unchanged_poll_announces_nothing(session_factory, monkeypatch)
     host_id = await _create_host(session_factory)
     await _create_radio(session_factory, device_id="serial:AAA", port=4343, host_id=host_id)
     monkeypatch.setattr(
-        sentry_fleet,
-        "SentryClient",
+        poller_module,
+        "SdrManagerClient",
         _fake_client_class([_status_with_device("serial:AAA", 4343)]),
     )
     announced: list[dict] = []
     unsubscribe = bus.subscribe("settings.changed.sdr", announced.append)
     try:
-        await sentry_fleet.SentryFleetPoller()._poll_once(host_id)
+        await poller_module.HostPoller()._poll_once(host_id)
     finally:
         unsubscribe()
 

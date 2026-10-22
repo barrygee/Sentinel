@@ -57,7 +57,7 @@ describe('listSentryHosts', () => {
   it('returns the parsed hosts on success', async () => {
     mockFetch(() => ({ ok: true, json: () => Promise.resolve([sampleHost]) }))
     await expect(listSentryHosts()).resolves.toEqual([sampleHost])
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts', undefined)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts', undefined)
   })
 })
 
@@ -76,7 +76,7 @@ describe('listSentrySites', () => {
   it('returns the parsed sites on success', async () => {
     mockFetch(() => ({ ok: true, json: () => Promise.resolve([sampleSite]) }))
     await expect(listSentrySites()).resolves.toEqual([sampleSite])
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/locations', undefined)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/locations', undefined)
   })
 
   it('returns an empty list when no host reports a position', async () => {
@@ -103,7 +103,7 @@ describe('createSentryHost', () => {
   it('POSTs the body and returns the created host', async () => {
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(sampleHost) }))
     await expect(createSentryHost(sampleCreateInput)).resolves.toEqual(sampleHost)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts', {
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(sampleCreateInput),
@@ -115,7 +115,7 @@ describe('updateSentryHost', () => {
   it('PUTs the patch to the id endpoint and returns the updated host', async () => {
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(sampleHost) }))
     await expect(updateSentryHost(1, { enabled: false })).resolves.toEqual(sampleHost)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1', {
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/1', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: false }),
@@ -127,7 +127,9 @@ describe('deleteSentryHost', () => {
   it('issues a DELETE against the id endpoint', async () => {
     mockFetch(() => ({ ok: true, status: 204 }))
     await deleteSentryHost(1)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1', { method: 'DELETE' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/1', {
+      method: 'DELETE',
+    })
   })
 })
 
@@ -136,7 +138,9 @@ describe('testSentryHost', () => {
     const unreachable: SentryHealthProbeResult = { reachable: false, detail: 'timed out' }
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(unreachable) }))
     await expect(testSentryHost(1)).resolves.toEqual(unreachable)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/test', { method: 'POST' })
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/1/test', {
+      method: 'POST',
+    })
   })
 })
 
@@ -152,7 +156,7 @@ describe('getSentryHostDevices', () => {
     }
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(snapshot) }))
     await expect(getSentryHostDevices(1)).resolves.toEqual(snapshot)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/devices', undefined)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/1/devices', undefined)
   })
 })
 
@@ -186,7 +190,7 @@ describe('getSentryHostInfo', () => {
     } satisfies SentryHostInfo
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(info) }))
     await expect(getSentryHostInfo(1)).resolves.toEqual(info)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/info', undefined)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/1/info', undefined)
   })
 })
 
@@ -199,7 +203,10 @@ describe('getSentryDeviceRecords', () => {
     }
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(payload) }))
     await expect(getSentryDeviceRecords(1)).resolves.toEqual(payload)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/devices/records', undefined)
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/sdr-manager/remote/hosts/1/devices/records',
+      undefined,
+    )
   })
 })
 
@@ -226,11 +233,14 @@ describe('patchSentryDevice', () => {
     }
     mockFetch(() => ({ ok: true, json: () => Promise.resolve(record) }))
     await expect(patchSentryDevice(1, 'usb:1/2', { name: 'RTL 1' })).resolves.toEqual(record)
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/devices/usb%3A1%2F2', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'RTL 1' }),
-    })
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/sdr-manager/remote/hosts/1/devices/usb%3A1%2F2',
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'RTL 1' }),
+      },
+    )
   })
 })
 
@@ -238,9 +248,12 @@ describe('deleteSentryDevice', () => {
   it('issues a DELETE against the URL-encoded device id endpoint', async () => {
     mockFetch(() => ({ ok: true, status: 204 }))
     await deleteSentryDevice(1, 'usb:1/2')
-    expect(global.fetch).toHaveBeenCalledWith('/api/sdr/sentry-hosts/1/devices/usb%3A1%2F2', {
-      method: 'DELETE',
-    })
+    expect(global.fetch).toHaveBeenCalledWith(
+      '/api/sdr-manager/remote/hosts/1/devices/usb%3A1%2F2',
+      {
+        method: 'DELETE',
+      },
+    )
   })
 })
 
@@ -249,7 +262,7 @@ describe('flashSentryDeviceSerial', () => {
     mockFetch(() => ({ ok: true, json: () => Promise.resolve({}) }))
     await flashSentryDeviceSerial(1, 'usb:1/2', 'NEW-SERIAL')
     expect(global.fetch).toHaveBeenCalledWith(
-      '/api/sdr/sentry-hosts/1/devices/usb%3A1%2F2/serial',
+      '/api/sdr-manager/remote/hosts/1/devices/usb%3A1%2F2/serial',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -39,17 +39,20 @@ class SubjectPermissions:
 SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     CORE_USER: SubjectPermissions(publish=(EVERY_SUBJECT,), subscribe=(EVERY_SUBJECT,), answers_requests=True),
     # Owns the radios: answers every hub.* request, publishes what its
-    # decoders hear, and follows the APRS channel and decoder radio moves.
+    # decoders hear, follows the APRS channel and decoder radio moves, leaves
+    # a dongle claimed through sdr-manager-remote alone, and asks it which
+    # SDR host devices are there.
     "radio": SubjectPermissions(
         publish=("decode.>",),
-        subscribe=("hub.>", "settings.changed.land", "sdr.decode.radio-reassigned"),
+        subscribe=("hub.>", "settings.changed.land", "sdr.decode.radio-reassigned", "sdr-manager.claims.>"),
         answers_requests=True,
+        requests=("sdr-manager.remote.hosts.snapshot",),
     ),
-    # Squawk alerts to core; Sentry reservations and receiver locations from the hub.
+    # Squawk alerts to core; SDR host reservations and receiver locations from sdr-manager-remote.
     "air": SubjectPermissions(
         publish=("notifications.raise", "air.squawk.changed"),
         subscribe=("air.squawk.changed",),
-        requests=("hub.sentry.>",),
+        requests=("sdr-manager.remote.>",),
     ),
     # Off-grid vessels from the hub's AIS decoder, which it starts and stops.
     "sea": SubjectPermissions(
@@ -70,7 +73,8 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     "sdr-manager-local": SubjectPermissions(),
     # SDR hosts on other machines: answers the reservation, device-address,
     # host-location and host-snapshot requests, and tells the hub which
-    # dongles are claimed so it never retunes one.
+    # dongles are claimed so it never retunes one (a grant is a request the
+    # hub answers, so the hub lets go before the claim's retune goes out).
     "sdr-manager-remote": SubjectPermissions(
         publish=("sdr-manager.claims.>",),
         subscribe=("sdr-manager.remote.>",),
