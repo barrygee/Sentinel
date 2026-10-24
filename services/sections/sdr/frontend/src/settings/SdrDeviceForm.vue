@@ -169,7 +169,8 @@
  * set (ADR-0009):
  * - A manual radio (`sentry_host_id === null`) edits Sentinel's own
  *   `/api/sdr/radios` record — name/IP/port/status, exactly as before this
- *   feature existed.
+ *   feature existed. A host radio whose host is no longer listed
+ *   (`editAsManual`) is edited this way too, and saving makes it manual.
  * - A host-mirrored radio writes through the `radioSites` capability
  *   (sdr-manager-remote's `PATCH /api/sdr-manager/remote/hosts/{host_id}/devices/{device_id}`) — the host owns the
  *   device's configuration (ADR-0009), so this form never writes tuning/
@@ -218,11 +219,20 @@ const props = defineProps<{
    * first successful poll.
    */
   sentryDeviceStatus?: SdrManagerDeviceStatus | null
+  /**
+   * Edit as a manual radio even though `radio` names a host — set when that
+   * host is not in the hosts list, so there is nothing to write through.
+   * Saving clears `sentry_host_id`/`sentry_device_id`, making it manual.
+   */
+  editAsManual?: boolean
 }>()
 const emit = defineEmits<{ save: []; cancel: [] }>()
 
 const isSentryBacked = computed(
-  () => props.radio?.sentry_host_id != null && props.radio?.sentry_device_id != null,
+  () =>
+    !props.editAsManual &&
+    props.radio?.sentry_host_id != null &&
+    props.radio?.sentry_device_id != null,
 )
 
 /** Non-null only when the flash-serial action should be offered: a Sentry-
@@ -271,7 +281,7 @@ const tuningLoadError = ref('')
  */
 async function loadSentryDeviceRecord(): Promise<void> {
   const radio = props.radio
-  if (!radio?.sentry_host_id || !radio.sentry_device_id) {
+  if (!isSentryBacked.value || !radio?.sentry_host_id || !radio.sentry_device_id) {
     tuningLoaded.value = true
     return
   }

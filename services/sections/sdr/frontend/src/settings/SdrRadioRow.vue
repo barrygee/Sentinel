@@ -72,6 +72,7 @@
       v-if="open"
       :radio="radio"
       :sentry-device-status="sentryDeviceStatus"
+      :edit-as-manual="editAsManual"
       @save="emit('save')"
       @cancel="emit('cancel-edit')"
     />
@@ -105,6 +106,8 @@ const props = defineProps<{
   confirming: boolean
   /** Live Sentry status for this radio's device, when it mirrors one. */
   sentryDeviceStatus?: SdrManagerDeviceStatus | null
+  /** Edit a host radio whose host is gone as a manual radio (see `SdrDeviceForm`). */
+  editAsManual?: boolean
 }>()
 
 /**

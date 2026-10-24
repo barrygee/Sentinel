@@ -913,4 +913,176 @@ describe('SdrDevicesControl', () => {
       expect(() => wrapper.unmount()).not.toThrow()
     })
   })
+
+  describe('radios whose SDR host is not listed', () => {
+    // The live case: radio 2 named host 1 after the hosts table was emptied, so
+    // no host group existed to list it under and it could not be reached at all.
+    const UNLISTED_HOST_RADIO: SdrRadioRecord = {
+      ...MANUAL_RADIO,
+      id: 5,
+      name: 'RTL-SDR V4',
+      host: '192.168.5.67',
+      port: 4444,
+      sentry_host_id: 42,
+      sentry_device_id: 'serial:00000001',
+    }
+
+    function unlistedRow(wrapper: ReturnType<typeof mount>) {
+      return wrapper
+        .findAllComponents(SdrRadioRow)
+        .find((row) => row.props('radio').id === UNLISTED_HOST_RADIO.id)
+    }
+
+    it('lists one under UNLISTED SDR HOST, editable as a manual radio', async () => {
+      mockListSentryHosts.mockResolvedValue([HOST])
+      mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+      mockListRadios.mockResolvedValue([MIRRORED_RADIO, UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).toContain('UNLISTED SDR HOST')
+      expect(wrapper.text()).toContain(
+        'Their SDR host is not in Settings › SDR Manager. Edit one to keep it as a manual radio, or delete it.',
+      )
+      const rows = wrapper.findAllComponents(SdrRadioRow)
+      // The radio on a listed host stays in its host group, not here.
+      expect(rows.map((row) => row.props('radio').id)).toEqual([MIRRORED_RADIO.id, 5])
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+    })
+
+    it('reads its reachability from the TCP probe, as a manual radio does', async () => {
+      mockListSentryHosts.mockResolvedValue([HOST])
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      mockGetRadioStatus.mockResolvedValue({ connected: false })
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(mockGetRadioStatus).toHaveBeenCalledWith(5)
+      expect(unlistedRow(wrapper)!.props('connected')).toBe(false)
+    })
+
+    it('does not call the list empty when it is the only radio', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('No SDRs configured')
+      expect(unlistedRow(wrapper)).toBeDefined()
+    })
+
+    it('sets MANUAL RADIOS apart even with no hosts', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO, MANUAL_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('No SDRs configured')
+      expect(wrapper.text()).toContain('MANUAL RADIOS')
+    })
+
+    it('shows nothing until the hosts list has answered', async () => {
+      // A radio on a perfectly good host must not flash up as unlisted while loading.
+      mockListSentryHosts.mockReturnValue(new Promise(() => {}))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(unlistedRow(wrapper)).toBeUndefined()
+      expect(wrapper.text()).not.toContain('UNLISTED SDR HOST')
+    })
+
+    it('still lists it when the hosts list fails, but edits it through its host', async () => {
+      // The host may well exist; detaching the radio on save would be wrong.
+      mockListSentryHosts.mockRejectedValue(new Error('offline'))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).toContain(
+        'The SDR host list could not be loaded, so these radios cannot be matched to a host yet.',
+      )
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(false)
+    })
+
+    it('edits it as manual once a later fetch of the hosts list succeeds', async () => {
+      mockListSentryHosts.mockRejectedValueOnce(new Error('offline'))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      mockListSentryHosts.mockResolvedValue([HOST])
+      announceFakeHostsChanged()
+      await flushPromises()
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+    })
+
+    it('leaves the group once its host is listed again', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(unlistedRow(wrapper)).toBeDefined()
+      mockListSentryHosts.mockResolvedValue([{ ...HOST, id: 42 }])
+      announceFakeHostsChanged()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('UNLISTED SDR HOST')
+    })
+
+    it('can be edited, saved and deleted', async () => {
+      const changed = vi.fn()
+      document.addEventListener(RADIOS_CHANGED_EVENT, changed)
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      mockDeleteRadio.mockResolvedValue(true)
+      const wrapper = mountControl()
+      await flushPromises()
+      const row = unlistedRow(wrapper)!
+
+      row.vm.$emit('toggle-edit')
+      await flushPromises()
+      expect(row.props('open')).toBe(true)
+      row.vm.$emit('cancel-edit')
+      await flushPromises()
+      expect(row.props('open')).toBe(false)
+
+      row.vm.$emit('toggle-edit')
+      await flushPromises()
+      mockListRadios.mockClear()
+      row.vm.$emit('save')
+      await flushPromises()
+      expect(row.props('open')).toBe(false)
+      expect(mockListRadios).toHaveBeenCalled()
+
+      row.vm.$emit('start-delete')
+      await flushPromises()
+      expect(row.props('confirming')).toBe(true)
+      row.vm.$emit('cancel-delete')
+      await flushPromises()
+      expect(row.props('confirming')).toBe(false)
+
+      changed.mockClear()
+      row.vm.$emit('confirm-delete')
+      await flushPromises()
+      expect(mockDeleteRadio).toHaveBeenCalledWith(5)
+      expect(changed).toHaveBeenCalledOnce()
+      document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
+    })
+
+    it('has no accessibility violations', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO, MANUAL_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(
+        await axe(wrapper.html(), {
+          rules: { region: { enabled: false } },
+        }),
+      ).toHaveNoViolations()
+    })
+
+    describe('without SDR Manager', () => {
+      beforeEach(() => {
+        withdrawFakeSdrManagerHosts()
+      })
+
+      it('lists it, says SDR Manager is not deployed, and edits it as manual', async () => {
+        mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+        const wrapper = mountControl()
+        await flushPromises()
+        expect(wrapper.text()).toContain(
+          'Their SDR host needs SDR Manager, which is not deployed. Edit one to keep it as a manual radio, or delete it.',
+        )
+        expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+      })
+    })
+  })
 })
