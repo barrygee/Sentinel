@@ -558,6 +558,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop calling the online feed until its daily limit resets
 - Keep the online feed's daily-limit refusal across restarts
 - Copy sdr-manager-remote's pyproject into the image
+- Show radios whose SDR host is not listed in DEVICES
 
 ### Chores
 
@@ -1647,6 +1648,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #536 from barrygee/feat/sdr-manager-remote-local-link
 - Merge pull request #537 from barrygee/refactor/sdr-manager-settings-section
 - Merge pull request #538 from barrygee/feat/sdr-manager-local-screens
+- Merge pull request #539 from barrygee/fix/sdr-devices-orphaned-host-radios
 
 ### Refactoring
 
