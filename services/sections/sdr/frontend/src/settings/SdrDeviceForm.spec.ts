@@ -897,4 +897,56 @@ describe('SdrDeviceForm', () => {
       expect(wrapper.emitted('save')).toHaveLength(1)
     })
   })
+
+  describe('a host radio whose host is not listed (editAsManual)', () => {
+    it('edits it as a manual radio — IP and PORT, no host-only fields', async () => {
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SENTRY, editAsManual: true },
+      })
+      await flushPromises()
+      expect(wrapper.find('input[aria-label="IP address"]').exists()).toBe(true)
+      expect(wrapper.find('input[aria-label="Port"]').exists()).toBe(true)
+      expect(wrapper.text()).not.toContain('OUTPUT PORT')
+      expect(wrapper.text()).not.toContain('VISIBILITY')
+    })
+
+    it('asks no host for its tuning, since the host is not there to ask', async () => {
+      mount(SdrDeviceForm, { props: { radio: EXISTING_SENTRY, editAsManual: true } })
+      await flushPromises()
+      expect(mockGetHostDeviceRecords).not.toHaveBeenCalled()
+    })
+
+    it('saves it as a manual radio, detaching it from the missing host', async () => {
+      mockUpdateRadio.mockResolvedValue({ ...EXISTING_SENTRY, sentry_host_id: null })
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SENTRY, editAsManual: true },
+      })
+      await flushPromises()
+      await wrapper.find('input[aria-label="Port"]').setValue(4444)
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      expect(mockPatchHostDevice).not.toHaveBeenCalled()
+      expect(mockUpdateRadio).toHaveBeenCalledOnce()
+      expect(mockUpdateRadio).toHaveBeenCalledWith(
+        12,
+        expect.objectContaining({
+          name: 'Attic RTL',
+          host: '192.168.1.50',
+          port: 4444,
+          sentry_host_id: null,
+          sentry_device_id: null,
+        }),
+      )
+      expect(wrapper.emitted('save')).toHaveLength(1)
+    })
+
+    it('still edits through the host when editAsManual is false', async () => {
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SENTRY, editAsManual: false },
+      })
+      await flushPromises()
+      expect(mockGetHostDeviceRecords).toHaveBeenCalledWith(3)
+      expect(wrapper.text()).toContain('OUTPUT PORT')
+    })
+  })
 })

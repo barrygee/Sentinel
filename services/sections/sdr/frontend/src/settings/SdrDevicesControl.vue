@@ -1,7 +1,12 @@
 <template>
   <div class="sdr-devices-wrap">
     <div class="sdr-devices-list">
-      <div v-if="sentryHosts.length === 0 && manualRadios.length === 0" class="sdr-devices-empty">
+      <div
+        v-if="
+          sentryHosts.length === 0 && manualRadios.length === 0 && unlistedHostRadios.length === 0
+        "
+        class="sdr-devices-empty"
+      >
         No SDRs configured. Add one below<template v-if="sdrManagerDeployed"
           >, or register an SDR host in Settings › SDR Manager</template
         >.
@@ -62,8 +67,37 @@
         />
       </template>
 
+      <!-- Radios that name an SDR host the hosts list doesn't have — the host was
+           removed, or its table was emptied (the move to sdr-manager-remote did
+           that). No host group exists to hang them off, so without this group
+           they could not be seen, edited or deleted. -->
+      <template v-if="unlistedHostRadios.length > 0">
+        <div class="sdr-host-group-header">UNLISTED SDR HOST</div>
+        <div class="sdr-devices-empty">{{ unlistedHostNotice }}</div>
+        <SdrRadioRow
+          v-for="radio in unlistedHostRadios"
+          :key="'unlisted-' + radio.id"
+          :radio="radio"
+          :connected="manualStatusMap[radio.id] ?? null"
+          :open="openId === radio.id"
+          :confirming="confirmId === radio.id"
+          :edit-as-manual="hostListKnown"
+          @toggle-edit="toggleEdit(radio.id)"
+          @start-delete="startDelete(radio.id)"
+          @confirm-delete="confirmDelete(radio.id)"
+          @cancel-delete="confirmId = null"
+          @save="onSave"
+          @cancel-edit="openId = null"
+        />
+      </template>
+
       <template v-if="manualRadios.length > 0">
-        <div v-if="sentryHosts.length > 0" class="sdr-host-group-header">MANUAL RADIOS</div>
+        <div
+          v-if="sentryHosts.length > 0 || unlistedHostRadios.length > 0"
+          class="sdr-host-group-header"
+        >
+          MANUAL RADIOS
+        </div>
         <SdrRadioRow
           v-for="radio in manualRadios"
           :key="radio.id"
@@ -103,6 +137,9 @@
  *   hosts come through the `radioSites` capability sdr-manager-remote
  *   provides; while it is not deployed there are no host groups, only manual
  *   radios.
+ * - An "UNLISTED SDR HOST" group for radios that name a host the hosts list
+ *   doesn't have (removed, or SDR Manager isn't deployed). Editing one saves
+ *   it as a manual radio, detaching it from the missing host.
  * - A trailing "MANUAL RADIOS" group for radios entered directly in
  *   Sentinel (`sentry_host_id === null`), unchanged from before this
  *   feature existed.
@@ -152,6 +189,11 @@ const openId = ref<number | 'new' | null>(null)
 const confirmId = ref<number | null>(null)
 const manualStatusMap = ref<Record<number, boolean | null>>({})
 const addingDeviceKey = ref<string | null>(null)
+// Whether the hosts list has been read: false while the first fetch is in
+// flight and while every fetch so far has failed. Until then a host radio's
+// group can't be told apart from a missing one.
+const hostsLoaded = ref(false)
+const hostsLoadFailed = ref(false)
 
 // The present device-id set last seen per host, used only to diff against
 // the newest poll and detect arrivals/departures — not rendered. Paired with
@@ -161,6 +203,32 @@ const previousDeviceIdsByHost = new Map<number, Set<string>>()
 const lastKnownDeviceNames = new Map<string, string>()
 
 const manualRadios = computed(() => radios.value.filter((radio) => radio.sentry_host_id == null))
+
+/**
+ * True when it is certain which hosts exist: the list loaded, or there is no
+ * SDR Manager to list any. Only then may a radio be called unlisted and
+ * edited as a manual radio — after a failed fetch its host may well exist.
+ */
+const hostListKnown = computed(() => hostsLoaded.value || !sdrManagerDeployed)
+
+/** Radios naming a host that isn't in the hosts list, shown once the first load attempt has finished. */
+const unlistedHostRadios = computed(() => {
+  if (!hostListKnown.value && !hostsLoadFailed.value) return []
+  const listedHostIds = new Set(sentryHosts.value.map((host) => host.id))
+  return radios.value.filter(
+    (radio) => radio.sentry_host_id != null && !listedHostIds.has(radio.sentry_host_id),
+  )
+})
+
+const unlistedHostNotice = computed(() => {
+  if (!hostListKnown.value) {
+    return 'The SDR host list could not be loaded, so these radios cannot be matched to a host yet.'
+  }
+  const reason = sdrManagerDeployed
+    ? 'Their SDR host is not in Settings › SDR Manager.'
+    : 'Their SDR host needs SDR Manager, which is not deployed.'
+  return `${reason} Edit one to keep it as a manual radio, or delete it.`
+})
 
 /** One row model per device on a host: the live Sentry status, plus the
  * mirrored Sentinel radio if one has already been created for it (null =
@@ -231,8 +299,10 @@ const sentryGroups = computed<SentryHostGroup[]>(() =>
 let pollInFlight = false
 
 async function pollManualRadioStatuses(): Promise<void> {
+  // Unlisted-host radios have no host snapshot to read presence from, so they
+  // get the same TCP probe as manual radios.
   await Promise.all(
-    manualRadios.value.map(async (radio) => {
+    [...manualRadios.value, ...unlistedHostRadios.value].map(async (radio) => {
       const status = await getRadioStatus(radio.id)
       manualStatusMap.value[radio.id] = status?.connected === true
     }),
@@ -313,8 +383,10 @@ async function loadSentryHosts(): Promise<void> {
   if (!hostsCapability) return
   try {
     sentryHosts.value = await hostsCapability.listHosts()
+    hostsLoaded.value = true
   } catch {
     /* offline / transient — keep the previous list */
+    hostsLoadFailed.value = true
   }
 }
 

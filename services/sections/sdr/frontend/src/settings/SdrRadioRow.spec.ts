@@ -253,3 +253,31 @@ describe('a radio whose Sentry device is unavailable', () => {
     ).toHaveNoViolations()
   })
 })
+
+describe('SdrRadioRow editAsManual', () => {
+  const UNLISTED_HOST_RADIO: SdrRadioRecord = {
+    ...MANUAL_RADIO,
+    sentry_host_id: 99,
+    sentry_device_id: 'rtl-1',
+  }
+
+  it('forwards editAsManual to the edit form', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: UNLISTED_HOST_RADIO,
+        connected: null,
+        open: true,
+        confirming: false,
+        editAsManual: true,
+      },
+    })
+    expect(wrapper.findComponent(SdrDeviceForm).props('editAsManual')).toBe(true)
+  })
+
+  it('leaves it off when the row does not set it', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: { radio: UNLISTED_HOST_RADIO, connected: null, open: true, confirming: false },
+    })
+    expect(wrapper.findComponent(SdrDeviceForm).props('editAsManual')).toBe(false)
+  })
+})
