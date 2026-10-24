@@ -10,17 +10,19 @@ no NATS.
 The SDR Manager API (`contract_app.py`) is mounted twice, because the gateway
 never strips a prefix: at `/api/sdr-manager/local` for the gateway, and at
 `/api` for other Sentinels' managers. The longer mount goes first, so it wins.
-`/health` (core's probe) is the outer app's.
+`/health` (core's probe) is the outer app's, and so is its UI remote under
+`/remotes/sdr-manager-local/`: the THIS MACHINE group of Settings › SDR Manager.
 """
 
 from __future__ import annotations
 
+from backend.platform.remote_files import remotes_dir
 from backend.platform.sdk import create_service
 from fastapi import FastAPI
 
 from sentinel_sdr_manager_local.container import container_lifecycle
 from sentinel_sdr_manager_local.contract_app import create_contract_app
-from sentinel_sdr_manager_local.manifest import GATEWAY_API_PREFIX, manifest
+from sentinel_sdr_manager_local.manifest import GATEWAY_API_PREFIX, SERVICE_ID, manifest
 
 # The prefix other machines' managers use: Sentry's, unchanged.
 MANAGER_API_PREFIX = "/api"
@@ -39,6 +41,7 @@ def create_sdr_manager_local_app() -> FastAPI:
         lifecycles=[],
         serve_before_core=True,
         core_independent_lifecycles=[container_lifecycle(contract_app)],
+        remote_dir=remotes_dir() / SERVICE_ID,
     )
     service_app.mount(GATEWAY_API_PREFIX, contract_app, name="sdr-manager-api-gateway")
     service_app.mount(MANAGER_API_PREFIX, contract_app, name="sdr-manager-api")

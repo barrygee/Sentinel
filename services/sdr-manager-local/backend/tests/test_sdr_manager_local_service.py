@@ -286,9 +286,10 @@ class TestManifest:
         assert manifest.routes == [f"{GATEWAY_API_PREFIX}/"]
         assert manifest.health == "/health"
 
-    def test_has_no_ui_remote_yet(self) -> None:
-        # The THIS MACHINE screens arrive with the frontend package.
-        assert manifest.ui is None
+    def test_serves_its_own_ui_remote(self) -> None:
+        # The THIS MACHINE group of Settings › SDR Manager.
+        assert manifest.ui is not None
+        assert manifest.ui.remote_entry == "/remotes/sdr-manager-local/remoteEntry.js"
 
 
 def test_the_reported_version_is_sentinels() -> None:

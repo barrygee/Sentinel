@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import seaVesselsFixture from '../fixtures/sea-vessels.json' with { type: 'json' }
 import landRepeatersFixture from '../fixtures/land-repeaters.json' with { type: 'json' }
 import { installDocsServiceMocks } from './docsService'
+import { installSdrManagerLocalMocks } from './sdrManagerLocal'
 
 /** A healthy offline-map status: both sources present, plenty of disk, and a
  *  tiny calibration table so estimates are easy to reason about. Exported for
@@ -23,16 +24,21 @@ export const OFFLINE_MAP_STATUS = {
 }
 
 /** Every section, as `GET /api/app/sections` lists a full deployment: the
- *  shell loads each as a federation remote from `/remotes/<id>/`. Then the
- *  sdr-manager-remote service's settings-only remote (ADR 0007), which
- *  provides Settings › SDR Manager's REMOTE SDR HOSTS and the `radioSites`
- *  capability the host markers read. */
+ *  shell loads each as a federation remote from `/remotes/<id>/`. Then the two
+ *  SDR Manager services' settings-only remotes (ADR 0007): sdr-manager-local's
+ *  THIS MACHINE group of Settings › SDR Manager, and sdr-manager-remote's
+ *  REMOTE SDR HOSTS group plus the `radioSites` capability the host markers read. */
 export const DEPLOYED_SECTIONS = [
   ...['air', 'space', 'sea', 'land', 'sdr'].map((id) => ({
     id,
     kind: 'section',
     remoteEntry: `/remotes/${id}/remoteEntry.js`,
   })),
+  {
+    id: 'sdr-manager-local',
+    kind: 'sdr-manager-local',
+    remoteEntry: '/remotes/sdr-manager-local/remoteEntry.js',
+  },
   {
     id: 'sdr-manager-remote',
     kind: 'sdr-manager-remote',
@@ -84,6 +90,9 @@ export async function installDefaultMocks(page: Page): Promise<void> {
   // The optional docs service, deployed (as `docker compose up` runs it): the
   // Settings rail offers Docs and /docs/ reads the repo's real markdown.
   await installDocsServiceMocks(page)
+
+  // This machine's sdr-manager-local, deployed, with one dongle plugged in.
+  await installSdrManagerLocalMocks(page)
 
   // ADS-B point data — empty aircraft list
   await page.route('/api/adsb/point', (route) => {

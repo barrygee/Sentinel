@@ -32,6 +32,7 @@ describe('shell/sections', () => {
       'sea',
       'land',
       'sdr',
+      'sdr-manager-local',
       'sdr-manager-remote',
     ])
     const pinia = createPinia()
@@ -41,7 +42,7 @@ describe('shell/sections', () => {
       await import('@sentinel/shell-api/shell/sectionRegistry')
     const { default: SdrTabPanel } = await import('@sentinel/section-sdr/SdrTabPanel.vue')
 
-    // sdr-manager-remote adds settings, never a map section.
+    // The SDR Manager remotes add settings, never a map section.
     const sections = getRegisteredSections()
     expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)

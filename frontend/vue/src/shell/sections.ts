@@ -20,6 +20,11 @@ export async function sectionSources(): Promise<SectionSource[]> {
     { id: 'land', load: () => import('@sentinel/section-land/section') },
     { id: 'sdr', load: () => import('@sentinel/section-sdr/section') },
     {
+      id: 'sdr-manager-local',
+      kind: 'sdr-manager-local',
+      load: () => import('@sentinel/sdr-manager-local/register'),
+    },
+    {
       id: 'sdr-manager-remote',
       kind: 'sdr-manager-remote',
       load: () => import('@sentinel/sdr-manager-remote/register'),
