@@ -157,7 +157,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'air-overhead-alerts',
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
-  ['sdr-manager', 'sdr-manager-remote-hosts', { component: RemoteHostsControl, layout: 'half' }],
+  [
+    'sdr-manager',
+    'sdr-manager-remote-hosts',
+    { component: RemoteHostsControl, emits: ['stage'], layout: 'half' },
+  ],
   [
     'space',
     'space-source-override',

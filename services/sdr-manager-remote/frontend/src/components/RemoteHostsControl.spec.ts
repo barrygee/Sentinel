@@ -8,19 +8,28 @@ import { onHostsChanged } from '../hostsChanged'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 
+// The not-enabled notice links to the docs through vue-router, which these
+// mounts don't install; it is covered by its own spec.
+vi.mock('./LocalNotEnabledNotice.vue', async () => {
+  const { defineComponent, h } = await import('vue')
+  return { default: defineComponent({ name: 'LocalNotEnabledNotice', render: () => h('aside') }) }
+})
+
 vi.mock('../api/sdrManagerRemoteApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../api/sdrManagerRemoteApi')>()
   return {
     ...actual,
     listHosts: vi.fn(),
     deleteHost: vi.fn(),
+    updateHost: vi.fn(),
   }
 })
 
-import { listHosts, deleteHost } from '../api/sdrManagerRemoteApi'
+import { listHosts, deleteHost, updateHost, SdrManagerApiError } from '../api/sdrManagerRemoteApi'
 
 const mockListHosts = vi.mocked(listHosts)
 const mockDeleteHost = vi.mocked(deleteHost)
+const mockUpdateHost = vi.mocked(updateHost)
 
 const REACHABLE_HOST: SdrManagerHost = {
   id: 5,
@@ -118,13 +127,13 @@ describe('RemoteHostsControl', () => {
     expect(mockListHosts).not.toHaveBeenCalled()
   })
 
-  it('reloads and announces the hosts changed when the form emits save', async () => {
+  it('reloads, announces and closes the form when the new-host form emits save', async () => {
     const changed = vi.fn()
     const stopListening = onHostsChanged(changed)
     mockListHosts.mockResolvedValue([REACHABLE_HOST])
     const wrapper = mount(RemoteHostsControl)
     await flushPromises()
-    await wrapper.find('.sdr-device-btn[title="Edit"]').trigger('click')
+    await wrapper.find('.sdr-devices-add-btn').trigger('click')
     mockListHosts.mockClear()
     wrapper.findComponent(RemoteHostForm).vm.$emit('save')
     await flushPromises()
@@ -306,6 +315,312 @@ describe('RemoteHostsControl', () => {
       await flushPromises()
       expect(wrapper.find('.sdr-device-confirm').exists()).toBe(false)
       expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(true)
+    })
+  })
+
+  describe('the not-enabled notice for this machine', () => {
+    const LOCAL_ROW: SdrManagerHost = { ...REACHABLE_HOST, id: 1, is_local: true, name: null }
+
+    function noticeShown(wrapper: ReturnType<typeof mount>): boolean {
+      return wrapper.findComponent({ name: 'LocalNotEnabledNotice' }).exists()
+    }
+
+    it('waits for the first list before saying anything', async () => {
+      mockListHosts.mockReturnValue(new Promise(() => {}))
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(false)
+    })
+
+    it('stays hidden when the first list fails, since nothing is known', async () => {
+      mockListHosts.mockRejectedValue(new Error('offline'))
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(false)
+    })
+
+    it('shows when the list holds no this-machine row', async () => {
+      mockListHosts.mockResolvedValue([REACHABLE_HOST])
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(true)
+    })
+
+    it('shows when the list is empty', async () => {
+      mockListHosts.mockResolvedValue([])
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(true)
+    })
+
+    it('shows when this-machine row is linked but disabled', async () => {
+      mockListHosts.mockResolvedValue([{ ...LOCAL_ROW, enabled: false }])
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(true)
+    })
+
+    it('is hidden when this-machine row is enabled', async () => {
+      mockListHosts.mockResolvedValue([LOCAL_ROW])
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(false)
+    })
+
+    it('is not satisfied by an enabled remote row that is not this machine', async () => {
+      mockListHosts.mockResolvedValue([{ ...REACHABLE_HOST, enabled: true, is_local: false }])
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      expect(noticeShown(wrapper)).toBe(true)
+    })
+  })
+
+  describe('staging edits for APPLY CHANGES', () => {
+    const OTHER_HOST: SdrManagerHost = { ...REACHABLE_HOST, id: 6, name: 'Attic Pi' }
+
+    async function mountWithHosts(hosts: SdrManagerHost[]) {
+      mockListHosts.mockResolvedValue(hosts)
+      mockUpdateHost.mockResolvedValue(REACHABLE_HOST)
+      const wrapper = mount(RemoteHostsControl)
+      await flushPromises()
+      return wrapper
+    }
+
+    async function editLabel(
+      wrapper: ReturnType<typeof mount>,
+      hostName: string,
+      label: string,
+    ): Promise<void> {
+      await wrapper.find(`button[aria-label="Edit ${hostName}"]`).trigger('click')
+      await wrapper.find('input[aria-label="SDR host label"]').setValue(label)
+    }
+
+    type Apply = () => Promise<void>
+    function stagedApply(wrapper: ReturnType<typeof mount>): Apply {
+      const emissions = wrapper.emitted('stage')!
+      return emissions[emissions.length - 1]![0] as Apply
+    }
+
+    it('emits nothing and shows no badge until a host is edited', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await wrapper.find('button[aria-label="Edit Roof Pi"]').trigger('click')
+      expect(wrapper.emitted('stage')).toBeUndefined()
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(false)
+    })
+
+    it('stages the edit instead of saving it, and marks the row EDITED', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      expect(wrapper.emitted('stage')).toHaveLength(1)
+      expect(mockUpdateHost).not.toHaveBeenCalled()
+      expect(wrapper.find('.remote-host-staged').text()).toBe('EDITED — APPLY TO SAVE')
+    })
+
+    it('marks only the edited host', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST, OTHER_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      expect(wrapper.findAll('.remote-host-staged')).toHaveLength(1)
+      expect(wrapper.findAll('.sdr-device-info')[0]!.find('.remote-host-staged').exists()).toBe(
+        true,
+      )
+    })
+
+    it('drops the badge when the edit is reverted to what is saved', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await wrapper.find('input[aria-label="SDR host label"]').setValue('Roof Pi')
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(false)
+    })
+
+    it('reopens the form on the staged edit after it was closed', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await wrapper.find('button[aria-label="Edit Roof Pi"]').trigger('click')
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+      await wrapper.find('button[aria-label="Edit Roof Pi"]').trigger('click')
+      expect(
+        (wrapper.find('input[aria-label="SDR host label"]').element as HTMLInputElement).value,
+      ).toBe('Shed')
+    })
+
+    it('saves the staged edit on apply, then closes the form, reloads and announces', async () => {
+      const changed = vi.fn()
+      const stopListening = onHostsChanged(changed)
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      mockListHosts.mockClear()
+      await stagedApply(wrapper)()
+      await flushPromises()
+      expect(mockUpdateHost).toHaveBeenCalledTimes(1)
+      expect(mockUpdateHost).toHaveBeenCalledWith(5, {
+        name: 'Shed',
+        address: '192.168.1.50',
+        port: 8000,
+      })
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(false)
+      expect(mockListHosts).toHaveBeenCalledTimes(1)
+      expect(changed).toHaveBeenCalledTimes(1)
+      stopListening()
+    })
+
+    it('saves every edited host on one apply', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST, OTHER_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await editLabel(wrapper, 'Attic Pi', 'Loft')
+      await stagedApply(wrapper)()
+      expect(mockUpdateHost.mock.calls.map(([hostId]) => hostId)).toEqual([5, 6])
+    })
+
+    it("sends only the label for this machine's row", async () => {
+      const localRow: SdrManagerHost = { ...REACHABLE_HOST, id: 1, is_local: true, name: null }
+      const wrapper = await mountWithHosts([localRow])
+      await editLabel(wrapper, 'This machine', 'Shack')
+      await stagedApply(wrapper)()
+      expect(mockUpdateHost).toHaveBeenCalledWith(1, { name: 'Shack' })
+    })
+
+    it('on a refusal shows the reason on that host, reopens it, rethrows, and still reloads and announces', async () => {
+      const changed = vi.fn()
+      const stopListening = onHostsChanged(changed)
+      const wrapper = await mountWithHosts([REACHABLE_HOST, OTHER_HOST])
+      mockUpdateHost.mockRejectedValue(
+        new SdrManagerApiError(409, 'port_conflict', 'Port 8000 is already in use.'),
+      )
+      await editLabel(wrapper, 'Attic Pi', 'Loft')
+      await wrapper.find('button[aria-label="Edit Attic Pi"]').trigger('click')
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+      mockListHosts.mockClear()
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      const form = wrapper.findComponent(RemoteHostForm)
+      expect(form.props('host')).toMatchObject({ id: 6 })
+      expect(form.props('applyError')).toBe('Port 8000 is already in use.')
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Port 8000 is already in use.')
+      // The refused edit stays staged so the operator can fix it and apply again.
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(true)
+      expect(mockListHosts).toHaveBeenCalledTimes(1)
+      expect(changed).toHaveBeenCalledTimes(1)
+      stopListening()
+    })
+
+    it('reopens the first refused host when several are refused', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST, OTHER_HOST])
+      mockUpdateHost.mockRejectedValue(new SdrManagerApiError(409, 'x', 'Refused.'))
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await editLabel(wrapper, 'Attic Pi', 'Loft')
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      expect(wrapper.findComponent(RemoteHostForm).props('host')).toMatchObject({ id: 5 })
+    })
+
+    it('uses the generic message for a failure that is not a host rejection', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      mockUpdateHost.mockRejectedValue(new TypeError('boom'))
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Save failed.')
+    })
+
+    it('clears the refusal once a later apply succeeds', async () => {
+      mockUpdateHost.mockRejectedValueOnce(new SdrManagerApiError(409, 'x', 'Refused.'))
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(true)
+      mockUpdateHost.mockResolvedValue(REACHABLE_HOST)
+      await stagedApply(wrapper)()
+      await flushPromises()
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+    })
+
+    it('skips an edit whose host was deleted in the meantime', async () => {
+      vi.useFakeTimers()
+      mockListHosts.mockResolvedValue([REACHABLE_HOST, OTHER_HOST])
+      const wrapper = mount(RemoteHostsControl)
+      await vi.advanceTimersByTimeAsync(0)
+      await editLabel(wrapper, 'Attic Pi', 'Loft')
+      // The reachability poll drops the deleted host from the list.
+      mockListHosts.mockResolvedValue([REACHABLE_HOST])
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(wrapper.find('button[aria-label="Edit Attic Pi"]').exists()).toBe(false)
+      await expect(stagedApply(wrapper)()).resolves.toBeUndefined()
+      expect(mockUpdateHost).not.toHaveBeenCalled()
+    })
+
+    it('discards the draft and its refusal when the form is cancelled', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      mockUpdateHost.mockRejectedValue(new SdrManagerApiError(409, 'x', 'Refused.'))
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      const cancel = wrapper
+        .findAll('.sdr-devices-btn')
+        .find((button) => button.text() === 'CANCEL')!
+      await cancel.trigger('click')
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(false)
+      // Reopened, the form shows the saved values with no old refusal.
+      await wrapper.find('button[aria-label="Edit Roof Pi"]').trigger('click')
+      expect(
+        (wrapper.find('input[aria-label="SDR host label"]').element as HTMLInputElement).value,
+      ).toBe('Roof Pi')
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+      // Applying now has nothing left to save.
+      mockUpdateHost.mockClear()
+      await stagedApply(wrapper)()
+      expect(mockUpdateHost).not.toHaveBeenCalled()
+    })
+
+    it('drops drafts, closes the form and forgets refusals when the panel opens again', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      mockUpdateHost.mockRejectedValue(new SdrManagerApiError(409, 'x', 'Refused.'))
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await expect(stagedApply(wrapper)()).rejects.toThrow()
+      await flushPromises()
+      const settingsStore = useSettingsStore()
+      settingsStore.open = true
+      await flushPromises()
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(false)
+      await wrapper.find('button[aria-label="Edit Roof Pi"]').trigger('click')
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+    })
+
+    it('opens no form when the panel reopened mid-apply and cleared the refusal', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST, OTHER_HOST])
+      let finishSecondSave: (host: SdrManagerHost) => void = () => {}
+      mockUpdateHost
+        .mockRejectedValueOnce(new SdrManagerApiError(409, 'x', 'Refused.'))
+        .mockImplementationOnce(
+          () => new Promise<SdrManagerHost>((resolve) => (finishSecondSave = resolve)),
+        )
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      await editLabel(wrapper, 'Attic Pi', 'Loft')
+      const applying = stagedApply(wrapper)()
+      await flushPromises()
+      // Roof Pi was refused; Attic Pi is still saving when the panel reopens.
+      useSettingsStore().open = true
+      await flushPromises()
+      finishSecondSave(OTHER_HOST)
+      await expect(applying).rejects.toThrow()
+      await flushPromises()
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
+    })
+
+    it('leaves the form alone when the panel closes', async () => {
+      const wrapper = await mountWithHosts([REACHABLE_HOST])
+      const settingsStore = useSettingsStore()
+      settingsStore.open = true
+      await flushPromises()
+      await editLabel(wrapper, 'Roof Pi', 'Shed')
+      settingsStore.open = false
+      await flushPromises()
+      expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(true)
+      expect(wrapper.find('.remote-host-staged').exists()).toBe(true)
     })
   })
 

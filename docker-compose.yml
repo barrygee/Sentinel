@@ -466,6 +466,7 @@ services:
       # switched on in its settings.
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
+      - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-local/ (overrides the image's copy)
       - ./backend:/app/backend
       - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}

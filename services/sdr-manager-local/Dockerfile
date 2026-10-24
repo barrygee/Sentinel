@@ -5,7 +5,7 @@
 # that runs as root (see the runtime stage). Built from the repo root:
 #   docker compose --profile sdr-manager-local build sdr-manager-local
 #   docker buildx bake sdr-manager-local          # amd64 + arm64
-# The THIS MACHINE screens (its UI remote) join it with the frontend package.
+# It serves its own UI remote (the THIS MACHINE screens), built in stage 2.
 
 # ── Stage 1: librtlsdr from a pinned commit ──────────────────────────────────
 # rtl_tcp, rtl_eeprom (EEPROM serial flash), rtl_test/rtl_sdr (the diagnostics
@@ -29,7 +29,25 @@ RUN git init -q /src/librtlsdr && cd /src/librtlsdr \
     && cmake ../ -DDETACH_KERNEL_DRIVER=ON -DCMAKE_INSTALL_PREFIX=/opt/rtlsdr \
     && make -j"$(nproc)" && make install
 
-# ── Stage 2: runtime ─────────────────────────────────────────────────────────
+# ── Stage 2: its UI remote ───────────────────────────────────────────────────
+# The THIS MACHINE group of Settings › SDR Manager (@sentinel/sdr-manager-local),
+# a Module Federation remote served from /remotes/sdr-manager-local/. Built on
+# the build machine's platform, as backend/Dockerfile builds the SPA: the
+# bundle is plain JS/CSS, identical for every architecture. One npm workspaces
+# install, so every workspace's manifest must be present for `npm ci`; only
+# this package is built (into frontend/spa-dist/remotes/sdr-manager-local/).
+FROM --platform=$BUILDPLATFORM node:24-alpine AS remote-builder
+WORKDIR /repo
+COPY package.json package-lock.json .npmrc ./
+COPY frontend/vue/package.json ./frontend/vue/
+COPY platform/web/ ./platform/web/
+COPY services/sections/ ./services/sections/
+COPY services/sdr-manager-local/frontend/ ./services/sdr-manager-local/frontend/
+COPY services/sdr-manager-remote/frontend/ ./services/sdr-manager-remote/frontend/
+RUN npm ci
+RUN npm run build -w @sentinel/sdr-manager-local
+
+# ── Stage 3: runtime ─────────────────────────────────────────────────────────
 FROM python:3.12-slim-trixie
 
 # libusb-1.0-0 is the runtime library rtl_tcp/rtl_eeprom link against. tini is
@@ -86,6 +104,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # path rather than installed, so the other workspace packages need not be here.
 COPY backend/ ./backend/
 COPY services/sdr-manager-local/backend/ ./services/sdr-manager-local/backend/
+# Where remotes_dir() looks: frontend/spa-dist/remotes/ beside backend/.
+COPY --from=remote-builder /repo/frontend/spa-dist/remotes/sdr-manager-local/ ./frontend/spa-dist/remotes/sdr-manager-local/
 ENV PATH="/app/.venv/bin:${PATH}" \
     PYTHONPATH="/app:/app/services/sdr-manager-local/backend"
 

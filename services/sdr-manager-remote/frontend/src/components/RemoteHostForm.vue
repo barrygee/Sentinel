@@ -68,7 +68,7 @@
       {{ probeResult.detail }}
     </div>
 
-    <div v-if="errorMsg" class="sdr-devices-form-error">{{ errorMsg }}</div>
+    <div v-if="shownError" class="sdr-devices-form-error" role="alert">{{ shownError }}</div>
 
     <!-- Only for a host that exists: there is nothing to report about one that
          has not been registered yet. -->
@@ -88,15 +88,18 @@
       <BaseButton type="button" variant="ghost" class="sdr-devices-btn" @click="emit('cancel')">
         CANCEL
       </BaseButton>
+      <!-- Adding a host is an action, so it happens at once; an existing host's
+           edits wait for APPLY CHANGES. -->
       <BaseButton
+        v-if="!host"
         type="button"
         variant="primary"
         class="sdr-devices-btn sdr-devices-btn--primary"
         :style="PRIMARY_BUTTON_STYLE"
         :disabled="saving"
-        @click="save"
+        @click="addHost"
       >
-        SAVE
+        ADD
       </BaseButton>
     </div>
   </div>
@@ -106,10 +109,12 @@
 /**
  * `RemoteHostForm` — the add/edit form for an SDR host: the operator enters
  * the host's IP address (plus an optional label, port defaulting to 8000, and
- * its console password). Saving probes `POST .../test` and reports
- * reachability inline, both for an existing host (the TEST CONNECTION button,
- * probing the currently *stored* connection before any edit is applied) and
- * automatically after a successful save (probing the just-written connection).
+ * its console password).
+ *
+ * A new host is added at once with ADD, which then probes `POST .../test` and
+ * reports reachability inline. An existing host's edits are drafted
+ * (`draft`, null once they match what is saved) and saved by APPLY CHANGES
+ * (`RemoteHostsControl`); its TEST CONNECTION probes the *stored* connection.
  *
  * The password is write-only end to end — the API never returns it, so this
  * form never shows a stored value, only the "password set" placeholder text and
@@ -128,14 +133,14 @@
  * It is the host's *console password*, not a token: the SDR Manager API has
  * no token auth for operators, and the client exchanges it for a session cookie.
  */
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostDetails from './RemoteHostDetails.vue'
+import type { RemoteHostDraft } from '../remoteHostEdits'
 import {
   createHost,
-  updateHost,
   testHost,
   SdrManagerApiError,
   type SdrManagerHealthProbeResult,
@@ -146,23 +151,37 @@ import {
 const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 
-const props = defineProps<{ host: SdrManagerHost | null }>()
-const emit = defineEmits<{ save: []; cancel: [] }>()
+const props = defineProps<{
+  host: SdrManagerHost | null
+  /** This host's staged edit, when it has one (the form reopens on it). */
+  stagedDraft?: RemoteHostDraft | null
+  /** Why APPLY CHANGES could not save this host's edit. */
+  applyError?: string | null
+}>()
+const emit = defineEmits<{
+  /** A new host was added. */
+  save: []
+  cancel: []
+  /** The existing host's edited fields, or null when they match what is saved. */
+  draft: [draft: RemoteHostDraft | null]
+}>()
 
 const addressRef = ref<HTMLInputElement | null>(null)
 const labelRef = ref<HTMLInputElement | null>(null)
 const isLocal = computed(() => props.host?.is_local === true)
 const errorMsg = ref('')
+const shownError = computed(() => errorMsg.value || props.applyError || '')
 const saving = ref(false)
 const probing = ref(false)
 const probeResult = ref<SdrManagerHealthProbeResult | null>(null)
 
-const form = ref({
+const savedForm: RemoteHostDraft = {
   address: props.host?.address ?? '',
   name: props.host?.name ?? '',
   port: props.host?.port ?? 8000,
   authToken: '',
-})
+}
+const form = ref<RemoteHostDraft>({ ...(props.stagedDraft ?? savedForm) })
 
 const passwordPlaceholder = computed(() => {
   if (!props.host?.auth_token_set) return "The password set on that host's console"
@@ -177,6 +196,18 @@ const passwordPlaceholder = computed(() => {
 // The first editable field: the address, or the label on this machine's row.
 onMounted(() => setTimeout(() => (addressRef.value ?? labelRef.value)?.focus(), 0))
 
+watch(
+  form,
+  (draft) => {
+    if (!props.host) return
+    const unchanged = (Object.keys(savedForm) as (keyof RemoteHostDraft)[]).every(
+      (field) => draft[field] === savedForm[field],
+    )
+    emit('draft', unchanged ? null : { ...draft })
+  },
+  { deep: true },
+)
+
 async function probeExisting(): Promise<void> {
   if (!props.host) return
   probing.value = true
@@ -189,22 +220,7 @@ async function probeExisting(): Promise<void> {
   }
 }
 
-/** This machine's row: only the label is sent, the one field the API lets change. */
-async function saveLocalLabel(host: SdrManagerHost): Promise<void> {
-  saving.value = true
-  errorMsg.value = ''
-  try {
-    await updateHost(host.id, { name: form.value.name.trim() || null })
-    emit('save')
-  } catch (error) {
-    errorMsg.value = error instanceof SdrManagerApiError ? error.message : 'Save failed.'
-  } finally {
-    saving.value = false
-  }
-}
-
-async function save(): Promise<void> {
-  if (props.host?.is_local) return saveLocalLabel(props.host)
+async function addHost(): Promise<void> {
   const address = form.value.address.trim()
   if (!address) {
     errorMsg.value = 'IP address is required.'
@@ -214,30 +230,18 @@ async function save(): Promise<void> {
   errorMsg.value = ''
   probeResult.value = null
   try {
-    let savedHost: SdrManagerHost
-    if (props.host) {
-      savedHost = await updateHost(props.host.id, {
-        // Explicit null clears the label; an empty-trimmed input means "no label".
-        name: form.value.name.trim() || null,
-        address,
-        port: form.value.port || 8000,
-        // Omit the key entirely when left blank so the stored token survives.
-        ...(form.value.authToken ? { auth_token: form.value.authToken } : {}),
-      })
-    } else {
-      savedHost = await createHost({
-        name: form.value.name.trim() || null,
-        address,
-        port: form.value.port || 8000,
-        auth_token: form.value.authToken,
-      })
-    }
+    const savedHost = await createHost({
+      name: form.value.name.trim() || null,
+      address,
+      port: form.value.port || 8000,
+      auth_token: form.value.authToken,
+    })
     // Report reachability of the connection just written, before closing the
     // form — an operator who mistyped the address sees it immediately.
     try {
       probeResult.value = await testHost(savedHost.id)
     } catch {
-      /* the save itself already succeeded; a failed post-save probe is not fatal */
+      /* the add itself already succeeded; a failed post-add probe is not fatal */
     }
     emit('save')
   } catch (error) {

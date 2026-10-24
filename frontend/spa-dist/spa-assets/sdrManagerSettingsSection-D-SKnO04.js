@@ -1,0 +1,1 @@
+var e={key:`sdr-manager`,label:`SDR Manager`,order:15,domain:!1};export{e as SDR_MANAGER_SETTINGS_SECTION};

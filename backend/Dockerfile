@@ -16,9 +16,11 @@ COPY frontend/vue/package.json ./frontend/vue/
 # The shared @sentinel/* web packages and the section packages are workspace
 # members the SPA imports from source, so they are needed for both the install
 # and the build. Only each section's frontend/ is a workspace; its backend is not.
-# sdr-manager-remote's frontend is one too (its Settings › SDR Manager remote).
+# Both SDR Manager frontends are too (their Settings › SDR Manager remotes);
+# sdr-manager-local's image builds its own copy of its remote as well.
 COPY platform/web/ ./platform/web/
 COPY services/sections/ ./services/sections/
+COPY services/sdr-manager-local/frontend/ ./services/sdr-manager-local/frontend/
 COPY services/sdr-manager-remote/frontend/ ./services/sdr-manager-remote/frontend/
 RUN npm ci
 COPY scripts/web-packages.sh ./scripts/

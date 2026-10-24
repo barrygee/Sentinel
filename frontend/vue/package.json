@@ -30,6 +30,7 @@
   "dependencies": {
     "@module-federation/runtime": "2.9.2",
     "@sentinel/map-kit": "*",
+    "@sentinel/sdr-manager-local": "*",
     "@sentinel/sdr-manager-remote": "*",
     "@sentinel/section-air": "*",
     "@sentinel/section-land": "*",
