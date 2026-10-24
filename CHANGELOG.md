@@ -239,6 +239,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Sdr-manager kinds, serve-before-core, app mode, shared settings section
 - Port Sentry backend
 - Link this machine
+- This-machine screens
 
 ### Bug Fixes
 
@@ -1645,6 +1646,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #535 from barrygee/refactor/sdr-manager-remote
 - Merge pull request #536 from barrygee/feat/sdr-manager-remote-local-link
 - Merge pull request #537 from barrygee/refactor/sdr-manager-settings-section
+- Merge pull request #538 from barrygee/feat/sdr-manager-local-screens
 
 ### Refactoring
 
