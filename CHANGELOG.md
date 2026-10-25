@@ -559,6 +559,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the online feed's daily-limit refusal across restarts
 - Copy sdr-manager-remote's pyproject into the image
 - Show radios whose SDR host is not listed in DEVICES
+- Keep the Air off-grid link on the existing Sentry host anchor
 
 ### Chores
 
@@ -1649,6 +1650,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #537 from barrygee/refactor/sdr-manager-settings-section
 - Merge pull request #538 from barrygee/feat/sdr-manager-local-screens
 - Merge pull request #539 from barrygee/fix/sdr-devices-orphaned-host-radios
+- Merge pull request #540 from barrygee/refactor/rename-sentry-identifiers
 
 ### Refactoring
 
@@ -1748,6 +1750,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop hosting sections in-process
 - Move remote host management out of the radio hub
 - SDR Manager settings section
+- Rename remaining sentry identifiers
 
 ### Documentation
 
