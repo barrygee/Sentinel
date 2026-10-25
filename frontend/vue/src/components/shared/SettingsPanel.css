@@ -52,6 +52,12 @@
   display: flex;
 }
 
+/* Pinned (SDR Manager-only mode): the page itself. That shell has the nav bar
+   but no footer, so the panel runs to the bottom of the viewport. */
+#settings-panel.settings-panel--pinned {
+  bottom: 0;
+}
+
 /* The panel receives programmatic focus (tabindex="-1") on open via useDialog.
    Suppress the global :focus-visible ring — a modal container doesn't need a
    visible focus indicator; focus management is handled internally. */

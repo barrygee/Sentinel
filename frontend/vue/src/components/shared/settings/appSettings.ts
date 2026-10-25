@@ -1,3 +1,4 @@
+import { defineAsyncComponent } from 'vue'
 import {
   registerSettingItems,
   registerSettingsSection,
@@ -6,12 +7,25 @@ import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import LocationControl from './LocationControl.vue'
-import MapBasemapLayersControl from './MapBasemapLayersControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
-import OfflineMapsSettings from './offline-maps/OfflineMapsSettings.vue'
-import RangeRingOriginControl from './RangeRingOriginControl.vue'
+
+// The map's own settings use map-kit (and Offline Maps draws on a MapLibre
+// map), so they load when their card first renders: SDR Manager-only mode
+// never shows them, and so never downloads the map for them.
+const MapBasemapLayersControl = defineAsyncComponent(() => import('./MapBasemapLayersControl.vue'))
+const RangeRingOriginControl = defineAsyncComponent(() => import('./RangeRingOriginControl.vue'))
+const OfflineMapsSettings = defineAsyncComponent(
+  () => import('./offline-maps/OfflineMapsSettings.vue'),
+)
+
+/**
+ * The App Settings that only mean something with the map and its sections.
+ * SDR Manager-only mode keeps the rest: Sentinel Location (the SDRs' location,
+ * which other Sentinels show on their maps) and the Application Config.
+ */
+const FULL_APP_ONLY = ['full'] as const
 
 /**
  * Core's own Settings section (F3): general, alerts, location, map, offline maps and the configuration file. Registered by core, like every section registers its own.
@@ -23,6 +37,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'connectivity-mode',
+    modes: FULL_APP_ONLY,
     label: 'App Wide Connectivity Mode',
     desc: 'Sets every section to this mode, replacing any section overrides',
     control: { component: ConnectivityToggle, emits: ['stage'] },
@@ -32,6 +47,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'notification-sound',
+    modes: FULL_APP_ONLY,
     label: 'Alert Sound',
     desc: '',
     control: { component: NotificationSoundControl, emits: ['stage'] },
@@ -41,6 +57,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'notification-subscriptions',
+    modes: FULL_APP_ONLY,
     label: 'Alerts',
     // The description is rendered by the control itself, so it can hide with the list.
     desc: '',
@@ -63,6 +80,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'map-theme',
+    modes: FULL_APP_ONLY,
     label: 'Map Style',
     desc: '',
     searchTerms: 'theme light dark mode palette appearance basemap map style openstreetmap osm',
@@ -73,6 +91,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'map-basemap-layers',
+    modes: FULL_APP_ONLY,
     label: 'Map Layers',
     desc: '',
     searchTerms:
@@ -89,6 +108,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'range-ring-origin',
+    modes: FULL_APP_ONLY,
     label: 'Range Ring Origin',
     desc: 'The point on the map range rings are drawn',
     searchTerms: 'range rings sentry centre center origin',
@@ -104,6 +124,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'offline-maps',
+    modes: FULL_APP_ONLY,
     label: 'Offline Maps',
     desc: 'Download basemap and terrain tiles for an area so it works with no internet connection',
     searchTerms: 'offline download area region pmtiles terrain basemap dark light openstreetmap',
@@ -126,6 +147,7 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'export-all',
+    modes: FULL_APP_ONLY,
     label: 'Export All Configuration',
     desc: 'Back up your full configuration (sentinel_config.json, sdr_frequencies.json and sdr_bandplan.json) to a single folder you choose',
     control: { component: ExportAllControl },

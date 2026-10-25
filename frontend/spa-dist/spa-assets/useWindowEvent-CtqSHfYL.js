@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-QTnfLwEv.js";import{m as t,p as n}from"./_virtual_mf___mfe_internal__sentinel_shell__mf_owner__100676512179738__loadShare__pinia__loadShare__.js-CqusQ7bG.js";var r=e({useWindowEvent:()=>i});function i(e,r,i){n(()=>window.addEventListener(e,r,i)),t(()=>window.removeEventListener(e,r,i))}export{r as n,i as t};

@@ -18,6 +18,7 @@ import { registerSeaSettings } from '@sentinel/section-sea/settings'
 import { registerLandSettings } from '@sentinel/section-land/settings'
 import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import SettingRow from './settings/SettingRow.vue'
+import { FULL_APP_MODE, setAppMode } from '@/shell/appMode'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import {
@@ -949,6 +950,113 @@ describe('SettingsPanel', () => {
       expect(airItems.find((item) => item.id === 'air-online-squawk-watch-interval')!.label).toBe(
         'Online Squawk Checks',
       )
+    })
+  })
+
+  describe('pinned (SDR Manager-only mode: the whole page, not a dialog)', () => {
+    function mountPinned() {
+      return mount(SettingsPanel, {
+        props: { pinned: true },
+        global: { stubs: { SettingRow: true, RouterLink: RouterLinkStub } },
+      })
+    }
+
+    it('is a region of the page rather than a modal dialog', () => {
+      const panel = mountPinned().get('#settings-panel')
+
+      expect(panel.attributes('role')).toBe('region')
+      expect(panel.attributes('aria-modal')).toBeUndefined()
+      expect(panel.classes()).toContain('settings-panel--pinned')
+    })
+
+    it('is a modal dialog when not pinned', () => {
+      const panel = mountPanel().get('#settings-panel')
+
+      expect(panel.attributes('role')).toBe('dialog')
+      expect(panel.attributes('aria-modal')).toBe('true')
+      expect(panel.classes()).not.toContain('settings-panel--pinned')
+    })
+
+    it('stays open on Escape, since there is nothing behind it to return to', async () => {
+      const store = useSettingsStore()
+      store.openPanel()
+      const closeSpy = vi.spyOn(store, 'closePanel')
+      const wrapper = mountPinned()
+
+      await wrapper.find('#settings-panel').trigger('keydown', { key: 'Escape' })
+
+      expect(closeSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not take focus when it opens', async () => {
+      const store = useSettingsStore()
+      const wrapper = mount(SettingsPanel, {
+        props: { pinned: true },
+        attachTo: document.body,
+        global: { stubs: { SettingRow: true, RouterLink: RouterLinkStub } },
+      })
+      store.openPanel()
+      await flushPromises()
+
+      expect(document.activeElement).not.toBe(wrapper.get('#settings-panel').element)
+    })
+
+    it('has no accessibility violations', async () => {
+      useSettingsStore().openPanel()
+      const wrapper = mountPinned()
+      await flushPromises()
+
+      expect(await axe(wrapper.html())).toHaveNoViolations()
+    })
+  })
+
+  describe('App Settings in each app mode', () => {
+    afterEach(() => {
+      setAppMode(FULL_APP_MODE)
+    })
+
+    function appItemIds(wrapper: ReturnType<typeof mountPanel>): string[] {
+      return wrapper
+        .findAllComponents(SettingRow)
+        .map((row) => (row.props('item') as { id: string }).id)
+    }
+
+    it('offers every App Setting in the full app', async () => {
+      const wrapper = mountPanel()
+      await wrapper.vm.$nextTick()
+
+      expect(appItemIds(wrapper)).toEqual(
+        expect.arrayContaining([
+          'connectivity-mode',
+          'location',
+          'map-theme',
+          'offline-maps',
+          'config-current',
+          'export-all',
+        ]),
+      )
+    })
+
+    it('offers only Sentinel Location and Application Config in SDR Manager-only mode', async () => {
+      setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
+
+      const wrapper = mountPanel()
+      await wrapper.vm.$nextTick()
+
+      expect(appItemIds(wrapper)).toEqual(['location', 'config-current'])
+    })
+
+    it("leaves a mode's hidden settings out of search too", async () => {
+      const fullApp = mountPanel()
+      await fullApp.find('#settings-search-input').setValue('offline maps')
+      expect(fullApp.find('.settings-empty').exists()).toBe(false)
+      fullApp.unmount()
+
+      setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
+      const sdrManagerOnly = mountPanel()
+      await sdrManagerOnly.find('#settings-search-input').setValue('offline maps')
+
+      expect(sdrManagerOnly.find('.settings-empty').text()).toBe('No results found')
     })
   })
 

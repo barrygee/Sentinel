@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { isDeployed } from './support/sectionDeployment';
+import { isSdrManagerLocalOnly } from './support/appMode';
 
 /**
  * Full-stack integration smoke suite for Sentinel.
@@ -38,6 +39,10 @@ const spaceIsAbsent = !isDeployed('space');
 const radioHubIsAbsent = !isDeployed('radio');
 // Frequency groups and the band plan are the SDR section's (P6.6).
 const sdrIsAbsent = !isDeployed('sdr');
+
+// Every check here drives the map app; SDR Manager-only mode has none (the
+// gateway smoke checks what that mode serves).
+test.skip(isSdrManagerLocalOnly, 'SDR Manager-only mode has no map app');
 
 // ---------------------------------------------------------------------------
 // Helper: wait for the Vue shell to hydrate (Domains nav present)

@@ -58,15 +58,20 @@ export const SPA_DIST_DIR = resolve(REPO_ROOT, 'frontend/spa-dist')
  * @param packageUrl `import.meta.url` of the section's vite.config.ts.
  * @param options.registerEntry the module exposed as `./register`, when it is
  *   not `./src/section.ts` (the SDR Manager packages, which are not sections).
+ * @param options.usesMap false for a remote that draws no map, so it never
+ *   makes the shell load MapLibre (`sectionFederationPlugin`). Default true.
  */
 export function sentinelSectionViteConfig(
   sectionId: string,
   packageUrl: string,
-  options: { registerEntry?: string } = {},
+  options: { registerEntry?: string; usesMap?: boolean } = {},
 ): UserConfig {
   return defineConfig({
     base: sectionRemoteBase(sectionId),
-    plugins: [sentinelVuePlugin(), sectionFederationPlugin(sectionId, options.registerEntry)],
+    plugins: [
+      sentinelVuePlugin(),
+      sectionFederationPlugin(sectionId, options.registerEntry, { usesMap: options.usesMap }),
+    ],
     resolve: { alias: maplibreContourAlias(packageUrl) },
     build: {
       outDir: resolve(SPA_DIST_DIR, 'remotes', sectionId),

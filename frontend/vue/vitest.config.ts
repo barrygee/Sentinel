@@ -11,9 +11,10 @@ export default defineConfig((configEnv) =>
         environment: 'jsdom',
         globals: true,
         setupFiles: ['./src/test/setup.ts'],
-        // Plus the spec for vite.config.ts itself, which lives beside it in the
-        // config's own TypeScript project (tsconfig.node.json), not under src/.
-        include: ['src/**/*.{test,spec}.{ts,vue}', 'vite.config.spec.ts'],
+        // Plus the specs for vite.config.ts and the federation plugins it builds
+        // with, which live beside it in the config's own TypeScript project
+        // (tsconfig.node.json), not under src/.
+        include: ['src/**/*.{test,spec}.{ts,vue}', 'vite.config.spec.ts', 'federation.spec.ts'],
         restoreMocks: true,
         // jest-axe runs a full DOM audit per assertion; under the parallel load of
         // the whole suite these can exceed the 5s default on a busy machine.
@@ -25,6 +26,8 @@ export default defineConfig((configEnv) =>
           all: false,
           exclude: [
             'src/main.ts',
+            // main.ts's two halves, one per app mode: boot wiring, like main.ts.
+            'src/boot/**',
             'src/router/**',
             'src/types/**',
             'src/**/*.d.ts',
