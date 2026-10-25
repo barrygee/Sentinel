@@ -6,7 +6,7 @@ over the startup/shutdown sequence that used to live inline in
 core's lifespan (backend/core/app.py).
 
 The order inside each hook is behaviour (e.g. prune stale settings before the
-seeders, release Sentry pollers before tearing down broadcasters), so each
+seeders, release SDR Manager pollers before tearing down broadcasters), so each
 hook is checked against recorders patched in where the module looks them up.
 """
 

@@ -1,6 +1,6 @@
-"""`/api/sdr/adsb` — the Sentry dongle behind Off Grid ADS-B.
+"""`/api/sdr/adsb` — the SDR Manager dongle behind Off Grid ADS-B.
 
-Three jobs, all about one device: say which Sentry SDR feeds AIR, claim and tune
+Three jobs, all about one device: say which SDR Manager device feeds AIR, claim and tune
 it while AIR is watching, and tell the decoder sidecar where to read its I/Q
 from. See Sentinel ADR-0003 and `services/adsb_source.py`.
 """
@@ -20,10 +20,12 @@ router = APIRouter(prefix="/api/sdr/adsb", tags=["adsb-source"])
 
 
 class AdsbSourceIn(BaseModel):
-    """Body for `PUT /api/sdr/adsb/source` — which Sentry device feeds AIR."""
+    """Body for `PUT /api/sdr/adsb/source` — which SDR Manager device feeds AIR."""
 
-    sentry_host_id: int = Field(description="Id of a Sentry host Sentinel knows about")
-    sentry_device_id: str = Field(min_length=1, max_length=256, description='Sentry device id, e.g. "serial:97710286"')
+    sdr_manager_host_id: int = Field(description="Id of an SDR host Sentinel knows about")
+    sdr_manager_device_id: str = Field(
+        min_length=1, max_length=256, description='SDR Manager device id, e.g. "serial:97710286"'
+    )
 
 
 class ClaimIn(BaseModel):
@@ -38,7 +40,7 @@ class ClaimIn(BaseModel):
 def _as_http_error(error: adsb_source.AdsbSourceError) -> HTTPException:
     """Map a claim failure onto its HTTP status, keeping the operator-facing message.
 
-    `409` for a device somebody else is using and `502` for a Sentry that could
+    `409` for a device somebody else is using and `502` for an SDR host that could
     not be reached or refused us — the caller shows these to an operator, so the
     distinction between "busy" and "broken" has to survive the trip.
     """
@@ -58,14 +60,14 @@ def _as_http_error(error: adsb_source.AdsbSourceError) -> HTTPException:
 
 @router.get("/source")
 async def get_source(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
-    """Report which Sentry device is configured as the ADS-B receiver."""
+    """Report which SDR Manager device is configured as the ADS-B receiver."""
     source = await adsb_source.get_source(db)
     if source is None:
-        return {"configured": False, "sentry_host_id": None, "sentry_device_id": None}
+        return {"configured": False, "sdr_manager_host_id": None, "sdr_manager_device_id": None}
     return {
         "configured": True,
-        "sentry_host_id": source.host_id,
-        "sentry_device_id": source.device_id,
+        "sdr_manager_host_id": source.host_id,
+        "sdr_manager_device_id": source.device_id,
     }
 
 
@@ -73,16 +75,16 @@ async def get_source(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
 async def put_source(body: AdsbSourceIn, db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Set the ADS-B receiver.
 
-    Deliberately does not verify the device exists on that Sentry. A dongle can
+    Deliberately does not verify the device exists on that SDR host. A dongle can
     be unplugged, and a host can be down, without the operator's choice becoming
     wrong — the claim is where reachability is discovered, and it reports it in
     terms of something they just tried to do.
     """
-    source = await adsb_source.set_source(db, body.sentry_host_id, body.sentry_device_id)
+    source = await adsb_source.set_source(db, body.sdr_manager_host_id, body.sdr_manager_device_id)
     return {
         "configured": True,
-        "sentry_host_id": source.host_id,
-        "sentry_device_id": source.device_id,
+        "sdr_manager_host_id": source.host_id,
+        "sdr_manager_device_id": source.device_id,
     }
 
 
@@ -94,7 +96,7 @@ async def delete_source(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     never leaves a dongle reserved by a source that no longer exists.
     """
     await adsb_source.clear_source(db)
-    return {"configured": False, "sentry_host_id": None, "sentry_device_id": None}
+    return {"configured": False, "sdr_manager_host_id": None, "sdr_manager_device_id": None}
 
 
 @router.post("/claim")

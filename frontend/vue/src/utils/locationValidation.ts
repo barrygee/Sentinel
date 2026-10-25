@@ -1,7 +1,7 @@
 /**
  * Client-side checks for the Settings > My Location fields, mirroring the
  * backend's `_validated_location` (backend/routers/settings.py) and the
- * equivalent panel in Sentry so both consoles reject the same input with the
+ * equivalent panel in SDR host so both consoles reject the same input with the
  * same wording.
  *
  * Advisory only — the server re-validates every PUT. Validating here at all

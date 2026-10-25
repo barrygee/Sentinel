@@ -1,7 +1,7 @@
 # ADS-B decoder sidecar (readsb)
 
 Decodes 1090 MHz ADS-B for the AIR map's **Off Grid** mode, from a dongle that
-lives on a **remote Sentry**, and publishes the result as `aircraft.json`.
+lives on a **remote SDR host**, and publishes the result as `aircraft.json`.
 
 Opt-in: it only builds and runs behind the `adsb` compose profile, so a normal
 `docker compose up --build` never touches it.
@@ -45,7 +45,7 @@ constrained or metered link it is the wrong one.
 | --- | --- |
 | `CONFIG_URL` | Sentinel's `/api/sdr/adsb/config`, polled for the rtl_tcp endpoint. Preferred |
 | `RTL_TCP_HOST` / `RTL_TCP_PORT` | Static fallback, for running standalone |
-| `SENTRY_API_BASE` | Optional. Read once per source to warn about a mis-tuned dongle |
+| `SDR_MANAGER_API_BASE` | Optional. Read once per source to warn about a mis-tuned dongle |
 | `JSON_DIR` | Where readsb writes `aircraft.json` (default `/run/adsb/data`) |
 | `HTTP_PORT` | Port this container serves that directory on (default `8080`) |
 
@@ -56,7 +56,7 @@ container recreated.
 ## This container never tunes the dongle
 
 An `rtl_tcp` client normally sets the centre frequency and sample rate itself
-over the same socket. This one deliberately does not: on a Sentry those are the
+over the same socket. This one deliberately does not: on an SDR host those are the
 operator's own per-device settings, and a client that quietly retuned them would
 change what every other consumer is receiving.
 
@@ -83,7 +83,7 @@ curl -s localhost:8090/data/aircraft.json | head
   at startup.
 - **Pipeline restarts after 30 s with no samples** — the source stopped sending without closing the connection (e.g. the Pi rebooted or left the network). socat's inactivity timeout (`-T 30`) ends the pipeline so it reconnects instead of waiting for ever.
 - **`Broken pipe` from socat** — readsb exited; the line above it says why. The
-  supervisor relaunches the whole pipeline every few seconds, so a Sentry reboot
+  supervisor relaunches the whole pipeline every few seconds, so an SDR host reboot
   or a briefly-dropped network heals by itself.
 - **Nothing at `/data/aircraft.json`** — readsb has not written a file yet.
   It appears within a second or two of the pipeline starting.

@@ -29,7 +29,7 @@ import {
 import { useAirNotifStore } from './stores/airNotif'
 import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
@@ -43,7 +43,7 @@ import MapLibreMap from '@sentinel/map-kit/MapLibreMap.vue'
 import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 
 import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
-import { SentrySitesControl } from '@sentinel/map-kit/controls/sentry-sites/SentrySitesControl'
+import { SdrManagerSitesControl } from '@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl'
 import { RoadsToggleControl } from '@sentinel/map-kit/controls/roads/RoadsToggleControl'
 import { TerrainToggleControl } from '@sentinel/map-kit/controls/terrain/TerrainToggleControl'
 import { RangeRingsControl } from './controls/range-rings/RangeRingsControl'
@@ -63,7 +63,7 @@ const notificationsStore = useNotificationsStore()
 const airNotifStore = useAirNotifStore()
 const trackingStore = useTrackingStore()
 const settingsStore = useSettingsStore()
-const sentrySitesStore = useSentrySitesStore()
+const sdrManagerSitesStore = useSdrManagerSitesStore()
 const themeStore = useThemeStore()
 const offlineMapsStore = useOfflineMapsStore()
 
@@ -86,7 +86,7 @@ const getUserLocation = (): [number, number] | null =>
 const _locationMarker = new UserLocationMarker('user-location-marker')
 
 // Where the range rings are centred — your own position by default, but equally
-// a Sentry site or a chosen point (see useRangeRingOrigin). Shared app-wide, so
+// an SDR host site or a chosen point (see useRangeRingOrigin). Shared app-wide, so
 // the Land map and the Settings panel agree with this one.
 const { origin: ringOrigin } = useRangeRingOrigin()
 // One shaded zone per watched place — the map's half of the same list the
@@ -112,9 +112,9 @@ let militaryBasesControl: MilitaryBasesToggleControl | null = null
 let aaraControl: AaraToggleControl | null = null
 let awacsControl: AwacToggleControl | null = null
 let clearControl: ClearOverlaysControl | null = null
-// Sentry sites are plotted on every domain map, not just this one — see
-// SentrySitesControl. No side-menu button: the sites are always shown.
-let sentrySitesControl: SentrySitesControl | null = null
+// SDR host sites are plotted on every domain map, not just this one — see
+// SdrManagerSitesControl. No side-menu button: the sites are always shown.
+let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 
 // Borders have no rail button: Settings › Map is their only switch, and
 // this map follows it through the shared basemap store.
@@ -275,14 +275,14 @@ function onStyleLoaded(m: MapLibreGlMap) {
   aaraControl.onAdd(m)
   awacsControl.onAdd(m)
   overheadZoneControl.onAdd(m)
-  sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
-    // The operator's own position joins the grouping pass, so a Sentry sitting
+  sdrManagerSitesControl = new SdrManagerSitesControl(sdrManagerSitesStore, settingsStore, {
+    // The operator's own position joins the grouping pass, so an SDR host sitting
     // on top of it collapses into a count instead of two marks smearing
     // together; the marker is handed over so the count can stand in for it.
     getUserLocation,
     userMarker: _locationMarker,
   })
-  sentrySitesControl.onAdd(m)
+  sdrManagerSitesControl.onAdd(m)
 
   // If connectivity mode or theme changed between map creation and style load
   // (e.g. the offgrid probe fired before _map was set, so the callback was a
@@ -331,7 +331,7 @@ onMounted(() => {
   )
 
   // The rings follow the chosen origin, not the operator. A null origin (no
-  // location set, or a pinned Sentry with no position yet) hides them, which is
+  // location set, or a pinned SDR host with no position yet) hides them, which is
   // the same rule as before — it just now has three ways of being satisfied.
   watch(ringOrigin, (origin) => rangeRingsControl?.setOrigin(origin), { immediate: true })
 

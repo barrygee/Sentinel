@@ -42,12 +42,12 @@ export const APRS_COUNT_FILL = '#000000'
  * hide a fair patch of ground, so letting the map through keeps a group of
  * stations from blanking out what it stands over. Blue, not black, so a
  * group of stations is told apart at a glance from the dark-ringed
- * Sentinel/Sentry site markers.
+ * Sentinel/SDR host site markers.
  */
 export const APRS_COUNT_RING = 'rgba(0, 170, 255, 0.25)'
 
 /**
- * Ring for the repeater layer's count markers: the dark ring Sentry site groups
+ * Ring for the repeater layer's count markers: the dark ring SDR host site groups
  * use, so a group of fixed stations reads the same in both places — and is told
  * apart at a glance from an APRS group's blue (above).
  */

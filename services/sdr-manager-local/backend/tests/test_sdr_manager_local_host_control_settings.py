@@ -215,7 +215,7 @@ class TestGatedController:
         assert isinstance(RecordingWifiApController("x"), WifiApController)
 
     @pytest.mark.asyncio
-    async def test_a_switched_off_sentry_never_reaches_the_real_controller(self) -> None:
+    async def test_a_switched_off_sdr_manager_never_reaches_the_real_controller(self) -> None:
         """The whole point: no nmcli execution, no D-Bus call, exactly as ADR-0007 promised."""
         gate, real, disabled = self.build_gate(enabled=False)
 
@@ -232,7 +232,7 @@ class TestGatedController:
         assert len(disabled.calls) == 8
 
     @pytest.mark.asyncio
-    async def test_a_switched_on_sentry_reaches_the_real_controller(self) -> None:
+    async def test_a_switched_on_sdr_manager_reaches_the_real_controller(self) -> None:
         gate, real, disabled = self.build_gate(enabled=True)
 
         await gate.activate()

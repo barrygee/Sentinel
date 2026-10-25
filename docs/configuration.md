@@ -34,7 +34,7 @@
 
 | Variable | Default | Set it to |
 |---|---|---|
-| `SENTINEL_ADSB_SENTRY_API` | empty (no check) | Your Sentry host, `http://<sentry-host>:8000`, to log what the dongle is tuned to |
+| `SENTINEL_ADSB_SDR_MANAGER_API` | empty (no check) | Your SDR host, `http://<sdr-manager-host>:8000`, to log what the dongle is tuned to |
 | `SENTINEL_ADSB_DECODER_ADDRESS` | `127.0.0.1:8090` | `0.0.0.0:8090` to let another computer read it (no password) |
 | `SENTINEL_ADSB_RTL_TCP_HOST` / `_PORT` | empty / `2345` | A fixed dongle, before one is picked in Settings |
 | `SENTINEL_GATEWAY_URL` | `http://gateway:8080` | `http://<sentinel-host>:8080` for a decoder outside this Docker |
@@ -65,5 +65,5 @@ Then `docker compose up -d`. Check with `docker compose config air`.
 ```bash
 COMPOSE_PROFILES=all
 SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
-SENTINEL_ADSB_SENTRY_API=http://192.168.1.20:8000
+SENTINEL_ADSB_SDR_MANAGER_API=http://192.168.1.20:8000
 ```

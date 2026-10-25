@@ -13,18 +13,18 @@ export interface SdrRadio {
   bandwidth?: number | null
   rf_gain?: number | null
   agc?: boolean | null
-  // Sentry mirror fields (ADR-0009). `sentry_host_id` is null for a radio the
+  // SDR host mirror fields (ADR-0009). `sdr_manager_host_id` is null for a radio the
   // operator typed in by hand; when set, this radio mirrors one device on
-  // that Sentry host (`sentry_device_id`, e.g. "usb:1-1.4.2" or "serial:AIS-01").
-  sentry_host_id?: number | null
-  sentry_device_id?: string | null
+  // that SDR host (`sdr_manager_device_id`, e.g. "usb:1-1.4.2" or "serial:AIS-01").
+  sdr_manager_host_id?: number | null
+  sdr_manager_device_id?: string | null
   notes?: string
   antenna?: string
   // A 'private' device still runs and holds its port but is hidden from the
   // operational radio list (SdrDeviceSelector filters it out) — see ADR-0009.
   visibility?: 'public' | 'private'
   // Whether the backend can currently reach this radio's device (a mirrored
-  // dongle unplugged, or its Sentry host down, reports false) and why not.
+  // dongle unplugged, or its SDR host down, reports false) and why not.
   device_available?: boolean
   unavailable_reason?: string
 }
@@ -737,12 +737,12 @@ export const useSdrStore = defineStore('sdr', () => {
   // radio is locked out of the panel (padlock, not selectable) until it is
   // deselected in Settings. The APRS side is `aprsRadioId` above and the AIS
   // side `aisRadioId` (its bridge holds the dongle on 162 MHz the same way);
-  // the ADS-B side is a Sentry host+device pair, which is matched to a radio by
+  // the ADS-B side is an SDR host+device pair, which is matched to a radio by
   // its mirror fields (ADR-0009).
   const adsbSourceKey = ref<string | null>(null)
 
   /**
-   * Read which Sentry device AIR uses as its ADS-B receiver, if any.
+   * Read which SDR Manager device AIR uses as its ADS-B receiver, if any.
    *
    * Read from the central `air.offgridSdrSource` setting rather than AIR's own
    * API, so the radio platform never depends on the Air section. Validated as
@@ -752,11 +752,11 @@ export const useSdrStore = defineStore('sdr', () => {
   async function hydrateAdsbSourceFromDb(): Promise<void> {
     const air = await getNamespace('air')
     const source = air?.offgridSdrSource as
-      | { sentry_host_id?: unknown; sentry_device_id?: unknown }
+      | { sdr_manager_host_id?: unknown; sdr_manager_device_id?: unknown }
       | null
       | undefined
-    const hostId = source?.sentry_host_id
-    const deviceId = source?.sentry_device_id
+    const hostId = source?.sdr_manager_host_id
+    const deviceId = source?.sdr_manager_device_id
     adsbSourceKey.value =
       Number.isInteger(hostId) && typeof deviceId === 'string' && deviceId
         ? `${hostId}:${deviceId}`
@@ -774,8 +774,8 @@ export const useSdrStore = defineStore('sdr', () => {
     if (aisRadioId.value === radioId) return 'AIS'
     if (adsbSourceKey.value === null) return null
     const radio = radios.value.find((candidate) => candidate.id === radioId)
-    if (!radio || radio.sentry_host_id == null || !radio.sentry_device_id) return null
-    return `${radio.sentry_host_id}:${radio.sentry_device_id}` === adsbSourceKey.value
+    if (!radio || radio.sdr_manager_host_id == null || !radio.sdr_manager_device_id) return null
+    return `${radio.sdr_manager_host_id}:${radio.sdr_manager_device_id}` === adsbSourceKey.value
       ? 'ADS-B'
       : null
   }

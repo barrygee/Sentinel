@@ -14,7 +14,7 @@
       />
     </div>
 
-    <template v-if="!isSentryBacked">
+    <template v-if="!isSdrManagerBacked">
       <div class="sdr-devices-form-row">
         <span class="sdr-devices-form-label">IP ADDRESS</span>
         <input
@@ -165,9 +165,9 @@
 /**
  * `SdrDeviceForm` — the add/edit form for one row in `SdrDevicesControl`.
  *
- * Two distinct backing stores, chosen by whether `radio.sentry_host_id` is
+ * Two distinct backing stores, chosen by whether `radio.sdr_manager_host_id` is
  * set (ADR-0009):
- * - A manual radio (`sentry_host_id === null`) edits Sentinel's own
+ * - A manual radio (`sdr_manager_host_id === null`) edits Sentinel's own
  *   `/api/sdr/radios` record — name/IP/port/status, exactly as before this
  *   feature existed. A host radio whose host is no longer listed
  *   (`editAsManual`) is edited this way too, and saving makes it manual.
@@ -176,14 +176,14 @@
  *   device's configuration (ADR-0009), so this form never writes tuning/
  *   visibility/notes/antenna to Sentinel directly. After a successful patch,
  *   the mirrored Sentinel radio row (name/port/enabled/visibility/notes/
- *   antenna) is updated to match Sentry's accepted values so the operational
+ *   antenna) is updated to match the SDR host's accepted values so the operational
  *   radio list reflects the edit immediately rather than waiting for the next
  *   poll tick.
  *
- * Sentry's rejection (409 port conflict, 422 invalid field, …) is shown
+ * the SDR host's rejection (409 port conflict, 422 invalid field, …) is shown
  * verbatim in `errorMsg` — per ADR-0009 that message is written for the
  * operator and must reach them unchanged, including which device already
- * holds a conflicting port when Sentry says so.
+ * holds a conflicting port when SDR host says so.
  */
 import { ref, computed, onMounted } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
@@ -213,35 +213,35 @@ const props = defineProps<{
   /** The radio being edited, or null when adding a new manual radio. */
   radio: SdrRadioRecord | null
   /**
-   * Live Sentry device status for this radio (needs-identification flag).
-   * Present only when `radio` mirrors a Sentry device and the fleet poller
+   * Live SDR Manager device status for this radio (needs-identification flag).
+   * Present only when `radio` mirrors an SDR Manager device and the fleet poller
    * currently has a snapshot for it; null for a manual radio or before the
    * first successful poll.
    */
-  sentryDeviceStatus?: SdrManagerDeviceStatus | null
+  sdrManagerDeviceStatus?: SdrManagerDeviceStatus | null
   /**
    * Edit as a manual radio even though `radio` names a host — set when that
    * host is not in the hosts list, so there is nothing to write through.
-   * Saving clears `sentry_host_id`/`sentry_device_id`, making it manual.
+   * Saving clears `sdr_manager_host_id`/`sdr_manager_device_id`, making it manual.
    */
   editAsManual?: boolean
 }>()
 const emit = defineEmits<{ save: []; cancel: [] }>()
 
-const isSentryBacked = computed(
+const isSdrManagerBacked = computed(
   () =>
     !props.editAsManual &&
-    props.radio?.sentry_host_id != null &&
-    props.radio?.sentry_device_id != null,
+    props.radio?.sdr_manager_host_id != null &&
+    props.radio?.sdr_manager_device_id != null,
 )
 
-/** Non-null only when the flash-serial action should be offered: a Sentry-
- * backed device Sentry has flagged as needing identification. */
+/** Non-null only when the flash-serial action should be offered: an SDR host-
+ * backed device SDR host has flagged as needing identification. */
 const needsIdentification = computed(() => {
   const radio = props.radio
-  if (!props.sentryDeviceStatus?.needs_identification) return null
-  if (radio?.sentry_host_id == null || radio?.sentry_device_id == null) return null
-  return { hostId: radio.sentry_host_id, deviceId: radio.sentry_device_id }
+  if (!props.sdrManagerDeviceStatus?.needs_identification) return null
+  if (radio?.sdr_manager_host_id == null || radio?.sdr_manager_device_id == null) return null
+  return { hostId: radio.sdr_manager_host_id, deviceId: radio.sdr_manager_device_id }
 })
 
 const nameRef = ref<HTMLInputElement | null>(null)
@@ -255,10 +255,10 @@ const form = ref({
   enabled: props.radio ? props.radio.enabled !== false : true,
   outputPort: props.radio?.port ?? (null as number | null),
   visibility: props.radio?.visibility ?? ('public' as 'public' | 'private'),
-  notes: props.radio?.notes ?? props.sentryDeviceStatus?.notes ?? '',
-  antenna: props.radio?.antenna ?? props.sentryDeviceStatus?.antenna ?? '',
-  // Tuning starts empty and is filled in by `loadSentryDeviceRecord` below.
-  // It cannot come from `sentryDeviceStatus`: Sentry's `DeviceStatus` reports
+  notes: props.radio?.notes ?? props.sdrManagerDeviceStatus?.notes ?? '',
+  antenna: props.radio?.antenna ?? props.sdrManagerDeviceStatus?.antenna ?? '',
+  // Tuning starts empty and is filled in by `loadSdrManagerDeviceRecord` below.
+  // It cannot come from `sdrManagerDeviceStatus`: the SDR host's `DeviceStatus` reports
   // what a device is *doing* and carries no persisted tuning at all, so
   // reading it here would show every field blank and then write those blanks
   // back over the stored configuration on save.
@@ -279,16 +279,16 @@ const tuningLoadError = ref('')
  *
  * Live rather than cached — the operator is about to edit these values.
  */
-async function loadSentryDeviceRecord(): Promise<void> {
+async function loadSdrManagerDeviceRecord(): Promise<void> {
   const radio = props.radio
-  if (!isSentryBacked.value || !radio?.sentry_host_id || !radio.sentry_device_id) {
+  if (!isSdrManagerBacked.value || !radio?.sdr_manager_host_id || !radio.sdr_manager_device_id) {
     tuningLoaded.value = true
     return
   }
   try {
-    const payload = await requireSdrManagerHosts().getHostDeviceRecords(radio.sentry_host_id)
+    const payload = await requireSdrManagerHosts().getHostDeviceRecords(radio.sdr_manager_host_id)
     const record = payload.devices.find(
-      (candidate: SdrManagerDeviceRecord) => candidate.device_id === radio.sentry_device_id,
+      (candidate: SdrManagerDeviceRecord) => candidate.device_id === radio.sdr_manager_device_id,
     )
     if (record) {
       form.value.sampleRate = record.sample_rate ?? null
@@ -328,7 +328,7 @@ const visibilityKeyboard = useRadioGroupKeyboard({
 
 onMounted(() => {
   setTimeout(() => nameRef.value?.focus(), 0)
-  void loadSentryDeviceRecord()
+  void loadSdrManagerDeviceRecord()
 })
 
 async function saveManualRadio(): Promise<void> {
@@ -347,8 +347,8 @@ async function saveManualRadio(): Promise<void> {
     agc: props.radio?.agc ?? null,
     description: props.radio?.description ?? '',
     enabled: form.value.enabled,
-    sentry_host_id: null,
-    sentry_device_id: null,
+    sdr_manager_host_id: null,
+    sdr_manager_device_id: null,
     notes: '',
     antenna: '',
     visibility: 'public',
@@ -369,9 +369,9 @@ async function saveManualRadio(): Promise<void> {
   }
 }
 
-async function saveSentryBackedDevice(): Promise<void> {
+async function saveSdrManagerBackedDevice(): Promise<void> {
   const radio = props.radio
-  if (!radio || radio.sentry_host_id == null || radio.sentry_device_id == null) return
+  if (!radio || radio.sdr_manager_host_id == null || radio.sdr_manager_device_id == null) return
   if (!form.value.name.trim()) {
     errorMsg.value = 'Name is required.'
     return
@@ -381,8 +381,8 @@ async function saveSentryBackedDevice(): Promise<void> {
   try {
     const hosts = requireSdrManagerHosts()
     const updatedDevice = await hosts.patchHostDevice(
-      radio.sentry_host_id,
-      radio.sentry_device_id,
+      radio.sdr_manager_host_id,
+      radio.sdr_manager_device_id,
       {
         name: form.value.name.trim(),
         enabled: form.value.enabled,
@@ -398,7 +398,7 @@ async function saveSentryBackedDevice(): Promise<void> {
         direct_sampling: form.value.directSampling,
       },
     )
-    // Keep Sentinel's mirrored radio row in sync with what Sentry actually
+    // Keep Sentinel's mirrored radio row in sync with what SDR host actually
     // accepted, rather than waiting for the next poll tick to reconcile it.
     await updateRadio(radio.id, {
       name: updatedDevice.name,
@@ -409,8 +409,8 @@ async function saveSentryBackedDevice(): Promise<void> {
       rf_gain: radio.rf_gain,
       agc: radio.agc,
       enabled: updatedDevice.enabled,
-      sentry_host_id: radio.sentry_host_id,
-      sentry_device_id: radio.sentry_device_id,
+      sdr_manager_host_id: radio.sdr_manager_host_id,
+      sdr_manager_device_id: radio.sdr_manager_device_id,
       notes: updatedDevice.notes,
       antenna: updatedDevice.antenna,
       visibility: updatedDevice.visibility,
@@ -424,7 +424,7 @@ async function saveSentryBackedDevice(): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (isSentryBacked.value) await saveSentryBackedDevice()
+  if (isSdrManagerBacked.value) await saveSdrManagerBackedDevice()
   else await saveManualRadio()
 }
 </script>

@@ -41,7 +41,7 @@ EXCLUDED_DATA_KEYS: dict[str, frozenset[str]] = {
 # Internal state that lives in user_settings for convenience but is not a
 # setting: nothing in the Settings UI edits it, and copying it between installs
 # is actively harmful (two Sentinels sharing an instanceId look like the same
-# client to Sentry's device reservations).
+# client to the SDR host's device reservations).
 INTERNAL_KEYS: dict[str, frozenset[str]] = {
     "app": frozenset({"instanceId"}),
 }

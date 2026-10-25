@@ -20,7 +20,7 @@ export const LOCATION_MARKER_DOT_COLOR = 'var(--map-location-dot)'
  * pulse.
  *
  * Exported because the mark is not only the user's own position any more: the
- * Sentry sites plotted on every domain map (`SentrySitesControl`) are the same
+ * SDR host sites plotted on every domain map (`SdrManagerSitesControl`) are the same
  * mark, built here rather than copied so the two cannot drift apart. They differ
  * only in the dot's colour (a CSS colour, typically a `var(--map-…)` token),
  * which is what `dotColor` is for — the shape says
@@ -73,7 +73,7 @@ export class UserLocationMarker {
    * Show or hide the rendered marker without discarding it.
    *
    * For a caller that borrows this marker's visibility rather than owning it —
-   * `SentrySitesControl` hides it while one of its counts stands for this
+   * `SdrManagerSitesControl` hides it while one of its counts stands for this
    * position, and shows it again when the count breaks up. Safe before the
    * marker exists: the next `update()` builds it visible.
    */

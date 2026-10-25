@@ -22,7 +22,7 @@
  * cards that hand a receiver to a decoder (LAND's Off Grid APRS SDR, SEA's Off Grid AIS SDR).
  *
  * Owns only the radio list: it re-reads the configured radios every few
- * seconds (a radio can be added, disabled or — for a Sentry-mirrored device
+ * seconds (a radio can be added, disabled or — for an SDR-Manager-mirrored device
  * — become unavailable while the panel is open), offers only enabled,
  * available ones, keeps the *selected* radio listed even when it has been
  * withdrawn (labelled, so the operator can see which receiver was decoding

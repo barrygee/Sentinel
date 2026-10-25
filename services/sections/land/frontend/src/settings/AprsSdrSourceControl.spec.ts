@@ -88,7 +88,7 @@ describe('AprsSdrSourceControl', () => {
     expect(optionLabels(wrapper)).toEqual(['Running'])
   })
 
-  it('omits a radio whose Sentry device is unavailable', async () => {
+  it('omits a radio whose SDR Manager device is unavailable', async () => {
     const wrapper = await mountControl([
       radio({ id: 1, name: 'Present' }),
       radio({ id: 2, name: 'Unplugged', available: false }),

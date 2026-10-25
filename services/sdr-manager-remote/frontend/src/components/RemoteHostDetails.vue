@@ -42,7 +42,7 @@
         />
       </div>
 
-      <BaseDataGrid title="SENTRY">
+      <BaseDataGrid title="SDR MANAGER">
         <BaseDataCell label="SOFTWARE VERSION" :value="softwareVersion" />
         <BaseDataCell label="REPORTED NAME" :value="info?.source?.name ?? UNSET_TEXT" />
         <BaseDataCell label="REPORTED HOST" :value="reportedHost" />

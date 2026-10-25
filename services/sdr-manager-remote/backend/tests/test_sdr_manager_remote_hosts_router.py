@@ -1,4 +1,4 @@
-"""Tests for the Sentry-host router (`/api/sdr-manager/remote/hosts`, ADR-0009).
+"""Tests for the SDR-host router (`/api/sdr-manager/remote/hosts`, ADR-0009).
 
 `host_poller`'s start/stop/restart/refresh_now are stubbed to no-op async
 mocks for every test here — the poller's own behaviour (backoff, snapshot
@@ -7,7 +7,7 @@ letting the real poller start background tasks against the router's request
 DB (which is not the same session the poller's AsyncSessionLocal points at)
 would either hang the test process or silently do nothing useful.
 
-Every outbound call to "Sentry itself" is routed through an httpx.MockTransport
+Every outbound call to "the SDR host itself" is routed through an httpx.MockTransport
 installed on the real httpx.AsyncClient class, so `SdrManagerClient`/`_client_for`
 run unmodified — this exercises real path-building and error-translation, not
 a stand-in.
@@ -315,10 +315,10 @@ class TestHealthProbe:
             "api_version": "1.0",
             "health": {"status": "ok"},
         }
-        # No bearer header: Sentry reads a session cookie and nothing else
+        # No bearer header: SDR host reads a session cookie and nothing else
         # (its ADR-0010), so a token here would only look like authentication.
         # `/api/health` is unauthenticated anyway, which is what makes it a
-        # usable reachability probe against a Sentry whose password we may not
+        # usable reachability probe against an SDR host whose password we may not
         # hold.
         assert "Authorization" not in captured["request"].headers
 
@@ -337,7 +337,7 @@ class TestHealthProbe:
         assert body["reachable"] is False
         assert "probe-token" not in resp.text
 
-    def test_probe_sentry_error_returns_200_with_reachable_false_and_code(self, client, monkeypatch):
+    def test_probe_sdr_manager_error_returns_200_with_reachable_false_and_code(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(401, {"detail": {"code": "unauthorized", "message": "bad token"}})
         _install_mock_transport(monkeypatch, handler)
@@ -413,8 +413,8 @@ class TestListHostLocations:
             }
         ]
 
-    def test_falls_back_to_the_name_the_sentry_calls_itself(self, client, monkeypatch):
-        """A host registered without a label takes Sentry's own name for itself."""
+    def test_falls_back_to_the_name_the_sdr_manager_calls_itself(self, client, monkeypatch):
+        """A host registered without a label takes the SDR host's own name for itself."""
         resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.7"})
         host_id = resp.json()["id"]
         self._patch_snapshots(
@@ -601,7 +601,7 @@ class TestHostInfo:
 
     @staticmethod
     def _route_health_and_export(monkeypatch, *, health, export, export_status=200):
-        """Answer `/api/health` and `/api/v1/sdrs` differently, like a real Sentry."""
+        """Answer `/api/health` and `/api/v1/sdrs` differently, like a real SDR host."""
 
         def handler(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/health":
@@ -679,7 +679,7 @@ class TestHostInfo:
         assert body["location"] is None
         assert body["control_port_offset"] is None
 
-    def test_rejected_health_surfaces_sentrys_own_code_and_message(self, client, monkeypatch):
+    def test_rejected_health_surfaces_sdr_managers_own_code_and_message(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(503, {"detail": {"code": "starting", "message": "Still booting."}})
         _install_mock_transport(monkeypatch, handler)
@@ -693,7 +693,7 @@ class TestHostInfo:
         assert body["health"] is None
 
     def test_failed_export_leaves_location_blank_but_host_reachable(self, client, monkeypatch):
-        """An older Sentry without `/api/v1/sdrs` is reachable, just unlocated."""
+        """An older SDR host without `/api/v1/sdrs` is reachable, just unlocated."""
         created = _create_host(client)
         self._route_health_and_export(
             monkeypatch,
@@ -729,7 +729,7 @@ class TestHostInfo:
         assert body["location"] is None
 
     def test_source_fields_of_the_wrong_type_are_dropped_not_fatal(self, client, monkeypatch):
-        """Sentry is a remote service — a surprising payload must degrade, not 500."""
+        """SDR host is a remote service — a surprising payload must degrade, not 500."""
         created = _create_host(client)
         self._route_health_and_export(
             monkeypatch,
@@ -759,7 +759,7 @@ class TestHostInfo:
         assert body["control_port_offset"] is None
 
     def test_unknown_location_keys_are_ignored(self, client, monkeypatch):
-        """A newer Sentry may add keys; only the three known ones are read."""
+        """A newer SDR host may add keys; only the three known ones are read."""
         created = _create_host(client)
         self._route_health_and_export(
             monkeypatch,
@@ -846,7 +846,7 @@ class TestDeviceProxy:
         assert json.loads(captured["request"].content) == {"name": "renamed"}
         hosts_router.host_poller.refresh_now.assert_awaited_once_with(created["id"])
 
-    def test_patch_device_propagates_sentrys_status_code_and_body_verbatim(self, client, monkeypatch):
+    def test_patch_device_propagates_sdr_managers_status_code_and_body_verbatim(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(
             422,
@@ -899,7 +899,7 @@ class TestDeviceProxy:
         assert resp.status_code == 502
         assert resp.json()["detail"]["code"] == "host_unreachable"
 
-    def test_patch_device_unknown_host_returns_404_without_calling_sentry(self, client, monkeypatch):
+    def test_patch_device_unknown_host_returns_404_without_calling_sdr_manager(self, client, monkeypatch):
         resp = client.patch("/api/sdr-manager/remote/hosts/999/devices/usb:1", json={})
         assert resp.status_code == 404
         hosts_router.host_poller.refresh_now.assert_not_awaited()
@@ -914,7 +914,7 @@ class TestDeviceProxy:
         assert resp.status_code == 204
         hosts_router.host_poller.refresh_now.assert_awaited_once_with(created["id"])
 
-    def test_delete_device_propagates_sentrys_error(self, client, monkeypatch):
+    def test_delete_device_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(409, {"detail": {"code": "device_busy", "message": "in use"}})
         _install_mock_transport(monkeypatch, handler)
@@ -958,7 +958,7 @@ class TestDeviceProxy:
         }
         hosts_router.host_poller.refresh_now.assert_awaited_once_with(created["id"])
 
-    def test_flash_serial_propagates_sentrys_error(self, client, monkeypatch):
+    def test_flash_serial_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(409, {"detail": {"code": "device_busy", "message": "already flashing"}})
         _install_mock_transport(monkeypatch, handler)
@@ -980,7 +980,7 @@ class TestWifiProxy:
         resp = client.get("/api/sdr-manager/remote/hosts/999/wifi")
         assert resp.status_code == 404
 
-    def test_get_wifi_returns_sentrys_response_verbatim(self, client, monkeypatch):
+    def test_get_wifi_returns_sdr_managers_response_verbatim(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(200, {"ssid": "MyNet", "enabled": True})
         _install_mock_transport(monkeypatch, handler)
@@ -990,7 +990,7 @@ class TestWifiProxy:
         assert resp.status_code == 200
         assert resp.json() == {"ssid": "MyNet", "enabled": True}
 
-    def test_get_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_get_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(404, {"detail": "no hotspot configured"})
         _install_mock_transport(monkeypatch, handler)
@@ -1023,9 +1023,9 @@ class TestWifiProxy:
         assert sent["ssid"] == "MyNet"
         assert sent["passphrase"] is None
 
-    def test_put_wifi_transmits_passphrase_to_sentry_but_never_echoes_it_back(self, client, monkeypatch):
+    def test_put_wifi_transmits_passphrase_to_sdr_manager_but_never_echoes_it_back(self, client, monkeypatch):
         created = _create_host(client)
-        handler, captured = _json_handler(200, {"ssid": "MyNet"})  # Sentry's own response omits the passphrase
+        handler, captured = _json_handler(200, {"ssid": "MyNet"})  # the SDR host's own response omits the passphrase
         _install_mock_transport(monkeypatch, handler)
 
         resp = client.put(
@@ -1037,7 +1037,7 @@ class TestWifiProxy:
         assert json.loads(captured["request"].content)["passphrase"] == "wifi-secret-value"
         assert "wifi-secret-value" not in resp.text
 
-    def test_put_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_put_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(422, {"detail": {"code": "invalid_channel", "message": "bad channel"}})
         _install_mock_transport(monkeypatch, handler)
@@ -1073,7 +1073,7 @@ class TestWifiProxy:
 
         assert resp.status_code == 204
 
-    def test_delete_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_delete_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(404, {"detail": "no hotspot configured"})
         _install_mock_transport(monkeypatch, handler)
@@ -1082,7 +1082,7 @@ class TestWifiProxy:
 
         assert resp.status_code == 404
 
-    def test_enable_wifi_forwards_confirm_flag_and_returns_sentrys_body(self, client, monkeypatch):
+    def test_enable_wifi_forwards_confirm_flag_and_returns_sdr_managers_body(self, client, monkeypatch):
         created = _create_host(client)
         handler, captured = _json_handler(200, {"enabled": True})
         _install_mock_transport(monkeypatch, handler)
@@ -1095,7 +1095,7 @@ class TestWifiProxy:
         assert resp.status_code == 200
         assert json.loads(captured["request"].content) == {"confirm_uplink_loss": True}
 
-    def test_enable_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_enable_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(409, {"detail": {"code": "uplink_conflict", "message": "would drop uplink"}})
         _install_mock_transport(monkeypatch, handler)
@@ -1104,7 +1104,7 @@ class TestWifiProxy:
 
         assert resp.status_code == 409
 
-    def test_disable_wifi_forwards_confirm_flag_and_returns_sentrys_body(self, client, monkeypatch):
+    def test_disable_wifi_forwards_confirm_flag_and_returns_sdr_managers_body(self, client, monkeypatch):
         created = _create_host(client)
         handler, captured = _json_handler(200, {"enabled": False})
         _install_mock_transport(monkeypatch, handler)
@@ -1117,7 +1117,7 @@ class TestWifiProxy:
         assert resp.status_code == 200
         assert json.loads(captured["request"].content) == {"confirm_uplink_loss": False}
 
-    def test_disable_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_disable_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         _install_mock_transport(monkeypatch, lambda request: httpx.Response(502, content=b"gateway error"))
 
@@ -1126,7 +1126,7 @@ class TestWifiProxy:
         assert resp.status_code == 502
         assert resp.json()["detail"]["code"] == "upstream_error"
 
-    def test_confirm_wifi_success_returns_sentrys_body(self, client, monkeypatch):
+    def test_confirm_wifi_success_returns_sdr_managers_body(self, client, monkeypatch):
         created = _create_host(client)
         handler, captured = _json_handler(200, {"confirmed": True})
         _install_mock_transport(monkeypatch, handler)
@@ -1137,7 +1137,7 @@ class TestWifiProxy:
         assert resp.json() == {"confirmed": True}
         assert captured["request"].method == "POST"
 
-    def test_confirm_wifi_propagates_sentrys_error(self, client, monkeypatch):
+    def test_confirm_wifi_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(
             400,
@@ -1164,7 +1164,7 @@ class TestWifiProxy:
         assert resp.status_code == 200
         assert resp.json() == [{"name": "wlan0"}]
 
-    def test_list_wifi_interfaces_propagates_sentrys_error(self, client, monkeypatch):
+    def test_list_wifi_interfaces_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(500, {"detail": "internal error"})
         _install_mock_transport(monkeypatch, handler)
@@ -1187,7 +1187,7 @@ class TestWifiProxy:
         assert resp.status_code == 200
         assert resp.json() == [{"mac": "aa:bb:cc:dd:ee:ff"}]
 
-    def test_list_wifi_clients_propagates_sentrys_error(self, client, monkeypatch):
+    def test_list_wifi_clients_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(503, {"detail": "unavailable"})
         _install_mock_transport(monkeypatch, handler)
@@ -1215,7 +1215,7 @@ class TestUnreachableHostPropagation:
     surfacing a raw httpx exception as a 500.
 
     This is the failure that actually happens in the field — far more often
-    than a Sentry-authored rejection — so each route is covered explicitly
+    than an SDR-Manager-authored rejection — so each route is covered explicitly
     rather than trusting that one shared helper is wired into all of them.
     """
 
@@ -1298,7 +1298,7 @@ class TestHostPatchValidators:
     def test_explicit_null_clears_the_name_but_not_the_connection_details(self, client):
         """`name` is the one field where an explicit null means "clear it".
 
-        The others fall back to the stored value, matching Sentry's own
+        The others fall back to the stored value, matching the SDR host's own
         convention for the hotspot passphrase — omitting it means "leave the
         stored one alone", and there is no sense in which a host has no address.
         """
@@ -1368,7 +1368,7 @@ class TestHostPatchValidators:
 
 
 class TestWifiConfigValidators:
-    """`WifiConfigIn` constrains the fields Sentry would otherwise reject on a
+    """`WifiConfigIn` constrains the fields SDR host would otherwise reject on a
     round trip, so the operator gets the error without waking the Pi."""
 
     @pytest.mark.parametrize(
@@ -1444,7 +1444,7 @@ class TestHostCreateWithoutName:
 
 
 class TestDeviceRecordsProxy:
-    """`GET /{host_id}/devices/records` proxies Sentry's persisted configuration.
+    """`GET /{host_id}/devices/records` proxies the SDR host's persisted configuration.
 
     Distinct from the cached `/devices` snapshot: `DeviceStatus` carries no
     tuning fields, so an edit form driven off the snapshot alone would show them
@@ -1455,7 +1455,7 @@ class TestDeviceRecordsProxy:
         resp = client.get("/api/sdr-manager/remote/hosts/999/devices/records")
         assert resp.status_code == 404
 
-    def test_returns_sentrys_body_verbatim_including_tuning_and_suggestion(self, client, monkeypatch):
+    def test_returns_sdr_managers_body_verbatim_including_tuning_and_suggestion(self, client, monkeypatch):
         created = _create_host(client)
         body = {
             "devices": [
@@ -1481,10 +1481,10 @@ class TestDeviceRecordsProxy:
 
         assert resp.status_code == 200
         assert resp.json() == body
-        # Sentry's own route, not the status one — the two carry different shapes.
+        # the SDR host's own route, not the status one — the two carry different shapes.
         assert captured["request"].url.path == "/api/devices"
 
-    def test_propagates_sentrys_error(self, client, monkeypatch):
+    def test_propagates_sdr_managers_error(self, client, monkeypatch):
         created = _create_host(client)
         handler, _ = _json_handler(403, {"detail": {"code": "forbidden", "message": "Nope."}})
         _install_mock_transport(monkeypatch, handler)

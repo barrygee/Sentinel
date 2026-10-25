@@ -2,7 +2,7 @@
 
 Owns `adsb_cache` and `air_tracking` in its own database (`DB_PATH`), copied
 from the monolith's on first boot (`LEGACY_DB_PATH`), and serves `/api/air/`
-plus `/api/sdr/adsb/` (the Sentry dongle behind Off Grid ADS-B). Core keeps
+plus `/api/sdr/adsb/` (the SDR Manager dongle behind Off Grid ADS-B). Core keeps
 `/api/air/messages` — notifications are core's — and the gateway sends that
 longer prefix to core.
 

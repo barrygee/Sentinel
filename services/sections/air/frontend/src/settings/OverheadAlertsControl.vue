@@ -1,7 +1,7 @@
 <template>
   <div class="overhead-alerts">
     <p v-if="locations.length === 0" class="overhead-alerts-empty">
-      No location to watch yet — set your location, or register a Sentry host.
+      No location to watch yet — set your location, or register an SDR host.
     </p>
 
     <div
@@ -12,7 +12,7 @@
     >
       <p class="overhead-alerts-heading">
         <span class="overhead-alerts-name">
-          {{ location.isUser ? 'Sentinel location' : `Sentry: ${location.label}` }}
+          {{ location.isUser ? 'Sentinel location' : `SDR host: ${location.label}` }}
         </span>
         <span class="overhead-alerts-coords">
           ({{ formatLatitude(location.lat) }} {{ formatLongitude(location.lon) }})
@@ -60,9 +60,9 @@
  * Settings > AIR > Overhead Aircraft Alerts — one row per place that can have
  * something overhead it.
  *
- * Replaces the single app-wide toggle pair and radius: a Sentry watches its own
+ * Replaces the single app-wide toggle pair and radius: an SDR host watches its own
  * patch of sky, so which aircraft count and how far out are questions per
- * receiver. The operator's own position leads the list; each Sentry follows.
+ * receiver. The operator's own position leads the list; each SDR host follows.
  *
  * The radius is held as typed text while it is being edited — clearing the field
  * to retype it would otherwise be read as "0" and rejected mid-keystroke — and

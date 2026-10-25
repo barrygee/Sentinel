@@ -74,7 +74,7 @@ interface NotifTypeScenario {
 // `useAirAlertsService()` app-wide on mount, which constructs an
 // `OverheadAlertsTracker` and immediately calls `setZones(activeZones.value)`
 // with whatever zones are active at that instant. With no user-location
-// alert radius or Sentry configured (this suite's mocks), that first call is
+// alert radius or SDR host configured (this suite's mocks), that first call is
 // `setZones([])`, which runs `_dismissAllOverhead()` — clearing every
 // existing 'overhead' notification, including ours, before the panel is even
 // opened. That is real, intentional behaviour (an overhead alert whose zone

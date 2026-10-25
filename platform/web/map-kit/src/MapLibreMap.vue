@@ -235,7 +235,7 @@ defineExpose({ getMap })
   overflow: visible;
 }
 
-/* ── Sentry sites (SentrySitesControl) ──────────────────────────────────────
+/* ── SDR host sites (SdrManagerSitesControl) ──────────────────────────────────────
    The ⊙ mark again — same size and shape as the user-location marker — with
    the site's details in a pill butted against it, built like the map's own
    right-click menu so the two read as one piece of map furniture. The whole
@@ -247,12 +247,12 @@ defineExpose({ getMap })
    aircraft) that share the canvas container at z-index 0: MapLibre stacks
    markers in DOM order, which follows fetch/style-load timing, so without it
    a nearby airport label can land on top and swallow the hover and click. */
-.sentry-map-marker,
-.sentry-cluster-marker {
+.sdr-manager-map-marker,
+.sdr-manager-cluster-marker {
   z-index: 1;
 }
 
-.sentry-map-marker {
+.sdr-manager-map-marker {
   display: block;
   width: 60px;
   height: 60px;
@@ -265,7 +265,7 @@ defineExpose({ getMap })
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
 }
 
-.sentry-map-marker-mark {
+.sdr-manager-map-marker-mark {
   display: block;
   width: 60px;
   height: 60px;
@@ -277,17 +277,17 @@ defineExpose({ getMap })
   z-index: 3;
 }
 
-.sentry-map-marker-mark svg {
+.sdr-manager-map-marker-mark svg {
   overflow: visible;
 }
 
 /* The mark is a circle in the middle of a large transparent box, so the default
    outline would float well clear of it — the ring itself lights up instead. */
-.sentry-map-marker:focus-visible {
+.sdr-manager-map-marker:focus-visible {
   outline: none;
 }
 
-.sentry-map-marker:focus-visible svg circle:first-of-type {
+.sdr-manager-map-marker:focus-visible svg circle:first-of-type {
   stroke: var(--color-accent);
   stroke-width: 3.4;
 }
@@ -295,7 +295,7 @@ defineExpose({ getMap })
 /* The details pill. Starts at the mark's centre and has a circle masked out of
    its leading edge, so the ⊙ stays whole and the panel appears to hang off it —
    the same construction the "SET LOCATION" menu uses. */
-.sentry-map-marker-info {
+.sdr-manager-map-marker-info {
   position: absolute;
   left: 30px;
   top: 50%;
@@ -321,12 +321,12 @@ defineExpose({ getMap })
 
 /* Shown while the pointer is over the marker and while it holds keyboard focus,
    so what the button will open is legible either way round. */
-.sentry-map-marker:hover .sentry-map-marker-info,
-.sentry-map-marker:focus-visible .sentry-map-marker-info {
+.sdr-manager-map-marker:hover .sdr-manager-map-marker-info,
+.sdr-manager-map-marker:focus-visible .sdr-manager-map-marker-info {
   display: flex;
 }
 
-.sentry-map-marker-name {
+.sdr-manager-map-marker-name {
   display: flex;
   align-items: center;
   color: var(--color-text-muted);
@@ -337,8 +337,8 @@ defineExpose({ getMap })
   text-transform: uppercase;
 }
 
-.sentry-map-marker-meta,
-.sentry-map-marker-coords {
+.sdr-manager-map-marker-meta,
+.sdr-manager-map-marker-coords {
   display: flex;
   align-items: center;
   /* Indented past the status dot so they line up with the name itself, leaving
@@ -354,7 +354,7 @@ defineExpose({ getMap })
 
 /* Reachability, matching the dot the SDR settings rows use. Not the only
    carrier of the state: the marker's accessible name says it in words. */
-.sentry-map-marker-status {
+.sdr-manager-map-marker-status {
   display: inline-block;
   position: relative;
   width: 6px;
@@ -365,11 +365,11 @@ defineExpose({ getMap })
   flex-shrink: 0;
 }
 
-.sentry-map-marker-status--online {
+.sdr-manager-map-marker-status--online {
   background: var(--color-accent);
 }
 
-.sentry-map-marker-status--offair {
+.sdr-manager-map-marker-status--offair {
   background: #ef4444;
 }
 

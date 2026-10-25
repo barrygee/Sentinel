@@ -109,7 +109,7 @@ def core(monkeypatch) -> FakeCore:
 
 class TestAirSettingsOverHttp:
     async def test_the_off_grid_source_device_is_read_from_core(self, core):
-        core.namespaces["air"] = {"offgridSdrSource": {"sentry_host_id": 3, "sentry_device_id": "dongle-1"}}
+        core.namespaces["air"] = {"offgridSdrSource": {"sdr_manager_host_id": 3, "sdr_manager_device_id": "dongle-1"}}
 
         assert await adsb_source.get_source(None) == adsb_source.AdsbSource(host_id=3, device_id="dongle-1")
 
@@ -119,7 +119,9 @@ class TestAirSettingsOverHttp:
     async def test_picking_a_source_writes_it_to_core(self, core):
         await adsb_source.set_source(None, 3, "dongle-1")
 
-        assert core.writes == [("air/offgridSdrSource", {"sentry_host_id": 3, "sentry_device_id": "dongle-1"})]
+        assert core.writes == [
+            ("air/offgridSdrSource", {"sdr_manager_host_id": 3, "sdr_manager_device_id": "dongle-1"})
+        ]
 
     async def test_clearing_the_source_releases_then_writes_null_to_core(self, core, monkeypatch):
         calls: list[str] = []

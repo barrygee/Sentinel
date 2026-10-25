@@ -85,7 +85,7 @@ export interface RadioSummary {
   /** The operator's name for it; empty when unnamed. */
   name: string
   enabled: boolean
-  /** False when its device has gone away (e.g. an unplugged Sentry dongle). */
+  /** False when its device has gone away (e.g. an unplugged SDR Manager dongle). */
   available: boolean
 }
 

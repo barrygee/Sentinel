@@ -30,8 +30,8 @@ function radioRecord(
     bandwidth: null,
     rf_gain: null,
     agc: null,
-    sentry_host_id: null,
-    sentry_device_id: null,
+    sdr_manager_host_id: null,
+    sdr_manager_device_id: null,
     notes: '',
     antenna: '',
     visibility: 'public',
@@ -301,7 +301,7 @@ describe('sdr radio capability — radio list', () => {
   })
 
   it('treats a radio with no availability field as available', async () => {
-    // A manually-entered radio has no Sentry device behind it, so the backend
+    // A manually-entered radio has no SDR Manager device behind it, so the backend
     // may omit the flag entirely — that must not hide the radio.
     const handEntered = radioRecord({ id: 4, name: 'Hand Entered' })
     delete handEntered.device_available

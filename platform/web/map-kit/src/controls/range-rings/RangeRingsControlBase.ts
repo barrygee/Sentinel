@@ -100,7 +100,7 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
    * and whether any of it is shown at all.
    */
   setOrigin(origin: ResolvedRingOrigin | null): void {
-    // The origin is recomputed on every Sentry poll, so most calls carry the
+    // The origin is recomputed on every SDR Manager poll, so most calls carry the
     // same point as the last: rebuilding 5 × 65-point rings every 15 seconds
     // for no visible change is work the map does not need.
     if (this._sameOrigin(origin)) return

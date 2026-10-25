@@ -26,7 +26,7 @@ import {
 } from './satelliteNotificationTarget'
 import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
@@ -38,12 +38,12 @@ import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 import { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { DaynightControl } from './controls/daynight/DaynightControl'
 import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
-import { SentrySitesControl } from '@sentinel/map-kit/controls/sentry-sites/SentrySitesControl'
+import { SdrManagerSitesControl } from '@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl'
 
 const appStore = useAppStore()
 const spaceStore = useSpaceStore()
 const basemapStore = useBasemapStore()
-const sentrySitesStore = useSentrySitesStore()
+const sdrManagerSitesStore = useSdrManagerSitesStore()
 const settingsStore = useSettingsStore()
 const notificationsStore = useNotificationsStore()
 const trackingStore = useTrackingStore()
@@ -73,9 +73,9 @@ const satelliteControlRef = shallowRef<SatelliteControl | null>(null)
 let satelliteControl: SatelliteControl | null = null
 let daynightControl: DaynightControl | null = null
 let namesControl: NamesToggleControl | null = null
-// Sentry sites are plotted on every domain map, this one included — see
-// SentrySitesControl. Added without a button: the sites are always shown.
-let sentrySitesControl: SentrySitesControl | null = null
+// SDR host sites are plotted on every domain map, this one included — see
+// SdrManagerSitesControl. Added without a button: the sites are always shown.
+let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 const _locationMarker = new UserLocationMarker('space-user-location-marker')
 const ctxMenu = useMapContextMenu()
 
@@ -174,14 +174,14 @@ function onStyleLoaded(m: MapLibreGlMap) {
   daynightControl = new DaynightControl(spaceStore)
   namesControl = new NamesToggleControl(basemapStore)
 
-  sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
-    // The operator's own position joins the grouping pass, so a Sentry sitting
+  sdrManagerSitesControl = new SdrManagerSitesControl(sdrManagerSitesStore, settingsStore, {
+    // The operator's own position joins the grouping pass, so an SDR host sitting
     // on top of it collapses into a count instead of two marks smearing
     // together; the marker is handed over so the count can stand in for it.
     getUserLocation,
     userMarker: _locationMarker,
   })
-  sentrySitesControl.onAdd(m)
+  sdrManagerSitesControl.onAdd(m)
 
   m.addControl(satelliteControl, 'top-right')
   m.addControl(daynightControl, 'top-right')
@@ -218,8 +218,8 @@ onBeforeUnmount(() => {
     spaceStore.saveMapState([center.lng, center.lat], m.getZoom())
   }
   _map = null
-  sentrySitesControl?.onRemove()
-  sentrySitesControl = null
+  sdrManagerSitesControl?.onRemove()
+  sdrManagerSitesControl = null
   satelliteControl = null
   daynightControl = null
   namesControl = null

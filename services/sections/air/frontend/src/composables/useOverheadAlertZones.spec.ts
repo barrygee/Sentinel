@@ -8,8 +8,8 @@ vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 
-import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '../stores/air'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useOverheadAlertZones } from './useOverheadAlertZones'
 
 function site(overrides: Partial<RadioSite> = {}): RadioSite {
@@ -34,8 +34,8 @@ describe('useOverheadAlertZones', () => {
   })
 
   describe('the list of places', () => {
-    it('puts the operator first, then each Sentry in fleet order', () => {
-      useSentrySitesStore().sites = [site(), site({ id: 2, name: 'Coastal' })]
+    it('puts the operator first, then each SDR host in fleet order', () => {
+      useSdrManagerSitesStore().sites = [site(), site({ id: 2, name: 'Coastal' })]
       const { locations } = useOverheadAlertZones()
       expect(locations.value.map((zone) => zone.label)).toEqual([
         'MY LOCATION',
@@ -48,21 +48,21 @@ describe('useOverheadAlertZones', () => {
 
     it('omits the operator when there is no fix', () => {
       locationRef.value = null
-      useSentrySitesStore().sites = [site()]
+      useSdrManagerSitesStore().sites = [site()]
       const { locations } = useOverheadAlertZones()
       // There is no "enabled but nowhere" state: no fix, no place to watch.
-      expect(locations.value.map((zone) => zone.id)).toEqual([sentryAlertLocationId(1)])
+      expect(locations.value.map((zone) => zone.id)).toEqual([sdrManagerAlertLocationId(1)])
     })
 
     it('carries each place its own coordinates', () => {
-      useSentrySitesStore().sites = [site()]
+      useSdrManagerSitesStore().sites = [site()]
       const { locations } = useOverheadAlertZones()
       expect(locations.value[0]).toMatchObject({ lon: -0.12, lat: 51.5 })
       expect(locations.value[1]).toMatchObject({ lon: -1.53, lat: 54.95 })
     })
 
-    it('names a Sentry by address when it has no name', () => {
-      useSentrySitesStore().sites = [site({ name: null })]
+    it('names an SDR host by address when it has no name', () => {
+      useSdrManagerSitesStore().sites = [site({ name: null })]
       expect(useOverheadAlertZones().locations.value[1]!.label).toBe('192.168.1.60:8000')
     })
 
@@ -80,13 +80,13 @@ describe('useOverheadAlertZones', () => {
 
     it('reads the settings stored against that place', () => {
       const airStore = useAirStore()
-      useSentrySitesStore().sites = [site()]
+      useSdrManagerSitesStore().sites = [site()]
       airStore.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true, radiusNm: 5 })
-      airStore.setOverheadAlert(sentryAlertLocationId(1), { mil: true, radiusNm: 40 })
+      airStore.setOverheadAlert(sdrManagerAlertLocationId(1), { mil: true, radiusNm: 40 })
 
       const { locations } = useOverheadAlertZones()
 
-      // Each Sentry watches its own patch of sky at its own radius.
+      // Each SDR host watches its own patch of sky at its own radius.
       expect(locations.value[0]).toMatchObject({ civil: true, mil: false, radiusNm: 5 })
       expect(locations.value[1]).toMatchObject({ civil: false, mil: true, radiusNm: 40 })
     })
@@ -102,12 +102,12 @@ describe('useOverheadAlertZones', () => {
       expect(locations.value[0]!.civil).toBe(true)
     })
 
-    it('follows a Sentry joining the fleet', async () => {
-      const sentrySitesStore = useSentrySitesStore()
+    it('follows an SDR host joining the fleet', async () => {
+      const sdrManagerSitesStore = useSdrManagerSitesStore()
       const { locations } = useOverheadAlertZones()
       expect(locations.value).toHaveLength(1)
 
-      sentrySitesStore.sites = [site()]
+      sdrManagerSitesStore.sites = [site()]
       await nextTick()
 
       expect(locations.value).toHaveLength(2)
@@ -117,8 +117,8 @@ describe('useOverheadAlertZones', () => {
   describe('activeZones', () => {
     it('keeps only the places actually watching something', () => {
       const airStore = useAirStore()
-      useSentrySitesStore().sites = [site()]
-      airStore.setOverheadAlert(sentryAlertLocationId(1), { mil: true })
+      useSdrManagerSitesStore().sites = [site()]
+      airStore.setOverheadAlert(sdrManagerAlertLocationId(1), { mil: true })
 
       const { activeZones } = useOverheadAlertZones()
 
@@ -135,7 +135,7 @@ describe('useOverheadAlertZones', () => {
     })
 
     it('is empty while every place is switched off', () => {
-      useSentrySitesStore().sites = [site()]
+      useSdrManagerSitesStore().sites = [site()]
       expect(useOverheadAlertZones().activeZones.value).toEqual([])
     })
   })

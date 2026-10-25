@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { nextTick } from 'vue'
-import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '../stores/air'
+import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
 import { useAirNotifStore } from '../stores/airNotif'
 import { ADSB_POLL_INTERVAL_MS } from '../constants/adsb'
 
@@ -159,11 +159,11 @@ describe('useAirAlertsService', () => {
   })
 
   it('skips the poll while there is no position to poll around', async () => {
-    // A Sentry can be watched with no operator fix at all, so polling is on
+    // An SDR host can be watched with no operator fix at all, so polling is on
     // while the point the feed is fetched around does not exist.
     locationRef.value = null
-    const { useSentrySitesStore } = await import('@sentinel/shell-api/stores/sentrySites')
-    useSentrySitesStore().sites = [
+    const { useSdrManagerSitesStore } = await import('@sentinel/shell-api/stores/sdrManagerSites')
+    useSdrManagerSitesStore().sites = [
       {
         id: 1,
         name: 'Gateshead',
@@ -175,7 +175,7 @@ describe('useAirAlertsService', () => {
         updated_at: null,
       },
     ]
-    useAirStore().setOverheadAlert(sentryAlertLocationId(1), { civil: true })
+    useAirStore().setOverheadAlert(sdrManagerAlertLocationId(1), { civil: true })
     const service = await loadService()
     service.start()
 

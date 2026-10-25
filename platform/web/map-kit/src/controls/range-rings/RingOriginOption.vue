@@ -25,7 +25,7 @@
 <script setup lang="ts">
 /**
  * One choice in the ring-origin picker: what the point is called, and where it
- * is — coordinates plus, for a Sentry site, how far away it is.
+ * is — coordinates plus, for an SDR host site, how far away it is.
  *
  * A `role="radio"` row rather than a button, because the picker is a
  * single-select group: the operator is choosing *which* origin, and arrow keys

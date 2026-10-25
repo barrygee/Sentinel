@@ -27,7 +27,7 @@
 <script setup lang="ts">
 /**
  * Choosing what the range rings are centred on: the Sentinel's own position or
- * one of the Sentry sites.
+ * one of the SDR host sites.
  *
  * The named places are a radio group — the operator is picking exactly one of
  * a listed set, and each row shows its coordinates so the choice can be made
@@ -38,12 +38,12 @@
  * heading and the resolved-coordinates line.
  */
 import { computed, ref, watch } from 'vue'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 import { haversineNm } from '@sentinel/map-kit/utils/distanceUtils'
 import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
-import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
+import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
 import RingOriginOption from '@sentinel/map-kit/controls/range-rings/RingOriginOption.vue'
 
 /** One place the rings can be centred on, as the group lists it. */
@@ -52,14 +52,14 @@ interface OriginOption {
   name: string
   /** Coordinates, plus distance from the operator where that is known. */
   detail: string
-  /** Which Sentry host this is, or null for the Sentinel's own position. */
-  sentryHostId: number | null
+  /** Which SDR host this is, or null for the Sentinel's own position. */
+  sdrManagerHostId: number | null
   /** A place with no position: listed for context, but not choosable. */
   disabled: boolean
   selected: boolean
 }
 
-const sentrySitesStore = useSentrySitesStore()
+const sdrManagerSitesStore = useSdrManagerSitesStore()
 const { location: userLocation } = useUserLocation()
 const {
   setting,
@@ -67,7 +67,7 @@ const {
   clearNotice,
   persistOriginToConfig,
   selectUserOrigin,
-  selectSentryOrigin,
+  selectSdrManagerOrigin,
 } = useRangeRingOrigin()
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -89,19 +89,19 @@ const options = computed<OriginOption[]>(() => {
       key: 'user',
       name: 'Sentinel location',
       detail: own ? placeDetail(own.lat, own.lon, false) : 'Set your location first',
-      sentryHostId: null,
+      sdrManagerHostId: null,
       disabled: own === null,
       selected: setting.value.kind === 'user',
     },
   ]
-  for (const site of sentrySitesStore.sites) {
+  for (const site of sdrManagerSitesStore.sites) {
     list.push({
-      key: `sentry:${site.id}`,
+      key: `sdr-manager:${site.id}`,
       name: siteLabel(site),
       detail: placeDetail(site.latitude, site.longitude, true),
-      sentryHostId: site.id,
+      sdrManagerHostId: site.id,
       disabled: false,
-      selected: setting.value.kind === 'sentry' && setting.value.sentryHostId === site.id,
+      selected: setting.value.kind === 'sdr-manager' && setting.value.sdrManagerHostId === site.id,
     })
   }
   return list
@@ -142,11 +142,11 @@ function pick(index: number): void {
   // the row says so, and the choice is refused rather than made and undrawn.
   if (option.disabled) return
   clearNotice()
-  if (option.sentryHostId === null) {
+  if (option.sdrManagerHostId === null) {
     selectUserOrigin()
     announce('the Sentinel location')
   } else {
-    selectSentryOrigin(option.sentryHostId)
+    selectSdrManagerOrigin(option.sdrManagerHostId)
     announce(option.name)
   }
   stageWrite()

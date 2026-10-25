@@ -205,7 +205,7 @@ class TestTheMonolithsRoutes:
             ("/api/air/messages", CORE_SERVICE_ID),
             ("/api/air/messages/stream", CORE_SERVICE_ID),
             ("/api/air/aircraft", "air"),
-            # Air's Sentry dongle sits inside the SDR section's prefix (plan §4.4).
+            # Air's SDR Manager dongle sits inside the SDR section's prefix (plan §4.4).
             ("/api/sdr/adsb/source", "air"),
             ("/api/sdr/radios", "radio"),
             ("/api/sdr/radios/3", "radio"),

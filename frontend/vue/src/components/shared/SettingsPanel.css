@@ -21,7 +21,7 @@
    Fields: every editable value in the panel — number, URL, lat/lon, device
    and host form inputs — carries no fill. It is a value written on the card
    with a hairline rule beneath it, which thickens to a 2px accent rule on
-   focus, matching the Sentry console's fields so the two apps' forms read as
+   focus, matching the SDR Manager console's fields so the two apps' forms read as
    one system. Filled boxes are reserved for surfaces that are not a single
    value: the search bar, the JSON document editors, and button groups.
    ============================================================ */
@@ -61,7 +61,7 @@
 
 /* The domain maps' global control styling (MapLibreMap.vue) inverts the zoom
    icons to white for their dark control bar. On this light island the bar is
-   light too, which left + and − nearly invisible on the embedded maps (Sentry
+   light too, which left + and − nearly invisible on the embedded maps (SDR host
    site, Offline Maps). Restore MapLibre's own dark icons here (WCAG 1.4.11). */
 #settings-panel .maplibregl-ctrl-icon {
   filter: none !important;
@@ -326,11 +326,11 @@
 }
 
 /* ── Location & data-source labelled inputs ───────────────────────── */
-/* The location fields deliberately mirror Sentry's Sentry Location panel:
+/* The location fields deliberately mirror the SDR host's SDR host Location panel:
    label above a full-width underlined input, with its range hint (or its
    validation error) beneath, LAT stacked over LON. The card itself spans two
    grid columns (see SettingRow's HALF_TYPES) — the fields stay stacked and
-   full-width across it rather than pairing up, keeping Sentry's reading order. */
+   full-width across it rather than pairing up, keeping the SDR host's reading order. */
 .settings-location-wrap {
   display: flex;
   flex-direction: column;
@@ -1261,7 +1261,7 @@
   text-overflow: ellipsis;
 }
 
-/* A radio whose Sentry device is unplugged, disabled or gone. Dimmed rather
+/* A radio whose SDR Manager device is unplugged, disabled or gone. Dimmed rather
    than hidden: the radio still exists and is still the operator's to keep,
    rename or delete — it simply cannot be connected to right now. */
 .sdr-device-info--unavailable {

@@ -166,7 +166,7 @@ async def upsert_setting_endpoint(
     # whichever module owns a reaction to it (e.g. SDR retuning a running APRS
     # bridge when land/aprsChannelHz changes) — this is what lets
     # routers/settings.py avoid importing routers/sdr.py. Background writers
-    # (e.g. the Sentry fleet poller) go through the same write_setting, so a
+    # (e.g. the SDR Manager fleet poller) go through the same write_setting, so a
     # reaction can't tell who wrote the value.
     await write_setting(
         db,

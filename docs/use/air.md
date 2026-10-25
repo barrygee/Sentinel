@@ -19,7 +19,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 
 ## Off grid
 
-You need a dongle with a 1090 MHz antenna on a [Sentry host](sdr/add-a-radio.md#add-a-sentry-host), and the ADS-B decoder.
+You need a dongle with a 1090 MHz antenna on a [Sentry host](sdr/add-a-radio.md#add-a-sdr-manager-host), and the ADS-B decoder.
 
 1. `docker compose --profile adsb up -d --build`
 2. Set **OFF GRID** (**App Wide Connectivity Mode**, or Air's **Source Override**).

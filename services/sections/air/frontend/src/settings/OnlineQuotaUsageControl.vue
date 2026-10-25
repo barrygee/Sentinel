@@ -75,7 +75,7 @@ const warning = computed(() => onlineQuotaWarning(quota.value))
 
 <style scoped>
 /* BaseDataGrid/BaseDataCell default to the dark map panels they were extracted
-   from. Re-pointed at the settings panel exactly as SDR's SentryHostDetails
+   from. Re-pointed at the settings panel exactly as SDR's SdrManagerHostDetails
    does, so labelled figures read the same in every settings row: caption-size
    labels, plain value-size figures, the same greys, gaps and padding (none at
    the sides, so the figures line up with the row's title). */

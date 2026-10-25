@@ -96,7 +96,12 @@ function origin(overrides: Partial<ResolvedRingOrigin> = {}): ResolvedRingOrigin
   }
 }
 
-const SENTRY = origin({ kind: 'sentry', label: 'GATESHEAD', longitude: -1.53, latitude: 54.95 })
+const HOST_ORIGIN = origin({
+  kind: 'sdr-manager',
+  label: 'GATESHEAD',
+  longitude: -1.53,
+  latitude: 54.95,
+})
 
 let airStore: AirStore
 
@@ -264,7 +269,7 @@ describe('RangeRingsControlBase visibility', () => {
 
   it('shows the crosshair and label when the centre is somewhere else', () => {
     airStore.setOverlay('rangeRings', true)
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
     expect(map.layout(ORIGIN_LAYER, 'visibility')).toBe('visible')
@@ -274,7 +279,7 @@ describe('RangeRingsControlBase visibility', () => {
 
   it('hides the crosshair again when the rings are switched off', () => {
     airStore.setOverlay('rangeRings', true)
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
 
@@ -293,7 +298,7 @@ describe('RangeRingsControlBase visibility', () => {
 
   it('survives the origin-mark layers being absent when visibility is applied', () => {
     airStore.setOverlay('rangeRings', true)
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
     // A style reload can drop the extra layers while the ring layer survives.
@@ -302,7 +307,7 @@ describe('RangeRingsControlBase visibility', () => {
     map.layers.delete(LABEL_LAYER)
     map.setLayoutProperty.mockClear()
 
-    control.setOrigin(origin({ kind: 'sentry', label: 'GATESHEAD' }))
+    control.setOrigin(origin({ kind: 'sdr-manager', label: 'GATESHEAD' }))
 
     expect(map.setLayoutProperty).toHaveBeenCalledWith(LAYER_ID, 'visibility', 'visible')
     expect(map.setLayoutProperty).not.toHaveBeenCalledWith(ORIGIN_LAYER, 'visibility', 'visible')
@@ -315,7 +320,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
     const map = fakeMap()
     control.onAdd(map.map)
 
-    control.setOrigin(SENTRY)
+    control.setOrigin(HOST_ORIGIN)
 
     expect(map.sourceData(LAYER_ID)!.features).toHaveLength(5)
     const crosshair = map.sourceData(ORIGIN_LAYER)!.features[0]!.geometry as GeoJSON.Point
@@ -339,7 +344,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
     const map = fakeMap()
     control.onAdd(map.map)
 
-    control.setOrigin(SENTRY)
+    control.setOrigin(HOST_ORIGIN)
 
     expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD')
   })
@@ -349,13 +354,13 @@ describe('RangeRingsControlBase.setOrigin', () => {
     const map = fakeMap()
     control.onAdd(map.map)
 
-    control.setOrigin({ ...SENTRY, degraded: true })
+    control.setOrigin({ ...HOST_ORIGIN, degraded: true })
 
     expect(map.layout(LABEL_LAYER, 'text-field')).toBe('GATESHEAD · OFFLINE')
   })
 
   it('empties the label when there is no origin', () => {
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
 
@@ -370,7 +375,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
     control.onAdd(map.map)
     const setData = map.setData.get(LAYER_ID)!
 
-    // The origin recomputes on every 15s Sentry poll; rebuilding five 65-point
+    // The origin recomputes on every 15s SDR Manager poll; rebuilding five 65-point
     // rings each time for an identical point is work the map does not need.
     control.setOrigin(origin())
 
@@ -381,7 +386,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
     ['longitude', origin({ longitude: 2 })],
     ['latitude', origin({ latitude: 49 })],
     ['label', origin({ label: 'ELSEWHERE' })],
-    ['kind', origin({ kind: 'sentry' })],
+    ['kind', origin({ kind: 'sdr-manager' })],
     ['degraded', origin({ degraded: true })],
   ])('redraws when the %s changes', (_field, next) => {
     const control = new RangeRingsControl(airStore, origin())
@@ -423,14 +428,14 @@ describe('RangeRingsControlBase.setOrigin', () => {
     control.onAdd(map.map)
     control.onRemove()
 
-    expect(() => control.setOrigin(SENTRY)).not.toThrow()
+    expect(() => control.setOrigin(HOST_ORIGIN)).not.toThrow()
   })
 
   it('is a no-op when the sources do not exist yet', () => {
     const control = new RangeRingsControl(airStore, origin())
     const map = fakeMap({ styleLoaded: false })
     control.onAdd(map.map) // deferred — no sources
-    control.setOrigin(SENTRY)
+    control.setOrigin(HOST_ORIGIN)
     expect(map.setData.size).toBe(0)
   })
 })
@@ -451,7 +456,7 @@ describe('RangeRingsControlBase palette', () => {
     'draws the rings, crosshair and label in black on the %s basemap, like the sat track',
     (theme) => {
       document.documentElement.dataset.mapTheme = theme
-      const control = new RangeRingsControl(airStore, SENTRY)
+      const control = new RangeRingsControl(airStore, HOST_ORIGIN)
       const map = fakeMap()
       control.onAdd(map.map)
 
@@ -467,7 +472,7 @@ describe('RangeRingsControlBase palette', () => {
 
   it('keeps the faint white rings on the dark basemap', () => {
     document.documentElement.dataset.mapTheme = 'dark'
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
 
@@ -482,7 +487,7 @@ describe('RangeRingsControlBase palette', () => {
 
   it('re-reads the palette when a style reload rebuilds the rings', () => {
     document.documentElement.dataset.mapTheme = 'dark'
-    const control = new RangeRingsControl(airStore, SENTRY)
+    const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
 

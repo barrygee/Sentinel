@@ -1,7 +1,7 @@
 /**
  * Shared proximity clustering for map markers.
  *
- * Two map layers now face the same problem — APRS stations on Land, and Sentry
+ * Two map layers now face the same problem — APRS stations on Land, and SDR host
  * sites on every domain map: several points close enough together that their
  * markers land on top of each other and the map reads as holding fewer things
  * than it does. Both answer it the same way, with one numbered marker standing
@@ -145,7 +145,7 @@ export const COUNT_MARKER_CENTRE_PX = 20
  *  to. */
 export const COUNT_MARKER_SIZE_PX = COUNT_MARKER_CENTRE_PX + COUNT_MARKER_RING_PX * 2
 
-/** The nearly-black, semitransparent ring of a dark count marker — Sentry
+/** The nearly-black, semitransparent ring of a dark count marker — SDR host
  *  sites and the Land repeater layer — so their groups read the same wherever
  *  they appear. */
 export const DARK_COUNT_RING = 'rgba(20, 23, 28, 0.55)'

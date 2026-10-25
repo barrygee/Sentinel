@@ -48,8 +48,8 @@ def mirrored_radio(**overrides: Any) -> dict[str, Any]:
         "name": "ADSB",
         "host": "192.168.5.67",
         "port": 4343,
-        "sentry_host_id": HOST_ID,
-        "sentry_device_id": DEVICE_ID,
+        "sdr_manager_host_id": HOST_ID,
+        "sdr_manager_device_id": DEVICE_ID,
         **overrides,
     }
 

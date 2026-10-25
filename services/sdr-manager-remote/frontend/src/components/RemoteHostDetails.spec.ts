@@ -149,6 +149,12 @@ describe('RemoteHostDetails', () => {
       expect(cellValue(wrapper, 'LONGITUDE')).toBe('-1.532995')
     })
 
+    it('titles its sections location, SDR Manager and devices', async () => {
+      const wrapper = await mountExpanded()
+      const sectionTitles = wrapper.findAll('.ba-data-grid-title').map((title) => title.text())
+      expect(sectionTitles).toEqual(['LOCATION', 'SDR MANAGER', 'DEVICES'])
+    })
+
     // Status, address, label and console password live on the row header and
     // the form's own fields — repeating them here would be noise.
     it('omits the fields the surrounding form already shows', async () => {
@@ -226,7 +232,7 @@ describe('RemoteHostDetails', () => {
     })
   })
 
-  describe('a Sentry that reports nothing usable', () => {
+  describe('an SDR host that reports nothing usable', () => {
     it('renders em dashes rather than blanks when the live blocks are null', async () => {
       mockGetSdrManagerHostInfo.mockResolvedValue(
         makeInfo({
@@ -297,7 +303,7 @@ describe('RemoteHostDetails', () => {
   })
 
   describe('the site map', () => {
-    it('plots the Sentry when online and a position is reported', async () => {
+    it('plots the SDR host when online and a position is reported', async () => {
       const wrapper = await mountExpanded()
       expect(wrapper.find('.stub-site-map').attributes('data-pos')).toBe('54.951186,-1.532995')
     })

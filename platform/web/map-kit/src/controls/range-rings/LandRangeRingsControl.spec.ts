@@ -137,7 +137,7 @@ describe('LandRangeRingsControl', () => {
       const map = makeFakeMap()
       control.onAdd(asMap(map))
 
-      control.setOrigin(origin({ latitude: 49, longitude: 2, kind: 'sentry' }))
+      control.setOrigin(origin({ latitude: 49, longitude: 2, kind: 'sdr-manager' }))
 
       expect(map._state.sources.get(LAYER)!.setData).toHaveBeenCalledOnce()
       expect(map._state.visibility[`${LAYER}-origin`]).toBe('visible')
@@ -154,13 +154,13 @@ describe('LandRangeRingsControl', () => {
       expect(map._state.visibility[LAYER]).toBe('none')
     })
 
-    it('names a Sentry origin on the outer ring', () => {
+    it('names an SDR host origin on the outer ring', () => {
       localStorage.setItem(LS_KEY, '1')
       const control = new LandRangeRingsControl(origin())
       const map = makeFakeMap()
       control.onAdd(asMap(map))
 
-      control.setOrigin(origin({ kind: 'sentry', label: 'GATESHEAD' }))
+      control.setOrigin(origin({ kind: 'sdr-manager', label: 'GATESHEAD' }))
 
       expect(map._state.textField[`${LAYER}-label`]).toBe('GATESHEAD')
     })
