@@ -1,5 +1,5 @@
 # ADS-B decoder sidecar — builds readsb from source and feeds it the raw I/Q
-# stream from a remote Sentry rtl_tcp port, publishing `aircraft.json` over HTTP
+# stream from a remote SDR host rtl_tcp port, publishing `aircraft.json` over HTTP
 # for Sentinel's Off Grid air source.
 #
 # Why a build from source: no Debian package ships readsb, and no mainstream

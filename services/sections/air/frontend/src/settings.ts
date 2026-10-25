@@ -35,7 +35,7 @@ export function registerAirSettings(): void {
       sectionLabel: 'AIR',
       id: 'air-offgrid-sdr-source',
       label: 'Off Grid ADS-B SDR',
-      desc: 'Which Sentry SDR receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
+      desc: 'Which SDR Manager device receives ADS-B. Held and tuned to 1090 MHz while AIR is open off grid',
       control: { component: AdsbSdrSourceControl, emits: ['stage'] },
       sourceMode: 'offgrid',
     },

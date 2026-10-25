@@ -406,7 +406,7 @@ class TestReservationProxyRecordsTheClaim:
     async def test_claims_and_yields_before_the_retune_goes_out(self, proxy):
         assert (await _acquire())["ok"] is True
         assert proxy.order == ["acquire", f"yield {HOST}:{PORT}", "patch claimed=True"]
-        assert device_claims._claims == {f"{HOST}:{PORT}": 123_456_789}  # Sentry's expiry
+        assert device_claims._claims == {f"{HOST}:{PORT}": 123_456_789}  # the SDR host's expiry
 
     async def test_finds_the_claimed_device_among_others_on_the_host(self, proxy):
         proxy.snapshot_sdrs = [
@@ -416,7 +416,7 @@ class TestReservationProxyRecordsTheClaim:
         await _acquire()
         assert list(device_claims._claims) == [f"{HOST}:{PORT}"]  # not the HF dongle on 6655
 
-    async def test_falls_back_to_the_ttl_when_sentry_gives_no_expiry(self, proxy):
+    async def test_falls_back_to_the_ttl_when_sdr_manager_gives_no_expiry(self, proxy):
         proxy.reservation = {}
         before = int(time.time() * 1000)
         await _acquire(ttl_seconds=120)
@@ -451,7 +451,7 @@ class TestReservationProxyRecordsTheClaim:
         assert reply == {"ok": True}
         assert device_claims._claims == {}
 
-    async def test_release_of_an_unknown_address_still_releases_on_sentry(self, proxy):
+    async def test_release_of_an_unknown_address_still_releases_on_sdr_manager(self, proxy):
         proxy.snapshot_sdrs = []
         reply = await bus.request(
             reservations.RELEASE_SUBJECT,

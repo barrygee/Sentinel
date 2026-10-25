@@ -1,9 +1,9 @@
 import { computed, effectScope, ref, watch, type ComputedRef, type Ref } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
-import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
+import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 
 /**
  * The **ring origin** — the point range rings are drawn around.
@@ -14,21 +14,21 @@ import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
  * receiver?" without overwriting your own position to find out. Rings are not
  * "distance from you"; they are distance from a chosen point, and this module
  * is that choice: shared app-wide (like `useUserLocation`, which it composes),
- * persisted, and resolved live against the Sentry fleet.
+ * persisted, and resolved live against the SDR Manager fleet.
  *
  * Kinds:
  *  - `user`   — follows the ⊙ marker. The default, and the pre-existing behaviour.
- *  - `sentry` — pinned to one host **by id**, so the rings follow if the Pi moves.
+ *  - `sdr-manager` — pinned to one host **by id**, so the rings follow if the Pi moves.
  */
 
 /** Which kind of point the rings are centred on. */
-export type RingOriginKind = 'user' | 'sentry'
+export type RingOriginKind = 'user' | 'sdr-manager'
 
 /** The operator's stored choice — what to centre on, not where that currently is. */
 export interface RingOriginSetting {
   kind: RingOriginKind
-  /** Which Sentry host, when `kind` is `sentry`. */
-  sentryHostId: number | null
+  /** Which SDR host, when `kind` is `sdr-manager`. */
+  sdrManagerHostId: number | null
 }
 
 /** The choice resolved against live data — where the rings actually go. */
@@ -39,7 +39,7 @@ export interface ResolvedRingOrigin {
   label: string
   kind: RingOriginKind
   /**
-   * True when the point is a Sentry's last known position rather than a live
+   * True when the point is an SDR host's last known position rather than a live
    * one — the host is off air, or has dropped out of the fleet list. The rings
    * stay where they are (a receiver going quiet does not move it) but say so.
    */
@@ -47,25 +47,25 @@ export interface ResolvedRingOrigin {
 }
 
 const SETTING_LS_KEY = 'sentinel_range_ring_origin'
-const SENTRY_CACHE_LS_KEY = 'sentinel_range_ring_sentry'
+const SDR_MANAGER_CACHE_LS_KEY = 'sentinel_range_ring_sdr_manager'
 const SETTINGS_NAMESPACE = 'app'
 const SETTINGS_KEY = 'rangeRingOrigin'
 
 /** The default: rings around your own position, exactly as before this existed. */
 const DEFAULT_SETTING: RingOriginSetting = {
   kind: 'user',
-  sentryHostId: null,
+  sdrManagerHostId: null,
 }
 
 /**
- * The chosen Sentry's last seen position and name, cached locally.
+ * The chosen SDR host's last seen position and name, cached locally.
  *
  * Sites arrive from a poll that only starts when a map mounts, so on a cold
  * start there is a window with a pinned host id and nothing to draw. Seeding
  * from the last known position closes it, and doubles as what stays on screen
  * when the host later goes off air.
  */
-interface SentryPositionCache {
+interface SdrManagerPositionCache {
   id: number
   longitude: number
   latitude: number
@@ -93,21 +93,21 @@ function _coerceSetting(value: unknown): RingOriginSetting {
   if (value === null || typeof value !== 'object') return { ...DEFAULT_SETTING }
   const raw = value as Record<string, unknown>
   const kind = raw.kind
-  if (kind === 'sentry') {
-    const sentryHostId = Number(raw.sentryHostId)
-    if (!Number.isInteger(sentryHostId)) return { ...DEFAULT_SETTING }
-    return { kind: 'sentry', sentryHostId }
+  if (kind === 'sdr-manager') {
+    const sdrManagerHostId = Number(raw.sdrManagerHostId)
+    if (!Number.isInteger(sdrManagerHostId)) return { ...DEFAULT_SETTING }
+    return { kind: 'sdr-manager', sdrManagerHostId }
   }
   // Anything else — including the `custom` kind this once supported — falls
   // back to following the operator's own position.
   return { ...DEFAULT_SETTING }
 }
 
-function _readSentryCache(): SentryPositionCache | null {
+function _readSdrManagerCache(): SdrManagerPositionCache | null {
   try {
-    const raw = localStorage.getItem(SENTRY_CACHE_LS_KEY)
+    const raw = localStorage.getItem(SDR_MANAGER_CACHE_LS_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<SentryPositionCache>
+    const parsed = JSON.parse(raw) as Partial<SdrManagerPositionCache>
     if (!Number.isInteger(parsed.id)) return null
     if (!isValidLatLon(Number(parsed.latitude), Number(parsed.longitude))) return null
     return {
@@ -132,10 +132,10 @@ function _write(key: string, value: unknown): void {
 // Module-level shared state: every map and the Settings panel read the same
 // choice, so they can never disagree about where the rings are centred.
 const _setting = ref<RingOriginSetting>(_readSetting())
-const _sentryCache = ref<SentryPositionCache | null>(_readSentryCache())
+const _sdrManagerCache = ref<SdrManagerPositionCache | null>(_readSdrManagerCache())
 /**
  * A one-off explanation for a change the operator did not make — today only
- * "the Sentry you pinned was removed". Held rather than shouted through the
+ * "the SDR host you pinned was removed". Held rather than shouted through the
  * alerts panel, which is for surveillance events, not UI bookkeeping.
  */
 const _notice = ref<string | null>(null)
@@ -150,21 +150,21 @@ function _initShared(): void {
   if (_origin) return
   _scope.run(() => {
     const { location } = useUserLocation()
-    const sentrySitesStore = useSentrySitesStore()
+    const sdrManagerSitesStore = useSdrManagerSitesStore()
 
     _origin = computed<ResolvedRingOrigin | null>(() => {
       const setting = _setting.value
 
-      if (setting.kind === 'sentry') {
-        const site = sentrySitesStore.sites.find(
-          (candidate) => candidate.id === setting.sentryHostId,
+      if (setting.kind === 'sdr-manager') {
+        const site = sdrManagerSitesStore.sites.find(
+          (candidate) => candidate.id === setting.sdrManagerHostId,
         )
         if (site) {
           return {
             longitude: site.longitude,
             latitude: site.latitude,
             label: siteLabel(site).toUpperCase(),
-            kind: 'sentry',
+            kind: 'sdr-manager',
             // Off air: the rings hold at its last reported position, and say so.
             degraded: !site.reachable,
           }
@@ -172,13 +172,13 @@ function _initShared(): void {
         // Not in the list — either the poll hasn't answered yet or the host has
         // gone. Both draw the cached position; only the second resets the
         // choice, which the removed-host watcher below decides once the list is known.
-        const cached = _sentryCache.value
-        if (cached && cached.id === setting.sentryHostId) {
+        const cached = _sdrManagerCache.value
+        if (cached && cached.id === setting.sdrManagerHostId) {
           return {
             longitude: cached.longitude,
             latitude: cached.latitude,
-            label: cached.name || 'SENTRY',
-            kind: 'sentry',
+            label: cached.name || 'SDR HOST',
+            kind: 'sdr-manager',
             degraded: true,
           }
         }
@@ -199,17 +199,17 @@ function _initShared(): void {
     // Keep the cached position of the pinned host current, so a reload draws
     // the rings before the first poll answers.
     watch(
-      () => (_setting.value.kind === 'sentry' ? _origin!.value : null),
+      () => (_setting.value.kind === 'sdr-manager' ? _origin!.value : null),
       (resolved) => {
         if (!resolved || resolved.degraded) return
-        const cache: SentryPositionCache = {
-          id: _setting.value.sentryHostId as number,
+        const cache: SdrManagerPositionCache = {
+          id: _setting.value.sdrManagerHostId as number,
           longitude: resolved.longitude,
           latitude: resolved.latitude,
           name: resolved.label,
         }
-        _sentryCache.value = cache
-        _write(SENTRY_CACHE_LS_KEY, cache)
+        _sdrManagerCache.value = cache
+        _write(SDR_MANAGER_CACHE_LS_KEY, cache)
       },
       { immediate: true },
     )
@@ -218,14 +218,14 @@ function _initShared(): void {
     // the pinned host is no longer in a list we have actually seen, so the
     // reference cannot resolve to anything. Fall back and say why, once.
     watch(
-      () => [sentrySitesStore.loaded, sentrySitesStore.sites, _setting.value] as const,
+      () => [sdrManagerSitesStore.loaded, sdrManagerSitesStore.sites, _setting.value] as const,
       ([loaded, sites, setting]) => {
-        if (!loaded || setting.kind !== 'sentry') return
-        if (sites.some((candidate) => candidate.id === setting.sentryHostId)) return
-        const name = _sentryCache.value?.name ?? 'The Sentry site'
+        if (!loaded || setting.kind !== 'sdr-manager') return
+        if (sites.some((candidate) => candidate.id === setting.sdrManagerHostId)) return
+        const name = _sdrManagerCache.value?.name ?? 'The SDR host site'
         _notice.value = `${name} was removed — rings re-centred on your location.`
-        _sentryCache.value = null
-        _write(SENTRY_CACHE_LS_KEY, null)
+        _sdrManagerCache.value = null
+        _write(SDR_MANAGER_CACHE_LS_KEY, null)
         setOrigin({ ...DEFAULT_SETTING })
         void persistOriginToConfig()
       },
@@ -259,9 +259,9 @@ export function selectUserOrigin(): void {
   setOrigin({ ...DEFAULT_SETTING })
 }
 
-/** Centre the rings on one Sentry host, tracked by id. */
-export function selectSentryOrigin(sentryHostId: number): void {
-  setOrigin({ kind: 'sentry', sentryHostId })
+/** Centre the rings on one SDR host, tracked by id. */
+export function selectSdrManagerOrigin(sdrManagerHostId: number): void {
+  setOrigin({ kind: 'sdr-manager', sdrManagerHostId })
 }
 
 /**
@@ -277,7 +277,7 @@ async function hydrateFromConfig(): Promise<void> {
   _write(SETTING_LS_KEY, coerced)
 }
 
-/** Dismiss the "your Sentry was removed" explanation once it has been read. */
+/** Dismiss the "your SDR host was removed" explanation once it has been read. */
 function clearNotice(): void {
   _notice.value = null
 }
@@ -294,7 +294,7 @@ export function useRangeRingOrigin(): {
   setOrigin: typeof setOrigin
   persistOriginToConfig: typeof persistOriginToConfig
   selectUserOrigin: typeof selectUserOrigin
-  selectSentryOrigin: typeof selectSentryOrigin
+  selectSdrManagerOrigin: typeof selectSdrManagerOrigin
   hydrateFromConfig: typeof hydrateFromConfig
   clearNotice: typeof clearNotice
 } {
@@ -306,7 +306,7 @@ export function useRangeRingOrigin(): {
     setOrigin,
     persistOriginToConfig,
     selectUserOrigin,
-    selectSentryOrigin,
+    selectSdrManagerOrigin,
     hydrateFromConfig,
     clearNotice,
   }

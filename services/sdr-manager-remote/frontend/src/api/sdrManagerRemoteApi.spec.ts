@@ -164,7 +164,7 @@ describe('getHostDevices', () => {
 })
 
 describe('getHostInfo', () => {
-  it("returns the host record merged with Sentry's live self-report", async () => {
+  it("returns the host record merged with the SDR host's live self-report", async () => {
     const info = {
       id: 1,
       name: 'Gateshead',
@@ -326,7 +326,7 @@ describe('SdrManagerApiError envelope parsing', () => {
     })
   })
 
-  it("parses Sentry's own {code, message} envelope and preserves extra context keys", async () => {
+  it("parses the SDR host's own {code, message} envelope and preserves extra context keys", async () => {
     mockFetch(() => ({
       ok: false,
       status: 409,
@@ -347,7 +347,7 @@ describe('SdrManagerApiError envelope parsing', () => {
     })
   })
 
-  it('defaults code and message when the Sentry envelope omits them', async () => {
+  it('defaults code and message when the SDR host envelope omits them', async () => {
     mockFetch(() => ({
       ok: false,
       status: 400,

@@ -1,5 +1,5 @@
 /**
- * Typed client for `/api/sdr/adsb` — the Sentry dongle behind Off Grid ADS-B.
+ * Typed client for `/api/sdr/adsb` — the SDR Manager dongle behind Off Grid ADS-B.
  *
  * Off Grid air data has two halves that used to be unrelated: a URL to read
  * aircraft from, and the SDR that produced the samples. This is the second —
@@ -14,16 +14,16 @@
  */
 import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 
-/** Which Sentry device feeds AIR, as the backend reports it. */
+/** Which SDR Manager device feeds AIR, as the backend reports it. */
 export interface AdsbSourceConfig {
   configured: boolean
-  sentry_host_id: number | null
-  sentry_device_id: string | null
+  sdr_manager_host_id: number | null
+  sdr_manager_device_id: string | null
 }
 
 /** A live claim on the source device, with what it was tuned to. */
 export interface AdsbClaim {
-  source: { sentry_host_id: number; sentry_device_id: string }
+  source: { sdr_manager_host_id: number; sdr_manager_device_id: string }
   reservation: {
     device_id: string
     holder: string
@@ -68,7 +68,7 @@ async function readError(response: Response, fallback: string): Promise<AdsbClai
   }
 }
 
-/** Read which Sentry device is configured as the ADS-B receiver. */
+/** Read which SDR Manager device is configured as the ADS-B receiver. */
 export async function getAdsbSource(): Promise<AdsbSourceConfig | null> {
   try {
     const response = await fetch(`${BASE}/source`)
@@ -81,16 +81,16 @@ export async function getAdsbSource(): Promise<AdsbSourceConfig | null> {
 
 /** Set the ADS-B receiver. */
 export async function setAdsbSource(
-  sentryHostId: number,
-  sentryDeviceId: string,
+  sdrManagerHostId: number,
+  sdrManagerDeviceId: string,
 ): Promise<AdsbSourceConfig | null> {
   try {
     const response = await fetch(`${BASE}/source`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        sentry_host_id: sentryHostId,
-        sentry_device_id: sentryDeviceId,
+        sdr_manager_host_id: sdrManagerHostId,
+        sdr_manager_device_id: sdrManagerDeviceId,
       }),
     })
     if (!response.ok) return null

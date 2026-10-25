@@ -19,8 +19,8 @@ vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: locationRef }),
 }))
 
-import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '../stores/air'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 
 enableAutoUnmount(afterEach)
@@ -40,7 +40,7 @@ function site(overrides: Partial<RadioSite> = {}): RadioSite {
 }
 
 function mountControl(options: { sites?: RadioSite[] } = {}) {
-  useSentrySitesStore().sites = options.sites ?? []
+  useSdrManagerSitesStore().sites = options.sites ?? []
   return mount(OverheadAlertsControl, { attachTo: document.body })
 }
 
@@ -64,19 +64,19 @@ describe('OverheadAlertsControl', () => {
   })
 
   describe('the list of locations', () => {
-    it('leads with the Sentinel location, then names each Sentry', () => {
+    it('leads with the Sentinel location, then names each SDR host', () => {
       const wrapper = mountControl({ sites: [site(), site({ id: 2, name: 'Coastal' })] })
       expect(rows(wrapper).map((row) => row.find('.overhead-alerts-name').text())).toEqual([
         'Sentinel location',
-        'Sentry: GATESHEAD',
-        'Sentry: COASTAL',
+        'SDR host: GATESHEAD',
+        'SDR host: COASTAL',
       ])
     })
 
     it('shows each location’s coordinates', () => {
       const wrapper = mountControl({ sites: [site()] })
       expect(
-        rowNamed(wrapper, 'Sentry: GATESHEAD').find('.overhead-alerts-coords').text(),
+        rowNamed(wrapper, 'SDR host: GATESHEAD').find('.overhead-alerts-coords').text(),
       ).toContain('54.95000° N')
     })
 
@@ -98,7 +98,7 @@ describe('OverheadAlertsControl', () => {
       locationRef.value = null
       const wrapper = mountControl()
       expect(wrapper.find('.overhead-alerts-empty').text()).toBe(
-        'No location to watch yet — set your location, or register a Sentry host.',
+        'No location to watch yet — set your location, or register an SDR host.',
       )
     })
   })
@@ -108,9 +108,9 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl({ sites: [site()] })
 
-      await switchFor(wrapper, 'Sentry: GATESHEAD', 0).trigger('click')
+      await switchFor(wrapper, 'SDR host: GATESHEAD', 0).trigger('click')
 
-      expect(airStore.overheadAlertFor(sentryAlertLocationId(1)).civil).toBe(true)
+      expect(airStore.overheadAlertFor(sdrManagerAlertLocationId(1)).civil).toBe(true)
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(false)
     })
 
@@ -147,10 +147,12 @@ describe('OverheadAlertsControl', () => {
   describe('the radius', () => {
     it('shows the stored radius for each location', () => {
       const airStore = useAirStore()
-      airStore.setOverheadAlert(sentryAlertLocationId(1), { radiusNm: 40 })
+      airStore.setOverheadAlert(sdrManagerAlertLocationId(1), { radiusNm: 40 })
       const wrapper = mountControl({ sites: [site()] })
       expect((radiusFor(wrapper, 'Sentinel location').element as HTMLInputElement).value).toBe('10')
-      expect((radiusFor(wrapper, 'Sentry: GATESHEAD').element as HTMLInputElement).value).toBe('40')
+      expect((radiusFor(wrapper, 'SDR host: GATESHEAD').element as HTMLInputElement).value).toBe(
+        '40',
+      )
     })
 
     it('commits a typed radius on blur', async () => {
@@ -212,7 +214,9 @@ describe('OverheadAlertsControl', () => {
 
       await radiusFor(wrapper, 'Sentinel location').setValue('99')
 
-      expect((radiusFor(wrapper, 'Sentry: GATESHEAD').element as HTMLInputElement).value).toBe('10')
+      expect((radiusFor(wrapper, 'SDR host: GATESHEAD').element as HTMLInputElement).value).toBe(
+        '10',
+      )
     })
   })
 
@@ -314,14 +318,14 @@ describe('OverheadAlertsControl', () => {
   describe('accessibility', () => {
     it('names every control for the location it belongs to', () => {
       const wrapper = mountControl({ sites: [site()] })
-      const sentryRow = rowNamed(wrapper, 'Sentry: GATESHEAD')
-      expect(sentryRow.findAll('[role="switch"]')[0]!.attributes('aria-label')).toBe(
+      const sdrManagerRow = rowNamed(wrapper, 'SDR host: GATESHEAD')
+      expect(sdrManagerRow.findAll('[role="switch"]')[0]!.attributes('aria-label')).toBe(
         'Civil aircraft alerts for GATESHEAD',
       )
-      expect(sentryRow.findAll('[role="switch"]')[1]!.attributes('aria-label')).toBe(
+      expect(sdrManagerRow.findAll('[role="switch"]')[1]!.attributes('aria-label')).toBe(
         'Military aircraft alerts for GATESHEAD',
       )
-      expect(sentryRow.find('.overhead-alerts-radius-input').attributes('aria-label')).toBe(
+      expect(sdrManagerRow.find('.overhead-alerts-radius-input').attributes('aria-label')).toBe(
         'Alert radius for GATESHEAD, nautical miles',
       )
     })

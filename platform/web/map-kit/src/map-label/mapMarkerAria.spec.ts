@@ -19,18 +19,18 @@ describe('setMarkerAccessibleName', () => {
   it('sets the accessible name on the marker element', () => {
     const element = document.createElement('button')
     const marker = fakeMarker(element)
-    setMarkerAccessibleName(marker as unknown as maplibregl.Marker, 'Sentry Roof Pi')
-    expect(element.getAttribute('aria-label')).toBe('Sentry Roof Pi')
+    setMarkerAccessibleName(marker as unknown as maplibregl.Marker, 'SDR host Roof Pi')
+    expect(element.getAttribute('aria-label')).toBe('SDR host Roof Pi')
   })
 
   it("restores a name MapLibre's addTo has overwritten with its generic one", () => {
     const element = document.createElement('button')
-    element.setAttribute('aria-label', 'Sentry Roof Pi')
+    element.setAttribute('aria-label', 'SDR host Roof Pi')
     const marker = fakeMarker(element)
     marker.addTo()
     expect(element.getAttribute('aria-label')).toBe('Map marker') // MapLibre stomped it
-    setMarkerAccessibleName(marker as unknown as maplibregl.Marker, 'Sentry Roof Pi')
-    expect(element.getAttribute('aria-label')).toBe('Sentry Roof Pi')
+    setMarkerAccessibleName(marker as unknown as maplibregl.Marker, 'SDR host Roof Pi')
+    expect(element.getAttribute('aria-label')).toBe('SDR host Roof Pi')
   })
 
   it('replaces any name already set, rather than appending', () => {

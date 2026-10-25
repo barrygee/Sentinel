@@ -1,9 +1,9 @@
 """
 tests/backend/test_reservations.py
 
-Tests for sentinel_radio/services/reservations.py — the radio hub's Sentry
+Tests for sentinel_radio/services/reservations.py — the radio hub's SDR host
 reservation proxy (section-containers plan, B6). Air no longer reads
-`sentry_hosts` or builds a `SdrManagerClient`; it sends `sdr-manager.remote.*` requests on
+`sdr_manager_hosts` or builds a `SdrManagerClient`; it sends `sdr-manager.remote.*` requests on
 the bus and gets a plain-dict reply back.
 
 Pinned here, at the bus boundary (the HTTP behaviour as Air presents it is in
@@ -11,12 +11,12 @@ test_adsb_source_claim.py):
   * the reply contract: `ok`, and on failure `reason` (+ `stage` for acquire),
     never a raised exception — a NATS reply can't carry one;
   * the hub, not the caller, supplies the holder, and it is `app.instanceId`;
-  * claim and retune share one client, so a protected Sentry is signed into
+  * claim and retune share one client, so a protected SDR host is signed into
     once per claim, not once per call;
   * the address lookup still answers for a disabled host (the ADS-B decoder
     sidecar has always been served regardless).
 
-Sentry is faked at the httpx transport.
+The SDR host is faked at the httpx transport.
 """
 
 from __future__ import annotations
@@ -65,8 +65,8 @@ async def add_host(db: AsyncSession, *, enabled: bool = True, name: str | None =
     return host.id
 
 
-def install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
-    """Route every outbound Sentry call to `handler`, recording the requests."""
+def install_sdr_manager(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
+    """Route every outbound SDR host call to `handler`, recording the requests."""
     seen: list[httpx.Request] = []
 
     def recording(request: httpx.Request) -> httpx.Response:
@@ -84,8 +84,8 @@ def install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.
     return seen
 
 
-def protected_sentry(request: httpx.Request) -> httpx.Response:
-    """A Sentry that answers 401 until the session cookie is presented."""
+def protected_sdr_manager(request: httpx.Request) -> httpx.Response:
+    """An SDR host that answers 401 until the session cookie is presented."""
     if request.url.path == "/api/auth/login":
         return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted; Path=/"})
     if "sdr_manager_session=granted" not in request.headers.get("cookie", ""):
@@ -115,7 +115,7 @@ def acquire_payload(db: AsyncSession, host_id: int, **overrides: Any) -> dict[st
 class TestAcquire:
     async def test_claims_then_patches_under_the_instance_identity(self, db, monkeypatch):
         host_id = await add_host(db)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -132,7 +132,7 @@ class TestAcquire:
         # Separate clients would each sign in again on their first 401 — an
         # extra login every 30 s renewal.
         host_id = await add_host(db)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -140,7 +140,7 @@ class TestAcquire:
 
     async def test_without_a_patch_nothing_is_retuned(self, db, monkeypatch):
         host_id = await add_host(db)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id, patch=None))
 
@@ -149,7 +149,7 @@ class TestAcquire:
 
     async def test_force_is_passed_through(self, db, monkeypatch):
         host_id = await add_host(db)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id, force=True))
 
@@ -157,7 +157,7 @@ class TestAcquire:
         assert json.loads(claim.content)["force"] is True
 
     async def test_unknown_host_still_creates_the_identity(self, db, monkeypatch):
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, 999))
 
@@ -168,7 +168,7 @@ class TestAcquire:
 
     async def test_disabled_host_is_refused_with_its_label_and_no_network_call(self, db, monkeypatch):
         host_id = await add_host(db, enabled=False)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -181,7 +181,7 @@ class TestAcquire:
 
     async def test_disabled_host_without_a_name_is_labelled_by_address(self, db, monkeypatch):
         host_id = await add_host(db, enabled=False, name=None)
-        install_sentry(monkeypatch, protected_sentry)
+        install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -189,7 +189,7 @@ class TestAcquire:
 
     async def test_unreachable_on_claim_reports_the_acquire_stage(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, unreachable)
+        install_sdr_manager(monkeypatch, unreachable)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -198,7 +198,7 @@ class TestAcquire:
         assert reply["stage"] == "acquire"
         assert "10.0.0.5" in reply["message"]
 
-    async def test_api_error_on_claim_carries_sentrys_answer(self, db, monkeypatch):
+    async def test_api_error_on_claim_carries_sdr_managers_answer(self, db, monkeypatch):
         host_id = await add_host(db)
 
         def busy(request: httpx.Request) -> httpx.Response:
@@ -213,7 +213,7 @@ class TestAcquire:
                 },
             )
 
-        install_sentry(monkeypatch, busy)
+        install_sdr_manager(monkeypatch, busy)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -234,9 +234,9 @@ class TestAcquire:
                     422,
                     json={"detail": {"code": "bad_rate", "message": "Unsupported rate."}},
                 )
-            return protected_sentry(request)
+            return protected_sdr_manager(request)
 
-        install_sentry(monkeypatch, rejects_patch)
+        install_sdr_manager(monkeypatch, rejects_patch)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -251,9 +251,9 @@ class TestAcquire:
         def drops_on_patch(request: httpx.Request) -> httpx.Response:
             if request.method == "PATCH":
                 raise httpx.ConnectError("gone")
-            return protected_sentry(request)
+            return protected_sdr_manager(request)
 
-        install_sentry(monkeypatch, drops_on_patch)
+        install_sdr_manager(monkeypatch, drops_on_patch)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host_id))
 
@@ -265,7 +265,7 @@ class TestAcquire:
 class TestRelease:
     async def test_releases_under_the_instance_identity(self, db, monkeypatch):
         host_id = await add_host(db)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(RELEASE_SUBJECT, {"db": db, "host_id": host_id, "device_id": DEVICE_ID})
 
@@ -274,7 +274,7 @@ class TestRelease:
         assert delete.headers["X-Sdr-Manager-Reservation-Holder"] == await get_instance_id(db)
 
     async def test_unknown_host(self, db, monkeypatch):
-        install_sentry(monkeypatch, protected_sentry)
+        install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(RELEASE_SUBJECT, {"db": db, "host_id": 999, "device_id": DEVICE_ID})
 
@@ -282,16 +282,16 @@ class TestRelease:
 
     async def test_disabled_host_is_not_contacted(self, db, monkeypatch):
         host_id = await add_host(db, enabled=False)
-        seen = install_sentry(monkeypatch, protected_sentry)
+        seen = install_sdr_manager(monkeypatch, protected_sdr_manager)
 
         reply = await bus.request(RELEASE_SUBJECT, {"db": db, "host_id": host_id, "device_id": DEVICE_ID})
 
         assert reply["reason"] == "host_disabled"
         assert seen == []
 
-    async def test_sentry_error_is_a_reply_not_an_exception(self, db, monkeypatch):
+    async def test_sdr_manager_error_is_a_reply_not_an_exception(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, lambda request: httpx.Response(500, json={"detail": "boom"}))
+        install_sdr_manager(monkeypatch, lambda request: httpx.Response(500, json={"detail": "boom"}))
 
         reply = await bus.request(RELEASE_SUBJECT, {"db": db, "host_id": host_id, "device_id": DEVICE_ID})
 
@@ -319,7 +319,7 @@ class TestDeviceAddress:
 
     async def test_finds_the_device_in_the_export(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, self.export)
+        install_sdr_manager(monkeypatch, self.export)
 
         reply = await bus.request(
             DEVICE_ADDRESS_SUBJECT,
@@ -330,7 +330,7 @@ class TestDeviceAddress:
 
     async def test_a_device_missing_from_the_export_is_not_found(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, self.export)
+        install_sdr_manager(monkeypatch, self.export)
 
         reply = await bus.request(
             DEVICE_ADDRESS_SUBJECT,
@@ -341,7 +341,7 @@ class TestDeviceAddress:
 
     async def test_an_empty_export_body_is_not_found(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, lambda request: httpx.Response(204))
+        install_sdr_manager(monkeypatch, lambda request: httpx.Response(204))
 
         reply = await bus.request(
             DEVICE_ADDRESS_SUBJECT,
@@ -352,7 +352,7 @@ class TestDeviceAddress:
 
     async def test_a_disabled_host_is_still_answered(self, db, monkeypatch):
         host_id = await add_host(db, enabled=False)
-        install_sentry(monkeypatch, self.export)
+        install_sdr_manager(monkeypatch, self.export)
 
         reply = await bus.request(
             DEVICE_ADDRESS_SUBJECT,
@@ -362,7 +362,7 @@ class TestDeviceAddress:
         assert reply["found"] is True
 
     async def test_unknown_host(self, db, monkeypatch):
-        install_sentry(monkeypatch, self.export)
+        install_sdr_manager(monkeypatch, self.export)
 
         reply = await bus.request(DEVICE_ADDRESS_SUBJECT, {"db": db, "host_id": 999, "device_id": DEVICE_ID})
 
@@ -370,7 +370,7 @@ class TestDeviceAddress:
 
     async def test_unreachable(self, db, monkeypatch):
         host_id = await add_host(db)
-        install_sentry(monkeypatch, unreachable)
+        install_sdr_manager(monkeypatch, unreachable)
 
         reply = await bus.request(
             DEVICE_ADDRESS_SUBJECT,
@@ -405,7 +405,7 @@ class TestThisMachine:
                 return httpx.Response(200, json=RESERVATION)
             return httpx.Response(200, json={"device_id": DEVICE_ID})
 
-        seen = install_sentry(monkeypatch, bearer_only_host)
+        seen = install_sdr_manager(monkeypatch, bearer_only_host)
 
         reply = await bus.request(ACQUIRE_SUBJECT, acquire_payload(db, host.id))
 

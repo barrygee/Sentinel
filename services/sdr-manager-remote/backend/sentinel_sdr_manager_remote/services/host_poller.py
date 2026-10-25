@@ -243,9 +243,9 @@ class HostPoller:
                 return
             changed = False
             for radio in radios:
-                if not isinstance(radio, dict) or radio.get("sentry_host_id") != host_id:
+                if not isinstance(radio, dict) or radio.get("sdr_manager_host_id") != host_id:
                     continue
-                current = addresses.get(radio.get("sentry_device_id") or "")
+                current = addresses.get(radio.get("sdr_manager_device_id") or "")
                 if current is None:
                     continue
                 _, iq_port = current
@@ -257,7 +257,7 @@ class HostPoller:
                     logger.info(
                         "Radio %s followed device %s from port %s to %s",
                         radio.get("id"),
-                        radio.get("sentry_device_id"),
+                        radio.get("sdr_manager_device_id"),
                         radio.get("port"),
                         iq_port,
                     )

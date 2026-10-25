@@ -27,7 +27,7 @@ describe('APRS label palette', () => {
       expect(new Set(Object.values(rings)).size).toBe(Object.keys(rings).length)
     })
 
-    it('rings repeater groups like Sentry site groups', () => {
+    it('rings repeater groups like SDR host site groups', () => {
       expect(REPEATER_COUNT_RING).toBe(DARK_COUNT_RING)
     })
 

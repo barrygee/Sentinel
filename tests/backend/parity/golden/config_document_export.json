@@ -7,7 +7,7 @@
     },
     "rangeRingOrigin": {
       "kind": "user",
-      "sentryHostId": null
+      "sdrManagerHostId": null
     },
     "notificationSound": false,
     "mapTheme": "dark",

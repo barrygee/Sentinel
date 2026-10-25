@@ -24,7 +24,7 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSeaStore } from './stores/sea'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
@@ -38,7 +38,7 @@ import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
 import { RoadsToggleControl } from '@sentinel/map-kit/controls/roads/RoadsToggleControl'
 import { TerrainToggleControl } from '@sentinel/map-kit/controls/terrain/TerrainToggleControl'
-import { SentrySitesControl } from '@sentinel/map-kit/controls/sentry-sites/SentrySitesControl'
+import { SdrManagerSitesControl } from '@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl'
 import { LandRangeRingsControl } from '@sentinel/map-kit/controls/range-rings/LandRangeRingsControl'
 import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
 import { FerryRoutesControl } from './controls/ferry-routes/FerryRoutesControl'
@@ -48,7 +48,7 @@ const appStore = useAppStore()
 const seaStore = useSeaStore()
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
-const sentrySitesStore = useSentrySitesStore()
+const sdrManagerSitesStore = useSdrManagerSitesStore()
 const themeStore = useThemeStore()
 const offlineMapsStore = useOfflineMapsStore()
 
@@ -77,8 +77,8 @@ let rangeRingsControl: LandRangeRingsControl | null = null
 let roadsControl: RoadsToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
 let terrainControl: TerrainToggleControl | null = null
-// Sentry sites are plotted on every domain map — no side-menu button.
-let sentrySitesControl: SentrySitesControl | null = null
+// SDR host sites are plotted on every domain map — no side-menu button.
+let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 
 // Borders have no rail button: Settings › Map is their only switch, and
 // this map follows it through the shared basemap store.
@@ -149,7 +149,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
   terrainControl = new TerrainToggleControl(basemapStore, offlineMapsStore)
-  sentrySitesControl = new SentrySitesControl(sentrySitesStore, settingsStore, {
+  sdrManagerSitesControl = new SdrManagerSitesControl(sdrManagerSitesStore, settingsStore, {
     getUserLocation,
     userMarker: _locationMarker,
   })
@@ -167,7 +167,7 @@ function onStyleLoaded(m: MapLibreGlMap) {
   // and the rail has no toggle — whatever the shared basemap choice says.
   namesControl.setVisible(true)
   terrainControl.onAdd(m)
-  sentrySitesControl.onAdd(m)
+  sdrManagerSitesControl.onAdd(m)
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (nativeCtrl) nativeCtrl.style.display = 'none'
@@ -256,7 +256,7 @@ onBeforeUnmount(() => {
   roadsControl?.onRemove()
   namesControl?.onRemove()
   terrainControl?.onRemove()
-  sentrySitesControl?.onRemove()
+  sdrManagerSitesControl?.onRemove()
   _locationMarker.remove()
   vesselsControl = null
   ferryRoutesControl = null
@@ -264,6 +264,6 @@ onBeforeUnmount(() => {
   roadsControl = null
   namesControl = null
   terrainControl = null
-  sentrySitesControl = null
+  sdrManagerSitesControl = null
 })
 </script>

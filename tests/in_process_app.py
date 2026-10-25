@@ -105,7 +105,7 @@ def in_process_routers() -> list[APIRouter]:
         radio_decode_router.router,
         radio_decoders_router.router,
         radio_iq_captures_router.router,
-        # Air's, despite sitting under /api/sdr/ (the Sentry dongle behind Off Grid ADS-B).
+        # Air's, despite sitting under /api/sdr/ (the SDR Manager dongle behind Off Grid ADS-B).
         adsb_source_router.router,
         offline_map.router,
         app_sections.router,

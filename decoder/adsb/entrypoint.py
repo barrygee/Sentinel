@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ADS-B decoder sidecar supervisor.
 
-Pulls the raw I/Q stream from a remote Sentry `rtl_tcp` port, feeds it to
+Pulls the raw I/Q stream from a remote SDR host `rtl_tcp` port, feeds it to
 readsb, and serves the resulting ``aircraft.json`` over HTTP for Sentinel's Off
 Grid air source to poll.
 
@@ -17,10 +17,10 @@ nothing but samples, so those 12 bytes have to go: left in place they are read
 as I/Q and put a burst of nonsense at the head of the stream.
 
 **This container never tunes the dongle.** An rtl_tcp client normally sets the
-centre frequency and sample rate itself over the same socket, but on a Sentry
+centre frequency and sample rate itself over the same socket, but on an SDR host
 those are the operator's own per-device settings and a client that quietly
 retuned them would be changing what another consumer is receiving. The dongle
-must therefore already be set to **1090 MHz at 2.4 MSPS** in Sentry; anything
+must therefore already be set to **1090 MHz at 2.4 MSPS** in SDR Manager; anything
 else decodes to silence, which is why that is checked and logged at startup
 rather than left to be discovered from an empty map.
 
@@ -32,7 +32,7 @@ Environment:
     RTL_TCP_HOST / RTL_TCP_PORT   static fallback when CONFIG_URL is unset or silent
     JSON_DIR                      where readsb writes aircraft.json
     HTTP_PORT                     port this process serves JSON_DIR on
-    SENTRY_API_BASE               optional; polled once at startup to report
+    SDR_MANAGER_API_BASE          optional; polled once at startup to report
                                   what the source device is tuned to
     READSB_EXTRA_ARGS             optional extra readsb args (space-separated)
 """
@@ -64,7 +64,7 @@ RESTART_DELAY_SECONDS = 5
 # quiet moment; it is a Pi that rebooted or dropped off the network without
 # closing the socket, which socat would otherwise wait on for ever.
 STALL_TIMEOUT_SECONDS = 30
-"""Pause before relaunching the pipeline, so a hard-down Sentry is not hammered."""
+"""Pause before relaunching the pipeline, so a hard-down SDR host is not hammered."""
 
 SOURCE_RECHECK_SECONDS = 10
 """How often a running pipeline asks Sentinel whether the source has moved."""
@@ -119,7 +119,7 @@ def resolve_source(config_url: str, fallback: tuple[str, int]) -> tuple[str, int
 
 
 def report_source_tuning(api_base: str, rtl_tcp_port: int) -> None:
-    """Log what the Sentry device on this port is tuned to, if it will say.
+    """Log what the SDR Manager device on this port is tuned to, if it will say.
 
     Advisory only, and deliberately non-fatal: `/api/v1/sdrs` is unauthenticated
     (Sentry ADR-0010) but reports no centre frequency, and `/api/devices`, which
@@ -132,7 +132,7 @@ def report_source_tuning(api_base: str, rtl_tcp_port: int) -> None:
         with urllib.request.urlopen(f"{api_base.rstrip('/')}/api/v1/sdrs", timeout=5) as response:
             payload = json.load(response)
     except (urllib.error.URLError, OSError, ValueError) as error:
-        log(f"could not read Sentry's device list ({error}); continuing")
+        log(f"could not read the SDR host's device list ({error}); continuing")
         return
 
     for device in payload.get("sdrs", []):
@@ -142,7 +142,7 @@ def report_source_tuning(api_base: str, rtl_tcp_port: int) -> None:
         log(f"source device: {device.get('name')!r} state={device.get('state')}")
         if sample_rate is None:
             log(
-                "  WARNING: this device has no sample rate set in Sentry. ADS-B needs "
+                "  WARNING: this device has no sample rate set in SDR Manager. ADS-B needs "
                 f"{EXPECTED_SAMPLE_RATE} with a centre frequency of {EXPECTED_CENTRE_HZ}; "
                 "until both are set nothing will decode."
             )
@@ -153,7 +153,7 @@ def report_source_tuning(api_base: str, rtl_tcp_port: int) -> None:
             )
         return
 
-    log(f"no Sentry device is publishing on port {rtl_tcp_port}; is it enabled and public?")
+    log(f"no SDR Manager device is publishing on port {rtl_tcp_port}; is it enabled and public?")
 
 
 def build_pipeline(host: str, port: int, json_dir: str) -> subprocess.Popen[bytes]:
@@ -244,7 +244,7 @@ def main() -> int:
     config_url = os.environ.get("CONFIG_URL", "")
     json_dir = os.environ.get("JSON_DIR", "/run/adsb/data")
     http_port = _environment_int("HTTP_PORT", 8080)
-    api_base = os.environ.get("SENTRY_API_BASE", "")
+    api_base = os.environ.get("SDR_MANAGER_API_BASE", "")
 
     if not config_url and not fallback[0]:
         log("neither CONFIG_URL nor RTL_TCP_HOST is set; nothing to decode")

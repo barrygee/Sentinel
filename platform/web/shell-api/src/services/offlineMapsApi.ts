@@ -2,9 +2,9 @@
  * Typed client for `/api/offline-map/*` — user-selected offline map area
  * downloads (see `docs/plans/offline-map-downloads.md`, "BUILD CONTRACT").
  *
- * Follows `sentryApi.ts`'s house style: one function per route, typed
+ * Follows `sdrManagerApi.ts`'s house style: one function per route, typed
  * request/response shapes, snake_case wire fields kept verbatim (the whole
- * app's JSON convention), times in epoch milliseconds. Unlike `sentryApi.ts`
+ * app's JSON convention), times in epoch milliseconds. Unlike `sdrManagerApi.ts`
  * this surface has no need to relay a proxied service's own error envelope —
  * FastAPI's own `{"detail": ...}` shape is enough — so failures are reported
  * with a small dedicated error class rather than the fuller envelope parser.

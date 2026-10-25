@@ -1,6 +1,6 @@
 # @sentinel/section-sdr
 
-The **SDR** section of Sentinel — The radio engine and panels: spectrum/waterfall, audio, tuning, recordings, decoders, Sentry hosts; provides the `radio` and `radioSites` capabilities other sections use.
+The **SDR** section of Sentinel — The radio engine and panels: spectrum/waterfall, audio, tuning, recordings, decoders, SDR hosts; provides the `radio` and `radioSites` capabilities other sections use.
 
 It registers itself with the shell in `src/section.ts` (routes, nav, sidebar,
 settings, notifications, capabilities) and imports only `@sentinel/ui`,

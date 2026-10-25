@@ -60,7 +60,7 @@
 /**
  * Settings > Sentinel Location — a fixed latitude/longitude for your own position.
  *
- * Mirrors Sentry's Sentry Location panel: stacked labelled fields with a decimal-degrees hint apiece and per-field validation on blur.
+ * Mirrors the SDR host's SDR host Location panel: stacked labelled fields with a decimal-degrees hint apiece and per-field validation on blur.
  * Edits stage into APPLY CHANGES like every other control here (Enter in a
  * field applies at once); saving is what moves the marker on the maps.
  */

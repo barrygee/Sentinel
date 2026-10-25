@@ -22,10 +22,10 @@ interface FeatureCollection {
 /**
  * One place aircraft can be overhead *of*, with the settings that decide what
  * counts as overhead there. The operator's own position is one of these; so is
- * every Sentry, each watching its own patch of sky at its own radius.
+ * every SDR host, each watching its own patch of sky at its own radius.
  */
 export interface OverheadAlertZone {
-  /** Alert-location id — `user`, or `sentry:<hostId>`. */
+  /** Alert-location id — `user`, or `sdr-manager:<hostId>`. */
   id: string
   /** What to call the place in the notification, e.g. `GATESHEAD`. */
   label: string

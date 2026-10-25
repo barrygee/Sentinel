@@ -26,7 +26,7 @@ from sentinel_radio import radios
 
 HOST_ID = 3
 DEVICE_ID = "serial:97710286"
-MIRRORED_RADIO = {"id": 1, "sentry_host_id": HOST_ID, "sentry_device_id": DEVICE_ID}
+MIRRORED_RADIO = {"id": 1, "sdr_manager_host_id": HOST_ID, "sdr_manager_device_id": DEVICE_ID}
 LIVE_DEVICE = {"device_id": DEVICE_ID, "present": True, "enabled": True, "output": {"iq_port": 4343}}
 
 

@@ -64,7 +64,7 @@
     "notificationSound": false,
     "rangeRingOrigin": {
       "kind": "user",
-      "sentryHostId": null
+      "sdrManagerHostId": null
     }
   },
   "land": {

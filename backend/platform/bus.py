@@ -228,7 +228,7 @@ class EventBus:
         seconds or `LookupError` if nothing replies to `subject`.
 
         `timeout=None` waits for the responder however long it takes — for a
-        responder whose own I/O is already bounded (e.g. the hub's Sentry
+        responder whose own I/O is already bounded (e.g. the hub's SDR host
         calls, which carry the client's connect/read timeouts), where a second,
         shorter limit here would only cut off a slow-but-working answer.
 

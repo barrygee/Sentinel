@@ -364,7 +364,7 @@ describe('RepeatersControl', () => {
     expect(cluster[0]?.anchor).toBe('center')
   })
 
-  it('rings a count in the dark ring Sentry site groups use, not a coloured band', () => {
+  it('rings a count in the dark ring SDR host site groups use, not a coloured band', () => {
     repeatersStore.stations = [
       station({ callsign: 'GB3A', longitude: 0 }),
       station({ callsign: 'GB3B', longitude: 0.5 }),

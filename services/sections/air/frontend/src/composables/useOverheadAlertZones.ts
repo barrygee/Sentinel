@@ -1,17 +1,17 @@
 import { computed, type ComputedRef } from 'vue'
-import { useAirStore, USER_ALERT_LOCATION_ID, sentryAlertLocationId } from '../stores/air'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
-import { siteLabel } from '@sentinel/map-kit/utils/sentrySiteLabel'
+import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
 import type { OverheadAlertZone } from '../controls/overhead-zone/OverheadAlertsTracker'
 
 /**
  * Every place overhead alerts can watch, with its own settings resolved.
  *
- * A Sentry watches its own patch of sky, so "is anything overhead?" is asked
+ * An SDR host watches its own patch of sky, so "is anything overhead?" is asked
  * once per receiver rather than once for the app. The operator's own position
- * leads the list — it is the one place that exists before any Sentry does — and
- * each Sentry follows in fleet order.
+ * leads the list — it is the one place that exists before any SDR host does — and
+ * each SDR host follows in fleet order.
  *
  * Used by the two things that need the same answer: the background alert
  * service, which decides what to notify about, and the Air map, which draws a
@@ -23,7 +23,7 @@ import type { OverheadAlertZone } from '../controls/overhead-zone/OverheadAlerts
  * trap the moment a second pinia exists.)
  */
 export interface OverheadAlertLocation extends OverheadAlertZone {
-  /** True for the operator's own position, false for a Sentry site. */
+  /** True for the operator's own position, false for an SDR host site. */
   isUser: boolean
 }
 
@@ -34,7 +34,7 @@ export function useOverheadAlertZones(): {
   activeZones: ComputedRef<OverheadAlertZone[]>
 } {
   const airStore = useAirStore()
-  const sentrySitesStore = useSentrySitesStore()
+  const sdrManagerSitesStore = useSdrManagerSitesStore()
   const { location } = useUserLocation()
 
   const locations = computed<OverheadAlertLocation[]>(() => {
@@ -52,8 +52,8 @@ export function useOverheadAlertZones(): {
       })
     }
 
-    for (const site of sentrySitesStore.sites) {
-      const id = sentryAlertLocationId(site.id)
+    for (const site of sdrManagerSitesStore.sites) {
+      const id = sdrManagerAlertLocationId(site.id)
       zones.push({
         id,
         label: siteLabel(site).toUpperCase(),

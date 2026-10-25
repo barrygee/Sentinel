@@ -233,7 +233,7 @@ services:
   # (core keeps /api/air/messages — notifications), /api/sdr/adsb/ and
   # /remotes/air/ over. Its tables (the ADS-B snapshot cache, tracked aircraft)
   # live in its own database on air_data, copied from the app's on first boot.
-  # It asks the radio hub for Sentry reservations and the receiver's location,
+  # It asks the radio hub for SDR Manager reservations and the receiver's location,
   # and raises squawk alerts, over NATS — so it needs the `nats` service.
   air:
     <<: *section-service
@@ -685,8 +685,8 @@ services:
       - sentinel
 
   # ADS-B decoder (readsb). OPT-IN: only builds/starts with `--profile adsb`.
-  # Decodes 1090 MHz from a *remote* Sentry dongle: it reads the raw I/Q stream
-  # from Sentry's rtl_tcp port and publishes `aircraft.json` for the air
+  # Decodes 1090 MHz from a *remote* SDR Manager dongle: it reads the raw I/Q stream
+  # from the SDR host's rtl_tcp port and publishes `aircraft.json` for the air
   # domain's Off Grid source. AIR reads it at
   # http://adsb-decoder:8080/data/aircraft.json by default (ADSB_OFFGRID_URL in
   # .env overrides it for a decoder outside the compose network).
@@ -695,7 +695,7 @@ services:
   # 2.4 MSPS. Decoding on the Pi itself would cost a few KB/s instead; this
   # arrangement is chosen to keep the decoders in one stack.
   #
-  # The Sentry device MUST already be tuned to 1090 MHz at 2.4 MSPS. This
+  # The SDR Manager device MUST already be tuned to 1090 MHz at 2.4 MSPS. This
   # container never retunes it — those are the operator's per-device settings
   # and another consumer may be relying on them. See decoder/adsb/README.md.
   adsb-decoder:
@@ -719,8 +719,8 @@ services:
       - RTL_TCP_PORT=${SENTINEL_ADSB_RTL_TCP_PORT:-2345}
       # Polled once at startup to report what the source device is tuned to, so
       # a mis-tuned dongle shows up in the logs rather than as an empty map.
-      # Your Sentry host, e.g. http://<sentry-host>:8000; empty skips the check.
-      - SENTRY_API_BASE=${SENTINEL_ADSB_SENTRY_API:-}
+      # Your SDR host, e.g. http://<sdr-manager-host>:8000; empty skips the check.
+      - SDR_MANAGER_API_BASE=${SENTINEL_ADSB_SDR_MANAGER_API:-}
       - JSON_DIR=/run/adsb/data
       - HTTP_PORT=8080
     # Published so the decoder can be checked from a browser and pointed at from

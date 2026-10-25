@@ -94,7 +94,7 @@
  * cancelled (a status badge, the error text for a failure, and Delete to
  * dismiss it). Delete asks for confirmation inline (never `window.confirm`,
  * which is both inaccessible chrome and untestable) — the same disclosure
- * pattern `SentryHostsControl.vue` uses for its own per-row delete.
+ * pattern `SdrManagerHostsControl.vue` uses for its own per-row delete.
  *
  * Focus management (WCAG 2.4.3/3.2.2): entering the delete confirmation moves
  * focus to NO (the safe default so a stray Enter/Space can't confirm a
@@ -199,7 +199,7 @@ defineExpose({ focusSelectButton })
 
 <style scoped>
 /* Row, name, delete icon and the DELETE? YES / NO confirmation all use the
-   settings panel's shared device-list styles (as in the Sentry hosts list),
+   settings panel's shared device-list styles (as in the SDR hosts list),
    so this list looks like the others in Settings. Only what those classes
    don't cover lives here. */
 .oma-region-row {
@@ -214,7 +214,7 @@ defineExpose({ focusSelectButton })
   min-width: 0;
 }
 
-/* Same dimming the Sentry hosts list gives a row awaiting delete confirmation. */
+/* Same dimming the SDR hosts list gives a row awaiting delete confirmation. */
 .oma-region-summary--dimmed {
   opacity: 0.4;
 }

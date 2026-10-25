@@ -5,7 +5,7 @@ import {
   DEFAULT_OVERHEAD_ALERT_RADIUS_NM,
   USER_ALERT_LOCATION_ID,
   parseStoredOverheadAlerts,
-  sentryAlertLocationId,
+  sdrManagerAlertLocationId,
   DEFAULT_SQUAWK_WATCH_INTERVAL_SEC,
   SQUAWK_WATCH_INTERVAL_SETTING,
   DEFAULT_ONLINE_REFRESH_INTERVAL_SEC,
@@ -124,8 +124,8 @@ describe('air store', () => {
       })
     })
 
-    it('names a Sentry location by its host id', () => {
-      expect(sentryAlertLocationId(7)).toBe('sentry:7')
+    it('names an SDR Manager location by its host id', () => {
+      expect(sdrManagerAlertLocationId(7)).toBe('sdr-manager:7')
     })
 
     it('patches one field, leaving the rest of that location alone', () => {
@@ -141,15 +141,15 @@ describe('air store', () => {
 
     it('keeps each location’s settings independent', () => {
       const store = useAirStore()
-      const sentry = sentryAlertLocationId(1)
+      const hostLocationId = sdrManagerAlertLocationId(1)
       store.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true, radiusNm: 5 })
-      store.setOverheadAlert(sentry, { mil: true, radiusNm: 40 })
-      // Each Sentry watches its own patch of sky at its own radius.
+      store.setOverheadAlert(hostLocationId, { mil: true, radiusNm: 40 })
+      // Each SDR host watches its own patch of sky at its own radius.
       expect(store.overheadAlertFor(USER_ALERT_LOCATION_ID)).toMatchObject({
         civil: true,
         radiusNm: 5,
       })
-      expect(store.overheadAlertFor(sentry)).toMatchObject({ mil: true, radiusNm: 40 })
+      expect(store.overheadAlertFor(hostLocationId)).toMatchObject({ mil: true, radiusNm: 40 })
     })
 
     it.each([0, -5, Number.NaN])('refuses a radius of %s', (radiusNm) => {
@@ -161,10 +161,10 @@ describe('air store', () => {
     })
 
     it('persists the settings', () => {
-      useAirStore().setOverheadAlert(sentryAlertLocationId(2), { civil: true, radiusNm: 15 })
+      useAirStore().setOverheadAlert(sdrManagerAlertLocationId(2), { civil: true, radiusNm: 15 })
       // The operator's own location is always present (the migration seeds it),
-      // so this asserts the Sentry's entry rather than the whole map.
-      expect(JSON.parse(localStorage.getItem('overheadAlerts') ?? '{}')['sentry:2']).toEqual({
+      // so this asserts the SDR host's entry rather than the whole map.
+      expect(JSON.parse(localStorage.getItem('overheadAlerts') ?? '{}')['sdr-manager:2']).toEqual({
         civil: true,
         mil: false,
         radiusNm: 15,
@@ -174,9 +174,9 @@ describe('air store', () => {
     it('restores persisted settings', () => {
       localStorage.setItem(
         'overheadAlerts',
-        JSON.stringify({ 'sentry:3': { civil: true, mil: false, radiusNm: 30 } }),
+        JSON.stringify({ 'sdr-manager:3': { civil: true, mil: false, radiusNm: 30 } }),
       )
-      expect(useAirStore().overheadAlertFor('sentry:3')).toEqual({
+      expect(useAirStore().overheadAlertFor('sdr-manager:3')).toEqual({
         civil: true,
         mil: false,
         radiusNm: 30,
@@ -185,17 +185,19 @@ describe('air store', () => {
 
     it('forgets a location that has left the fleet', () => {
       const store = useAirStore()
-      const sentry = sentryAlertLocationId(4)
-      store.setOverheadAlert(sentry, { civil: true })
-      store.forgetOverheadAlert(sentry)
-      expect(store.overheadAlertFor(sentry).civil).toBe(false)
-      expect(JSON.parse(localStorage.getItem('overheadAlerts') ?? '{}')[sentry]).toBeUndefined()
+      const hostLocationId = sdrManagerAlertLocationId(4)
+      store.setOverheadAlert(hostLocationId, { civil: true })
+      store.forgetOverheadAlert(hostLocationId)
+      expect(store.overheadAlertFor(hostLocationId).civil).toBe(false)
+      expect(
+        JSON.parse(localStorage.getItem('overheadAlerts') ?? '{}')[hostLocationId],
+      ).toBeUndefined()
     })
 
     it('forgetting an unknown location changes nothing', () => {
       const store = useAirStore()
       store.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true })
-      store.forgetOverheadAlert('sentry:999')
+      store.forgetOverheadAlert('sdr-manager:999')
       expect(store.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(true)
     })
 

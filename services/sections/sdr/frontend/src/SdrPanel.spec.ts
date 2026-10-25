@@ -1616,13 +1616,18 @@ describe('SdrPanel — device dropdown menu', () => {
     // Reported live: AIR was moved to a second dongle while the panel was
     // already mounted. The panel still locked the old one, so the new ADS-B
     // dongle could be opened here and was retuned to airband — no aircraft.
-    let airSource: { sentry_host_id: number; sentry_device_id: string } | null
+    let airSource: { sdr_manager_host_id: number; sdr_manager_device_id: string } | null
 
     async function mountOnSecondRadio(): Promise<VueWrapper> {
       airSource = null
       fetchState.radios = [
-        makeRadio({ sentry_host_id: 1, sentry_device_id: 'usb:1-1.1' }),
-        makeRadio({ id: 2, name: 'rtl1', sentry_host_id: 1, sentry_device_id: 'serial:ADSB' }),
+        makeRadio({ sdr_manager_host_id: 1, sdr_manager_device_id: 'usb:1-1.1' }),
+        makeRadio({
+          id: 2,
+          name: 'rtl1',
+          sdr_manager_host_id: 1,
+          sdr_manager_device_id: 'serial:ADSB',
+        }),
       ]
       fetchOverride = (url) =>
         url === '/api/settings/air'
@@ -1641,7 +1646,7 @@ describe('SdrPanel — device dropdown menu', () => {
     }
 
     function moveAdsbSourceToSecondRadio(): void {
-      airSource = { sentry_host_id: 1, sentry_device_id: 'serial:ADSB' }
+      airSource = { sdr_manager_host_id: 1, sdr_manager_device_id: 'serial:ADSB' }
     }
 
     it('locks the new receiver and lets go of it once Settings closes', async () => {
@@ -1668,7 +1673,7 @@ describe('SdrPanel — device dropdown menu', () => {
     it('keeps a radio that is still free', async () => {
       const wrapper = await mountOnSecondRadio()
       // AIR moved to the *first* dongle: the one this panel is on stays usable.
-      airSource = { sentry_host_id: 1, sentry_device_id: 'usb:1-1.1' }
+      airSource = { sdr_manager_host_id: 1, sdr_manager_device_id: 'usb:1-1.1' }
 
       document.dispatchEvent(new CustomEvent('settings-panel-closed'))
       await flushPromises()

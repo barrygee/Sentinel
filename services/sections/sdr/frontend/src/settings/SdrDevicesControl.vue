@@ -3,7 +3,9 @@
     <div class="sdr-devices-list">
       <div
         v-if="
-          sentryHosts.length === 0 && manualRadios.length === 0 && unlistedHostRadios.length === 0
+          sdrManagerHosts.length === 0 &&
+          manualRadios.length === 0 &&
+          unlistedHostRadios.length === 0
         "
         class="sdr-devices-empty"
       >
@@ -12,7 +14,7 @@
         >.
       </div>
 
-      <template v-for="group in sentryGroups" :key="'host-' + group.host.id">
+      <template v-for="group in sdrManagerGroups" :key="'host-' + group.host.id">
         <SdrHostGroupHeader
           :host-id="group.host.id"
           :label="hostLabel(group.host)"
@@ -32,7 +34,7 @@
             :connected="entry.device.present"
             :open="openId === entry.radio.id"
             :confirming="confirmId === entry.radio.id"
-            :sentry-device-status="entry.device"
+            :sdr-manager-device-status="entry.device"
             @toggle-edit="toggleEdit(entry.radio.id)"
             @start-delete="startDelete(entry.radio.id)"
             @confirm-delete="confirmDelete(entry.radio.id)"
@@ -93,7 +95,7 @@
 
       <template v-if="manualRadios.length > 0">
         <div
-          v-if="sentryHosts.length > 0 || unlistedHostRadios.length > 0"
+          v-if="sdrManagerHosts.length > 0 || unlistedHostRadios.length > 0"
           class="sdr-host-group-header"
         >
           MANUAL RADIOS
@@ -141,11 +143,11 @@
  *   doesn't have (removed, or SDR Manager isn't deployed). Editing one saves
  *   it as a manual radio, detaching it from the missing host.
  * - A trailing "MANUAL RADIOS" group for radios entered directly in
- *   Sentinel (`sentry_host_id === null`), unchanged from before this
+ *   Sentinel (`sdr_manager_host_id === null`), unchanged from before this
  *   feature existed.
  *
  * A single 3s poll tick (guarded by `pollInFlight` so a slow tick can never
- * stack) refreshes both a manual radio's TCP reachability and every Sentry
+ * stack) refreshes both a manual radio's TCP reachability and every SDR host
  * host's cached device snapshot, and diffs each host's device-id set against
  * the previous tick to announce arrivals/departures through the
  * notifications store — the live plug/unplug behaviour this component adds
@@ -183,7 +185,7 @@ const notificationsStore = useNotificationsStore()
 const sdrManagerDeployed = findSdrManagerHosts() !== undefined
 
 const radios = ref<SdrRadioRecord[]>([])
-const sentryHosts = ref<SdrManagerHost[]>([])
+const sdrManagerHosts = ref<SdrManagerHost[]>([])
 const deviceSnapshots = ref<Record<number, SdrManagerDeviceSnapshot>>({})
 const openId = ref<number | 'new' | null>(null)
 const confirmId = ref<number | null>(null)
@@ -202,7 +204,9 @@ const hostsLoadFailed = ref(false)
 const previousDeviceIdsByHost = new Map<number, Set<string>>()
 const lastKnownDeviceNames = new Map<string, string>()
 
-const manualRadios = computed(() => radios.value.filter((radio) => radio.sentry_host_id == null))
+const manualRadios = computed(() =>
+  radios.value.filter((radio) => radio.sdr_manager_host_id == null),
+)
 
 /**
  * True when it is certain which hosts exist: the list loaded, or there is no
@@ -214,9 +218,9 @@ const hostListKnown = computed(() => hostsLoaded.value || !sdrManagerDeployed)
 /** Radios naming a host that isn't in the hosts list, shown once the first load attempt has finished. */
 const unlistedHostRadios = computed(() => {
   if (!hostListKnown.value && !hostsLoadFailed.value) return []
-  const listedHostIds = new Set(sentryHosts.value.map((host) => host.id))
+  const listedHostIds = new Set(sdrManagerHosts.value.map((host) => host.id))
   return radios.value.filter(
-    (radio) => radio.sentry_host_id != null && !listedHostIds.has(radio.sentry_host_id),
+    (radio) => radio.sdr_manager_host_id != null && !listedHostIds.has(radio.sdr_manager_host_id),
   )
 })
 
@@ -230,18 +234,18 @@ const unlistedHostNotice = computed(() => {
   return `${reason} Edit one to keep it as a manual radio, or delete it.`
 })
 
-/** One row model per device on a host: the live Sentry status, plus the
+/** One row model per device on a host: the live SDR host status, plus the
  * mirrored Sentinel radio if one has already been created for it (null =
- * not yet added — rendered as `SdrSentryDeviceRow`'s ADD row instead). */
-interface SentryDeviceRowModel {
+ * not yet added — rendered as `SdrSdrManagerDeviceRow`'s ADD row instead). */
+interface SdrManagerDeviceRowModel {
   device: SdrManagerDeviceStatus
   radio: SdrRadioRecord | null
 }
 
-interface SentryHostGroup {
+interface SdrManagerHostGroup {
   host: SdrManagerHost
   snapshot: SdrManagerDeviceSnapshot | undefined
-  devices: SentryDeviceRowModel[]
+  devices: SdrManagerDeviceRowModel[]
   /**
    * Radios belonging to this host whose device is no longer in its device list.
    *
@@ -258,11 +262,11 @@ interface SentryHostGroup {
 
 // This machine first, as SDR Manager lists it, then the hosts in the order they were added.
 const orderedHosts = computed(() => [
-  ...sentryHosts.value.filter((host) => host.is_local),
-  ...sentryHosts.value.filter((host) => !host.is_local),
+  ...sdrManagerHosts.value.filter((host) => host.is_local),
+  ...sdrManagerHosts.value.filter((host) => !host.is_local),
 ])
 
-const sentryGroups = computed<SentryHostGroup[]>(() =>
+const sdrManagerGroups = computed<SdrManagerHostGroup[]>(() =>
   orderedHosts.value.map((host) => {
     const snapshot = deviceSnapshots.value[host.id]
     const devices = snapshot?.status?.sdrs ?? []
@@ -274,7 +278,8 @@ const sentryGroups = computed<SentryHostGroup[]>(() =>
         radio:
           radios.value.find(
             (radio) =>
-              radio.sentry_host_id === host.id && radio.sentry_device_id === device.device_id,
+              radio.sdr_manager_host_id === host.id &&
+              radio.sdr_manager_device_id === device.device_id,
           ) ?? null,
       })),
       // Only meaningful once the host has actually answered: with no snapshot
@@ -283,8 +288,8 @@ const sentryGroups = computed<SentryHostGroup[]>(() =>
       orphanedRadios: snapshot?.status
         ? radios.value.filter(
             (radio) =>
-              radio.sentry_host_id === host.id &&
-              !devices.some((device) => device.device_id === radio.sentry_device_id),
+              radio.sdr_manager_host_id === host.id &&
+              !devices.some((device) => device.device_id === radio.sdr_manager_device_id),
           )
         : [],
     }
@@ -292,10 +297,10 @@ const sentryGroups = computed<SentryHostGroup[]>(() =>
 )
 
 // Guards the 3s poll: a tick fans out one status probe per manual radio plus
-// one device-snapshot fetch per Sentry host, each of which waits on a
+// one device-snapshot fetch per SDR host, each of which waits on a
 // backend round trip. Skip a tick while a previous sweep is still in flight
 // rather than stacking overlapping requests (same guard as before this
-// feature existed, now covering the combined manual+Sentry sweep).
+// feature existed, now covering the combined manual+SDR host sweep).
 let pollInFlight = false
 
 async function pollManualRadioStatuses(): Promise<void> {
@@ -312,7 +317,7 @@ async function pollManualRadioStatuses(): Promise<void> {
 /**
  * Announce devices that plugged in/unplugged on `host` since the previous
  * tick. Tracks only the *present* device-id set — a serial-identified device
- * Sentry keeps configured while unplugged still appears in every snapshot
+ * SDR host keeps configured while unplugged still appears in every snapshot
  * with `present: false`, so membership in the full device list is not itself
  * a plug/unplug signal; only a `present` transition is.
  */
@@ -352,11 +357,11 @@ function announceDeviceChanges(
   previousDeviceIdsByHost.set(host.id, currentPresentIds)
 }
 
-async function pollSentryHostDevices(): Promise<void> {
+async function pollSdrManagerHostDevices(): Promise<void> {
   const hostsCapability = findSdrManagerHosts()
   if (!hostsCapability) return
   await Promise.all(
-    sentryHosts.value.map(async (host) => {
+    sdrManagerHosts.value.map(async (host) => {
       const snapshot = await hostsCapability.getHostDevices(host.id)
       deviceSnapshots.value = { ...deviceSnapshots.value, [host.id]: snapshot }
       announceDeviceChanges(host, snapshot.status?.sdrs ?? [])
@@ -368,7 +373,7 @@ async function pollAll(): Promise<void> {
   if (pollInFlight) return
   pollInFlight = true
   try {
-    await Promise.all([pollManualRadioStatuses(), pollSentryHostDevices()])
+    await Promise.all([pollManualRadioStatuses(), pollSdrManagerHostDevices()])
   } finally {
     pollInFlight = false
   }
@@ -378,11 +383,11 @@ async function loadRadios(): Promise<void> {
   radios.value = await listRadios()
 }
 
-async function loadSentryHosts(): Promise<void> {
+async function loadSdrManagerHosts(): Promise<void> {
   const hostsCapability = findSdrManagerHosts()
   if (!hostsCapability) return
   try {
-    sentryHosts.value = await hostsCapability.listHosts()
+    sdrManagerHosts.value = await hostsCapability.listHosts()
     hostsLoaded.value = true
   } catch {
     /* offline / transient — keep the previous list */
@@ -391,7 +396,7 @@ async function loadSentryHosts(): Promise<void> {
 }
 
 async function load(): Promise<void> {
-  await Promise.all([loadRadios(), loadSentryHosts()])
+  await Promise.all([loadRadios(), loadSdrManagerHosts()])
   await pollAll()
 }
 
@@ -441,8 +446,8 @@ async function addDeviceAsRadio(
       bandwidth: null,
       rf_gain: null,
       agc: null,
-      sentry_host_id: host.id,
-      sentry_device_id: device.device_id,
+      sdr_manager_host_id: host.id,
+      sdr_manager_device_id: device.device_id,
       notes: device.notes,
       antenna: device.antenna,
       visibility: device.visibility,
@@ -475,7 +480,7 @@ onMounted(() => {
   void load()
   pollTimer = setInterval(() => void pollAll(), 3000)
   document.addEventListener(RADIOS_CHANGED_EVENT, onRadiosChanged)
-  stopHostsChanged = findSdrManagerHosts()?.onHostsChanged(() => void loadSentryHosts()) ?? null
+  stopHostsChanged = findSdrManagerHosts()?.onHostsChanged(() => void loadSdrManagerHosts()) ?? null
 })
 
 onBeforeUnmount(() => {

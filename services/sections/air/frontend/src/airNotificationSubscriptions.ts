@@ -43,7 +43,7 @@ export const overheadAlertSubscriptions: NotificationSubscriptionSource = {
   order: 30,
   list() {
     return overheadAlertZones().locations.value.flatMap((location) => {
-      const place = location.isUser ? 'Sentinel location' : `Sentry: ${location.label}`
+      const place = location.isUser ? 'Sentinel location' : `SDR host: ${location.label}`
       return [
         ...(location.civil
           ? [{ id: `${location.id}:civil`, label: `${place} — civil aircraft overhead` }]
@@ -66,7 +66,7 @@ export const overheadAlertSubscriptions: NotificationSubscriptionSource = {
     const airStore = useAirStore()
     let changed = false
     for (const id of ids) {
-      // The location id can itself contain a colon (`sentry:3`), so the flag is the last part.
+      // The location id can itself contain a colon (`sdr-manager:3`), so the flag is the last part.
       const separator = id.lastIndexOf(':')
       const flag = id.slice(separator + 1)
       if (flag === 'civil' || flag === 'mil') {

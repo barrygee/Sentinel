@@ -17,7 +17,7 @@
 
 <script setup lang="ts">
 /**
- * Picks which Sentry SDR produces the samples behind Off Grid ADS-B.
+ * Picks which SDR Manager device produces the samples behind Off Grid ADS-B.
  *
  * The Off Grid *URL* beside this says where to read decoded aircraft from; this
  * says which dongle produced them. They are separate facts — a decoder can sit
@@ -25,7 +25,7 @@
  * could neither tune it to 1090 MHz nor stop anything else retuning it. See
  * ADR-0003.
  *
- * Devices come from the Sentry hosts already registered in Settings → SDR, so
+ * Devices come from the SDR hosts already registered in Settings → SDR, so
  * there is nothing to type: an operator picks the dongle they already named.
  * Staged like every other setting in the panel, and saved by APPLY CHANGES. It
  * used to save the moment it was picked, which left Apply reporting "no
@@ -46,7 +46,7 @@ const devices = ref<SettingsDropdownOption[]>([])
 const selected = ref('')
 const isLoading = ref(true)
 const hostCount = ref(0)
-/** True when the *selected* device is no longer offered by its Sentry. */
+/** True when the *selected* device is no longer offered by its SDR host. */
 const withdrawn = ref(false)
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 /**
@@ -61,9 +61,9 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 let isUnmounted = false
 
 /**
- * How often the list re-reads Sentry's devices.
+ * How often the list re-reads the SDR host's devices.
  *
- * A device's visibility or enabled state can change from Sentry's own console
+ * A device's visibility or enabled state can change from the SDR host's own console
  * at any moment, and this list is how an operator decides what to point AIR at
  * — a stale one offers a dongle that has since been withdrawn. Sentinel's fleet
  * poller already refreshes its snapshot every couple of seconds, so this only
@@ -88,27 +88,27 @@ const dropdownOptions = computed<SettingsDropdownOption[]>(() =>
 
 const placeholderText = computed(() => {
   if (isLoading.value) return 'Loading…'
-  if (hostCount.value === 0) return 'No Sentry hosts — add one in SDR settings'
-  if (devices.value.length === 0) return 'No devices published by your Sentry hosts'
+  if (hostCount.value === 0) return 'No SDR hosts — add one in SDR settings'
+  if (devices.value.length === 0) return 'No devices published by your SDR hosts'
   return 'Not set'
 })
 
 const hint = computed(() => {
   if (withdrawn.value) {
-    return 'The selected SDR is no longer public/enabled on its Sentry. AIR cannot claim it until that is changed, or pick another.'
+    return 'The selected SDR is no longer public/enabled on its SDR host. AIR cannot claim it until that is changed, or pick another.'
   }
   if (isLoading.value || devices.value.length > 0) return ''
   if (hostCount.value === 0) {
-    return 'Add a Sentry host under Settings → SDR first; its SDRs will appear here.'
+    return 'Add an SDR host under Settings → SDR first; its SDRs will appear here.'
   }
-  // A Sentry only publishes devices its operator marked public, so an empty
+  // An SDR host only publishes devices its operator marked public, so an empty
   // list is far more often a visibility toggle than a missing dongle.
-  return 'Your Sentry hosts are reachable but publish no SDRs. Check each device is enabled.'
+  return 'Your SDR hosts are reachable but publish no SDRs. Check each device is enabled.'
 })
 
 /**
  * Build the option list from every enabled host's devices, read through the
- * radio platform's `radioSites` capability (Air never sees the Sentry admin
+ * radio platform's `radioSites` capability (Air never sees the SDR host admin
  * API). With no radio platform registered there is nothing to offer.
  */
 async function loadDevices(): Promise<void> {
@@ -120,7 +120,7 @@ async function loadDevices(): Promise<void> {
   for (const host of fleet.hosts) {
     for (const device of host.devices) {
       // Private and disabled devices are not offered as sources. Both are the
-      // operator saying on the Sentry side that this dongle is not for
+      // operator saying on the SDR host side that this dongle is not for
       // sharing or not in service, and picking one here would claim and tune
       // hardware they have withdrawn.
       //
@@ -151,8 +151,8 @@ async function loadSelection(): Promise<void> {
   if (source === null) return
   isHydrating = true
   selected.value =
-    source.configured && source.sentry_host_id !== null && source.sentry_device_id
-      ? `${source.sentry_host_id}:${source.sentry_device_id}`
+    source.configured && source.sdr_manager_host_id !== null && source.sdr_manager_device_id
+      ? `${source.sdr_manager_host_id}:${source.sdr_manager_device_id}`
       : ''
   isHydrating = false
 }

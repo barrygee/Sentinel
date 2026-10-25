@@ -15,7 +15,7 @@ const COORDINATE_DECIMALS = 5
  * A latitude as the map writes it, e.g. `54.95119° N`.
  *
  * Hemisphere letter rather than a minus sign: this is read off a map, where
- * "N/S" is unambiguous and a stray "-" is easy to miss. Shared so the Sentry
+ * "N/S" is unambiguous and a stray "-" is easy to miss. Shared so the SDR host
  * site markers and the right-click "SET LOCATION" menu read identically —
  * they sit on the same map, often at once.
  */

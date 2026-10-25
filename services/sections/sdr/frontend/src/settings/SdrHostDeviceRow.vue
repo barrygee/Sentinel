@@ -4,7 +4,7 @@
       <span class="sdr-device-info">
         <SdrSourceStatusDot :connected="device.present" />
         {{ device.name || device.device_id }}
-        <span class="sdr-sentry-device-state">{{ stateLabel }}</span>
+        <span class="sdr-sdr-manager-device-state">{{ stateLabel }}</span>
       </span>
       <BaseButton
         variant="ghost"
@@ -22,11 +22,11 @@
 
 <script setup lang="ts">
 /**
- * `SdrHostDeviceRow` — one row for a Sentry-known device that has not yet
+ * `SdrHostDeviceRow` — one row for an SDR-Manager-known device that has not yet
  * been mirrored into Sentinel's own radio list (ADR-0009). Shows the device's
  * live presence/state and an ADD action that creates the mirroring Sentinel
- * radio; disabled until Sentry has allocated the device an output port (a
- * device Sentry has only just detected, not yet configured, has no port to
+ * radio; disabled until SDR host has allocated the device an output port (a
+ * device SDR host has only just detected, not yet configured, has no port to
  * connect to).
  */
 import { computed } from 'vue'
@@ -53,7 +53,7 @@ const emit = defineEmits<{ add: [] }>()
  * is absent.
  *
  * A **private** or **disabled** device is not offered as a source at all. Both
- * are the operator saying, on the Sentry side, that this dongle is not for
+ * are the operator saying, on the SDR host side, that this dongle is not for
  * sharing or not in service; mirroring it into Sentinel would quietly
  * contradict that, and the mirrored radio would then fail to connect for a
  * reason nothing in Sentinel explains. The row itself stays visible, because
@@ -63,13 +63,13 @@ const emit = defineEmits<{ add: [] }>()
 /** Why ADD is unavailable, in the operator's terms. Empty when it is available. */
 const addBlockedReason = computed(() => {
   if (props.device.visibility !== 'public') {
-    return 'This device is private on its Sentry — make it public to use it as a source'
+    return 'This device is private on its SDR host — make it public to use it as a source'
   }
   if (!props.device.enabled) {
-    return 'This device is disabled on its Sentry'
+    return 'This device is disabled on its SDR host'
   }
   if (props.device.output === null) {
-    return 'Sentry has not assigned this device an output port yet'
+    return 'SDR host has not assigned this device an output port yet'
   }
   return ''
 })
@@ -84,7 +84,7 @@ const stateLabel = computed(() => {
 </script>
 
 <style scoped>
-.sdr-sentry-device-state {
+.sdr-sdr-manager-device-state {
   margin-left: 8px;
   font-size: var(--settings-text-caption);
   letter-spacing: 0.08em;

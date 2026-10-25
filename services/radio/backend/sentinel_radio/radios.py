@@ -100,8 +100,8 @@ async def device_availability(radio: dict) -> tuple[bool, str]:
     Neither is a mirrored radio greyed out when sdr-manager-remote can't say:
     the hub fails open rather than blocking a radio that may well work.
     """
-    host_id = radio.get("sentry_host_id")
-    device_id = radio.get("sentry_device_id")
+    host_id = radio.get("sdr_manager_host_id")
+    device_id = radio.get("sdr_manager_device_id")
     if not isinstance(host_id, int) or not isinstance(device_id, str):
         return True, ""
 

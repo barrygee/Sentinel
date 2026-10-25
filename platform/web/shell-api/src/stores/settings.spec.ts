@@ -41,7 +41,7 @@ describe('settings store', () => {
     expect(store.focusSdrManagerHostId).toBe(7)
   })
 
-  it('starts with no Sentry host in focus', () => {
+  it('starts with no SDR host in focus', () => {
     expect(useSettingsStore().focusSdrManagerHostId).toBeNull()
   })
 

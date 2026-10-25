@@ -72,8 +72,8 @@ function origin(overrides: Partial<ResolvedRingOrigin> = {}): ResolvedRingOrigin
   return {
     longitude: -2,
     latitude: 54,
-    label: 'SENTRY ONE',
-    kind: 'sentry',
+    label: 'SDR HOST ONE',
+    kind: 'sdr-manager',
     degraded: false,
     ...overrides,
   }
@@ -113,7 +113,7 @@ describe('RangeRingsControlBase', () => {
     it.each([
       ['longitude', { longitude: -3 }],
       ['latitude', { latitude: 55 }],
-      ['label', { label: 'SENTRY TWO' }],
+      ['label', { label: 'SDR HOST TWO' }],
       ['kind', { kind: 'user' as const }],
       ['degraded', { degraded: true }],
     ])('rebuilds when only the %s changes', (_field, change) => {
@@ -144,7 +144,7 @@ describe('RangeRingsControlBase', () => {
     it('flags a stale position in the origin label, which no longer carries a distance', () => {
       const { control, map } = addedControl()
       control.setOrigin(origin({ degraded: true }))
-      expect(map._state.textField[LABEL_LAYER]).toBe('SENTRY ONE · OFFLINE')
+      expect(map._state.textField[LABEL_LAYER]).toBe('SDR HOST ONE · OFFLINE')
     })
   })
 
