@@ -95,7 +95,7 @@ class HealthService:
             uptime_s=max((time.time() * 1000 - self._started_at_ms) / 1000, 0.0),
             database="ok" if database_reachable else "error",
             hotplug=HotplugHealth(
-                source="udev" if hotplug_healthy else "reconcile",
+                source=self._hotplug.source_name(),
                 healthy=hotplug_healthy,
                 last_event_at=self._hotplug.last_event_at_ms(),
             ),

@@ -27,6 +27,11 @@ The output directory (default `/run/service-credentials`, the
     credentials/gateway/    core's TLS service entrypoint: its certificate, key and the CA
     credentials/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
 
+With `SDR_MANAGER_LOCAL_NATIVE=1` (SDR Manager running as a native Mac
+process, ADR 0007) it also copies `credentials/sdr-manager-local/` to the
+checkout's `sdr-manager-local-credentials/` folder, mounted here at
+`/run/sdr-manager-local-credentials`, where that process reads it.
+
 A second host (P7.5) gets a copy of its own `credentials/<caller>/` folders
 (`backend/scripts/service_credentials_bundle.py`). The broker's and the service
 entrypoint's certificates must name the address other hosts dial this one by
@@ -81,6 +86,9 @@ HOSTNAMES_FILE = "hostnames.txt"
 SERVER_CONFIG_FILE = "nats.conf"
 SERVER_MOUNT_POINT = "/etc/nats-sentinel"
 """Where compose mounts `server/` inside the `nats` container."""
+NATIVE_SDR_MANAGER_LOCAL_CALLER = "sdr-manager-local"
+NATIVE_CREDENTIALS_DIRECTORY = Path("/run/sdr-manager-local-credentials")
+"""Where compose mounts the checkout's `sdr-manager-local-credentials/` folder."""
 
 
 def _openssl(*arguments: str) -> subprocess.CompletedProcess[str]:
@@ -275,7 +283,30 @@ def ensure_gateway_certificate(
     shutil.copyfile(authority_certificate, directory / CERTIFICATE_AUTHORITY_FILE)
 
 
-def generate(output_directory: Path) -> None:
+def native_sdr_manager_local_enabled() -> bool:
+    """Whether `.env` says SDR Manager runs as a native Mac process (`SDR_MANAGER_LOCAL_NATIVE=1`)."""
+    return os.environ.get("SDR_MANAGER_LOCAL_NATIVE", "").strip() == "1"
+
+
+def copy_native_credentials(callers_directory: Path, native_directory: Path) -> None:
+    """Copy sdr-manager-local's folder to where the native Mac process reads it (owner-only).
+
+    A failure is reported, not raised: the rest of the deployment doesn't need
+    it, and `sdr-manager-local doctor` names the missing files.
+    """
+    source = callers_directory / NATIVE_SDR_MANAGER_LOCAL_CALLER
+    try:
+        native_directory.mkdir(parents=True, exist_ok=True)
+        native_directory.chmod(0o700)
+        for name in (HTTP_CREDENTIALS_FILE, ACCEPTED_CALLERS_FILE, CERTIFICATE_AUTHORITY_FILE):
+            _write_private(native_directory / name, (source / name).read_text())
+    except OSError as error:
+        print(f"service-credentials: could not copy sdr-manager-local's credentials to {native_directory}: {error}")
+        return
+    print("service-credentials: copied sdr-manager-local's credentials for the native Mac process")
+
+
+def generate(output_directory: Path, native_directory: Path = NATIVE_CREDENTIALS_DIRECTORY) -> None:
     """Bring `output_directory` up to date (see the module docstring for its layout)."""
     authority_certificate, authority_key = ensure_certificate_authority(output_directory / "certificate-authority")
     server_directory = output_directory / "server"
@@ -308,6 +339,8 @@ def generate(output_directory: Path) -> None:
     for verifier in VERIFYING_SERVICES:
         _write_private(callers_directory / verifier / ACCEPTED_CALLERS_FILE, accepted_callers(tokens))
     print(f"service-credentials: {len(tokens)} HTTP callers accepted by {', '.join(VERIFYING_SERVICES)}")
+    if native_sdr_manager_local_enabled():
+        copy_native_credentials(callers_directory, native_directory)
     config_path, config = server_directory / SERVER_CONFIG_FILE, server_config(passwords)
     if config_path.exists() and config_path.read_text() == config:
         print(f"service-credentials: {config_path} is up to date ({len(passwords)} users)")

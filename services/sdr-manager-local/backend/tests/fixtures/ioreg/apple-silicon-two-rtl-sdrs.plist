@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IOObjectClass</key>
+	<string>IORegistryEntry</string>
+	<key>IORegistryEntryChildren</key>
+	<array>
+		<dict>
+			<key>IOObjectClass</key>
+			<string>AppleT8112USBXHCI</string>
+			<key>IORegistryEntryName</key>
+			<string>AppleT8112USBXHCI</string>
+			<key>locationID</key>
+			<integer>0</integer>
+		</dict>
+		<dict>
+			<key>IOObjectClass</key>
+			<string>AppleUSBXHCITR</string>
+			<key>IORegistryEntryChildren</key>
+			<array>
+				<dict>
+					<key>IOObjectClass</key>
+					<string>IOUSBHostDevice</string>
+					<key>IORegistryEntryChildren</key>
+					<array>
+						<dict>
+							<key>IOObjectClass</key>
+							<string>IOUSBHostDevice</string>
+							<key>IORegistryEntryName</key>
+							<string>RTL2838UHIDIR</string>
+							<key>USB Address</key>
+							<integer>3</integer>
+							<key>USB Product Name</key>
+							<string>RTL2838UHIDIR</string>
+							<key>USB Serial Number</key>
+							<string>00000001</string>
+							<key>USB Vendor Name</key>
+							<string>Realtek</string>
+							<key>idProduct</key>
+							<integer>10296</integer>
+							<key>idVendor</key>
+							<integer>3034</integer>
+							<key>kUSBProductString</key>
+							<string>RTL2838UHIDIR</string>
+							<key>kUSBSerialNumberString</key>
+							<string>00000001</string>
+							<key>kUSBVendorString</key>
+							<string>Realtek</string>
+							<key>locationID</key>
+							<integer>538181632</integer>
+							<key>sessionID</key>
+							<integer>123456</integer>
+						</dict>
+					</array>
+					<key>IORegistryEntryName</key>
+					<string>USB2 Hub</string>
+					<key>USB Address</key>
+					<integer>2</integer>
+					<key>USB Product Name</key>
+					<string>USB2 Hub</string>
+					<key>USB Serial Number</key>
+					<string>XTY97YD0XL</string>
+					<key>USB Vendor Name</key>
+					<string>Apple</string>
+					<key>idProduct</key>
+					<integer>4125</integer>
+					<key>idVendor</key>
+					<integer>1452</integer>
+					<key>kUSBProductString</key>
+					<string>USB2 Hub</string>
+					<key>kUSBSerialNumberString</key>
+					<string>XTY97YD0XL</string>
+					<key>kUSBVendorString</key>
+					<string>Apple</string>
+					<key>locationID</key>
+					<integer>537919488</integer>
+					<key>sessionID</key>
+					<integer>123456</integer>
+				</dict>
+				<dict>
+					<key>IOObjectClass</key>
+					<string>IOUSBHostDevice</string>
+					<key>IORegistryEntryName</key>
+					<string>USB3 Gen2 Hub</string>
+					<key>USB Address</key>
+					<integer>1</integer>
+					<key>USB Product Name</key>
+					<string>USB3 Gen2 Hub</string>
+					<key>USB Serial Number</key>
+					<string>XTY97YD0XL</string>
+					<key>USB Vendor Name</key>
+					<string>Apple</string>
+					<key>idProduct</key>
+					<integer>4126</integer>
+					<key>idVendor</key>
+					<integer>1452</integer>
+					<key>kUSBProductString</key>
+					<string>USB3 Gen2 Hub</string>
+					<key>kUSBSerialNumberString</key>
+					<string>XTY97YD0XL</string>
+					<key>kUSBVendorString</key>
+					<string>Apple</string>
+					<key>locationID</key>
+					<integer>540016640</integer>
+					<key>sessionID</key>
+					<integer>123456</integer>
+				</dict>
+			</array>
+			<key>IORegistryEntryName</key>
+			<string>AppleUSBXHCITR</string>
+			<key>locationID</key>
+			<integer>536870912</integer>
+		</dict>
+		<dict>
+			<key>IOObjectClass</key>
+			<string>AppleUSBXHCITR</string>
+			<key>IORegistryEntryChildren</key>
+			<array>
+				<dict>
+					<key>IOObjectClass</key>
+					<string>IOUSBHostDevice</string>
+					<key>IORegistryEntryName</key>
+					<string>RTL2838UHIDIR</string>
+					<key>USB Address</key>
+					<integer>4</integer>
+					<key>USB Product Name</key>
+					<string>RTL2838UHIDIR</string>
+					<key>USB Vendor Name</key>
+					<string>Realtek</string>
+					<key>idProduct</key>
+					<integer>10296</integer>
+					<key>idVendor</key>
+					<integer>3034</integer>
+					<key>kUSBProductString</key>
+					<string>RTL2838UHIDIR</string>
+					<key>kUSBVendorString</key>
+					<string>Realtek</string>
+					<key>locationID</key>
+					<integer>555745280</integer>
+					<key>sessionID</key>
+					<integer>123456</integer>
+				</dict>
+			</array>
+			<key>IORegistryEntryName</key>
+			<string>AppleUSBXHCITR</string>
+			<key>locationID</key>
+			<integer>553648128</integer>
+		</dict>
+	</array>
+	<key>IORegistryEntryName</key>
+	<string>Root</string>
+</dict>
+</plist>

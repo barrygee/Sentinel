@@ -54,6 +54,21 @@ class Settings(BaseSettings):
         default=str(_VENDORED_RELAY_PATH),
         description="Path to the vendored, unmodified relay",
     )
+    librtlsdr_path: str | None = Field(
+        default=None,
+        description=(
+            "The librtlsdr library file to load; unset searches the usual places "
+            "(on a Mac, Homebrew's /opt/homebrew/lib and /usr/local/lib)"
+        ),
+    )
+    native: bool = Field(
+        default=False,
+        description=(
+            "Mac only: SDR Manager runs as a native process (the sdr-manager-local command) "
+            "instead of a container, and service-credentials copies its sign-in files to "
+            "./sdr-manager-local-credentials"
+        ),
+    )
     log_level: str = Field(default="INFO", description="Python logging level name")
     cors_origins: str = Field(
         default="",

@@ -68,14 +68,14 @@ class TestNullRtlSdrLibrary:
 class TestBuildRtlSdrLibrary:
     def test_uses_librtlsdr_when_it_loads(self, monkeypatch: pytest.MonkeyPatch) -> None:
         loaded = object()
-        monkeypatch.setattr(container_module, "CtypesRtlSdrLibrary", lambda: loaded)
+        monkeypatch.setattr(container_module, "CtypesRtlSdrLibrary", lambda *_arguments: loaded)
 
         assert _build_rtlsdr_library() is loaded
 
     def test_degrades_to_no_devices_without_librtlsdr(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        def unavailable() -> None:
+        def unavailable(*_arguments: object) -> None:
             raise RtlSdrLibraryUnavailableError("no librtlsdr")
 
         monkeypatch.setattr(container_module, "CtypesRtlSdrLibrary", unavailable)
@@ -137,7 +137,7 @@ class TestBuildHostAdapters:
         assert "simulating two RTL-SDRs" in caplog.text
 
     def test_real_hardware_uses_the_host(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr(container_module, "_build_rtlsdr_library", lambda: _NullRtlSdrLibrary())
+        monkeypatch.setattr(container_module, "_build_rtlsdr_library", lambda *_arguments: _NullRtlSdrLibrary())
         monkeypatch.setattr(container_module.shutil, "which", lambda _path: None)
 
         adapters = _build_host_adapters(_settings(hardware="real", sysfs_root=str(tmp_path)), FakeClock())

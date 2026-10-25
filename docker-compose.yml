@@ -542,10 +542,17 @@ services:
     volumes:
       - service_credentials:/run/service-credentials
       - ./backend:/app/backend
+      # Where the native Mac SDR Manager reads its credentials (ADR 0007),
+      # filled only when SDR_MANAGER_LOCAL_NATIVE=1. The folder is in the
+      # checkout (its .gitignore keeps the files out of git).
+      - ./sdr-manager-local-credentials:/run/sdr-manager-local-credentials
     environment:
       # The entrypoint hands this folder to the runtime user, which then owns
       # every file the services read.
       SENTINEL_WRITABLE_DIRECTORIES: /run/service-credentials
+      # 1 = SDR Manager runs as a native Mac process (`sdr-manager-local install`),
+      # so its credentials are copied to ./sdr-manager-local-credentials.
+      SDR_MANAGER_LOCAL_NATIVE: ${SDR_MANAGER_LOCAL_NATIVE:-0}
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
       # Names (or IP addresses) other hosts reach THIS core host by,

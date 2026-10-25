@@ -44,10 +44,16 @@ def sdr_manager_local_database(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 
 @pytest.fixture(autouse=True)
 def sdr_manager_local_settings(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    """Fresh `SDR_MANAGER_LOCAL_*` settings per test, on an empty sysfs tree."""
+    """Fresh `SDR_MANAGER_LOCAL_*` settings per test, on an empty sysfs tree.
+
+    The host platform is pinned to Linux, so on a developer's Mac "real"
+    hardware is still the empty sysfs tree, never the Mac's own USB bus (where
+    a plugged-in dongle would be started).
+    """
     empty_sysfs = tmp_path / "sysfs"
     empty_sysfs.mkdir()
     monkeypatch.setenv("SDR_MANAGER_LOCAL_SYSFS_ROOT", str(empty_sysfs))
+    monkeypatch.setattr("sentinel_sdr_manager_local.container.HOST_PLATFORM", "linux")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
