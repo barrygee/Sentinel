@@ -10,6 +10,7 @@ ever arrived). Fully testable with `ScriptedUsbDiscovery` + a fake `Clock`
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Literal
 
 from sentinel_sdr_manager_local.interfaces.clock import Clock
 from sentinel_sdr_manager_local.interfaces.types import HotplugEvent
@@ -25,7 +26,12 @@ class ReconcileHotplugSource:
     disappears within a single sweep interval produces no event at all — a
     deliberate limitation of any polling-based safety net, expected to be
     covered by the faster udev path in the composite source.
+
+    On its own (a Mac, which has no udev, or simulated hardware) it is the
+    only source, and reports itself as `reconcile` in `GET /api/health`.
     """
+
+    source_name: Literal["reconcile"] = "reconcile"
 
     def __init__(self, discovery: UsbDiscovery, clock: Clock, interval_s: float) -> None:
         """`interval_s` is the sweep period (architecture default 2.0 seconds)."""

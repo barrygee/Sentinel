@@ -31,6 +31,8 @@ from backend.scripts import generate_service_credentials as setup
 def no_extra_hostnames(monkeypatch):
     monkeypatch.delenv("SENTINEL_CORE_HOSTNAMES", raising=False)
     monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES", raising=False)
+    # Off unless a test turns it on, so nothing writes to /run/sdr-manager-local-credentials.
+    monkeypatch.delenv("SDR_MANAGER_LOCAL_NATIVE", raising=False)
 
 
 def _mode(path: Path) -> int:
@@ -501,3 +503,63 @@ class TestCertificateExpiresAt:
 
         monkeypatch.setattr(setup, "_openssl", lambda *arguments: Completed())
         assert setup.certificate_expires_at(Path("unused")) == 1854102606.0
+
+
+class TestNativeSdrManagerLocalCredentials:
+    """`SDR_MANAGER_LOCAL_NATIVE=1`: sdr-manager-local's folder copied for the native Mac process (ADR 0007)."""
+
+    @pytest.mark.parametrize("value", ["1", " 1 "])
+    def test_copies_its_three_files_owner_only(self, tmp_path, monkeypatch, value):
+        monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", value)
+        native = tmp_path / "native"
+
+        setup.generate(tmp_path / "volume", native)
+
+        source = tmp_path / "volume" / "credentials" / "sdr-manager-local"
+        assert sorted(path.name for path in native.iterdir()) == [
+            "accepted-callers.json",
+            "certificate-authority.pem",
+            "http-credentials.json",
+        ]
+        for path in native.iterdir():
+            assert path.read_text() == (source / path.name).read_text()
+            assert _mode(path) == 0o600
+        assert _mode(native) == 0o700
+
+    def test_a_rerun_refreshes_the_accepted_callers(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", "1")
+        native = tmp_path / "native"
+        setup.generate(tmp_path / "volume", native)
+        (native / "accepted-callers.json").write_text("stale")
+        native.chmod(0o755)
+
+        setup.generate(tmp_path / "volume", native)
+
+        source = tmp_path / "volume" / "credentials" / "sdr-manager-local" / "accepted-callers.json"
+        assert (native / "accepted-callers.json").read_text() == source.read_text()
+        assert _mode(native) == 0o700
+
+    @pytest.mark.parametrize("value", [None, "0", "true", ""])
+    def test_nothing_is_copied_unless_it_is_1(self, tmp_path, monkeypatch, capsys, value):
+        if value is not None:
+            monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", value)
+        native = tmp_path / "native"
+
+        setup.generate(tmp_path / "volume", native)
+
+        assert not native.exists()
+        assert "native Mac" not in capsys.readouterr().out
+
+    def test_a_failed_copy_is_reported_and_the_rest_still_written(self, tmp_path, monkeypatch, capsys):
+        monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", "1")
+        blocked = tmp_path / "a-file"
+        blocked.write_text("not a folder")
+
+        setup.generate(tmp_path / "volume", blocked)
+
+        output = capsys.readouterr().out
+        assert f"could not copy sdr-manager-local's credentials to {blocked}" in output
+        assert (tmp_path / "volume" / "server" / "nats.conf").is_file()
+
+    def test_the_default_target_is_the_compose_mount(self):
+        assert setup.NATIVE_CREDENTIALS_DIRECTORY == Path("/run/sdr-manager-local-credentials")

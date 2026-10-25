@@ -75,3 +75,21 @@ class TestReservedPorts:
     def test_names_the_bad_entry_and_the_renamed_variable(self) -> None:
         with pytest.raises(ValueError, match=r"SDR_MANAGER_LOCAL_RESERVED_PORTS entry 'nine' is not a valid port"):
             Settings(reserved_ports="9000,nine").reserved_port_numbers()
+
+
+class TestMacSettings:
+    def test_librtlsdr_is_searched_for_and_native_is_off_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("SDR_MANAGER_LOCAL_LIBRTLSDR_PATH", raising=False)
+        monkeypatch.delenv("SDR_MANAGER_LOCAL_NATIVE", raising=False)
+
+        settings = Settings()
+
+        assert (settings.librtlsdr_path, settings.native) == (None, False)
+
+    def test_both_are_read_from_the_environment(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("SDR_MANAGER_LOCAL_LIBRTLSDR_PATH", "/opt/homebrew/lib/librtlsdr.dylib")
+        monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", "1")
+
+        settings = Settings()
+
+        assert (settings.librtlsdr_path, settings.native) == ("/opt/homebrew/lib/librtlsdr.dylib", True)
