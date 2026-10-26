@@ -1655,6 +1655,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #540 from barrygee/refactor/rename-sentry-identifiers
 - Merge pull request #541 from barrygee/feat/sdr-manager-local-macos
 - Merge pull request #542 from barrygee/feat/sdr-manager-only-mode
+- Merge pull request #543 from barrygee/docs/sdr-manager-guides
 
 ### Refactoring
 
@@ -1816,6 +1817,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Shared packages import their own modules by package name
 - Explain how to run without the docs service
 - 0007 SDR Manager
+- SDR Manager guides and .env recipes
 
 ### Tests
 
