@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import type { SourceMode } from '@sentinel/shell-api/utils/sourceMode'
+import type { AppMode } from '@sentinel/shell-api/types/appMode'
 
 /**
  * Shared types for the Settings panel's data-driven control registry.
@@ -67,5 +68,11 @@ export interface SettingItem {
    * modes is still there on switching back. Omitted = shown in both modes.
    */
   sourceMode?: SourceMode
+  /**
+   * The app modes this setting is offered in. Omitted = every mode. Core's own
+   * App Settings use it to trim themselves to what SDR Manager-only mode has
+   * (no map, no sections): a setting marked `['full']` isn't listed there.
+   */
+  modes?: readonly AppMode[]
   control: SettingControl
 }

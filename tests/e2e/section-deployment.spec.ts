@@ -1,5 +1,6 @@
 import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import { deploymentOf, isDeployed } from './support/sectionDeployment';
+import { isSdrManagerLocalOnly } from './support/appMode';
 
 /**
  * Section deployment suite — each section works when it runs in its own
@@ -19,6 +20,9 @@ import { deploymentOf, isDeployed } from './support/sectionDeployment';
  *   6. Its radio API answers with JSON when deployed, and isn't served when absent.
  *   7. Absent, the SDR section it sits inside still answers and opens (when deployed).
  */
+
+// SDR Manager-only mode deploys no section at all, and has no nav to check.
+test.skip(isSdrManagerLocalOnly, 'SDR Manager-only mode has no sections');
 
 interface ExtractedSection {
     id: string;

@@ -1,0 +1,75 @@
+# SDR Manager-only mode (ADR 0007): a lightweight Sentinel that manages the
+# SDRs plugged into THIS machine and shares them with other Sentinels — no map,
+# no sections, no radio hub, no event bus. For a Raspberry Pi next to the
+# dongles; another Sentinel's SDR Manager adds it as a remote SDR host
+# (<this machine>:8000).
+#
+# Pick it once in .env and start it the usual way:
+#
+#   COMPOSE_FILE=compose.sdr-manager-local-only.yaml
+#   COMPOSE_PROFILES=sdr-manager-local      # Linux; on a Mac SDR_MANAGER_LOCAL_NATIVE=1 instead
+#   docker compose up -d
+#
+# The browser then opens on Settings › SDR Manager at http://<this machine>:8080.
+# Without dongles (any machine, CI), layer the mock over it:
+#
+#   docker compose -f compose.sdr-manager-local-only.yaml \
+#     -f compose.sdr-manager-local-mock.yaml --profile sdr-manager-local up -d --build
+#
+# Every service is docker-compose.yml's own (`extends`), so the two files can't
+# drift; this file only says which services run and what differs. Switching an
+# existing full install to this mode keeps the same project, volumes and
+# settings (Sentinel Location included); `docker compose up -d --remove-orphans`
+# stops the full app's other containers.
+
+services:
+  # The deployment's credentials: core's, the gateway's and sdr-manager-local's
+  # are the ones used here (the generator writes every service's regardless).
+  service-credentials:
+    extends:
+      file: docker-compose.yml
+      service: service-credentials
+
+  # Core: settings (Sentinel Location — which sdr-manager-local reports to
+  # other Sentinels), the service registry and the SPA, in SDR Manager-only mode.
+  app:
+    extends:
+      file: docker-compose.yml
+      service: app
+    environment:
+      # Read by core (backend/config.py `sentinel_mode`) and reported as
+      # GET /api/app/mode: the shell then shows Settings › SDR Manager only.
+      - SENTINEL_MODE=sdr-manager-local-only
+      # No event bus in this mode: nothing here talks over NATS.
+      - NATS_URL=
+    # docker-compose.yml waits for NATS, which this mode doesn't run.
+    depends_on: !override
+      service-credentials:
+        condition: service_completed_successfully
+
+  # The one origin browsers use, as in the full app. It also serves core's TLS
+  # service entrypoint (:8443), which sdr-manager-local registers through.
+  gateway:
+    extends:
+      file: docker-compose.yml
+      service: gateway
+
+  # This machine's SDRs. Behind the `sdr-manager-local` profile as in the full
+  # app (COMPOSE_PROFILES above): a Mac runs it natively instead
+  # (SDR_MANAGER_LOCAL_NATIVE=1, `sdr-manager-local install`).
+  sdr-manager-local:
+    extends:
+      file: docker-compose.yml
+      service: sdr-manager-local
+
+volumes:
+  sentinel_db:
+  service_credentials:
+  sdr_manager_local_data:
+
+networks:
+  sentinel:
+    driver: bridge
+  gateway_admin:
+    driver: bridge
+    internal: true

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { parseSectionDeployments } from './support/sectionDeployment';
+import { parseAppMode } from './support/appMode';
 
 /**
  * SENTINEL_E2E_SECTIONS decides what each gateway-smoke CI leg asserts, so a
@@ -37,6 +38,30 @@ test.describe('parseSectionDeployments', () => {
     ]) {
         test(`refuses ${JSON.stringify(badValue)}`, () => {
             expect(() => parseSectionDeployments(badValue)).toThrow(/SENTINEL_E2E_SECTIONS/);
+        });
+    }
+});
+
+/**
+ * SENTINEL_E2E_APP_MODE picks which specs run against a leg's stack, so it
+ * must fail the same way.
+ */
+test.describe('parseAppMode', () => {
+    test('defaults to the full app when unset or blank', () => {
+        expect(parseAppMode(undefined)).toBe('full');
+        expect(parseAppMode('')).toBe('full');
+        expect(parseAppMode('  ')).toBe('full');
+    });
+
+    for (const mode of ['full', 'sdr-manager-local-only'] as const) {
+        test(`reads ${mode}`, () => {
+            expect(parseAppMode(` ${mode} `)).toBe(mode);
+        });
+    }
+
+    for (const badValue of ['sdr-manager-only', 'FULL', 'local-only']) {
+        test(`refuses ${JSON.stringify(badValue)}`, () => {
+            expect(() => parseAppMode(badValue)).toThrow(/SENTINEL_E2E_APP_MODE/);
         });
     }
 });

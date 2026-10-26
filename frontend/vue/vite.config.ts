@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 import { resolve } from 'path'
-import { sharedPackageModulesPlugin, shellFederationPlugin } from '@sentinel/web-config/federation'
+import {
+  lazyMapSharesPlugin,
+  sharedPackageModulesPlugin,
+  shellFederationPlugin,
+} from '@sentinel/web-config/federation'
 import {
   maplibreContourAlias,
   sectionsPreviewPlugin,
@@ -22,7 +26,9 @@ export default defineConfig(({ command }) => {
   return {
     plugins: [
       sentinelVuePlugin(),
-      ...(federated ? [shellFederationPlugin()] : []),
+      // map-kit and MapLibre load only when imported, so SDR Manager-only
+      // mode never downloads the map (federation.ts).
+      ...(federated ? [shellFederationPlugin(), lazyMapSharesPlugin()] : []),
       // The shell provides every shared-package module to the sections (main.ts).
       sharedPackageModulesPlugin({ federated }),
       // `vite preview` (the e2e server) also answers GET /api/app/sections.

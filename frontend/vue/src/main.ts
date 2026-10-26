@@ -1,14 +1,8 @@
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import * as maplibregl from 'maplibre-gl'
-// MapLibre 6 runs tile parsing in a separate worker module that it expects to
-// find beside its own bundle (`./maplibre-gl-worker.mjs`). Vite folds the
-// library into the app chunk and emits no such file, so tiles never load and
-// every basemap stays blank. `?worker&url` has Vite build the worker (with its
-// shared-chunk import resolved) as its own asset and hand back the served URL.
-import maplibreWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import * as pmtiles from 'pmtiles'
+import { createPinia, setActivePinia } from 'pinia'
 
+// Ahead of the app's stylesheets, so the app's overrides of MapLibre's
+// controls win. CSS only: the library loads with the full app's boot.
 import 'maplibre-gl/dist/maplibre-gl.css'
 import './assets/fonts.css'
 import './assets/styles.css'
@@ -16,8 +10,6 @@ import './assets/styles.css'
 // utilities) — imported last so its focus ring overrides component resets.
 import './assets/a11y.css'
 
-import App from './App.vue'
-import { createAppRouter } from './router'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { APP_MODE_STORAGE_KEY, asSourceMode } from '@sentinel/shell-api/utils/sourceMode'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
@@ -29,23 +21,20 @@ import { clearRemovedStorageKeys } from './utils/removedStorageKeys'
 // remotes in the built app (vite.config.ts swaps the module).
 import { sectionSources } from './shell/sections'
 import { loadSections } from './shell/sectionLoader'
-import { startSectionEngines } from './shell/sectionEngines'
-// Built app only: every @sentinel/ui, shell-api and map-kit module, so this
-// container can provide each one a section remote uses (sections never carry
-// their own copies — @sentinel/web-config/federation). Empty in dev and tests.
+import { fetchAppMode, setAppMode } from './shell/appMode'
+// Built app only: every @sentinel/ui and shell-api module, so this container
+// can provide each one a remote uses (remotes never carry their own copies —
+// @sentinel/web-config/federation). map-kit's come with the full app's boot.
+// Empty in dev and tests.
 import 'virtual:sentinel-shared-package-modules'
 import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 import { applySettingsPayload } from './shell/applySettings'
-
-maplibregl.setWorkerUrl(maplibreWorkerUrl)
-
-// Register PMTiles protocol once at app startup — never inside a component.
-const protocol = new pmtiles.Protocol()
-maplibregl.addProtocol('pmtiles', protocol.tile.bind(protocol))
+import type { ModeBoot } from './boot/modeBoot'
 
 const pinia = createPinia()
-const app = createApp(App)
-app.use(pinia)
+// The root component depends on the app mode, so the app is created once boot
+// knows it; the stores below are needed before that.
+setActivePinia(pinia)
 
 // Drop cached keys belonging to removed features before any store reads
 // storage (see utils/removedStorageKeys.ts).
@@ -73,14 +62,21 @@ useThemeStore()
   // Whether the optional docs service is deployed, so Settings offers Docs only
   // when it is. Never throws; awaited before mount so the entry never flickers.
   const docsDeploymentLoaded = useDocsDeploymentStore().load()
+  // Which app this deployment is (never throws: the full app when core can't
+  // say). Each mode's boot is its own chunk, so SDR Manager-only mode never
+  // downloads the map app: App, map-kit, MapLibre, pmtiles, the SDR engine.
+  const appMode = await fetchAppMode()
+  setAppMode(appMode)
+  const modeBoot: ModeBoot =
+    appMode.mode === 'sdr-manager-local-only'
+      ? (await import('./boot/sdrManagerOnlyBoot')).sdrManagerOnlyBoot(appMode)
+      : (await import('./boot/fullAppBoot')).fullAppBoot()
   try {
     await loadSections(await sectionSources(), { pinia })
   } catch (error) {
     console.error('[sentinel] loading sections failed:', error)
   }
-  // The SDR engine (its persistent radio pane) loads alongside the settings;
-  // boot waits for it only up to a timeout, then mounts and late-mounts it.
-  const enginesReady = startSectionEngines()
+  const enginesReady = modeBoot.startEngines()
   try {
     const res = await settingsResponse
     if (res?.ok) {
@@ -91,7 +87,9 @@ useThemeStore()
   } catch {}
   await enginesReady
   await docsDeploymentLoaded
-  const router = createAppRouter()
+  const app = createApp(modeBoot.rootComponent)
+  app.use(pinia)
+  const router = modeBoot.createRouter()
   app.use(router)
   // Mount only once the initial navigation has resolved, so App.vue's route
   // watchers start on the real route: seeing the start location ('/') change
