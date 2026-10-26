@@ -10,6 +10,8 @@ A live map of what is around you, and a control panel for your own radios. It ru
 | **LAND** | UK amateur repeaters and APRS stations |
 | **SDR** | Your radios: see a band, listen, scan, record, decode |
 
+[SDR Manager](use/sdr-manager.md), in Settings, sets up the dongles plugged into this computer and others, and shares them with other Sentinels.
+
 ## Online or off grid
 
 - **Online:** data comes from free internet feeds. Radio only required for SDR section.

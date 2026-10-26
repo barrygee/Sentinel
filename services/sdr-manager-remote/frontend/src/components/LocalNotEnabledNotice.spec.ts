@@ -36,16 +36,22 @@ describe('LocalNotEnabledNotice', () => {
     expect(text).toContain('docker compose up -d')
   })
 
+  it('tells a Mac to run SDR Manager natively instead of the profile', async () => {
+    const wrapper = await mountNotice()
+    expect(wrapper.text()).toContain('On a Mac, set SDR_MANAGER_LOCAL_NATIVE=1')
+    expect(wrapper.text()).toContain('follow the Mac guide')
+  })
+
   it('is a landmark named by its heading', async () => {
     const wrapper = await mountNotice()
     const heading = wrapper.get('h4')
     expect(wrapper.get('aside').attributes('aria-labelledby')).toBe(heading.attributes('id'))
   })
 
-  it('links to the ADR with a name that says what it is about', async () => {
+  it('links to how to switch it on, with a name that says what it is about', async () => {
     const wrapper = await mountNotice()
     const link = wrapper.get('a.doc-link')
-    expect(link.attributes('href')).toBe('/docs/adr/0007-sdr-manager')
+    expect(link.attributes('href')).toBe('/docs/use/sdr-manager#switch-on-this-machine')
     expect(link.attributes('aria-label')).toBe('Learn more about SDR Manager for this machine')
   })
 

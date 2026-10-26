@@ -5,9 +5,13 @@
       SDRs plugged into this computer aren’t managed here, because SDR Manager for this machine
       isn’t running. On Linux, add <code>sdr-manager-local</code> to
       <code>COMPOSE_PROFILES</code> in <code>.env</code>, then run
-      <code>docker compose up -d</code>.
+      <code>docker compose up -d</code>. On a Mac, set <code>SDR_MANAGER_LOCAL_NATIVE=1</code>
+      instead and follow the Mac guide.
     </p>
-    <DocLink doc-path="adr/0007-sdr-manager" setting-label="SDR Manager for this machine" />
+    <DocLink
+      doc-path="use/sdr-manager#switch-on-this-machine"
+      setting-label="SDR Manager for this machine"
+    />
   </aside>
 </template>
 

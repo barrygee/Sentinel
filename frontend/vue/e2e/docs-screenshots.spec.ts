@@ -919,6 +919,98 @@ async function serveAprsReceiver(page: Page): Promise<void> {
   await page.route('/api/land/aprs/stations', json(DEMO_APRS_STATIONS))
 }
 
+/** This machine's linked row and one fictional Pi, each with streaming dongles. */
+const DEMO_SDR_HOSTS = [
+  { id: 1, name: null, address: 'host.docker.internal', is_local: true },
+  { id: 2, name: 'Roof Pi', address: '192.168.1.30', is_local: false },
+].map((host) => ({
+  ...host,
+  port: 8000,
+  enabled: true,
+  auth_token_set: true,
+  created_at: 1_760_000_000_000,
+  last_seen_at: 1_760_000_000_000,
+  last_error: null,
+  reachable: true,
+  api_version: '1',
+}))
+
+const DEMO_HOST_DONGLES: Record<number, { device_id: string; name: string; port: number }[]> = {
+  1: [{ device_id: 'serial:00000001', name: 'Roof RTL-SDR', port: 1234 }],
+  2: [
+    { device_id: 'serial:00000101', name: 'Airband', port: 1234 },
+    { device_id: 'serial:00000102', name: 'Marine VHF', port: 1238 },
+  ],
+}
+
+/**
+ * Serve sdr-manager-remote's host list (This machine plus a Pi) and each
+ * host's dongles, so Settings › SDR Manager and Settings › SDR › DEVICES show
+ * hosts. Call after `prepare`, so these routes win.
+ */
+async function serveSdrManagerHosts(page: Page): Promise<void> {
+  const json = (body: unknown) => (route: Route) =>
+    route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  await page.route('/api/sdr-manager/remote/hosts', json(DEMO_SDR_HOSTS))
+  await page.route('/api/sdr-manager/remote/hosts/locations', json([]))
+  for (const host of DEMO_SDR_HOSTS) {
+    const sdrs = (DEMO_HOST_DONGLES[host.id] ?? []).map((dongle) => ({
+      device_id: dongle.device_id,
+      name: dongle.name,
+      present: true,
+      state: 'streaming',
+      state_reason: null,
+      enabled: true,
+      visibility: 'public',
+      notes: '',
+      antenna: '',
+      needs_identification: false,
+      output: { iq_port: dongle.port, control_port: dongle.port + 2, host: host.address },
+      usb: null,
+      usb_last_known: null,
+    }))
+    await page.route(
+      `/api/sdr-manager/remote/hosts/${host.id}/devices`,
+      json({
+        reachable: true,
+        last_error: null,
+        last_polled_at: 1_760_000_000_000,
+        last_success_at: 1_760_000_000_000,
+        api_version: '1',
+        status: { generated_at: 1_760_000_000_000, sdrs },
+      }),
+    )
+  }
+}
+
+/**
+ * Keep THIS MACHINE's live event stream open, as a running SDR Manager does: a
+ * mocked response ends at once, so the card would show RECONNECTING…. Only
+ * sdr-manager-local's stream is replaced; every other EventSource is real.
+ */
+async function holdSdrManagerEventsOpen(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const RealEventSource = window.EventSource
+    class HeldEventSource extends EventTarget {
+      static readonly CONNECTING = 0
+      static readonly OPEN = 1
+      static readonly CLOSED = 2
+      readonly readyState = 1
+      constructor(readonly url: string) {
+        super()
+        setTimeout(() => this.dispatchEvent(new MessageEvent('health', { data: '{}' })), 50)
+      }
+      close(): void {}
+    }
+    window.EventSource = function (url: string | URL, init?: EventSourceInit) {
+      return String(url).includes('/api/sdr-manager/local/events')
+        ? new HeldEventSource(String(url))
+        : new RealEventSource(url, init)
+    } as unknown as typeof EventSource
+    Object.assign(window.EventSource, { CONNECTING: 0, OPEN: 1, CLOSED: 2 })
+  })
+}
+
 async function shoot(page: Page, name: string): Promise<void> {
   // Let map tiles and fonts arrive; the maps have no "done" event we can await.
   await page.mouse.move(DESKTOP_VIEWPORT.width / 2, DESKTOP_VIEWPORT.height - 20)
@@ -1125,14 +1217,30 @@ test.describe('docs screenshots', () => {
     ['app', 'settings-app'],
     ['sdr', 'settings-sdr'],
     ['sea', 'settings-sea'],
+    ['sdr-manager', 'settings-sdr-manager'],
   ] as const) {
     test(`Settings › ${section}`, async ({ page }) => {
       await prepare(page)
+      await serveSdrManagerHosts(page)
+      await holdSdrManagerEventsOpen(page)
       await page.goto(`/settings/${section}`)
       await waitForShellHydration(page)
       await shoot(page, name)
     })
   }
+
+  test('Settings › SDR Manager remote hosts', async ({ page }) => {
+    await prepare(page)
+    await serveSdrManagerHosts(page)
+    await holdSdrManagerEventsOpen(page)
+    await page.goto('/settings/sdr-manager')
+    await waitForShellHydration(page)
+    await page
+      .getByText('REMOTE SDR HOSTS', { exact: true })
+      .first()
+      .evaluate((element) => element.scrollIntoView({ block: 'start' }))
+    await shoot(page, 'settings-sdr-manager-remote')
+  })
 
   test('Settings › add a radio', async ({ page }) => {
     await prepare(page)

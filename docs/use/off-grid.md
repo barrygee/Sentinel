@@ -43,7 +43,7 @@ flowchart TB
 
 | Section | Online | Off grid | You need |
 |---|---|---|---|
-| **AIR** | adsb.lol | ADS-B decoder | A dongle and 1090 MHz antenna on a Sentry host |
+| **AIR** | adsb.lol | ADS-B decoder | A dongle and 1090 MHz antenna on an SDR host |
 | **SPACE** | CelesTrak | Stored TLEs | TLEs loaded while online |
 | **SEA** | AISStream | AIS decoder | A dongle and marine VHF antenna |
 | **LAND** | ukrepeater.net | Built-in list; APRS always from your radio | A dongle and 2 m antenna, for APRS |

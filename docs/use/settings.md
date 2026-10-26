@@ -19,7 +19,7 @@ Every setting is in **Settings** (the gear, bottom right) and in one live file, 
 ## Things to know
 
 - Changes wait for **APPLY CHANGES**. Leaving the page without it throws them away.
-- These act at once: **UPDATE TLE**, adding or removing a radio or Sentry host, **DOWNLOAD**, **EXPORT**.
+- These act at once: **UPDATE TLE**, adding or removing a radio or SDR host, SDR Manager's stream switch, password and file actions, **DOWNLOAD**, **EXPORT**.
 - Choosing **App Wide Connectivity Mode** resets every **Source Override**.
 
 ## The config file

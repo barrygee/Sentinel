@@ -25,7 +25,11 @@ flowchart TB
 - The SDR engine is mounted outside the page, so audio survives navigation.
 - Two more sockets: `/ws/sdr/{id}/decode` (events, logs) and `/decode/audio` (decoded voice).
 
-**Sentry:** the hub uses Sentry's HTTP API to list, claim, tune and release dongles, then streams IQ from that dongle's `rtl_tcp` port. Sentry hosts live in `radio.db`; radios are core's `sdr.radios` setting. Design: [ADR 0003](../adr/0003-sentry-sdr-lock-and-tune.md).
+**SDR Manager** ([ADR 0007](../adr/0007-sdr-manager.md)): two services look after dongles, and the hub only streams them.
+
+- `sdr-manager-local` (`services/sdr-manager-local/`) drives the dongles plugged into one computer: it finds them over USB, runs `rtl_tcp` behind a fan-out relay per dongle, and serves the SDR Manager API on `:8000`, both to this Sentinel (`/api/sdr-manager/local/…`) and to other Sentinels (`/api/…`). A container on Linux; a native process on a Mac.
+- `sdr-manager-remote` (`services/sdr-manager-remote/`) keeps the list of SDR hosts (`sdr-manager-remote.db`), polls each one's status, answers Air's reservations (`sdr-manager.remote.reservation.*`) and the hub's host snapshot on the bus, and tells the hub about claims (the hub acknowledges `sdr-manager.claims.granted` before the claim's retune). It links this computer's `sdr-manager-local` as **This machine** with a service bearer token instead of the console password.
+- The hub streams IQ from a dongle's `rtl_tcp` port; radios are core's `sdr.radios` setting (`sdr_manager_host_id`, `sdr_manager_device_id` for a host's dongle). The older lock-and-tune design: [ADR 0003](../adr/0003-sentry-sdr-lock-and-tune.md).
 
 ## Recordings
 
@@ -43,7 +47,7 @@ The hub demodulates and serves decoders **audio**, like a scanner's speaker outp
 | Voice | dsd-fme | 7355 (+7356 UDP back) | 48 kHz mono |
 | APRS | Direwolf | 7357 | 48 kHz mono |
 | AIS | Direwolf 1.8 | 7358 | 48 kHz stereo: A left, B right |
-| ADS-B | readsb | — | Reads Sentry IQ directly, serves JSON |
+| ADS-B | readsb | — | Reads the SDR host's IQ directly, serves JSON |
 
 *Figure: An APRS decoder from start-up to a station on the Land map.*
 

@@ -16,7 +16,9 @@
 | **Repeater** | A hilltop station that retransmits, so handhelds reach further |
 | **rtl_tcp** | A program that shares one dongle over the network |
 | **SDR** | Software-defined radio; also Sentinel's radio section |
-| **Sentry** | A Raspberry Pi program that shares several dongles |
+| **SDR Manager** | The part of Sentinel that looks after dongles: this computer's (`sdr-manager-local`) and other computers' (`sdr-manager-remote`) |
+| **SDR host** | A computer running SDR Manager that shares its dongles, such as a Raspberry Pi by the antenna |
+| **Sentry** | SDR Manager's old name, as a separate program; replace it with SDR Manager |
 | **Squawk** | A transponder code; 7700, 7600 and 7500 raise alerts |
 | **TLE** | Public orbit data for a satellite |
 | **Waterfall** | Signal strength across a band, scrolling over time |

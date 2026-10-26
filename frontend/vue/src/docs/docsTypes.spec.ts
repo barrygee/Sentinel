@@ -8,6 +8,7 @@ describe('DOC_GROUP_KEYS', () => {
       'introduction',
       'app',
       'air',
+      'sdr-manager',
       'space',
       'sea',
       'land',

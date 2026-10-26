@@ -5,12 +5,9 @@ The SDR section turns cheap RTL-SDR dongles into a wide-band receiver you contro
 ## Features
 
 - **rtl_tcp radios**: one dongle per `rtl_tcp` program.
-- **Sentry hosts**: a Raspberry Pi sharing several dongles. Sentinel can claim one, tune it and hand it back.
-- **Host details**: status, uptime, software versions, device counts (**PRESENT**, **CONFIGURED**, **STREAMING**, **DEGRADED**, **ERROR**, **NEEDS ID**) and its position on a map.
-- **Plug and unplug alerts** when a Sentry dongle appears or disappears.
-- **FLASH SERIAL** gives a dongle a unique serial so Sentry can tell it apart (marked **NEEDS ID**).
-- **Per dongle**: output port, antenna and notes, kept on the Sentry.
-- **Sentry sites** on every map, usable as range-ring centres and overhead-alert places.
+- **SDR Manager dongles**: dongles on this computer or on an SDR host (a Raspberry Pi sharing several), listed under **DEVICES** to add in one click. Sentinel can claim one, tune it and hand it back. [SDR Manager](../sdr-manager.md) looks after them.
+- **Plug and unplug alerts** when an SDR host's dongle appears or disappears.
+- **Host sites** on every map, usable as range-ring centres and overhead-alert places.
 - **RESERVED** marks a radio held by a decoder, so nothing knocks it off its channel.
 
 ## Add an rtl_tcp radio
@@ -21,14 +18,14 @@ The SDR section turns cheap RTL-SDR dongles into a wide-band receiver you contro
 
 ![The add-radio form in Settings › SDR › SDR Devices, with NAME, IP ADDRESS, PORT and STATUS, and CANCEL and SAVE buttons.](../../images/settings-add-radio.png)
 
-## Add a Sentry host
+## Add an SDR host
 
-1. **Settings › SDR › Sentry Hosts › + ADD SENTRY**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **SAVE**.
-2. Its dongles are listed under **SDR Devices**. Add the ones you want.
+1. **Settings › SDR Manager › + ADD SDR HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD** ([more](../sdr-manager.md#remote-sdr-hosts)). This computer's own dongles need no host: they are listed as **This machine**.
+2. **Settings › SDR › DEVICES** lists each host's dongles under its name. **ADD** the ones you want.
 
-![Settings › SDR: SENTRY HOSTS with + ADD SENTRY, DEVICES with + ADD SDR, and SDR OPTIONS below. Docs sits under the section buttons in the left rail.](../../images/settings-sdr.png)
+![Settings › SDR: DEVICES with an SDR host's dongles and + ADD SDR, and SDR OPTIONS below. Docs sits under the section buttons in the left rail.](../../images/settings-sdr.png)
 
-A dongle marked private or disabled on its Sentry can't be added until you change it there.
+**ADD** is greyed out for a dongle that is private, switched off or has no port on its host: change it in [SDR Manager](../sdr-manager.md#device-settings). **SDR MANAGER** beside a host's name opens it there.
 
 ## The radio panel
 
@@ -48,7 +45,7 @@ A dongle marked private or disabled on its Sentry can't be added until you chang
 
 ## If it's not working
 
-- **DISCONNECTED:** check `rtl_tcp` or Sentry is running, the address and port, and that nothing else is connected.
+- **DISCONNECTED:** check `rtl_tcp` or the dongle's stream in SDR Manager is on, the address and port, and that nothing else is connected.
 - **"USB buffer" errors on a Linux radio computer:** as root there, `echo 0 > /sys/module/usbcore/parameters/usbfs_memory_mb`.
-- **Sentry won't connect:** `docker compose logs radio`. A refused login means a wrong console password.
+- **An SDR host won't connect:** `docker compose logs sdr-manager-remote`. **unauthenticated** means a wrong console password, or a host still running the old Sentry program ([replace it](../../sdr-manager-linux.md#replace-sentry)).
 - **RESERVED and can't be picked:** a decoder holds it. Choose another radio in that section's settings.

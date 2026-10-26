@@ -44,7 +44,8 @@ Volumes are named `<folder>_<volume>`, such as `sentinel_sdr_data`. List them wi
 | `sentinel_db` | Settings, alerts, offline maps | Yes |
 | `sdr_data` | Frequencies, groups, ranges, recording details | Yes |
 | `sdr_recordings` | Recording files | If you want them |
-| `radio_data` | Sentry hosts and passwords | Yes (store safely) |
+| `sdr_manager_remote_data` | SDR hosts and their console passwords | Yes (store safely) |
+| `sdr_manager_local_data` | This computer's dongle settings and console password (Linux; a Mac keeps them in `~/Library/Application Support/Sentinel/sdr-manager-local`) | Yes |
 | `air_data`, `sea_data`, `land_data`, `space_data` | Caches | Only for off grid |
 | `service_credentials` | Certificates and logins | No: recreated |
 

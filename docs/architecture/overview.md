@@ -28,7 +28,7 @@ flowchart TB
     end
     onlineFeeds --> services
     subgraph offgridRadios["OFF GRID"]
-        dongles["RTL-SDR dongles<br/>rtl_tcp / Sentry"]
+        dongles["RTL-SDR dongles<br/>rtl_tcp / SDR Manager"]
         decoders["decoders<br/>voice · aprs · ais · adsb"]
     end
     dongles -- "IQ samples" --> radio

@@ -7,8 +7,8 @@ Every map shares one base map and one look. Download areas to keep maps working 
 - **Map Style**: **DARK** (dim, night-friendly) or **LIGHT** (OpenStreetMap colours).
 - **Base map layers**: **Roads**, **Location names**, **Borders**.
 - **TERRAIN**: hill shading and contours, for judging line of sight. Needs terrain downloaded.
-- **RANGE RING** around your location or a Sentry host (**Range Ring Origin**).
-- **Sentry sites** marked on every map.
+- **RANGE RING** around your location or an SDR host (**Range Ring Origin**).
+- **SDR host sites** marked on every map; select one to open it in [SDR Manager](sdr-manager.md).
 - **Offline areas**: download a region's basemap and terrain, to the depth you choose.
 
 All of these are in **Settings › App Settings**.
