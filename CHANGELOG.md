@@ -241,6 +241,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Link this machine
 - This-machine screens
 - MacOS native mode
+- SDR Manager-only mode: compose file, shell, CI matrix
 
 ### Bug Fixes
 
@@ -1653,6 +1654,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #539 from barrygee/fix/sdr-devices-orphaned-host-radios
 - Merge pull request #540 from barrygee/refactor/rename-sentry-identifiers
 - Merge pull request #541 from barrygee/feat/sdr-manager-local-macos
+- Merge pull request #542 from barrygee/feat/sdr-manager-only-mode
 
 ### Refactoring
 
