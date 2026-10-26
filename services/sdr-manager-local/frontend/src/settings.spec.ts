@@ -63,6 +63,17 @@ describe('registerSdrManagerLocalSettings', () => {
     expect(hotspot!.control).toMatchObject({ component: HotspotControl, layout: 'full' })
   })
 
+  it('links each item to its part of the SDR Manager guide', async () => {
+    const { registry } = await registered()
+
+    expect(registry.getSettingItems().map((item) => [item.id, item.docPath])).toEqual([
+      ['sdr-manager-local-devices', 'use/sdr-manager#set-up-a-dongle'],
+      ['sdr-manager-local-console-password', 'use/sdr-manager#the-other-cards'],
+      ['sdr-manager-local-configuration', 'use/sdr-manager#the-other-cards'],
+      ['sdr-manager-local-hotspot', 'use/sdr-manager#the-other-cards'],
+    ])
+  })
+
   it('accepts an identical section already registered by sdr-manager-remote', async () => {
     const registry = await import('@sentinel/shell-api/shell/settingsRegistry')
     const { SDR_MANAGER_SETTINGS_SECTION } =

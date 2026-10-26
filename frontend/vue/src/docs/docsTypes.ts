@@ -5,14 +5,16 @@
 
 /**
  * The fixed groups, in reading order: Getting started first, then Introduction,
- * one group per Settings section in the Settings rail's order (`app` and the
- * five sections), and Developer docs. A manifest group must use one of these keys.
+ * one group per Settings section in the Settings rail's order (`app`, Air,
+ * SDR Manager and the other sections), and Developer docs. A manifest group
+ * must use one of these keys.
  */
 export const DOC_GROUP_KEYS = [
   'getting-started',
   'introduction',
   'app',
   'air',
+  'sdr-manager',
   'space',
   'sea',
   'land',

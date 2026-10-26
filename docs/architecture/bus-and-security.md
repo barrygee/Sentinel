@@ -53,12 +53,17 @@ No user logins: anyone who reaches :8080 can use Sentinel, so keep it on a trust
 | Decoder → radio hub | Its own token, `X-Decode-Secret` |
 | Anything → NATS | TLS with the install's own CA, one NATS user each |
 | Radio host → core | TLS on :8443 and :4222, plus its own credentials |
+| Anyone → an SDR host's SDR Manager (:8000) | Its console password (a session cookie, `sdr_manager_session`); `/api/v1/sdrs` lists **public** dongles without one, by design |
+| sdr-manager-remote → this computer's SDR Manager | Its own service token, `Authorization: Bearer`, checked by hash; only `sdr-manager-remote` may use it |
+| Anyone → a dongle's `rtl_tcp` port | Nothing: keep SDR hosts on a trusted network, behind a firewall |
 
 - `service-credentials` creates, on every `up` and only what is missing: a CA, TLS certs, per-caller tokens and NATS logins, and `accepted-callers.json` for core and the hub holding only **SHA-256 hashes**.
 - Each container mounts only `credentials/<caller>/`. To replace one, delete its folder and `docker compose up -d`.
 - `backend/platform/service_access.py` says what each caller may do: register itself; `sea` reads the AISStream key; `sdr` fetches IQ captures; decoders act as their own kind only.
 - Guards (`backend/core/internal_auth.py`): 503 no caller list, 401 unknown token, 403 not allowed.
 - **A new service or decoder kind** needs a row in both tables and a credentials mount.
+- `sdr-manager-local` is the one privileged container (root, host network, USB), only with its profile. On a Mac, `service-credentials` copies its credentials to `./sdr-manager-local-credentials/` (mode 0700) when `SDR_MANAGER_LOCAL_NATIVE=1`.
+- The hotspot can't change Wi-Fi until switched on (**ALLOW CHANGES** or `SDR_MANAGER_LOCAL_HOTSPOT_CONTROL_ENABLED`), nor while there is no console password.
 
 In the browser:
 

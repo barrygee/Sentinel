@@ -43,6 +43,7 @@ describe('register (sdr-manager-remote)', () => {
       id: 'sdr-manager-remote-hosts',
       groupLabel: 'REMOTE SDR HOSTS',
       hideLabel: true,
+      docPath: 'use/sdr-manager#remote-sdr-hosts',
       control: { component: RemoteHostsControl, layout: 'half' },
     })
   })

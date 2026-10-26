@@ -33,7 +33,7 @@ export function registerSdrManagerLocalSettings(): void {
       desc: 'The RTL-SDRs plugged into this machine: name each one, give it a port to stream on, and switch it on.',
       searchTerms:
         'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
-      docPath: 'adr/0007-sdr-manager',
+      docPath: 'use/sdr-manager#set-up-a-dongle',
       control: {
         component: LocalDevicesControl,
         emits: ['stage'],
@@ -47,6 +47,7 @@ export function registerSdrManagerLocalSettings(): void {
       label: 'Console Password',
       desc: 'Protects this machine’s SDR Manager, here and for other Sentinels that manage it.',
       searchTerms: 'console password sign in sign out login security sdr manager',
+      docPath: 'use/sdr-manager#the-other-cards',
       control: { component: ConsolePasswordControl, layout: 'half', naturalHeight: true },
     },
     {
@@ -55,6 +56,7 @@ export function registerSdrManagerLocalSettings(): void {
       label: 'Configuration',
       desc: 'Back up this machine’s SDR settings to a file, or set it up from one.',
       searchTerms: 'configuration export import backup restore file json sdr manager',
+      docPath: 'use/sdr-manager#the-other-cards',
       control: { component: ConfigTransferControl, layout: 'half', naturalHeight: true },
     },
     {
@@ -63,6 +65,7 @@ export function registerSdrManagerLocalSettings(): void {
       label: 'Hotspot',
       desc: 'A Wi-Fi network this machine offers, so a phone or laptop can reach Sentinel where there is no other network.',
       searchTerms: 'hotspot wifi wi-fi access point ap network ssid off grid field sdr manager',
+      docPath: 'use/sdr-manager#the-other-cards',
       control: { component: HotspotControl, layout: 'full', naturalHeight: true },
     },
   ]

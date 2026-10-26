@@ -9,7 +9,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 - **Track aircraft**: keep the map on it; it is listed under **TRACKING**.
 - **Landing and take-off alerts** for an aircraft you choose (**Enable alerts**).
 - **Emergency alerts** for squawks 7700 (emergency), 7600 (radio failure) and 7500 (hijack), even with no browser open.
-- **Overhead alerts** when civil or military aircraft come near your location or a Sentry site.
+- **Overhead alerts** when civil or military aircraft come near your location or an SDR host's site.
 - **Search** by callsign, ICAO address or squawk in **FILTER**.
 - **Show** all, civil or military aircraft, airports or military bases.
 - **Airport frequencies**: select one to tune your radio to it in AM.
@@ -19,7 +19,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 
 ## Off grid
 
-You need a dongle with a 1090 MHz antenna on a [Sentry host](sdr/add-a-radio.md#add-a-sentry-host), and the ADS-B decoder.
+You need a dongle with a 1090 MHz antenna on an [SDR host](sdr/add-a-radio.md#add-an-sdr-host) (this computer counts, with [SDR Manager](sdr-manager.md)), and the ADS-B decoder.
 
 1. `docker compose --profile adsb up -d --build`
 2. Set **OFF GRID** (**App Wide Connectivity Mode**, or Air's **Source Override**).
@@ -34,7 +34,7 @@ All in **Settings › AIR**.
 | Setting | What it does |
 |---|---|
 | **Source Override** | **ONLINE** or **OFF GRID** for Air only. The settings below show for the mode picked |
-| **Off Grid ADS-B SDR** | The Sentry dongle used off grid |
+| **Off Grid ADS-B SDR** | The SDR host's dongle used off grid |
 | **Online Data Source** | The online feed. Default `https://api.adsb.lol/v2` |
 | **Online Refresh Interval** | Seconds between calls to the online feed, 5 to 280. Default 60. Each call counts against the feed's daily limit: with adsb.lol (500 a day), 60 lasts about 8 hours of use, 173 or more never runs out |
 | **Daily Call Limit** | The online feed's daily call limit, for a feed that has one but doesn't state it. 0 (default) uses the feed's own figure |

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FIXTURE_DOCS_MANIFEST, FIXTURE_DOCS_MARKDOWN } from '@/test/docsFixtures'
 import { repoDocsLibraryResponse } from '@/test/repoDocs'
 import { DocsNavigationError } from './docsNavigation'
+import { DOC_GROUP_KEYS } from './docsTypes'
 import {
   DocsUnavailableError,
   getDocsImageUrls,
@@ -59,6 +60,29 @@ describe('docsSources', () => {
       expect(
         [...library.pageByFile.keys()].filter((file) => file.startsWith('docs/plans/')),
       ).toEqual([])
+    })
+
+    it('accepts every group of the real nav.json, in the Settings rail order', async () => {
+      stubFetch(jsonResponse(repoDocsLibraryResponse()))
+
+      const library = await loadDocsLibrary()
+      const groupKeys = library.groups.map((group) => group.key)
+
+      expect(groupKeys).toEqual(DOC_GROUP_KEYS.filter((key) => groupKeys.includes(key)))
+      expect(groupKeys.slice(groupKeys.indexOf('air'), groupKeys.indexOf('air') + 2)).toEqual([
+        'air',
+        'sdr-manager',
+      ])
+      expect(
+        library.groups.find((group) => group.key === 'sdr-manager')?.pages.map((page) => page.path),
+      ).toEqual(['use/sdr-manager'])
+      expect(
+        library.groups
+          .find((group) => group.key === 'getting-started')
+          ?.pages.map((page) => page.path),
+      ).toEqual(
+        expect.arrayContaining(['sdr-manager-mac', 'sdr-manager-linux', 'sdr-manager-local-only']),
+      )
     })
 
     it('fetches once and shares the load between concurrent callers', async () => {
