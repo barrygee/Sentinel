@@ -493,13 +493,16 @@ jobs:
             [sdr-manager-local]=/api/sdr-manager/local/auth/state
           )
           services=$(echo "$SENTINEL_E2E_SECTIONS" | tr ',' '\n' | sed -n 's/:service$//p')
+          # What the SPA's own fetches send: the request guard answers the
+          # browser-only API with 404 to anything else (docs/security-guard.md).
+          browser_header='Sec-Fetch-Site: same-origin'
           all_registered() {
-            sections=$(curl -fsS http://localhost:8080/api/app/sections || return 1)
+            sections=$(curl -fsS -H "$browser_header" http://localhost:8080/api/app/sections || return 1)
             for service in $services; do
               # The radio hub is not a section, so it is never listed — only probed.
               if [ "$service" != radio ] && ! echo "$sections" | grep -q "\"id\":\"$service\""; then return 1; fi
               # JSON, not the SPA's index.html, which bare paths fall through to.
-              curl -fsS "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
+              curl -fsS -H "$browser_header" "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
             done
           }
           for attempt in $(seq 1 90); do
