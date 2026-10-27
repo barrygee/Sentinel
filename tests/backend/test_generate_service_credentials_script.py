@@ -565,3 +565,67 @@ class TestNativeSdrManagerLocalCredentials:
 
     def test_the_default_target_is_the_compose_mount(self):
         assert setup.NATIVE_CREDENTIALS_DIRECTORY == Path("/run/sdr-manager-local-credentials")
+
+
+class TestGuardState:
+    """The request guard's Redis: one ACL user limited to its keys, its password to services only."""
+
+    def test_redis_gets_an_acl_with_no_default_user(self, tmp_path):
+        setup.generate(tmp_path)
+
+        acl = (tmp_path / "guard-state" / "users.acl").read_text().splitlines()
+        assert acl[0] == "user default off"
+        assert len(acl) == 2
+
+    def test_the_one_user_touches_only_the_guards_keys_and_cant_administer(self, tmp_path):
+        setup.generate(tmp_path)
+        password = (tmp_path / "guard-state" / "guard-state-password").read_text().strip()
+
+        user_line = (tmp_path / "guard-state" / "users.acl").read_text().splitlines()[1]
+        assert user_line == (
+            f"user sentinel on >{password} ~sentinel_guard:* &* +@all -@admin -flushall -flushdb"
+        )
+
+    def test_every_service_gets_the_password_and_no_decoder_does(self, tmp_path):
+        setup.generate(tmp_path)
+        password = (tmp_path / "guard-state" / "guard-state-password").read_text()
+        callers = tmp_path / "credentials"
+
+        for service in SERVICE_PERMISSIONS:
+            assert (callers / service / "guard-state-password").read_text() == password
+        for decoder in DECODER_ACCESS:
+            # Decoders parse untrusted RF: they must not be able to lift their own ban.
+            assert not (callers / decoder / "guard-state-password").exists()
+
+    def test_the_password_files_are_private(self, tmp_path):
+        setup.generate(tmp_path)
+
+        assert _mode(tmp_path / "guard-state" / "guard-state-password") == 0o600
+        assert _mode(tmp_path / "guard-state" / "users.acl") == 0o600
+        assert _mode(tmp_path / "credentials" / "core" / "guard-state-password") == 0o600
+
+    def test_running_again_keeps_the_password(self, tmp_path, capsys):
+        setup.generate(tmp_path)
+        first = (tmp_path / "guard-state" / "guard-state-password").read_text()
+        assert "created the request guard's Redis password" in capsys.readouterr().out
+
+        setup.generate(tmp_path)
+
+        assert (tmp_path / "guard-state" / "guard-state-password").read_text() == first
+        assert "created the request guard's Redis password" not in capsys.readouterr().out
+
+    def test_an_empty_password_file_gets_a_new_password(self, tmp_path):
+        (tmp_path / "guard-state").mkdir()
+        (tmp_path / "guard-state" / "guard-state-password").write_text("\n")
+
+        setup.generate(tmp_path)
+
+        assert len((tmp_path / "guard-state" / "guard-state-password").read_text().strip()) >= 32
+
+    def test_each_deployment_gets_its_own_password(self, tmp_path):
+        setup.generate(tmp_path / "one")
+        setup.generate(tmp_path / "two")
+
+        assert (tmp_path / "one" / "guard-state" / "guard-state-password").read_text() != (
+            tmp_path / "two" / "guard-state" / "guard-state-password"
+        ).read_text()
