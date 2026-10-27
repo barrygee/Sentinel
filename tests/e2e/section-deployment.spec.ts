@@ -1,4 +1,4 @@
-import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from './support/test';
 import { deploymentOf, isDeployed } from './support/sectionDeployment';
 import { isSdrManagerLocalOnly } from './support/appMode';
 
