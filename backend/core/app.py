@@ -29,6 +29,7 @@ from backend.error_handlers import request_validation_error_handler
 from backend.modules import bus as bus_module
 from backend.modules import core as core_module
 from backend.platform.lifecycle import ModuleLifecycle, run_lifecycles
+from backend.platform.security import install_request_guard
 from backend.routers import offline_map
 from backend.routers import settings as settings_router
 from fastapi import APIRouter, FastAPI
@@ -94,6 +95,9 @@ def create_core_app(
         app.include_router(router)
     _add_health(app)
     mount_spa(app, serve_section_remotes=serve_section_remotes)
+    # Last, so it sees every route: it refuses to start with one the guard
+    # policy doesn't classify (backend/security/guard-policy.json).
+    install_request_guard(app, service_name="core")
     return app
 
 

@@ -76,7 +76,30 @@ services:
       INTERNAL_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
-    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000
+      # The request guard (docs/security-guard.md#radio-hosts). One process,
+      # so its bans and limits stay in memory. Everything reaches it through
+      # radio-host-gateway, so that is the one proxy it believes; browser
+      # traffic arrives via core's gateway, so it sees the core host as the
+      # client unless GUARD_TRUSTED_PROXY_DEPTH=2 and the core host's address
+      # is added to the trusted proxies.
+      GUARD_ENABLED: ${GUARD_ENABLED:-true}
+      GUARD_PROFILE: radio_hub
+      GUARD_PASSIVE_MODE: ${GUARD_PASSIVE_MODE:-false}
+      GUARD_ACCESS_ENFORCEMENT: ${GUARD_ACCESS_ENFORCEMENT:-enforce}
+      GUARD_TRUSTED_PROXIES: ${SENTINEL_RADIO_HOST_GATEWAY_INTERNAL_ADDRESS:-172.29.0.2}${GUARD_EXTRA_TRUSTED_PROXIES:+,${GUARD_EXTRA_TRUSTED_PROXIES}}
+      GUARD_TRUSTED_PROXY_DEPTH: ${GUARD_TRUSTED_PROXY_DEPTH:-1}
+      GUARD_INTERNAL_NETWORKS: ${SENTINEL_RADIO_HOST_NETWORK_SUBNET:-172.29.0.0/24}
+      GUARD_CLIENT_NETWORKS: ${GUARD_CLIENT_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10}
+      # REQUIRED: the core host's address. Core's health probes and the SDR
+      # section's IQ-capture copies come from there with a service credential.
+      GUARD_SERVICE_HOSTS: ${GUARD_SERVICE_HOSTS:-}
+      GUARD_OPERATOR_IPS: ${GUARD_OPERATOR_IPS:-127.0.0.1/32,::1/128,172.29.0.1/32}
+      GUARD_IP_ALLOWLIST: ${GUARD_IP_ALLOWLIST:-}
+      GUARD_IP_BLOCKLIST: ${GUARD_IP_BLOCKLIST:-}
+      GUARD_EMERGENCY_MODE: ${GUARD_EMERGENCY_MODE:-false}
+      GUARD_EMERGENCY_ALLOWLIST: ${GUARD_EMERGENCY_ALLOWLIST:-}
+      GUARD_LOG_FORMAT: ${GUARD_LOG_FORMAT:-text}
+    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
     restart: unless-stopped
     networks:
       - radio-host
@@ -100,7 +123,9 @@ services:
       - radio
     restart: unless-stopped
     networks:
-      - radio-host
+      radio-host:
+        # Fixed: the hub believes X-Forwarded-For from this address only.
+        ipv4_address: ${SENTINEL_RADIO_HOST_GATEWAY_INTERNAL_ADDRESS:-172.29.0.2}
 
   # The decoders, opt-in by profile exactly as on the core host.
   voice-decoder:
@@ -168,3 +193,12 @@ volumes:
 networks:
   radio-host:
     driver: bridge
+    # Pinned for the request guard, like the core host's network (a different
+    # range, so the two never clash on one machine).
+    ipam:
+      config:
+        - subnet: ${SENTINEL_RADIO_HOST_NETWORK_SUBNET:-172.29.0.0/24}
+          gateway: ${SENTINEL_RADIO_HOST_NETWORK_HOST_ADDRESS:-172.29.0.1}
+          # Containers get addresses from the upper half only, so none can
+          # take radio-host-gateway's fixed one first.
+          ip_range: ${SENTINEL_RADIO_HOST_NETWORK_DYNAMIC_RANGE:-172.29.0.128/25}

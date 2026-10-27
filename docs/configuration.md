@@ -43,6 +43,35 @@
 
 `SENTINEL_CORE_HOSTNAMES`, `SENTINEL_RADIO_HOST_HOSTNAMES`, `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS`, `NATS_PUBLISHED_ADDRESS`, and on the radio host `SENTINEL_CORE_ENTRYPOINT_URL`, `SENTINEL_CORE_NATS_URL`, `SENTINEL_RADIO_HOST_URL`, `SENTINEL_RADIO_HOST_GATEWAY_ADDRESS`. Values and where each goes: [Radio host](radio-host.md).
 
+## Request guard
+
+What each check does, and how to switch on the optional ones: [Request guard](security-guard.md).
+
+| Variable | Default | Set it to |
+|---|---|---|
+| `GUARD_ENABLED` | `true` | `false` to accept every request (not advised) |
+| `GUARD_PASSIVE_MODE` | `false` | `true` to log what would be refused without refusing |
+| `GUARD_ACCESS_ENFORCEMENT` | `enforce` | `log` to log, not refuse, callers outside a route's caller classes |
+| `GUARD_CLIENT_NETWORKS` | private ranges | Where browsers may use Sentinel from |
+| `GUARD_SERVICE_HOSTS` | empty | A radio host's IP (core host), or the core host's (radio host) |
+| `GUARD_DECODER_HOSTS` | empty | Decoders on other machines, by IP |
+| `GUARD_PEER_NETWORKS` | client networks | Other machines' SDR Managers |
+| `GUARD_OPERATOR_IPS` | this machine | Who may open `/api/docs` (Docker Desktop: add `192.168.65.1`) |
+| `GUARD_EXEMPT_IPS` | Sentinel's containers | Addresses that skip rate limits |
+| `GUARD_IP_ALLOWLIST` / `_BLOCKLIST` | empty | Addresses always let in / always refused |
+| `GUARD_ALLOWED_REFERRER_DOMAINS` | empty | The names you open Sentinel by, to require them on settings changes |
+| `GUARD_ENFORCE_HTTPS`, `GUARD_TRUST_FORWARDED_PROTO` | `false` | `true` only behind your own TLS front end |
+| `GUARD_CORS_ALLOW_ORIGINS` | empty | Origins allowed to call the API from another site |
+| `GUARD_IPINFO_TOKEN`, `GUARD_BLOCKED_COUNTRIES`, `GUARD_ALLOWED_COUNTRIES` | empty | Country rules (token from ipinfo.io) |
+| `GUARD_BLOCK_CLOUD_PROVIDERS` | empty | `AWS,GCP,Azure,DigitalOcean,Linode,Vultr` (any of) |
+| `GUARD_EMERGENCY_MODE`, `GUARD_EMERGENCY_ALLOWLIST` | `false`, empty | Lockdown to the allowlist |
+| `GUARD_LOG_FORMAT` | `text` | `json` |
+| `GUARD_AGENT_API_KEY`, `GUARD_AGENT_PROJECT_ID`, `GUARD_AGENT_ENDPOINT`, `GUARD_ENABLE_DYNAMIC_RULES` | empty / `false` | The hosted Guard Core dashboard (sends events off this machine) |
+| `GUARD_ENABLE_OTEL`, `GUARD_OTEL_ENDPOINT`, `GUARD_ENABLE_LOGFIRE` | `false` / empty | Telemetry |
+| `SENTINEL_NETWORK_SUBNET`, `SENTINEL_NETWORK_HOST_ADDRESS`, `SENTINEL_GATEWAY_ADDRESS`, `SENTINEL_NETWORK_DYNAMIC_RANGE` | `172.28.0.0/24`, `.1`, `.2`, `.128/25` | Another range, only if this one clashes with a network of yours |
+
+On a radio host, `GUARD_EXTRA_TRUSTED_PROXIES` and `GUARD_TRUSTED_PROXY_DEPTH=2` let the hub see real browser addresses ([Radio hosts](security-guard.md#radio-hosts)).
+
 ## Leave alone
 
 `NATS_URL` connects Sentinel's own containers. The gateway's admin API address is fixed in `docker-compose.yml` (`GATEWAY_ADMIN_URL` in `.env` is ignored).

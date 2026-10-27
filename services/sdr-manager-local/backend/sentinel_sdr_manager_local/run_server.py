@@ -53,6 +53,10 @@ def main() -> None:
         port=settings.http_port,
         log_config=SDR_MANAGER_LOCAL_LOGGING_CONFIG,
         log_level=settings.log_level.lower(),
+        # The request guard decides which X-Forwarded-For to believe (only the
+        # gateway's, GUARD_TRUSTED_PROXIES): uvicorn must not rewrite the client
+        # first, or a caller could claim any address.
+        proxy_headers=False,
     )
 
 

@@ -10,7 +10,9 @@
         { "path": "decoders", "title": "Decoders" },
         { "path": "radio-host", "title": "Radio host" },
         { "path": "operations", "title": "Run and maintain" },
+        { "path": "security-guard", "title": "Request guard" },
         { "path": "reference/ports-and-services", "title": "Ports and services" },
+        { "path": "reference/api-access-matrix", "title": "API access matrix" },
         { "path": "troubleshooting", "title": "Troubleshooting" },
         { "path": "upgrading", "title": "Upgrade" }
       ]
@@ -82,6 +84,7 @@
         {
           "title": "Design decisions",
           "pages": [
+            { "path": "adr/0008-request-guard", "title": "0008 Request guard" },
             { "path": "adr/0007-sdr-manager", "title": "0007 SDR Manager" },
             { "path": "adr/0006-section-containers", "title": "0006 Section containers" },
             { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },

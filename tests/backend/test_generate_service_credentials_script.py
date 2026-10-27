@@ -91,6 +91,8 @@ class TestGenerate:
             ).read_bytes()
             expected = [
                 "certificate-authority.pem",
+                # The request guard's Redis password (every service, no decoder).
+                "guard-state-password",
                 "http-credentials.json",
                 "nats-credentials.json",
             ]
@@ -109,7 +111,7 @@ class TestGenerate:
         setup.generate(tmp_path)
         assert setup.CALLER_FOLDERS_DIRECTORY == "credentials"
         assert sorted(path.name for path in tmp_path.iterdir()) == [
-            "certificate-authority", "credentials", "server",
+            "certificate-authority", "credentials", "guard-state", "server",
         ]  # fmt: skip
         assert (tmp_path / "credentials" / "radio" / "http-credentials.json").exists()
         assert not (tmp_path / "credentials" / "radio-hub").exists()

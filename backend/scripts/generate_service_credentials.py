@@ -24,7 +24,9 @@ The output directory (default `/run/service-credentials`, the
         nats-credentials.json   its NATS user (services only; decoders don't use the bus)
         certificate-authority.pem   the CA certificate (services only)
         accepted-callers.json   the tokens it accepts, as SHA-256 hashes (core and the radio hub)
+        guard-state-password    the request guard's Redis password (services only)
     credentials/gateway/    core's TLS service entrypoint: its certificate, key and the CA
+    guard-state/            mounted into `redis`: users.acl, the request guard's one Redis user
     credentials/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
 
 A second host (P7.5) gets a copy of its own `credentials/<caller>/` folders
@@ -80,6 +82,12 @@ ACCEPTED_CALLERS_FILE = "accepted-callers.json"
 HOSTNAMES_FILE = "hostnames.txt"
 SERVER_CONFIG_FILE = "nats.conf"
 SERVER_MOUNT_POINT = "/etc/nats-sentinel"
+GUARD_STATE_FOLDER = "guard-state"
+GUARD_STATE_ACL_FILE = "users.acl"
+GUARD_STATE_PASSWORD_FILE = "guard-state-password"
+GUARD_STATE_USER = "sentinel"
+# The request guard's keys (GUARD_REDIS_PREFIX): its Redis user can touch nothing else.
+GUARD_STATE_KEY_PATTERN = "sentinel_guard:*"
 """Where compose mounts `server/` inside the `nats` container."""
 
 
@@ -220,6 +228,30 @@ def ensure_http_credentials(directory: Path, caller: str) -> str:
     return token
 
 
+def ensure_guard_state_password(directory: Path) -> str:
+    """The request guard's Redis password: created once, kept in the `guard-state` folder."""
+    password_path = directory / GUARD_STATE_PASSWORD_FILE
+    password = password_path.read_text().strip() if password_path.exists() else ""
+    if not password:
+        password = secrets.token_urlsafe(32)
+        print("service-credentials: created the request guard's Redis password")
+    _write_private(password_path, password + "\n")
+    return password
+
+
+def guard_state_acl(password: str) -> str:
+    """`users.acl` for the guard's Redis: no default user, one user limited to the guard's keys.
+
+    Everything but administration and wiping the database, on its own keys
+    only: fastapi-guard needs scripting (its rate-limit script) and KEYS (ban
+    listing), not CONFIG, FLUSHALL or replication.
+    """
+    return (
+        "user default off\n"
+        f"user {GUARD_STATE_USER} on >{password} ~{GUARD_STATE_KEY_PATTERN} &* +@all -@admin -flushall -flushdb\n"
+    )
+
+
 def accepted_callers(tokens: dict[str, str]) -> str:
     """`accepted-callers.json`: every caller's token hash, so a verifier never holds a token."""
     return json.dumps({credential_hash(token): caller for caller, token in tokens.items()}, indent=2) + "\n"
@@ -303,6 +335,13 @@ def generate(output_directory: Path) -> None:
         for user in SERVICE_PERMISSIONS
     }
     tokens = {caller: ensure_http_credentials(callers_directory / caller, caller) for caller in CALLER_ACCESS}
+    # The request guard's shared state: Redis gets the ACL, each service a copy
+    # of the password in its own folder (decoders get none, and can't reach Redis).
+    guard_state_directory = output_directory / GUARD_STATE_FOLDER
+    guard_state_password = ensure_guard_state_password(guard_state_directory)
+    _write_private(guard_state_directory / GUARD_STATE_ACL_FILE, guard_state_acl(guard_state_password))
+    for user in SERVICE_PERMISSIONS:
+        _write_private(callers_directory / user / GUARD_STATE_PASSWORD_FILE, guard_state_password + "\n")
     # Rewritten every run (cheap, and a verifier re-reads it when it changes):
     # core, the hub and sdr-manager-local accept every caller; what each may do is service_access.py's.
     for verifier in VERIFYING_SERVICES:

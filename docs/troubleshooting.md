@@ -32,6 +32,20 @@ Start with `docker compose ps -a`: every Sentinel service should say **(healthy)
 
 A 404 from `/internal/…` on :8080 is on purpose.
 
+## Refused requests
+
+The [request guard](security-guard.md) logs every refusal: `docker compose logs app air sea radio | grep guard`.
+
+| Response | Cause | Do |
+|---|---|---|
+| 404 on an API route that exists | The caller isn't one the route is for: a script without `Sec-Fetch-Site`, another site, an address outside the `GUARD_*` lists | Check the log line; [Who may call what](security-guard.md#who-may-call-what) |
+| 403 `Forbidden` | Banned, a blocked user agent, or a blocked address | `… cli bans`, then `… cli unban <address>` ([Bans](security-guard.md#bans)) |
+| 429 `Too many requests` | Over a rate limit | Wait for `Retry-After`; raise the limit in the policy if it's real use |
+| 400 / 415 / 413 | Attack detection, wrong content type, body too large | The log names the check; add an exception in the policy if it's a false positive |
+| Everything refused after an upgrade | Network or address settings | [Upgrade: Request guard](upgrading.md#request-guard-and-a-fixed-docker-network-october-2026) |
+
+To watch without refusing: `GUARD_PASSIVE_MODE=true`, then `docker compose up -d`.
+
 ## Log messages
 
 | Message | Means |

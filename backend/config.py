@@ -360,6 +360,108 @@ class Settings(BaseSettings):
     # Empty or missing skips the import.
     legacy_db_path: str = ""
 
+    # ── Request guard (ADR 0008, docs/security-guard.md) ─────────────────────
+    # fastapi-guard in front of every FastAPI process: who may call which route,
+    # rate limits, bans, attack detection and security headers. The policy
+    # itself (limits, route rules, detection exclusions) lives in the JSON file
+    # below; these settings are the per-deployment switches and the secrets.
+    # Lists are comma-separated. Off switches the guard out entirely — the test
+    # suite does, since TestClient's client address is not an IP.
+    guard_enabled: bool = True
+    # Which profile in the policy file this process uses: `core`, `section`,
+    # `radio_hub`, `docs`, `sdr_manager_local` or `sdr_manager_remote`. Compose
+    # sets it per service.
+    guard_profile: str = "core"
+    # The policy file. Empty = backend/security/guard-policy.json.
+    guard_policy_file: str = ""
+    # Log what would be blocked, block nothing. For tuning a new deployment.
+    guard_passive_mode: bool = False
+    # `enforce` refuses callers outside a route's caller classes with a 404;
+    # `log` only logs them, independently of passive mode, so the access rules
+    # can be observed before they bite.
+    guard_access_enforcement: Literal["enforce", "log"] = "enforce"
+    # Shared ban and rate-limit state, e.g. `redis://sentinel@redis:6379/0`
+    # (the password comes from the file below). Empty = this process's memory,
+    # which is right for one process (non-Docker dev, a radio host's hub).
+    guard_redis_url: str = ""
+    # A file holding the Redis password, written by `service-credentials`.
+    guard_redis_password_file: str = ""
+    # Key prefix in Redis, so a shared Redis never mixes two deployments.
+    guard_redis_prefix: str = "sentinel_guard:"
+    # Proxies allowed to say who the client is (X-Forwarded-For): the gateway.
+    # Empty = trust no proxy, so the client is whoever connected.
+    guard_trusted_proxies: str = ""
+    # How many proxies sit in front: 1 = just the gateway.
+    guard_trusted_proxy_depth: int = 1
+    # The compose network the Sentinel containers share (its subnet). Callers
+    # from here are other Sentinel processes; see the `internal` caller class.
+    guard_internal_networks: str = ""
+    # Where browsers may call from. Default: the private (RFC 1918), loopback
+    # and IPv6 unique-local/link-local ranges — Sentinel is a LAN app.
+    guard_client_networks: str = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10"
+    # Other machines' Sentinel processes (a radio host's hub, a remote
+    # section), by address or CIDR. They call the `service`/`internal` routes
+    # over the TLS service entrypoint (:8443). Empty = none.
+    guard_service_hosts: str = ""
+    # Decoders on other machines (a radio host's), by address or CIDR. Decoders
+    # on this deployment's own network need no entry. Empty = none.
+    guard_decoder_hosts: str = ""
+    # Other machines' SDR managers, which call this machine's SDR Manager API
+    # at `/api/...`. Empty = the client networks above.
+    guard_peer_networks: str = ""
+    # The operator's machines: API docs, the OpenAPI schema and guard status.
+    # Default: this machine only.
+    guard_operator_ips: str = "127.0.0.1/32,::1/128"
+    # Callers that skip rate limits and user-agent checks (bans and attack
+    # detection still apply). Empty = the internal networks above.
+    guard_exempt_ips: str = ""
+    # Addresses always allowed (overrides the blocklist, not bans) / always
+    # refused. Empty = none.
+    guard_ip_allowlist: str = ""
+    guard_ip_blocklist: str = ""
+    # Redirect plain HTTP to HTTPS and send HSTS. Only behind a TLS front end:
+    # Sentinel's own :8080 is plain HTTP.
+    guard_enforce_https: bool = False
+    # Believe X-Forwarded-Proto from the trusted proxies (a TLS front end).
+    guard_trust_forwarded_proto: bool = False
+    # Origins allowed to call the API cross-origin (CORS). Empty = CORS off;
+    # the SPA is same-origin through the gateway and needs none.
+    guard_cors_allow_origins: str = ""
+    # Host names the SPA is opened under (e.g. `sentinel.lan,192.168.1.20`).
+    # Set = settings writes must come with a Referer from one of them.
+    guard_allowed_referrer_domains: str = ""
+    # ISO 3166 country codes refused / the only ones allowed. Either needs the
+    # IPInfo country database (token below). Empty = no country rules.
+    guard_blocked_countries: str = ""
+    guard_allowed_countries: str = ""
+    # IPInfo token: downloads the free country/ASN database. Never commit it.
+    guard_ipinfo_token: str = ""
+    # Where that database is kept. Empty = next to the database file.
+    guard_ipinfo_db_path: str = ""
+    # Cloud providers whose published IP ranges are refused: AWS, GCP, Azure,
+    # DigitalOcean, Linode, Vultr. Fetched from the providers hourly, so this
+    # needs internet access. Empty = off.
+    guard_block_cloud_providers: str = ""
+    # Lockdown: refuse every caller except the allowlist below.
+    guard_emergency_mode: bool = False
+    guard_emergency_allowlist: str = ""
+    # Also write guard events to this file (they always reach the process log).
+    guard_log_file: str = ""
+    guard_log_format: Literal["text", "json"] = "text"
+    # The hosted Guard Core dashboard (guard-agent). Sends security events off
+    # this machine, so it is off unless a key is set. Never commit the key.
+    guard_agent_api_key: str = ""
+    guard_agent_project_id: str = ""
+    # Empty = the agent's own default endpoint.
+    guard_agent_endpoint: str = ""
+    # Pull rules from the dashboard (needs the agent).
+    guard_enable_dynamic_rules: bool = False
+    # OpenTelemetry traces/metrics of guard decisions, to this OTLP endpoint.
+    guard_enable_otel: bool = False
+    guard_otel_endpoint: str = ""
+    # Pydantic Logfire export of the same.
+    guard_enable_logfire: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

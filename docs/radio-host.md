@@ -42,7 +42,10 @@ You need fixed names for both (here `sentinel.lan` and `radio.lan`), Docker and 
    SENTINEL_RADIO_HOST_HOSTNAMES=radio.lan
    SENTINEL_SERVICE_ENTRYPOINT_ADDRESS=0.0.0.0:8443
    NATS_PUBLISHED_ADDRESS=0.0.0.0:4222
+   GUARD_SERVICE_HOSTS=192.168.1.30
    ```
+
+   `GUARD_SERVICE_HOSTS` is the radio host's **IP address** (not its name). The [request guard](security-guard.md#radio-hosts) refuses its registration and settings reads without it.
 
 2. Apply, and export the radio host's credentials (treat the file as a password):
 
@@ -64,7 +67,10 @@ You need fixed names for both (here `sentinel.lan` and `radio.lan`), Docker and 
    SENTINEL_CORE_NATS_URL=tls://sentinel.lan:4222
    SENTINEL_RADIO_HOST_URL=https://radio.lan:8443
    COMPOSE_PROFILES=aprs,ais
+   GUARD_SERVICE_HOSTS=192.168.1.20
    ```
+
+   `GUARD_SERVICE_HOSTS` is the core host's **IP address**: core's health checks and the SDR section's recording copies come from there.
 
 2. Import and start:
 
@@ -92,6 +98,8 @@ You need fixed names for both (here `sentinel.lan` and `radio.lan`), Docker and 
 |---|---|
 | `… certificate verify failed …` | The name in `SENTINEL_CORE_ENTRYPOINT_URL` isn't in `SENTINEL_CORE_HOSTNAMES`, or the credentials predate a name change |
 | `… Connection refused …` | :8443 still on `127.0.0.1`, or a firewall |
+| `404` registering or reading settings; `guard access refused` in core's log | The radio host's address isn't in `GUARD_SERVICE_HOSTS` on the core host |
+| Core shows the hub unreachable; `guard access refused` in the hub's log | The core host's address isn't in `GUARD_SERVICE_HOSTS` on the radio host |
 | Never logs `event bus connected` | `NATS_PUBLISHED_ADDRESS` not open, or `nats` not restarted |
 | SDR shows the hub unavailable | Core can't reach `SENTINEL_RADIO_HOST_URL` on :8443 |
 | `core refused radio (401)` | Credentials out of date: export and import again |

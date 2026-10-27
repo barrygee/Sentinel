@@ -42,6 +42,11 @@ export default defineConfig({
     use: {
         baseURL,
         trace: 'on-first-retry',
+        // The specs' `request` fixture calls the API the way the SPA does, so it
+        // sends what a browser sends on the SPA's own fetches. Without it the
+        // request guard (docs/security-guard.md) treats it as a script, not the
+        // browser, and answers the browser-only API with 404.
+        extraHTTPHeaders: { 'Sec-Fetch-Site': 'same-origin' },
     },
     projects: [
         {

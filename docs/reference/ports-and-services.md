@@ -8,6 +8,7 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 |---|---|---|
 | `service-credentials` | Runs once: certificates and a login per service and decoder | `service_credentials` |
 | `nats` | Event bus, TLS only | — |
+| `redis` | The [request guard](../security-guard.md)'s shared bans and rate limits; nothing kept on restart | — |
 | `app` | Core: the UI, settings, alerts, offline maps, service list | `sentinel_db` |
 | `gateway` | Caddy: the one address a browser uses | — |
 | `air`, `space`, `sea`, `land` | Each section | `<id>_data` |
@@ -42,10 +43,13 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 |---|---|---|
 | `8000` | app, sections, radio, docs | HTTP API |
 | `2019` | gateway | Caddy admin API (core pushes routes); only on the internal `gateway_admin` network |
+| `6379` | redis | Request guard state; only on the internal `guard_state` network, which decoders don't join |
 | `7355`, `7356` UDP | radio | Voice decoder audio out, decoded voice back |
 | `7357` | radio | APRS decoder audio |
 | `7358` | radio | AIS decoder stereo audio |
 | `7370` | radio | Stub decoder audio |
+
+Sentinel's Docker network is pinned to `172.28.0.0/24` (`SENTINEL_NETWORK_SUBNET`). The gateway is always `172.28.0.2` (`SENTINEL_GATEWAY_ADDRESS`), the one address the [request guard](../security-guard.md) believes about who a client is. Containers get addresses from `172.28.0.128/25`. If the range clashes with a network of yours, change all three together, plus `SENTINEL_NETWORK_HOST_ADDRESS`.
 
 ## On a radio host
 

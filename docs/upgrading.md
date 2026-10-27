@@ -16,6 +16,19 @@ Check the one-off steps below for anything newer than your copy (`git log -1 --f
 
 ## One-off steps
 
+### Request guard and a fixed Docker network (October 2026)
+
+Every service now checks each request ([Request guard](security-guard.md)), and Sentinel's Docker network has a fixed address range. The old network has to go once, before starting the new version:
+
+```bash
+docker compose down             # volumes and data are kept
+docker compose up --build -d
+```
+
+- **`Pool overlaps with other one on this host`:** pick another range in `.env` (`SENTINEL_NETWORK_SUBNET`, `SENTINEL_NETWORK_HOST_ADDRESS`, `SENTINEL_GATEWAY_ADDRESS`, `SENTINEL_NETWORK_DYNAMIC_RANGE`) and run both lines again.
+- **Radio host:** on the radio host, set `GUARD_SERVICE_HOSTS` to the core host's address. On the core host, set it to the radio host's. Then run `docker compose down` and `up` on both ([Radio hosts](security-guard.md#radio-hosts)).
+- **Scripts that call the API:** send `Sec-Fetch-Site: same-origin`, or they get 404 ([Who may call what](security-guard.md#who-may-call-what)).
+
 ### Radio hub renamed `radio-hub` → `radio` (October 2026)
 
 Only if `docker volume ls` shows `…radio_hub_data`. Do it before starting the new version.

@@ -44,6 +44,7 @@ from backend.platform.lifecycle import ModuleLifecycle, run_lifecycles
 from backend.platform.nats_transport import NatsTransport
 from backend.platform.remote_files import RemotesStaticFiles
 from backend.platform.sdk.registration import ServiceRegistrar
+from backend.platform.security import install_request_guard
 from backend.platform.service_manifest import ServiceManifest
 from backend.platform.settings_client import wait_for_core
 from fastapi import APIRouter, FastAPI
@@ -230,4 +231,7 @@ def create_service(
             name="remote",
         )
     app.state.registrar = registrar
+    # Routes are classified at startup, so a mount added after this returns
+    # (sdr-manager-local's API) is still covered by the guard policy.
+    install_request_guard(app, service_name=advertised.id)
     return app
