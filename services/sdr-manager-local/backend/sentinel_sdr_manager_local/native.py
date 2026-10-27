@@ -34,6 +34,7 @@ CREDENTIAL_FILES = (HTTP_CREDENTIALS_FILE, ACCEPTED_CALLERS_FILE, CERTIFICATE_AU
 CORE_SERVICE_ENTRYPOINT_URL = "https://localhost:8443"
 DOCKER_HOST_NAME = "host.docker.internal"
 DEFAULT_HTTP_PORT = 8000
+GUARD_PROFILE = "sdr_manager_local"
 
 
 @dataclass(frozen=True)
@@ -111,6 +112,13 @@ def native_environment(paths: NativePaths, env_values: Mapping[str, str]) -> dic
             "SERVICE_HTTP_CREDENTIALS_FILE": str(credentials / HTTP_CREDENTIALS_FILE),
             "ACCEPTED_CALLERS_FILE": str(credentials / ACCEPTED_CALLERS_FILE),
             "INTERNAL_CERTIFICATE_AUTHORITY_FILE": str(credentials / CERTIFICATE_AUTHORITY_FILE),
+            # The request guard (ADR 0008), as compose sets it: this service's
+            # route rules, and bans in its own memory (the guard's Redis is on
+            # a Docker network a Mac process can't join). Without the profile
+            # the guard finds its routes unclassified and refuses to start.
+            "GUARD_PROFILE": GUARD_PROFILE,
+            "GUARD_REDIS_URL": "",
+            "GUARD_REDIS_PASSWORD_FILE": "",
         }
     )
     return environment
