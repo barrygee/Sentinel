@@ -569,6 +569,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Don't scan settings write bodies
 - Don't count the app's static files against the rate limit
 - Scan for attacks only where input enters
+- Refuse scanner user agents without regexes
 
 ### Chores
 
@@ -1665,6 +1666,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #543 from barrygee/docs/sdr-manager-guides
 - Merge remote-tracking branch 'origin/main' into feat/request-guard-work
 - Merge pull request #544 from barrygee/feat/request-guard
+- Merge pull request #545 from barrygee/fix/guard-user-agents
 
 ### Refactoring
 
