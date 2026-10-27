@@ -8,7 +8,7 @@ static mount as one `/<prefix>/**` entry, since its files aren't routes.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, Sequence
+from collections.abc import Awaitable, Callable, Iterator, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -33,14 +33,43 @@ class RouteEntry:
         return f"{self.endpoint.__module__}.{self.endpoint.__qualname__}"
 
 
+def attach_static_endpoints(routes: Sequence[BaseRoute], prefix: str = "") -> None:
+    """Give every static mount a stand-in endpoint, so its route group can apply.
+
+    fastapi-guard finds a request's per-route protections through the matched
+    route's `endpoint`, which a static mount doesn't have; its files then only
+    got the global rate limit, and a page load fetches about a hundred of them.
+    The stand-in is never called (Starlette serves a mount through its app);
+    each mount gets its own, named after its path, so it can't share another
+    route's protections. Idempotent.
+    """
+    for route in routes:
+        if not isinstance(route, Mount):
+            continue
+        child_routes = getattr(route.app, "routes", None)
+        if child_routes is not None:
+            attach_static_endpoints(child_routes, prefix + route.path)
+        elif getattr(route, "endpoint", None) is None:
+            route.endpoint = _static_endpoint(prefix + route.path)  # type: ignore[attr-defined]
+
+
+def _static_endpoint(path: str) -> Callable[[], Awaitable[None]]:
+    async def static_files() -> None:
+        return None
+
+    static_files.__qualname__ = f"static_files[{path}]"
+    return static_files
+
+
 def iter_routes(routes: Sequence[BaseRoute], prefix: str = "") -> Iterator[RouteEntry]:
     """Every (method, full path, endpoint) under `routes`, in serving order."""
     for route in routes:
         if isinstance(route, Mount):
             child_routes = getattr(route.app, "routes", None)
             if child_routes is None:
-                # Static files (or another opaque ASGI app): everything under it.
-                yield RouteEntry("GET", f"{prefix}{route.path}/**", None)
+                # Static files (or another opaque ASGI app): everything under it,
+                # with the stand-in endpoint `attach_static_endpoints` gave it.
+                yield RouteEntry("GET", f"{prefix}{route.path}/**", getattr(route, "endpoint", None))
             else:
                 yield from iter_routes(child_routes, prefix + route.path)
         elif isinstance(route, WebSocketRoute) or type(route).__name__ == "APIWebSocketRoute":

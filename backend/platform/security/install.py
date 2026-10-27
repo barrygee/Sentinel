@@ -31,7 +31,7 @@ from backend.platform.security.config_builder import build_security_config, clou
 from backend.platform.security.fail_open import make_behavior_tracking_fail_open
 from backend.platform.security.policy import GuardPolicy, load_policy
 from backend.platform.security.route_groups import apply_route_groups
-from backend.platform.security.route_inventory import iter_routes
+from backend.platform.security.route_inventory import attach_static_endpoints, iter_routes
 from backend.platform.service_credentials import accepts_callers, identify_caller
 from fastapi import Depends, FastAPI, Header, HTTPException
 from guard import PureASGISecurityMiddleware, SecurityConfig, SecurityDecorator, SecurityMiddleware, ip_ban_manager
@@ -57,6 +57,7 @@ def classify_and_protect_routes(
     `{endpoint: group}`. Raises `RouteClassificationError` for a route no
     rule covers.
     """
+    attach_static_endpoints(app.routes)
     entries = list(iter_routes(app.routes))
     served_routes.learn(entries)
     groups = apply_route_groups(

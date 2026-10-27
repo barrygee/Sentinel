@@ -14,11 +14,7 @@ from starlette.routing import BaseRoute, Match, Mount, NoMatchFound, Route, WebS
 from starlette.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
 
-from backend.platform.security.route_inventory import (
-    WEBSOCKET_METHOD,
-    RouteEntry,
-    iter_routes,
-)
+from backend.platform.security.route_inventory import WEBSOCKET_METHOD, RouteEntry, attach_static_endpoints, iter_routes
 
 
 async def read_thing() -> dict[str, str]:
@@ -109,3 +105,54 @@ class TestUnrecognisedRoutes:
                 raise NoMatchFound(name, path_params)
 
         assert list(iter_routes([OpaqueRoute()])) == []
+
+
+class TestAttachStaticEndpoints:
+    def test_each_static_mount_gets_its_own_stand_in(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path)
+        app.mount("/fonts", StaticFiles(directory=tmp_path))
+
+        attach_static_endpoints(app.routes)
+
+        static = {entry.path: entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")}
+        assert set(static) == {"/remotes/space/**", "/fonts/**"}
+        assert static["/remotes/space/**"] is not static["/fonts/**"]
+        assert RouteEntry("GET", "/fonts/**", static["/fonts/**"]).endpoint_name.endswith("static_files[/fonts]")
+
+    def test_reaches_static_mounts_inside_mounted_apps(self, tmp_path: Path) -> None:
+        inner = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        inner.mount("/assets", StaticFiles(directory=tmp_path))
+        app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+        app.mount("/remotes/sdr", inner)
+
+        attach_static_endpoints(app.routes)
+
+        [entry] = list(iter_routes(app.routes))
+        assert entry.path == "/remotes/sdr/assets/**"
+        assert entry.endpoint_name.endswith("static_files[/remotes/sdr/assets]")
+
+    def test_running_again_keeps_the_same_stand_in(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path)
+        attach_static_endpoints(app.routes)
+        first = [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")]
+
+        attach_static_endpoints(app.routes)
+
+        assert [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")] == first
+
+    async def test_the_stand_in_does_nothing_if_called(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path)
+        attach_static_endpoints(app.routes)
+        [stand_in] = [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")]
+
+        assert stand_in is not None
+        assert await stand_in() is None
+
+    def test_routes_and_endpoints_are_left_alone(self, tmp_path: Path) -> None:
+        app = build_app(tmp_path)
+        before = [(entry.method, entry.path, entry.endpoint) for entry in iter_routes(app.routes) if entry.endpoint]
+
+        attach_static_endpoints(app.routes)
+
+        after = [(entry.method, entry.path, entry.endpoint) for entry in iter_routes(app.routes)]
+        assert all(row in after for row in before)

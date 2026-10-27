@@ -17,6 +17,8 @@ from typing import Any
 import pytest
 from fastapi import FastAPI, WebSocket
 from guard import PureASGISecurityMiddleware, SecurityMiddleware, ip_ban_manager
+from starlette.routing import Mount
+from starlette.staticfiles import StaticFiles
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
@@ -562,3 +564,43 @@ class TestServedRoutes:
         assert served.serves("HEAD", "/api/things/7")
         assert not served.serves("PUT", "/api/things/7")
         assert not served.serves("GET", "/api/other")
+
+
+@pytest.mark.usefixtures("no_bans")
+class TestStaticFilesArentRateLimited:
+    """A page load fetches about a hundred bundle files; they mustn't spend the client's request budget.
+
+    fastapi-guard's rate counter is per process, so each test calls from an
+    address no other test uses.
+    """
+
+    def static_app(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FastAPI:
+        (tmp_path / "files").mkdir()
+        (tmp_path / "files" / "bundle.js").write_text("export {}", encoding="utf-8")
+        data = minimal_policy_data()
+        data["defaults"]["rate_limit"] = {"requests": 5, "window_seconds": 60}
+        data["defaults"]["auto_ban"] = {"count_rate_limit_violations": False}
+        data["route_groups"]["spa_shell"] = {"description": "the bundle", "bypass": ["rate_limit"]}
+        data["route_rules"].insert(
+            0, {"paths": ["/spa-assets/**"], "methods": ["GET"], "access": ["page"], "group": "spa_shell"}
+        )
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), guard_exempt_ips="192.0.2.1"
+        )
+        app = build_app()
+        app.router.routes.insert(0, Mount("/spa-assets", StaticFiles(directory=tmp_path / "files")))
+        install_request_guard(app, service_name="core")
+        return app
+
+    def test_the_bundle_isnt_counted(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.static_app(monkeypatch, tmp_path), client=("192.168.77.10", 50000)) as client:
+            statuses = {client.get("/spa-assets/bundle.js").status_code for _ in range(20)}
+
+        assert statuses == {200}
+
+    def test_the_api_still_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.static_app(monkeypatch, tmp_path), client=("192.168.77.11", 50000)) as client:
+            statuses = [client.get("/api/things/1", headers=SAME_ORIGIN_FETCH).status_code for _ in range(8)]
+
+        assert statuses[0] == 200
+        assert statuses[-1] == 429
