@@ -150,3 +150,6 @@ def _add_status_route(app: FastAPI, security_config: SecurityConfig) -> None:
         include_in_schema=False,
         dependencies=[Depends(_require_service_credential)],
     )
+    # First, not last: core's SPA catch-all (`/{full_path:path}`) is already
+    # registered and would otherwise answer this path with index.html.
+    app.router.routes.insert(0, app.router.routes.pop())
