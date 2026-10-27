@@ -455,17 +455,23 @@ jobs:
       # Core's TLS service entrypoint (P7.5), for Sentinel processes on another
       # host: :8443 answers with a certificate the deployment CA issued for
       # `localhost`, refuses a client that doesn't trust that CA, and passes
-      # /internal/ through to the app (401 without a credential), unlike :8080.
+      # /internal/ through to the app, unlike :8080. Without a credential the
+      # request guard answers 404 (a caller that isn't a service can't tell the
+      # route exists); with a wrong one it reaches the app, which answers 401.
       - name: TLS service entrypoint
         run: |
           docker compose exec -T app cat /run/service-credentials/certificate-authority.pem > deployment-ca.pem
           health=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' https://localhost:8443/health)
           internal=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' \
             https://localhost:8443/internal/settings/secrets/sea/aisstreamApiKey)
+          internal_wrong_credential=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer not-a-credential' \
+            https://localhost:8443/internal/settings/secrets/sea/aisstreamApiKey)
           public_internal=$(curl -sS -o /dev/null -w '%{http_code}' \
             http://localhost:8080/internal/settings/secrets/sea/aisstreamApiKey)
-          echo "entrypoint /health $health, /internal/ $internal; public gateway /internal/ $public_internal"
-          if [ "$health" != 200 ] || [ "$internal" != 401 ] || [ "$public_internal" != 404 ]; then
+          echo "entrypoint /health $health, /internal/ $internal (wrong credential $internal_wrong_credential); public gateway /internal/ $public_internal"
+          if [ "$health" != 200 ] || [ "$internal" != 404 ] || [ "$internal_wrong_credential" != 401 ] \
+            || [ "$public_internal" != 404 ]; then
             echo "::error::the TLS service entrypoint answered unexpectedly"
             exit 1
           fi
