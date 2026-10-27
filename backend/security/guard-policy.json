@@ -209,11 +209,11 @@
             "max_request_bytes": 65536
         },
         "settings_write": {
-            "description": "Writing a setting (always a JSON body). Values are legitimately URLs (sources, hosts), so the SSRF category is off; a bot that fills the honeypot field is refused.",
+            "description": "Writing a setting (always a JSON body). The body isn't scanned: it is the operator's own settings (URLs, hosts, long lists), stored as JSON, and scanning a large one held core up for over a second, long enough for a service writing its seed data at startup to give up. A bot that fills the honeypot field is refused.",
             "rate_limit": { "requests": 120, "window_seconds": 60 },
             "allowed_content_types": ["application/json"],
             "max_request_bytes": 1048576,
-            "detection": { "excluded_categories": ["ssrf"] },
+            "detection": { "scan_body": false },
             "honeypot_fields": ["website"],
             "require_referrer": true
         },

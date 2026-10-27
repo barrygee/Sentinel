@@ -69,6 +69,15 @@ class TestShippedPolicy:
         assert browser.allow_missing_fetch_metadata is False
         assert "cross-site" not in browser.fetch_sites
 
+    def test_settings_writes_bodies_arent_scanned(self) -> None:
+        # Scanning a large setting held core up past a service's 5 s timeout at startup.
+        group = read_policy(DEFAULT_POLICY_PATH).route_groups["settings_write"]
+
+        assert group.detection is not None
+        assert group.detection.scan_body is False
+        assert group.honeypot_fields == ["website"]
+        assert group.max_request_bytes == 1_048_576
+
     def test_decoder_ingest_bodies_are_never_scanned(self) -> None:
         # Decoded RF text is written by anyone with a transmitter (ADR 0008).
         group = read_policy(DEFAULT_POLICY_PATH).route_groups["decoder_ingest"]
