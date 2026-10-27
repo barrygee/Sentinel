@@ -69,6 +69,17 @@ class TestShippedPolicy:
         assert browser.allow_missing_fetch_metadata is False
         assert "cross-site" not in browser.fetch_sites
 
+    def test_only_requests_that_send_data_are_scanned(self) -> None:
+        # Scanning every request cost ~40 ms of CPU each (mostly the browser's
+        # own headers), on every poll; reads take no input worth scanning.
+        policy = read_policy(DEFAULT_POLICY_PATH)
+
+        for profile_name in policy.profiles:
+            assert policy.profile_settings(profile_name).detection.enabled is False, profile_name
+        assert sorted(
+            name for name, group in policy.route_groups.items() if group.detection and group.detection.enabled
+        ) == ["body_free_action", "console_login", "expensive_jobs", "json_write", "radio_control"]
+
     def test_settings_writes_bodies_arent_scanned(self) -> None:
         # Scanning a large setting held core up past a service's 5 s timeout at startup.
         group = read_policy(DEFAULT_POLICY_PATH).route_groups["settings_write"]

@@ -37,7 +37,7 @@
             "(?i)hydra"
         ],
         "detection": {
-            "enabled": true,
+            "enabled": false,
             "categories": [
                 "cmd_injection",
                 "cms_probing",
@@ -201,12 +201,14 @@
         "json_write": {
             "description": "The SPA changing state: JSON bodies, and DELETEs with none (so no content-type filter, which would refuse a request without a body).",
             "rate_limit": { "requests": 120, "window_seconds": 60 },
-            "max_request_bytes": 1048576
+            "max_request_bytes": 1048576,
+            "detection": { "enabled": true }
         },
         "body_free_action": {
             "description": "A POST or DELETE whose body, if any, is a small JSON object.",
             "rate_limit": { "requests": 120, "window_seconds": 60 },
-            "max_request_bytes": 65536
+            "max_request_bytes": 65536,
+            "detection": { "enabled": true }
         },
         "settings_write": {
             "description": "Writing a setting (always a JSON body). The body isn't scanned: it is the operator's own settings (URLs, hosts, long lists), stored as JSON, and scanning a large one held core up for over a second, long enough for a service writing its seed data at startup to give up. A bot that fills the honeypot field is refused.",
@@ -241,7 +243,7 @@
             "description": "Work that costs minutes of CPU, disk or upstream quota: offline map extracts and estimates, TLE fetches, host tests.",
             "rate_limit": { "requests": 30, "window_seconds": 60 },
             "max_request_bytes": 65536,
-            "detection": { "excluded_categories": ["ssrf"] },
+            "detection": { "enabled": true },
             "monitors": [
                 { "kind": "usage", "threshold": 300, "window_seconds": 3600, "action": "log" }
             ]
@@ -253,7 +255,8 @@
         "radio_control": {
             "description": "Connecting radios and starting decoders or recordings: each one retunes hardware.",
             "rate_limit": { "requests": 60, "window_seconds": 60 },
-            "max_request_bytes": 65536
+            "max_request_bytes": 65536,
+            "detection": { "enabled": true }
         },
         "secret_write": {
             "description": "Setting or clearing a secret (the AISStream key).",
@@ -267,6 +270,7 @@
             "allowed_content_types": ["application/json"],
             "max_request_bytes": 4096,
             "detection": {
+                "enabled": true,
                 "excluded_body_fields": ["password", "new_password", "current_password"]
             },
             "monitors": [

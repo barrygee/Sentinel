@@ -604,3 +604,28 @@ class TestStaticFilesArentRateLimited:
 
         assert statuses[0] == 200
         assert statuses[-1] == 429
+
+
+class TestScanningOnlyWhereInputEnters:
+    """Detection off by default, on for a group: a read isn't scanned, a write in that group is."""
+
+    def app(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FastAPI:
+        data = minimal_policy_data()
+        data["defaults"]["detection"] = {"enabled": False}
+        data["route_groups"]["settings_write"]["detection"] = {"enabled": True}
+        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)))
+        return guarded_app()
+
+    injection = {"q": "1' UNION SELECT password FROM users--"}
+
+    def test_a_read_isnt_scanned(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.78.10", 50000)) as client:
+            response = client.get("/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH)
+
+        assert response.status_code == 200
+
+    def test_a_write_in_a_scanned_group_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.78.11", 50000)) as client:
+            response = client.put("/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH)
+
+        assert response.status_code == 400
