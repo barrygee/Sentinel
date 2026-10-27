@@ -1,0 +1,778 @@
+{
+    "$schema": "./guard-policy.schema.json",
+    "version": 1,
+    "defaults": {
+        "middleware": "classic",
+        "rate_limit": { "requests": 1200, "window_seconds": 60 },
+        "auto_ban": {
+            "enabled": true,
+            "threshold": 10,
+            "duration_seconds": 3600,
+            "count_rate_limit_violations": true,
+            "rate_limit_threshold": 20,
+            "rate_limit_ban_seconds": 900,
+            "threat_bans": {
+                "sqli": { "threshold": 3, "duration_seconds": 86400 },
+                "cmd_injection": { "threshold": 3, "duration_seconds": 86400 },
+                "code_injection": { "threshold": 3, "duration_seconds": 86400 },
+                "deserialization": { "threshold": 3, "duration_seconds": 86400 },
+                "path_traversal": { "threshold": 5, "duration_seconds": 3600 }
+            }
+        },
+        "blocked_user_agents": [
+            "(?i)sqlmap",
+            "(?i)nikto",
+            "(?i)nmap",
+            "(?i)masscan",
+            "(?i)zgrab",
+            "(?i)nuclei",
+            "(?i)gobuster",
+            "(?i)dirbuster",
+            "(?i)wpscan",
+            "(?i)ffuf",
+            "(?i)acunetix",
+            "(?i)nessus",
+            "(?i)openvas",
+            "(?i)w3af",
+            "(?i)hydra"
+        ],
+        "detection": {
+            "enabled": false,
+            "categories": [
+                "cmd_injection",
+                "cms_probing",
+                "code_injection",
+                "deserialization",
+                "dir_traversal",
+                "file_inclusion",
+                "file_upload",
+                "http_split",
+                "ldap",
+                "nosql",
+                "path_traversal",
+                "proto_pollution",
+                "recon",
+                "sensitive_file",
+                "sqli",
+                "template",
+                "xml",
+                "xss"
+            ],
+            "scan_body": true,
+            "excluded_headers": ["authorization", "x-decode-secret", "cookie"],
+            "excluded_semantic_headers": ["user-agent", "referer"],
+            "excluded_params": [],
+            "excluded_body_fields": [],
+            "max_body_inspect_bytes": 262144
+        },
+        "exclude_paths": [
+            "/assets",
+            "/fonts",
+            "/spa-assets",
+            "/remotes",
+            "/favicon.ico",
+            "/api/offline-map/basemap",
+            "/api/offline-map/terrain"
+        ],
+        "security_headers": {
+            "enabled": true,
+            "frame_options": "SAMEORIGIN",
+            "content_type_options": "nosniff",
+            "xss_protection": "0",
+            "referrer_policy": "strict-origin-when-cross-origin",
+            "permissions_policy": "geolocation=(self), microphone=(), camera=(), payment=(), usb=()"
+        },
+        "behavior_rules": [
+            {
+                "type": "return_pattern",
+                "pattern": "status:404",
+                "threshold": 100,
+                "window_seconds": 300,
+                "action": "ban",
+                "ban_duration_seconds": 3600
+            },
+            {
+                "type": "return_pattern",
+                "pattern": "status:401",
+                "threshold": 20,
+                "window_seconds": 300,
+                "action": "ban",
+                "ban_duration_seconds": 3600
+            },
+            {
+                "type": "return_pattern",
+                "pattern": "status:403",
+                "threshold": 30,
+                "window_seconds": 300,
+                "action": "ban",
+                "ban_duration_seconds": 3600
+            }
+        ],
+        "logging": {
+            "suspicious_level": "WARNING",
+            "request_level": null,
+            "sensitive_headers": ["x-decode-secret"],
+            "sensitive_params": ["token", "access_token"],
+            "sensitive_body_fields": [
+                "value",
+                "password",
+                "new_password",
+                "current_password",
+                "ais_key",
+                "key"
+            ]
+        },
+        "fail_secure": true,
+        "redis_fail_open": true,
+        "error_messages": {
+            "403": "Forbidden",
+            "429": "Too many requests: slow down and try again shortly"
+        }
+    },
+    "profiles": {
+        "core": {},
+        "section": {},
+        "radio_hub": {
+            "rate_limit": { "requests": 3000, "window_seconds": 60 }
+        },
+        "docs": {
+            "rate_limit": { "requests": 600, "window_seconds": 60 }
+        },
+        "sdr_manager_remote": {},
+        "sdr_manager_local": {
+            "rate_limit": { "requests": 600, "window_seconds": 60 }
+        }
+    },
+    "access_classes": {
+        "page": {
+            "description": "Anyone on the LAN opening Sentinel: the shell document, its bundle, map assets and section remotes.",
+            "networks": ["$client_networks"]
+        },
+        "browser": {
+            "description": "The SPA's own API calls: a client on the LAN whose browser says the request came from this site (Sec-Fetch-Site), so another site can't drive it and a script isn't mistaken for it.",
+            "networks": ["$client_networks"],
+            "fetch_sites": ["same-origin", "none"],
+            "allow_missing_fetch_metadata": false
+        },
+        "internal": {
+            "description": "Another Sentinel process: a container on this deployment's network, or a service host (a radio host's hub). Sections read core's settings this way, without a credential.",
+            "networks": ["$loopback", "$internal_networks", "$service_hosts"]
+        },
+        "service": {
+            "description": "A Sentinel process presenting its service credential (Authorization: Bearer), which the route then verifies.",
+            "networks": ["$loopback", "$internal_networks", "$service_hosts"],
+            "required_headers": ["authorization"]
+        },
+        "decoder": {
+            "description": "A decoder presenting its credential (X-Decode-Secret), which the route then verifies.",
+            "networks": ["$loopback", "$internal_networks", "$decoder_hosts"],
+            "required_headers": ["x-decode-secret"]
+        },
+        "peer": {
+            "description": "Another machine's SDR Manager calling this machine's SDR Manager API (it signs in with the console password).",
+            "networks": ["$peer_networks"]
+        },
+        "operator": {
+            "description": "The operator's own machine: API reference pages and health.",
+            "networks": ["$operator_ips"]
+        }
+    },
+    "route_groups": {
+        "default": {
+            "description": "The profile's defaults only."
+        },
+        "health": {
+            "description": "Health probes (Docker, core's registry). Never rate limited, scanned or banned: a refused probe takes a service out of routing.",
+            "bypass": ["all"]
+        },
+        "spa_shell": {
+            "description": "The shell document and section remotes: loaded in bursts on every page load.",
+            "bypass": ["rate_limit"]
+        },
+        "map_tiles": {
+            "description": "Map tiles: a pan or zoom asks for hundreds at once.",
+            "bypass": ["rate_limit"],
+            "detection": { "enabled": false }
+        },
+        "streams": {
+            "description": "Server-sent event streams: one long request per tab, so a reconnect loop is what gets limited.",
+            "rate_limit": { "requests": 30, "window_seconds": 60 }
+        },
+        "json_write": {
+            "description": "The SPA changing state: JSON bodies, and DELETEs with none (so no content-type filter, which would refuse a request without a body).",
+            "rate_limit": { "requests": 120, "window_seconds": 60 },
+            "max_request_bytes": 1048576,
+            "detection": { "enabled": true }
+        },
+        "body_free_action": {
+            "description": "A POST or DELETE whose body, if any, is a small JSON object.",
+            "rate_limit": { "requests": 120, "window_seconds": 60 },
+            "max_request_bytes": 65536,
+            "detection": { "enabled": true }
+        },
+        "settings_write": {
+            "description": "Writing a setting (always a JSON body). The body isn't scanned: it is the operator's own settings (URLs, hosts, long lists), stored as JSON, and scanning a large one held core up for over a second, long enough for a service writing its seed data at startup to give up. A bot that fills the honeypot field is refused.",
+            "rate_limit": { "requests": 120, "window_seconds": 60 },
+            "allowed_content_types": ["application/json"],
+            "max_request_bytes": 1048576,
+            "detection": { "scan_body": false },
+            "honeypot_fields": ["website"],
+            "require_referrer": true
+        },
+        "config_upload": {
+            "description": "Uploading a whole config file: its content is the operator's own settings, so the body isn't scanned.",
+            "rate_limit": { "requests": 10, "window_seconds": 60 },
+            "allowed_content_types": ["multipart/form-data"],
+            "max_request_bytes": 5242880,
+            "detection": { "scan_body": false },
+            "require_referrer": true
+        },
+        "data_file_upload": {
+            "description": "Replacing a bundled data file (band plan, frequencies, repeaters, satellite radios, an SDR Manager config) with the operator's own JSON.",
+            "rate_limit": { "requests": 10, "window_seconds": 60 },
+            "max_request_bytes": 10485760,
+            "detection": { "scan_body": false }
+        },
+        "tle_input": {
+            "description": "Pasted or fetched TLE text: orbital elements, not prose, and a source URL.",
+            "rate_limit": { "requests": 20, "window_seconds": 60 },
+            "max_request_bytes": 5242880,
+            "detection": { "scan_body": false, "excluded_categories": ["ssrf"] }
+        },
+        "expensive_jobs": {
+            "description": "Work that costs minutes of CPU, disk or upstream quota: offline map extracts and estimates, TLE fetches, host tests.",
+            "rate_limit": { "requests": 30, "window_seconds": 60 },
+            "max_request_bytes": 65536,
+            "detection": { "enabled": true },
+            "monitors": [
+                { "kind": "usage", "threshold": 300, "window_seconds": 3600, "action": "log" }
+            ]
+        },
+        "pass_prediction": {
+            "description": "Satellite pass prediction (SGP4 over hours of orbit).",
+            "rate_limit": { "requests": 60, "window_seconds": 60 }
+        },
+        "radio_control": {
+            "description": "Connecting radios and starting decoders or recordings: each one retunes hardware.",
+            "rate_limit": { "requests": 60, "window_seconds": 60 },
+            "max_request_bytes": 65536,
+            "detection": { "enabled": true }
+        },
+        "secret_write": {
+            "description": "Setting or clearing a secret (the AISStream key).",
+            "rate_limit": { "requests": 10, "window_seconds": 60 },
+            "max_request_bytes": 4096,
+            "detection": { "scan_body": false }
+        },
+        "console_login": {
+            "description": "SDR Manager console sign-in and password change: brute-force target. Repeated failures ban the address.",
+            "rate_limit": { "requests": 10, "window_seconds": 60 },
+            "allowed_content_types": ["application/json"],
+            "max_request_bytes": 4096,
+            "detection": {
+                "enabled": true,
+                "excluded_body_fields": ["password", "new_password", "current_password"]
+            },
+            "monitors": [
+                {
+                    "kind": "return_pattern",
+                    "pattern": "status:401",
+                    "threshold": 10,
+                    "window_seconds": 900,
+                    "action": "ban"
+                }
+            ]
+        },
+        "decoder_ingest": {
+            "description": "Decoded events from a decoder. The body is text received over the air — anyone with a transmitter writes it — so it is never scanned, or a hostile packet would get the decoder banned.",
+            "bypass": ["rate_limit"],
+            "allowed_content_types": ["application/json"],
+            "max_request_bytes": 1048576,
+            "detection": { "scan_body": false },
+            "monitors": [
+                { "kind": "frequency", "threshold": 200, "window_seconds": 60, "action": "log" }
+            ]
+        },
+        "decoder_control": {
+            "description": "A decoder polling its config (every 2 s) or registering its manifest.",
+            "rate_limit": { "requests": 300, "window_seconds": 60 },
+            "max_request_bytes": 65536
+        },
+        "internal": {
+            "description": "Service-to-service routes behind a service credential.",
+            "rate_limit": { "requests": 600, "window_seconds": 60 }
+        },
+        "secrets": {
+            "description": "Secret settings, behind the owning service's credential.",
+            "rate_limit": { "requests": 60, "window_seconds": 60 },
+            "detection": { "scan_body": false },
+            "monitors": [
+                { "kind": "usage", "threshold": 600, "window_seconds": 3600, "action": "log" }
+            ]
+        }
+    },
+    "route_rules": [
+        {
+            "note": "API reference pages and schema: the operator's machine only.",
+            "paths": ["/api/docs", "/api/redoc", "/api/openapi.json", "/docs/oauth2-redirect"],
+            "methods": ["GET"],
+            "access": ["operator"]
+        },
+        {
+            "note": "Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator.",
+            "paths": ["/health"],
+            "methods": ["GET"],
+            "access": ["internal", "operator"],
+            "group": "health"
+        },
+        {
+            "note": "Guard status: GET it with a service credential (or use the CLI).",
+            "paths": ["/internal/security/status"],
+            "methods": ["GET"],
+            "access": ["service"],
+            "group": "internal"
+        },
+        {
+            "note": "Service registration and discovery (every service; sdr-manager-remote discovers sdr-manager-local).",
+            "paths": ["/internal/registry/register", "/internal/registry/services"],
+            "methods": ["GET", "POST"],
+            "access": ["service"],
+            "group": "internal"
+        },
+        {
+            "note": "Secret settings: Sea's AISStream key, read by the Sea service only.",
+            "paths": ["/internal/settings/secrets/{namespace}/{key}"],
+            "methods": ["GET", "PUT", "DELETE"],
+            "access": ["service"],
+            "group": "secrets"
+        },
+        {
+            "note": "Staged IQ captures, collected by the SDR section from the hub.",
+            "paths": ["/internal/radio-hub/iq-captures/{capture_id}"],
+            "methods": ["GET", "DELETE"],
+            "access": ["service"],
+            "group": "internal"
+        },
+        {
+            "note": "Anything else under /internal/ is for services: bare uvicorn would otherwise hand a GET to the SPA catch-all.",
+            "paths": ["/internal/**"],
+            "access": ["service"],
+            "group": "internal"
+        },
+
+        {
+            "note": "Notifications: the SSE stream, opened once per tab.",
+            "paths": ["/api/air/messages/stream"],
+            "methods": ["GET"],
+            "access": ["browser"],
+            "group": "streams"
+        },
+        {
+            "note": "Notifications: list, raise from the SPA, dismiss.",
+            "paths": ["/api/air/messages", "/api/air/messages/{msg_id}"],
+            "methods": ["GET", "POST", "DELETE"],
+            "access": ["browser"],
+            "group": "body_free_action"
+        },
+        {
+            "note": "Config file upload (Settings › Upload).",
+            "paths": ["/api/settings/config/upload"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "config_upload"
+        },
+        {
+            "note": "Config file preview and the live file's status (polled every 2 s).",
+            "paths": ["/api/settings/config/preview", "/api/settings/config/file-status"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+        {
+            "note": "Settings: the SPA, and every section through the settings client (no credential).",
+            "paths": ["/api/settings", "/api/settings/{namespace}"],
+            "methods": ["GET"],
+            "access": ["browser", "internal"]
+        },
+        {
+            "note": "Writing a setting: the SPA, and sections through the settings client.",
+            "paths": ["/api/settings/{namespace}/{key}"],
+            "methods": ["PUT"],
+            "access": ["browser", "internal"],
+            "group": "settings_write"
+        },
+        {
+            "note": "Resetting a setting to its default (no body).",
+            "paths": ["/api/settings/{namespace}/{key}"],
+            "methods": ["DELETE"],
+            "access": ["browser", "internal"],
+            "group": "body_free_action"
+        },
+        {
+            "note": "Offline map tiles (MapLibre fetches them from the page).",
+            "paths": [
+                "/api/offline-map/basemap/{zoom}/{tile_x}/{tile_y}",
+                "/api/offline-map/terrain/{zoom}/{tile_x}/{tile_y}"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"],
+            "group": "map_tiles"
+        },
+        {
+            "note": "Offline map downloads: estimating, starting and deleting a region.",
+            "paths": [
+                "/api/offline-map/estimate",
+                "/api/offline-map/regions",
+                "/api/offline-map/regions/{region_id}"
+            ],
+            "methods": ["POST", "DELETE"],
+            "access": ["browser"],
+            "group": "expensive_jobs"
+        },
+        {
+            "note": "Offline map status and regions (polled every 1.5 s during a download).",
+            "paths": [
+                "/api/offline-map/status",
+                "/api/offline-map/regions",
+                "/api/offline-map/regions/{region_id}"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+        {
+            "note": "The shell's boot data: sections, docs deployment, app mode.",
+            "paths": ["/api/app/sections", "/api/app/docs", "/api/app/mode"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Space: satellite pass prediction.",
+            "paths": [
+                "/api/space/iss/passes",
+                "/api/space/satellite/{norad_id}/passes",
+                "/api/space/passes"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"],
+            "group": "pass_prediction"
+        },
+        {
+            "note": "Space: pasted TLE text and TLE fetches from a source URL.",
+            "paths": ["/api/space/tle/manual", "/api/space/tle/fetch"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "tle_input"
+        },
+        {
+            "note": "Space: the satellite-radio data file.",
+            "paths": ["/api/space/radio/file"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "data_file_upload"
+        },
+        {
+            "note": "Space: recategorising and clearing TLEs.",
+            "paths": ["/api/space/tle/category", "/api/space/tle/satellite", "/api/space/tle"],
+            "methods": ["PATCH", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "Space: positions, day/night, TLE lists, the radio file.",
+            "paths": ["/api/space/**"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Land: the repeater data file.",
+            "paths": ["/api/land/repeaters/file"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "data_file_upload"
+        },
+        {
+            "note": "Land: APRS stations (polled every 5 s), repeaters.",
+            "paths": ["/api/land/**"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Air: tracked aircraft.",
+            "paths": ["/api/air/tracking", "/api/air/tracking/{hex}"],
+            "methods": ["POST", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "Air: aircraft (polled every 10 s), the online feed's quota, tracked aircraft.",
+            "paths": [
+                "/api/air/adsb/point/{lat}/{lon}/{radius}",
+                "/api/air/adsb/online-quota",
+                "/api/air/tracking"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+        {
+            "note": "Air: the ADS-B decoder polls its config through the gateway, without a credential.",
+            "paths": ["/api/sdr/adsb/config"],
+            "methods": ["GET"],
+            "access": ["internal"],
+            "group": "decoder_control"
+        },
+        {
+            "note": "Air: choosing the ADS-B source and leasing it.",
+            "paths": ["/api/sdr/adsb/source", "/api/sdr/adsb/claim"],
+            "methods": ["PUT", "POST", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "Air: the configured ADS-B source.",
+            "paths": ["/api/sdr/adsb/source"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Sea: setting or clearing the AISStream key.",
+            "paths": ["/api/sea/ais-key"],
+            "methods": ["PUT", "DELETE"],
+            "access": ["browser"],
+            "group": "secret_write"
+        },
+        {
+            "note": "Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set.",
+            "paths": ["/api/sea/**"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Radio hub: decoded events from decoders.",
+            "paths": [
+                "/api/sdr/decode/ingest",
+                "/api/sdr/aprs/ingest",
+                "/api/sdr/ais/ingest",
+                "/api/sdr/decoders/{kind}/ingest"
+            ],
+            "methods": ["POST"],
+            "access": ["decoder"],
+            "group": "decoder_ingest"
+        },
+        {
+            "note": "Radio hub: decoders polling their config and registering their manifest.",
+            "paths": [
+                "/api/sdr/decode/config",
+                "/api/sdr/aprs/config",
+                "/api/sdr/ais/config",
+                "/api/sdr/decoders/{kind}/config",
+                "/api/sdr/decoders/register"
+            ],
+            "methods": ["GET", "POST"],
+            "access": ["decoder"],
+            "group": "decoder_control"
+        },
+        {
+            "note": "Radio hub: starting and stopping decoders, connecting radios.",
+            "paths": [
+                "/api/sdr/aprs/start",
+                "/api/sdr/aprs/stop",
+                "/api/sdr/ais/start",
+                "/api/sdr/ais/stop",
+                "/api/sdr/decoders/{kind}/start",
+                "/api/sdr/decoders/{kind}/stop",
+                "/api/sdr/connect",
+                "/api/sdr/disconnect"
+            ],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "radio_control"
+        },
+        {
+            "note": "Radio hub: adding, editing and removing radios.",
+            "paths": ["/api/sdr/radios", "/api/sdr/radios/{radio_id}"],
+            "methods": ["POST", "PUT", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "Radio hub: radios, their status (polled every 3 s), decoder kinds and status.",
+            "paths": [
+                "/api/sdr/radios",
+                "/api/sdr/status/{radio_id}",
+                "/api/sdr/decoders",
+                "/api/sdr/decoders/{kind}/status/{radio_id}",
+                "/api/sdr/decode/status/{radio_id}",
+                "/api/sdr/aprs/status/{radio_id}",
+                "/api/sdr/ais/status/{radio_id}"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+        {
+            "note": "Radio hub: spectrum, IQ, control and decoded-audio sockets.",
+            "paths": ["/ws/sdr/**"],
+            "methods": ["WEBSOCKET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "SDR: starting and stopping recordings.",
+            "paths": ["/api/sdr/recordings/start", "/api/sdr/recordings/stop"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "radio_control"
+        },
+        {
+            "note": "SDR: the frequency and band-plan data files.",
+            "paths": ["/api/sdr/data/frequencies", "/api/sdr/data/bandplan"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "data_file_upload"
+        },
+        {
+            "note": "SDR: editing groups, frequencies, search ranges and recordings.",
+            "paths": [
+                "/api/sdr/groups",
+                "/api/sdr/groups/{group_id}",
+                "/api/sdr/frequencies",
+                "/api/sdr/frequencies/{freq_id}",
+                "/api/sdr/search-ranges",
+                "/api/sdr/search-ranges/{range_id}",
+                "/api/sdr/recordings/{rec_id}"
+            ],
+            "methods": ["POST", "PUT", "PATCH", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "SDR: groups, frequencies, search ranges, band plan, recordings and their files.",
+            "paths": [
+                "/api/sdr/groups",
+                "/api/sdr/frequencies",
+                "/api/sdr/search-ranges",
+                "/api/sdr/data/frequencies",
+                "/api/sdr/data/bandplan",
+                "/api/sdr/recordings",
+                "/api/sdr/recordings/{rec_id}/file",
+                "/api/sdr/recordings/{rec_id}/iq"
+            ],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "Docs: the library and its images.",
+            "paths": ["/api/documentation/library", "/api/documentation/images/{image_path:path}"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "SDR Manager (other machines): host connection tests reach out over the LAN.",
+            "paths": ["/api/sdr-manager/remote/hosts/{host_id}/test"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "expensive_jobs"
+        },
+        {
+            "note": "SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi.",
+            "paths": ["/api/sdr-manager/remote/**"],
+            "methods": ["POST", "PUT", "PATCH", "DELETE"],
+            "access": ["browser"],
+            "group": "json_write"
+        },
+        {
+            "note": "SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations.",
+            "paths": ["/api/sdr-manager/remote/**"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
+            "note": "SDR Manager (this machine): health, at both mounts (the gateway's and other machines').",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/health", "/api/health"],
+            "methods": ["GET"],
+            "access": ["browser", "peer", "internal", "operator"],
+            "group": "health"
+        },
+        {
+            "note": "SDR Manager (this machine): its API schema, published for managers built against it.",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/openapi.json", "/api/openapi.json"],
+            "methods": ["GET"],
+            "access": ["peer", "operator"]
+        },
+        {
+            "note": "SDR Manager (this machine): console sign-in and password change.",
+            "profiles": ["sdr_manager_local"],
+            "paths": [
+                "/api/sdr-manager/local/auth/login",
+                "/api/sdr-manager/local/auth/password",
+                "/api/auth/login",
+                "/api/auth/password"
+            ],
+            "methods": ["POST"],
+            "access": ["browser", "peer", "internal"],
+            "group": "console_login"
+        },
+        {
+            "note": "SDR Manager (this machine): its event stream.",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/events", "/api/events"],
+            "methods": ["GET"],
+            "access": ["browser", "peer", "internal"],
+            "group": "streams"
+        },
+        {
+            "note": "SDR Manager (this machine): importing a config.",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/config", "/api/config"],
+            "methods": ["POST"],
+            "access": ["browser", "peer", "internal"],
+            "group": "data_file_upload"
+        },
+        {
+            "note": "SDR Manager (this machine): signing out, managing devices, reservations and the hotspot.",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/**", "/api/**"],
+            "methods": ["POST", "PUT", "PATCH", "DELETE"],
+            "access": ["browser", "peer", "internal"],
+            "group": "json_write"
+        },
+        {
+            "note": "SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export.",
+            "profiles": ["sdr_manager_local"],
+            "paths": ["/api/sdr-manager/local/**", "/api/**"],
+            "methods": ["GET"],
+            "access": ["browser", "peer", "internal"]
+        },
+
+        {
+            "note": "Section UI remotes (Module Federation), served by each section; core answers 404.",
+            "paths": ["/remotes/**", "/remotes/{remote_path:path}"],
+            "methods": ["GET"],
+            "access": ["page"],
+            "group": "spa_shell"
+        },
+        {
+            "note": "Map assets, fonts, the hashed Vue bundle, the favicon.",
+            "paths": ["/assets/**", "/fonts/**", "/spa-assets/**", "/favicon.ico"],
+            "methods": ["GET"],
+            "access": ["page"],
+            "group": "spa_shell"
+        },
+        {
+            "note": "The SPA shell for every client-side route (vue-router). Last: it matches every GET.",
+            "paths": ["/{full_path:path}"],
+            "methods": ["GET"],
+            "access": ["page"],
+            "group": "spa_shell",
+            "fallback": true
+        }
+    ]
+}

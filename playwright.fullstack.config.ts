@@ -42,6 +42,9 @@ export default defineConfig({
     use: {
         baseURL,
         trace: 'on-first-retry',
+        // No extraHTTPHeaders here: they would reach the browser too, which
+        // refuses a request carrying Sec-Fetch-Site. The API fixture sends it
+        // instead (tests/e2e/support/test.ts).
     },
     projects: [
         {

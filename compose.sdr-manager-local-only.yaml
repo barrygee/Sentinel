@@ -46,6 +46,14 @@ services:
     depends_on: !override
       service-credentials:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  # The request guard's shared bans and counters, as in the full app.
+  redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
 
   # The one origin browsers use, as in the full app. It also serves core's TLS
   # service entrypoint (:8443), which sdr-manager-local registers through.
@@ -67,9 +75,19 @@ volumes:
   service_credentials:
   sdr_manager_local_data:
 
+# As docker-compose.yml's: `extends` copies a service, not the networks it joins.
 networks:
   sentinel:
     driver: bridge
+    # Pinned: the request guard trusts the gateway by its fixed address.
+    ipam:
+      config:
+        - subnet: ${SENTINEL_NETWORK_SUBNET:-172.28.0.0/24}
+          gateway: ${SENTINEL_NETWORK_HOST_ADDRESS:-172.28.0.1}
+          ip_range: ${SENTINEL_NETWORK_DYNAMIC_RANGE:-172.28.0.128/25}
+  guard_state:
+    driver: bridge
+    internal: true
   gateway_admin:
     driver: bridge
     internal: true

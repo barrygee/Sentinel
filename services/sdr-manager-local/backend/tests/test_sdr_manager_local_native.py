@@ -11,9 +11,14 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from backend.platform.security.access import AccessRules
+from backend.platform.security.policy import load_policy
+from backend.platform.security.route_inventory import iter_routes
+from fastapi import FastAPI
 
 from sentinel_sdr_manager_local import native
 from sentinel_sdr_manager_local.native import (
@@ -138,7 +143,34 @@ class TestNativeEnvironment:
             "SERVICE_HTTP_CREDENTIALS_FILE": str(credentials / "http-credentials.json"),
             "ACCEPTED_CALLERS_FILE": str(credentials / "accepted-callers.json"),
             "INTERNAL_CERTIFICATE_AUTHORITY_FILE": str(credentials / "certificate-authority.pem"),
+            "GUARD_PROFILE": "sdr_manager_local",
+            "GUARD_REDIS_URL": "",
+            "GUARD_REDIS_PASSWORD_FILE": "",
         }
+
+    def test_keeps_the_guard_in_memory_whatever_the_env_file_says(self, paths: NativePaths) -> None:
+        # .env is shared with the containers; their Redis is on a Docker network
+        # a Mac process can't reach, so its address must not leak through.
+        environment = native_environment(
+            paths,
+            {"GUARD_REDIS_URL": "redis://sentinel@redis:6379/0", "GUARD_PROFILE": "core"},
+        )
+
+        assert (environment["GUARD_PROFILE"], environment["GUARD_REDIS_URL"]) == ("sdr_manager_local", "")
+
+    def test_its_guard_profile_classifies_every_route_it_serves(
+        self, paths: NativePaths, sdr_manager_local_app_factory: Callable[[], FastAPI]
+    ) -> None:
+        # The guard refuses to start with an unclassified route, so a wrong
+        # profile here means the Mac's SDR Manager never starts.
+        rules = AccessRules(load_policy(), native_environment(paths, {})["GUARD_PROFILE"])
+        unclassified = [
+            f"{entry.method} {entry.path}"
+            for entry in iter_routes(sdr_manager_local_app_factory().routes)
+            if rules.explicit_rule_for(entry.method, entry.path) is None
+        ]
+
+        assert unclassified == []
 
     def test_passes_only_the_env_files_sdr_manager_local_settings(self, paths: NativePaths) -> None:
         environment = native_environment(

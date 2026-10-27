@@ -138,7 +138,10 @@ class TestImport:
         assert folders == resolve_folders(["radio-host"])
         callers = tmp_path / "credentials"
         for path in (core_credentials / "credentials" / "radio").iterdir():
-            assert (callers / "radio" / path.name).read_bytes() == path.read_bytes()
+            if path.name in bundle.KNOWN_FILES:
+                assert (callers / "radio" / path.name).read_bytes() == path.read_bytes()
+        # The request guard's Redis is core's alone: its password never leaves.
+        assert not (callers / "radio" / "guard-state-password").exists()
         assert _mode(callers / "radio" / "http-credentials.json") == 0o600
         assert _mode(callers / "radio" / "nats-credentials.json") == 0o600
         assert _mode(callers / "radio-host-gateway" / "private-key.pem") == 0o600

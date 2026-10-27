@@ -17,6 +17,8 @@ uv run --project backend pytest services/sections/air --cov=sentinel_air --cov-r
 - Format one file with `--config backend/pyproject.toml`, or it uses a different line length.
 - Coverage is measured on request, not gated. `.coveragerc` sets `concurrency = greenlet,thread`; without it, route bodies run through the TestClient show as uncovered.
 - mypy is informational, not a gate.
+- The [request guard](../security-guard.md) is off in the suite (`GUARD_ENABLED=false` in the root `conftest.py`): TestClient's client isn't an IP. Its own tests switch it on for the app they build.
+- `uv run --project backend python -m backend.scripts.guard_policy_artifacts --check` (CI runs it): every route of every service has a rule in the guard policy, and the policy schema and [access matrix](../reference/api-access-matrix.md) are current. Without `--check` it regenerates them.
 
 ## Frontend
 
@@ -46,4 +48,5 @@ npm run lint && npm run typecheck && npm run check:doc-links   # root tooling
 - **Stale preview server:** `lsof -ti :4173 | xargs kill`, rebuild, rerun.
 - **No Playwright browser:** `PLAYWRIGHT_CHANNEL=chrome`.
 - **Wrong Node:** `nvm use` in each terminal.
+- **Full-stack specs get 404 from the API:** their `request` fixture must send `Sec-Fetch-Site: same-origin`, as the SPA's fetches do (`playwright.fullstack.config.ts` sets it). Otherwise the request guard sees a script.
 - **CI `504` downloading go-pmtiles:** GitHub, not you. `gh run rerun <run-id> --failed`.

@@ -47,6 +47,13 @@ jobs:
         # section. Contracts live in backend/pyproject.toml [tool.importlinter].
         run: PYTHONPATH=. uv run --project backend lint-imports --config backend/pyproject.toml
 
+      - name: Request-guard policy (every route classified, generated files current)
+        # Loads every service's app and checks each route has a rule in
+        # backend/security/guard-policy.json (a service refuses to start with
+        # one that hasn't), and that the policy's JSON Schema and
+        # docs/reference/api-access-matrix.md match it.
+        run: uv run --project backend python -m backend.scripts.guard_policy_artifacts --check
+
       # socat lets test_decoder_adsb_entrypoint run the ADS-B decoder's real
       # pipeline (its stall timeout) instead of skipping.
       - name: Install socat
@@ -448,17 +455,23 @@ jobs:
       # Core's TLS service entrypoint (P7.5), for Sentinel processes on another
       # host: :8443 answers with a certificate the deployment CA issued for
       # `localhost`, refuses a client that doesn't trust that CA, and passes
-      # /internal/ through to the app (401 without a credential), unlike :8080.
+      # /internal/ through to the app, unlike :8080. Without a credential the
+      # request guard answers 404 (a caller that isn't a service can't tell the
+      # route exists); with a wrong one it reaches the app, which answers 401.
       - name: TLS service entrypoint
         run: |
           docker compose exec -T app cat /run/service-credentials/certificate-authority.pem > deployment-ca.pem
           health=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' https://localhost:8443/health)
           internal=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' \
             https://localhost:8443/internal/settings/secrets/sea/aisstreamApiKey)
+          internal_wrong_credential=$(curl -sS --cacert deployment-ca.pem -o /dev/null -w '%{http_code}' \
+            -H 'Authorization: Bearer not-a-credential' \
+            https://localhost:8443/internal/settings/secrets/sea/aisstreamApiKey)
           public_internal=$(curl -sS -o /dev/null -w '%{http_code}' \
             http://localhost:8080/internal/settings/secrets/sea/aisstreamApiKey)
-          echo "entrypoint /health $health, /internal/ $internal; public gateway /internal/ $public_internal"
-          if [ "$health" != 200 ] || [ "$internal" != 401 ] || [ "$public_internal" != 404 ]; then
+          echo "entrypoint /health $health, /internal/ $internal (wrong credential $internal_wrong_credential); public gateway /internal/ $public_internal"
+          if [ "$health" != 200 ] || [ "$internal" != 404 ] || [ "$internal_wrong_credential" != 401 ] \
+            || [ "$public_internal" != 404 ]; then
             echo "::error::the TLS service entrypoint answered unexpectedly"
             exit 1
           fi
@@ -480,13 +493,16 @@ jobs:
             [sdr-manager-local]=/api/sdr-manager/local/auth/state
           )
           services=$(echo "$SENTINEL_E2E_SECTIONS" | tr ',' '\n' | sed -n 's/:service$//p')
+          # What the SPA's own fetches send: the request guard answers the
+          # browser-only API with 404 to anything else (docs/security-guard.md).
+          browser_header='Sec-Fetch-Site: same-origin'
           all_registered() {
-            sections=$(curl -fsS http://localhost:8080/api/app/sections || return 1)
+            sections=$(curl -fsS -H "$browser_header" http://localhost:8080/api/app/sections || return 1)
             for service in $services; do
               # The radio hub is not a section, so it is never listed — only probed.
               if [ "$service" != radio ] && ! echo "$sections" | grep -q "\"id\":\"$service\""; then return 1; fi
               # JSON, not the SPA's index.html, which bare paths fall through to.
-              curl -fsS "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
+              curl -fsS -H "$browser_header" "http://localhost:8080${probe_path[$service]}" | grep -q '^[[{]' || return 1
             done
           }
           for attempt in $(seq 1 90); do

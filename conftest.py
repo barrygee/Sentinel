@@ -24,6 +24,10 @@ from backend.config import settings
 # checkout runs the suite. Real environment variables still
 # apply, as in CI. Must run before anything below imports the app.
 settings.__init__(_env_file=None)
+# No request guard on the apps under test: TestClient's client address is
+# `testclient`, not an IP, and every test would share one rate-limit budget.
+# The guard's own tests turn it on for the app they build.
+settings.guard_enabled = False
 
 from backend import models  # noqa: E402,F401 — register ORM models with Base
 

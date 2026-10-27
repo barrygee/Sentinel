@@ -85,6 +85,7 @@ class TestMain:
                     "port": port,
                     "log_config": SDR_MANAGER_LOCAL_LOGGING_CONFIG,
                     "log_level": "warning",
+                    "proxy_headers": False,
                 },
             )
         ]

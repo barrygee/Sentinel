@@ -1,0 +1,679 @@
+{
+  "$defs": {
+    "AccessClass": {
+      "additionalProperties": false,
+      "description": "How a caller class is recognised: where it calls from, and what it must send.",
+      "properties": {
+        "allow_missing_fetch_metadata": {
+          "default": true,
+          "title": "Allow Missing Fetch Metadata",
+          "type": "boolean"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "fetch_sites": {
+          "items": {
+            "enum": [
+              "same-origin",
+              "same-site",
+              "cross-site",
+              "none"
+            ],
+            "type": "string"
+          },
+          "title": "Fetch Sites",
+          "type": "array"
+        },
+        "networks": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Networks",
+          "type": "array"
+        },
+        "required_headers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Required Headers",
+          "type": "array"
+        }
+      },
+      "required": [
+        "description",
+        "networks"
+      ],
+      "title": "AccessClass",
+      "type": "object"
+    },
+    "BehaviorRule": {
+      "additionalProperties": false,
+      "description": "A usage, response-pattern or frequency rule over each client's recent requests.",
+      "properties": {
+        "action": {
+          "default": "log",
+          "enum": [
+            "ban",
+            "log",
+            "throttle",
+            "alert"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "ban_duration_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ban Duration Seconds"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pattern"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "title": "Threshold",
+          "type": "integer"
+        },
+        "type": {
+          "enum": [
+            "usage",
+            "return_pattern",
+            "frequency"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "window_seconds": {
+          "default": 3600,
+          "exclusiveMinimum": 0,
+          "title": "Window Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "threshold"
+      ],
+      "title": "BehaviorRule",
+      "type": "object"
+    },
+    "GroupDetection": {
+      "additionalProperties": false,
+      "description": "A route group's exceptions to attack detection.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Enabled"
+        },
+        "excluded_body_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Body Fields",
+          "type": "array"
+        },
+        "excluded_categories": {
+          "items": {
+            "enum": [
+              "xss",
+              "sqli",
+              "dir_traversal",
+              "path_traversal",
+              "cmd_injection",
+              "file_inclusion",
+              "ldap",
+              "xml",
+              "ssrf",
+              "nosql",
+              "file_upload",
+              "template",
+              "http_split",
+              "sensitive_file",
+              "cms_probing",
+              "recon",
+              "proto_pollution",
+              "code_injection",
+              "deserialization"
+            ],
+            "type": "string"
+          },
+          "title": "Excluded Categories",
+          "type": "array"
+        },
+        "excluded_headers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Headers",
+          "type": "array"
+        },
+        "excluded_params": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Params",
+          "type": "array"
+        },
+        "excluded_semantic_headers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Semantic Headers",
+          "type": "array"
+        },
+        "scan_body": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scan Body"
+        }
+      },
+      "title": "GroupDetection",
+      "type": "object"
+    },
+    "GroupGeo": {
+      "additionalProperties": false,
+      "description": "Country rules for a route group, applied only while country data is configured.",
+      "properties": {
+        "allowed_countries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Countries",
+          "type": "array"
+        },
+        "blocked_countries": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocked Countries",
+          "type": "array"
+        },
+        "rate_limits": {
+          "additionalProperties": {
+            "$ref": "#/$defs/RateLimit"
+          },
+          "title": "Rate Limits",
+          "type": "object"
+        }
+      },
+      "title": "GroupGeo",
+      "type": "object"
+    },
+    "Monitor": {
+      "additionalProperties": false,
+      "description": "A per-route usage, frequency or response-pattern monitor.",
+      "properties": {
+        "action": {
+          "default": "log",
+          "enum": [
+            "ban",
+            "log",
+            "throttle",
+            "alert"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "usage",
+            "frequency",
+            "return_pattern"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pattern"
+        },
+        "threshold": {
+          "exclusiveMinimum": 0,
+          "title": "Threshold",
+          "type": "number"
+        },
+        "window_seconds": {
+          "default": 3600,
+          "exclusiveMinimum": 0,
+          "title": "Window Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "threshold"
+      ],
+      "title": "Monitor",
+      "type": "object"
+    },
+    "RateLimit": {
+      "additionalProperties": false,
+      "description": "At most `requests` per `window_seconds`, per client address.",
+      "properties": {
+        "requests": {
+          "exclusiveMinimum": 0,
+          "title": "Requests",
+          "type": "integer"
+        },
+        "window_seconds": {
+          "default": 60,
+          "exclusiveMinimum": 0,
+          "title": "Window Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "requests"
+      ],
+      "title": "RateLimit",
+      "type": "object"
+    },
+    "RouteGroup": {
+      "additionalProperties": false,
+      "description": "The per-route protections shared by every route a rule assigns to this group.",
+      "properties": {
+        "allowed_content_types": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Content Types",
+          "type": "array"
+        },
+        "allowed_ips": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Allowed Ips",
+          "type": "array"
+        },
+        "authentication": {
+          "anyOf": [
+            {
+              "enum": [
+                "bearer",
+                "decoder_secret"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authentication"
+        },
+        "behavior_rules": {
+          "items": {
+            "$ref": "#/$defs/BehaviorRule"
+          },
+          "title": "Behavior Rules",
+          "type": "array"
+        },
+        "blocked_clouds": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocked Clouds",
+          "type": "array"
+        },
+        "blocked_ips": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocked Ips",
+          "type": "array"
+        },
+        "blocked_user_agents": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Blocked User Agents",
+          "type": "array"
+        },
+        "bypass": {
+          "items": {
+            "enum": [
+              "all",
+              "ip_ban",
+              "ip",
+              "clouds",
+              "rate_limit",
+              "penetration"
+            ],
+            "type": "string"
+          },
+          "title": "Bypass",
+          "type": "array"
+        },
+        "custom_validators": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Custom Validators",
+          "type": "array"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "detection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroupDetection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "geo": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GroupGeo"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "honeypot_fields": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Honeypot Fields",
+          "type": "array"
+        },
+        "max_request_bytes": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Request Bytes"
+        },
+        "monitors": {
+          "items": {
+            "$ref": "#/$defs/Monitor"
+          },
+          "title": "Monitors",
+          "type": "array"
+        },
+        "rate_limit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RateLimit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "require_headers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Require Headers",
+          "type": "object"
+        },
+        "require_https": {
+          "default": false,
+          "title": "Require Https",
+          "type": "boolean"
+        },
+        "require_referrer": {
+          "default": false,
+          "title": "Require Referrer",
+          "type": "boolean"
+        },
+        "time_window": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeWindow"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "description"
+      ],
+      "title": "RouteGroup",
+      "type": "object"
+    },
+    "RouteRule": {
+      "additionalProperties": false,
+      "description": "Who may call the routes matching `paths` + `methods`, and their protections.",
+      "properties": {
+        "access": {
+          "items": {
+            "enum": [
+              "page",
+              "browser",
+              "internal",
+              "service",
+              "decoder",
+              "peer",
+              "operator"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Access",
+          "type": "array"
+        },
+        "fallback": {
+          "default": false,
+          "title": "Fallback",
+          "type": "boolean"
+        },
+        "group": {
+          "default": "default",
+          "title": "Group",
+          "type": "string"
+        },
+        "methods": {
+          "items": {
+            "enum": [
+              "GET",
+              "HEAD",
+              "POST",
+              "PUT",
+              "PATCH",
+              "DELETE",
+              "OPTIONS",
+              "WEBSOCKET",
+              "*"
+            ],
+            "type": "string"
+          },
+          "title": "Methods",
+          "type": "array"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Paths",
+          "type": "array"
+        },
+        "profiles": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profiles",
+          "type": "array"
+        }
+      },
+      "required": [
+        "paths",
+        "access"
+      ],
+      "title": "RouteRule",
+      "type": "object"
+    },
+    "TimeWindow": {
+      "additionalProperties": false,
+      "description": "Only answer between `start` and `end` (HH:MM) in `timezone`.",
+      "properties": {
+        "end": {
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "title": "End",
+          "type": "string"
+        },
+        "start": {
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+          "title": "Start",
+          "type": "string"
+        },
+        "timezone": {
+          "default": "UTC",
+          "title": "Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "TimeWindow",
+      "type": "object"
+    }
+  },
+  "$id": "guard-policy.schema.json",
+  "additionalProperties": false,
+  "description": "The whole policy file.",
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "access_classes": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AccessClass"
+      },
+      "propertyNames": {
+        "enum": [
+          "page",
+          "browser",
+          "internal",
+          "service",
+          "decoder",
+          "peer",
+          "operator"
+        ]
+      },
+      "title": "Access Classes",
+      "type": "object"
+    },
+    "defaults": {
+      "additionalProperties": true,
+      "title": "Defaults",
+      "type": "object"
+    },
+    "profiles": {
+      "additionalProperties": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Profiles",
+      "type": "object"
+    },
+    "route_groups": {
+      "additionalProperties": {
+        "$ref": "#/$defs/RouteGroup"
+      },
+      "title": "Route Groups",
+      "type": "object"
+    },
+    "route_rules": {
+      "items": {
+        "$ref": "#/$defs/RouteRule"
+      },
+      "title": "Route Rules",
+      "type": "array"
+    },
+    "version": {
+      "const": 1,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "version",
+    "defaults",
+    "profiles",
+    "access_classes",
+    "route_groups",
+    "route_rules"
+  ],
+  "title": "Sentinel request-guard policy",
+  "type": "object"
+}

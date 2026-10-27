@@ -48,3 +48,7 @@ decoder/build/
 
 # Your own compose overrides (docs/configuration.md)
 docker-compose.override.yml
+
+# The request guard's IPInfo country database (downloaded when GUARD_IPINFO_TOKEN is set)
+backend/ipinfo/
+*.mmdb
