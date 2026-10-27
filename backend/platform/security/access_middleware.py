@@ -12,14 +12,23 @@ fastapi-guard's HTTP middleware never sees WebSocket handshakes, so for those
 this layer also runs fastapi-guard's WebSocket checks (bans, allow/deny lists,
 its connection rate limit, detection on the handshake) before the endpoint
 accepts.
+
+A request for a route the policy knows but this process doesn't serve is
+answered 503, not the 404 the app would give. It reaches the wrong service
+only while the gateway's routes catch up — after core restarts, each service
+re-registers in its own time — and a burst of 404s there would get every
+client still polling (decoders, open browsers) banned as a scanner.
 """
 
 from __future__ import annotations
 
 import logging
+import re
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 
-from backend.platform.security.access import AccessRules
-from backend.platform.security.route_inventory import WEBSOCKET_METHOD
+from backend.platform.security.access import AccessRules, compile_path_pattern
+from backend.platform.security.route_inventory import WEBSOCKET_METHOD, RouteEntry
 from guard import SecurityConfig, make_guard_websocket
 from guard.adapters import StarletteGuardRequest
 from guard_core.utils import extract_client_ip
@@ -33,6 +42,36 @@ from starlette.websockets import WebSocket
 
 logger = logging.getLogger("sentinel.guard")
 
+# How long a client should wait before asking again while routes catch up.
+NOT_SERVED_RETRY_AFTER_SECONDS = "5"
+
+
+@dataclass
+class ServedRoutes:
+    """The method + path patterns this process serves, known once its routes are classified at startup.
+
+    Until then (`known` is False) every route counts as served, so nothing
+    is turned away on a guess.
+    """
+
+    known: bool = False
+    _patterns: list[tuple[frozenset[str], re.Pattern[str]]] = field(default_factory=list)
+
+    def learn(self, entries: Iterable[RouteEntry]) -> None:
+        """Record every route `entries` lists (the process's own, from `iter_routes`)."""
+        by_path: dict[str, set[str]] = {}
+        for entry in entries:
+            by_path.setdefault(entry.path, set()).add(entry.method)
+        self._patterns = [(frozenset(methods), compile_path_pattern(path)) for path, methods in by_path.items()]
+        self.known = True
+
+    def serves(self, method: str, path: str) -> bool:
+        """Whether one of this process's routes answers `method` on `path` (HEAD counts as GET)."""
+        if not self.known:
+            return True
+        wanted = {method, "GET"} if method == "HEAD" else {method}
+        return any(methods & wanted and pattern.fullmatch(path) for methods, pattern in self._patterns)
+
 
 class AccessControlMiddleware:
     """Refuse every request whose route rule doesn't admit its caller, as a 404."""
@@ -44,12 +83,18 @@ class AccessControlMiddleware:
         access_rules: AccessRules,
         security_config: SecurityConfig,
         enforce: bool,
+        served_routes: ServedRoutes | None = None,
     ) -> None:
-        """`enforce=False` logs refusals and lets them through (GUARD_ACCESS_ENFORCEMENT=log)."""
+        """`enforce=False` logs refusals and lets them through (GUARD_ACCESS_ENFORCEMENT=log).
+
+        `served_routes` is filled at startup with this process's routes; a
+        known route not among them is answered 503.
+        """
         self.app = app
         self.access_rules = access_rules
         self.security_config = security_config
         self.enforce = enforce
+        self.served_routes = served_routes or ServedRoutes()
         self._guard_websocket = make_guard_websocket(security_config)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -75,9 +120,21 @@ class AccessControlMiddleware:
             if self.enforce:
                 await self._refuse(scope, receive, send, is_websocket)
                 return
+        if rule is not None and not is_websocket and not self.served_routes.serves(method, path):
+            await self._not_served_here(scope, receive, send, method, path)
+            return
         if is_websocket and not await self._websocket_checks_pass(scope, receive, send):
             return
         await self.app(scope, receive, send)
+
+    async def _not_served_here(self, scope: Scope, receive: Receive, send: Send, method: str, path: str) -> None:
+        logger.info("guard: %s %s is another service's route; answering 503 until the gateway catches up", method, path)
+        response = JSONResponse(
+            {"detail": "This route's service is unavailable; try again shortly"},
+            status_code=503,
+            headers={"Cache-Control": "no-store", "Retry-After": NOT_SERVED_RETRY_AFTER_SECONDS},
+        )
+        await response(scope, receive, send)
 
     async def _refuse(self, scope: Scope, receive: Receive, send: Send, is_websocket: bool) -> None:
         if is_websocket:

@@ -16,14 +16,15 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI, WebSocket
-from guard import PureASGISecurityMiddleware, SecurityMiddleware
+from guard import PureASGISecurityMiddleware, SecurityMiddleware, ip_ban_manager
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from backend.platform.security import install as install_module
-from backend.platform.security.access_middleware import AccessControlMiddleware
+from backend.platform.security.access_middleware import AccessControlMiddleware, ServedRoutes
 from backend.platform.security.install import STATUS_PATH, install_request_guard
 from backend.platform.security.route_groups import RouteClassificationError
+from backend.platform.security.route_inventory import RouteEntry
 from tests.backend.request_guard_helpers import (
     INTERNAL_ADDRESS,
     INTERNET_ADDRESS,
@@ -443,3 +444,121 @@ class TestInstall:
         paths = [getattr(route, "path", None) for route in guarded_app().routes]
 
         assert paths.index(STATUS_PATH) < paths.index("/{full_path:path}")
+
+
+@pytest.fixture
+def no_bans() -> Iterator[None]:
+    """fastapi-guard keeps one ban manager per process: start and end each test with none."""
+    ip_ban_manager.banned_ips.clear()
+    ip_ban_manager.banned_networks = []
+    yield
+    ip_ban_manager.banned_ips.clear()
+    ip_ban_manager.banned_networks = []
+
+
+def scanner_rule_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, serve_puts: bool = True) -> FastAPI:
+    """The test app under a strict scanner rule: 3 404s in a minute bans for an hour.
+
+    Sentinel's own network isn't exempt here, so only the ban rules can keep it unbanned.
+    """
+    data = minimal_policy_data()
+    data["defaults"]["behavior_rules"] = [
+        {
+            "type": "return_pattern",
+            "pattern": "status:404",
+            "threshold": 3,
+            "window_seconds": 60,
+            "action": "ban",
+            "ban_duration_seconds": 3600,
+        }
+    ]
+    pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), guard_exempt_ips="192.0.2.1")
+    app = build_app()
+    if not serve_puts:
+        app.router.routes = [route for route in app.router.routes if "PUT" not in getattr(route, "methods", set())]
+    install_request_guard(app, service_name="core")
+    return app
+
+
+@pytest.mark.usefixtures("no_bans")
+class TestRestartsBanNobody:
+    def test_a_route_served_by_another_service_is_a_503(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        # While the gateway catches up after core restarts, a request can land
+        # on a service that doesn't serve it.
+        app = scanner_rule_app(monkeypatch, tmp_path, serve_puts=False)
+        with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            response = client.put("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert response.status_code == 503
+        assert response.json() == {"detail": "This route's service is unavailable; try again shortly"}
+        assert (response.headers["retry-after"], response.headers["cache-control"]) == ("5", "no-store")
+
+    def test_a_browser_polling_through_a_route_gap_is_not_banned(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        app = scanner_rule_app(monkeypatch, tmp_path, serve_puts=False)
+        with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            statuses = {client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).status_code for _ in range(10)}
+            afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert statuses == {503}
+        assert afterwards.status_code == 200
+
+    def test_sentinels_own_process_is_never_banned_even_for_real_404s(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)) as client:
+            statuses = {client.post("/no-such-route").status_code for _ in range(10)}
+            afterwards = client.get("/health")
+
+        assert statuses == {404}
+        assert afterwards.status_code == 200
+        assert INTERNAL_ADDRESS not in ip_ban_manager.banned_ips
+
+    def test_a_client_repeating_404s_is_still_banned(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        # fastapi-guard counts a 404 rule per path, so the repeats are on one.
+        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            probes = [client.post("/no-such-route").status_code for _ in range(4)]
+            afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert probes[:3] == [404, 404, 404]
+        assert afterwards.status_code == 403
+        assert LAN_BROWSER_ADDRESS in ip_ban_manager.banned_ips
+
+    def test_a_route_the_app_serves_still_answers_normally(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            assert client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).json() == {"saved": "7"}
+
+    def test_a_catch_all_serves_whatever_it_matches(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        # Core's SPA catch-all answers any GET, so core never says 503 for one.
+        app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+        @app.get("/health")
+        async def health() -> dict[str, str]:
+            return {"status": "ok"}
+
+        @app.get("/{full_path:path}")
+        async def shell(full_path: str) -> dict[str, str]:
+            return {"page": full_path}
+
+        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path)))
+        install_request_guard(app, service_name="core")
+        with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            response = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert (response.status_code, response.json()) == (200, {"page": "api/things/7"})
+
+
+class TestServedRoutes:
+    def test_until_routes_are_known_everything_counts_as_served(self) -> None:
+        assert ServedRoutes().serves("DELETE", "/anything")
+
+    def test_head_counts_as_get(self) -> None:
+        served = ServedRoutes()
+        served.learn([RouteEntry("GET", "/api/things/{thing_id}", None)])
+
+        assert served.serves("HEAD", "/api/things/7")
+        assert not served.serves("PUT", "/api/things/7")
+        assert not served.serves("GET", "/api/other")

@@ -10,8 +10,8 @@ Sentinel has no user logins, so the guard can't tell people apart. It goes by **
 |---|---|---|
 | Who may call what | On | Each route is for some callers only (below). Anyone else gets `404`, the same as for a route that doesn't exist. A route the policy doesn't mention can't be called by anyone, and a service with one won't start. |
 | Rate limits | On | 1200 requests a minute per client address, and tighter limits on costly routes. Over the limit: `429` with `Retry-After`. Map tiles, decoder events and the app shell aren't limited. |
-| Automatic bans | On | 10 attacks in an hour gets an address banned for an hour. SQL, command or code injection gets 3 strikes and a day. Also banned: 20 rate-limit refusals, or bursts of `404`, `401` or `403` (scanning, guessing passwords). |
-| Attack detection | On | Query strings, headers and JSON bodies are checked for 19 kinds of attack (XSS, SQL injection, path traversal, SSRF…). Text received over the air is never checked, so a hostile radio message can't get a decoder banned. |
+| Automatic bans | On | 10 attacks in an hour gets an address banned for an hour. SQL, command or code injection gets 3 strikes and a day. Also banned: 20 rate-limit refusals, or bursts of `404`, `401` or `403` on one route (probing, guessing passwords). Sentinel's own containers are never banned, and restarting a service bans nobody. |
+| Attack detection | On | Query strings, headers and JSON bodies are checked for 18 kinds of attack (XSS, SQL injection, path traversal…). Not SSRF: Sentinel is meant to reach addresses on your network, and your browser's own address would look like one. Text received over the air is never checked, so a hostile radio message can't get a decoder banned. |
 | Scanner blocking | On | Known attack tools (sqlmap, nikto, nmap, nuclei…) are refused by user agent. |
 | Security headers | On | `X-Content-Type-Options`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy`, `Permissions-Policy` (location allowed for the map, no camera or microphone). The app shell's own CSP is unchanged. |
 | Request checks | On | Content type, size limits, and a honeypot field on settings writes. |
@@ -73,7 +73,9 @@ docker compose exec app python -m backend.platform.security.cli unban 192.168.1.
 docker compose exec app python -m backend.platform.security.cli ban 192.168.1.50 --seconds 86400
 ```
 
-Bans are shared, so lifting one from `app` lifts it everywhere. The guard never bans the gateway or the machine itself. To always let an address in, add it to `GUARD_IP_ALLOWLIST`; to always refuse one, use `GUARD_IP_BLOCKLIST`.
+Bans are shared, so lifting one from `app` lifts it on every service at its next request. The guard never bans the gateway, the machine itself or Sentinel's own containers: their addresses change when they restart, and their credentials hold them anyway.
+
+Restarting a service bans nobody. While core restarts, the gateway takes a few seconds to learn every service's routes again; a request that reaches the wrong service in that time gets `503` (try again), not `404`, so it doesn't count towards a ban. To always let an address in, add it to `GUARD_IP_ALLOWLIST`; to always refuse one, use `GUARD_IP_BLOCKLIST`.
 
 ## Something is refused that shouldn't be
 

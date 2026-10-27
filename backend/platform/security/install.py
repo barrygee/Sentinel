@@ -25,7 +25,8 @@ from typing import Any
 
 from backend.config import settings
 from backend.platform.security.access import AccessRules
-from backend.platform.security.access_middleware import AccessControlMiddleware
+from backend.platform.security.access_middleware import AccessControlMiddleware, ServedRoutes
+from backend.platform.security.bans import install_ban_rules
 from backend.platform.security.config_builder import build_security_config, cloud_enabled, geo_enabled
 from backend.platform.security.fail_open import make_behavior_tracking_fail_open
 from backend.platform.security.policy import GuardPolicy, load_policy
@@ -33,7 +34,7 @@ from backend.platform.security.route_groups import apply_route_groups
 from backend.platform.security.route_inventory import iter_routes
 from backend.platform.service_credentials import accepts_callers, identify_caller
 from fastapi import Depends, FastAPI, Header, HTTPException
-from guard import PureASGISecurityMiddleware, SecurityConfig, SecurityDecorator, SecurityMiddleware
+from guard import PureASGISecurityMiddleware, SecurityConfig, SecurityDecorator, SecurityMiddleware, ip_ban_manager
 from guard.lifespan import make_lifespan
 
 logger = logging.getLogger("sentinel.guard")
@@ -43,15 +44,23 @@ _BEARER_PREFIX = "Bearer "
 
 
 def classify_and_protect_routes(
-    app: FastAPI, policy: GuardPolicy, access_rules: AccessRules, route_guard: SecurityDecorator
+    app: FastAPI,
+    policy: GuardPolicy,
+    access_rules: AccessRules,
+    route_guard: SecurityDecorator,
+    served_routes: ServedRoutes,
 ) -> dict[str, str]:
     """Check every route of `app` has a rule, and apply each group's protections.
 
-    Returns `{endpoint: group}`. Raises `RouteClassificationError` for a
-    route no rule covers.
+    Records the routes in `served_routes`, so the access layer can tell a
+    route served here from one served by another service. Returns
+    `{endpoint: group}`. Raises `RouteClassificationError` for a route no
+    rule covers.
     """
+    entries = list(iter_routes(app.routes))
+    served_routes.learn(entries)
     groups = apply_route_groups(
-        iter_routes(app.routes),
+        entries,
         policy,
         access_rules,
         route_guard,
@@ -83,6 +92,8 @@ def install_request_guard(app: FastAPI, *, service_name: str) -> None:
     if security_config.redis_fail_open:
         # fastapi-guard's behaviour rules use this tracker, global and per route.
         make_behavior_tracking_fail_open(route_guard.behavior_tracker)
+    install_ban_rules(ip_ban_manager)
+    served_routes = ServedRoutes()
 
     # Starlette runs the last-added middleware first: fastapi-guard, then access.
     app.add_middleware(
@@ -90,6 +101,7 @@ def install_request_guard(app: FastAPI, *, service_name: str) -> None:
         access_rules=access_rules,
         security_config=security_config,
         enforce=settings.guard_access_enforcement == "enforce" and not settings.guard_passive_mode,
+        served_routes=served_routes,
     )
     if profile.middleware == "pure_asgi":
         app.add_middleware(PureASGISecurityMiddleware, config=security_config)
@@ -103,7 +115,7 @@ def install_request_guard(app: FastAPI, *, service_name: str) -> None:
 
     @asynccontextmanager
     async def guarded_lifespan(served_app: Any) -> AsyncIterator[Any]:
-        classify_and_protect_routes(app, policy, access_rules, route_guard)
+        classify_and_protect_routes(app, policy, access_rules, route_guard, served_routes)
         async with guard_startup(served_app), app_lifespan(served_app) as state:
             yield state
 
