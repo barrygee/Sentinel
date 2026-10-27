@@ -14,6 +14,7 @@ Profile `core`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/openapi.json` | `operator` | `default` | API reference pages and schema: the operator's machine only. |
 | GET | `/api/docs` | `operator` | `default` | API reference pages and schema: the operator's machine only. |
 | GET | `/docs/oauth2-redirect` | `operator` | `default` | API reference pages and schema: the operator's machine only. |
@@ -53,7 +54,6 @@ Profile `core`.
 | GET | `/spa-assets/**` | `page` | `spa_shell` | Map assets, fonts, the hashed Vue bundle, the favicon. |
 | GET | `/remotes/{remote_path:path}` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 | GET | `/{full_path:path}` | `page` | `spa_shell` | The SPA shell for every client-side route (vue-router). Last: it matches every GET. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Space (`space`)
 
@@ -61,6 +61,7 @@ Profile `section`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/space/iss` | `browser` | `default` | Space: positions, day/night, TLE lists, the radio file. |
 | GET | `/api/space/satellite/{norad_id}` | `browser` | `default` | Space: positions, day/night, TLE lists, the radio file. |
 | GET | `/api/space/iss/passes` | `browser` | `pass_prediction` | Space: satellite pass prediction. |
@@ -79,7 +80,6 @@ Profile `section`.
 | DELETE | `/api/space/tle` | `browser` | `json_write` | Space: recategorising and clearing TLEs. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/space/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Land (`land`)
 
@@ -87,13 +87,13 @@ Profile `section`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/land/aprs/stations` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | GET | `/api/land/repeaters` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | GET | `/api/land/repeaters/file` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | POST | `/api/land/repeaters/file` | `browser` | `data_file_upload` | Land: the repeater data file. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/land/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Air (`air`)
 
@@ -101,6 +101,7 @@ Profile `section`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/air/adsb/point/{lat}/{lon}/{radius}` | `browser` | `default` | Air: aircraft (polled every 10 s), the online feed's quota, tracked aircraft. |
 | GET | `/api/air/adsb/online-quota` | `browser` | `default` | Air: aircraft (polled every 10 s), the online feed's quota, tracked aircraft. |
 | GET | `/api/air/tracking` | `browser` | `default` | Air: aircraft (polled every 10 s), the online feed's quota, tracked aircraft. |
@@ -114,7 +115,6 @@ Profile `section`.
 | GET | `/api/sdr/adsb/config` | `internal` | `decoder_control` | Air: the ADS-B decoder polls its config through the gateway, without a credential. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/air/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Sea (`sea`)
 
@@ -122,6 +122,7 @@ Profile `section`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sea/vessels` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
 | GET | `/api/sea/vessels/{mmsi}/track` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
 | GET | `/api/sea/status` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
@@ -130,7 +131,6 @@ Profile `section`.
 | DELETE | `/api/sea/ais-key` | `browser` | `secret_write` | Sea: setting or clearing the AISStream key. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sea/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## SDR (`sdr`)
 
@@ -138,6 +138,7 @@ Profile `section`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sdr/groups` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
 | POST | `/api/sdr/groups` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | PUT | `/api/sdr/groups/{group_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
@@ -164,7 +165,6 @@ Profile `section`.
 | GET | `/api/sdr/recordings/{rec_id}/iq` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sdr/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Radio hub (`radio`)
 
@@ -172,6 +172,7 @@ Profile `radio_hub`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sdr/radios` | `browser` | `default` | Radio hub: radios, their status (polled every 3 s), decoder kinds and status. |
 | POST | `/api/sdr/radios` | `browser` | `json_write` | Radio hub: adding, editing and removing radios. |
 | PUT | `/api/sdr/radios/{radio_id}` | `browser` | `json_write` | Radio hub: adding, editing and removing radios. |
@@ -206,7 +207,6 @@ Profile `radio_hub`.
 | GET | `/internal/radio-hub/iq-captures/{capture_id}` | `service` | `internal` | Staged IQ captures, collected by the SDR section from the hub. |
 | DELETE | `/internal/radio-hub/iq-captures/{capture_id}` | `service` | `internal` | Staged IQ captures, collected by the SDR section from the hub. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## Docs (`docs`)
 
@@ -214,10 +214,10 @@ Profile `docs`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/documentation/library` | `browser` | `default` | Docs: the library and its images. |
 | GET | `/api/documentation/images/{image_path:path}` | `browser` | `default` | Docs: the library and its images. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## SDR Manager, other machines (`sdr-manager-remote`)
 
@@ -225,6 +225,7 @@ Profile `sdr_manager_remote`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sdr-manager/remote/hosts` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
 | POST | `/api/sdr-manager/remote/hosts` | `browser` | `json_write` | SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi. |
 | GET | `/api/sdr-manager/remote/hosts/locations` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
@@ -248,7 +249,6 @@ Profile `sdr_manager_remote`.
 | GET | `/api/sdr-manager/remote/hosts/{host_id}/wifi/clients` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sdr-manager-remote/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 
 ## SDR Manager, this machine (`sdr-manager-local`)
 
@@ -256,9 +256,9 @@ Profile `sdr_manager_local`.
 
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
+| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sdr-manager-local/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
-| GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sdr-manager/local/openapi.json` | `peer`, `operator` | `default` | SDR Manager (this machine): its API schema, published for managers built against it. |
 | GET | `/api/sdr-manager/local/health` | `browser`, `peer`, `internal`, `operator` | `health` | SDR Manager (this machine): health, at both mounts (the gateway's and other machines'). |
 | GET | `/api/sdr-manager/local/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
