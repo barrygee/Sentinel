@@ -258,3 +258,30 @@ class TestLoading:
 
         with pytest.raises(json.JSONDecodeError):
             read_policy(path)
+
+
+class TestBlockedUserAgents:
+    def test_are_plain_words(self) -> None:
+        settings_for = minimal_policy_data()
+        settings_for["defaults"]["blocked_user_agents"] = ["sqlmap", "Nikto", "go-http-client", "w3af 1.0"]
+
+        assert GuardPolicy.model_validate(settings_for).profile_settings("core").blocked_user_agents == [
+            "sqlmap",
+            "Nikto",
+            "go-http-client",
+            "w3af 1.0",
+        ]
+
+    @pytest.mark.parametrize("pattern", ["(?i)sqlmap", "nikto.*", "^nmap", "a", "sql|map", ""])
+    def test_regex_syntax_is_refused(self, pattern: str) -> None:
+        data = minimal_policy_data()
+        data["defaults"]["blocked_user_agents"] = [pattern]
+
+        with pytest.raises(ValidationError, match="blocked_user_agents"):
+            GuardPolicy.model_validate(data)
+
+    def test_the_shipped_policy_blocks_scanners_by_word(self) -> None:
+        words = read_policy(DEFAULT_POLICY_PATH).profile_settings("core").blocked_user_agents
+
+        assert "sqlmap" in words and "nikto" in words
+        assert all("(" not in word and "?" not in word for word in words)

@@ -60,6 +60,9 @@ GuardCheck = Literal["all", "ip_ban", "ip", "clouds", "rate_limit", "penetration
 
 PositiveInt = Annotated[int, Field(gt=0)]
 
+UserAgentWord = Annotated[str, Field(min_length=2, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9._\- ]*$")]
+"""A word a blocked User-Agent contains: letters, digits, `.`, `_`, `-` and spaces, no regex syntax."""
+
 
 class _Strict(BaseModel):
     """Base for every policy model: unknown keys are an error, values are immutable."""
@@ -191,7 +194,12 @@ class ProfileSettings(_Strict):
     middleware: Literal["classic", "pure_asgi"] = "classic"
     rate_limit: RateLimit
     auto_ban: AutoBan = Field(default_factory=AutoBan)
-    blocked_user_agents: list[str] = Field(default_factory=list)
+    # Scanning tools: a request whose User-Agent contains one of these words
+    # (any case) is refused by Sentinel's access layer. Plain words, not
+    # regexes: fastapi-guard checks each regex for ReDoS in a subprocess with a
+    # 0.5 s limit, which a busy machine or a Raspberry Pi can miss, and the
+    # service then refuses to start.
+    blocked_user_agents: list[UserAgentWord] = Field(default_factory=list)
     detection: Detection = Field(default_factory=Detection)
     # Skip attack detection and behaviour tracking (bans and limits still apply).
     exclude_paths: list[str] = Field(default_factory=list)

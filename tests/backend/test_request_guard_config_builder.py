@@ -21,7 +21,7 @@ from backend.platform.security.config_builder import (
     geo_enabled,
     redis_url,
 )
-from backend.platform.security.policy import ProfileSettings
+from backend.platform.security.policy import DEFAULT_POLICY_PATH, ProfileSettings, read_policy
 from tests.backend.request_guard_helpers import minimal_policy, minimal_policy_data, pin_guard_settings
 
 
@@ -268,3 +268,23 @@ class TestBuildSecurityConfig:
 
         with pytest.raises(ValueError):
             build_security_config(profile(), service_name="core")
+
+
+class TestBlockedUserAgents:
+    def test_fastapi_guard_gets_none_because_sentinel_checks_them(self) -> None:
+        config = build_security_config(profile(blocked_user_agents=["sqlmap", "nikto"]), service_name="core")
+
+        assert config.blocked_user_agents == []
+
+    def test_startup_runs_no_regex_safety_check(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # fastapi-guard checks each regex in a subprocess with a 0.5 s limit; a
+        # busy machine or a Pi missed it and the service refused to start.
+        from guard_core.detection_engine.compiler import PatternCompiler
+
+        def refuse(*arguments: object, **options: object) -> None:
+            raise AssertionError("a user-agent regex was validated at startup")
+
+        monkeypatch.setattr(PatternCompiler, "validate_pattern_safety", refuse)
+        shipped = read_policy(DEFAULT_POLICY_PATH).profile_settings("core")
+
+        build_security_config(shipped, service_name="core")
