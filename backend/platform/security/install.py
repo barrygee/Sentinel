@@ -103,6 +103,7 @@ def install_request_guard(app: FastAPI, *, service_name: str) -> None:
         security_config=security_config,
         enforce=settings.guard_access_enforcement == "enforce" and not settings.guard_passive_mode,
         served_routes=served_routes,
+        blocked_user_agents=profile.blocked_user_agents,
     )
     if profile.middleware == "pure_asgi":
         app.add_middleware(PureASGISecurityMiddleware, config=security_config)

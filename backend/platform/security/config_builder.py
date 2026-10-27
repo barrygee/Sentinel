@@ -151,7 +151,10 @@ def build_security_config(profile: ProfileSettings, *, service_name: str) -> Sec
         "auto_ban_duration": auto_ban.duration_seconds,
         "enable_rate_limit_auto_ban": auto_ban.count_rate_limit_violations,
         "threat_ban_config": threat_bans,
-        "blocked_user_agents": list(profile.blocked_user_agents),
+        # Sentinel's access layer refuses the policy's scanner words itself
+        # (AccessControlMiddleware): fastapi-guard would check each as a regex
+        # in a timed subprocess at startup, which a slow machine can fail.
+        "blocked_user_agents": [],
         # Attack detection.
         "enable_penetration_detection": detection.enabled,
         "detection_scan_body": detection.scan_body,

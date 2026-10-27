@@ -28,6 +28,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from backend.platform.security.access import AccessRules, compile_path_pattern
+from backend.platform.security.networks import address_in, parse_networks
 from backend.platform.security.route_inventory import WEBSOCKET_METHOD, RouteEntry
 from guard import SecurityConfig, make_guard_websocket
 from guard.adapters import StarletteGuardRequest
@@ -84,17 +85,22 @@ class AccessControlMiddleware:
         security_config: SecurityConfig,
         enforce: bool,
         served_routes: ServedRoutes | None = None,
+        blocked_user_agents: Iterable[str] = (),
     ) -> None:
         """`enforce=False` logs refusals and lets them through (GUARD_ACCESS_ENFORCEMENT=log).
 
         `served_routes` is filled at startup with this process's routes; a
-        known route not among them is answered 503.
+        known route not among them is answered 503. A request whose
+        User-Agent contains one of `blocked_user_agents` (any case) is
+        refused with 403, except from the exempt addresses.
         """
         self.app = app
         self.access_rules = access_rules
         self.security_config = security_config
         self.enforce = enforce
         self.served_routes = served_routes or ServedRoutes()
+        self.blocked_user_agents = tuple(word.lower() for word in blocked_user_agents)
+        self._exempt_networks = parse_networks(security_config.exempt_ips or ())
         self._guard_websocket = make_guard_websocket(security_config)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -106,6 +112,17 @@ class AccessControlMiddleware:
         path = get_route_path(scope)
         request = Request(scope) if not is_websocket else WebSocket(scope, receive, send)
         client_ip = await extract_client_ip(StarletteGuardRequest(request), self.security_config)  # type: ignore[arg-type]
+        if self._blocked_scanner(request.headers.get("user-agent", ""), client_ip):
+            logger.warning(
+                "guard %s: %s %s from %s (user_agent: a scanning tool)",
+                "would block" if self.security_config.passive_mode else "blocked",
+                method,
+                path,
+                client_ip,
+            )
+            if not self.security_config.passive_mode:
+                await self._refuse_scanner(scope, receive, send, is_websocket)
+                return
         rule = self.access_rules.rule_for(method, path)
         allowed = rule is not None and self.access_rules.allows(rule, client_ip, request.headers)
         if not allowed:
@@ -126,6 +143,19 @@ class AccessControlMiddleware:
         if is_websocket and not await self._websocket_checks_pass(scope, receive, send):
             return
         await self.app(scope, receive, send)
+
+    def _blocked_scanner(self, user_agent: str, client_ip: str) -> bool:
+        if not self.blocked_user_agents or address_in(client_ip, self._exempt_networks):
+            return False
+        lowered = user_agent.lower()
+        return any(word in lowered for word in self.blocked_user_agents)
+
+    async def _refuse_scanner(self, scope: Scope, receive: Receive, send: Send, is_websocket: bool) -> None:
+        if is_websocket:
+            await send({"type": "websocket.close", "code": WS_1008_POLICY_VIOLATION, "reason": ""})
+            return
+        response = JSONResponse({"detail": "Forbidden"}, status_code=403, headers={"Cache-Control": "no-store"})
+        await response(scope, receive, send)
 
     async def _not_served_here(self, scope: Scope, receive: Receive, send: Send, method: str, path: str) -> None:
         logger.info("guard: %s %s is another service's route; answering 503 until the gateway catches up", method, path)

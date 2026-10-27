@@ -629,3 +629,62 @@ class TestScanningOnlyWhereInputEnters:
             response = client.put("/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH)
 
         assert response.status_code == 400
+
+
+@pytest.mark.usefixtures("no_bans")
+class TestScannerUserAgents:
+    """Sentinel's access layer refuses scanning tools by a word in their User-Agent."""
+
+    def app(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, **settings: object) -> FastAPI:
+        data = minimal_policy_data()
+        data["defaults"]["blocked_user_agents"] = ["sqlmap", "nikto"]
+        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), **settings)
+        return guarded_app()
+
+    @pytest.mark.parametrize("user_agent", ["sqlmap/1.7.2#stable (https://sqlmap.org)", "Mozilla/5.00 (Nikto/2.5.0)"])
+    def test_a_scanner_is_refused_whatever_the_case(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, user_agent: str
+    ) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.10", 50000)) as client:
+            response = client.get("/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": user_agent})
+
+        assert (response.status_code, response.json()) == (403, {"detail": "Forbidden"})
+        assert response.headers["cache-control"] == "no-store"
+
+    def test_a_browser_is_not(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.11", 50000)) as client:
+            response = client.get(
+                "/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": "Mozilla/5.0 (Macintosh) Chrome/154.0"}
+            )
+
+        assert response.status_code == 200
+
+    def test_sentinels_own_network_is_exempt(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)) as client:
+            response = client.get("/health", headers={"User-Agent": "sqlmap/1.7"})
+
+        assert response.status_code == 200
+
+    def test_passive_mode_logs_and_lets_it_through(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with (
+            caplog.at_level(logging.WARNING, logger="sentinel.guard"),
+            TestClient(
+                self.app(monkeypatch, tmp_path, guard_passive_mode=True), client=("192.168.79.12", 50000)
+            ) as client,
+        ):
+            response = client.get("/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": "sqlmap/1.7"})
+
+        assert response.status_code == 200
+        assert (
+            "guard would block: GET /api/things/7 from 192.168.79.12 (user_agent: a scanning tool)" in caplog.messages
+        )
+
+    def test_a_scanners_websocket_is_closed(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.13", 50000)) as client:
+            with pytest.raises(WebSocketDisconnect) as closed:
+                with client.websocket_connect("/ws/live", headers={**SAME_ORIGIN_FETCH, "User-Agent": "nikto"}):
+                    pass
+
+        assert closed.value.code == 1008
