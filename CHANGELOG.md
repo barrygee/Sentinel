@@ -239,6 +239,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Sdr-manager kinds, serve-before-core, app mode, shared settings section
 - Port Sentry backend
 - Link this machine
+- Request guard on every service (fastapi-guard)
 - This-machine screens
 - MacOS native mode
 - SDR Manager-only mode: compose file, shell, CI matrix
@@ -562,6 +563,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Copy sdr-manager-remote's pyproject into the image
 - Show radios whose SDR host is not listed in DEVICES
 - Keep the Air off-grid link on the existing Sentry host anchor
+- Run the guard in Mac native mode
+- Put the guard's status route before the SPA catch-all
+- Restarting a service bans nobody
+- Don't scan settings write bodies
+- Don't count the app's static files against the rate limit
+- Scan for attacks only where input enters
 
 ### Chores
 
@@ -1656,6 +1663,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #541 from barrygee/feat/sdr-manager-local-macos
 - Merge pull request #542 from barrygee/feat/sdr-manager-only-mode
 - Merge pull request #543 from barrygee/docs/sdr-manager-guides
+- Merge remote-tracking branch 'origin/main' into feat/request-guard-work
+- Merge pull request #544 from barrygee/feat/request-guard
 
 ### Refactoring
 
@@ -1818,6 +1827,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Explain how to run without the docs service
 - 0007 SDR Manager
 - SDR Manager guides and .env recipes
+- Regenerate the API access matrix (status route listed first)
 
 ### Tests
 
@@ -1917,6 +1927,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Audit the playing SDR radio panel and its tabs with axe
 - Drop the docs-page screenshot no docs page uses
 - List the AIR online refresh interval in the catalogue specs
+- Request guard, 100% line and branch coverage
+- Send Sec-Fetch-Site from the API fixture only, not the browser
 
 ### Build System
 
@@ -1991,6 +2003,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run the SDR section as a service and absent
 - Run the stack as the runner and fail on a root backend container
 - Drop the monolith leg; absent = container not started
+- The TLS entrypoint check expects the request guard's 404 without a credential
+- The gateway-smoke registration wait calls the API as the SPA does
 
 ### Styling
 
