@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>IOObjectClass</key>
+		<string>IORegistryEntry</string>
+		<key>IORegistryEntryChildren</key>
+		<array>
+			<dict>
+				<key>IOObjectClass</key>
+				<string>AppleUSBXHCI</string>
+				<key>IORegistryEntryChildren</key>
+				<array>
+					<dict>
+						<key>IOObjectClass</key>
+						<string>IOUSBDevice</string>
+						<key>IORegistryEntryName</key>
+						<string>RTL2832U</string>
+						<key>USB Address</key>
+						<integer>5</integer>
+						<key>idProduct</key>
+						<integer>10290</integer>
+						<key>idVendor</key>
+						<integer>3034</integer>
+						<key>kUSBProductString</key>
+						<string>RTL2832U</string>
+						<key>kUSBSerialNumberString</key>
+						<string>77771111</string>
+						<key>kUSBVendorString</key>
+						<string>Generic</string>
+						<key>locationID</key>
+						<integer>336592896</integer>
+						<key>sessionID</key>
+						<integer>123456</integer>
+					</dict>
+				</array>
+				<key>IORegistryEntryName</key>
+				<string>AppleUSBXHCI</string>
+				<key>locationID</key>
+				<integer>335544320</integer>
+			</dict>
+		</array>
+		<key>IORegistryEntryName</key>
+		<string>Root</string>
+	</dict>
+</array>
+</plist>

@@ -13,6 +13,8 @@ What changed in the move:
     table of SDR Manager's;
   - `SDR_MANAGER_LOCAL_HARDWARE=fake` swaps every host-facing adapter for the
     simulated ones (`adapters/simulated_hardware.py`);
+  - on a Mac (a native process, not a container) the host-facing adapters
+    are `adapters/macos/`'s;
   - startup and shutdown run as a `ModuleLifecycle` of `service.py`'s
     `create_service()` app, which needs no core: dongles keep streaming while
     core is down (`serve_before_core`).
@@ -24,6 +26,8 @@ import asyncio
 import contextlib
 import logging
 import shutil
+import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,6 +40,8 @@ from sentinel_sdr_manager_local.adapters.asyncio_process import AsyncioProcessSp
 from sentinel_sdr_manager_local.adapters.composite_hotplug import CompositeHotplugSource
 from sentinel_sdr_manager_local.adapters.ctypes_rtlsdr import CtypesRtlSdrLibrary, RtlSdrLibraryUnavailableError
 from sentinel_sdr_manager_local.adapters.gated_wifi_ap import GatedWifiApController
+from sentinel_sdr_manager_local.adapters.macos.homebrew import find_homebrew_tool, homebrew_library_directories
+from sentinel_sdr_manager_local.adapters.macos.ioreg_usb import IoregUsbDiscovery
 from sentinel_sdr_manager_local.adapters.net import SocketPortProber
 from sentinel_sdr_manager_local.adapters.nmcli_wifi_ap import NmcliWifiApController, UnavailableWifiApController
 from sentinel_sdr_manager_local.adapters.reconcile_hotplug import ReconcileHotplugSource
@@ -95,15 +101,15 @@ class _NullRtlSdrLibrary:
         raise IndexError(f"no RtlSdrLibrary loaded; index {index} does not exist")
 
 
-def _build_rtlsdr_library() -> RtlSdrLibrary:
+def _build_rtlsdr_library(library_path: str | None = None, search_directories: Sequence[Path] = ()) -> RtlSdrLibrary:
     """Construct the real ctypes-backed library, degrading to the null object if unavailable."""
     try:
-        return CtypesRtlSdrLibrary()
+        return CtypesRtlSdrLibrary(library_path, search_directories)
     except RtlSdrLibraryUnavailableError:
         _logger.warning(
             "librtlsdr is unavailable on this host; RTL-SDR index resolution will always "
-            "report index_unresolved. Install librtlsdr, or run with SDR_MANAGER_LOCAL_HARDWARE=fake "
-            "to develop without dongles."
+            "report index_unresolved. Install librtlsdr (on a Mac: brew install librtlsdr), or run "
+            "with SDR_MANAGER_LOCAL_HARDWARE=fake to develop without dongles."
         )
         return _NullRtlSdrLibrary()
 
@@ -174,9 +180,38 @@ class _HostAdapters:
     process_spawner: ProcessSpawner
     rtlsdr_library: RtlSdrLibrary
     hotspot_controller: WifiApController
+    rtl_tcp_path: str
+    rtl_eeprom_path: str
 
 
-def _build_host_adapters(settings: Settings, clock: Clock) -> _HostAdapters:
+HOST_PLATFORM = sys.platform
+"""The platform whose adapters `_build_host_adapters` picks; tests pin it."""
+
+MACOS_HOTSPOT_UNAVAILABLE_REASON = "A Mac can't run the Wi-Fi hotspot: it needs a Linux host's NetworkManager."
+
+
+def _build_macos_host_adapters(settings: Settings, clock: Clock) -> _HostAdapters:
+    """A Mac's adapters: `ioreg` discovery, a polled hotplug, and Homebrew's librtlsdr and tools (ADR 0007).
+
+    macOS has no udev, so hotplug is the reconcile sweep alone (about
+    `SDR_MANAGER_LOCAL_RECONCILE_INTERVAL_S` late), and no NetworkManager, so
+    there is no hotspot.
+    """
+    usb_discovery = IoregUsbDiscovery()
+    return _HostAdapters(
+        usb_discovery=usb_discovery,
+        hotplug_source=ReconcileHotplugSource(usb_discovery, clock, settings.reconcile_interval_s),
+        process_spawner=AsyncioProcessSpawner(),
+        rtlsdr_library=_build_rtlsdr_library(settings.librtlsdr_path, homebrew_library_directories()),
+        hotspot_controller=UnavailableWifiApController(
+            MACOS_HOTSPOT_UNAVAILABLE_REASON, nm_state_root=Path(settings.nm_state_root)
+        ),
+        rtl_tcp_path=find_homebrew_tool(settings.rtl_tcp_path),
+        rtl_eeprom_path=find_homebrew_tool(settings.rtl_eeprom_path),
+    )
+
+
+def _build_host_adapters(settings: Settings, clock: Clock, platform: str | None = None) -> _HostAdapters:
     if settings.hardware == "fake":
         _logger.warning("SDR_MANAGER_LOCAL_HARDWARE=fake: simulating two RTL-SDRs; no dongle is used")
         simulated = build_simulated_hardware()
@@ -186,7 +221,11 @@ def _build_host_adapters(settings: Settings, clock: Clock) -> _HostAdapters:
             process_spawner=simulated.process_spawner,
             rtlsdr_library=simulated.rtlsdr_library,
             hotspot_controller=simulated.wifi_ap_controller,
+            rtl_tcp_path=settings.rtl_tcp_path,
+            rtl_eeprom_path=settings.rtl_eeprom_path,
         )
+    if (platform or HOST_PLATFORM) == "darwin":
+        return _build_macos_host_adapters(settings, clock)
     sysfs_root = Path(settings.sysfs_root)
     process_spawner = AsyncioProcessSpawner()
     return _HostAdapters(
@@ -196,8 +235,10 @@ def _build_host_adapters(settings: Settings, clock: Clock) -> _HostAdapters:
             fallback=ReconcileHotplugSource(SysfsUsbDiscovery(sysfs_root), clock, settings.reconcile_interval_s),
         ),
         process_spawner=process_spawner,
-        rtlsdr_library=_build_rtlsdr_library(),
+        rtlsdr_library=_build_rtlsdr_library(settings.librtlsdr_path),
         hotspot_controller=_build_wifi_ap_controller(settings, process_spawner),
+        rtl_tcp_path=settings.rtl_tcp_path,
+        rtl_eeprom_path=settings.rtl_eeprom_path,
     )
 
 
@@ -231,8 +272,9 @@ class AppContainer:
 def build_container(settings: Settings) -> AppContainer:
     """Construct every adapter and service, wired per Sentry architecture §4.3/§4.4.
 
-    Chooses the real, production adapters unless `settings.hardware` is
-    `fake`; `_build_rtlsdr_library` and `_build_wifi_ap_controller` degrade
+    Chooses the real, production adapters for this platform (a Mac's are
+    `adapters/macos/`) unless `settings.hardware` is `fake`;
+    `_build_rtlsdr_library` and `_build_wifi_ap_controller` degrade
     gracefully rather than crashing on a host without librtlsdr or nmcli.
     """
     clock: Clock = SystemClock()
@@ -265,7 +307,7 @@ def build_container(settings: Settings) -> AppContainer:
         device_registry=device_registry,
         clock=clock,
         event_bus=event_bus,
-        rtl_tcp_path=settings.rtl_tcp_path,
+        rtl_tcp_path=host_adapters.rtl_tcp_path,
         relay_path=settings.relay_path,
         internal_port_base=settings.internal_port_base,
         max_devices=settings.max_devices,
@@ -276,7 +318,7 @@ def build_container(settings: Settings) -> AppContainer:
         rtlsdr_library=rtlsdr_library,
         supervisor=supervisor,
         device_registry=device_registry,
-        rtl_eeprom_path=settings.rtl_eeprom_path,
+        rtl_eeprom_path=host_adapters.rtl_eeprom_path,
         event_bus=event_bus,
     )
     port_allocator = PortAllocatorService(

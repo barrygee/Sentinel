@@ -1,5 +1,6 @@
 <template>
   <div class="sdr-devices-wrap">
+    <LocalNotEnabledNotice v-if="hostsLoaded && !localRunning" />
     <div class="sdr-devices-list">
       <div v-if="hosts.length === 0" class="sdr-devices-empty">
         No SDR hosts registered. Add one below.
@@ -22,6 +23,9 @@
               {{ hostLabel(host) }}&nbsp;&nbsp;{{ host.address }}:{{ host.port }}
             </template>
             <span v-if="host.last_error" class="remote-host-error"> — {{ host.last_error }} </span>
+            <span v-if="hostEdits.drafts.has(host.id)" class="remote-host-staged">
+              EDITED — APPLY TO SAVE
+            </span>
           </span>
           <button
             v-if="confirmId !== host.id"
@@ -84,8 +88,10 @@
         <RemoteHostForm
           v-if="openId === host.id"
           :host="host"
-          @save="onSave"
-          @cancel="openId = null"
+          :staged-draft="hostEdits.drafts.get(host.id) ?? null"
+          :apply-error="applyErrors[host.id] ?? null"
+          @draft="(draft) => onDraft(host.id, draft)"
+          @cancel="cancelEdit(host.id)"
         />
       </div>
 
@@ -118,25 +124,40 @@
  *
  * Expanding a row shows `RemoteHostForm`, which carries both the editable
  * fields and (in its own `MORE` disclosure) everything else known
- * about that host.
+ * about that host. Edits to a host are staged for APPLY CHANGES
+ * (`useStagedEdits`, the card's `stage` event); adding and deleting a host act
+ * at once.
  *
  * Announces every add/edit/delete (`announceHostsChanged`), so the SDR
  * section's DEVICES list, which groups radios by host and subscribes through
  * the `radioSites` capability, picks up the change without polling this
  * control's own state.
  */
-import { computed, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { computed, reactive, ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useStagedEdits } from '@sentinel/shell-api/settings/useStagedEdits'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
+import LocalNotEnabledNotice from './LocalNotEnabledNotice.vue'
 import RemoteHostForm from './RemoteHostForm.vue'
 import { listHosts, deleteHost } from '../api/sdrManagerRemoteApi'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import { announceHostsChanged } from '../hostsChanged'
+import { saveRemoteHostDraft, type RemoteHostDraft } from '../remoteHostEdits'
+
+const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 
 const settingsStore = useSettingsStore()
 
 const hosts = ref<SdrManagerHost[]>([])
+// Until the first list arrives nothing is known, so the not-enabled notice waits.
+const hostsLoaded = ref(false)
+/**
+ * Whether this machine's sdr-manager-local is running. sdr-manager-remote
+ * links it as the enabled `is_local` row and disables (never deletes) that
+ * row while it is absent, so its row says whether it runs.
+ */
+const localRunning = computed(() => hosts.value.some((host) => host.is_local && host.enabled))
 const openId = ref<number | 'new' | null>(null)
 const confirmId = ref<number | null>(null)
 
@@ -158,6 +179,7 @@ async function load(): Promise<void> {
   refreshInFlight = true
   try {
     hosts.value = await listHosts()
+    hostsLoaded.value = true
   } catch {
     /* offline / transient — keep the previous list rather than blanking it */
   } finally {
@@ -208,6 +230,67 @@ async function onSave(): Promise<void> {
   announceHostsChanged()
 }
 
+/** Why APPLY CHANGES could not save each host's edit. */
+const applyErrors = reactive<Record<number, string>>({})
+
+async function saveHostEdit(hostId: number, draft: RemoteHostDraft): Promise<void> {
+  const host = hosts.value.find((candidate) => candidate.id === hostId)
+  // Deleted since it was edited: nothing left to save.
+  if (!host) return
+  try {
+    await saveRemoteHostDraft(host, draft)
+    delete applyErrors[hostId]
+  } catch (error) {
+    applyErrors[hostId] = (error as Error).message
+    throw error
+  }
+}
+
+const hostEdits = useStagedEdits<number, RemoteHostDraft>({
+  save: saveHostEdit,
+  stage: (applyAll) =>
+    emit('stage', async () => {
+      try {
+        await applyAll()
+        openId.value = null
+      } catch (error) {
+        // Show the first host that was refused; the others keep their drafts too.
+        const [firstRefused] = Object.keys(applyErrors)
+        if (firstRefused !== undefined) openId.value = Number(firstRefused)
+        throw error
+      } finally {
+        await load()
+        announceHostsChanged()
+      }
+    }),
+})
+
+function onDraft(hostId: number, draft: RemoteHostDraft | null): void {
+  if (draft) hostEdits.set(hostId, draft)
+  else hostEdits.discard(hostId)
+}
+
+function cancelEdit(hostId: number): void {
+  hostEdits.discard(hostId)
+  delete applyErrors[hostId]
+  openId.value = null
+}
+
+// Reopening the panel drops unapplied edits (useStagedEdits): close the form
+// showing one and clear old refusals. A map marker's MORE opens the panel on
+// a host (`openSdrManagerHost`, which names the host before opening): `sync`
+// runs this while that request is still pending, before the focus watcher
+// below opens the host and clears it, so the form it opens stays open.
+watch(
+  () => settingsStore.open,
+  (open) => {
+    if (!open) return
+    if (settingsStore.focusSdrManagerHostId === null) openId.value = null
+    for (const hostId of Object.keys(applyErrors)) delete applyErrors[Number(hostId)]
+  },
+  { flush: 'sync' },
+)
+
 let pollTimer: ReturnType<typeof setInterval> | null = null
 
 /**
@@ -252,6 +335,10 @@ onBeforeUnmount(() => {
 <style scoped>
 .remote-host-local-off {
   color: rgba(16, 19, 29, 0.55);
+}
+.remote-host-staged {
+  font-size: var(--settings-text-caption);
+  color: var(--ink-secondary);
 }
 .remote-host-error {
   color: #d94436;

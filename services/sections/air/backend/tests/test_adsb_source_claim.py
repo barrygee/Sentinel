@@ -1,4 +1,4 @@
-"""Tests for `/api/sdr/adsb` — claiming and tuning the Sentry dongle behind AIR.
+"""Tests for `/api/sdr/adsb` — claiming and tuning the SDR Manager dongle behind AIR.
 
 This is the piece that turns an empty Off Grid map into aircraft: without it a
 dongle sits on whatever frequency it was last left on, and nothing says so. The
@@ -9,13 +9,13 @@ diagnose from silence:
   A claim that succeeds without retuning leaves exactly the symptom this whole
   feature exists to remove.
 * **Every failure names itself.** "No source picked", "someone else has it" and
-  "that Sentry is unreachable" need different actions from the operator, so they
+  "that SDR host is unreachable" need different actions from the operator, so they
   must not collapse into one error.
 * **The holder is stable.** It is the only thing separating renewing our own
   lease from stealing somebody else's, so a value that changed per call would
   lock Sentinel out of the device it is holding.
 
-Sentry itself is faked at the HTTP boundary: the real reservation semantics are
+The SDR host itself is faked at the HTTP boundary: the real reservation semantics are
 tested in Sentry's own suite, and what matters here is that Sentinel sends the
 right calls and reacts correctly to each answer.
 
@@ -41,8 +41,8 @@ HOST_BODY = {
 DEVICE_ID = "serial:97710286"
 
 
-def _install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
-    """Route every outbound Sentry call to `handler`, recording the requests."""
+def _install_sdr_manager(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx.Request]:
+    """Route every outbound SDR host call to `handler`, recording the requests."""
     seen: list[httpx.Request] = []
 
     def recording(request: httpx.Request) -> httpx.Response:
@@ -60,8 +60,8 @@ def _install_sentry(monkeypatch: pytest.MonkeyPatch, handler: Any) -> list[httpx
     return seen
 
 
-def sentry_ok(request: httpx.Request) -> httpx.Response:
-    """A Sentry that signs us in, grants the claim and accepts the tuning."""
+def sdr_manager_ok(request: httpx.Request) -> httpx.Response:
+    """An SDR host that signs us in, grants the claim and accepts the tuning."""
     if request.url.path == "/api/auth/login":
         return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=granted; Path=/"})
     if request.url.path.endswith("/reservation"):
@@ -87,7 +87,7 @@ def register_host(client: Any) -> int:
 def set_source(client: Any, host_id: int) -> Any:
     return client.put(
         "/api/sdr/adsb/source",
-        json={"sentry_host_id": host_id, "sentry_device_id": DEVICE_ID},
+        json={"sdr_manager_host_id": host_id, "sdr_manager_device_id": DEVICE_ID},
     )
 
 
@@ -105,8 +105,8 @@ class TestChoosingTheSource:
         body = client.get("/api/sdr/adsb/source").json()
         assert body == {
             "configured": True,
-            "sentry_host_id": host_id,
-            "sentry_device_id": DEVICE_ID,
+            "sdr_manager_host_id": host_id,
+            "sdr_manager_device_id": DEVICE_ID,
         }
 
     def test_accepts_a_device_without_checking_it_exists(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -118,8 +118,8 @@ class TestChoosingTheSource:
         response = client.put(
             "/api/sdr/adsb/source",
             json={
-                "sentry_host_id": host_id,
-                "sentry_device_id": "serial:NOT-PLUGGED-IN",
+                "sdr_manager_host_id": host_id,
+                "sdr_manager_device_id": "serial:NOT-PLUGGED-IN",
             },
         )
 
@@ -130,15 +130,15 @@ class TestClearingTheSource:
     """The picker's "Not set" option — it used to be impossible to reach."""
 
     def test_clearing_reports_and_persists_no_source(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_sentry(monkeypatch, sentry_ok)
+        _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         response = client.delete("/api/sdr/adsb/source")
 
         unconfigured = {
             "configured": False,
-            "sentry_host_id": None,
-            "sentry_device_id": None,
+            "sdr_manager_host_id": None,
+            "sdr_manager_device_id": None,
         }
         assert response.status_code == 200
         assert response.json() == unconfigured
@@ -148,7 +148,7 @@ class TestClearingTheSource:
         assert client.get("/api/settings/air").json()["offgridSdrSource"] is None
 
     def test_gives_the_device_back_before_forgetting_it(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
         client.post("/api/sdr/adsb/claim", json={})
 
@@ -162,11 +162,13 @@ class TestClearingTheSource:
         assert len(releases) == 1
         assert DEVICE_ID in releases[0].url.path
 
-    def test_still_clears_when_the_sentry_is_unreachable(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_still_clears_when_the_sdr_manager_is_unreachable(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def unreachable(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("gone")
 
-        _install_sentry(monkeypatch, unreachable)
+        _install_sdr_manager(monkeypatch, unreachable)
         set_source(client, register_host(client))
 
         response = client.delete("/api/sdr/adsb/source")
@@ -189,7 +191,7 @@ class TestClaimingAndTuning:
         assert response.json()["detail"]["code"] == "no_source"
 
     def test_claims_then_tunes_to_1090(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         response = client.post("/api/sdr/adsb/claim", json={})
@@ -207,7 +209,7 @@ class TestClaimingAndTuning:
         # AGC cannot track a 0.5 microsecond pulse. It settles for the silence
         # between messages — which is to say it settles low — and the pulses
         # that matter arrive under the noise floor.
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         client.post("/api/sdr/adsb/claim", json={})
@@ -221,7 +223,7 @@ class TestClaimingAndTuning:
     def test_the_claim_precedes_the_tuning(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Tuning a device we have not claimed would be the very thing the lease
         # exists to stop somebody else doing.
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         client.post("/api/sdr/adsb/claim", json={})
@@ -230,9 +232,9 @@ class TestClaimingAndTuning:
         assert methods.index("POST") < methods.index("PATCH")
 
     def test_the_patch_proves_we_hold_the_lease(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Without the header Sentry would refuse our own tuning under our own
+        # Without the header SDR host would refuse our own tuning under our own
         # lock — the lock would lock us out.
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         client.post("/api/sdr/adsb/claim", json={})
@@ -241,7 +243,7 @@ class TestClaimingAndTuning:
         assert patch.headers["X-Sdr-Manager-Reservation-Holder"].startswith("sentinel:")
 
     def test_tells_the_caller_when_to_renew(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_sentry(monkeypatch, sentry_ok)
+        _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         body = client.post("/api/sdr/adsb/claim", json={}).json()
@@ -249,7 +251,7 @@ class TestClaimingAndTuning:
         assert body["renew_within_seconds"] == adsb_source.RENEWAL_INTERVAL_SECONDS
 
     def test_renewing_reuses_the_same_holder(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         client.post("/api/sdr/adsb/claim", json={})
@@ -267,7 +269,7 @@ class TestClaimingAndTuning:
     def test_retunes_on_every_renewal(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         # Self-healing: a replugged dongle or a hand-retuned one comes back to
         # 1090 MHz on the next tick rather than leaving a quietly empty map.
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
 
         client.post("/api/sdr/adsb/claim", json={})
@@ -293,7 +295,7 @@ class TestFailuresAnOperatorCanAct_On:
                 },
             )
 
-        _install_sentry(monkeypatch, busy)
+        _install_sdr_manager(monkeypatch, busy)
         set_source(client, register_host(client))
 
         response = client.post("/api/sdr/adsb/claim", json={})
@@ -309,19 +311,22 @@ class TestFailuresAnOperatorCanAct_On:
         def unauthorised(request: httpx.Request) -> httpx.Response:
             return httpx.Response(401, json={"detail": {"code": "unauthenticated"}})
 
-        _install_sentry(monkeypatch, unauthorised)
+        _install_sdr_manager(monkeypatch, unauthorised)
         set_source(client, register_host(client))
 
         response = client.post("/api/sdr/adsb/claim", json={})
 
         assert response.status_code == 502
-        assert response.json()["detail"]["code"] == "unauthenticated"
+        detail = response.json()["detail"]
+        assert detail["code"] == "unauthenticated"
+        # The console password is set on the SDR Manager settings page, not SDR's.
+        assert "Settings → SDR Manager" in detail["message"]
 
-    def test_an_unreachable_sentry_says_so(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_an_unreachable_sdr_manager_says_so(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
         def unreachable(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("no route to host")
 
-        _install_sentry(monkeypatch, unreachable)
+        _install_sdr_manager(monkeypatch, unreachable)
         set_source(client, register_host(client))
 
         response = client.post("/api/sdr/adsb/claim", json={})
@@ -335,7 +340,7 @@ class TestFailuresAnOperatorCanAct_On:
         host_id = register_host(client)
         client.put(f"/api/sdr-manager/remote/hosts/{host_id}", json={"enabled": False})
         set_source(client, host_id)
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
 
         response = client.post("/api/sdr/adsb/claim", json={})
 
@@ -348,7 +353,7 @@ class TestHubFailuresInOperatorWords:
     """Air asks the hub's reservation proxy and words the failure itself (B6)."""
 
     def test_a_deleted_host_asks_for_a_new_source(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         host_id = register_host(client)
         set_source(client, host_id)
         client.delete(f"/api/sdr-manager/remote/hosts/{host_id}")
@@ -361,7 +366,7 @@ class TestHubFailuresInOperatorWords:
         assert seen == []
 
     def test_a_disabled_host_is_named_in_the_message(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        _install_sentry(monkeypatch, sentry_ok)
+        _install_sdr_manager(monkeypatch, sdr_manager_ok)
         host_id = register_host(client)
         client.put(f"/api/sdr-manager/remote/hosts/{host_id}", json={"enabled": False})
         set_source(client, host_id)
@@ -370,7 +375,7 @@ class TestHubFailuresInOperatorWords:
 
         assert "Attic Pi" in detail["message"]
 
-    def test_claimed_but_not_tuned_says_so_with_sentrys_code(
+    def test_claimed_but_not_tuned_says_so_with_sdr_managers_code(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def rejects_tuning(request: httpx.Request) -> httpx.Response:
@@ -379,9 +384,9 @@ class TestHubFailuresInOperatorWords:
                     422,
                     json={"detail": {"code": "bad_rate", "message": "Unsupported rate."}},
                 )
-            return sentry_ok(request)
+            return sdr_manager_ok(request)
 
-        _install_sentry(monkeypatch, rejects_tuning)
+        _install_sdr_manager(monkeypatch, rejects_tuning)
         set_source(client, register_host(client))
 
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
@@ -395,9 +400,9 @@ class TestHubFailuresInOperatorWords:
         def rejects_tuning(request: httpx.Request) -> httpx.Response:
             if request.method == "PATCH":
                 return httpx.Response(500, json={"detail": {"code": "", "message": "No."}})
-            return sentry_ok(request)
+            return sdr_manager_ok(request)
 
-        _install_sentry(monkeypatch, rejects_tuning)
+        _install_sdr_manager(monkeypatch, rejects_tuning)
         set_source(client, register_host(client))
 
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
@@ -405,7 +410,7 @@ class TestHubFailuresInOperatorWords:
         assert detail["code"] == "tuning_failed"
         assert detail["message"] == "The device was claimed but could not be tuned: No."
 
-    def test_another_sentry_error_with_an_empty_code_falls_back_to_sentry_error(
+    def test_another_sdr_manager_error_with_an_empty_code_falls_back_to_sdr_manager_error(
         self, client: Any, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
@@ -413,21 +418,23 @@ class TestHubFailuresInOperatorWords:
                 return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=g; Path=/"})
             return httpx.Response(503, json={"detail": {"code": "", "message": "Down."}})
 
-        _install_sentry(monkeypatch, broken)
+        _install_sdr_manager(monkeypatch, broken)
         set_source(client, register_host(client))
 
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
 
-        assert detail["code"] == "sentry_error"
+        assert detail["code"] == "sdr_manager_error"
         assert detail["message"] == "Down."
 
-    def test_another_sentry_error_passes_its_code_through(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_another_sdr_manager_error_passes_its_code_through(
+        self, client: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         def broken(request: httpx.Request) -> httpx.Response:
             if request.url.path == "/api/auth/login":
                 return httpx.Response(204, headers={"set-cookie": "sdr_manager_session=g; Path=/"})
             return httpx.Response(503, json={"detail": {"code": "usb_reset", "message": "Dongle resetting."}})
 
-        _install_sentry(monkeypatch, broken)
+        _install_sdr_manager(monkeypatch, broken)
         set_source(client, register_host(client))
 
         detail = client.post("/api/sdr/adsb/claim", json={}).json()["detail"]
@@ -438,7 +445,7 @@ class TestHubFailuresInOperatorWords:
 
 class TestReleasing:
     def test_release_sends_a_delete(self, client: Any, monkeypatch: pytest.MonkeyPatch) -> None:
-        seen = _install_sentry(monkeypatch, sentry_ok)
+        seen = _install_sdr_manager(monkeypatch, sdr_manager_ok)
         set_source(client, register_host(client))
         client.post("/api/sdr/adsb/claim", json={})
 
@@ -453,7 +460,7 @@ class TestReleasing:
         def unreachable(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("gone")
 
-        _install_sentry(monkeypatch, unreachable)
+        _install_sdr_manager(monkeypatch, unreachable)
         set_source(client, register_host(client))
 
         assert client.delete("/api/sdr/adsb/claim").status_code == 204
@@ -492,7 +499,7 @@ class TestTheDecoderConfig:
                 },
             )
 
-        _install_sentry(monkeypatch, export)
+        _install_sdr_manager(monkeypatch, export)
         set_source(client, register_host(client))
 
         body = client.get("/api/sdr/adsb/config").json()
@@ -506,7 +513,7 @@ class TestTheDecoderConfig:
         def export(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json={"sdrs": []})
 
-        _install_sentry(monkeypatch, export)
+        _install_sdr_manager(monkeypatch, export)
         set_source(client, register_host(client))
 
         assert client.get("/api/sdr/adsb/config").json()["configured"] is False

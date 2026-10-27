@@ -14,7 +14,7 @@ import type {
 } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 /**
- * Tests for choosing which Sentry SDR receives ADS-B.
+ * Tests for choosing which SDR Manager device receives ADS-B.
  *
  * Two things here have real consequences. The option **value** carries both the
  * host id and the device id, and the device id contains a colon of its own
@@ -24,9 +24,9 @@ import type {
  * be able to tell apart before they can fix it.
  */
 
-// The Sentry fleet comes from the radio platform's `radioSites` capability
-// (Air never touches the Sentry admin API) — a fake here. How the fleet is
-// built from the Sentry hosts is the sdr provider's own spec.
+// The SDR Manager fleet comes from the radio platform's `radioSites` capability
+// (Air never touches the SDR host admin API) — a fake here. How the fleet is
+// built from the SDR hosts is the sdr provider's own spec.
 let radioSites: ReturnType<typeof provideFakeRadioSites>
 
 function device(overrides: Partial<RadioSiteDevice> & { deviceId: string }): RadioSiteDevice {
@@ -50,13 +50,13 @@ beforeEach(() => {
   radioSites = provideFakeRadioSites()
   vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
     configured: false,
-    sentry_host_id: null,
-    sentry_device_id: null,
+    sdr_manager_host_id: null,
+    sdr_manager_device_id: null,
   })
   setSourceSpy = vi.spyOn(adsbSourceApi, 'setAdsbSource').mockResolvedValue({
     configured: true,
-    sentry_host_id: 1,
-    sentry_device_id: 'serial:97710286',
+    sdr_manager_host_id: 1,
+    sdr_manager_device_id: 'serial:97710286',
   })
 })
 
@@ -107,12 +107,12 @@ describe('AdsbSdrSourceControl', () => {
     const wrapper = mount(AdsbSdrSourceControl)
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Add a Sentry host')
+    expect(wrapper.text()).toContain('Add an SDR host')
   })
 
   describe('what is offered as a source', () => {
     it('omits a private device', async () => {
-      // Private is the operator saying, on the Sentry side, that this dongle is
+      // Private is the operator saying, on the SDR host side, that this dongle is
       // not for sharing. Offering it here would let AIR claim and tune hardware
       // they have withdrawn.
       serveFleet(
@@ -151,8 +151,8 @@ describe('AdsbSdrSourceControl', () => {
       // dongle AIR was pointed at.
       vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
         configured: true,
-        sentry_host_id: 1,
-        sentry_device_id: 'serial:GONE',
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'serial:GONE',
       })
       serveFleet(fleet(device({ deviceId: 'serial:GONE', name: 'Withdrawn', public: false })))
 
@@ -203,7 +203,7 @@ describe('AdsbSdrSourceControl', () => {
     })
 
     it('reflects a device being withdrawn without a reload', async () => {
-      // Visibility can change from Sentry's own console at any moment, and a
+      // Visibility can change from the SDR host's own console at any moment, and a
       // stale list offers a dongle that has since been taken away.
       vi.useFakeTimers()
       serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
@@ -299,8 +299,8 @@ describe('AdsbSdrSourceControl', () => {
   it('pre-selects the device already configured', async () => {
     vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
       configured: true,
-      sentry_host_id: 1,
-      sentry_device_id: 'serial:97710286',
+      sdr_manager_host_id: 1,
+      sdr_manager_device_id: 'serial:97710286',
     })
     serveFleet(fleet(device({ deviceId: 'serial:97710286', name: 'ADSB' })))
 
@@ -316,8 +316,8 @@ describe('AdsbSdrSourceControl', () => {
     beforeEach(() => {
       vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
         configured: true,
-        sentry_host_id: 1,
-        sentry_device_id: 'serial:AAA',
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'serial:AAA',
       })
       serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
     })
@@ -325,8 +325,8 @@ describe('AdsbSdrSourceControl', () => {
     it('stages the clear, and clears the saved source on apply', async () => {
       const clearSourceSpy = vi.spyOn(adsbSourceApi, 'clearAdsbSource').mockResolvedValue({
         configured: false,
-        sentry_host_id: null,
-        sentry_device_id: null,
+        sdr_manager_host_id: null,
+        sdr_manager_device_id: null,
       })
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -356,8 +356,8 @@ describe('AdsbSdrSourceControl', () => {
     it('drops an unapplied pick by re-reading the saved choice', async () => {
       const getSourceSpy = vi.spyOn(adsbSourceApi, 'getAdsbSource').mockResolvedValue({
         configured: true,
-        sentry_host_id: 1,
-        sentry_device_id: 'serial:AAA',
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'serial:AAA',
       })
       serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
       const settings = useSettingsStore()
@@ -383,10 +383,14 @@ describe('AdsbSdrSourceControl', () => {
         .spyOn(adsbSourceApi, 'getAdsbSource')
         .mockResolvedValueOnce({
           configured: true,
-          sentry_host_id: 1,
-          sentry_device_id: 'serial:AAA',
+          sdr_manager_host_id: 1,
+          sdr_manager_device_id: 'serial:AAA',
         })
-        .mockResolvedValueOnce({ configured: false, sentry_host_id: null, sentry_device_id: null })
+        .mockResolvedValueOnce({
+          configured: false,
+          sdr_manager_host_id: null,
+          sdr_manager_device_id: null,
+        })
       serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -403,8 +407,8 @@ describe('AdsbSdrSourceControl', () => {
       vi.spyOn(adsbSourceApi, 'getAdsbSource')
         .mockResolvedValueOnce({
           configured: true,
-          sentry_host_id: 1,
-          sentry_device_id: 'serial:AAA',
+          sdr_manager_host_id: 1,
+          sdr_manager_device_id: 'serial:AAA',
         })
         .mockResolvedValueOnce(null)
       serveFleet(fleet(device({ deviceId: 'serial:AAA', name: 'ADSB' })))
@@ -443,11 +447,11 @@ describe('AdsbSdrSourceControl', () => {
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
 
-      expect(wrapper.text()).toContain('Add a Sentry host')
+      expect(wrapper.text()).toContain('Add an SDR host')
     })
 
     it('points at device visibility when hosts publish nothing', async () => {
-      // A Sentry only exports devices its operator enabled, so an empty list is
+      // An SDR host only exports devices its operator enabled, so an empty list is
       // far more often a toggle than a missing dongle.
       serveFleet(fleet())
 
@@ -463,7 +467,7 @@ describe('AdsbSdrSourceControl', () => {
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
 
-      expect(wrapper.text()).not.toContain('Add a Sentry host')
+      expect(wrapper.text()).not.toContain('Add an SDR host')
       expect(wrapper.text()).not.toContain('publish no SDRs')
     })
   })

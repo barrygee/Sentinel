@@ -71,7 +71,8 @@
     <SdrDeviceForm
       v-if="open"
       :radio="radio"
-      :sentry-device-status="sentryDeviceStatus"
+      :sdr-manager-device-status="sdrManagerDeviceStatus"
+      :edit-as-manual="editAsManual"
       @save="emit('save')"
       @cancel="emit('cancel-edit')"
     />
@@ -81,7 +82,7 @@
 <script setup lang="ts">
 /**
  * `SdrRadioRow` — one configured-radio row shared by both groupings in
- * `SdrDevicesControl`: a manual radio and a Sentry-mirrored radio render
+ * `SdrDevicesControl`: a manual radio and an SDR-Manager-mirrored radio render
  * identically here (name, host:port, reachability dot, edit/delete with
  * inline delete-confirm, and the `SdrDeviceForm` editor) — only the data and
  * the write path underneath differ, and `SdrDeviceForm` itself branches on
@@ -98,13 +99,15 @@ import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManage
 const props = defineProps<{
   radio: SdrRadioRecord
   /** Reachability dot state: manual radios read their rtl_tcp TCP probe;
-   * Sentry-mirrored radios read the device's live `present` flag. Null while
+   * SDR-Manager-mirrored radios read the device's live `present` flag. Null while
    * unknown. */
   connected: boolean | null
   open: boolean
   confirming: boolean
-  /** Live Sentry status for this radio's device, when it mirrors one. */
-  sentryDeviceStatus?: SdrManagerDeviceStatus | null
+  /** Live SDR host status for this radio's device, when it mirrors one. */
+  sdrManagerDeviceStatus?: SdrManagerDeviceStatus | null
+  /** Edit a host radio whose host is gone as a manual radio (see `SdrDeviceForm`). */
+  editAsManual?: boolean
 }>()
 
 /**
@@ -115,7 +118,7 @@ const props = defineProps<{
  * here so the operator sees *why* before trying to connect, instead of after.
  *
  * Only an explicit `false` counts. An absent field means an older backend or a
- * manually-entered radio with no Sentry device behind it, and greying the row
+ * manually-entered radio with no SDR Manager device behind it, and greying the row
  * out in either case would be a lie.
  */
 const isUnavailable = computed(() => props.radio.device_available === false)

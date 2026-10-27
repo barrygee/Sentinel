@@ -357,18 +357,39 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # compose_files/profiles default to docker-compose.yml with no profile.
         include:
+          # The full app with no sdr-manager-local: what `docker compose up` runs.
           - deployment: sections-service
             services: app gateway nats space land air sea radio sdr docs sdr-manager-remote
-            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,sdr-manager-remote:service,sdr-manager-local:absent
           - deployment: sections-absent
             services: app gateway nats sdr
-            sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:service
+            sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:service,sdr-manager-remote:absent,sdr-manager-local:absent
           - deployment: sdr-absent
             services: app gateway nats space land air sea radio sdr-manager-remote
-            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:absent
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:absent,sdr-manager-remote:service,sdr-manager-local:absent
+          # The full app plus this machine's SDRs, simulated (no dongle in CI).
+          - deployment: full-local-mock
+            compose_files: docker-compose.yml:compose.sdr-manager-local-mock.yaml
+            profiles: sdr-manager-local
+            services: app gateway nats space land air sea radio sdr sdr-manager-remote sdr-manager-local
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,sdr-manager-remote:service,sdr-manager-local:service
+          # SDR Manager-only mode (ADR 0007): core, the gateway and this
+          # machine's SDRs, simulated — no sections, no hub, no NATS.
+          - deployment: local-only-mock
+            compose_files: compose.sdr-manager-local-only.yaml:compose.sdr-manager-local-mock.yaml
+            profiles: sdr-manager-local
+            app_mode: sdr-manager-local-only
+            services: app gateway sdr-manager-local
+            sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:absent,sdr-manager-remote:absent,sdr-manager-local:service
     env:
       SENTINEL_E2E_SECTIONS: ${{ matrix.sections }}
+      SENTINEL_E2E_APP_MODE: ${{ matrix.app_mode || 'full' }}
+      # Read by every `docker compose` command below, so each step drives this
+      # leg's stack.
+      COMPOSE_FILE: ${{ matrix.compose_files || 'docker-compose.yml' }}
+      COMPOSE_PROFILES: ${{ matrix.profiles || '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -462,6 +483,8 @@ jobs:
           declare -A probe_path=(
             [space]=/api/space/daynight [land]=/api/land/aprs/stations [air]=/api/air/tracking
             [sea]=/api/sea/ais-key [sdr]=/api/sdr/groups [radio]=/api/sdr/radios
+            [sdr-manager-remote]=/api/sdr-manager/remote/hosts
+            [sdr-manager-local]=/api/sdr-manager/local/auth/state
           )
           services=$(echo "$SENTINEL_E2E_SECTIONS" | tr ',' '\n' | sed -n 's/:service$//p')
           all_registered() {

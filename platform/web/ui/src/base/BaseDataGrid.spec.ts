@@ -14,7 +14,7 @@ describe('BaseDataGrid', () => {
     expect(wrapper.find('.probe-cell').exists()).toBe(true)
   })
 
-  // Used by a titled container (e.g. the Sentry MORE disclosure) whose first
+  // Used by a titled container (e.g. the SDR host MORE disclosure) whose first
   // section would only repeat its heading — the row must not render as a blank
   // line in that case.
   it('renders no title row at all when no title is given', () => {

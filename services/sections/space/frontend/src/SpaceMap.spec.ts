@@ -64,8 +64,8 @@ vi.mock('./controls/daynight/DaynightControl', () => ({
 vi.mock('@sentinel/map-kit/controls/names/NamesToggleControl', () => ({
   NamesToggleControl: controlMocks.make('names'),
 }))
-vi.mock('@sentinel/map-kit/controls/sentry-sites/SentrySitesControl', () => ({
-  SentrySitesControl: controlMocks.make('sentrySites'),
+vi.mock('@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl', () => ({
+  SdrManagerSitesControl: controlMocks.make('sdrManagerSites'),
 }))
 
 vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({

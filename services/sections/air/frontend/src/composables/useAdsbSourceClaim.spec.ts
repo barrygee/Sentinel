@@ -9,7 +9,7 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 /**
- * Tests for holding the Sentry dongle while AIR watches off grid.
+ * Tests for holding the SDR Manager dongle while AIR watches off grid.
  *
  * The behaviour worth pinning is *when* the device is held, because both
  * mistakes are costly and neither is visible: claiming while online takes
@@ -24,7 +24,7 @@ import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 function claimResponse(overrides: Partial<adsbSourceApi.AdsbClaim> = {}): adsbSourceApi.AdsbClaim {
   return {
-    source: { sentry_host_id: 1, sentry_device_id: 'serial:ADSB' },
+    source: { sdr_manager_host_id: 1, sdr_manager_device_id: 'serial:ADSB' },
     reservation: {
       device_id: 'serial:ADSB',
       holder: 'sentinel:me',
@@ -127,7 +127,7 @@ describe('useAdsbSourceClaim', () => {
     })
 
     it('does not re-claim when an unrelated setting changes', async () => {
-      // Redundant claims would hammer Sentry on every settings write; nothing
+      // Redundant claims would hammer SDR host on every settings write; nothing
       // happens because `shouldHold` did not change.
       goOffGrid()
       mountClaim()
@@ -153,7 +153,7 @@ describe('useAdsbSourceClaim', () => {
 
   describe('keeping the lease alive', () => {
     it('renews on the cadence the server asked for', async () => {
-      // The interval belongs to Sentry's TTL, not to this client — guessing
+      // The interval belongs to the SDR host's TTL, not to this client — guessing
       // would either renew pointlessly often or let the lease lapse.
       goOffGrid()
       mountClaim()

@@ -14,6 +14,7 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 | `air`, `space`, `sea`, `land` | Each section | `<id>_data` |
 | `sdr` | Frequencies, groups, ranges, recordings | `sdr_data`, `sdr_recordings` |
 | `radio` | Radio hub: radios, spectrum, audio, decoding, IQ capture | `radio_data` |
+| `sdr-manager-remote` | SDR Manager: SDR hosts on other computers | `sdr_manager_remote_data` |
 | `docs` | The in-app docs (optional) | — |
 
 ## Decoders (profiles)
@@ -28,6 +29,14 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 
 `--profile all` starts the first four.
 
+## SDR Manager for this computer
+
+| Profile | Service | Job | Data |
+|---|---|---|---|
+| `sdr-manager-local` | `sdr-manager-local` | This computer's dongles (Linux). Its own image; root, privileged, host network | `sdr_manager_local_data` |
+
+On a Mac it is the `sdr-manager-local` command instead, not a container ([Mac](../sdr-manager-mac.md)). `compose.sdr-manager-local-only.yaml` ([SDR Manager only](../sdr-manager-local-only.md)) runs just `service-credentials`, `app`, `gateway` and `sdr-manager-local`.
+
 ## Ports on your computer
 
 | Port | Service | Open to your network |
@@ -36,6 +45,9 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 | `8443` | gateway TLS entrypoint (radio host) | Only with `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS` |
 | `4222` | nats (radio host) | Only with `NATS_PUBLISHED_ADDRESS` |
 | `8090` | adsb-decoder | Only with `SENTINEL_ADSB_DECODER_ADDRESS` |
+| `8000` | sdr-manager-local (SDR Manager API, for this and other Sentinels) | Yes (`SDR_MANAGER_LOCAL_HTTP_PORT`) |
+| Each dongle's output port and the one two above it (such as `1234`, `1236`) | sdr-manager-local (`rtl_tcp`, tuning) | Yes |
+| `14000`–`14007` | sdr-manager-local's internal `rtl_tcp` | No (`127.0.0.1`) |
 
 ## Inside Docker only
 

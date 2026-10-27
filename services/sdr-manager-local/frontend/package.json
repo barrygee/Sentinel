@@ -1,0 +1,31 @@
+{
+  "name": "@sentinel/sdr-manager-local",
+  "private": true,
+  "version": "0.0.0",
+  "description": "SDR Manager's THIS MACHINE settings: the RTL-SDRs plugged into this machine, managed by sdr-manager-local.",
+  "type": "module",
+  "exports": {
+    "./*.vue": "./src/*.vue",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "vite build",
+    "lint": "eslint . && prettier --check .",
+    "typecheck": "vue-tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "prettier": "@sentinel/web-config/prettier",
+  "dependencies": {
+    "@sentinel/shell-api": "*",
+    "@sentinel/ui": "*"
+  },
+  "peerDependencies": {
+    "pinia": "^2.2.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.4.0"
+  },
+  "devDependencies": {
+    "@sentinel/web-config": "*"
+  }
+}

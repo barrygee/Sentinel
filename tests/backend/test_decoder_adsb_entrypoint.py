@@ -209,7 +209,7 @@ class _MainHarness:
         self.signal_handler = None
 
         monkeypatch.setenv("CONFIG_URL", "http://app:8000/api/sdr/adsb/config")
-        monkeypatch.delenv("SENTRY_API_BASE", raising=False)
+        monkeypatch.delenv("SDR_MANAGER_API_BASE", raising=False)
         monkeypatch.setattr(adsb, "serve_json", lambda *_args: None)
         monkeypatch.setattr(adsb.os, "makedirs", lambda *_args, **_kwargs: None)
         monkeypatch.setattr(adsb.signal, "signal", self._capture_signal)

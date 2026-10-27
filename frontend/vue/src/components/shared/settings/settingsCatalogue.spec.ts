@@ -157,7 +157,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'air-overhead-alerts',
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
-  ['sdr-manager', 'sdr-manager-remote-hosts', { component: RemoteHostsControl, layout: 'half' }],
+  [
+    'sdr-manager',
+    'sdr-manager-remote-hosts',
+    { component: RemoteHostsControl, emits: ['stage'], layout: 'half' },
+  ],
   [
     'space',
     'space-source-override',
@@ -311,9 +315,17 @@ describe('Settings catalogue', () => {
     )
   })
 
-  it.each(EXPECTED)('%s / %s is edited by the right control', (_section, id, control) => {
+  it.each(EXPECTED)('%s / %s is edited by the right control', async (_section, id, control) => {
     const item = getSettingItems().find((candidate) => candidate.id === id)!
-    expect(item.control).toEqual(control)
+    // The map's settings are async components (they load map-kit): compare the
+    // component the loader resolves to. Vue unwraps a real module's default
+    // export, but not a vi.mock stand-in's.
+    const asyncLoader = (
+      item.control.component as { __asyncLoader?: () => Promise<{ default?: unknown }> }
+    ).__asyncLoader
+    const loaded = asyncLoader ? await asyncLoader() : undefined
+    const component = loaded ? (loaded.default ?? loaded) : item.control.component
+    expect({ ...item.control, component }).toEqual(control)
   })
 
   it('shows the data source settings only in the mode they belong to', () => {

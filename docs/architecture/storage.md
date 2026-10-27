@@ -14,7 +14,8 @@ Every service owns its own SQLite database; only settings are shared, and they b
 | `sea.db` | sea | `sea_vessel_cache` (30-second snapshot), `sea_vessel_static` |
 | `land.db` | land | APRS stations, `repeater_cache` |
 | `sdr.db` + recordings | sdr | Frequencies, groups, ranges, recordings |
-| `radio.db` | radio | Sentry hosts |
+| `sdr-manager-remote.db` | sdr-manager-remote | SDR hosts and their console passwords |
+| `sdr-manager-local.db` | sdr-manager-local | This computer's dongles, console password, hotspot |
 | Memory | each | Service registry (core), live vessels (sea), radio connections (radio) |
 
 - Async SQLAlchemy 2.0 on aiosqlite; every connection sets `journal_mode=WAL`, `busy_timeout=5000`, `synchronous=NORMAL`.

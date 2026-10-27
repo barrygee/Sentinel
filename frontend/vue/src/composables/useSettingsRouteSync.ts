@@ -12,7 +12,7 @@ import {
  * Keeps the Settings panel and its URL in step, both ways.
  *
  * The settings store stays the panel's source of truth, so every existing way
- * of opening it (footer button, menu, "OPEN SETTINGS" on a notice, a Sentry
+ * of opening it (footer button, menu, "OPEN SETTINGS" on a notice, an SDR host
  * marker's MORE) works as before and now also moves the URL:
  * - URL → panel: a `/settings/<section>` URL opens the panel on that section;
  *   leaving it (Back, a link) closes the panel.

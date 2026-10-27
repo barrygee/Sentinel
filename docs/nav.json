@@ -7,6 +7,9 @@
         { "path": "install", "title": "Quick start" },
         { "path": "configuration", "title": "Environment variables (.env)" },
         { "path": "hardware", "title": "Hardware" },
+        { "path": "sdr-manager-mac", "title": "SDR Manager on a Mac" },
+        { "path": "sdr-manager-linux", "title": "SDR Manager on Linux and Pi" },
+        { "path": "sdr-manager-local-only", "title": "SDR Manager only" },
         { "path": "decoders", "title": "Decoders" },
         { "path": "radio-host", "title": "Radio host" },
         { "path": "operations", "title": "Run and maintain" },
@@ -40,6 +43,11 @@
       "key": "air",
       "title": "Air",
       "pages": [{ "path": "use/air", "title": "Air: aircraft" }]
+    },
+    {
+      "key": "sdr-manager",
+      "title": "SDR Manager",
+      "pages": [{ "path": "use/sdr-manager", "title": "SDR Manager: your dongles" }]
     },
     {
       "key": "space",
@@ -118,6 +126,9 @@
     "ham": ["Land", "SDR", "APRS"],
     "radio": ["SDR", "rtl_tcp", "dongle"],
     "dongle": ["SDR", "rtl_tcp", "radio"],
+    "sentry": ["SDR Manager", "SDR host"],
+    "pi": ["SDR Manager", "Raspberry Pi"],
+    "mac": ["SDR Manager", "macOS"],
     "offline": ["Off Grid", "tiles", "pmtiles"],
     "map": ["tiles", "pmtiles"],
     "password": ["credentials", "secret"],

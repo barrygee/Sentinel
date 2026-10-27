@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from sentinel_sdr_manager_local.interfaces.clock import Clock
 from sentinel_sdr_manager_local.interfaces.types import UsbDeviceSnapshot
 from sentinel_sdr_manager_local.interfaces.usb import HotplugSource
+from sentinel_sdr_manager_local.schemas.health import HotplugSourceName
 from sentinel_sdr_manager_local.services import identity
 from sentinel_sdr_manager_local.services.event_bus import EventBus, SseMessage
 from sentinel_sdr_manager_local.services.identity import DeviceIdentity
@@ -189,6 +190,17 @@ class HotplugService:
         `HotplugSource` in tests that never degrades.
         """
         return not getattr(self._hotplug_source, "degraded_to_reconcile_only", False)
+
+    def source_name(self) -> HotplugSourceName:
+        """Which mechanism is seeing hotplugs: `reconcile` once degraded, or for a reconcile-only source.
+
+        A reconcile-only source (a Mac's, or simulated hardware) names itself
+        with `source_name`; it is healthy, just slower than udev.
+        """
+        if not self.is_primary_source_healthy():
+            return "reconcile"
+        source_name: HotplugSourceName = getattr(self._hotplug_source, "source_name", "udev")
+        return source_name
 
     def last_event_at_ms(self) -> int | None:
         """Return the Unix ms timestamp of the most recently observed raw event, if any."""

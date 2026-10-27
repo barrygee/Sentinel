@@ -1,0 +1,6 @@
+# The native Mac SDR Manager's sign-in files (its HTTP token, the tokens it
+# accepts and the deployment CA), written by service-credentials when
+# SDR_MANAGER_LOCAL_NATIVE=1. Secrets: never commit them. This file keeps the
+# folder in the checkout so compose's bind mount never creates it as root.
+*
+!.gitignore

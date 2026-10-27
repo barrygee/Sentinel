@@ -9,7 +9,7 @@ from sentinel_air.services.adsb_squawk import watcher
 
 # `/api/air/messages` stays core's (notifications); the gateway sends that
 # longer prefix to core and the rest of `/api/air/` here. `/api/sdr/adsb/` is
-# Air's too (the Sentry dongle behind Off Grid ADS-B, `adsb_source_router.py`)
+# Air's too (the SDR Manager dongle behind Off Grid ADS-B, `adsb_source_router.py`)
 # despite sitting under the SDR section's `/api/sdr/` — the longer prefix wins.
 manifest = section_manifest("air", display_name="AIR", nav_order=10, routes=["/api/air/", "/api/sdr/adsb/"])
 

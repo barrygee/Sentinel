@@ -1,4 +1,4 @@
-"""Tests for sentinel_sdr_manager_remote.services.host_poller — the per-Sentry-host background
+"""Tests for sentinel_sdr_manager_remote.services.host_poller — the per-SDR-host background
 poller that caches each enabled host's live device status (ADR-0009).
 
 `AsyncSessionLocal` (imported directly by this module, not via `get_db`) is
@@ -194,7 +194,7 @@ async def test_position_is_refetched_once_the_window_has_elapsed(session_factory
     ],
 )
 async def test_a_failed_position_read_keeps_the_last_one_and_does_not_hammer(session_factory, monkeypatch, failure):
-    """An older Sentry without the versioned export must not be retried every poll."""
+    """An older SDR host without the versioned export must not be retried every poll."""
     host_id = await _create_host(session_factory)
     client_class = _fake_client_class([_status_ok()], [_export_with_location(), failure])
     monkeypatch.setattr(client_module, "SdrManagerClient", client_class)
@@ -541,9 +541,9 @@ async def test_auth_token_never_appears_in_log_record_on_poll_failure(session_fa
     assert "ULTRA-SECRET-TOKEN" not in (host_row.last_error or "")
 
 
-async def test_consecutive_polls_sign_in_to_the_sentry_only_once(session_factory, monkeypatch):
+async def test_consecutive_polls_sign_in_to_the_sdr_manager_only_once(session_factory, monkeypatch):
     """Each poll builds a fresh SdrManagerClient; the session must outlive it, or every
-    poll is 401 → sign in → retry — a login against the Sentry every few seconds."""
+    poll is 401 → sign in → retry — a login against the SDR host every few seconds."""
     host_id = await _create_host(session_factory, auth_token="console-password")
     seen: list[str] = []
 
@@ -591,7 +591,7 @@ async def test_update_host_row_tolerates_the_host_being_deleted_mid_poll(
 
 
 async def _create_radio(session_factory, *, device_id: str, port: int, host_id: int = 1) -> int:
-    """A Sentinel radio mirroring a Sentry device, as ADD creates one.
+    """A Sentinel radio mirroring an SDR Manager device, as ADD creates one.
 
     Radios live in the `sdr.radios` UserSettings JSON array, not in the
     `sdr_radios` table — that table is vestigial for this surface.
@@ -606,8 +606,8 @@ async def _create_radio(session_factory, *, device_id: str, port: int, host_id: 
                 "host": "192.168.5.67",
                 "port": port,
                 "enabled": True,
-                "sentry_host_id": host_id,
-                "sentry_device_id": device_id,
+                "sdr_manager_host_id": host_id,
+                "sdr_manager_device_id": device_id,
             }
         )
         await db_helpers.upsert_setting(db, "sdr", "radios", radios)
@@ -643,7 +643,7 @@ def _status_with_device(device_id: str, iq_port: int) -> SdrManagerResponse:
 
 
 async def test_a_poll_repoints_a_radio_whose_device_moved_port(session_factory, monkeypatch):
-    """The replug case: Sentry reassigns the port, and the mirror follows.
+    """The replug case: SDR host reassigns the port, and the mirror follows.
 
     Without this the radio points at a port nothing listens on, and connecting
     fails with a bare socket error naming neither the device nor the reason.

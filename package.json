@@ -5,6 +5,7 @@
         "frontend/vue",
         "platform/web/*",
         "services/sections/*/frontend",
+        "services/sdr-manager-local/frontend",
         "services/sdr-manager-remote/frontend"
     ],
     "engines": {

@@ -6,11 +6,11 @@ import { axe } from 'jest-axe'
 
 vi.mock('@sentinel/map-kit/composables/useRangeRingOrigin', () => ({
   useRangeRingOrigin: () => ({
-    setting: ref({ kind: 'user', sentryHostId: null, latitude: null, longitude: null }),
+    setting: ref({ kind: 'user', sdrManagerHostId: null, latitude: null, longitude: null }),
     notice: ref(null),
     clearNotice: vi.fn(),
     selectUserOrigin: vi.fn(() => Promise.resolve()),
-    selectSentryOrigin: vi.fn(() => Promise.resolve()),
+    selectSdrManagerOrigin: vi.fn(() => Promise.resolve()),
     persistOriginToConfig: vi.fn(() => Promise.resolve()),
   }),
 }))
@@ -19,7 +19,7 @@ vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: ref({ lat: 51.5, lon: -0.12, accuracy: 0 }) }),
 }))
 
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 
 enableAutoUnmount(afterEach)
@@ -34,7 +34,7 @@ describe('RangeRingOriginControl', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    const store = useSentrySitesStore()
+    const store = useSdrManagerSitesStore()
     store.sites = []
     fetchSites = vi.fn(() => Promise.resolve())
     store.fetchSites = fetchSites as unknown as typeof store.fetchSites

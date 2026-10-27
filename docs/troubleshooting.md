@@ -21,6 +21,8 @@ Start with `docker compose ps -a`: every Sentinel service should say **(healthy)
 | **LAND** not in the menu | [Switch Land on](use/land.md#switch-land-on) |
 | Greyed out, **section unavailable** | `docker compose logs <section>`, then `docker compose restart <section>` |
 | SDR has no waterfall or audio | The radio hub is down: `docker compose logs radio` |
+| No **SDR Manager** in Settings | `docker compose up -d sdr-manager-remote` |
+| No **THIS MACHINE** in Settings › SDR Manager | SDR Manager for this computer isn't running: [Linux](sdr-manager-linux.md) or [Mac](sdr-manager-mac.md#if-its-not-working) |
 
 ## Service logins
 
@@ -54,7 +56,9 @@ To watch without refusing: `GUARD_PASSIVE_MODE=true`, then `docker compose up -d
 | `legacy import: copied N rows into …` | Normal, once, after an upgrade |
 | NATS `permissions violation` | A fault in Sentinel |
 | `ConnectError` from several sections for a few seconds | Core restarted |
-| Radio hub: `401`, a login, then `200` | Normal first sign-in to a Sentry; a `401` on the login itself is a wrong password |
+| sdr-manager-remote: `401`, a login, then `200` | Normal first sign-in to an SDR host; a `401` on the login itself is a wrong console password |
+| sdr-manager-local: `location: core unreachable, keeping the last known position` | Normal while core restarts |
+| sdr-manager-local: `port 8000 on 0.0.0.0 is already in use` | Something else has port 8000; see [SDR Manager on Linux and Pi](sdr-manager-linux.md#if-its-not-working) |
 
 ## Still stuck
 

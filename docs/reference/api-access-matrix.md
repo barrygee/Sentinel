@@ -257,6 +257,7 @@ Profile `sdr_manager_local`.
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
+| GET | `/remotes/sdr-manager-local/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 | GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
 | GET | `/api/sdr-manager/local/openapi.json` | `peer`, `operator` | `default` | SDR Manager (this machine): its API schema, published for managers built against it. |
 | GET | `/api/sdr-manager/local/health` | `browser`, `peer`, `internal`, `operator` | `health` | SDR Manager (this machine): health, at both mounts (the gateway's and other machines'). |

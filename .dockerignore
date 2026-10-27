@@ -27,3 +27,5 @@ services/docs/backend/tests
 services/sdr-manager-local/backend/tests
 # Design notes: not part of the in-app docs.
 docs/plans
+# The native Mac SDR Manager's credentials (secrets) never go into an image.
+sdr-manager-local-credentials

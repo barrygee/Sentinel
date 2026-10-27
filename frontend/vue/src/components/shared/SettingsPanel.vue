@@ -3,11 +3,11 @@
     id="settings-panel"
     ref="panelRef"
     class="theme-light light-island"
-    role="dialog"
-    aria-modal="true"
+    :role="pinned ? 'region' : 'dialog'"
+    :aria-modal="pinned ? undefined : 'true'"
     aria-labelledby="settings-section-heading"
     tabindex="-1"
-    :class="{ 'settings-panel-visible': store.open }"
+    :class="{ 'settings-panel-visible': store.open, 'settings-panel--pinned': pinned }"
     @keydown="onKeydown"
   >
     <!-- The panel is a light island; `theme-dark` keeps its rail charcoal, so
@@ -169,10 +169,23 @@ import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import BaseIconLink from '@sentinel/ui/base/BaseIconLink.vue'
 import { refreshSettingsFromBackend } from '@/shell/applySettings'
 import { createSearchRecord, searchRecords } from '@/search/textSearch'
+import { isOfferedInAppMode } from '@/shell/appMode'
 
 // Re-exported for back-compat: this type used to be defined here. Prefer
 // importing from '@sentinel/shell-api/types/settings' directly in new code.
 export type { SettingItem }
+
+const props = withDefaults(
+  defineProps<{
+    /**
+     * The panel is the whole page (SDR Manager-only mode) rather than a dialog
+     * over the map: a landmark region in the page's flow, with no focus trap
+     * and no Escape to close, since there is nothing behind it to return to.
+     */
+    pinned?: boolean
+  }>(),
+  { pinned: false },
+)
 
 const store = useSettingsStore()
 const appStore = useAppStore()
@@ -185,8 +198,9 @@ const panelRef = ref<HTMLElement | null>(null)
 // Modal-dialog behaviour: trap focus while open, Escape to close, restore focus
 // to the trigger on close (WCAG 4.1.2 / 2.4.3 / 2.1.2). The panel is display:none
 // when closed, so it leaves the a11y tree without needing aria-hidden.
-const { onKeydown } = useDialog({
-  isOpen: computed(() => store.open),
+const dialog = useDialog({
+  // A pinned panel is never a dialog, so it never traps focus or takes it on open.
+  isOpen: computed(() => store.open && !props.pinned),
   container: panelRef,
   onClose: () => store.closePanel(),
   // Focus the dialog container (tabindex="-1") rather than the search field, so
@@ -194,6 +208,9 @@ const { onKeydown } = useDialog({
   // tab-trapping work) without auto-highlighting the search input on open.
   initialFocus: () => panelRef.value,
 })
+function onKeydown(event: KeyboardEvent): void {
+  if (!props.pinned) dialog.onKeydown(event)
+}
 const pending = ref<Map<string, () => Promise<unknown> | void>>(new Map())
 const applyStatusMsg = ref('')
 const applyStatusClass = ref('')
@@ -206,7 +223,8 @@ const {
   isSectionOffered,
   offeredSections: visibleSections,
 } = useOfferedSettingsSections()
-const allSettings = getSettingItems()
+// Only what this app mode offers (SDR Manager-only mode trims App Settings).
+const allSettings = getSettingItems().filter(isOfferedInAppMode)
 
 const sectionHeading = computed(() => {
   if (searchQuery.value.trim()) return 'SEARCH RESULTS'

@@ -1,7 +1,7 @@
 """This Sentinel's stable identity (`app.instanceId`).
 
 Owned by core rather than by whichever section first needs it (Air used to
-generate it for ADS-B reservations): the radio hub sends it verbatim to Sentry
+generate it for ADS-B reservations): the radio hub sends it verbatim to SDR host
 as the reservation holder, so it must outlive any one section and keep the
 same key in the config file. It is read and written through the settings
 client, because the hub that needs it may run in its own container (P6.5).
@@ -19,7 +19,7 @@ INSTANCE_ID_KEY = "instanceId"
 
 
 async def get_instance_id(db: AsyncSession) -> str:
-    """This Sentinel's stable identity, as seen by Sentry's reservations.
+    """This Sentinel's stable identity, as seen by the SDR host's reservations.
 
     Generated once and stored, because it is the only thing distinguishing
     "renewing my own lease" from "stealing someone else's". A value regenerated

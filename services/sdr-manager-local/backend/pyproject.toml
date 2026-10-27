@@ -10,6 +10,11 @@ description = "SENTINEL SDR Manager (this machine's SDRs) backend"
 requires-python = ">=3.12"
 dependencies = []
 
+# Runs SDR Manager as a native Mac process (ADR 0007):
+# `uv run --project backend sdr-manager-local start|install|uninstall|status|doctor`.
+[project.scripts]
+sdr-manager-local = "sentinel_sdr_manager_local.cli:main_with_exit"
+
 [build-system]
 requires = ["uv_build>=0.10,<0.11"]
 build-backend = "uv_build"

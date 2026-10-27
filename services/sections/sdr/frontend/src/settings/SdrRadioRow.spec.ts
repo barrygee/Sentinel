@@ -28,14 +28,14 @@ const MANUAL_RADIO: SdrRadioRecord = {
   bandwidth: null,
   rf_gain: null,
   agc: null,
-  sentry_host_id: null,
-  sentry_device_id: null,
+  sdr_manager_host_id: null,
+  sdr_manager_device_id: null,
   notes: '',
   antenna: '',
   visibility: 'public',
 }
 
-const SENTRY_DEVICE_STATUS: SdrManagerDeviceStatus = {
+const SDR_MANAGER_DEVICE_STATUS: SdrManagerDeviceStatus = {
   device_id: 'rtl-1',
   name: 'Attic RTL',
   present: true,
@@ -134,20 +134,20 @@ describe('SdrRadioRow', () => {
     expect(wrapper.findComponent(SdrDeviceForm).exists()).toBe(false)
   })
 
-  it('renders the edit form with the radio and Sentry device status forwarded when open', () => {
+  it('renders the edit form with the radio and SDR Manager device status forwarded when open', () => {
     const wrapper = mount(SdrRadioRow, {
       props: {
         radio: MANUAL_RADIO,
         connected: null,
         open: true,
         confirming: false,
-        sentryDeviceStatus: SENTRY_DEVICE_STATUS,
+        sdrManagerDeviceStatus: SDR_MANAGER_DEVICE_STATUS,
       },
     })
     const form = wrapper.findComponent(SdrDeviceForm)
     expect(form.exists()).toBe(true)
     expect(form.props('radio')).toEqual(MANUAL_RADIO)
-    expect(form.props('sentryDeviceStatus')).toEqual(SENTRY_DEVICE_STATUS)
+    expect(form.props('sdrManagerDeviceStatus')).toEqual(SDR_MANAGER_DEVICE_STATUS)
   })
 
   it('re-emits save and cancel-edit from the nested form', () => {
@@ -171,7 +171,7 @@ describe('SdrRadioRow', () => {
   })
 })
 
-describe('a radio whose Sentry device is unavailable', () => {
+describe('a radio whose SDR Manager device is unavailable', () => {
   /**
    * The state that used to be invisible: the dongle is unplugged, disabled or
    * replugged elsewhere, and the only way to find out was to connect and get a
@@ -179,8 +179,8 @@ describe('a radio whose Sentry device is unavailable', () => {
    */
   const unavailable = (reason: string): SdrRadioRecord => ({
     ...MANUAL_RADIO,
-    sentry_host_id: 1,
-    sentry_device_id: 'serial:AAA',
+    sdr_manager_host_id: 1,
+    sdr_manager_device_id: 'serial:AAA',
     device_available: false,
     unavailable_reason: reason,
   })
@@ -220,7 +220,7 @@ describe('a radio whose Sentry device is unavailable', () => {
   })
 
   it('treats an absent flag as available', () => {
-    // An older backend, or a manual radio with no Sentry device behind it —
+    // An older backend, or a manual radio with no SDR Manager device behind it —
     // greying either out would be a lie.
     const wrapper = mountRow(MANUAL_RADIO)
 
@@ -251,5 +251,33 @@ describe('a radio whose Sentry device is unavailable', () => {
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
+  })
+})
+
+describe('SdrRadioRow editAsManual', () => {
+  const UNLISTED_HOST_RADIO: SdrRadioRecord = {
+    ...MANUAL_RADIO,
+    sdr_manager_host_id: 99,
+    sdr_manager_device_id: 'rtl-1',
+  }
+
+  it('forwards editAsManual to the edit form', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: UNLISTED_HOST_RADIO,
+        connected: null,
+        open: true,
+        confirming: false,
+        editAsManual: true,
+      },
+    })
+    expect(wrapper.findComponent(SdrDeviceForm).props('editAsManual')).toBe(true)
+  })
+
+  it('leaves it off when the row does not set it', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: { radio: UNLISTED_HOST_RADIO, connected: null, open: true, confirming: false },
+    })
+    expect(wrapper.findComponent(SdrDeviceForm).props('editAsManual')).toBe(false)
   })
 })

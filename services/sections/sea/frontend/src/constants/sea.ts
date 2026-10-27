@@ -24,7 +24,7 @@ export const SEA_MAX_RENDER_ROWS = 12_000
  * as the pills, so a group reads as part of the same set as the labels it
  * stands in for; the ring is a faint wash of the SDR spectrum's signal blue, so
  * a group of vessels is told apart at a glance from the dark-ringed
- * Sentinel/Sentry site markers (mirrors the Land map's APRS counts).
+ * Sentinel/SDR host site markers (mirrors the Land map's APRS counts).
  */
 export const SEA_COUNT_FILL = '#000000'
 export const SEA_COUNT_RING = 'rgba(0, 170, 255, 0.25)'

@@ -7,10 +7,10 @@ import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 import type { RingOriginSetting } from '../../composables/useRangeRingOrigin'
 
 const selectUserOrigin = vi.fn()
-const selectSentryOrigin = vi.fn()
+const selectSdrManagerOrigin = vi.fn()
 const persistOriginToConfig = vi.fn(() => Promise.resolve())
 const clearNotice = vi.fn()
-const setting = ref<RingOriginSetting>({ kind: 'user', sentryHostId: null })
+const setting = ref<RingOriginSetting>({ kind: 'user', sdrManagerHostId: null })
 const notice = ref<string | null>(null)
 
 vi.mock('../../composables/useRangeRingOrigin', () => ({
@@ -20,7 +20,7 @@ vi.mock('../../composables/useRangeRingOrigin', () => ({
     clearNotice,
     persistOriginToConfig,
     selectUserOrigin,
-    selectSentryOrigin,
+    selectSdrManagerOrigin,
   }),
 }))
 
@@ -29,7 +29,7 @@ vi.mock('../../composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: userLocation }),
 }))
 
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import RingOriginPicker from './RingOriginPicker.vue'
 
 enableAutoUnmount(afterEach)
@@ -49,7 +49,7 @@ function site(overrides: Partial<RadioSite> = {}): RadioSite {
 }
 
 function mountPicker(options: { sites?: RadioSite[] } = {}) {
-  useSentrySitesStore().sites = options.sites ?? []
+  useSdrManagerSitesStore().sites = options.sites ?? []
   return mount(RingOriginPicker, { attachTo: document.body })
 }
 
@@ -75,13 +75,13 @@ describe('RingOriginPicker', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
-    setting.value = { kind: 'user', sentryHostId: null }
+    setting.value = { kind: 'user', sdrManagerHostId: null }
     notice.value = null
     userLocation.value = { lat: 51.5, lon: -0.12, accuracy: 0 }
   })
 
   describe('the choices', () => {
-    it('lists the Sentinel location first, then every Sentry', () => {
+    it('lists the Sentinel location first, then every SDR host', () => {
       const wrapper = mountPicker({ sites: [site(), site({ id: 2, name: 'Coastal' })] })
       expect(optionNames(wrapper)).toEqual(['Sentinel location', 'Gateshead', 'Coastal'])
     })
@@ -115,7 +115,7 @@ describe('RingOriginPicker', () => {
     })
 
     it('checks the current choice and only that one', () => {
-      setting.value = { kind: 'sentry', sentryHostId: 1 }
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
       expect(rowNamed(wrapper, 'Gateshead').attributes('aria-checked')).toBe('true')
       expect(rowNamed(wrapper, 'Sentinel location').attributes('aria-checked')).toBe('false')
@@ -124,7 +124,7 @@ describe('RingOriginPicker', () => {
 
   describe('choosing', () => {
     it('centres on the Sentinel location and announces it', async () => {
-      setting.value = { kind: 'sentry', sentryHostId: 1 }
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
 
       await rowNamed(wrapper, 'Sentinel location').trigger('click')
@@ -133,12 +133,12 @@ describe('RingOriginPicker', () => {
       expect(wrapper.find('.sr-only').text()).toBe('Range rings centred on the Sentinel location.')
     })
 
-    it('pins a Sentry by id and names it in the announcement', async () => {
+    it('pins an SDR host by id and names it in the announcement', async () => {
       const wrapper = mountPicker({ sites: [site(), site({ id: 2, name: 'Coastal' })] })
 
       await rowNamed(wrapper, 'Coastal').trigger('click')
 
-      expect(selectSentryOrigin).toHaveBeenCalledWith(2)
+      expect(selectSdrManagerOrigin).toHaveBeenCalledWith(2)
       expect(wrapper.find('.sr-only').text()).toBe('Range rings centred on Coastal.')
     })
 
@@ -152,7 +152,7 @@ describe('RingOriginPicker', () => {
       expect(wrapper.find('.sr-only').text()).toBe('')
     })
 
-    it('dismisses the removed-Sentry notice as soon as a choice is made', async () => {
+    it('dismisses the removed-SDR-host notice as soon as a choice is made', async () => {
       notice.value = 'GATESHEAD was removed — rings re-centred on your location.'
       const wrapper = mountPicker({ sites: [site()] })
       expect(wrapper.find('.ring-origin-picker-notice').text()).toBe(notice.value)
@@ -169,7 +169,7 @@ describe('RingOriginPicker', () => {
 
   describe('keyboard', () => {
     it('makes the group one tab stop, landing on the current choice', () => {
-      setting.value = { kind: 'sentry', sentryHostId: 1 }
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
       expect(tabStops(wrapper)).toEqual(['-1', '0'])
     })
@@ -177,7 +177,7 @@ describe('RingOriginPicker', () => {
     it('still offers a tab stop when nothing here is chosen', () => {
       // A pinned host that has left the fleet leaves nothing checked; without a
       // fallback stop the group would drop out of the tab order entirely.
-      setting.value = { kind: 'sentry', sentryHostId: 99 }
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 99 }
       const wrapper = mountPicker({ sites: [site()] })
       expect(tabStops(wrapper)).toEqual(['0', '-1'])
     })
@@ -187,7 +187,7 @@ describe('RingOriginPicker', () => {
 
       await key(wrapper, k)
 
-      expect(selectSentryOrigin).toHaveBeenCalledWith(1)
+      expect(selectSdrManagerOrigin).toHaveBeenCalledWith(1)
       expect(tabStops(wrapper)).toEqual(['-1', '0'])
     })
 
@@ -196,11 +196,11 @@ describe('RingOriginPicker', () => {
 
       await key(wrapper, k)
 
-      expect(selectSentryOrigin).toHaveBeenCalledWith(1)
+      expect(selectSdrManagerOrigin).toHaveBeenCalledWith(1)
     })
 
     it('wraps forward off the end back to the first', async () => {
-      setting.value = { kind: 'sentry', sentryHostId: 1 }
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
 
       await key(wrapper, 'ArrowDown')
@@ -212,7 +212,7 @@ describe('RingOriginPicker', () => {
       const wrapper = mountPicker({ sites: [site()] })
 
       await key(wrapper, 'End')
-      expect(selectSentryOrigin).toHaveBeenCalledWith(1)
+      expect(selectSdrManagerOrigin).toHaveBeenCalledWith(1)
 
       await key(wrapper, 'Home')
       expect(selectUserOrigin).toHaveBeenCalledOnce()
@@ -229,7 +229,7 @@ describe('RingOriginPicker', () => {
     it('ignores keys it does not handle', async () => {
       const wrapper = mountPicker({ sites: [site()] })
       await key(wrapper, 'a')
-      expect(selectSentryOrigin).not.toHaveBeenCalled()
+      expect(selectSdrManagerOrigin).not.toHaveBeenCalled()
       expect(selectUserOrigin).not.toHaveBeenCalled()
     })
   })

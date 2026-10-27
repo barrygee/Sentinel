@@ -98,8 +98,8 @@ vi.mock('@sentinel/map-kit/controls/roads/RoadsToggleControl', () => ({
 vi.mock('@sentinel/map-kit/controls/terrain/TerrainToggleControl', () => ({
   TerrainToggleControl: controlMocks.make('terrain'),
 }))
-vi.mock('@sentinel/map-kit/controls/sentry-sites/SentrySitesControl', () => ({
-  SentrySitesControl: controlMocks.make('sentrySites'),
+vi.mock('@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl', () => ({
+  SdrManagerSitesControl: controlMocks.make('sdrManagerSites'),
 }))
 vi.mock('./controls/range-rings/RangeRingsControl', () => ({
   RangeRingsControl: controlMocks.make('rangeRings'),
@@ -752,13 +752,13 @@ describe('AirMap', () => {
       expect(shared.marker!.remove).toHaveBeenCalled()
     })
 
-    it('hands the Sentry markers the operator position, and null without one', () => {
+    it('hands the SDR Manager markers the operator position, and null without one', () => {
       const map = makeFakeMap()
       mountMap()
       shared.locationRef!.value = { lon: 3, lat: 4 }
       bringUp(map)
       const options = (
-        controlMocks.instances.sentrySites![0]!.args as [
+        controlMocks.instances.sdrManagerSites![0]!.args as [
           unknown,
           unknown,
           { getUserLocation: () => unknown },

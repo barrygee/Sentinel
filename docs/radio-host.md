@@ -84,7 +84,7 @@ You need fixed names for both (here `sentinel.lan` and `radio.lan`), Docker and 
 
 - Radio host, `docker compose -f compose.radio-host.yaml logs radio`: `connected to core at https://sentinel.lan:8443`, `event bus connected`, `registration: radio registered`.
 - Core host, `docker compose logs app`: `registry: radio radio registered from https://radio.lan:8443`.
-- In the browser: re-add Sentry hosts (the new hub starts with none), and check radio addresses as seen from the radio host (`host.docker.internal` for one on the radio host itself).
+- In the browser: check radio addresses as seen from the radio host (`host.docker.internal` for one on the radio host itself).
 
 ## Later
 

@@ -161,7 +161,7 @@ describe('RemoteHostSiteMap', () => {
     })
   })
 
-  it('plots the Sentry with the ⊙ logo marker at its position', () => {
+  it('plots the SDR host with the ⊙ logo marker at its position', () => {
     mountMap()
     const marker = markerRegistry.instances[0]!
     expect(marker.lngLat).toEqual([-1.532995, 54.951186])

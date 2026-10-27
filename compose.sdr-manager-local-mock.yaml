@@ -24,6 +24,7 @@ services:
       - "8000"
     volumes: !override
       - sdr_manager_local_data:/data
+      - ./frontend/spa-dist:/app/frontend/spa-dist:ro
       - ./backend:/app/backend
       - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}

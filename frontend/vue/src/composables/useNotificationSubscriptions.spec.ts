@@ -15,7 +15,7 @@ import { satellitePassSubscriptions } from '@sentinel/section-space/satelliteNot
 import { useAirNotifStore } from '@sentinel/section-air/stores/airNotif'
 import {
   useAirStore,
-  sentryAlertLocationId,
+  sdrManagerAlertLocationId,
   USER_ALERT_LOCATION_ID,
 } from '@sentinel/section-air/stores/air'
 import {
@@ -27,14 +27,14 @@ import {
 vi.mock('@sentinel/shell-api/services/settingsApi', () => ({ put: vi.fn(), getNamespace: vi.fn() }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
-// The real zones need geolocation and the Sentry poll; stand in with the same
+// The real zones need geolocation and the SDR Manager poll; stand in with the same
 // shape, derived from the air store so switching an alert off shows through.
 vi.mock('@sentinel/section-air/composables/useOverheadAlertZones', () => ({
   useOverheadAlertZones: vi.fn(),
 }))
 import { useOverheadAlertZones } from '@sentinel/section-air/composables/useOverheadAlertZones'
 
-const SENTRY_ID = sentryAlertLocationId(3)
+const SDR_MANAGER_ID = sdrManagerAlertLocationId(3)
 
 function useZonesFromStore(): void {
   vi.mocked(useOverheadAlertZones).mockImplementation(() => {
@@ -42,7 +42,7 @@ function useZonesFromStore(): void {
     const locations = computed(() =>
       [
         { id: USER_ALERT_LOCATION_ID, label: 'YOU', isUser: true },
-        { id: SENTRY_ID, label: 'GATESHEAD', isUser: false },
+        { id: SDR_MANAGER_ID, label: 'GATESHEAD', isUser: false },
       ].map((place) => ({ ...place, lon: 0, lat: 51, ...airStore.overheadAlertFor(place.id) })),
     )
     return { locations, activeZones: computed(() => []) }
@@ -112,11 +112,14 @@ describe('useNotificationSubscriptions', () => {
   it('lists each overhead alert that is on, per place and aircraft kind', () => {
     const airStore = useAirStore()
     airStore.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true })
-    airStore.setOverheadAlert(SENTRY_ID, { mil: true })
+    airStore.setOverheadAlert(SDR_MANAGER_ID, { mil: true })
     const { subscriptions } = useNotificationSubscriptions()
     expect(subscriptions.value).toEqual([
       { key: 'overhead:user:civil', label: 'Sentinel location — civil aircraft overhead' },
-      { key: `overhead:${SENTRY_ID}:mil`, label: 'Sentry: GATESHEAD — military aircraft overhead' },
+      {
+        key: `overhead:${SDR_MANAGER_ID}:mil`,
+        label: 'SDR host: GATESHEAD — military aircraft overhead',
+      },
     ])
   })
 
@@ -159,13 +162,17 @@ describe('useNotificationSubscriptions', () => {
 
     it('turns off one overhead flag and saves overhead alerts to the backend', async () => {
       const airStore = useAirStore()
-      airStore.setOverheadAlert(SENTRY_ID, { civil: true, mil: true, radiusNm: 7 })
+      airStore.setOverheadAlert(SDR_MANAGER_ID, { civil: true, mil: true, radiusNm: 7 })
       const { turnOff } = useNotificationSubscriptions()
 
-      // The Sentry location id itself contains a colon.
-      await turnOff([`overhead:${SENTRY_ID}:mil`])
+      // The SDR Manager location id itself contains a colon.
+      await turnOff([`overhead:${SDR_MANAGER_ID}:mil`])
 
-      expect(airStore.overheadAlertFor(SENTRY_ID)).toEqual({ civil: true, mil: false, radiusNm: 7 })
+      expect(airStore.overheadAlertFor(SDR_MANAGER_ID)).toEqual({
+        civil: true,
+        mil: false,
+        radiusNm: 7,
+      })
       expect(settingsApi.put).toHaveBeenCalledWith('air', 'overheadAlerts', airStore.overheadAlerts)
     })
 

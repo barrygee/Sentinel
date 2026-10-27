@@ -54,7 +54,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    # It dials rtl_tcp and Sentry hosts, possibly on this machine itself.
+    # It dials rtl_tcp and SDR hosts, possibly on this machine itself.
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

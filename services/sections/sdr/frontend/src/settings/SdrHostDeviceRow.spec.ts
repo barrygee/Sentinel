@@ -43,7 +43,7 @@ describe('SdrHostDeviceRow', () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: { device: buildDevice({ state: 'streaming', state_reason: null }), adding: false },
     })
-    expect(wrapper.find('.sdr-sentry-device-state').text()).toBe('STREAMING')
+    expect(wrapper.find('.sdr-sdr-manager-device-state').text()).toBe('STREAMING')
   })
 
   it('appends the state reason in parentheses when present', () => {
@@ -53,7 +53,7 @@ describe('SdrHostDeviceRow', () => {
         adding: false,
       },
     })
-    expect(wrapper.find('.sdr-sentry-device-state').text()).toBe('ERROR (usb reset)')
+    expect(wrapper.find('.sdr-sdr-manager-device-state').text()).toBe('ERROR (usb reset)')
   })
 
   it('passes the device present flag through to the status dot', () => {
@@ -63,19 +63,19 @@ describe('SdrHostDeviceRow', () => {
     expect(wrapper.find('.sdr-status-dot--disconnected').exists()).toBe(true)
   })
 
-  it('disables the ADD button and explains why when Sentry has not allocated an output port', () => {
+  it('disables the ADD button and explains why when SDR host has not allocated an output port', () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: { device: buildDevice({ output: null }), adding: false },
     })
     const button = wrapper.find('.sdr-devices-btn')
     expect(button.attributes('disabled')).toBeDefined()
     expect(button.attributes('title')).toBe(
-      'Sentry has not assigned this device an output port yet',
+      'SDR host has not assigned this device an output port yet',
     )
     expect(button.text()).toBe('ADD')
   })
 
-  it('enables the ADD button with no title once Sentry has allocated an output port', () => {
+  it('enables the ADD button with no title once SDR host has allocated an output port', () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: {
         device: buildDevice({ output: { iq_port: 1, control_port: 2, host: '10.0.0.1' } }),
@@ -88,7 +88,7 @@ describe('SdrHostDeviceRow', () => {
   })
 
   it('refuses to mirror a private device, and says why', () => {
-    // Private is the operator saying on the Sentry side that this dongle is not
+    // Private is the operator saying on the SDR host side that this dongle is not
     // for sharing. Mirroring it would contradict that, and the resulting radio
     // would fail to connect for a reason nothing in Sentinel explains.
     const wrapper = mount(SdrHostDeviceRow, {
@@ -102,7 +102,7 @@ describe('SdrHostDeviceRow', () => {
     })
     const button = wrapper.find('.sdr-devices-btn')
     expect(button.attributes('disabled')).toBeDefined()
-    expect(button.attributes('title')).toContain('private on its Sentry')
+    expect(button.attributes('title')).toContain('private on its SDR host')
   })
 
   it('refuses to mirror a disabled device, and says why', () => {
@@ -117,7 +117,7 @@ describe('SdrHostDeviceRow', () => {
     })
     const button = wrapper.find('.sdr-devices-btn')
     expect(button.attributes('disabled')).toBeDefined()
-    expect(button.attributes('title')).toContain('disabled on its Sentry')
+    expect(button.attributes('title')).toContain('disabled on its SDR host')
   })
 
   it('still shows the row for a private device', () => {

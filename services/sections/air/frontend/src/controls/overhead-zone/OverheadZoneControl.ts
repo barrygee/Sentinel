@@ -17,7 +17,7 @@ export interface OverheadZone {
 /**
  * The shaded circles marking what counts as "overhead" — one per watched place.
  *
- * Every alert location draws its own, because each Sentry watches its own patch
+ * Every alert location draws its own, because each SDR host watches its own patch
  * of sky at its own radius; a single ring around the operator would say nothing
  * about where the other alerts are coming from.
  */

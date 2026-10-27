@@ -519,13 +519,13 @@ describe('a radio the radio list already reports as unavailable', () => {
   }
 
   it('reports the list reason without calling the connect endpoint', async () => {
-    seedRadio({ device_available: false, unavailable_reason: 'Its Sentry host is not reachable.' })
+    seedRadio({ device_available: false, unavailable_reason: 'Its SDR host is not reachable.' })
     const { socket, onDeviceUnavailable } = createHarness()
 
     await socket.openControlSocket(1)
     await flushPromises()
 
-    expect(onDeviceUnavailable).toHaveBeenCalledWith('Its Sentry host is not reachable.')
+    expect(onDeviceUnavailable).toHaveBeenCalledWith('Its SDR host is not reachable.')
     expect(fetchMock).not.toHaveBeenCalled()
     expect(FakeWebSocket.instances).toHaveLength(0)
   })

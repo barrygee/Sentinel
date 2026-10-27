@@ -151,7 +151,7 @@ export const SQUAWK_WATCH_INTERVAL_SETTING: Record<SquawkWatchMode, string> = {
 /**
  * Overhead-alert settings for one place aircraft can be overhead *of*.
  *
- * Each Sentry watches its own patch of sky, so "is anything overhead?" is a
+ * Each SDR host watches its own patch of sky, so "is anything overhead?" is a
  * question per receiver, not one global one — the civil/military choice and the
  * radius belong to the location, not to the app.
  */
@@ -164,9 +164,9 @@ export interface OverheadAlertConfig {
 /** The operator's own position, which is always the first alert location. */
 export const USER_ALERT_LOCATION_ID = 'user'
 
-/** The alert-location key for one Sentry host. */
-export function sentryAlertLocationId(hostId: number): string {
-  return `sentry:${hostId}`
+/** The alert-location key for one SDR host. */
+export function sdrManagerAlertLocationId(hostId: number): string {
+  return `sdr-manager:${hostId}`
 }
 
 /**
@@ -435,7 +435,7 @@ export const useAirStore = defineStore('air', () => {
     if (stored) hydrateOverheadAlerts(stored)
   }
 
-  /** Forget a location's settings — for a Sentry that has left the fleet. */
+  /** Forget a location's settings — for an SDR host that has left the fleet. */
   function forgetOverheadAlert(locationId: string): void {
     if (!(locationId in overheadAlerts.value)) return
     const next = { ...overheadAlerts.value }

@@ -239,6 +239,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Sdr-manager kinds, serve-before-core, app mode, shared settings section
 - Port Sentry backend
 - Link this machine
+- This-machine screens
+- MacOS native mode
+- SDR Manager-only mode: compose file, shell, CI matrix
 
 ### Bug Fixes
 
@@ -557,6 +560,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop calling the online feed until its daily limit resets
 - Keep the online feed's daily-limit refusal across restarts
 - Copy sdr-manager-remote's pyproject into the image
+- Show radios whose SDR host is not listed in DEVICES
+- Keep the Air off-grid link on the existing Sentry host anchor
 
 ### Chores
 
@@ -1645,6 +1650,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #535 from barrygee/refactor/sdr-manager-remote
 - Merge pull request #536 from barrygee/feat/sdr-manager-remote-local-link
 - Merge pull request #537 from barrygee/refactor/sdr-manager-settings-section
+- Merge pull request #538 from barrygee/feat/sdr-manager-local-screens
+- Merge pull request #539 from barrygee/fix/sdr-devices-orphaned-host-radios
+- Merge pull request #540 from barrygee/refactor/rename-sentry-identifiers
+- Merge pull request #541 from barrygee/feat/sdr-manager-local-macos
+- Merge pull request #542 from barrygee/feat/sdr-manager-only-mode
+- Merge pull request #543 from barrygee/docs/sdr-manager-guides
 
 ### Refactoring
 
@@ -1744,6 +1755,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop hosting sections in-process
 - Move remote host management out of the radio hub
 - SDR Manager settings section
+- Rename remaining sentry identifiers
 
 ### Documentation
 
@@ -1805,6 +1817,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Shared packages import their own modules by package name
 - Explain how to run without the docs service
 - 0007 SDR Manager
+- SDR Manager guides and .env recipes
 
 ### Tests
 

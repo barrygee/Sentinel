@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { isDeployed } from './support/sectionDeployment';
+import { appModeUnderTest, isSdrManagerLocalOnly } from './support/appMode';
 
 /**
  * Gateway smoke suite — what the Caddy gateway in front of the composed stack
@@ -13,7 +14,7 @@ import { isDeployed } from './support/sectionDeployment';
  *   3. The shell and its section remotes load with no CSP violation.
  *   4. The alerts SSE stream is flushed, not buffered by the proxy.
  *   5. /ws/sdr/* WebSockets upgrade through the gateway.
- *   6. /api/app/mode reaches core and says the composed stack is the full app.
+ *   6. /api/app/mode reaches core and names the mode the stack was composed in.
  */
 
 test('the gateway never routes /internal/, whatever the method or spelling', async ({
@@ -55,6 +56,7 @@ test('the shell document is served with a script CSP that allows no inline injec
 test('the shell and every section remote load through the gateway with no CSP violation', async ({
     page,
 }) => {
+    test.skip(isSdrManagerLocalOnly, 'SDR Manager-only mode has no sections');
     const violations: string[] = [];
     page.on('console', (message) => {
         if (/Content Security Policy/i.test(message.text())) violations.push(message.text());
@@ -77,6 +79,7 @@ test('the shell and every section remote load through the gateway with no CSP vi
 });
 
 test('the alerts SSE stream reaches the browser unbuffered', async ({ page }) => {
+    test.skip(isSdrManagerLocalOnly, 'SDR Manager-only mode opens no alerts stream');
     await page.goto('/air/');
     // Read the first chunk only: a proxy that buffered the stream would hold it
     // until the server closes the connection, which it never does.
@@ -123,9 +126,16 @@ test('the SDR WebSocket upgrades through the gateway', async ({ page }) => {
     expect(opened).toBe(true);
 });
 
-test('the app mode reaches core through the gateway and is the full app', async ({ request }) => {
-    // The compose stack sets no SENTINEL_MODE, so the shell mounts the full app at /.
+test('the app mode reaches core through the gateway and is the mode the stack runs', async ({
+    request,
+}) => {
+    // docker-compose.yml sets no SENTINEL_MODE, so the shell mounts the full app
+    // at /; compose.sdr-manager-local-only.yaml sets the SDR Manager-only mode.
     const response = await request.get('/api/app/mode');
     expect(response.status()).toBe(200);
-    expect(await response.json()).toEqual({ mode: 'full', landingPath: '/' });
+    expect(await response.json()).toEqual(
+        appModeUnderTest === 'full'
+            ? { mode: 'full', landingPath: '/' }
+            : { mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' },
+    );
 });

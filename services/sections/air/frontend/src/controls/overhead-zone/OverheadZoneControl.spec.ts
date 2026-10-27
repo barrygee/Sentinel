@@ -127,7 +127,7 @@ describe('OverheadZoneControl.setZones', () => {
     const control = new OverheadZoneControl()
     control.onAdd(map.map)
 
-    // Each Sentry watches its own patch of sky, so each gets its own circle.
+    // Each SDR host watches its own patch of sky, so each gets its own circle.
     control.setZones([zone(), zone({ lat: 55, radiusNm: 40 })])
 
     expect(writtenZones(map).features).toHaveLength(2)

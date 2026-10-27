@@ -2,8 +2,8 @@
 
 Binds exactly the two entry points SDR Manager needs to resolve a spawn-time
 `-d <index>`: `rtlsdr_get_device_count` and `rtlsdr_get_device_usb_strings`.
-Must fail gracefully and diagnosably when `librtlsdr` is absent — the common
-case on a developer's macOS laptop — rather than crashing the whole process
+Must fail gracefully and diagnosably when `librtlsdr` is absent — a Mac
+without Homebrew's `librtlsdr`, say — rather than crashing the whole process
 at import time.
 """
 
@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import ctypes
 import ctypes.util
+from collections.abc import Sequence
+from pathlib import Path
 
 from sentinel_sdr_manager_local.interfaces.types import RtlSdrUsbStrings
 
@@ -40,30 +42,46 @@ def decode_usb_string_buffer(buffer: bytes) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
-def _load_librtlsdr() -> ctypes.CDLL:
-    """Locate and load `librtlsdr`'s shared object, trying common names in order.
+def librtlsdr_candidates(library_path: str | None = None, search_directories: Sequence[Path] = ()) -> list[str]:
+    """Every name or path `CtypesRtlSdrLibrary` tries, in order.
+
+    An explicit `library_path` (`SDR_MANAGER_LOCAL_LIBRTLSDR_PATH`) is the only
+    candidate: the operator chose that file, so silently loading another would
+    hide their mistake. Otherwise the loader's own lookup comes first, then the
+    usual Linux and macOS names, then `<directory>/librtlsdr.dylib` in each
+    `search_directories` — Homebrew's `lib/` folders on a Mac, which a
+    LaunchAgent's process doesn't search by itself.
+    """
+    if library_path:
+        return [library_path]
+    candidate_names = ["librtlsdr.so.0", "librtlsdr.so", "librtlsdr.0.dylib", "librtlsdr.dylib"]
+    resolved = ctypes.util.find_library("rtlsdr")
+    if resolved:
+        candidate_names.insert(0, resolved)
+    candidate_names.extend(str(directory / "librtlsdr.dylib") for directory in search_directories)
+    return candidate_names
+
+
+def _load_librtlsdr(candidate_names: list[str]) -> tuple[ctypes.CDLL, str]:
+    """Load the first of `candidate_names` that loads, and say which one it was.
 
     Raises `RtlSdrLibraryUnavailableError` with a diagnosable message
     (rather than letting a bare `OSError` propagate) when none can be
     loaded — this is the single untestable edge in this adapter (architecture
     §12.9): it requires the real shared library to be installed.
     """
-    candidate_names = ["librtlsdr.so.0", "librtlsdr.so", "librtlsdr.0.dylib", "librtlsdr.dylib"]
-    resolved = ctypes.util.find_library("rtlsdr")
-    if resolved:
-        candidate_names.insert(0, resolved)
     last_error: OSError | None = None
     for name in candidate_names:
         try:
-            return ctypes.CDLL(name)
+            return ctypes.CDLL(name), name
         except OSError as error:  # pragma: no cover - requires the real library absent/present
             last_error = error
             continue
     raise RtlSdrLibraryUnavailableError(
         "librtlsdr could not be loaded (tried: "
         f"{', '.join(candidate_names)}). Install librtlsdr0 (Debian/Raspbian: "
-        "`apt install librtlsdr0`) or, on macOS dev machines, use "
-        "FakeRtlSdrLibrary instead of CtypesRtlSdrLibrary."
+        "`apt install librtlsdr0`; macOS: `brew install librtlsdr`), or set "
+        "SDR_MANAGER_LOCAL_LIBRTLSDR_PATH to the library file."
     ) from last_error
 
 
@@ -75,8 +93,8 @@ class CtypesRtlSdrLibrary:
     rather than deep inside a request handler.
     """
 
-    def __init__(self) -> None:
-        self._library = _load_librtlsdr()
+    def __init__(self, library_path: str | None = None, search_directories: Sequence[Path] = ()) -> None:
+        self._library, self.loaded_from = _load_librtlsdr(librtlsdr_candidates(library_path, search_directories))
         self._library.rtlsdr_get_device_count.restype = ctypes.c_uint32
         self._library.rtlsdr_get_device_count.argtypes = []
         self._library.rtlsdr_get_device_usb_strings.restype = ctypes.c_int

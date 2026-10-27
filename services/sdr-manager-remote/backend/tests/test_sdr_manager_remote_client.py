@@ -1,5 +1,5 @@
 """Tests for sentinel_sdr_manager_remote.services.sdr_manager_client — the typed async HTTP client for
-one Sentry host's `/api` surface (ADR-0009).
+one SDR host's `/api` surface (ADR-0009).
 
 No network is used anywhere here: every request is routed through an
 ``httpx.MockTransport`` installed by monkeypatching ``httpx.AsyncClient`` for
@@ -89,9 +89,9 @@ def test_validate_host_address_rejects_whitespace_only_after_strip():
     "address",
     [
         "192.168.1.5",  # bare IPv4
-        "sentry-host",  # hostname
+        "sdr-manager-host",  # hostname
         "sentry.local.lan",  # dotted hostname
-        "sentry_host",  # underscore — deliberately allowed, see module docstring
+        "sdr_manager_host",  # underscore — deliberately allowed, see module docstring
     ],
 )
 def test_validate_host_address_accepts_well_formed_input(address):
@@ -99,7 +99,7 @@ def test_validate_host_address_accepts_well_formed_input(address):
 
 
 def test_validate_host_address_strips_surrounding_whitespace():
-    assert validate_host_address("  sentry-host  ") == "sentry-host"
+    assert validate_host_address("  sdr-manager-host  ") == "sdr-manager-host"
 
 
 def test_validate_host_address_boundary_length_253_is_accepted():
@@ -158,10 +158,10 @@ def test_client_falls_back_to_settings_timeouts_when_not_provided():
 
 
 async def test_request_never_sends_a_bearer_token(monkeypatch):
-    """Sentry has no token auth (its ADR-0010); it reads a session cookie only.
+    """SDR host has no token auth (its ADR-0010); it reads a session cookie only.
 
     The header this used to send was accepted by nobody, so every management
-    call 401'd against a protected Sentry while looking correct here.
+    call 401'd against a protected SDR host while looking correct here.
     """
     handler, captured = _capturing_handler(200, {"ok": True})
     _install_mock_transport(monkeypatch, handler)
@@ -246,7 +246,7 @@ async def test_a_wrong_password_is_not_retried_for_ever(monkeypatch):
 
 
 def _sessioned_handler(seen: list[httpx.Request], accepted_cookies: set[str], logins_refused: list[bool] | None = None):
-    """A Sentry that grants `sdr_manager_session=cookie-<password>-<n>` on the n-th login
+    """An SDR host that grants `sdr_manager_session=cookie-<password>-<n>` on the n-th login
     and accepts only the cookies in `accepted_cookies`. While `logins_refused`
     holds True it refuses every login instead (a mutable switch, because a
     second mocked transport would not replace the first)."""
@@ -300,7 +300,7 @@ async def test_a_different_password_never_presents_another_passwords_session(mon
 
 @pytest.mark.parametrize(("address", "port"), [("10.0.0.6", 8000), ("10.0.0.5", 8001)])
 async def test_another_host_never_receives_this_hosts_session(monkeypatch, address, port):
-    """Sessions are per Sentry: a cookie must never be sent to a different address or port."""
+    """Sessions are per SDR host: a cookie must never be sent to a different address or port."""
     seen: list[httpx.Request] = []
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, set()))
 
@@ -312,14 +312,14 @@ async def test_another_host_never_receives_this_hosts_session(monkeypatch, addre
 
 
 async def test_a_lapsed_session_is_replaced_by_the_next_sign_in(monkeypatch):
-    """Sentry drops sessions (expiry, a password change); the next client signs in
+    """SDR host drops sessions (expiry, a password change); the next client signs in
     again and every later client uses the replacement."""
     seen: list[httpx.Request] = []
     accepted_cookies: set[str] = set()
     _install_mock_transport(monkeypatch, _sessioned_handler(seen, accepted_cookies))
 
     await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
-    accepted_cookies.clear()  # Sentry forgets the session
+    accepted_cookies.clear()  # the SDR host forgets the session
     await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
     seen.clear()
     await SdrManagerClient("10.0.0.5", 8000, "console-password").get_status()
@@ -329,7 +329,7 @@ async def test_a_lapsed_session_is_replaced_by_the_next_sign_in(monkeypatch):
 
 
 async def test_a_refused_session_is_forgotten_when_the_sign_in_fails(monkeypatch):
-    """A session Sentry refused is never presented again, even if the new sign-in fails."""
+    """A session SDR host refused is never presented again, even if the new sign-in fails."""
     seen: list[httpx.Request] = []
     accepted_cookies: set[str] = set()
     logins_refused = [False]
@@ -347,8 +347,8 @@ async def test_a_refused_session_is_forgotten_when_the_sign_in_fails(monkeypatch
     assert "Cookie" not in seen[0].headers
 
 
-def _refusing_sentry(seen: list[httpx.Request], login_reply):
-    """A Sentry that refuses `stale-cookie` and answers login with `login_reply()`."""
+def _refusing_sdr_manager(seen: list[httpx.Request], login_reply):
+    """An SDR host that refuses `stale-cookie` and answers login with `login_reply()`."""
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
@@ -396,10 +396,10 @@ async def test_a_sign_in_that_cannot_complete_still_drops_the_refused_session(
     monkeypatch, password, login_reply, expected_paths
 ):
     """Every way the sign-in can fail leaves no session behind, so the next call
-    starts clean rather than presenting a cookie Sentry already refused — and a
+    starts clean rather than presenting a cookie the SDR host already refused — and a
     failed sign-in is never followed by a retry of the request."""
     seen: list[httpx.Request] = []
-    _install_mock_transport(monkeypatch, _refusing_sentry(seen, login_reply))
+    _install_mock_transport(monkeypatch, _refusing_sdr_manager(seen, login_reply))
     _remember_stale_session(password=password)
 
     with pytest.raises(SdrManagerApiError) as raised:
@@ -553,7 +553,7 @@ async def test_non_json_success_body_raises_invalid_response_error(monkeypatch):
 # ── unreachable errors (connect failure / timeout) ────────────────────────────
 
 
-async def test_connect_failure_raises_sentry_unreachable_error(monkeypatch):
+async def test_connect_failure_raises_sdr_manager_unreachable_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("simulated connect failure")
 
@@ -564,7 +564,7 @@ async def test_connect_failure_raises_sentry_unreachable_error(monkeypatch):
     assert "10.0.0.5:8000" in str(excinfo.value)
 
 
-async def test_timeout_raises_sentry_unreachable_error(monkeypatch):
+async def test_timeout_raises_sdr_manager_unreachable_error(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ReadTimeout("simulated timeout")
 
@@ -578,7 +578,7 @@ async def test_timeout_raises_sentry_unreachable_error(monkeypatch):
 # ── error envelope translation (via a live request) ───────────────────────────
 
 
-async def test_error_status_raises_sentry_api_error_with_parsed_envelope(monkeypatch):
+async def test_error_status_raises_sdr_manager_api_error_with_parsed_envelope(monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             422,
@@ -640,7 +640,7 @@ def _response_with_json(status_code: int, body) -> httpx.Response:
     return httpx.Response(status_code, json=body)
 
 
-def test_parse_error_envelope_handles_sentry_dict_detail_and_keeps_context():
+def test_parse_error_envelope_handles_sdr_manager_dict_detail_and_keeps_context():
     response = _response_with_json(409, {"detail": {"code": "host_conflict", "message": "taken", "port": 8000}})
     code, message, context = _parse_error_envelope(response)
     assert code == "host_conflict"

@@ -201,7 +201,7 @@ class TestConfigPreview:
         assert body == {"air": {"a": 1}, "space": {"b": 2}}
 
     def test_hides_internal_instance_id(self, client):
-        # app.instanceId is this Sentinel's identity for Sentry reservations,
+        # app.instanceId is this Sentinel's identity for SDR Manager reservations,
         # not a setting: it must never be exported (a copied config would make
         # two installs look like the same client).
         client.put("/api/settings/app/instanceId", json={"value": "sentinel:abc"})

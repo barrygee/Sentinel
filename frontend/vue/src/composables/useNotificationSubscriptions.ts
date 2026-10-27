@@ -49,7 +49,7 @@ export function useNotificationSubscriptions(): {
     for (const key of keys) {
       const separator = key.indexOf(':')
       const kind = key.slice(0, separator)
-      // The id can itself contain a colon (`sentry:3:civil`), so split once only.
+      // The id can itself contain a colon (`sdr-manager:3:civil`), so split once only.
       idsByKind.set(kind, [...(idsByKind.get(kind) ?? []), key.slice(separator + 1)])
     }
     for (const source of getNotificationSubscriptionSources()) {

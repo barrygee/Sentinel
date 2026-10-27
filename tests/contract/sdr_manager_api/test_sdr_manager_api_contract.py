@@ -236,8 +236,8 @@ class TestWhatTheReadersReadFromTheReplies:
         monkeypatch.setattr(host_poller, "all_snapshots", lambda: [snapshot])
         mirrored_radio = {
             "id": 1,
-            "sentry_host_id": HOST_ID,
-            "sentry_device_id": ADSB_DEVICE_ID,
+            "sdr_manager_host_id": HOST_ID,
+            "sdr_manager_device_id": ADSB_DEVICE_ID,
         }
 
         assert await radio_hub_radios.device_availability(mirrored_radio) == (True, "")
@@ -251,8 +251,8 @@ class TestWhatTheReadersReadFromTheReplies:
         monkeypatch.setattr(host_poller, "all_snapshots", lambda: [snapshot])
         mirrored_radio = {
             "id": 1,
-            "sentry_host_id": HOST_ID,
-            "sentry_device_id": SECOND_DEVICE_ID,
+            "sdr_manager_host_id": HOST_ID,
+            "sdr_manager_device_id": SECOND_DEVICE_ID,
         }
 
         available, reason = await radio_hub_radios.device_availability(mirrored_radio)
@@ -269,8 +269,8 @@ class TestWhatTheReadersReadFromTheReplies:
         monkeypatch.setattr(host_poller, "all_snapshots", lambda: [snapshot])
         mirrored_radio = {
             "id": 1,
-            "sentry_host_id": HOST_ID,
-            "sentry_device_id": ADSB_DEVICE_ID,
+            "sdr_manager_host_id": HOST_ID,
+            "sdr_manager_device_id": ADSB_DEVICE_ID,
         }
 
         available, reason = await radio_hub_radios.device_availability(mirrored_radio)

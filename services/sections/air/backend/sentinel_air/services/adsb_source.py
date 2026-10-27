@@ -1,12 +1,12 @@
-"""Claiming and tuning the Sentry dongle that feeds Off Grid ADS-B.
+"""Claiming and tuning the SDR Manager dongle that feeds Off Grid ADS-B.
 
 Off Grid air data used to be a URL and nothing else, which left the actual
 receiver anonymous: Sentinel knew where to *read* aircraft from, but not which
 dongle produced the samples, so it could neither tune it nor stop anything else
 retuning it. The map went empty and said nothing about why.
 
-This resolves `air.offgridSdrSource` — a `{sentry_host_id, sentry_device_id}`
-pair — into a live Sentry device, claims it, and tunes it to 1090 MHz in one
+This resolves `air.offgridSdrSource` — a `{sdr_manager_host_id, sdr_manager_device_id}`
+pair — into a live SDR Manager device, claims it, and tunes it to 1090 MHz in one
 step. See Sentinel ADR-0003.
 
 **Tuning travels with the claim, never after it.** Two calls would leave a
@@ -72,7 +72,7 @@ SDR_MANAGER_REQUEST_TIMEOUT: float | None = None
 with its connect/read timeouts, and one claim may be several round trips to the host."""
 
 RESERVATION_LABEL = "Sentinel — AIR (ADS-B)"
-"""What Sentry's console shows against the claimed device. Names the *view*, not
+"""What the SDR host's console shows against the claimed device. Names the *view*, not
 just the app: an operator seeing a dongle busy wants to know which part of
 Sentinel wants it, so they know what to close to get it back."""
 
@@ -89,7 +89,7 @@ class AdsbSourceError(Exception):
 
 @dataclass(frozen=True)
 class AdsbSource:
-    """The Sentry device configured as the Off Grid ADS-B receiver."""
+    """The SDR Manager device configured as the Off Grid ADS-B receiver."""
 
     host_id: int
     device_id: str
@@ -100,20 +100,20 @@ async def get_source(db: AsyncSession) -> AdsbSource | None:
     raw = await read_setting(db, SOURCE_SETTING_NAMESPACE, SOURCE_SETTING_KEY)
     if not isinstance(raw, dict):
         return None
-    host_id = raw.get("sentry_host_id")
-    device_id = raw.get("sentry_device_id")
+    host_id = raw.get("sdr_manager_host_id")
+    device_id = raw.get("sdr_manager_device_id")
     if not isinstance(host_id, int) or not isinstance(device_id, str) or not device_id:
         return None
     return AdsbSource(host_id=host_id, device_id=device_id)
 
 
 async def set_source(db: AsyncSession, host_id: int, device_id: str) -> AdsbSource:
-    """Record which Sentry device feeds Off Grid ADS-B."""
+    """Record which SDR Manager device feeds Off Grid ADS-B."""
     await write_setting(
         db,
         SOURCE_SETTING_NAMESPACE,
         SOURCE_SETTING_KEY,
-        {"sentry_host_id": host_id, "sentry_device_id": device_id},
+        {"sdr_manager_host_id": host_id, "sdr_manager_device_id": device_id},
     )
     return AdsbSource(host_id=host_id, device_id=device_id)
 
@@ -135,12 +135,12 @@ def _host_error(reply: dict[str, Any]) -> AdsbSourceError | None:
     if reply["reason"] == "unknown_host":
         return AdsbSourceError(
             "unknown_host",
-            "The Sentry host this ADS-B source belongs to no longer exists. Pick a source again.",
+            "The SDR host this ADS-B source belongs to no longer exists. Pick a source again.",
         )
     if reply["reason"] == "host_disabled":
         return AdsbSourceError(
             "host_disabled",
-            f"The Sentry host {reply['host_label']} is switched off in Sentinel.",
+            f"The SDR host {reply['host_label']} is switched off in Sentinel.",
         )
     return None
 
@@ -168,9 +168,9 @@ def _acquire_error(reply: dict[str, Any]) -> AdsbSourceError:
     if reply["status_code"] == 401:
         return AdsbSourceError(
             "unauthenticated",
-            "Sentinel could not sign in to that Sentry. Check its console password in Settings → SDR.",
+            "Sentinel could not sign in to that SDR host. Check its console password in Settings → SDR Manager.",
         )
-    return AdsbSourceError(reply["code"] or "sentry_error", reply["message"])
+    return AdsbSourceError(reply["code"] or "sdr_manager_error", reply["message"])
 
 
 async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, Any]:
@@ -182,7 +182,7 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
 
     The tuning is re-applied on every renewal rather than only on the first
     claim. It costs one small request every thirty seconds and it is what makes
-    the arrangement self-healing: a dongle that was replugged, a Sentry that
+    the arrangement self-healing: a dongle that was replugged, an SDR host that
     restarted, or an operator who retuned it by hand all come back to 1090 MHz
     on the next tick instead of leaving a map that is quietly empty.
     """
@@ -190,7 +190,7 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
     if source is None:
         raise AdsbSourceError(
             "no_source",
-            "No Sentry SDR is set as the Off Grid ADS-B source. Choose one in Settings → AIR.",
+            "No SDR Manager device is set as the Off Grid ADS-B source. Choose one in Settings → AIR.",
         )
 
     reply = await bus.request(
@@ -217,7 +217,7 @@ async def claim_and_tune(db: AsyncSession, *, force: bool = False) -> dict[str, 
         raise _acquire_error(reply)
 
     return {
-        "source": {"sentry_host_id": source.host_id, "sentry_device_id": source.device_id},
+        "source": {"sdr_manager_host_id": source.host_id, "sdr_manager_device_id": source.device_id},
         "reservation": reply["reservation"],
         "tuned": {"center_hz": ADSB_CENTRE_HZ, "sample_rate": ADSB_SAMPLE_RATE},
         "renew_within_seconds": RENEWAL_INTERVAL_SECONDS,
@@ -267,15 +267,15 @@ async def get_decoder_config(db: AsyncSession) -> dict[str, Any]:
     return {
         "configured": True,
         "rtl_tcp": {"host": reply["host"], "port": reply["port"]},
-        "sentry_device_id": source.device_id,
+        "sdr_manager_device_id": source.device_id,
     }
 
 
 async def receiver_location(db: AsyncSession) -> tuple[float, float] | None:
     """``(lat, lon)`` of the receiver the off-grid ADS-B source decodes from, if known.
 
-    The receiver is the Sentry device picked in Settings › AIR; its position is
-    its Sentry host's. None when no source is picked, or sdr-manager-remote has no
+    The receiver is the SDR Manager device picked in Settings › AIR; its position is
+    its SDR host's. None when no source is picked, or sdr-manager-remote has no
     position for that host yet.
     """
     source = await get_source(db)

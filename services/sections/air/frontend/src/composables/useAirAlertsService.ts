@@ -118,7 +118,7 @@ function start(): void {
   }
 
   // React to a location being switched on or off, its radius changing, or a
-  // Sentry joining or leaving the fleet — from anywhere in the app.
+  // SDR host joining or leaving the fleet — from anywhere in the app.
   watch(activeZones, (zones) => {
     overhead.setZones(zones)
     _syncPolling()

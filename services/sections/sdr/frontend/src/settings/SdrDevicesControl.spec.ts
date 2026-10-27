@@ -40,8 +40,8 @@ const mockListRadios = vi.mocked(listRadios)
 const mockCreateRadio = vi.mocked(createRadio)
 const mockDeleteRadio = vi.mocked(deleteRadio)
 const mockGetRadioStatus = vi.mocked(getRadioStatus)
-const mockListSentryHosts = vi.mocked(fakeSdrManagerHosts.listHosts)
-const mockGetSentryHostDevices = vi.mocked(fakeSdrManagerHosts.getHostDevices)
+const mockListSdrManagerHosts = vi.mocked(fakeSdrManagerHosts.listHosts)
+const mockGetSdrManagerHostDevices = vi.mocked(fakeSdrManagerHosts.getHostDevices)
 
 const MANUAL_RADIO: SdrRadioRecord = {
   id: 1,
@@ -53,8 +53,8 @@ const MANUAL_RADIO: SdrRadioRecord = {
   bandwidth: null,
   rf_gain: null,
   agc: null,
-  sentry_host_id: null,
-  sentry_device_id: null,
+  sdr_manager_host_id: null,
+  sdr_manager_device_id: null,
   notes: '',
   antenna: '',
   visibility: 'public',
@@ -104,8 +104,8 @@ const MIRRORED_RADIO: SdrRadioRecord = {
   ...MANUAL_RADIO,
   id: 2,
   name: 'RTL 1',
-  sentry_host_id: 1,
-  sentry_device_id: 'rtl-1',
+  sdr_manager_host_id: 1,
+  sdr_manager_device_id: 'rtl-1',
 }
 
 function snapshot(
@@ -132,8 +132,8 @@ describe('SdrDevicesControl', () => {
     // unhandled network error under jsdom.
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
     mockListRadios.mockResolvedValue([])
-    mockListSentryHosts.mockResolvedValue([])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([]))
+    mockListSdrManagerHosts.mockResolvedValue([])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
     mockGetRadioStatus.mockResolvedValue({ connected: true })
   })
 
@@ -146,7 +146,7 @@ describe('SdrDevicesControl', () => {
   // Every mount is tracked and unmounted after its test — several tests
   // below dispatch global `document` CustomEvents, and a component left
   // mounted (never reaching onBeforeUnmount) keeps its RADIOS_CHANGED_EVENT/
-  // SENTRY_HOSTS_CHANGED_EVENT listeners live, so a later dispatch would fan
+  // SDR_MANAGER_HOSTS_CHANGED_EVENT listeners live, so a later dispatch would fan
   // out to every leaked instance instead of just the one under test.
   const activeWrappers: ReturnType<typeof mount>[] = []
   function mountControl(): ReturnType<typeof mount> {
@@ -155,15 +155,15 @@ describe('SdrDevicesControl', () => {
     return wrapper
   }
 
-  it('shows an empty message when no Sentry hosts or manual radios are configured', async () => {
+  it('shows an empty message when no SDR hosts or manual radios are configured', async () => {
     const wrapper = mountControl()
     await flushPromises()
     expect(wrapper.find('.sdr-devices-empty').exists()).toBe(true)
   })
 
-  it("groups a Sentry host's devices under its own header", async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+  it("groups an SDR host's devices under its own header", async () => {
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     const wrapper = mountControl()
     await flushPromises()
     const header = wrapper.findComponent(SdrHostGroupHeader)
@@ -173,16 +173,16 @@ describe('SdrDevicesControl', () => {
   })
 
   it("falls back to the host's address for the group header label when it has no name", async () => {
-    mockListSentryHosts.mockResolvedValue([UNLABELLED_HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([]))
+    mockListSdrManagerHosts.mockResolvedValue([UNLABELLED_HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
     const wrapper = mountControl()
     await flushPromises()
     expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe(UNLABELLED_HOST.address)
   })
 
   it('shows a not-yet-mirrored device as an ADD row, and a mirrored one as a full radio row', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([MIRRORED_RADIO])
     const wrapper = mountControl()
     await flushPromises()
@@ -190,11 +190,11 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.findComponent(SdrRadioRow).exists()).toBe(true)
   })
 
-  it('drives edit/delete/save through a mirrored Sentry radio row exactly like a manual one', async () => {
+  it('drives edit/delete/save through a mirrored SDR host radio row exactly like a manual one', async () => {
     const changed = vi.fn()
     document.addEventListener(RADIOS_CHANGED_EVENT, changed)
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([MIRRORED_RADIO])
     mockDeleteRadio.mockResolvedValue(true)
     const wrapper = mountControl()
@@ -224,11 +224,11 @@ describe('SdrDevicesControl', () => {
     document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
   })
 
-  it("reloads and broadcasts when a mirrored Sentry radio row's form emits save", async () => {
+  it("reloads and broadcasts when a mirrored SDR host radio row's form emits save", async () => {
     const changed = vi.fn()
     document.addEventListener(RADIOS_CHANGED_EVENT, changed)
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([MIRRORED_RADIO])
     const wrapper = mountControl()
     await flushPromises()
@@ -241,16 +241,16 @@ describe('SdrDevicesControl', () => {
   })
 
   it('shows "no devices detected" for a host with an empty device list', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
     const wrapper = mountControl()
     await flushPromises()
     expect(wrapper.text()).toContain('No devices detected on this host.')
   })
 
   it("renders an unreachable host's last_error via its group header", async () => {
-    mockListSentryHosts.mockResolvedValue([UNREACHABLE_HOST])
-    mockGetSentryHostDevices.mockResolvedValue(
+    mockListSdrManagerHosts.mockResolvedValue([UNREACHABLE_HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(
       snapshot([], { reachable: false, last_error: 'Connection refused', status: null }),
     )
     const wrapper = mountControl()
@@ -260,20 +260,20 @@ describe('SdrDevicesControl', () => {
     expect(header.props('reachable')).toBe(false)
   })
 
-  it('shows a Sentry group header with reachable/last-error null before the first poll snapshot resolves', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
+  it('shows an SDR host group header with reachable/last-error null before the first poll snapshot resolves', async () => {
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
     // No snapshot has arrived for this host yet — mimic that by never letting
     // the device-status fetch resolve.
-    mockGetSentryHostDevices.mockReturnValue(new Promise(() => {}))
+    mockGetSdrManagerHostDevices.mockReturnValue(new Promise(() => {}))
     const wrapper = mountControl()
     await flushPromises()
     const header = wrapper.findComponent(SdrHostGroupHeader)
     expect(header.props('reachable')).toBeNull()
   })
 
-  it('lists manual radios (sentry_host_id === null) under their own MANUAL RADIOS heading alongside a Sentry group', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([]))
+  it('lists manual radios (sdr_manager_host_id === null) under their own MANUAL RADIOS heading alongside an SDR host group', async () => {
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
     mockListRadios.mockResolvedValue([MANUAL_RADIO])
     const wrapper = mountControl()
     await flushPromises()
@@ -281,7 +281,7 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.findComponent(SdrRadioRow).props('radio')).toMatchObject({ id: 1 })
   })
 
-  it('omits the MANUAL RADIOS heading when there are no Sentry hosts at all', async () => {
+  it('omits the MANUAL RADIOS heading when there are no SDR hosts at all', async () => {
     mockListRadios.mockResolvedValue([MANUAL_RADIO])
     const wrapper = mountControl()
     await flushPromises()
@@ -388,11 +388,11 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.find('.sdr-device-confirm').exists()).toBe(false)
   })
 
-  it('adds a Sentry-known device as a mirrored radio and broadcasts the change', async () => {
+  it('adds an SDR-Manager-known device as a mirrored radio and broadcasts the change', async () => {
     const changed = vi.fn()
     document.addEventListener(RADIOS_CHANGED_EVENT, changed)
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockCreateRadio.mockResolvedValue(MIRRORED_RADIO)
     const wrapper = mountControl()
     await flushPromises()
@@ -403,17 +403,17 @@ describe('SdrDevicesControl', () => {
         name: 'RTL 1',
         host: '192.168.1.50',
         port: 1234,
-        sentry_host_id: 1,
-        sentry_device_id: 'rtl-1',
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'rtl-1',
       }),
     )
     expect(changed).toHaveBeenCalled()
     document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
   })
 
-  it('does not reload when adding a Sentry device fails', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+  it('does not reload when adding an SDR Manager device fails', async () => {
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockCreateRadio.mockResolvedValue(null)
     const wrapper = mountControl()
     await flushPromises()
@@ -423,13 +423,13 @@ describe('SdrDevicesControl', () => {
     expect(mockListRadios).not.toHaveBeenCalled()
   })
 
-  it('never calls createRadio for a device Sentry has not yet allocated an output port for', async () => {
+  it('never calls createRadio for a device SDR host has not yet allocated an output port for', async () => {
     // The ADD button is `:disabled` in this state (SdrHostDeviceRow), so it
     // cannot be reached by clicking through the UI; call the guarded handler
     // directly to prove the early return holds.
-    mockListSentryHosts.mockResolvedValue([HOST])
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
     const undetectedDevice = { ...DEVICE, output: null }
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([undetectedDevice]))
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([undetectedDevice]))
     const wrapper = mountControl()
     await flushPromises()
     await (
@@ -441,11 +441,11 @@ describe('SdrDevicesControl', () => {
   })
 
   it('names a radio after the device id when the device has no name', async () => {
-    // A Sentry device need not be named; the created radio still needs a label
+    // An SDR Manager device need not be named; the created radio still needs a label
     // that identifies it rather than an empty string.
-    mockListSentryHosts.mockResolvedValue([HOST])
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
     const unnamed = { ...DEVICE, name: '' }
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([unnamed]))
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([unnamed]))
     mockCreateRadio.mockResolvedValue({ id: 9 } as never)
     const wrapper = mountControl()
     await flushPromises()
@@ -467,8 +467,8 @@ describe('SdrDevicesControl', () => {
     vi.useFakeTimers()
     const notificationsStore = useNotificationsStore()
     const addSpy = vi.spyOn(notificationsStore, 'add')
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([{ ...DEVICE, present: true }]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([{ ...DEVICE, present: true }]))
     mountControl()
     await vi.runOnlyPendingTimersAsync()
     addSpy.mockClear()
@@ -485,8 +485,8 @@ describe('SdrDevicesControl', () => {
     // now belongs to the faster one, or the second row would lose its spinner
     // while it is still working.
     const second = { ...DEVICE, device_id: 'rtl-2', name: 'RTL 2' }
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE, second]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE, second]))
 
     let finishFirst: (value: unknown) => void = () => {}
     mockCreateRadio
@@ -512,13 +512,13 @@ describe('SdrDevicesControl', () => {
     expect(mockCreateRadio).toHaveBeenCalledTimes(2)
   })
 
-  it('still lists a radio whose device the Sentry no longer has', async () => {
+  it('still lists a radio whose device the SDR host no longer has', async () => {
     // The replug case. The list is built by walking the host's devices, so a
     // radio whose device identity has gone has nothing to hang off — it would
     // be invisible here, yet still fail whenever something connects to it, and
     // the operator would have no way to delete it.
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([
       {
         id: 9,
@@ -530,8 +530,8 @@ describe('SdrDevicesControl', () => {
         bandwidth: null,
         rf_gain: null,
         agc: null,
-        sentry_host_id: HOST.id,
-        sentry_device_id: 'usb:1-1.2',
+        sdr_manager_host_id: HOST.id,
+        sdr_manager_device_id: 'usb:1-1.2',
         notes: '',
         antenna: '',
         visibility: 'public',
@@ -550,8 +550,8 @@ describe('SdrDevicesControl', () => {
     // The whole point of rendering it: the operator can get rid of a radio
     // whose dongle has moved. Without these wired up it would be visible but
     // inert.
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([
       {
         id: 9,
@@ -563,8 +563,8 @@ describe('SdrDevicesControl', () => {
         bandwidth: null,
         rf_gain: null,
         agc: null,
-        sentry_host_id: HOST.id,
-        sentry_device_id: 'usb:1-1.2',
+        sdr_manager_host_id: HOST.id,
+        sdr_manager_device_id: 'usb:1-1.2',
         notes: '',
         antenna: '',
         visibility: 'public',
@@ -607,8 +607,8 @@ describe('SdrDevicesControl', () => {
   it('does not treat every radio as orphaned while a host is still unreachable', async () => {
     // With no snapshot yet, a booting Pi would otherwise make every one of its
     // radios look like its device had vanished.
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue({
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue({
       reachable: false,
       last_error: 'Timed out',
       last_polled_at: 0,
@@ -627,8 +627,8 @@ describe('SdrDevicesControl', () => {
         bandwidth: null,
         rf_gain: null,
         agc: null,
-        sentry_host_id: HOST.id,
-        sentry_device_id: 'usb:1-1.2',
+        sdr_manager_host_id: HOST.id,
+        sdr_manager_device_id: 'usb:1-1.2',
         notes: '',
         antenna: '',
         visibility: 'public',
@@ -650,20 +650,20 @@ describe('SdrDevicesControl', () => {
     expect(mockListRadios).toHaveBeenCalled()
   })
 
-  it('reloads the Sentry host list when SDR Manager announces a host change', async () => {
+  it('reloads the SDR host list when SDR Manager announces a host change', async () => {
     mountControl()
     await flushPromises()
-    mockListSentryHosts.mockClear()
+    mockListSdrManagerHosts.mockClear()
     announceFakeHostsChanged()
     await flushPromises()
-    expect(mockListSentryHosts).toHaveBeenCalled()
+    expect(mockListSdrManagerHosts).toHaveBeenCalled()
   })
 
-  it('keeps the previous Sentry host list when loadSentryHosts fails', async () => {
-    mockListSentryHosts.mockResolvedValueOnce([HOST])
+  it('keeps the previous SDR host list when loadSdrManagerHosts fails', async () => {
+    mockListSdrManagerHosts.mockResolvedValueOnce([HOST])
     const wrapper = mountControl()
     await flushPromises()
-    mockListSentryHosts.mockRejectedValueOnce(new Error('offline'))
+    mockListSdrManagerHosts.mockRejectedValueOnce(new Error('offline'))
     announceFakeHostsChanged()
     await flushPromises()
     expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Roof Pi')
@@ -674,7 +674,7 @@ describe('SdrDevicesControl', () => {
     mountControl()
     await vi.runOnlyPendingTimersAsync()
     mockGetRadioStatus.mockClear()
-    mockGetSentryHostDevices.mockClear()
+    mockGetSdrManagerHostDevices.mockClear()
     await vi.advanceTimersByTimeAsync(3000)
     expect(mockGetRadioStatus).not.toHaveBeenCalled()
   })
@@ -705,20 +705,20 @@ describe('SdrDevicesControl', () => {
   })
 
   it('falls back to ids when a device and host have no names', async () => {
-    // A Sentry device need not be named, and a host row's name is optional, so
+    // An SDR Manager device need not be named, and a host row's name is optional, so
     // both notification halves have a fallback. Without this the arrival of an
     // unnamed dongle would announce "undefined on undefined".
     vi.useFakeTimers()
     const notificationsStore = useNotificationsStore()
     const addSpy = vi.spyOn(notificationsStore, 'add')
-    mockListSentryHosts.mockResolvedValue([{ ...HOST, name: null }])
-    mockGetSentryHostDevices.mockResolvedValueOnce(
+    mockListSdrManagerHosts.mockResolvedValue([{ ...HOST, name: null }])
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(
       snapshot([{ ...DEVICE, name: '', present: false }]),
     )
     mountControl()
     await vi.runOnlyPendingTimersAsync()
 
-    mockGetSentryHostDevices.mockResolvedValueOnce(
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(
       snapshot([{ ...DEVICE, name: '', present: true }]),
     )
     await vi.advanceTimersByTimeAsync(3000)
@@ -732,7 +732,7 @@ describe('SdrDevicesControl', () => {
 
     // And the same fallbacks on the way out, where the remembered name is used.
     addSpy.mockClear()
-    mockGetSentryHostDevices.mockResolvedValueOnce(
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(
       snapshot([{ ...DEVICE, name: '', present: false }]),
     )
     await vi.advanceTimersByTimeAsync(3000)
@@ -749,16 +749,16 @@ describe('SdrDevicesControl', () => {
     vi.useFakeTimers()
     const notificationsStore = useNotificationsStore()
     const addSpy = vi.spyOn(notificationsStore, 'add')
-    mockListSentryHosts.mockResolvedValue([HOST])
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
     // Tick 1 (initial load): baseline snapshot with the device absent — no
     // notification, nothing to diff against yet.
-    mockGetSentryHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
     const wrapper = mountControl()
     await vi.runOnlyPendingTimersAsync()
     expect(addSpy).not.toHaveBeenCalled()
 
     // Tick 2 (3s later): the device is now present — a plug-in.
-    mockGetSentryHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: true }]))
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: true }]))
     await vi.advanceTimersByTimeAsync(3000)
     expect(addSpy).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'SDR device connected', detail: 'RTL 1 on Roof Pi' }),
@@ -768,7 +768,7 @@ describe('SdrDevicesControl', () => {
 
     // Tick 3 (another 3s later): the device is gone — an unplug.
     addSpy.mockClear()
-    mockGetSentryHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
+    mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
     await vi.advanceTimersByTimeAsync(3000)
     expect(addSpy).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'SDR device disconnected', detail: 'RTL 1 on Roof Pi' }),
@@ -785,14 +785,14 @@ describe('SdrDevicesControl', () => {
     expect(clearSpy).toHaveBeenCalled()
     expect(removeSpy).toHaveBeenCalledWith(RADIOS_CHANGED_EVENT, expect.any(Function))
     // The hosts-changed subscription is stopped too: a later announcement reloads nothing.
-    mockListSentryHosts.mockClear()
+    mockListSdrManagerHosts.mockClear()
     announceFakeHostsChanged()
-    expect(mockListSentryHosts).not.toHaveBeenCalled()
+    expect(mockListSdrManagerHosts).not.toHaveBeenCalled()
   })
 
   it('has no accessibility violations', async () => {
-    mockListSentryHosts.mockResolvedValue([HOST])
-    mockGetSentryHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     mockListRadios.mockResolvedValue([MANUAL_RADIO])
     const wrapper = mountControl()
     await flushPromises()
@@ -813,7 +813,7 @@ describe('SdrDevicesControl', () => {
     }
 
     it('lists this machine first, as SDR Manager does, labelled "This machine"', async () => {
-      mockListSentryHosts.mockResolvedValue([HOST, LOCAL_HOST])
+      mockListSdrManagerHosts.mockResolvedValue([HOST, LOCAL_HOST])
       const wrapper = mountControl()
       await flushPromises()
       const headers = wrapper.findAllComponents(SdrHostGroupHeader)
@@ -822,7 +822,7 @@ describe('SdrDevicesControl', () => {
     })
 
     it("uses the operator's label for this machine when one is set", async () => {
-      mockListSentryHosts.mockResolvedValue([{ ...LOCAL_HOST, name: 'Shack' }])
+      mockListSdrManagerHosts.mockResolvedValue([{ ...LOCAL_HOST, name: 'Shack' }])
       const wrapper = mountControl()
       await flushPromises()
       expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Shack')
@@ -831,12 +831,12 @@ describe('SdrDevicesControl', () => {
     it('names this machine in a device-connected notice', async () => {
       vi.useFakeTimers()
       const addSpy = vi.spyOn(useNotificationsStore(), 'add')
-      mockListSentryHosts.mockResolvedValue([LOCAL_HOST])
-      mockGetSentryHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
+      mockListSdrManagerHosts.mockResolvedValue([LOCAL_HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
       mountControl()
       await vi.runOnlyPendingTimersAsync()
 
-      mockGetSentryHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: true }]))
+      mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: true }]))
       await vi.advanceTimersByTimeAsync(3000)
 
       expect(addSpy).toHaveBeenCalledWith(
@@ -858,16 +858,16 @@ describe('SdrDevicesControl', () => {
 
   it('stops polling hosts, without failing, if SDR Manager goes away while the list is open', async () => {
     vi.useFakeTimers()
-    mockListSentryHosts.mockResolvedValue([HOST])
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
     const wrapper = mountControl()
     await vi.runOnlyPendingTimersAsync()
-    expect(mockGetSentryHostDevices).toHaveBeenCalled()
+    expect(mockGetSdrManagerHostDevices).toHaveBeenCalled()
 
     withdrawFakeSdrManagerHosts()
-    mockGetSentryHostDevices.mockClear()
+    mockGetSdrManagerHostDevices.mockClear()
     await vi.advanceTimersByTimeAsync(3000)
 
-    expect(mockGetSentryHostDevices).not.toHaveBeenCalled()
+    expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
     // The groups already shown stay, as they do when a host poll fails.
     expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Roof Pi')
   })
@@ -881,8 +881,8 @@ describe('SdrDevicesControl', () => {
       mockListRadios.mockResolvedValue([MANUAL_RADIO])
       const wrapper = mountControl()
       await flushPromises()
-      expect(mockListSentryHosts).not.toHaveBeenCalled()
-      expect(mockGetSentryHostDevices).not.toHaveBeenCalled()
+      expect(mockListSdrManagerHosts).not.toHaveBeenCalled()
+      expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
       expect(wrapper.findComponent(SdrHostGroupHeader).exists()).toBe(false)
       // Manual radios still list, with no MANUAL RADIOS heading: there are no hosts to set them apart from.
       expect(wrapper.findAllComponents(SdrRadioRow)).toHaveLength(1)
@@ -897,7 +897,7 @@ describe('SdrDevicesControl', () => {
       mockGetRadioStatus.mockClear()
       await vi.advanceTimersByTimeAsync(3000)
       expect(mockGetRadioStatus).toHaveBeenCalledWith(MANUAL_RADIO.id)
-      expect(mockGetSentryHostDevices).not.toHaveBeenCalled()
+      expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
     })
 
     it('does not mention SDR Manager in the empty message', async () => {
@@ -911,6 +911,178 @@ describe('SdrDevicesControl', () => {
       const wrapper = mount(SdrDevicesControl)
       await flushPromises()
       expect(() => wrapper.unmount()).not.toThrow()
+    })
+  })
+
+  describe('radios whose SDR host is not listed', () => {
+    // The live case: radio 2 named host 1 after the hosts table was emptied, so
+    // no host group existed to list it under and it could not be reached at all.
+    const UNLISTED_HOST_RADIO: SdrRadioRecord = {
+      ...MANUAL_RADIO,
+      id: 5,
+      name: 'RTL-SDR V4',
+      host: '192.168.5.67',
+      port: 4444,
+      sdr_manager_host_id: 42,
+      sdr_manager_device_id: 'serial:00000001',
+    }
+
+    function unlistedRow(wrapper: ReturnType<typeof mount>) {
+      return wrapper
+        .findAllComponents(SdrRadioRow)
+        .find((row) => row.props('radio').id === UNLISTED_HOST_RADIO.id)
+    }
+
+    it('lists one under UNLISTED SDR HOST, editable as a manual radio', async () => {
+      mockListSdrManagerHosts.mockResolvedValue([HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
+      mockListRadios.mockResolvedValue([MIRRORED_RADIO, UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).toContain('UNLISTED SDR HOST')
+      expect(wrapper.text()).toContain(
+        'Their SDR host is not in Settings › SDR Manager. Edit one to keep it as a manual radio, or delete it.',
+      )
+      const rows = wrapper.findAllComponents(SdrRadioRow)
+      // The radio on a listed host stays in its host group, not here.
+      expect(rows.map((row) => row.props('radio').id)).toEqual([MIRRORED_RADIO.id, 5])
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+    })
+
+    it('reads its reachability from the TCP probe, as a manual radio does', async () => {
+      mockListSdrManagerHosts.mockResolvedValue([HOST])
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      mockGetRadioStatus.mockResolvedValue({ connected: false })
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(mockGetRadioStatus).toHaveBeenCalledWith(5)
+      expect(unlistedRow(wrapper)!.props('connected')).toBe(false)
+    })
+
+    it('does not call the list empty when it is the only radio', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('No SDRs configured')
+      expect(unlistedRow(wrapper)).toBeDefined()
+    })
+
+    it('sets MANUAL RADIOS apart even with no hosts', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO, MANUAL_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('No SDRs configured')
+      expect(wrapper.text()).toContain('MANUAL RADIOS')
+    })
+
+    it('shows nothing until the hosts list has answered', async () => {
+      // A radio on a perfectly good host must not flash up as unlisted while loading.
+      mockListSdrManagerHosts.mockReturnValue(new Promise(() => {}))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(unlistedRow(wrapper)).toBeUndefined()
+      expect(wrapper.text()).not.toContain('UNLISTED SDR HOST')
+    })
+
+    it('still lists it when the hosts list fails, but edits it through its host', async () => {
+      // The host may well exist; detaching the radio on save would be wrong.
+      mockListSdrManagerHosts.mockRejectedValue(new Error('offline'))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.text()).toContain(
+        'The SDR host list could not be loaded, so these radios cannot be matched to a host yet.',
+      )
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(false)
+    })
+
+    it('edits it as manual once a later fetch of the hosts list succeeds', async () => {
+      mockListSdrManagerHosts.mockRejectedValueOnce(new Error('offline'))
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      mockListSdrManagerHosts.mockResolvedValue([HOST])
+      announceFakeHostsChanged()
+      await flushPromises()
+      expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+    })
+
+    it('leaves the group once its host is listed again', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(unlistedRow(wrapper)).toBeDefined()
+      mockListSdrManagerHosts.mockResolvedValue([{ ...HOST, id: 42 }])
+      announceFakeHostsChanged()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('UNLISTED SDR HOST')
+    })
+
+    it('can be edited, saved and deleted', async () => {
+      const changed = vi.fn()
+      document.addEventListener(RADIOS_CHANGED_EVENT, changed)
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+      mockDeleteRadio.mockResolvedValue(true)
+      const wrapper = mountControl()
+      await flushPromises()
+      const row = unlistedRow(wrapper)!
+
+      row.vm.$emit('toggle-edit')
+      await flushPromises()
+      expect(row.props('open')).toBe(true)
+      row.vm.$emit('cancel-edit')
+      await flushPromises()
+      expect(row.props('open')).toBe(false)
+
+      row.vm.$emit('toggle-edit')
+      await flushPromises()
+      mockListRadios.mockClear()
+      row.vm.$emit('save')
+      await flushPromises()
+      expect(row.props('open')).toBe(false)
+      expect(mockListRadios).toHaveBeenCalled()
+
+      row.vm.$emit('start-delete')
+      await flushPromises()
+      expect(row.props('confirming')).toBe(true)
+      row.vm.$emit('cancel-delete')
+      await flushPromises()
+      expect(row.props('confirming')).toBe(false)
+
+      changed.mockClear()
+      row.vm.$emit('confirm-delete')
+      await flushPromises()
+      expect(mockDeleteRadio).toHaveBeenCalledWith(5)
+      expect(changed).toHaveBeenCalledOnce()
+      document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
+    })
+
+    it('has no accessibility violations', async () => {
+      mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO, MANUAL_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(
+        await axe(wrapper.html(), {
+          rules: { region: { enabled: false } },
+        }),
+      ).toHaveNoViolations()
+    })
+
+    describe('without SDR Manager', () => {
+      beforeEach(() => {
+        withdrawFakeSdrManagerHosts()
+      })
+
+      it('lists it, says SDR Manager is not deployed, and edits it as manual', async () => {
+        mockListRadios.mockResolvedValue([UNLISTED_HOST_RADIO])
+        const wrapper = mountControl()
+        await flushPromises()
+        expect(wrapper.text()).toContain(
+          'Their SDR host needs SDR Manager, which is not deployed. Edit one to keep it as a manual radio, or delete it.',
+        )
+        expect(unlistedRow(wrapper)!.props('editAsManual')).toBe(true)
+      })
     })
   })
 })

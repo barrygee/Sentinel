@@ -2,24 +2,24 @@
   "components": {
     "schemas": {
       "AdsbSourceIn": {
-        "description": "Body for `PUT /api/sdr/adsb/source` — which Sentry device feeds AIR.",
+        "description": "Body for `PUT /api/sdr/adsb/source` — which SDR Manager device feeds AIR.",
         "properties": {
-          "sentry_device_id": {
-            "description": "Sentry device id, e.g. \"serial:97710286\"",
+          "sdr_manager_device_id": {
+            "description": "SDR Manager device id, e.g. \"serial:97710286\"",
             "maxLength": 256,
             "minLength": 1,
-            "title": "Sentry Device Id",
+            "title": "Sdr Manager Device Id",
             "type": "string"
           },
-          "sentry_host_id": {
-            "description": "Id of a Sentry host Sentinel knows about",
-            "title": "Sentry Host Id",
+          "sdr_manager_host_id": {
+            "description": "Id of an SDR host Sentinel knows about",
+            "title": "Sdr Manager Host Id",
             "type": "integer"
           }
         },
         "required": [
-          "sentry_host_id",
-          "sentry_device_id"
+          "sdr_manager_host_id",
+          "sdr_manager_device_id"
         ],
         "title": "AdsbSourceIn",
         "type": "object"
@@ -1107,7 +1107,7 @@
             ],
             "title": "Rf Gain"
           },
-          "sentry_device_id": {
+          "sdr_manager_device_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -1116,9 +1116,9 @@
                 "type": "null"
               }
             ],
-            "title": "Sentry Device Id"
+            "title": "Sdr Manager Device Id"
           },
-          "sentry_host_id": {
+          "sdr_manager_host_id": {
             "anyOf": [
               {
                 "type": "integer"
@@ -1127,7 +1127,7 @@
                 "type": "null"
               }
             ],
-            "title": "Sentry Host Id"
+            "title": "Sdr Manager Host Id"
           },
           "visibility": {
             "default": "public",
@@ -3958,7 +3958,7 @@
         ]
       },
       "get": {
-        "description": "Report which Sentry device is configured as the ADS-B receiver.",
+        "description": "Report which SDR Manager device is configured as the ADS-B receiver.",
         "operationId": "get_source_api_sdr_adsb_source_get",
         "responses": {
           "200": {
@@ -3980,7 +3980,7 @@
         ]
       },
       "put": {
-        "description": "Set the ADS-B receiver.\n\nDeliberately does not verify the device exists on that Sentry. A dongle can\nbe unplugged, and a host can be down, without the operator's choice becoming\nwrong — the claim is where reachability is discovered, and it reports it in\nterms of something they just tried to do.",
+        "description": "Set the ADS-B receiver.\n\nDeliberately does not verify the device exists on that SDR host. A dongle can\nbe unplugged, and a host can be down, without the operator's choice becoming\nwrong — the claim is where reachability is discovered, and it reports it in\nterms of something they just tried to do.",
         "operationId": "put_source_api_sdr_adsb_source_put",
         "requestBody": {
           "content": {

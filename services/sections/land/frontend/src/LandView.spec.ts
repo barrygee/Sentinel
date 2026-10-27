@@ -71,7 +71,7 @@ vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
     addTo = markerSpies.addTo
     update = markerSpies.update
     remove = markerSpies.remove
-    // Borrowed by SentrySitesControl, which hides this marker while one of its
+    // Borrowed by SdrManagerSitesControl, which hides this marker while one of its
     // counts stands for the operator's position.
     setHidden = markerSpies.setHidden
   },
@@ -309,7 +309,7 @@ function makeFakeMap() {
     zoomOut: vi.fn(),
     flyTo: vi.fn(),
     getZoom: vi.fn(() => 6),
-    // Map-movement hooks + projection: the APRS and Sentry-site controls
+    // Map-movement hooks + projection: the APRS and SDR-host-site controls
     // regroup their markers whenever a movement settles.
     on: vi.fn(),
     off: vi.fn(),

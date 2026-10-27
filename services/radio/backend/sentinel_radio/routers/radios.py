@@ -33,21 +33,21 @@ class RadioIn(BaseModel):
     bandwidth: int | None = None
     rf_gain: float | None = None
     agc: bool | None = None
-    # SDR host mirror fields (ADR 0007). `sentry_host_id` is None for a radio the
+    # SDR host mirror fields (ADR 0007). `sdr_manager_host_id` is None for a radio the
     # operator typed in by hand — that radio must keep behaving exactly as it
     # does today. When set, this radio mirrors one device on that SDR host,
-    # identified by `sentry_device_id` ("serial:<value>" or "usb:<path>").
-    sentry_host_id: int | None = None
-    sentry_device_id: str | None = None
+    # identified by `sdr_manager_device_id` ("serial:<value>" or "usb:<path>").
+    sdr_manager_host_id: int | None = None
+    sdr_manager_device_id: str | None = None
     notes: str = ""
     antenna: str = ""
     visibility: str = "public"
 
-    @field_validator("sentry_device_id")
+    @field_validator("sdr_manager_device_id")
     @classmethod
-    def _bound_sentry_device_id(cls, value: str | None) -> str | None:
+    def _bound_sdr_manager_device_id(cls, value: str | None) -> str | None:
         if value is not None and len(value) > 256:
-            raise ValueError("sentry_device_id too long (max 256 characters)")
+            raise ValueError("sdr_manager_device_id too long (max 256 characters)")
         return value
 
     @field_validator("notes", "antenna")

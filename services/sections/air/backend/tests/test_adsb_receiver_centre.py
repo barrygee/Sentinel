@@ -29,7 +29,7 @@ from sentinel_air.services import adsb as adsb_service
 from sentinel_air.services import adsb_source
 
 RECEIVER = (54.951186, -1.532995)  # the SDR host's reported position
-SOURCE = {"sentry_host_id": 1, "sentry_device_id": "usb:1-1.1"}
+SOURCE = {"sdr_manager_host_id": 1, "sdr_manager_device_id": "usb:1-1.1"}
 
 
 def _snapshot_with(location):
@@ -106,7 +106,7 @@ class TestReceiverLocation:
         assert await adsb_source.receiver_location(db) is None
 
     async def test_none_when_the_hub_has_no_position_for_the_host(self, db, snapshots):
-        await upsert_setting(db, "air", "offgridSdrSource", {**SOURCE, "sentry_host_id": 2})
+        await upsert_setting(db, "air", "offgridSdrSource", {**SOURCE, "sdr_manager_host_id": 2})
         assert await adsb_source.receiver_location(db) is None
 
 

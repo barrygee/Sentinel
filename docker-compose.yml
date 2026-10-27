@@ -295,7 +295,7 @@ services:
   # (core keeps /api/air/messages — notifications), /api/sdr/adsb/ and
   # /remotes/air/ over. Its tables (the ADS-B snapshot cache, tracked aircraft)
   # live in its own database on air_data, copied from the app's on first boot.
-  # It asks the radio hub for Sentry reservations and the receiver's location,
+  # It asks the radio hub for SDR Manager reservations and the receiver's location,
   # and raises squawk alerts, over NATS — so it needs the `nats` service.
   air:
     <<: *section-service
@@ -531,6 +531,7 @@ services:
       # switched on in its settings.
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
+      - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-local/ (overrides the image's copy)
       - ./backend:/app/backend
       - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}
@@ -657,10 +658,17 @@ services:
     volumes:
       - service_credentials:/run/service-credentials
       - ./backend:/app/backend
+      # Where the native Mac SDR Manager reads its credentials (ADR 0007),
+      # filled only when SDR_MANAGER_LOCAL_NATIVE=1. The folder is in the
+      # checkout (its .gitignore keeps the files out of git).
+      - ./sdr-manager-local-credentials:/run/sdr-manager-local-credentials
     environment:
       # The entrypoint hands this folder to the runtime user, which then owns
       # every file the services read.
       SENTINEL_WRITABLE_DIRECTORIES: /run/service-credentials
+      # 1 = SDR Manager runs as a native Mac process (`sdr-manager-local install`),
+      # so its credentials are copied to ./sdr-manager-local-credentials.
+      SDR_MANAGER_LOCAL_NATIVE: ${SDR_MANAGER_LOCAL_NATIVE:-0}
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
       # Names (or IP addresses) other hosts reach THIS core host by,
@@ -800,8 +808,8 @@ services:
       - sentinel
 
   # ADS-B decoder (readsb). OPT-IN: only builds/starts with `--profile adsb`.
-  # Decodes 1090 MHz from a *remote* Sentry dongle: it reads the raw I/Q stream
-  # from Sentry's rtl_tcp port and publishes `aircraft.json` for the air
+  # Decodes 1090 MHz from a *remote* SDR Manager dongle: it reads the raw I/Q stream
+  # from the SDR host's rtl_tcp port and publishes `aircraft.json` for the air
   # domain's Off Grid source. AIR reads it at
   # http://adsb-decoder:8080/data/aircraft.json by default (ADSB_OFFGRID_URL in
   # .env overrides it for a decoder outside the compose network).
@@ -810,7 +818,7 @@ services:
   # 2.4 MSPS. Decoding on the Pi itself would cost a few KB/s instead; this
   # arrangement is chosen to keep the decoders in one stack.
   #
-  # The Sentry device MUST already be tuned to 1090 MHz at 2.4 MSPS. This
+  # The SDR Manager device MUST already be tuned to 1090 MHz at 2.4 MSPS. This
   # container never retunes it — those are the operator's per-device settings
   # and another consumer may be relying on them. See decoder/adsb/README.md.
   adsb-decoder:
@@ -834,8 +842,8 @@ services:
       - RTL_TCP_PORT=${SENTINEL_ADSB_RTL_TCP_PORT:-2345}
       # Polled once at startup to report what the source device is tuned to, so
       # a mis-tuned dongle shows up in the logs rather than as an empty map.
-      # Your Sentry host, e.g. http://<sentry-host>:8000; empty skips the check.
-      - SENTRY_API_BASE=${SENTINEL_ADSB_SENTRY_API:-}
+      # Your SDR host, e.g. http://<sdr-manager-host>:8000; empty skips the check.
+      - SDR_MANAGER_API_BASE=${SENTINEL_ADSB_SDR_MANAGER_API:-}
       - JSON_DIR=/run/adsb/data
       - HTTP_PORT=8080
     # Published so the decoder can be checked from a browser and pointed at from

@@ -1,6 +1,6 @@
 <template>
   <!-- Opaque WebGL canvas — named region + the BboxFields text equivalent
-       satisfy WCAG 1.1.1/4.1.2, same reasoning as SentrySiteMap. -->
+       satisfy WCAG 1.1.1/4.1.2, same reasoning as SdrManagerSiteMap. -->
   <!-- The landmark wraps the zoom buttons too, so they sit inside it. -->
   <div
     class="offline-area-map-wrap"
@@ -16,13 +16,13 @@
 /**
  * `OfflineAreaMap` — the small MapLibre instance Settings › Offline Maps
  * draws an area on. Deliberately NOT `MapLibreMap.vue` (the domain-map
- * component, which owns `window.map`) — like `SentrySiteMap.vue`, this is a
+ * component, which owns `window.map`) — like `SdrManagerSiteMap.vue`, this is a
  * second, independent map instance living entirely inside the settings panel.
  *
  * Shows the same basemap as the domain maps: the online build while there is
  * internet, the offline one (downloaded areas + bundled tiles) when there
  * isn't, so the preview still shows a map with no connection. Scroll-wheel zoom is off (as in
- * `SentrySiteMap`) so the map doesn't swallow the settings panel's own
+ * `SdrManagerSiteMap`) so the map doesn't swallow the settings panel's own
  * scroll; zoom is available via the +/- buttons (`MapZoomButtons`, styled
  * like the domain maps' side rail), double-click, pinch and the keyboard.
  *
@@ -435,7 +435,7 @@ onMounted(() => {
 // A theme change, or losing/regaining the internet, swaps the style (the
 // overlays are rebuilt on style.load).
 watch(styleUrl, () => {
-  /* v8 ignore start -- guarded the same way SentrySiteMap's theme watcher is */
+  /* v8 ignore start -- guarded the same way SdrManagerSiteMap's theme watcher is */
   if (map) setMapStyle(map, styleUrl())
   /* v8 ignore stop */
 })

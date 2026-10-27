@@ -6,8 +6,8 @@
  * silent-null/false on failure — the caller-facing controls already treat a
  * failed request as "nothing changed" rather than surfacing a network error).
  *
- * A radio created from a Sentry-mirrored device carries `sentry_host_id`/
- * `sentry_device_id` (ADR-0009); a manually-entered radio leaves both null and
+ * A radio created from an SDR-Manager-mirrored device carries `sdr_manager_host_id`/
+ * `sdr_manager_device_id` (ADR-0009); a manually-entered radio leaves both null and
  * behaves exactly as it always has.
  */
 import { notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
@@ -22,20 +22,20 @@ export interface SdrRadioRecord {
   bandwidth: number | null
   rf_gain: number | null
   agc: boolean | null
-  sentry_host_id: number | null
-  sentry_device_id: string | null
+  sdr_manager_host_id: number | null
+  sdr_manager_device_id: string | null
   notes: string
   antenna: string
   visibility: 'public' | 'private'
   created_at?: number
   /**
-   * Whether the Sentry device this radio mirrors is currently usable.
+   * Whether the SDR Manager device this radio mirrors is currently usable.
    *
    * Computed by the backend against the live fleet snapshot, not stored: a
    * dongle can be unplugged, disabled or replugged elsewhere at any moment, and
    * the point of reporting it is to grey the radio out rather than let the
    * operator discover it by a connection that can only fail. Always true for a
-   * manually-entered radio, which has no Sentry device behind it.
+   * manually-entered radio, which has no SDR Manager device behind it.
    */
   device_available?: boolean
   /** Why it is unavailable, in the operator's terms. Empty when it is available. */

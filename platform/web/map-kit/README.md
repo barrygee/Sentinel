@@ -8,14 +8,14 @@ host-provided singleton alongside `maplibre-gl`.
 Import as `@sentinel/map-kit/<path>` — `.vue` files with their extension, `.ts`
 modules without:
 
-| Path                                                  | Contents                                                                                                            |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `MapLibreMap.vue`, `UserLocationMarker`               | The map component and the user-location marker                                                                      |
-| `sentinel-control-base/SentinelControlBase`           | The base class every map control (`IControl`) extends                                                               |
-| `controls/*`                                          | Shared controls: names, roads, terrain (+ DEM), sentry-sites, range-rings (incl. `LandRangeRingsControl`), map-zoom |
-| `sprites/adsbSprites`, `map-cluster/*`, `map-label/*` | Sprites, clustering and label/marker-aria helpers                                                                   |
-| `composables/*`                                       | `useBasemapLayerSync`, `useMapContextMenu`, `useOfflineTierRefresh`, `useRangeRingOrigin`, `useUserLocation`        |
-| `utils/*`                                             | Map style/theme, basemap layers, offline tile versions, range rings, distance/location maths, site labels           |
+| Path                                                  | Contents                                                                                                                 |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `MapLibreMap.vue`, `UserLocationMarker`               | The map component and the user-location marker                                                                           |
+| `sentinel-control-base/SentinelControlBase`           | The base class every map control (`IControl`) extends                                                                    |
+| `controls/*`                                          | Shared controls: names, roads, terrain (+ DEM), sdr-manager-sites, range-rings (incl. `LandRangeRingsControl`), map-zoom |
+| `sprites/adsbSprites`, `map-cluster/*`, `map-label/*` | Sprites, clustering and label/marker-aria helpers                                                                        |
+| `composables/*`                                       | `useBasemapLayerSync`, `useMapContextMenu`, `useOfflineTierRefresh`, `useRangeRingOrigin`, `useUserLocation`             |
+| `utils/*`                                             | Map style/theme, basemap layers, offline tile versions, range rings, distance/location maths, site labels                |
 
 Depends on `@sentinel/shell-api` (core stores) and `@sentinel/ui`, never on a section.
 

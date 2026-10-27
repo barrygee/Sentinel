@@ -18,15 +18,15 @@
  * "NO CHANGES".
  */
 import { onMounted } from 'vue'
-import { useSentrySitesStore } from '@sentinel/shell-api/stores/sentrySites'
+import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import RingOriginPicker from '@sentinel/map-kit/controls/range-rings/RingOriginPicker.vue'
 
-const sentrySitesStore = useSentrySitesStore()
+const sdrManagerSitesStore = useSdrManagerSitesStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 // Settings can be opened without a map having ever mounted, and the site list
-// is fetched by the maps' polling. Ask once so the Sentry choices are real.
-onMounted(() => void sentrySitesStore.fetchSites())
+// is fetched by the maps' polling. Ask once so the SDR Manager choices are real.
+onMounted(() => void sdrManagerSitesStore.fetchSites())
 </script>
 
 <style scoped>

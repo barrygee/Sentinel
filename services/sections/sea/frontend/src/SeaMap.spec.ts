@@ -72,8 +72,8 @@ vi.mock('@sentinel/map-kit/controls/roads/RoadsToggleControl', () => ({
 vi.mock('@sentinel/map-kit/controls/terrain/TerrainToggleControl', () => ({
   TerrainToggleControl: controlMocks.make('terrain'),
 }))
-vi.mock('@sentinel/map-kit/controls/sentry-sites/SentrySitesControl', () => ({
-  SentrySitesControl: controlMocks.make('sentrySites'),
+vi.mock('@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl', () => ({
+  SdrManagerSitesControl: controlMocks.make('sdrManagerSites'),
 }))
 vi.mock('@sentinel/map-kit/controls/range-rings/LandRangeRingsControl', () => ({
   LandRangeRingsControl: controlMocks.make('rangeRings'),
@@ -282,7 +282,7 @@ describe('SeaMap', () => {
       'roads',
       'names',
       'terrain',
-      'sentrySites',
+      'sdrManagerSites',
     ]) {
       expect(last(name).onAdd).toHaveBeenCalledWith(map)
     }
@@ -296,11 +296,11 @@ describe('SeaMap', () => {
     expect(controlMocks.instances.vessels).toHaveLength(1)
   })
 
-  it('hands the Sentry sites control the operator position and marker', () => {
+  it('hands the SDR host sites control the operator position and marker', () => {
     const map = makeFakeMap()
     mountMap()
     bringUp(map)
-    const options = (last('sentrySites') as unknown as { args: unknown[] }).args[2] as {
+    const options = (last('sdrManagerSites') as unknown as { args: unknown[] }).args[2] as {
       getUserLocation: () => unknown
       userMarker: unknown
     }
@@ -514,7 +514,7 @@ describe('SeaMap', () => {
       'roads',
       'names',
       'terrain',
-      'sentrySites',
+      'sdrManagerSites',
     ]) {
       expect(last(name).onRemove).toHaveBeenCalledOnce()
     }

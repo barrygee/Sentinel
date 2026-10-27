@@ -17,7 +17,7 @@ import {
 const RETRY_INTERVAL_SECONDS = 30
 
 /**
- * Holds the Sentry dongle behind Off Grid ADS-B for as long as AIR is watching.
+ * Holds the SDR Manager dongle behind Off Grid ADS-B for as long as AIR is watching.
  *
  * A dongle serves one tuned purpose at a time. While AIR is showing off-grid
  * aircraft it needs that purpose to be 1090 MHz, and it needs nothing else to
@@ -28,9 +28,9 @@ const RETRY_INTERVAL_SECONDS = 30
  * local dongle at all; claiming one then would take hardware away from whatever
  * legitimately wants it, to receive nothing.
  *
- * The lease has a TTL on Sentry's side, so this renews on a timer. That is what
+ * The lease has a TTL on the SDR host's side, so this renews on a timer. That is what
  * makes a closed tab, a slept laptop or a crashed browser release the device
- * without having run any cleanup — the renewals simply stop, and Sentry lets
+ * without having run any cleanup — the renewals simply stop, and SDR host lets
  * go. `release()` on unmount only makes it prompt.
  */
 export function useAdsbSourceClaim() {
@@ -102,7 +102,7 @@ export function useAdsbSourceClaim() {
    * (Re)start the renewal timer at the cadence the server asked for.
    *
    * The interval comes from the response rather than being hard-coded here,
-   * because the TTL it has to stay inside is Sentry's, and a client guessing
+   * because the TTL it has to stay inside is the SDR host's, and a client guessing
    * would either renew pointlessly often or let the lease lapse.
    */
   function scheduleRenewals(seconds: number): void {

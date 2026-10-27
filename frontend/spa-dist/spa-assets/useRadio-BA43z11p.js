@@ -1,0 +1,1 @@
+import{K as e}from"./_virtual_mf___mfe_internal__sentinel_shell__mf_owner__100676512179738__loadShare__pinia__loadShare__.js-CqusQ7bG.js";import{n as t}from"./capabilities-utzdeS4s.js";function n(){let n=e(()=>t(`radio`));return{radio:n,available:e(()=>n.value!==void 0),connected:e(()=>n.value?.connected??!1)}}export{n as useRadio};

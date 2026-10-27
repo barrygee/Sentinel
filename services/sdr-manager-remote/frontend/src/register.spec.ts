@@ -43,6 +43,7 @@ describe('register (sdr-manager-remote)', () => {
       id: 'sdr-manager-remote-hosts',
       groupLabel: 'REMOTE SDR HOSTS',
       hideLabel: true,
+      docPath: 'use/sdr-manager#remote-sdr-hosts',
       control: { component: RemoteHostsControl, layout: 'half' },
     })
   })
@@ -90,8 +91,9 @@ describe('registerSdrManagerRemoteSettings', () => {
   it('shares the section with sdr-manager-local: an identical entry registered first is accepted', async () => {
     const { registerSettingsSection, getSettingsSections } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
-    const { registerSdrManagerRemoteSettings, SDR_MANAGER_SETTINGS_SECTION } =
-      await import('./settings')
+    const { SDR_MANAGER_SETTINGS_SECTION } =
+      await import('@sentinel/shell-api/shell/sdrManagerSettingsSection')
+    const { registerSdrManagerRemoteSettings } = await import('./settings')
     registerSettingsSection({ ...SDR_MANAGER_SETTINGS_SECTION })
 
     expect(() => registerSdrManagerRemoteSettings()).not.toThrow()

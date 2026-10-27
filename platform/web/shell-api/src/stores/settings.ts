@@ -12,7 +12,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const allSettings = ref<Record<string, Record<string, unknown>>>({})
   /**
    * The SDR host Settings › SDR Manager should expand when it next renders, or
-   * null. Set by the host markers on the domain maps (`SentrySitesControl`) so
+   * null. Set by the host markers on the domain maps (`SdrManagerSitesControl`) so
    * "MORE" on a marker lands the operator on that host's own row rather than on
    * the section and a hunt through the list. `RemoteHostsControl` clears it
    * once it has acted on it, so a later manual visit opens as usual.

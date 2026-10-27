@@ -49,15 +49,15 @@ describe('getAdsbSource', () => {
     fetchSpy.mockResolvedValue(
       jsonResponse({
         configured: true,
-        sentry_host_id: 1,
-        sentry_device_id: 'serial:AAA',
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'serial:AAA',
       }),
     )
 
     expect(await getAdsbSource()).toEqual({
       configured: true,
-      sentry_host_id: 1,
-      sentry_device_id: 'serial:AAA',
+      sdr_manager_host_id: 1,
+      sdr_manager_device_id: 'serial:AAA',
     })
   })
 
@@ -91,8 +91,8 @@ describe('setAdsbSource', () => {
 
     const [, init] = fetchSpy.mock.calls[0]
     expect(JSON.parse(init.body)).toEqual({
-      sentry_host_id: 7,
-      sentry_device_id: 'serial:97710286',
+      sdr_manager_host_id: 7,
+      sdr_manager_device_id: 'serial:97710286',
     })
   })
 
@@ -129,7 +129,11 @@ describe('setAdsbSource', () => {
 
 describe('clearAdsbSource', () => {
   it('sends a DELETE for the source and returns the unconfigured state', async () => {
-    const unconfigured = { configured: false, sentry_host_id: null, sentry_device_id: null }
+    const unconfigured = {
+      configured: false,
+      sdr_manager_host_id: null,
+      sdr_manager_device_id: null,
+    }
     fetchSpy.mockResolvedValue(jsonResponse(unconfigured))
 
     expect(await clearAdsbSource()).toEqual(unconfigured)
@@ -167,7 +171,7 @@ describe('clearAdsbSource', () => {
 describe('claimAdsbSource', () => {
   it('returns the claim on success', async () => {
     const claim = {
-      source: { sentry_host_id: 1, sentry_device_id: 'serial:AAA' },
+      source: { sdr_manager_host_id: 1, sdr_manager_device_id: 'serial:AAA' },
       reservation: null,
       tuned: { center_hz: 1_090_000_000, sample_rate: 2_400_000 },
       renew_within_seconds: 30,

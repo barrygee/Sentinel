@@ -145,46 +145,123 @@ describe('RemoteHostForm', () => {
     )
   })
 
-  it('updates an existing host, omitting auth_token when left blank', async () => {
-    mockUpdateSdrManagerHost.mockResolvedValue(makeSavedHost())
-    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
-    const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
-    const patch = mockUpdateSdrManagerHost.mock.calls[0]![1]
-    expect(mockUpdateSdrManagerHost).toHaveBeenCalledWith(5, expect.anything())
-    expect(patch).not.toHaveProperty('auth_token')
-    expect(patch).toMatchObject({ name: 'Roof Pi', address: '192.168.1.50', port: 8000 })
-  })
+  describe('editing an existing host (staged for APPLY CHANGES)', () => {
+    function fields(wrapper: ReturnType<typeof mount>) {
+      return wrapper.findAll('.sdr-devices-form-input')
+    }
+    function lastDraft(wrapper: ReturnType<typeof mount>): unknown {
+      const drafts = wrapper.emitted('draft')!
+      return drafts[drafts.length - 1]![0]
+    }
 
-  it('includes auth_token in the patch when the operator types a new one', async () => {
-    mockUpdateSdrManagerHost.mockResolvedValue(makeSavedHost())
-    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
-    const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    await wrapper.findAll('.sdr-devices-form-input')[3]!.setValue('new-token')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
-    expect(mockUpdateSdrManagerHost.mock.calls[0]![1]).toMatchObject({ auth_token: 'new-token' })
-  })
+    it('has no SAVE or ADD button, only TEST CONNECTION and CANCEL', () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      expect(wrapper.findAll('.sdr-devices-btn').map((button) => button.text())).toEqual([
+        'TEST CONNECTION',
+        'CANCEL',
+      ])
+      expect(wrapper.find('.sdr-devices-btn--primary').exists()).toBe(false)
+    })
 
-  it('clears the label to null on update when the field is emptied', async () => {
-    mockUpdateSdrManagerHost.mockResolvedValue(makeSavedHost())
-    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
-    const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    await wrapper.findAll('.sdr-devices-form-input')[1]!.setValue('')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
-    expect(mockUpdateSdrManagerHost.mock.calls[0]![1]).toMatchObject({ name: null })
-  })
+    it('emits nothing until a field is edited', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await flushPromises()
+      expect(wrapper.emitted('draft')).toBeUndefined()
+    })
 
-  it('defaults the port to 8000 when cleared to a falsy value', async () => {
-    mockUpdateSdrManagerHost.mockResolvedValue(makeSavedHost())
-    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
-    const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    await wrapper.findAll('.sdr-devices-form-input')[2]!.setValue(0)
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
-    expect(mockUpdateSdrManagerHost.mock.calls[0]![1]).toMatchObject({ port: 8000 })
+    it('never saves on its own: editing only drafts', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await fields(wrapper)[1]!.setValue('Attic')
+      await flushPromises()
+      expect(mockUpdateSdrManagerHost).not.toHaveBeenCalled()
+      expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
+      expect(wrapper.emitted('save')).toBeUndefined()
+    })
+
+    it('emits the edited fields as a draft, with the typed password', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await fields(wrapper)[0]!.setValue('10.0.0.9')
+      await fields(wrapper)[1]!.setValue('Attic')
+      await fields(wrapper)[2]!.setValue(9000)
+      await fields(wrapper)[3]!.setValue('new-token')
+      expect(lastDraft(wrapper)).toEqual({
+        address: '10.0.0.9',
+        name: 'Attic',
+        port: 9000,
+        authToken: 'new-token',
+      })
+    })
+
+    it('emits a draft with a blank password when only the label changed', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await fields(wrapper)[1]!.setValue('')
+      expect(lastDraft(wrapper)).toEqual({
+        address: '192.168.1.50',
+        name: '',
+        port: 8000,
+        authToken: '',
+      })
+    })
+
+    it('emits null once the edits are reverted to what is saved', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await fields(wrapper)[1]!.setValue('Attic')
+      expect(lastDraft(wrapper)).not.toBeNull()
+      await fields(wrapper)[1]!.setValue('Roof Pi')
+      expect(lastDraft(wrapper)).toBeNull()
+    })
+
+    it('counts a typed password as a change even when everything else matches', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await fields(wrapper)[3]!.setValue('x')
+      expect(lastDraft(wrapper)).toMatchObject({ authToken: 'x' })
+    })
+
+    it('reopens on the staged draft instead of the saved values', () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: {
+          host: EXISTING_HOST,
+          stagedDraft: { address: '10.1.1.1', name: 'Staged', port: 8100, authToken: 'tok' },
+        },
+      })
+      const inputs = fields(wrapper)
+      expect((inputs[0]!.element as HTMLInputElement).value).toBe('10.1.1.1')
+      expect((inputs[1]!.element as HTMLInputElement).value).toBe('Staged')
+      expect((inputs[2]!.element as HTMLInputElement).value).toBe('8100')
+      expect((inputs[3]!.element as HTMLInputElement).value).toBe('tok')
+    })
+
+    it('reverting a reopened staged draft to the saved values emits null', async () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: {
+          host: EXISTING_HOST,
+          stagedDraft: { address: '192.168.1.50', name: 'Staged', port: 8000, authToken: '' },
+        },
+      })
+      await fields(wrapper)[1]!.setValue('Roof Pi')
+      expect(lastDraft(wrapper)).toBeNull()
+    })
+
+    it('shows the reason APPLY CHANGES refused this host', () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: { host: EXISTING_HOST, applyError: 'Port 1234 is already in use.' },
+      })
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Port 1234 is already in use.')
+    })
+
+    it('shows no error when APPLY CHANGES has not refused it', () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST, applyError: null } })
+      expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+    })
+
+    it('emits cancel from CANCEL', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      const cancel = wrapper
+        .findAll('.sdr-devices-btn')
+        .find((button) => button.text() === 'CANCEL')!
+      await cancel.trigger('click')
+      expect(wrapper.emitted('cancel')).toHaveLength(1)
+    })
   })
 
   it('defaults the port to 8000 on create when cleared to a falsy value', async () => {
@@ -222,6 +299,59 @@ describe('RemoteHostForm', () => {
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Save failed.')
+  })
+
+  it('labels the new-host action ADD and disables it while the host is being added', async () => {
+    let finishCreate: (host: SdrManagerHost) => void = () => {}
+    mockCreateSdrManagerHost.mockReturnValue(
+      new Promise((resolve) => {
+        finishCreate = resolve
+      }),
+    )
+    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    const addButton = () => wrapper.find('.sdr-devices-btn--primary')
+    expect(addButton().text()).toBe('ADD')
+    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await addButton().trigger('click')
+    expect((addButton().element as HTMLButtonElement).disabled).toBe(true)
+    finishCreate(makeSavedHost())
+    await flushPromises()
+    expect((addButton().element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('does not emit drafts while a new host is being typed', async () => {
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    expect(wrapper.emitted('draft')).toBeUndefined()
+  })
+
+  it('trims the address when adding a host', async () => {
+    mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
+    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('  10.0.0.9  ')
+    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+    await flushPromises()
+    expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
+      expect.objectContaining({ address: '10.0.0.9' }),
+    )
+  })
+
+  it('shows the add error from the API above a later successful retry, then clears it', async () => {
+    mockCreateSdrManagerHost.mockRejectedValueOnce(
+      new SdrManagerApiError(409, 'duplicate', 'Host already exists.'),
+    )
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Host already exists.')
+    mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
+    mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
   })
 
   it('does not fail the save when the post-save probe itself fails', async () => {
@@ -320,70 +450,58 @@ describe('RemoteHostForm', () => {
       expect(labelInput.attributes('placeholder')).toBe('This machine')
     })
 
-    it('saves the label alone, never the address, port or password', async () => {
-      mockUpdateSdrManagerHost.mockResolvedValue({ ...LOCAL_HOST, name: 'Shack' })
+    it('has no ADD or SAVE button, only TEST CONNECTION and CANCEL', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('input[aria-label="SDR host label"]').setValue('  Shack  ')
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      await flushPromises()
-      expect(mockUpdateSdrManagerHost).toHaveBeenCalledTimes(1)
-      expect(mockUpdateSdrManagerHost).toHaveBeenCalledWith(9, { name: 'Shack' })
+      expect(wrapper.find('.sdr-devices-btn--primary').exists()).toBe(false)
+      expect(wrapper.findAll('.sdr-devices-btn').map((button) => button.text())).toEqual([
+        'TEST CONNECTION',
+        'CANCEL',
+      ])
+    })
+
+    it('drafts a label edit without saving, and without creating or updating anything', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
+      await wrapper.find('input[aria-label="SDR host label"]').setValue('Shack')
+      const drafts = wrapper.emitted('draft')!
+      expect(drafts[drafts.length - 1]![0]).toMatchObject({ name: 'Shack' })
+      expect(mockUpdateSdrManagerHost).not.toHaveBeenCalled()
       expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
-      // No post-save probe for this machine: its connection is not the operator's.
-      expect(mockTestSdrManagerHost).not.toHaveBeenCalled()
-      expect(wrapper.emitted('save')).toHaveLength(1)
+      expect(wrapper.emitted('save')).toBeUndefined()
     })
 
-    it('clears the label to null when the field is left blank', async () => {
-      mockUpdateSdrManagerHost.mockResolvedValue(LOCAL_HOST)
+    it('drafts null once the label is back to what is saved', async () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('input[aria-label="SDR host label"]').setValue('   ')
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      await flushPromises()
-      expect(mockUpdateSdrManagerHost).toHaveBeenCalledWith(9, { name: null })
+      const labelInput = wrapper.find('input[aria-label="SDR host label"]')
+      await labelInput.setValue('Shack')
+      await labelInput.setValue('')
+      const drafts = wrapper.emitted('draft')!
+      expect(drafts[drafts.length - 1]![0]).toBeNull()
     })
 
-    it("shows the API's rejection and does not emit save when the label is refused", async () => {
-      mockUpdateSdrManagerHost.mockRejectedValue(
-        new SdrManagerApiError(409, 'local_host_managed', 'This machine is managed by Sentinel.'),
-      )
-      const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      await flushPromises()
+    it('reopens on the staged label', () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: {
+          host: LOCAL_HOST,
+          stagedDraft: {
+            address: 'host.docker.internal',
+            name: 'Shack',
+            port: 8000,
+            authToken: '',
+          },
+        },
+      })
+      expect(
+        (wrapper.find('input[aria-label="SDR host label"]').element as HTMLInputElement).value,
+      ).toBe('Shack')
+    })
+
+    it("shows the API's refusal handed back by APPLY CHANGES", () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: { host: LOCAL_HOST, applyError: 'This machine is managed by Sentinel.' },
+      })
       expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
         'This machine is managed by Sentinel.',
       )
-      expect(wrapper.emitted('save')).toBeUndefined()
-      expect(
-        (wrapper.find('.sdr-devices-btn--primary').element as HTMLButtonElement).disabled,
-      ).toBe(false)
-    })
-
-    it('falls back to a generic message for a failure that is not a host rejection', async () => {
-      mockUpdateSdrManagerHost.mockRejectedValue(new TypeError('boom'))
-      const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      await flushPromises()
-      expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Save failed.')
-    })
-
-    it('disables SAVE while the label is being saved', async () => {
-      let finishSave: (host: SdrManagerHost) => void = () => {}
-      mockUpdateSdrManagerHost.mockReturnValue(
-        new Promise((resolve) => {
-          finishSave = resolve
-        }),
-      )
-      const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      expect(
-        (wrapper.find('.sdr-devices-btn--primary').element as HTMLButtonElement).disabled,
-      ).toBe(true)
-      finishSave(LOCAL_HOST)
-      await flushPromises()
-      expect(
-        (wrapper.find('.sdr-devices-btn--primary').element as HTMLButtonElement).disabled,
-      ).toBe(false)
     })
 
     it('focuses the label field shortly after mount, as there is no address field', () => {

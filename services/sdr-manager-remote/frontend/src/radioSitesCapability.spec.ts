@@ -8,7 +8,7 @@ import { announceHostsChanged } from './hostsChanged'
  * sdr-manager-remote's `radioSites` capability: the SDR hosts read through the
  * hosts API, for core's site markers, Air's ADS-B receiver picker and the SDR
  * section's DEVICES list. (The listDevices cases used to live in
- * AdsbSdrSourceControl's spec, when Air read the Sentry API itself.)
+ * AdsbSdrSourceControl's spec, when Air read the SDR host API itself.)
  */
 
 function host(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost {
@@ -54,7 +54,7 @@ afterEach(() => {
 })
 
 describe('sdr radioSites capability — sites', () => {
-  it('lists the sites from the Sentry locations endpoint', async () => {
+  it('lists the sites from the SDR host locations endpoint', async () => {
     const site = {
       id: 1,
       name: 'Roof Pi',

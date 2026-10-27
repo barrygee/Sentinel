@@ -1029,9 +1029,9 @@ body[data-no-data] .maplibregl-control-container {
     --map-overlay-halo: none;
     --map-overlay-accent: #c8ff00;
     /* The ⊙ marks (UserLocationMarker): the ring is overlay ink; the dot is
-       lime for your own position and near-white for a Sentry site. */
+       lime for your own position and near-white for an SDR host site. */
     --map-location-dot: #c8ff00;
-    --map-sentry-dot: #f6f6f4;
+    --map-sdr-manager-dot: #f6f6f4;
 }
 
 :root[data-map-theme='light'] {
@@ -1039,8 +1039,8 @@ body[data-no-data] .maplibregl-control-container {
     --map-overlay-halo: 0 0 2px #ffffff, 0 0 3px #ffffff;
     --map-overlay-accent: #4d6600;
     /* On the light map the rings go dark (black), so the mark reads against
-       the cream land; your position keeps the app's lime dot, and a Sentry
+       the cream land; your position keeps the app's lime dot, and an SDR host
        site's dot goes black. */
     --map-location-dot: #c8ff00;
-    --map-sentry-dot: #1b1d22;
+    --map-sdr-manager-dot: #1b1d22;
 }
