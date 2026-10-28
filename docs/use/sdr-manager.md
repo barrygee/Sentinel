@@ -58,6 +58,8 @@ A dongle you unplug stays listed as **NOT PLUGGED IN**, with its settings, until
 
 ### The other cards
 
+They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
+
 | Card | For |
 |---|---|
 | **Console Password** | Set or change it (8 characters or more); **SIGN OUT**. Changing it signs out every other browser |
