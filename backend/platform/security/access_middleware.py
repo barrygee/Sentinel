@@ -124,7 +124,7 @@ class AccessControlMiddleware:
                 await self._refuse_scanner(scope, receive, send, is_websocket)
                 return
         rule = self.access_rules.rule_for(method, path)
-        allowed = rule is not None and self.access_rules.allows(rule, client_ip, request.headers)
+        allowed = rule is not None and self.access_rules.allows(rule, client_ip, request.headers, method)
         if not allowed:
             logger.warning(
                 "guard access %s: %s %s from %s (%s)",

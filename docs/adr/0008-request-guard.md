@@ -37,7 +37,7 @@ The owner asked for complete coverage of fastapi-guard's features, fitted to Sen
 - **The compose network's subnet is pinned.** An existing deployment recreates its network once (`docker compose down`).
 - **A radio host must list the core host** in `GUARD_SERVICE_HOSTS`, and core must list radio hosts the same way.
 - **Docker Desktop hides client addresses.** Every client appears as one address, so per-client limits and bans are coarse there. Linux deployments see real addresses.
-- **The `browser` class rejects requests without Fetch Metadata.** That stops scripts and other websites using the API, at the cost of very old browsers, and any script that needs the API must send it as the full-stack e2e suite does.
+- **The `browser` class needs proof a request came from this site.** Browsers send Fetch Metadata only to secure origins (HTTPS, localhost), not to Sentinel's usual plain-HTTP LAN address, so without it an `Origin` naming this host counts, and so does a GET or HEAD with no `Origin`. Browsers send `Origin` on every cross-origin request and every same-origin request that changes something, so another website still can't change anything. A LAN script can read what the app can read; it must send `Sec-Fetch-Site` or `Origin` to change anything, as the full-stack e2e suite does.
 - **Some code depends on fastapi-guard internals.** That is the fail-open wrapper and the WebSocket check, so the dependency is pinned exactly and an upgrade is a reviewed change.
 
 Operator guide: [Request guard](../security-guard.md). Route by route: [API access matrix](../reference/api-access-matrix.md).
