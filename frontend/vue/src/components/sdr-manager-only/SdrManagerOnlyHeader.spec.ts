@@ -16,11 +16,12 @@ describe('SdrManagerOnlyHeader', () => {
     expect(wrapper.get('img').attributes('alt')).toBe('SENTINEL')
   })
 
-  it('says which mode this Sentinel runs in, where the full app lists its sections', () => {
+  it('is only the logo: no section list and no mode badge', () => {
     const wrapper = mount(SdrManagerOnlyHeader)
 
-    expect(wrapper.get('.sdr-manager-only-badge').text()).toBe('SDR MANAGER ONLY')
     expect(wrapper.find('nav').exists()).toBe(false)
+    expect(wrapper.get('header#nav').text()).toBe('')
+    expect(wrapper.get('header#nav').element.children).toHaveLength(1)
   })
 
   it('has no axe violations', async () => {
