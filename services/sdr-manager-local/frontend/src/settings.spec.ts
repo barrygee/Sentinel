@@ -63,6 +63,40 @@ describe('registerSdrManagerLocalSettings', () => {
     expect(hotspot!.control).toMatchObject({ component: HotspotControl, layout: 'full' })
   })
 
+  it('folds every card but Devices, the one this page is for', async () => {
+    const { registry } = await registered()
+
+    expect(
+      registry.getSettingItems().map((item) => [item.id, item.control.collapsible !== undefined]),
+    ).toEqual([
+      ['sdr-manager-local-devices', false],
+      ['sdr-manager-local-console-password', true],
+      ['sdr-manager-local-configuration', true],
+      ['sdr-manager-local-hotspot', true],
+    ])
+  })
+
+  it('opens Console Password only while this machine has no password', async () => {
+    const { registry } = await registered()
+    const { createPinia, setActivePinia } = await import('pinia')
+    setActivePinia(createPinia())
+    const { useLocalAuthStore } = await import('./stores/localAuthStore')
+    const auth = useLocalAuthStore()
+    const [, password, configuration, hotspot] = registry.getSettingItems()
+    const openWhen = password!.control.collapsible!.openWhen!
+
+    // Not known yet: no reason to open it.
+    expect(openWhen()).toBe(false)
+    auth.loaded = true
+    auth.passwordSet = false
+    expect(openWhen()).toBe(true)
+    auth.passwordSet = true
+    expect(openWhen()).toBe(false)
+    // The others wait to be opened.
+    expect(configuration!.control.collapsible!.openWhen).toBeUndefined()
+    expect(hotspot!.control.collapsible!.openWhen).toBeUndefined()
+  })
+
   it('links each item to its part of the SDR Manager guide', async () => {
     const { registry } = await registered()
 

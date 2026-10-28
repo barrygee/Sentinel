@@ -8,6 +8,7 @@ import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue
 import ConfigTransferControl from './components/config/ConfigTransferControl.vue'
 import LocalDevicesControl from './components/devices/LocalDevicesControl.vue'
 import HotspotControl from './components/hotspot/HotspotControl.vue'
+import { useLocalAuthStore } from './stores/localAuthStore'
 
 const THIS_MACHINE_GROUP = 'THIS MACHINE'
 
@@ -48,7 +49,13 @@ export function registerSdrManagerLocalSettings(): void {
       desc: 'Protects this machine’s SDR Manager, here and for other Sentinels that manage it.',
       searchTerms: 'console password sign in sign out login security sdr manager',
       docPath: 'use/sdr-manager#the-other-cards',
-      control: { component: ConsolePasswordControl, layout: 'half', naturalHeight: true },
+      control: {
+        component: ConsolePasswordControl,
+        layout: 'half',
+        naturalHeight: true,
+        // Open while there is no password: setting one is what needs doing.
+        collapsible: { openWhen: () => useLocalAuthStore().isUnprotected },
+      },
     },
     {
       ...COMMON,
@@ -57,7 +64,12 @@ export function registerSdrManagerLocalSettings(): void {
       desc: 'Back up this machine’s SDR settings to a file, or set it up from one.',
       searchTerms: 'configuration export import backup restore file json sdr manager',
       docPath: 'use/sdr-manager#the-other-cards',
-      control: { component: ConfigTransferControl, layout: 'half', naturalHeight: true },
+      control: {
+        component: ConfigTransferControl,
+        layout: 'half',
+        naturalHeight: true,
+        collapsible: {},
+      },
     },
     {
       ...COMMON,
@@ -66,7 +78,7 @@ export function registerSdrManagerLocalSettings(): void {
       desc: 'A Wi-Fi network this machine offers, so a phone or laptop can reach Sentinel where there is no other network.',
       searchTerms: 'hotspot wifi wi-fi access point ap network ssid off grid field sdr manager',
       docPath: 'use/sdr-manager#the-other-cards',
-      control: { component: HotspotControl, layout: 'full', naturalHeight: true },
+      control: { component: HotspotControl, layout: 'full', naturalHeight: true, collapsible: {} },
     },
   ]
   registerSettingItems(items)

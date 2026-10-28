@@ -96,6 +96,7 @@
                   :key="item.id"
                   :item="item"
                   :pending="pending"
+                  start-open
                   @stage="stagePending"
                   @commit="commitAll"
                 />

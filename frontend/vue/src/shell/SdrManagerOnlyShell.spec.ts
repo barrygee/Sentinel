@@ -84,7 +84,7 @@ describe('SdrManagerOnlyShell', () => {
     const wrapper = mount(SdrManagerOnlyShell)
 
     expect(wrapper.get('a.skip-link').attributes('href')).toBe('#main')
-    expect(wrapper.get('header#nav').text()).toContain('SDR MANAGER ONLY')
+    expect(wrapper.get('header#nav #logo-img').attributes('alt')).toBe('SENTINEL')
   })
 
   it('keeps the URL and the panel in step, and follows hand-edits of the config file', () => {

@@ -313,6 +313,12 @@
   text-transform: uppercase;
 }
 
+/* A collapsible card's control: no box of its own, so an open card lays out
+   exactly like one that can't fold (v-show's display:none folds it). */
+.settings-item-body {
+  display: contents;
+}
+
 .settings-item-desc {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-body);

@@ -58,7 +58,7 @@ test.describe('SDR Manager-only mode', () => {
 
         const panel = page.locator('#settings-panel');
         await expect(panel).toHaveAttribute('role', 'region');
-        await expect(page.locator('header#nav')).toContainText('SDR MANAGER ONLY');
+        await expect(page.locator('header#nav')).not.toContainText('SDR MANAGER ONLY');
         await expect(page.locator('#settings-panel .settings-nav-item')).toHaveCount(2);
         await expect(page.getByRole('button', { name: 'SDR Manager', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'App Settings', exact: true })).toBeVisible();
