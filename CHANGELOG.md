@@ -243,6 +243,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - This-machine screens
 - MacOS native mode
 - SDR Manager-only mode: compose file, shell, CI matrix
+- Drop the SDR MANAGER ONLY badge from the header
+- Fold SDR Manager cards until they are needed
 
 ### Bug Fixes
 
@@ -1669,6 +1671,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #544 from barrygee/feat/request-guard
 - Merge pull request #545 from barrygee/fix/guard-user-agents
 - Merge pull request #546 from barrygee/fix/guard-plain-http-browsers
+- Merge pull request #547 from barrygee/feat/sdr-manager-collapsed-sections
 
 ### Refactoring
 
@@ -1832,6 +1835,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - 0007 SDR Manager
 - SDR Manager guides and .env recipes
 - Regenerate the API access matrix (status route listed first)
+- Folded cards and the badge-free header
 
 ### Tests
 
