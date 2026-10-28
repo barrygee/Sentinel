@@ -332,8 +332,11 @@ class AccessClass(_Strict):
     # Headers that must be present (their value is checked by the route itself).
     required_headers: list[str] = Field(default_factory=list)
     # Browser checks: Sec-Fetch-Site must be one of these, or — for a browser
-    # that sends no Fetch Metadata — the Origin must be this host.
+    # that sends no Fetch Metadata (any browser on plain HTTP) — the Origin
+    # must be this host.
     fetch_sites: list[Literal["same-origin", "same-site", "cross-site", "none"]] = Field(default_factory=list)
+    # With neither header: GET and HEAD are always admitted (a browser's own
+    # read over plain HTTP sends neither); this admits every other method too.
     allow_missing_fetch_metadata: bool = True
 
 

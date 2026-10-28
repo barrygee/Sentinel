@@ -112,11 +112,27 @@ class TestBrowser:
 
         assert (response.status_code, response.json()) == (200, {"thing": "7"})
 
-    def test_a_script_without_fetch_metadata_gets_a_404(self, client_from: Any) -> None:
+    def test_the_spa_over_plain_http_reads_its_api(self, client_from: Any) -> None:
+        # Browsers send Fetch Metadata only to secure origins, and no Origin on a read.
         response = client_from(LAN_BROWSER_ADDRESS).get("/api/things/7")
+
+        assert (response.status_code, response.json()) == (200, {"thing": "7"})
+
+    def test_the_spa_over_plain_http_changes_things_with_its_origin(self, client_from: Any) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"origin": "http://testserver"})
+
+        assert response.status_code == 200
+
+    def test_a_change_without_fetch_metadata_or_origin_gets_a_404(self, client_from: Any) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7")
 
         assert (response.status_code, response.json()) == (404, {"detail": "Not Found"})
         assert response.headers["cache-control"] == "no-store"
+
+    def test_another_site_over_plain_http_gets_a_404(self, client_from: Any) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"origin": "http://evil.example"})
+
+        assert response.status_code == 404
 
     def test_another_site_driving_the_browser_gets_a_404(self, client_from: Any) -> None:
         response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"sec-fetch-site": "cross-site"})

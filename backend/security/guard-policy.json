@@ -149,7 +149,7 @@
             "networks": ["$client_networks"]
         },
         "browser": {
-            "description": "The SPA's own API calls: a client on the LAN whose browser says the request came from this site (Sec-Fetch-Site), so another site can't drive it and a script isn't mistaken for it.",
+            "description": "The SPA's own API calls: a client on the LAN whose browser says the request came from this site (Sec-Fetch-Site; over plain HTTP, where browsers send none, an Origin naming this host, or no Origin on a GET/HEAD), so another site can't make it change anything.",
             "networks": ["$client_networks"],
             "fetch_sites": ["same-origin", "none"],
             "allow_missing_fetch_metadata": false

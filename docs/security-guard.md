@@ -32,7 +32,7 @@ Nothing reaches the internet unless you switch on a feature marked "needs intern
 | Caller | Who | Recognised by |
 |---|---|---|
 | `page` | Anyone on your network opening Sentinel | A private (LAN) address |
-| `browser` | The app's own API calls | A LAN address, and a browser saying the request came from this site (`Sec-Fetch-Site`). Another website, or a script, doesn't count. |
+| `browser` | The app's own API calls | A LAN address, and a browser saying the request came from this site (`Sec-Fetch-Site`). Over plain HTTP browsers don't send that header, so there an `Origin` naming this address counts, and a GET or HEAD with no `Origin` at all. Another website can't change anything. |
 | `internal` | Sentinel's own containers | An address on Sentinel's Docker network, or a [service host](#radio-hosts) |
 | `service` | A Sentinel service with its credential | As `internal`, plus `Authorization: Bearer`, which the route then checks |
 | `decoder` | A decoder with its credential | As `internal` or a decoder host, plus `X-Decode-Secret`, which the route then checks |

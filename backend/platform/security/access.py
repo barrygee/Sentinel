@@ -29,6 +29,10 @@ from urllib.parse import urlsplit
 from backend.platform.security.networks import IpNetwork, address_in, parse_networks
 from backend.platform.security.policy import AccessClass, CallerClass, GuardPolicy, RouteRule
 
+# Methods that change nothing: the only ones a browser sends with neither
+# Fetch Metadata nor Origin (a same-origin read over plain HTTP).
+SAFE_METHODS = frozenset({"GET", "HEAD"})
+
 _PARAMETER = re.compile(r"\{[^}/]+\}")
 
 
@@ -116,21 +120,26 @@ class AccessRules:
             None,
         )
 
-    def caller_classes(self, client_ip: str, headers: Mapping[str, str]) -> set[CallerClass]:
+    def caller_classes(self, client_ip: str, headers: Mapping[str, str], method: str) -> set[CallerClass]:
         """Every caller class this request qualifies as."""
-        return {name for name, caller_class in self.classes.items() if qualifies(caller_class, client_ip, headers)}
+        return {
+            name for name, caller_class in self.classes.items() if qualifies(caller_class, client_ip, headers, method)
+        }
 
-    def allows(self, rule: CompiledRule, client_ip: str, headers: Mapping[str, str]) -> bool:
-        """Whether a caller at `client_ip` sending `headers` may use `rule`'s routes."""
+    def allows(self, rule: CompiledRule, client_ip: str, headers: Mapping[str, str], method: str) -> bool:
+        """Whether a `method` request from `client_ip` sending `headers` may use `rule`'s routes."""
         return any(
-            qualifies(self.classes[name], client_ip, headers) for name in rule.rule.access if name in self.classes
+            qualifies(self.classes[name], client_ip, headers, method)
+            for name in rule.rule.access
+            if name in self.classes
         )
 
 
-def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mapping[str, str]) -> bool:
-    """Whether a request from `client_ip` with `headers` is a `caller_class` caller.
+def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mapping[str, str], method: str) -> bool:
+    """Whether a `method` request from `client_ip` with `headers` is a `caller_class` caller.
 
-    `headers` must be case-insensitive (Starlette's are).
+    `headers` must be case-insensitive (Starlette's are). `method` is the
+    HTTP method, or `WEBSOCKET` for a handshake.
     """
     definition = caller_class.definition
     if not address_in(client_ip, caller_class.networks):
@@ -138,17 +147,20 @@ def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mappin
     if any(not headers.get(header) for header in definition.required_headers):
         return False
     if definition.fetch_sites:
-        return _browser_request(headers, definition.fetch_sites, definition.allow_missing_fetch_metadata)
+        return _browser_request(headers, definition.fetch_sites, definition.allow_missing_fetch_metadata, method)
     return True
 
 
-def _browser_request(headers: Mapping[str, str], fetch_sites: Sequence[str], allow_missing: bool) -> bool:
-    """Whether the request came from the SPA itself, not from another site or a script.
+def _browser_request(headers: Mapping[str, str], fetch_sites: Sequence[str], allow_missing: bool, method: str) -> bool:
+    """Whether the request came from the SPA itself, not from another site.
 
-    Modern browsers send `Sec-Fetch-Site` on every request, so its value
-    decides. One that doesn't (older Safari) still sends `Origin` on
-    cross-origin requests and on WebSocket handshakes, so an Origin naming a
-    different host is refused, and no Origin at all is a same-origin GET.
+    Browsers send `Sec-Fetch-Site` only to secure origins (HTTPS, localhost),
+    so its value decides there. Over plain HTTP on the LAN — Sentinel's usual
+    address — they send none, but still send `Origin` on every cross-origin
+    request, every same-origin request that changes something and every
+    WebSocket handshake: an Origin naming a different host is refused. No
+    Origin at all is a same-origin read, admitted for GET and HEAD only, so
+    another site still can't make a browser change anything here.
     """
     fetch_site = headers.get("sec-fetch-site")
     if fetch_site:
@@ -156,7 +168,7 @@ def _browser_request(headers: Mapping[str, str], fetch_sites: Sequence[str], all
     origin = headers.get("origin")
     if origin:
         return _same_host(origin, headers.get("host", ""))
-    return allow_missing
+    return allow_missing or method.upper() in SAFE_METHODS
 
 
 def _same_host(origin: str, host: str) -> bool:
