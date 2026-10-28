@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick, ref } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SettingRow from './SettingRow.vue'
@@ -16,7 +16,11 @@ const StandInControl = defineComponent({
   setup: (props) => () => h('div', { class: 'stand-in' }, `${props.ns}|${props.filename}`),
 })
 
-function mountRow(item: Partial<SettingItem> = {}, control: Partial<SettingControl> = {}) {
+function mountRow(
+  item: Partial<SettingItem> = {},
+  control: Partial<SettingControl> = {},
+  rowProps: { startOpen?: boolean } = {},
+) {
   const fullItem: SettingItem = {
     section: 'test',
     sectionLabel: 'Test',
@@ -30,7 +34,7 @@ function mountRow(item: Partial<SettingItem> = {}, control: Partial<SettingContr
   const pinia = createPinia()
   setActivePinia(pinia)
   return mount(SettingRow, {
-    props: { item: fullItem, pending: new Map() },
+    props: { item: fullItem, pending: new Map(), ...rowProps },
     global: { plugins: [pinia], stubs: { RouterLink: RouterLinkStub } },
   })
 }
@@ -148,6 +152,116 @@ describe('SettingRow', () => {
         'settings-item--natural-height',
       )
       expect(cardClasses(mountRow())).not.toContain('settings-item--natural-height')
+    })
+  })
+
+  describe('collapsible card', () => {
+    const toggleButton = (wrapper: ReturnType<typeof mountRow>) =>
+      wrapper.get('button.settings-item-toggle')
+    const body = (wrapper: ReturnType<typeof mountRow>) => wrapper.get('.settings-item-body')
+    const isShowing = (wrapper: ReturnType<typeof mountRow>) =>
+      (body(wrapper).element as HTMLElement).style.display !== 'none'
+
+    it('starts folded: the title is a toggle and the control is hidden but mounted', () => {
+      const wrapper = mountRow({ id: 'hotspot', label: 'Hotspot' }, { collapsible: {} })
+
+      expect(toggleButton(wrapper).text()).toBe('Hotspot')
+      expect(toggleButton(wrapper).attributes('aria-expanded')).toBe('false')
+      expect(isShowing(wrapper)).toBe(false)
+      // Hidden with v-show, so it keeps loading what it shows.
+      expect(body(wrapper).findComponent(StandInControl).exists()).toBe(true)
+    })
+
+    it('ties the toggle to the control it shows by id', () => {
+      const wrapper = mountRow({ id: 'hotspot' }, { collapsible: {} })
+
+      expect(body(wrapper).attributes('id')).toBe('settings-item-body-hotspot')
+      expect(toggleButton(wrapper).attributes('aria-controls')).toBe('settings-item-body-hotspot')
+    })
+
+    it('still shows the description and docs link while folded', () => {
+      const wrapper = mountRow(
+        { label: 'Hotspot', desc: 'A Wi-Fi network', docPath: 'use/sdr-manager' },
+        { collapsible: {} },
+      )
+
+      expect(wrapper.get('.settings-item-desc').text()).toBe('A Wi-Fi network')
+      expect(wrapper.find('a.doc-link').exists()).toBe(true)
+    })
+
+    it('opens and folds again from the toggle', async () => {
+      const wrapper = mountRow({}, { collapsible: {} })
+
+      await toggleButton(wrapper).trigger('click')
+      expect(toggleButton(wrapper).attributes('aria-expanded')).toBe('true')
+      expect(isShowing(wrapper)).toBe(true)
+
+      await toggleButton(wrapper).trigger('click')
+      expect(toggleButton(wrapper).attributes('aria-expanded')).toBe('false')
+      expect(isShowing(wrapper)).toBe(false)
+    })
+
+    it('is open while openWhen says something in it needs doing, and follows it', async () => {
+      const needed = ref(true)
+      const wrapper = mountRow({}, { collapsible: { openWhen: () => needed.value } })
+      expect(isShowing(wrapper)).toBe(true)
+
+      needed.value = false
+      await nextTick()
+      expect(isShowing(wrapper)).toBe(false)
+    })
+
+    it("keeps the user's choice once they have used the toggle, whatever openWhen says", async () => {
+      const needed = ref(true)
+      const wrapper = mountRow({}, { collapsible: { openWhen: () => needed.value } })
+
+      await toggleButton(wrapper).trigger('click')
+      expect(isShowing(wrapper)).toBe(false)
+
+      needed.value = false
+      await nextTick()
+      needed.value = true
+      await nextTick()
+      expect(isShowing(wrapper)).toBe(false)
+    })
+
+    it('starts open when the panel asks (a search result), and can still be folded', async () => {
+      const wrapper = mountRow({}, { collapsible: {} }, { startOpen: true })
+      expect(isShowing(wrapper)).toBe(true)
+
+      await toggleButton(wrapper).trigger('click')
+      expect(isShowing(wrapper)).toBe(false)
+    })
+
+    it('a card without collapsible has no toggle and no wrapper', () => {
+      const wrapper = mountRow({}, {}, { startOpen: true })
+
+      expect(wrapper.find('button.settings-item-toggle').exists()).toBe(false)
+      expect(wrapper.find('.settings-item-body').exists()).toBe(false)
+      expect(wrapper.find('.stand-in').exists()).toBe(true)
+    })
+
+    it('still forwards the control events while folded', () => {
+      const wrapper = mountRow({ id: 'hotspot' }, { collapsible: {}, emits: ['stage', 'commit'] })
+      const staged = async () => {}
+      const control = wrapper.findComponent(StandInControl)
+
+      control.vm.$emit('stage', staged)
+      control.vm.$emit('commit')
+
+      expect(wrapper.emitted('stage')).toEqual([['hotspot', staged]])
+      expect(wrapper.emitted('commit')).toHaveLength(1)
+    })
+
+    it.each([false, true])('has no accessibility violations (open=%s)', async (startOpen) => {
+      const wrapper = mountRow(
+        { label: 'Hotspot', desc: 'A blip' },
+        { collapsible: {} },
+        { startOpen },
+      )
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
     })
   })
 

@@ -29,6 +29,13 @@ export interface SettingControl {
   layout?: 'half' | 'half-stacked' | 'full'
   /** Let the card grow to its content instead of the row's fixed height. */
   naturalHeight?: boolean
+  /**
+   * Fold the control away under the card's title until it is opened: the card
+   * shows its title (as the toggle), description and docs link. `openWhen` is
+   * read reactively and keeps the card open while it returns true — something
+   * in it needs doing; once the user toggles the card, their choice stands.
+   */
+  collapsible?: { openWhen?: () => boolean }
 }
 
 /**

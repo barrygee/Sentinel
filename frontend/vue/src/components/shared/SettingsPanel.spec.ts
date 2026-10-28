@@ -347,6 +347,19 @@ describe('SettingsPanel', () => {
       expect(listedLabels(wrapper)).toContain('Alert Sound')
     })
 
+    it('opens every matching card, where a section shows them as registered', async () => {
+      const wrapper = mountPanel()
+      expect(wrapper.findAllComponents({ name: 'SettingRow' }).length).toBeGreaterThan(0)
+      for (const row of wrapper.findAllComponents({ name: 'SettingRow' })) {
+        expect(row.props('startOpen')).toBe(false)
+      }
+
+      await wrapper.find('#settings-search-input').setValue('alert')
+      const results = wrapper.findAllComponents({ name: 'SettingRow' })
+      expect(results.length).toBeGreaterThan(0)
+      for (const row of results) expect(row.props('startOpen')).toBe(true)
+    })
+
     it('needs every word: one missing word hides the setting', async () => {
       const wrapper = mountPanel()
       await wrapper.find('#settings-search-input').setValue('alert zzzznotaword')
