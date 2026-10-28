@@ -570,6 +570,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Don't count the app's static files against the rate limit
 - Scan for attacks only where input enters
 - Refuse scanner user agents without regexes
+- Let browsers on plain HTTP use the API
 
 ### Chores
 
@@ -1667,6 +1668,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into feat/request-guard-work
 - Merge pull request #544 from barrygee/feat/request-guard
 - Merge pull request #545 from barrygee/fix/guard-user-agents
+- Merge pull request #546 from barrygee/fix/guard-plain-http-browsers
 
 ### Refactoring
 
