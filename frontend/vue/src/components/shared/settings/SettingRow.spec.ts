@@ -153,6 +153,18 @@ describe('SettingRow', () => {
       )
       expect(cardClasses(mountRow())).not.toContain('settings-item--natural-height')
     })
+
+    it('a card with no visible title or description is headless', () => {
+      expect(cardClasses(mountRow({ hideLabel: true }))).toContain('settings-item--headless')
+    })
+
+    it.each([
+      ['a visible title', {}],
+      ['a visible title and a description', { desc: 'About it.' }],
+      ['a description under its hidden title', { hideLabel: true, desc: 'About it.' }],
+    ])('a card with %s is not headless', (_case, item) => {
+      expect(cardClasses(mountRow(item))).not.toContain('settings-item--headless')
+    })
   })
 
   describe('collapsible card', () => {

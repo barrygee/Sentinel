@@ -6,12 +6,11 @@ import { expectNoAxeViolations } from '../../testing/componentTestUtils'
 import LocalConnectionStatus from './LocalConnectionStatus.vue'
 
 const CASES: {
-  state: LocalConnectionState
+  state: Exclude<LocalConnectionState, 'live'>
   visible: string
   spoken: string
   dotClass: string | null
 }[] = [
-  { state: 'live', visible: 'LIVE', spoken: 'Live', dotClass: 'sdr-status-dot--connected' },
   {
     state: 'connecting',
     visible: 'CONNECTING…',
@@ -51,13 +50,23 @@ describe('LocalConnectionStatus', () => {
     },
   )
 
-  it('follows the store when the connection changes', async () => {
+  it('shows nothing while live, the normal state', () => {
+    useLocalSdrStore().setConnection('live')
+    const wrapper = mount(LocalConnectionStatus)
+    expect(wrapper.find('.local-connection').exists()).toBe(false)
+    expect(wrapper.text()).toBe('')
+  })
+
+  it('appears when the connection drops and goes once it is live again', async () => {
     const store = useLocalSdrStore()
     store.setConnection('live')
     const wrapper = mount(LocalConnectionStatus)
     store.setConnection('offline')
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[aria-hidden="true"]').text()).toBe('NOT CONNECTED')
+    store.setConnection('live')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.local-connection').exists()).toBe(false)
   })
 
   it.each(CASES)('has no accessibility violations while $state', async ({ state }) => {

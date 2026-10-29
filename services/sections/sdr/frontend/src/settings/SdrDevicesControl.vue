@@ -15,13 +15,15 @@
       </div>
 
       <template v-for="group in sdrManagerGroups" :key="'host-' + group.host.id">
-        <SdrHostGroupHeader
-          :host-id="group.host.id"
-          :label="hostLabel(group.host)"
-          :reachable="group.snapshot?.reachable ?? null"
-          :last-error="group.snapshot?.last_error ?? null"
-        />
-        <div v-if="group.devices.length === 0" class="sdr-devices-empty">
+        <!-- No header per host (it is managed in Settings › SDR Manager); only
+             an unreachable host says so, so a dead Pi reads as "unreachable,
+             here's why" rather than a host that simply has no devices. -->
+        <div v-if="group.snapshot?.reachable === false" class="sdr-devices-empty sdr-devices-error">
+          {{ hostLabel(group.host) }} is unreachable<template v-if="group.snapshot.last_error"
+            >: {{ group.snapshot.last_error }}</template
+          >
+        </div>
+        <div v-else-if="group.devices.length === 0" class="sdr-devices-empty">
           No devices detected on this host.
         </div>
         <template
@@ -133,7 +135,8 @@
 /**
  * `SdrDevicesControl` — the Settings → SDR → DEVICES editor. Groups
  * configured/available SDR devices by source (ADR-0009, ADR 0007):
- * - One group per SDR host in Settings › SDR Manager, listing every device
+ * - One group per SDR host in Settings › SDR Manager, with no header of its
+ *   own (an unreachable host gets one line saying so), listing every device
  *   the host currently reports (`SdrHostDeviceRow` for one not yet mirrored
  *   into Sentinel's own radio list, `SdrRadioRow` once it has been). The
  *   hosts come through the `radioSites` capability sdr-manager-remote
@@ -161,7 +164,6 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrHostDeviceRow from './SdrHostDeviceRow.vue'
-import SdrHostGroupHeader from './SdrHostGroupHeader.vue'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import {
   listRadios,
@@ -506,5 +508,10 @@ onBeforeUnmount(() => {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(16, 19, 29, 0.55);
+}
+/* --danger-strong, not --danger: body text on the light settings canvas
+   needs AA contrast (about 5.9:1 here, against --danger's 4:1). */
+.sdr-devices-error {
+  color: var(--danger-strong);
 }
 </style>

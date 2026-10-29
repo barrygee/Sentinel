@@ -160,7 +160,7 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   [
     'sdr-manager',
     'sdr-manager-remote-hosts',
-    { component: RemoteHostsControl, emits: ['stage'], layout: 'half' },
+    { component: RemoteHostsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
   [
     'space',
