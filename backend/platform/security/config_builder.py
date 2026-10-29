@@ -193,7 +193,10 @@ def build_security_config(profile: ProfileSettings, *, service_name: str) -> Sec
         "cors_expose_headers": list(profile.cors.expose_headers),
         "cors_max_age": profile.cors.max_age_seconds,
         "custom_error_responses": dict(profile.error_messages),
-        "custom_response_modifier": hooks.json_error_responses,
+        # Like HSTS above: GUARD_ENFORCE_HTTPS is what says browsers reach
+        # Sentinel over HTTPS. Without it (its own plain-HTTP :8080) COOP and
+        # COEP would only make browsers log warnings.
+        "custom_response_modifier": hooks.response_modifier(secure_context=settings.guard_enforce_https),
         "on_block": hooks.log_block,
         "on_error": hooks.log_guard_error,
         # Failure behaviour.

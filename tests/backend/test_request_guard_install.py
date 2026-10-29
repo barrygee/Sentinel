@@ -112,6 +112,28 @@ class TestBrowser:
 
         assert (response.status_code, response.json()) == (200, {"thing": "7"})
 
+    def test_over_plain_http_no_coop_or_coep_but_the_other_security_headers(self, client_from: Any) -> None:
+        served = client_from(LAN_BROWSER_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+        refused = client_from(INTERNET_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        for response in (served, refused):
+            assert "cross-origin-opener-policy" not in response.headers
+            assert "cross-origin-embedder-policy" not in response.headers
+            assert response.headers["cross-origin-resource-policy"] == "same-origin"
+            assert response.headers["x-content-type-options"] == "nosniff"
+        assert (served.status_code, refused.status_code) == (200, 404)
+
+    def test_over_https_coop_and_coep_are_sent(self, monkeypatch: pytest.MonkeyPatch, policy_file: Path) -> None:
+        pin_guard_settings(monkeypatch, guard_policy_file=str(policy_file), guard_enforce_https=True)
+        app = build_app()
+        install_request_guard(app, service_name="core")
+        with TestClient(app, base_url="https://testserver", client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            response = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert response.status_code == 200
+        assert response.headers["cross-origin-opener-policy"] == "same-origin"
+        assert response.headers["cross-origin-embedder-policy"] == "require-corp"
+
     def test_the_spa_over_plain_http_reads_its_api(self, client_from: Any) -> None:
         # Browsers send Fetch Metadata only to secure origins, and no Origin on a read.
         response = client_from(LAN_BROWSER_ADDRESS).get("/api/things/7")

@@ -206,9 +206,17 @@ class TestBuildSecurityConfig:
     def test_sentinels_hooks_are_wired(self) -> None:
         config = build_security_config(profile(), service_name="core")
 
-        assert config.custom_response_modifier is hooks.json_error_responses
+        # The plain-HTTP default: JSON errors, minus the secure-context-only headers.
+        assert config.custom_response_modifier.__name__ == "json_errors_without_secure_context_headers"
         assert config.on_block is hooks.log_block
         assert config.on_error is hooks.log_guard_error
+
+    def test_coop_and_coep_are_kept_while_https_is_enforced(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        pin_guard_settings(monkeypatch, guard_enforce_https=True)
+
+        assert build_security_config(profile(), service_name="core").custom_response_modifier is (
+            hooks.json_error_responses
+        )
 
     def test_redis_only_with_a_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
         assert build_security_config(profile(), service_name="core").enable_redis is False
