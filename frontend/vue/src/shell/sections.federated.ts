@@ -52,7 +52,7 @@ function remoteName(sectionId: string): string {
  * registered with the federation runtime and fetched through its `./register`
  * entry. Untrusted entries are dropped with a console error; if the list
  * itself cannot be read the shell boots with no sections, as it would with
- * the backend down.
+ * the backend down, and the router shows `NoSectionsAvailable`.
  */
 export async function sectionSources(): Promise<SectionSource[]> {
   let listed: unknown

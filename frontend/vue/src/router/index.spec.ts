@@ -5,9 +5,11 @@ import { defineComponent, h } from 'vue'
 import { RouterView } from 'vue-router'
 import { FIXTURE_SETTINGS_SECTIONS } from '@/test/settingsRouteFixtures'
 
+// `registered.routes` stands in for what the sections registered; null = the fixtures.
+const registered = vi.hoisted(() => ({ routes: null as unknown[] | null }))
 vi.mock('@sentinel/shell-api/shell/sectionRegistry', async () => {
   const fixtures = await import('@/test/settingsRouteFixtures')
-  return { getSectionRoutes: () => fixtures.FIXTURE_SECTION_ROUTES }
+  return { getSectionRoutes: () => registered.routes ?? fixtures.FIXTURE_SECTION_ROUTES }
 })
 // The real docs page bundles all the markdown and the renderer; the router
 // only needs something to show.
@@ -37,6 +39,7 @@ describe('createAppRouter', () => {
     window.history.replaceState(null, '', '/')
     delete document.body.dataset.domain
     docsReturn.reset()
+    registered.routes = null
   })
 
   describe('section routes', () => {
@@ -67,6 +70,38 @@ describe('createAppRouter', () => {
       const router = createAppRouter()
       await router.push('/nowhere')
       expect(router.currentRoute.value.path).toBe('/air/')
+    })
+  })
+
+  describe('with no section registered (the section list could not be loaded)', () => {
+    beforeEach(() => {
+      registered.routes = []
+    })
+
+    it('shows why at / instead of redirecting', async () => {
+      const router = createAppRouter()
+      await router.push('/')
+      const wrapper = mount(defineComponent({ setup: () => () => h('main', [h(RouterView)]) }), {
+        global: { plugins: [router] },
+      })
+
+      expect(router.currentRoute.value.path).toBe('/')
+      expect(wrapper.get('h1').text()).toBe('No sections are available')
+      wrapper.unmount()
+    })
+
+    it('lands an unknown path on that notice, not in a redirect loop', async () => {
+      const router = createAppRouter()
+
+      await expect(router.push('/air/')).resolves.toBeUndefined()
+      expect(router.currentRoute.value.path).toBe('/')
+    })
+
+    it('still opens Settings', async () => {
+      const router = createAppRouter()
+      await router.push('/settings/app')
+
+      expect(router.currentRoute.value.path).toBe('/settings/app')
     })
   })
 
