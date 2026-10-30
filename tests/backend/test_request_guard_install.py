@@ -534,7 +534,6 @@ class TestRestartsBanNobody:
         assert INTERNAL_ADDRESS not in ip_ban_manager.banned_ips
 
     def test_a_client_repeating_404s_is_still_banned(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        # fastapi-guard counts a 404 rule per path, so the repeats are on one.
         with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
             probes = [client.post("/no-such-route").status_code for _ in range(4)]
             afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
@@ -542,6 +541,39 @@ class TestRestartsBanNobody:
         assert probes[:3] == [404, 404, 404]
         assert afterwards.status_code == 403
         assert LAN_BROWSER_ADDRESS in ip_ban_manager.banned_ips
+
+    def test_a_scanner_trying_a_different_path_each_time_is_banned(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # fastapi-guard alone counts per path, so these would never add up.
+        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+            probes = [client.post(f"/probe-{index}").status_code for index in range(4)]
+            afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        assert probes[:3] == [404, 404, 404]
+        assert afterwards.status_code == 403
+        assert LAN_BROWSER_ADDRESS in ip_ban_manager.banned_ips
+
+    def test_404s_count_against_the_client_that_got_them(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        app = scanner_rule_app(monkeypatch, tmp_path)
+        other_lan_address = "192.168.1.51"
+        with (
+            TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as scanner,
+            TestClient(app, client=(other_lan_address, 50000)) as neighbour,
+        ):
+            scanner_probes = [scanner.post(f"/probe-{index}").status_code for index in range(2)]
+            neighbour_probes = [neighbour.post(f"/neighbour-{index}").status_code for index in range(3)]
+            scanner_probes += [scanner.post(f"/probe-late-{index}").status_code for index in range(2)]
+            neighbour_afterwards = neighbour.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+
+        # Seven 404s between them, but only the scanner went over three.
+        assert neighbour_probes == [404, 404, 404]
+        assert scanner_probes[:3] == [404, 404, 404]
+        assert LAN_BROWSER_ADDRESS in ip_ban_manager.banned_ips
+        assert other_lan_address not in ip_ban_manager.banned_ips
+        assert neighbour_afterwards.status_code == 200
 
     def test_a_route_the_app_serves_still_answers_normally(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path

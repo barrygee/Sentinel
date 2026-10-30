@@ -29,6 +29,7 @@ from backend.platform.security.access_middleware import AccessControlMiddleware,
 from backend.platform.security.bans import install_ban_rules
 from backend.platform.security.config_builder import build_security_config, cloud_enabled, geo_enabled
 from backend.platform.security.fail_open import make_behavior_tracking_fail_open
+from backend.platform.security.global_rules import count_global_rules_per_client
 from backend.platform.security.policy import GuardPolicy, load_policy
 from backend.platform.security.route_groups import apply_route_groups
 from backend.platform.security.route_inventory import attach_static_endpoints, iter_routes
@@ -94,6 +95,9 @@ def install_request_guard(app: FastAPI, *, service_name: str) -> None:
         # fastapi-guard's behaviour rules use this tracker, global and per route.
         make_behavior_tracking_fail_open(route_guard.behavior_tracker)
     install_ban_rules(ip_ban_manager)
+    # The policy's global rules (the `status:404` scanner rule…) count across
+    # every path a client asks for, not separately per path.
+    count_global_rules_per_client()
     served_routes = ServedRoutes()
 
     # Starlette runs the last-added middleware first: fastapi-guard, then access.
