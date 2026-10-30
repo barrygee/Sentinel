@@ -573,6 +573,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Scan for attacks only where input enters
 - Refuse scanner user agents without regexes
 - Let browsers on plain HTTP use the API
+- Count the global ban rules per client, across routes
+- Send COOP and COEP only when HTTPS is enforced
+- Show a notice instead of overflowing when no section loads
 
 ### Chores
 
@@ -1672,6 +1675,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #545 from barrygee/fix/guard-user-agents
 - Merge pull request #546 from barrygee/fix/guard-plain-http-browsers
 - Merge pull request #547 from barrygee/feat/sdr-manager-collapsed-sections
+- Merge pull request #548 from barrygee/fix/guard-404-ban-per-client
+- Merge pull request #549 from barrygee/fix/coop-coep-plain-http
+- Merge pull request #550 from barrygee/fix/shell-sections-load-error
 
 ### Refactoring
 
