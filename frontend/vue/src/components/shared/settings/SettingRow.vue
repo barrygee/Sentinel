@@ -6,6 +6,7 @@
       'settings-item--half-stacked': control.layout === 'half-stacked',
       'settings-item--full': control.layout === 'full',
       'settings-item--natural-height': control.naturalHeight,
+      'settings-item--headless': item.hideLabel && !item.desc,
     }"
   >
     <div class="settings-item-info">

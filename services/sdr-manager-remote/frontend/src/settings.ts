@@ -20,7 +20,12 @@ export function registerSdrManagerRemoteSettings(): void {
       searchTerms:
         'register raspberry pi sentry sdr manager remote host this machine sdr devices rtl_tcp',
       docPath: 'use/sdr-manager#remote-sdr-hosts',
-      control: { component: RemoteHostsControl, emits: ['stage'], layout: 'half' },
+      control: {
+        component: RemoteHostsControl,
+        emits: ['stage'],
+        layout: 'half',
+        naturalHeight: true,
+      },
       // The group heading already reads REMOTE SDR HOSTS directly above the
       // card; the title stays in the registry for screen readers and search.
       hideLabel: true,

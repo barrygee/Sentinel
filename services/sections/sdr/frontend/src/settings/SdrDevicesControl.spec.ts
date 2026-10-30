@@ -6,7 +6,6 @@ import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrHostDeviceRow from './SdrHostDeviceRow.vue'
-import SdrHostGroupHeader from './SdrHostGroupHeader.vue'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { RADIOS_CHANGED_EVENT } from '../composables/sdrDeviceEvents'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
@@ -108,6 +107,14 @@ const MIRRORED_RADIO: SdrRadioRecord = {
   sdr_manager_device_id: 'rtl-1',
 }
 
+/** What the poll says of a host it can't reach. */
+const UNREACHABLE_SNAPSHOT = { reachable: false, last_error: 'Connection refused', status: null }
+
+/** The texts of the "<host> is unreachable" lines, in order. */
+function unreachableNotices(wrapper: ReturnType<typeof mount>): string[] {
+  return wrapper.findAll('.sdr-devices-error').map((notice) => notice.text())
+}
+
 function snapshot(
   devices: SdrManagerDeviceStatus[],
   overrides: Partial<SdrManagerDeviceSnapshot> = {},
@@ -161,23 +168,26 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.find('.sdr-devices-empty').exists()).toBe(true)
   })
 
-  it("groups an SDR host's devices under its own header", async () => {
+  it("lists a reachable SDR host's devices with no header for the host", async () => {
     mockListSdrManagerHosts.mockResolvedValue([HOST])
     mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
     const wrapper = mountControl()
     await flushPromises()
-    const header = wrapper.findComponent(SdrHostGroupHeader)
-    expect(header.props('label')).toBe('Roof Pi')
-    expect(header.props('reachable')).toBe(true)
     expect(wrapper.findComponent(SdrHostDeviceRow).exists()).toBe(true)
+    // Hosts are managed in Settings › SDR Manager: no name, no link to it here.
+    expect(wrapper.text()).not.toContain('Roof Pi')
+    expect(wrapper.text()).not.toContain('SDR MANAGER')
+    expect(unreachableNotices(wrapper)).toEqual([])
   })
 
-  it("falls back to the host's address for the group header label when it has no name", async () => {
+  it('names an unreachable host by its address when it has no name', async () => {
     mockListSdrManagerHosts.mockResolvedValue([UNLABELLED_HOST])
-    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
     const wrapper = mountControl()
     await flushPromises()
-    expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe(UNLABELLED_HOST.address)
+    expect(unreachableNotices(wrapper)).toEqual([
+      `${UNLABELLED_HOST.address} is unreachable: Connection refused`,
+    ])
   })
 
   it('shows a not-yet-mirrored device as an ADD row, and a mirrored one as a full radio row', async () => {
@@ -248,27 +258,34 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.text()).toContain('No devices detected on this host.')
   })
 
-  it("renders an unreachable host's last_error via its group header", async () => {
+  it('says an unreachable host is unreachable and why, in place of its devices', async () => {
+    mockListSdrManagerHosts.mockResolvedValue([UNREACHABLE_HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(unreachableNotices(wrapper)).toEqual(['Roof Pi is unreachable: Connection refused'])
+    expect(wrapper.text()).not.toContain('No devices detected on this host.')
+  })
+
+  it('says only that a host is unreachable when the poll gave no error', async () => {
     mockListSdrManagerHosts.mockResolvedValue([UNREACHABLE_HOST])
     mockGetSdrManagerHostDevices.mockResolvedValue(
-      snapshot([], { reachable: false, last_error: 'Connection refused', status: null }),
+      snapshot([], { ...UNREACHABLE_SNAPSHOT, last_error: null }),
     )
     const wrapper = mountControl()
     await flushPromises()
-    const header = wrapper.findComponent(SdrHostGroupHeader)
-    expect(header.props('lastError')).toBe('Connection refused')
-    expect(header.props('reachable')).toBe(false)
+    expect(unreachableNotices(wrapper)).toEqual(['Roof Pi is unreachable'])
   })
 
-  it('shows an SDR host group header with reachable/last-error null before the first poll snapshot resolves', async () => {
+  it('calls no host unreachable before its first poll snapshot resolves', async () => {
     mockListSdrManagerHosts.mockResolvedValue([HOST])
     // No snapshot has arrived for this host yet — mimic that by never letting
     // the device-status fetch resolve.
     mockGetSdrManagerHostDevices.mockReturnValue(new Promise(() => {}))
     const wrapper = mountControl()
     await flushPromises()
-    const header = wrapper.findComponent(SdrHostGroupHeader)
-    expect(header.props('reachable')).toBeNull()
+    expect(unreachableNotices(wrapper)).toEqual([])
+    expect(wrapper.text()).toContain('No devices detected on this host.')
   })
 
   it('lists manual radios (sdr_manager_host_id === null) under their own MANUAL RADIOS heading alongside an SDR host group', async () => {
@@ -666,7 +683,7 @@ describe('SdrDevicesControl', () => {
     mockListSdrManagerHosts.mockRejectedValueOnce(new Error('offline'))
     announceFakeHostsChanged()
     await flushPromises()
-    expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Roof Pi')
+    expect(wrapper.text()).toContain('No devices detected on this host.')
   })
 
   it('skips the status poll while nothing is configured', async () => {
@@ -803,6 +820,20 @@ describe('SdrDevicesControl', () => {
     ).toHaveNoViolations()
   })
 
+  it('has no accessibility violations with an unreachable host', async () => {
+    mockListSdrManagerHosts.mockResolvedValue([UNREACHABLE_HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
+    mockListRadios.mockResolvedValue([MANUAL_RADIO])
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(unreachableNotices(wrapper)).toHaveLength(1)
+    expect(
+      await axe(wrapper.html(), {
+        rules: { region: { enabled: false } },
+      }),
+    ).toHaveNoViolations()
+  })
+
   describe('with SDR Manager hosts (ADR 0007)', () => {
     const LOCAL_HOST: SdrManagerHost = {
       ...HOST,
@@ -814,18 +845,21 @@ describe('SdrDevicesControl', () => {
 
     it('lists this machine first, as SDR Manager does, labelled "This machine"', async () => {
       mockListSdrManagerHosts.mockResolvedValue([HOST, LOCAL_HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
       const wrapper = mountControl()
       await flushPromises()
-      const headers = wrapper.findAllComponents(SdrHostGroupHeader)
-      expect(headers.map((header) => header.props('label'))).toEqual(['This machine', 'Roof Pi'])
-      expect(headers.map((header) => header.props('hostId'))).toEqual([7, 1])
+      expect(unreachableNotices(wrapper)).toEqual([
+        'This machine is unreachable: Connection refused',
+        'Roof Pi is unreachable: Connection refused',
+      ])
     })
 
     it("uses the operator's label for this machine when one is set", async () => {
       mockListSdrManagerHosts.mockResolvedValue([{ ...LOCAL_HOST, name: 'Shack' }])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
       const wrapper = mountControl()
       await flushPromises()
-      expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Shack')
+      expect(unreachableNotices(wrapper)).toEqual(['Shack is unreachable: Connection refused'])
     })
 
     it('names this machine in a device-connected notice', async () => {
@@ -869,7 +903,7 @@ describe('SdrDevicesControl', () => {
 
     expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
     // The groups already shown stay, as they do when a host poll fails.
-    expect(wrapper.findComponent(SdrHostGroupHeader).props('label')).toBe('Roof Pi')
+    expect(wrapper.text()).toContain('No devices detected on this host.')
   })
 
   describe('without SDR Manager (sdr-manager-remote not deployed)', () => {
@@ -883,7 +917,8 @@ describe('SdrDevicesControl', () => {
       await flushPromises()
       expect(mockListSdrManagerHosts).not.toHaveBeenCalled()
       expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
-      expect(wrapper.findComponent(SdrHostGroupHeader).exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('No devices detected on this host.')
+      expect(unreachableNotices(wrapper)).toEqual([])
       // Manual radios still list, with no MANUAL RADIOS heading: there are no hosts to set them apart from.
       expect(wrapper.findAllComponents(SdrRadioRow)).toHaveLength(1)
       expect(wrapper.text()).not.toContain('MANUAL RADIOS')

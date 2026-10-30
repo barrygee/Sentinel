@@ -271,6 +271,13 @@
   padding-top: 30px;
 }
 
+/* A card with no visible title or description (its group label names it)
+   would start the grid's whole row gap below that label, with nothing in the
+   space a title fills on every other card. Pull it up under the label. */
+.settings-group-label + .settings-item--headless {
+  margin-top: -40px;
+}
+
 /* The card. Square corners, and no surface of its own — cards sit directly on
    the panel canvas; the group labels and the row gap separate them, not a white
    box with a shadow. */

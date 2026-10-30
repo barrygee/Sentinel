@@ -1,5 +1,5 @@
 <template>
-  <p class="local-connection">
+  <p v-if="store.connection !== 'live'" class="local-connection">
     <SdrSourceStatusDot
       :connected="connected"
       :labels="{ connected: 'Live', disconnected: 'Not connected', unknown: 'Connecting…' }"
@@ -10,8 +10,9 @@
 
 <script setup lang="ts">
 /**
- * `LocalConnectionStatus` — whether the devices below are live: the event
- * stream from this machine's SDR Manager is open, reconnecting, or closed.
+ * `LocalConnectionStatus` — says when the devices below may be out of date:
+ * the event stream from this machine's SDR Manager is still opening,
+ * reconnecting, or closed. Nothing shows while it is live, the normal state.
  */
 import { computed } from 'vue'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
@@ -19,18 +20,14 @@ import { useLocalSdrStore, type LocalConnectionState } from '../../stores/localS
 
 const store = useLocalSdrStore()
 
-const CONNECTION_LABELS: Record<LocalConnectionState, string> = {
+const CONNECTION_LABELS: Record<Exclude<LocalConnectionState, 'live'>, string> = {
   connecting: 'CONNECTING…',
-  live: 'LIVE',
   reconnecting: 'RECONNECTING…',
   offline: 'NOT CONNECTED',
 }
 
-const connected = computed(() => {
-  if (store.connection === 'live') return true
-  if (store.connection === 'connecting') return null
-  return false
-})
+// The dot: grey while the first connection is opening, otherwise a failure.
+const connected = computed(() => (store.connection === 'connecting' ? null : false))
 </script>
 
 <style scoped>

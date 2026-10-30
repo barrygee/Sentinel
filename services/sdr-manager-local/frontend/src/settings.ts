@@ -31,7 +31,7 @@ export function registerSdrManagerLocalSettings(): void {
       ...COMMON,
       id: 'sdr-manager-local-devices',
       label: 'Devices',
-      desc: 'The RTL-SDRs plugged into this machine: name each one, give it a port to stream on, and switch it on.',
+      desc: 'Name each RTL-SDR, set its port and switch it on.',
       searchTerms:
         'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
       docPath: 'use/sdr-manager#set-up-a-dongle',
