@@ -576,6 +576,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Count the global ban rules per client, across routes
 - Send COOP and COEP only when HTTPS is enforced
 - Show a notice instead of overflowing when no section loads
+- Tidy the SDR Manager and SDR Devices settings cards
 
 ### Chores
 
@@ -1678,6 +1679,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #548 from barrygee/fix/guard-404-ban-per-client
 - Merge pull request #549 from barrygee/fix/coop-coep-plain-http
 - Merge pull request #550 from barrygee/fix/shell-sections-load-error
+- Merge pull request #551 from barrygee/fix/sdr-manager-devices-header
 
 ### Refactoring
 
