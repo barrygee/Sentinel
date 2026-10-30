@@ -9,6 +9,7 @@ fields), so it is logged as is — never with headers or bodies.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from guard.adapters import StarletteGuardResponse
@@ -21,6 +22,11 @@ logger = logging.getLogger("sentinel.guard")
 # How long a refused client should wait before retrying, when fastapi-guard
 # hasn't said (it does on its Redis-down 503).
 DEFAULT_RETRY_AFTER_SECONDS = "60"
+
+# fastapi-guard's default security headers that only take effect in a secure
+# context. Over plain HTTP to a LAN address browsers ignore them and log a
+# console warning for every response that carries one.
+SECURE_CONTEXT_ONLY_HEADERS = ("Cross-Origin-Opener-Policy", "Cross-Origin-Embedder-Policy")
 
 
 async def json_error_responses(response: GuardResponse) -> GuardResponse:
@@ -44,6 +50,25 @@ async def json_error_responses(response: GuardResponse) -> GuardResponse:
     if response.status_code == 429 and "retry-after" not in {name.lower() for name in headers}:
         headers["Retry-After"] = DEFAULT_RETRY_AFTER_SECONDS
     return StarletteGuardResponse(JSONResponse({"detail": detail}, status_code=response.status_code, headers=headers))
+
+
+def response_modifier(*, secure_context: bool) -> Callable[[GuardResponse], Awaitable[GuardResponse]]:
+    """The `custom_response_modifier` for a deployment: `json_error_responses`, and
+    without `secure_context` (browsers reach it over plain HTTP) every response
+    also loses `SECURE_CONTEXT_ONLY_HEADERS`.
+    """
+    if secure_context:
+        return json_error_responses
+
+    async def json_errors_without_secure_context_headers(response: GuardResponse) -> GuardResponse:
+        modified = await json_error_responses(response)
+        for name in SECURE_CONTEXT_ONLY_HEADERS:
+            # Starlette's headers have no pop(); `in` and del ignore case.
+            if name in modified.headers:
+                del modified.headers[name]
+        return modified
+
+    return json_errors_without_secure_context_headers
 
 
 def log_block(request: GuardRequest, payload: dict[str, Any]) -> None:

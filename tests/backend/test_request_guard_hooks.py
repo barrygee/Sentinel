@@ -15,9 +15,11 @@ from starlette.responses import JSONResponse, PlainTextResponse, Response
 
 from backend.platform.security.hooks import (
     DEFAULT_RETRY_AFTER_SECONDS,
+    SECURE_CONTEXT_ONLY_HEADERS,
     json_error_responses,
     log_block,
     log_guard_error,
+    response_modifier,
 )
 
 
@@ -76,6 +78,54 @@ class TestJsonErrorResponses:
         original = guard_response(PlainTextResponse("ok", status_code=200))
 
         assert await json_error_responses(original) is original
+
+
+SECURITY_HEADERS = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Resource-Policy": "same-origin",
+    "X-Content-Type-Options": "nosniff",
+}
+
+
+class TestResponseModifier:
+    def test_over_https_its_json_error_responses_alone(self) -> None:
+        assert response_modifier(secure_context=True) is json_error_responses
+
+    async def test_over_plain_http_a_success_loses_coop_and_coep(self) -> None:
+        modifier = response_modifier(secure_context=False)
+
+        result = await modifier(guard_response(PlainTextResponse("ok", headers=SECURITY_HEADERS)))
+
+        assert [name for name in SECURE_CONTEXT_ONLY_HEADERS if name in result.headers] == []
+        assert result.headers["cross-origin-resource-policy"] == "same-origin"
+        assert result.headers["x-content-type-options"] == "nosniff"
+        assert result.body == b"ok"
+
+    async def test_over_plain_http_a_refusal_is_still_json_and_loses_them_too(self) -> None:
+        modifier = response_modifier(secure_context=False)
+
+        result = await modifier(guard_response(PlainTextResponse("Forbidden", status_code=403, headers=SECURITY_HEADERS)))
+
+        assert json.loads(result.body) == {"detail": "Forbidden"}
+        assert [name for name in SECURE_CONTEXT_ONLY_HEADERS if name in result.headers] == []
+        assert result.headers["cross-origin-resource-policy"] == "same-origin"
+
+    async def test_the_header_names_case_doesnt_matter(self) -> None:
+        modifier = response_modifier(secure_context=False)
+        lower_case = {"cross-origin-opener-policy": "same-origin", "cross-origin-embedder-policy": "require-corp"}
+
+        result = await modifier(guard_response(PlainTextResponse("ok", headers=lower_case)))
+
+        assert "cross-origin-opener-policy" not in result.headers
+        assert "cross-origin-embedder-policy" not in result.headers
+
+    async def test_a_response_without_them_is_unchanged(self) -> None:
+        modifier = response_modifier(secure_context=False)
+
+        result = await modifier(guard_response(PlainTextResponse("ok", headers={"X-Test": "1"})))
+
+        assert (result.status_code, result.body, result.headers["x-test"]) == (200, b"ok", "1")
 
 
 class TestLogBlock:
