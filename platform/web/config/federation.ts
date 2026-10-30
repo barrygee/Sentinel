@@ -98,12 +98,31 @@ const SHARED_MODULE_GROUPS: Record<string, readonly SharedPackageName[]> = {
   [SHARED_MAP_KIT_MODULES_ID]: ['@sentinel/map-kit'],
 }
 
+/** The federation plugin's global module cache, where share wrappers park their pending loads. */
+const MODULE_CACHE_GLOBAL = '__mf_module_cache__'
+
+/**
+ * `sharesReady`: settles once every share wrapper loading so far has bound its
+ * module. A wrapper the shell loads after startup (map-kit's, made lazy by
+ * {@link lazyMapSharesPlugin}) exports `undefined` until its load resolves,
+ * and the plugin only awaits those loads before the shell's entry runs — not
+ * for a chunk imported later, like the full app's boot. Loads that finish can
+ * queue more (a module importing other map-kit modules), so it drains the list
+ * until it stays empty.
+ */
+const SHARES_READY_SOURCE = `export const sharesReady = (async () => {
+  const pending = globalThis[${JSON.stringify(MODULE_CACHE_GLOBAL)}]?.pendingShareLoads
+  while (pending?.length) await Promise.all([...pending])
+})()
+`
+
 /**
  * Resolves {@link SHARED_PACKAGE_MODULES_ID} and {@link SHARED_MAP_KIT_MODULES_ID}
  * to modules importing every module of their packages by its specifier — so the
  * shell's build contains, and its federation container provides, each one a
- * section might use. Without federation (dev server, tests) the shell imports
- * the sections directly and both modules are empty.
+ * section might use — and exporting `sharesReady` ({@link SHARES_READY_SOURCE}).
+ * Without federation (dev server, tests) the shell imports the sections
+ * directly, both modules are empty and `sharesReady` is already resolved.
  */
 export function sharedPackageModulesPlugin(options: { federated: boolean }): Plugin {
   const packagesByResolvedId = new Map(
@@ -115,13 +134,14 @@ export function sharedPackageModulesPlugin(options: { federated: boolean }): Plu
     load(id) {
       const packageNames = packagesByResolvedId.get(id)
       if (packageNames === undefined) return undefined
-      if (!options.federated) return 'export default []\n'
+      if (!options.federated)
+        return 'export default []\nexport const sharesReady = Promise.resolve()\n'
       const specifiers = sharedPackageModuleSpecifiers(packageNames)
       const imports = specifiers.map(
         (specifier, index) => `import * as module${index} from ${JSON.stringify(specifier)}`,
       )
       const names = specifiers.map((_specifier, index) => `module${index}`)
-      return `${imports.join('\n')}\nexport default [${names.join(', ')}]\n`
+      return `${imports.join('\n')}\nexport default [${names.join(', ')}]\n${SHARES_READY_SOURCE}`
     },
   }
 }

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory, type Router } from 'vue-router'
 import { getSectionRoutes } from '@sentinel/shell-api/shell/sectionRegistry'
 import { getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import NoSectionsAvailable from '@/shell/NoSectionsAvailable.vue'
 import { DOCS_ROUTE_NAME, docsReturn, isDocsRoute } from './docsRoute'
 import {
   DEFAULT_SETTINGS_SECTION,
@@ -28,15 +29,20 @@ function isSettingsSectionOffered(section: string): boolean {
  */
 export function createAppRouter(): Router {
   const sectionRoutes = getSectionRoutes()
-  // "/" redirects to the first registered section (AIR, in nav order).
-  const defaultSectionPath = sectionRoutes[0]?.path ?? '/air/'
+  const firstSectionRoute = sectionRoutes[0]
   settingsReturn.reset()
   docsReturn.reset()
 
   const router = createRouter({
     history: createWebHistory(),
     routes: [
-      { path: '/', redirect: defaultSectionPath },
+      // "/" redirects to the first registered section (AIR, in nav order).
+      // With none registered (the section list could not be read) it shows
+      // why instead: redirecting to a section route that doesn't exist would hit
+      // the catch-all, which redirects back to "/" until the stack overflows.
+      firstSectionRoute
+        ? { path: '/', redirect: firstSectionRoute.path }
+        : { path: '/', component: NoSectionsAvailable },
       ...sectionRoutes,
       // The Settings page. It renders no view of its own: the Settings panel
       // (App) is shown full-screen for it by `useSettingsRouteSync`.

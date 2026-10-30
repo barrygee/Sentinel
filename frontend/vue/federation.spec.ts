@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import type { Plugin, PluginOption, UserConfig } from 'vite'
 import {
   SHARED_MAP_KIT_MODULES_ID,
@@ -297,9 +297,68 @@ describe('sharedPackageModulesPlugin', () => {
   it.each([SHARED_PACKAGE_MODULES_ID, SHARED_MAP_KIT_MODULES_ID])(
     'is empty without federation (%s)',
     (id) => {
-      expect(load(id, false)).toBe('export default []\n')
+      expect(load(id, false)).toBe(
+        'export default []\nexport const sharesReady = Promise.resolve()\n',
+      )
     },
   )
+
+  describe('sharesReady', () => {
+    const MODULE_CACHE_GLOBAL = '__mf_module_cache__'
+    const globals = globalThis as Record<string, unknown>
+
+    /** Runs the federated module's `sharesReady` export (the code after its imports). */
+    function startSharesReady(): Promise<void> {
+      const code = load(SHARED_MAP_KIT_MODULES_ID)
+      const source = code.slice(code.indexOf('export const sharesReady'))
+      return new Function(`${source.replace('export const', 'const')}\nreturn sharesReady`)()
+    }
+
+    /** A promise and the function that settles it. */
+    function deferred(): { promise: Promise<void>; resolve: () => void } {
+      let resolve = (): void => {}
+      const promise = new Promise<void>((settle) => (resolve = settle))
+      return { promise, resolve }
+    }
+
+    afterEach(() => {
+      delete globals[MODULE_CACHE_GLOBAL]
+    })
+
+    it.each([SHARED_PACKAGE_MODULES_ID, SHARED_MAP_KIT_MODULES_ID])(
+      'is exported by the federated module (%s)',
+      (id) => {
+        expect(load(id)).toContain('export const sharesReady =')
+      },
+    )
+
+    it('settles at once without the federation cache', async () => {
+      await expect(startSharesReady()).resolves.toBeUndefined()
+    })
+
+    it('waits for every pending share load, including ones a load queues', async () => {
+      const first = deferred()
+      const queuedByFirst = deferred()
+      const pendingShareLoads: Array<Promise<void>> = [first.promise]
+      first.promise.then(() => pendingShareLoads.push(queuedByFirst.promise))
+      // The federation runtime takes each load off the list once it binds.
+      for (const shareLoad of [first, queuedByFirst]) {
+        shareLoad.promise.then(() =>
+          pendingShareLoads.splice(pendingShareLoads.indexOf(shareLoad.promise), 1),
+        )
+      }
+      globals[MODULE_CACHE_GLOBAL] = { pendingShareLoads }
+      let settled = false
+      startSharesReady().then(() => (settled = true))
+
+      first.resolve()
+      await new Promise((settle) => setTimeout(settle))
+      expect(settled).toBe(false)
+
+      queuedByFirst.resolve()
+      await vi.waitFor(() => expect(settled).toBe(true))
+    })
+  })
 
   it('leaves every other id alone', () => {
     const plugin = sharedPackageModulesPlugin({ federated: true })

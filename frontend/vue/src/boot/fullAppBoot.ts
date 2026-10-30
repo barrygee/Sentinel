@@ -10,7 +10,7 @@ import * as pmtiles from 'pmtiles'
 // provide each one a section remote uses. Here rather than in main.ts because
 // map-kit imports MapLibre, which SDR Manager-only mode never loads. Empty in
 // dev and tests.
-import 'virtual:sentinel-shared-map-kit-modules'
+import { sharesReady as mapKitSharesReady } from 'virtual:sentinel-shared-map-kit-modules'
 
 import App from '@/App.vue'
 import { createAppRouter } from '@/router'
@@ -28,6 +28,9 @@ export function fullAppBoot(): ModeBoot {
     createRouter: createAppRouter,
     // The SDR engine (its persistent radio pane) loads alongside the settings;
     // boot waits for it only up to a timeout, then mounts and late-mounts it.
-    startEngines: () => startSectionEngines(),
+    // Boot also waits for map-kit's shared modules to bind, since App's setup
+    // calls map-kit composables: loading the sections usually takes long
+    // enough to hide that wait, but with no sections to load it does not.
+    startEngines: () => Promise.all([mapKitSharesReady, startSectionEngines()]),
   }
 }
