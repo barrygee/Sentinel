@@ -945,8 +945,8 @@ const DEMO_HOST_DONGLES: Record<number, { device_id: string; name: string; port:
 
 /**
  * Serve sdr-manager-remote's host list (This machine plus a Pi) and each
- * host's dongles, so Settings › SDR Manager and Settings › SDR › DEVICES show
- * hosts. Call after `prepare`, so these routes win.
+ * host's dongles, so Settings › SDR › DEVICES lists Sentinel hosts. Call
+ * after `prepare`, so these routes win.
  */
 async function serveSdrManagerHosts(page: Page): Promise<void> {
   const json = (body: unknown) => (route: Route) =>
@@ -1217,7 +1217,6 @@ test.describe('docs screenshots', () => {
     ['app', 'settings-app'],
     ['sdr', 'settings-sdr'],
     ['sea', 'settings-sea'],
-    ['sdr-manager', 'settings-sdr-manager'],
   ] as const) {
     test(`Settings › ${section}`, async ({ page }) => {
       await prepare(page)
@@ -1229,24 +1228,32 @@ test.describe('docs screenshots', () => {
     })
   }
 
-  test('Settings › SDR Manager remote hosts', async ({ page }) => {
-    await prepare(page)
-    await serveSdrManagerHosts(page)
-    await holdSdrManagerEventsOpen(page)
-    await page.goto('/settings/sdr-manager')
-    await waitForShellHydration(page)
-    await page
-      .getByText('REMOTE SDR HOSTS', { exact: true })
-      .first()
-      .evaluate((element) => element.scrollIntoView({ block: 'start' }))
-    await shoot(page, 'settings-sdr-manager-remote')
-  })
+  // The SDR Manager guide's two shots, both on Settings › SDR: the Sentinel
+  // hosts in DEVICES, and this machine's own SDRs and cards.
+  for (const [heading, name] of [
+    ['Sentinel Hosts', 'settings-sdr-manager-remote'],
+    ['This machine', 'settings-sdr-manager'],
+  ] as const) {
+    test(`Settings › SDR › ${heading}`, async ({ page }) => {
+      await prepare(page)
+      await serveSdrManagerHosts(page)
+      await holdSdrManagerEventsOpen(page)
+      await page.goto('/settings/sdr')
+      await waitForShellHydration(page)
+      await page
+        .getByText(heading, { exact: true })
+        .first()
+        .evaluate((element) => element.scrollIntoView({ block: 'start' }))
+      await shoot(page, name)
+    })
+  }
 
   test('Settings › add a radio', async ({ page }) => {
     await prepare(page)
+    await holdSdrManagerEventsOpen(page)
     await page.goto('/settings/sdr')
     await waitForShellHydration(page)
-    await page.getByRole('button', { name: /\+ add sdr/i }).click()
+    await page.getByRole('button', { name: '+ ADD A REMOTE SDR DEVICE' }).click()
     await shoot(page, 'settings-add-radio')
   })
 

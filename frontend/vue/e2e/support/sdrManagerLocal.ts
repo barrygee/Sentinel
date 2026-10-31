@@ -31,7 +31,7 @@ export const LOCAL_SDR_DEVICE = {
 
 /**
  * Stubs this machine's sdr-manager-local (`/api/sdr-manager/local/**`), the
- * API the THIS MACHINE group of Settings › SDR Manager reads: a console
+ * API Settings › SDR's This machine list and THIS MACHINE group read: a console
  * password set and this browser signed in, one streaming dongle, a location,
  * and a machine that can't host a hotspot. Specs override single routes after
  * calling this (Playwright tries the newest route first).

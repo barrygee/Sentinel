@@ -1,3 +1,4 @@
+import type { Component } from 'vue'
 import type {
   SdrManagerDevicePatch,
   SdrManagerDeviceRecord,
@@ -15,7 +16,8 @@ import type {
  *
  * Core uses it for the site markers on every map, the overhead-alert zones and
  * the range-ring origin; Air uses it to pick its ADS-B receiver; the SDR
- * section mirrors host devices into its radios and edits them through it. None
+ * section mirrors host devices into its radios and edits them, and the hosts
+ * themselves (`hostEditor`), through it. None
  * of them needs the hosts' API, its auth or its host records.
  */
 
@@ -49,6 +51,23 @@ export interface RadioSiteDevices {
 }
 
 /**
+ * The pieces Settings › SDR's Radios card shows the hosts with, owned by
+ * sdr-manager-remote so the SDR section edits hosts without importing it.
+ */
+export interface RadioSiteHostEditor {
+  /**
+   * One host as an accordion title above its SDRs, with edit and remove.
+   * Props `{ host: SdrManagerHost, expanded: boolean, sdrCount: number | null,
+   * controlsId: string }` (`controlsId` names the list it opens and folds);
+   * emits `toggle`, and `stage` with the closure that saves its edits, for
+   * APPLY CHANGES.
+   */
+  HostHeader: Component
+  /** The form that adds a host. Emits `done` once the host is added or the form cancelled. */
+  NewHostForm: Component
+}
+
+/**
  * Every call below that reaches a host rejects with an `Error` carrying a
  * string `code` (e.g. `port_conflict`, `network_error`) and a `message` that is
  * the host's own rejection, worded to show the operator as it is.
@@ -78,4 +97,6 @@ export interface RadioSitesCapability {
    * @returns a function that stops the calls.
    */
   onHostsChanged(listener: () => void): () => void
+  /** Settings › SDR's host title rows and add form. */
+  hostEditor: RadioSiteHostEditor
 }

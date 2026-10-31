@@ -1,0 +1,1 @@
+var e={key:`sdr`,label:`SDR`,order:50,domain:!0},t={devices:10,thisMachine:30,options:40,frequencyData:50};export{t as SDR_SETTINGS_POSITIONS,e as SDR_SETTINGS_SECTION};

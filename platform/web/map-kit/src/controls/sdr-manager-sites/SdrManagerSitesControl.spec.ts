@@ -580,7 +580,7 @@ describe('SdrManagerSitesControl', () => {
       addControl()
       siteMarkers()[0]!.element.dispatchEvent(new Event('click'))
       expect(settingsStore.open).toBe(true)
-      expect(settingsStore.activeSection).toBe('sdr-manager')
+      expect(settingsStore.activeSection).toBe('sdr')
       expect(settingsStore.focusSdrManagerHostId).toBe(7)
     })
 

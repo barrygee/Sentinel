@@ -40,7 +40,7 @@ type SettingsStore = ReturnType<typeof useSettingsStore>
  * mark — name, reachability dot, address and position — drawn as the same pill
  * the map's right-click menu uses, so the two read as one piece of map
  * furniture. The marker as a whole is the button: clicking the mark or its
- * details opens that host's own row in Settings → SDR Manager.
+ * details opens that host's own row in Settings → SDR.
  *
  * The map canvas is opaque to assistive tech, so the control also maintains a
  * visually-hidden table of the sites as the accessible equivalent, per

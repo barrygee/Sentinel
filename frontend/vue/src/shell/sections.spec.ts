@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 /**
@@ -46,5 +46,91 @@ describe('shell/sections', () => {
     const sections = getRegisteredSections()
     expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)
+  })
+
+  it('asks no backend in specs, loading every remote', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    vi.resetModules()
+    const { sectionSources } = await import('./sections')
+    expect((await sectionSources()).map((source) => source.id)).toEqual([
+      'air',
+      'space',
+      'sea',
+      'land',
+      'sdr',
+      'sdr-manager-local',
+      'sdr-manager-remote',
+    ])
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  describe('which SDR Manager remotes it loads, in the dev server', () => {
+    beforeEach(() => {
+      vi.stubEnv('MODE', 'development')
+    })
+    afterEach(() => {
+      vi.unstubAllGlobals()
+      vi.unstubAllEnvs()
+    })
+
+    const MAP_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr']
+
+    function answer(response: unknown, ok = true): void {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => response }))
+    }
+
+    async function listedIds(): Promise<string[]> {
+      vi.resetModules()
+      const { sectionSources } = await import('./sections')
+      return (await sectionSources()).map((source) => source.id)
+    }
+
+    it('asks the backend which parts are deployed', async () => {
+      answer({ sections: [] })
+      await listedIds()
+      expect(fetch).toHaveBeenCalledWith('/api/app/sections')
+    })
+
+    it('loads only the SDR Manager remotes the backend lists, and every map section', async () => {
+      answer({ sections: [{ id: 'air' }, { id: 'sdr-manager-remote' }] })
+      expect(await listedIds()).toEqual([...MAP_SECTIONS, 'sdr-manager-remote'])
+    })
+
+    it('loads neither SDR Manager remote when none is deployed', async () => {
+      answer({ sections: [{ id: 'sdr' }] })
+      expect(await listedIds()).toEqual(MAP_SECTIONS)
+    })
+
+    it('loads sdr-manager-local when it is deployed', async () => {
+      answer({ sections: [{ id: 'sdr-manager-local' }, { id: 'sdr-manager-remote' }] })
+      expect(await listedIds()).toEqual([
+        ...MAP_SECTIONS,
+        'sdr-manager-local',
+        'sdr-manager-remote',
+      ])
+    })
+
+    it('ignores list entries without a usable id', async () => {
+      answer({ sections: [null, { id: 7 }, {}, { id: 'sdr-manager-local' }] })
+      expect(await listedIds()).toEqual([...MAP_SECTIONS, 'sdr-manager-local'])
+    })
+
+    it.each([
+      [
+        'the request fails',
+        () => vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('down'))),
+      ],
+      ['the backend refuses', () => answer({ sections: [] }, false)],
+      ['the answer holds no list', () => answer({ sections: 'nope' })],
+    ])('loads both when %s: with no list to go by, nothing is left out', async (_case, arrange) => {
+      arrange()
+      expect(await listedIds()).toEqual([
+        ...MAP_SECTIONS,
+        'sdr-manager-local',
+        'sdr-manager-remote',
+      ])
+    })
   })
 })

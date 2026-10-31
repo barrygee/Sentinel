@@ -38,7 +38,7 @@ function isSameSection(first: SettingsSection, second: SettingsSection): boolean
 /**
  * Registers a nav entry. A key may be registered again only with the identical
  * label, order and domain flag: two remotes can then share one section, each
- * adding its own items (SDR Manager's local and remote groups, ADR 0007), and
+ * adding its own items (the SDR section and both SDR Manager remotes fill SDR), and
  * whichever loads first creates it. A conflicting re-registration throws.
  */
 export function registerSettingsSection(section: SettingsSection): void {
@@ -71,11 +71,16 @@ export function getSettingsSections(): SettingsSection[] {
   return [...sections.values()].sort((first, second) => first.order - second.order)
 }
 
-/** Every item, grouped by section in nav order, each section's items in registration order. */
+/**
+ * Every item, grouped by section in nav order, each section's items by
+ * `position`, then in registration order.
+ */
 export function getSettingItems(): SettingItem[] {
-  // Array.prototype.sort is stable, so items keep their registration order within a section.
+  // Array.prototype.sort is stable, so equal positions keep their registration order.
   return [...items].sort(
-    (first, second) => sectionOrder(first.section) - sectionOrder(second.section),
+    (first, second) =>
+      sectionOrder(first.section) - sectionOrder(second.section) ||
+      (first.position ?? 0) - (second.position ?? 0),
   )
 }
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { h } from 'vue'
 import * as api from '../../api/sdrManagerLocalApi'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
@@ -49,7 +50,12 @@ describe('LocalDevicesControl', () => {
     setActivePinia(createPinia())
     FakeEventSource.reset()
     vi.stubGlobal('EventSource', FakeEventSource)
-    vi.mocked(api.getAuthState).mockResolvedValue(makeAuthState({ password_set: false }))
+    // A protected console, signed in: the card shows everything. The
+    // unprotected case, where it shows only the set-a-password notice, is
+    // tested on its own below.
+    vi.mocked(api.getAuthState).mockResolvedValue(
+      makeAuthState({ password_set: true, authenticated: true }),
+    )
     vi.mocked(api.getStatus).mockResolvedValue({
       generated_at: 0,
       location: { latitude: 1, longitude: 1 },
@@ -88,16 +94,85 @@ describe('LocalDevicesControl', () => {
     expect(FakeEventSource.latest.closed).toBe(true)
   })
 
+  it('puts its device-actions slot at the end of every SDR row', async () => {
+    seedDevices(
+      makeDevice({ device_id: 'serial:1', name: 'Roof' }),
+      makeDevice({ device_id: 'serial:2', name: 'Loft', record_id: 2 }),
+    )
+    const wrapper = mount(LocalDevicesControl, {
+      attachTo: document.body,
+      slots: {
+        'device-actions': ({ deviceId }: { deviceId: string }) =>
+          h('button', { type: 'button', class: 'host-action' }, `ADD ${deviceId}`),
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.findAll('.host-action').map((action) => action.text())).toEqual([
+      'ADD serial:1',
+      'ADD serial:2',
+    ])
+  })
+
+  it('gives each SDR its address, or only its port when asked', async () => {
+    seedDevices(makeDevice())
+    const full = mountControl()
+    await flushPromises()
+    expect(full.get('.local-device-address').text()).toBe('0.0.0.0:1234')
+    const portOnly = mount(LocalDevicesControl, { props: { portOnly: true } })
+    mounted.push(portOnly)
+    await flushPromises()
+    expect(portOnly.get('.local-device-address').text()).toBe('port 1234')
+  })
+
+  it('renders its rows with no action when given no slot', async () => {
+    seedDevices(makeDevice())
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(wrapper.findAll('.sdr-device-row')).toHaveLength(1)
+    expect(wrapper.find('.host-action').exists()).toBe(false)
+  })
+
   it('holds the page’s one live region', () => {
     const wrapper = mountControl()
     expect(wrapper.findAll('[aria-live="polite"]')).toHaveLength(1)
   })
 
-  it('shows the standing warnings and connection line on an open console', async () => {
+  it('shows the connection line and devices, and no password warning, on a protected console', async () => {
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(wrapper.text()).not.toContain('no console password')
+    expect(wrapper.find('.local-connection').exists()).toBe(true)
+    expect(wrapper.find('.sdr-devices-list').exists()).toBe(true)
+  })
+
+  it('shows only the set-a-password notice while there is no console password', async () => {
+    vi.mocked(api.getAuthState).mockResolvedValue(makeAuthState({ password_set: false }))
+    vi.mocked(api.getStatus).mockResolvedValue({
+      generated_at: 0,
+      location: { latitude: null, longitude: null },
+      sdrs: [makeDevice()],
+    })
     const wrapper = mountControl()
     await flushPromises()
     expect(wrapper.text()).toContain('no console password')
-    expect(wrapper.find('.local-connection').exists()).toBe(true)
+    // No connection line ("RECONNECTING…", "Could not read…"), warnings or devices.
+    expect(wrapper.find('.local-connection').exists()).toBe(false)
+    expect(wrapper.find('.sdr-devices-list').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('location')
+    // The stream stays open, so setting a password shows the devices at once.
+    expect(FakeEventSource.latest.closed).toBe(false)
+  })
+
+  it('shows the devices as soon as a password is set', async () => {
+    vi.mocked(api.getAuthState).mockResolvedValue(makeAuthState({ password_set: false }))
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(wrapper.find('.sdr-devices-list').exists()).toBe(false)
+    useLocalAuthStore().passwordSet = true
+    await flushPromises()
+    expect(wrapper.find('.sdr-devices-list').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('no console password')
   })
 
   it('warns about a blank location', async () => {

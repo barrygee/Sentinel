@@ -3,25 +3,40 @@ import {
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
 import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
+import {
+  SDR_SETTINGS_POSITIONS,
+  SDR_SETTINGS_SECTION,
+} from '@sentinel/shell-api/shell/sdrSettingsSection'
 import SdrDevicesControl from './settings/SdrDevicesControl.vue'
 import SdrOptionsControl from './settings/SdrOptionsControl.vue'
 
 /**
- * SDR's Settings section (F3): devices, receiver options and the frequency / band-plan files.
- * The SDR hosts themselves are Settings › SDR Manager's (`@sentinel/sdr-manager-remote`).
+ * SDR's Settings section (F3): radios, receiver options and the frequency / band-plan files.
+ * The Radios card lists the Sentinel hosts too, through sdr-manager-remote's
+ * `radioSites` capability, and this machine's SDRs inside its host, through
+ * sdr-manager-local's `thisMachineSdrs`; sdr-manager-local adds its THIS
+ * MACHINE group below.
  */
 export function registerSdrSettings(): void {
-  registerSettingsSection({ key: 'sdr', label: 'SDR', order: 50, domain: true })
+  registerSettingsSection({ ...SDR_SETTINGS_SECTION })
 
   registerSettingItems([
     {
       section: 'sdr',
       sectionLabel: 'SDR',
       id: 'sdr-devices',
-      label: 'SDR Devices',
-      desc: 'Configure RTL-SDR devices reachable via rtl_tcp, or mirror one from an SDR host in SDR Manager',
-      control: { component: SdrDevicesControl, layout: 'half' },
+      label: 'Radios',
+      // No title or description: the DEVICES heading above says what it is,
+      // and each SDR host's own row says where its SDRs come from. The words
+      // stay as search terms so the card is still findable.
+      desc: '',
+      hideLabel: true,
+      searchTerms:
+        'radios sdr devices manual radios rtl_tcp address add sdr mirror sdr hosts remote sdr hosts register raspberry pi sentry sdr manager this machine computer shares',
+      // `stage`: a host's edits, staged by its title row, saved by APPLY CHANGES.
+      control: { component: SdrDevicesControl, emits: ['stage'], layout: 'half' },
       groupLabel: 'DEVICES',
+      position: SDR_SETTINGS_POSITIONS.devices,
     },
     {
       section: 'sdr',
@@ -39,6 +54,7 @@ export function registerSdrSettings(): void {
       // readers and search still need a name for the box) but hidden on screen.
       hideLabel: true,
       groupLabel: 'SDR OPTIONS',
+      position: SDR_SETTINGS_POSITIONS.options,
     },
     {
       section: 'sdr',
@@ -59,6 +75,7 @@ export function registerSdrSettings(): void {
         layout: 'half-stacked',
       },
       groupLabel: 'FREQUENCY DATA',
+      position: SDR_SETTINGS_POSITIONS.frequencyData,
     },
     {
       section: 'sdr',
@@ -78,6 +95,7 @@ export function registerSdrSettings(): void {
         emits: ['stage'],
         layout: 'half-stacked',
       },
+      position: SDR_SETTINGS_POSITIONS.frequencyData,
     },
   ])
 }

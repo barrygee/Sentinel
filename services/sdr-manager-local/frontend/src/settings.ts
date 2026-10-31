@@ -3,6 +3,11 @@ import {
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
 import { SDR_MANAGER_SETTINGS_SECTION } from '@sentinel/shell-api/shell/sdrManagerSettingsSection'
+import {
+  SDR_SETTINGS_POSITIONS,
+  SDR_SETTINGS_SECTION,
+} from '@sentinel/shell-api/shell/sdrSettingsSection'
+import type { AppMode } from '@sentinel/shell-api/types/appMode'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue'
 import ConfigTransferControl from './components/config/ConfigTransferControl.vue'
@@ -11,44 +16,57 @@ import HotspotControl from './components/hotspot/HotspotControl.vue'
 import { useLocalAuthStore } from './stores/localAuthStore'
 
 const THIS_MACHINE_GROUP = 'THIS MACHINE'
-
-/** What every THIS MACHINE item shares: the section and its group. */
-const COMMON = {
-  section: SDR_MANAGER_SETTINGS_SECTION.key,
-  sectionLabel: SDR_MANAGER_SETTINGS_SECTION.label,
-  groupLabel: THIS_MACHINE_GROUP,
-} as const
+const DEVICES_GROUP = 'DEVICES'
 
 /**
- * sdr-manager-local's part of Settings › SDR Manager: the THIS MACHINE group —
- * the RTL-SDRs plugged into this machine, its console password, its Wi-Fi
- * hotspot and its configuration file.
+ * sdr-manager-local's THIS MACHINE group — the RTL-SDRs plugged into this
+ * machine, its console password, its Wi-Fi hotspot and its configuration file.
+ * In the full app it sits on Settings › SDR (its SDRs are listed in DEVICES,
+ * under SENTINEL HOSTS › This machine, through the `thisMachineSdrs`
+ * capability); in SDR Manager-only mode, which has no SDR section, on that
+ * mode's own page, Settings › SDR Manager, with its SDRs as the first card.
  */
-export function registerSdrManagerLocalSettings(): void {
-  registerSettingsSection({ ...SDR_MANAGER_SETTINGS_SECTION })
+export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void {
+  const sdrManagerOnly = appMode === 'sdr-manager-local-only'
+  const section = sdrManagerOnly ? SDR_MANAGER_SETTINGS_SECTION : SDR_SETTINGS_SECTION
+  registerSettingsSection({ ...section })
+  // What every THIS MACHINE item shares: the section, its group and its place on the page.
+  const sharedFields = {
+    section: section.key,
+    sectionLabel: section.label,
+    groupLabel: THIS_MACHINE_GROUP,
+    position: SDR_SETTINGS_POSITIONS.thisMachine,
+  } as const
+  // SDR Manager-only mode's page lists this machine's SDRs as a card of their
+  // own. The full app lists them in Settings › SDR's SENTINEL HOSTS › This
+  // machine instead (the `thisMachineSdrs` capability, see register.ts).
+  const devicesCard: SettingItem[] = sdrManagerOnly
+    ? [
+        {
+          ...sharedFields,
+          groupLabel: DEVICES_GROUP,
+          id: 'sdr-manager-local-devices',
+          label: 'SDRs on This Machine',
+          desc: 'The SDRs plugged into this computer. Name each one, set its port and switch it on to share it.',
+          searchTerms:
+            'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
+          control: {
+            component: LocalDevicesControl,
+            emits: ['stage'],
+            layout: 'full',
+            naturalHeight: true,
+          },
+        },
+      ]
+    : []
   const items: SettingItem[] = [
+    ...devicesCard,
     {
-      ...COMMON,
-      id: 'sdr-manager-local-devices',
-      label: 'Devices',
-      desc: 'Name each RTL-SDR, set its port and switch it on.',
-      searchTerms:
-        'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
-      docPath: 'use/sdr-manager#set-up-a-dongle',
-      control: {
-        component: LocalDevicesControl,
-        emits: ['stage'],
-        layout: 'full',
-        naturalHeight: true,
-      },
-    },
-    {
-      ...COMMON,
+      ...sharedFields,
       id: 'sdr-manager-local-console-password',
       label: 'Console Password',
       desc: 'Protects this machine’s SDR Manager, here and for other Sentinels that manage it.',
       searchTerms: 'console password sign in sign out login security sdr manager',
-      docPath: 'use/sdr-manager#the-other-cards',
       control: {
         component: ConsolePasswordControl,
         layout: 'half',
@@ -58,12 +76,11 @@ export function registerSdrManagerLocalSettings(): void {
       },
     },
     {
-      ...COMMON,
+      ...sharedFields,
       id: 'sdr-manager-local-configuration',
       label: 'Configuration',
       desc: 'Back up this machine’s SDR settings to a file, or set it up from one.',
       searchTerms: 'configuration export import backup restore file json sdr manager',
-      docPath: 'use/sdr-manager#the-other-cards',
       control: {
         component: ConfigTransferControl,
         layout: 'half',
@@ -72,12 +89,11 @@ export function registerSdrManagerLocalSettings(): void {
       },
     },
     {
-      ...COMMON,
+      ...sharedFields,
       id: 'sdr-manager-local-hotspot',
       label: 'Hotspot',
       desc: 'A Wi-Fi network this machine offers, so a phone or laptop can reach Sentinel where there is no other network.',
       searchTerms: 'hotspot wifi wi-fi access point ap network ssid off grid field sdr manager',
-      docPath: 'use/sdr-manager#the-other-cards',
       control: { component: HotspotControl, layout: 'full', naturalHeight: true, collapsible: {} },
     },
   ]
