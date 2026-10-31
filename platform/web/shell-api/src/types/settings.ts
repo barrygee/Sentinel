@@ -57,6 +57,12 @@ export interface SettingItem {
   searchTerms?: string
   groupLabel?: string
   /**
+   * Where the item sits within its section; lower first, omitted = 0. Items
+   * with equal positions keep their registration order. For a section several
+   * remotes fill (Settings › SDR), whose registration order is not fixed.
+   */
+  position?: number
+  /**
    * Hide the card's title on screen (it stays in the accessibility tree and in
    * search). For a card whose group heading already names it, so the title is
    * not printed twice.

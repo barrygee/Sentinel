@@ -13,6 +13,7 @@ import type {
   RadioSitesCapability,
 } from '@sentinel/shell-api/shell/radioSitesCapability'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
+import { FAKE_HOST_EDITOR } from '@sentinel/shell-api/testing/fakeHostEditor'
 
 /**
  * A stand-in `radio` capability for specs of the sections that *use* the SDR
@@ -135,6 +136,7 @@ export function provideFakeRadioSites(
     patchHostDevice,
     flashHostDeviceSerial,
     onHostsChanged,
+    hostEditor: FAKE_HOST_EDITOR,
   })
   return {
     listSites,

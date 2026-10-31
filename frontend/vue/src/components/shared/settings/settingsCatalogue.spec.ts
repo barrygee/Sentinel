@@ -16,7 +16,7 @@ import { registerSpaceSettings } from '@sentinel/section-space/settings'
 import { registerSeaSettings } from '@sentinel/section-sea/settings'
 import { registerLandSettings } from '@sentinel/section-land/settings'
 import { registerSdrSettings } from '@sentinel/section-sdr/settings'
-import { registerSdrManagerRemoteSettings } from '@sentinel/sdr-manager-remote/settings'
+import { registerSdrManagerLocalSettings } from '@sentinel/sdr-manager-local/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
@@ -49,7 +49,10 @@ import SeaAisSdrSourceControl from '@sentinel/section-sea/settings/SeaAisSdrSour
 import SeaCoverageAreaControl from '@sentinel/section-sea/settings/SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from '@sentinel/section-sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@sentinel/section-sea/settings/SeaMapLayersControl.vue'
-import RemoteHostsControl from '@sentinel/sdr-manager-remote/components/RemoteHostsControl.vue'
+import LocalDevicesControl from '@sentinel/sdr-manager-local/components/devices/LocalDevicesControl.vue'
+import ConsolePasswordControl from '@sentinel/sdr-manager-local/components/auth/ConsolePasswordControl.vue'
+import ConfigTransferControl from '@sentinel/sdr-manager-local/components/config/ConfigTransferControl.vue'
+import HotspotControl from '@sentinel/sdr-manager-local/components/hotspot/HotspotControl.vue'
 import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideControl.vue'
 import SpaceHoverPreviewControl from '@sentinel/section-space/settings/SpaceHoverPreviewControl.vue'
 import SpaceTleDatabaseControl from '@sentinel/section-space/settings/SpaceTleDatabaseControl.vue'
@@ -62,7 +65,10 @@ registerSpaceSettings()
 registerSeaSettings()
 registerLandSettings()
 registerSdrSettings()
-registerSdrManagerRemoteSettings()
+// sdr-manager-local registers after the SDR section here, as it may at boot;
+// its cards still land between the radios and the SDR options (positions).
+// sdr-manager-remote adds no settings: its hosts are in the radios card.
+registerSdrManagerLocalSettings()
 
 /**
  * The full Settings catalogue as the sections register it (F3). This pins
@@ -156,11 +162,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'air',
     'air-overhead-alerts',
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
-  ],
-  [
-    'sdr-manager',
-    'sdr-manager-remote-hosts',
-    { component: RemoteHostsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
   [
     'space',
@@ -260,7 +261,32 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       layout: 'full',
     },
   ],
-  ['sdr', 'sdr-devices', { component: SdrDevicesControl, layout: 'half' }],
+  ['sdr', 'sdr-devices', { component: SdrDevicesControl, emits: ['stage'], layout: 'half' }],
+  [
+    'sdr',
+    'sdr-manager-local-devices',
+    { component: LocalDevicesControl, emits: ['stage'], layout: 'full', naturalHeight: true },
+  ],
+  [
+    'sdr',
+    'sdr-manager-local-console-password',
+    {
+      component: ConsolePasswordControl,
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: { openWhen: expect.any(Function) },
+    },
+  ],
+  [
+    'sdr',
+    'sdr-manager-local-configuration',
+    { component: ConfigTransferControl, layout: 'half', naturalHeight: true, collapsible: {} },
+  ],
+  [
+    'sdr',
+    'sdr-manager-local-hotspot',
+    { component: HotspotControl, layout: 'full', naturalHeight: true, collapsible: {} },
+  ],
   [
     'sdr',
     'sdr-options',
@@ -297,11 +323,10 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
 ]
 
 describe('Settings catalogue', () => {
-  it('offers the core section, SDR Manager and every domain section, in nav order', () => {
+  it('offers the core section and every domain section, in nav order, with no SDR Manager page', () => {
     expect(getSettingsSections()).toEqual([
       { key: 'app', label: 'App Settings', order: 0, domain: false },
       { key: 'air', label: 'AIR', order: 10, domain: true },
-      { key: 'sdr-manager', label: 'SDR Manager', order: 15, domain: false },
       { key: 'space', label: 'SPACE', order: 20, domain: true },
       { key: 'sea', label: 'SEA', order: 30, domain: true },
       { key: 'land', label: 'LAND', order: 40, domain: true },

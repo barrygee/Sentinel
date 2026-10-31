@@ -1,6 +1,6 @@
 # sdr-manager-local
 
-SDR Manager for the RTL-SDR dongles plugged into **this** computer (ADR [0007](../../docs/adr/0007-sdr-manager.md); it was the Sentry program). It finds dongles over USB, runs `rtl_tcp` behind a fan-out relay for each one, and serves the SDR Manager API on `:8000`: to this Sentinel through the gateway (`/api/sdr-manager/local/…`) and to other Sentinels directly (`/api/…`). Its UI is the **THIS MACHINE** group of Settings › SDR Manager.
+SDR Manager for the RTL-SDR dongles plugged into **this** computer (ADR [0007](../../docs/adr/0007-sdr-manager.md); it was the Sentry program). It finds dongles over USB, runs `rtl_tcp` behind a fan-out relay for each one, and serves the SDR Manager API on `:8000`: to this Sentinel through the gateway (`/api/sdr-manager/local/…`) and to other Sentinels directly (`/api/…`). Its UI is Settings › SDR's **SDRS ON THIS MACHINE** card and **THIS MACHINE** group (Settings › SDR Manager in SDR Manager-only mode).
 
 User guides: [SDR Manager](../../docs/use/sdr-manager.md), [Mac](../../docs/sdr-manager-mac.md), [Linux and Pi](../../docs/sdr-manager-linux.md), [SDR Manager only](../../docs/sdr-manager-local-only.md).
 

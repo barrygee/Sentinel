@@ -96,6 +96,47 @@ describe('setting items', () => {
     expect(getSettingItems().map((entry) => entry.id)).toEqual(['air-1', 'orphan-1'])
   })
 
+  it('orders a section’s items by position, whatever order their remotes registered in', () => {
+    registerSettingsSection({ key: 'sdr', label: 'SDR', order: 50, domain: true })
+    registerSettingItems([{ ...item('sdr', 'this-machine'), position: 30 }])
+    registerSettingItems([
+      { ...item('sdr', 'radios'), position: 10 },
+      { ...item('sdr', 'options'), position: 40 },
+    ])
+
+    expect(getSettingItems().map((entry) => entry.id)).toEqual([
+      'radios',
+      'this-machine',
+      'options',
+    ])
+  })
+
+  it('treats a missing position as 0 and keeps registration order between equal positions', () => {
+    registerSettingsSection({ key: 'sdr', label: 'SDR', order: 50, domain: true })
+    registerSettingItems([
+      { ...item('sdr', 'later'), position: 5 },
+      item('sdr', 'first-unpositioned'),
+      { ...item('sdr', 'explicit-zero'), position: 0 },
+      item('sdr', 'second-unpositioned'),
+    ])
+
+    expect(getSettingItems().map((entry) => entry.id)).toEqual([
+      'first-unpositioned',
+      'explicit-zero',
+      'second-unpositioned',
+      'later',
+    ])
+  })
+
+  it('never lets a position move an item into another section', () => {
+    registerSettingsSection({ key: 'app', label: 'App Settings', order: 0, domain: false })
+    registerSettingsSection({ key: 'sdr', label: 'SDR', order: 50, domain: true })
+    registerSettingItems([{ ...item('sdr', 'sdr-1'), position: -100 }])
+    registerSettingItems([{ ...item('app', 'app-1'), position: 100 }])
+
+    expect(getSettingItems().map((entry) => entry.id)).toEqual(['app-1', 'sdr-1'])
+  })
+
   it('refuses a second item with the same id', () => {
     registerSettingItems([item('air', 'air-1')])
     expect(() => registerSettingItems([item('sea', 'air-1')])).toThrow(

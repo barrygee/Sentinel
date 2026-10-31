@@ -43,14 +43,14 @@ Without it, Sentinel works the same but the **Docs** entry and the **LEARN MORE*
 
 ## SDR Manager: your dongles
 
-**Settings › SDR Manager** looks after RTL-SDR dongles: the ones plugged into this computer (**THIS MACHINE**) and the ones on other computers, such as a Raspberry Pi by the antenna (**REMOTE SDR HOSTS**). Managing other computers works out of the box. For this computer's own dongles, pick one setup in `.env` (the top of `.env.example` lists them) and start Sentinel as usual:
+**Settings › SDR** looks after RTL-SDR dongles: the ones plugged into this computer (**SDRS ON THIS MACHINE**) and the ones on other computers, such as a Raspberry Pi by the antenna (**SENTINEL HOSTS**). Managing other computers works out of the box. For this computer's own dongles, pick one setup in `.env` (the top of `.env.example` lists them) and start Sentinel as usual:
 
-| Setup | `.env` |
-|---|---|
-| Linux: Sentinel + this computer's dongles | `COMPOSE_PROFILES=sdr-manager-local` |
-| Linux or Pi: SDR Manager only (no map) | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `COMPOSE_PROFILES=sdr-manager-local` |
-| Mac: Sentinel + this Mac's dongles | `SDR_MANAGER_LOCAL_NATIVE=1` |
-| Mac: SDR Manager only (no map) | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `SDR_MANAGER_LOCAL_NATIVE=1` |
+| Setup                                     | `.env`                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Linux: Sentinel + this computer's dongles | `COMPOSE_PROFILES=sdr-manager-local`                                                        |
+| Linux or Pi: SDR Manager only (no map)    | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `COMPOSE_PROFILES=sdr-manager-local` |
+| Mac: Sentinel + this Mac's dongles        | `SDR_MANAGER_LOCAL_NATIVE=1`                                                                |
+| Mac: SDR Manager only (no map)            | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `SDR_MANAGER_LOCAL_NATIVE=1`         |
 
 With Docker (Linux, or the rest of Sentinel on a Mac):
 
@@ -93,13 +93,13 @@ new recordings, and nothing already saved is moved. The details are in
 
 The docs are in [`docs/`](docs/index.md), and inside the app under **Settings › Docs**.
 
-| To | Read |
-|---|---|
-| Install Sentinel and make the first settings | [Quick start](docs/install.md) |
-| Use each section | [The screen](docs/use/interface.md), then each section's page |
-| Configure, run and look after it | [Environment variables](docs/configuration.md) · [Run and maintain](docs/operations.md) · [Troubleshooting](docs/troubleshooting.md) · [Upgrade](docs/upgrading.md) |
+| To                                               | Read                                                                                                                                                                     |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Install Sentinel and make the first settings     | [Quick start](docs/install.md)                                                                                                                                           |
+| Use each section                                 | [The screen](docs/use/interface.md), then each section's page                                                                                                            |
+| Configure, run and look after it                 | [Environment variables](docs/configuration.md) · [Run and maintain](docs/operations.md) · [Troubleshooting](docs/troubleshooting.md) · [Upgrade](docs/upgrading.md)      |
 | Manage your dongles, here and on other computers | [SDR Manager](docs/use/sdr-manager.md) · [Mac](docs/sdr-manager-mac.md) · [Linux and Pi](docs/sdr-manager-linux.md) · [SDR Manager only](docs/sdr-manager-local-only.md) |
-| Run the radios on a second machine | [docs/radio-host.md](docs/radio-host.md) |
-| Understand how it works | [How it works](docs/architecture/overview.md) |
-| Work on the code | [Set up for development](docs/development/setup.md) · [CONTRIBUTING.md](CONTRIBUTING.md) |
-| See the design decisions | [docs/adr/](docs/adr/) |
+| Run the radios on a second machine               | [docs/radio-host.md](docs/radio-host.md)                                                                                                                                 |
+| Understand how it works                          | [How it works](docs/architecture/overview.md)                                                                                                                            |
+| Work on the code                                 | [Set up for development](docs/development/setup.md) · [CONTRIBUTING.md](CONTRIBUTING.md)                                                                                 |
+| See the design decisions                         | [docs/adr/](docs/adr/)                                                                                                                                                   |

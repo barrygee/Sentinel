@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, vi } from 'vitest'
 import { provideCapability } from '@sentinel/shell-api/shell/capabilities'
 import type { RadioSitesCapability } from '@sentinel/shell-api/shell/radioSitesCapability'
+import { FAKE_HOST_EDITOR } from '@sentinel/shell-api/testing/fakeHostEditor'
 
 /**
  * Spec double for the `radioSites` capability the SDR section reaches the SDR
@@ -28,6 +29,7 @@ export const fakeSdrManagerHosts = {
       hostsChangedListeners.delete(listener)
     }
   },
+  hostEditor: FAKE_HOST_EDITOR,
 } satisfies RadioSitesCapability
 
 /** Calls every `onHostsChanged` listener, as an add/edit/delete in SDR Manager would. */

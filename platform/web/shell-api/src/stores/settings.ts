@@ -11,10 +11,10 @@ export const useSettingsStore = defineStore('settings', () => {
   const activeSection = ref<string | null>(null)
   const allSettings = ref<Record<string, Record<string, unknown>>>({})
   /**
-   * The SDR host Settings › SDR Manager should expand when it next renders, or
+   * The SDR host Settings › SDR should expand when it next renders, or
    * null. Set by the host markers on the domain maps (`SdrManagerSitesControl`) so
    * "MORE" on a marker lands the operator on that host's own row rather than on
-   * the section and a hunt through the list. `RemoteHostsControl` clears it
+   * the section and a hunt through the list. the host's title row (`RemoteHostHeader`) clears it
    * once it has acted on it, so a later manual visit opens as usual.
    */
   const focusSdrManagerHostId = ref<number | null>(null)
@@ -24,10 +24,10 @@ export const useSettingsStore = defineStore('settings', () => {
     if (section) activeSection.value = section
   }
 
-  /** Open the settings panel on SDR Manager with one SDR host expanded. */
+  /** Open the settings panel on SDR with one SDR host expanded. */
   function openSdrManagerHost(hostId: number) {
     focusSdrManagerHostId.value = hostId
-    openPanel('sdr-manager')
+    openPanel('sdr')
   }
 
   /** Forget a pending SDR-host focus, once it has been acted on. */

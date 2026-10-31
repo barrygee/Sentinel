@@ -86,6 +86,7 @@ describe('shell/capabilities', () => {
       patchHostDevice: vi.fn(),
       flashHostDeviceSerial: async () => {},
       onHostsChanged: () => () => {},
+      hostEditor: { HostHeader: {}, NewHostForm: {} },
     }
     withdrawals.push(provideCapability('radioSites', radioSites))
 

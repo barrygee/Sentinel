@@ -33,11 +33,11 @@ describe('settings store', () => {
     expect(store.activeSection).toBe('air')
   })
 
-  it('openSdrManagerHost opens SDR Manager and flags the host to expand', () => {
+  it('openSdrManagerHost opens Settings › SDR and flags the host to open', () => {
     const store = useSettingsStore()
     store.openSdrManagerHost(7)
     expect(store.open).toBe(true)
-    expect(store.activeSection).toBe('sdr-manager')
+    expect(store.activeSection).toBe('sdr')
     expect(store.focusSdrManagerHostId).toBe(7)
   })
 
@@ -59,7 +59,7 @@ describe('settings store', () => {
     expect(store.focusSdrManagerHostId).toBeNull()
     // The panel itself stays open — only the pending expand is dropped.
     expect(store.open).toBe(true)
-    expect(store.activeSection).toBe('sdr-manager')
+    expect(store.activeSection).toBe('sdr')
   })
 
   it('clearSdrManagerHostFocus with nothing in focus is a safe no-op', () => {

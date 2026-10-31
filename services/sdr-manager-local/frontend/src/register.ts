@@ -9,12 +9,13 @@ import { useLocalAuthStore } from './stores/localAuthStore'
  * statically in dev and tests and through Module Federation in the built app.
  *
  * It adds settings only, never a map section: the THIS MACHINE group of
- * Settings › SDR Manager. A request that comes back 401 (the session expired,
- * or the password changed in another browser) brings back the sign-in form.
+ * Settings › SDR (Settings › SDR Manager in SDR Manager-only mode). A request
+ * that comes back 401 (the session expired, or the password changed in another
+ * browser) brings back the sign-in form.
  */
 export default function register(shell: ShellContext): void {
   assertHostPinia(shell, getActivePinia(), 'sdr-manager-local')
-  registerSdrManagerLocalSettings()
+  registerSdrManagerLocalSettings(shell.appMode)
   const auth = useLocalAuthStore(shell.pinia)
   onUnauthorized(() => auth.markSignedOut())
 }

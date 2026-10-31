@@ -114,7 +114,7 @@
  * A new host is added at once with ADD, which then probes `POST .../test` and
  * reports reachability inline. An existing host's edits are drafted
  * (`draft`, null once they match what is saved) and saved by APPLY CHANGES
- * (`RemoteHostsControl`); its TEST CONNECTION probes the *stored* connection.
+ * (`RemoteHostHeader`); its TEST CONNECTION probes the *stored* connection.
  *
  * The password is write-only end to end — the API never returns it, so this
  * form never shows a stored value, only the "password set" placeholder text and
@@ -269,6 +269,7 @@ async function addHost(): Promise<void> {
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-probe--fail {
-  color: #d94436;
+  /* --danger-strong: AA contrast on the light settings canvas. */
+  color: var(--danger-strong);
 }
 </style>

@@ -7,6 +7,8 @@ import {
   patchHostDevice,
 } from './api/sdrManagerRemoteApi'
 import { onHostsChanged } from './hostsChanged'
+import RemoteHostAddForm from './components/RemoteHostAddForm.vue'
+import RemoteHostHeader from './components/RemoteHostHeader.vue'
 import type {
   RadioSiteDevices,
   RadioSitesCapability,
@@ -60,5 +62,6 @@ export function createRadioSitesCapability(): RadioSitesCapability {
       await flashHostDeviceSerial(hostId, deviceId, serial)
     },
     onHostsChanged,
+    hostEditor: { HostHeader: RemoteHostHeader, NewHostForm: RemoteHostAddForm },
   }
 }

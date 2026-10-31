@@ -1,6 +1,6 @@
 /**
- * Tells whoever listens that the host list changed — an add, edit or delete in
- * REMOTE SDR HOSTS. The SDR section's DEVICES list groups radios by host, so it
+ * Tells whoever listens that the host list changed — a host added, edited or
+ * removed in Settings › SDR. The SDR section's DEVICES list groups radios by host, so it
  * subscribes through the `radioSites` capability's `onHostsChanged` and
  * reloads its hosts without polling this package's state.
  */

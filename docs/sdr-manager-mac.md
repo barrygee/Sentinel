@@ -156,9 +156,9 @@ A ✗ comes with a **Fix:** line under it: do what it says, then run `status` ag
 
 ## 12. Open SDR Manager
 
-1. Open Safari (or Chrome) and go to **http://localhost:8080/settings/sdr-manager**.
+1. Open Safari (or Chrome) and go to **http://localhost:8080/settings/sdr**.
 
-**You should see:** **Settings › SDR Manager**, with your dongle under **THIS MACHINE › Devices**, marked **NEW** and **NOT SET UP**.
+**You should see:** **Settings › SDR**, with your dongle under **SDRS ON THIS MACHINE**, marked **NEW** and **NOT SET UP**. If it asks for a console password, set one first (**SET A PASSWORD**).
 
 ## 13. Set a console password
 
@@ -182,7 +182,7 @@ A ✗ comes with a **Fix:** line under it: do what it says, then run `status` ag
 1. Go to **Settings › App Settings › Sentinel Location**.
 2. Type your latitude and longitude, then **APPLY CHANGES**. To find them, right-click your home in Google Maps in your browser: the first line of the menu is the latitude, then the longitude.
 
-**You should see:** the "location is not set" notice gone from **Settings › SDR Manager**.
+**You should see:** the "location is not set" notice gone from **Settings › SDR**.
 
 **Done.** To listen to the dongle in Sentinel: **Settings › SDR › DEVICES**, then **ADD** beside it, and open **SDR** ([Radios](use/sdr/add-a-radio.md)). Everything else SDR Manager does: [SDR Manager](use/sdr-manager.md).
 
@@ -216,36 +216,36 @@ docker compose down -v
 
 ## If it's not working
 
-| You see | Do |
-|---|---|
-| `command not found: brew` | Run Homebrew's **Next steps** (step 4), then close and reopen Terminal |
-| `command not found: uv` or `rtl_test` | `brew install librtlsdr uv git` |
-| `Cannot connect to the Docker daemon` | Open Docker Desktop and wait for "Engine running" |
-| `no configuration file provided` | You aren't in the Sentinel folder: `cd ~/Sentinel` |
-| `status`: **RTL-SDRs** none plugged in | Plug the dongle in again, or into another port |
-| `status`: **.env** is not 1 | Step 8, then `docker compose up -d` |
-| `status`: **SDR Manager** not answering | `uv run --project backend sdr-manager-local install`; still not? Read the log: `open ~/Library/Logs/Sentinel/sdr-manager-local.log` |
-| `doctor`: **Port 8000** used by another app | Quit that app, or add `SDR_MANAGER_LOCAL_HTTP_PORT=8001` to `.env`, then run the **Update** commands |
-| No **THIS MACHINE** in Settings › SDR Manager | Run `status`; when it is all ticked, wait 10 seconds and reload the page |
-| "SDR MANAGER IS NOT RUNNING" | The same |
-| The dongle never shows **STREAMING** | Its **OUTPUT PORT** is in use: pick another, then **APPLY CHANGES** |
-| The page doesn't open | Docker Desktop isn't running, or step 9 failed: run it again |
+| You see                                     | Do                                                                                                                                  |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `command not found: brew`                   | Run Homebrew's **Next steps** (step 4), then close and reopen Terminal                                                              |
+| `command not found: uv` or `rtl_test`       | `brew install librtlsdr uv git`                                                                                                     |
+| `Cannot connect to the Docker daemon`       | Open Docker Desktop and wait for "Engine running"                                                                                   |
+| `no configuration file provided`            | You aren't in the Sentinel folder: `cd ~/Sentinel`                                                                                  |
+| `status`: **RTL-SDRs** none plugged in      | Plug the dongle in again, or into another port                                                                                      |
+| `status`: **.env** is not 1                 | Step 8, then `docker compose up -d`                                                                                                 |
+| `status`: **SDR Manager** not answering     | `uv run --project backend sdr-manager-local install`; still not? Read the log: `open ~/Library/Logs/Sentinel/sdr-manager-local.log` |
+| `doctor`: **Port 8000** used by another app | Quit that app, or add `SDR_MANAGER_LOCAL_HTTP_PORT=8001` to `.env`, then run the **Update** commands                                |
+| No **SDRS ON THIS MACHINE** in Settings › SDR | Run `status`; when it is all ticked, wait 10 seconds and reload the page                                                            |
+| "SDR MANAGER IS NOT RUNNING"                | The same                                                                                                                            |
+| The dongle never shows **STREAMING**        | Its **OUTPUT PORT** is in use: pick another, then **APPLY CHANGES**                                                                 |
+| The page doesn't open                       | Docker Desktop isn't running, or step 9 failed: run it again                                                                        |
 
 Still stuck? Run `uv run --project backend sdr-manager-local doctor` and `docker compose logs --since 15m > sentinel-logs.txt`, and send both with your question on [GitHub](https://github.com/barrygee/Sentinel/issues).
 
 ## Glossary
 
-| Word | Means |
-|---|---|
-| **Terminal** | The Mac app where you type commands |
-| **Command** | A line of text you paste into Terminal and run with **Return** |
-| **Homebrew** (`brew`) | A free installer for programs like the dongle's |
-| **Docker Desktop** | The app that runs Sentinel's parts in containers |
-| **Container** | One part of Sentinel, running in Docker |
-| **Dongle** | The USB radio receiver (RTL-SDR) |
-| **librtlsdr** | The program that talks to the dongle |
-| **SDR Manager** | The part of Sentinel that looks after your dongles |
-| **`.env`** | Sentinel's settings file for this computer |
-| **localhost** | This computer, in a web address |
-| **Port** | A numbered door on a computer that a program listens on, such as 8080 |
-| **Console password** | The password that protects SDR Manager |
+| Word                  | Means                                                                 |
+| --------------------- | --------------------------------------------------------------------- |
+| **Terminal**          | The Mac app where you type commands                                   |
+| **Command**           | A line of text you paste into Terminal and run with **Return**        |
+| **Homebrew** (`brew`) | A free installer for programs like the dongle's                       |
+| **Docker Desktop**    | The app that runs Sentinel's parts in containers                      |
+| **Container**         | One part of Sentinel, running in Docker                               |
+| **Dongle**            | The USB radio receiver (RTL-SDR)                                      |
+| **librtlsdr**         | The program that talks to the dongle                                  |
+| **SDR Manager**       | The part of Sentinel that looks after your dongles                    |
+| **`.env`**            | Sentinel's settings file for this computer                            |
+| **localhost**         | This computer, in a web address                                       |
+| **Port**              | A numbered door on a computer that a program listens on, such as 8080 |
+| **Console password**  | The password that protects SDR Manager                                |

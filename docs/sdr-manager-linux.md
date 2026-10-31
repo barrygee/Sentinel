@@ -5,7 +5,7 @@ Manage the RTL-SDR dongles plugged into a Linux computer or a Raspberry Pi. SDR 
 ## Features
 
 - **Two setups**, picked once in `.env`: the whole of Sentinel plus this computer's dongles, or [SDR Manager only](sdr-manager-local-only.md) for a Pi by the antenna.
-- **Plug and play**: dongles appear in **Settings › SDR Manager › THIS MACHINE** as you plug them in.
+- **Plug and play**: dongles appear in **Settings › SDR › SDRS ON THIS MACHINE** as you plug them in.
 - **Keeps streaming** while the rest of Sentinel restarts.
 - Any 64-bit Linux with Docker: a PC, or a Raspberry Pi 4 or 5 on 64-bit Raspberry Pi OS.
 
@@ -13,28 +13,28 @@ Manage the RTL-SDR dongles plugged into a Linux computer or a Raspberry Pi. SDR 
 
 1. **Stop Linux claiming the dongle.** Linux treats an RTL-SDR as a TV tuner unless told not to:
 
-   ```bash
-   echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl-sdr.conf
-   sudo modprobe -r dvb_usb_rtl28xxu
-   ```
+    ```bash
+    echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl-sdr.conf
+    sudo modprobe -r dvb_usb_rtl28xxu
+    ```
 
-   SDR Manager also detaches the TV driver itself when it can, but the blacklist makes it reliable.
+    SDR Manager also detaches the TV driver itself when it can, but the blacklist makes it reliable.
 
 2. **Give USB enough buffer** for several dongles:
 
-   ```bash
-   echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb
-   ```
+    ```bash
+    echo 0 | sudo tee /sys/module/usbcore/parameters/usbfs_memory_mb
+    ```
 
-   To keep it after a reboot, add `usbcore.usbfs_memory_mb=0` to the kernel command line (Pi: the one line of `/boot/firmware/cmdline.txt`).
+    To keep it after a reboot, add `usbcore.usbfs_memory_mb=0` to the kernel command line (Pi: the one line of `/boot/firmware/cmdline.txt`).
 
 3. **Power:** a Pi can't power several dongles. Use a powered USB hub, and the Pi's official power supply.
 
 4. **Install** Docker ([docs.docker.com/engine/install](https://docs.docker.com/engine/install/)) and Git, then add yourself to the `docker` group and log in again:
 
-   ```bash
-   sudo usermod -aG docker "$USER"
-   ```
+    ```bash
+    sudo usermod -aG docker "$USER"
+    ```
 
 ## Set it up
 
@@ -45,10 +45,10 @@ cp .env.example .env
 
 In `.env`, set the lines for your setup:
 
-| Setup | `.env` |
-|---|---|
+| Setup                              | `.env`                                                                                      |
+| ---------------------------------- | ------------------------------------------------------------------------------------------- |
 | Sentinel + this computer's dongles | `COMPOSE_PROFILES=sdr-manager-local` (add decoders after a comma: `sdr-manager-local,adsb`) |
-| SDR Manager only | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `COMPOSE_PROFILES=sdr-manager-local` |
+| SDR Manager only                   | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml` and `COMPOSE_PROFILES=sdr-manager-local` |
 
 If `id -u` isn't `1000`, also set `SENTINEL_RUNTIME_USER_ID` and `SENTINEL_RUNTIME_GROUP_ID` to your `id -u` and `id -g`. Then:
 
@@ -56,7 +56,7 @@ If `id -u` isn't `1000`, also set `SENTINEL_RUNTIME_USER_ID` and `SENTINEL_RUNTI
 docker compose up --build -d
 ```
 
-Open **http://\<this computer\>:8080/settings/sdr-manager**. Your dongles are under **THIS MACHINE › Devices**. Set them up as in [SDR Manager](use/sdr-manager.md#set-up-a-dongle).
+Open **http://\<this computer\>:8080/settings/sdr**. Set a console password if it asks for one; your dongles are then under **SDRS ON THIS MACHINE**. Set them up as in [SDR Manager](use/sdr-manager.md#set-up-a-dongle).
 
 ## Replace Sentry
 
@@ -64,8 +64,8 @@ A Pi still running the old Sentry program can't be managed by this Sentinel (it 
 
 1. On the Pi, stop Sentry (in its folder: `docker compose down`).
 2. Set up SDR Manager only on the Pi (above).
-3. Set the dongles up again in its **THIS MACHINE**, with the same output ports, so existing radios keep working.
-4. On your main Sentinel: edit the Pi under **REMOTE SDR HOSTS** with the new console password, then **APPLY CHANGES**.
+3. Set the dongles up again in its **SDRS ON THIS MACHINE**, with the same output ports, so existing radios keep working.
+4. On your main Sentinel: edit the Pi under **SENTINEL HOSTS** with the new console password, then **APPLY CHANGES**.
 
 ## Things to know
 
@@ -80,13 +80,13 @@ A Pi still running the old Sentry program can't be managed by this Sentinel (it 
 
 Start with `docker compose logs sdr-manager-local`.
 
-| You see | Do |
-|---|---|
-| `port 8000 on 0.0.0.0 is already in use` | Something else has port 8000 (Sentry?). Stop it, or set `SDR_MANAGER_LOCAL_HTTP_PORT` |
-| `usb_claim_interface error -6` | The TV driver has the dongle: step 1 above, then unplug and replug it |
-| "USB buffer" or "Failed to submit transfer" errors | Step 2 above |
-| A dongle comes and goes | Power: use a powered hub |
-| `waiting for core to answer` | Normal while the rest of Sentinel starts |
-| `location: core unreachable, keeping the last known position` | Normal while core restarts |
-| Other Sentinels can't reach it | A firewall blocks port 8000 or the dongle's ports |
-| This Sentinel shows "— not running" for this machine | A firewall blocks Docker's containers reaching this computer on port 8000 |
+| You see                                                       | Do                                                                                    |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `port 8000 on 0.0.0.0 is already in use`                      | Something else has port 8000 (Sentry?). Stop it, or set `SDR_MANAGER_LOCAL_HTTP_PORT` |
+| `usb_claim_interface error -6`                                | The TV driver has the dongle: step 1 above, then unplug and replug it                 |
+| "USB buffer" or "Failed to submit transfer" errors            | Step 2 above                                                                          |
+| A dongle comes and goes                                       | Power: use a powered hub                                                              |
+| `waiting for core to answer`                                  | Normal while the rest of Sentinel starts                                              |
+| `location: core unreachable, keeping the last known position` | Normal while core restarts                                                            |
+| Other Sentinels can't reach it                                | A firewall blocks port 8000 or the dongle's ports                                     |
+| This Sentinel shows "— not running" for this machine          | A firewall blocks Docker's containers reaching this computer on port 8000             |
