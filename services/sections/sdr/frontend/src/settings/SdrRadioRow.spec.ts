@@ -128,6 +128,23 @@ describe('SdrRadioRow', () => {
     expect(wrapper.find('.sdr-device-state-dot').attributes('title')).toBe('Not plugged in')
   })
 
+  it('shows the address and port after the name, or only the port under a host', () => {
+    const anywhere = mount(SdrRadioRow, {
+      props: { radio: MANUAL_RADIO, connected: true, open: false, confirming: false },
+    })
+    expect(anywhere.find('.sdr-device-meta').text()).toBe('10.0.0.1:1234')
+    const underHost = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: true,
+        open: false,
+        confirming: false,
+        portOnly: true,
+      },
+    })
+    expect(underHost.find('.sdr-device-meta').text()).toBe('port 1234')
+  })
+
   it('emits toggle-edit when the edit button is clicked', async () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },

@@ -3,7 +3,9 @@ import { mount } from '@vue/test-utils'
 import { defineComponent, h, type Slot } from 'vue'
 import {
   provideDeviceActions,
+  providePortOnly,
   useDeviceActions,
+  usePortOnly,
   type DeviceActionsSlotProps,
 } from './useDeviceActions'
 
@@ -38,5 +40,37 @@ describe('useDeviceActions', () => {
 
   it('reads no slot outside a control that provides one', () => {
     expect(readSlot()()).toBeUndefined()
+  })
+})
+
+describe('usePortOnly', () => {
+  function readPortOnly(provided?: () => boolean): () => boolean {
+    let read: (() => boolean) | undefined
+    const Reader = defineComponent({
+      setup() {
+        read = usePortOnly()
+        return () => h('div')
+      },
+    })
+    const Provider = defineComponent({
+      setup() {
+        if (provided) providePortOnly(provided)
+        return () => h(Reader)
+      },
+    })
+    mount(provided ? Provider : Reader)
+    return read!
+  }
+
+  it('reads what a control above says, when it is asked', () => {
+    const state = { portOnly: false }
+    const read = readPortOnly(() => state.portOnly)
+    expect(read()).toBe(false)
+    state.portOnly = true
+    expect(read()).toBe(true)
+  })
+
+  it('shows the address outside a control that says otherwise', () => {
+    expect(readPortOnly()()).toBe(false)
   })
 })

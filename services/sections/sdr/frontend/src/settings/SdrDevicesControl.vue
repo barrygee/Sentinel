@@ -25,6 +25,7 @@
           <div class="sdr-this-machine-title">This machine</div>
           <component
             :is="thisMachine.DevicesPanel"
+            port-only
             @stage="(apply: () => Promise<void>) => onStage(THIS_MACHINE_STAGE_KEY, apply)"
           />
         </template>
@@ -67,6 +68,7 @@
             <component
               :is="thisMachine.DevicesPanel"
               v-if="thisMachine && showsThisMachinePanel(group)"
+              port-only
               @stage="(apply: () => Promise<void>) => onStage(THIS_MACHINE_STAGE_KEY, apply)"
             >
               <template #device-actions="{ deviceId }: { deviceId: string }">
@@ -91,6 +93,7 @@
               <SdrRadioRow
                 v-if="entry.radio"
                 :radio="entry.radio"
+                port-only
                 :connected="entry.device.present"
                 :open="openId === entry.radio.id"
                 :confirming="confirmId === entry.radio.id"
@@ -117,6 +120,7 @@
               v-for="radio in group.orphanedRadios"
               :key="'orphan-' + radio.id"
               :radio="radio"
+              port-only
               :connected="false"
               :open="openId === radio.id"
               :confirming="confirmId === radio.id"
@@ -135,6 +139,7 @@
               <SdrRadioRow
                 :radio="entry.radio"
                 :connected="manualStatusMap[entry.radio.id] ?? null"
+                port-only
                 :open="openId === entry.radio.id"
                 :confirming="confirmId === entry.radio.id"
                 @toggle-edit="toggleEdit(entry.radio.id)"
@@ -797,6 +802,12 @@ onBeforeUnmount(() => {
    card title keeps from its group label. */
 .sdr-devices-card {
   margin-top: 40px;
+}
+/* Every SDR row keeps a host title's chevron column free at its right end
+   (16px edge + 23px column + 14px gap, RemoteHostHeader), so the rows' edit
+   and remove line up with the hosts' throughout the card. */
+.sdr-devices-card :deep(.sdr-device-row) {
+  padding-right: 53px;
 }
 /* This machine's SDR list (sdr-manager-local's) brings the list spacing of a
    card of its own; inside a host it sits like any host's SDRs. */

@@ -15,7 +15,7 @@
           :present="sdrManagerDeviceStatus.present"
         />
         <SdrSourceStatusDot v-else :connected="connected" />
-        {{ radio.name }}<span class="sdr-device-meta">{{ radio.host }}:{{ radio.port }}</span>
+        {{ radio.name }}<span class="sdr-device-meta">{{ addressText }}</span>
       </span>
       <span v-if="isUnavailable && !confirming" class="sdr-device-unavailable">
         {{ radio.unavailable_reason }}
@@ -117,7 +117,14 @@ const props = defineProps<{
   sdrManagerDeviceStatus?: SdrManagerDeviceStatus | null
   /** Edit a host radio whose host is gone as a manual radio (see `SdrDeviceForm`). */
   editAsManual?: boolean
+  /** Under a host's title, which already gives its address: show only the port. */
+  portOnly?: boolean
 }>()
+
+/** Where the radio connects: its port alone under a host's title, else address and port. */
+const addressText = computed(() =>
+  props.portOnly ? `port ${props.radio.port}` : `${props.radio.host}:${props.radio.port}`,
+)
 
 /**
  * Whether this radio's device is currently unusable.

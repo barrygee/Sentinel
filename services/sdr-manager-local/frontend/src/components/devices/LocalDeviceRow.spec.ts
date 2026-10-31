@@ -11,6 +11,7 @@ import LocalDeviceRow from './LocalDeviceRow.vue'
 import { h, type Slot } from 'vue'
 import {
   provideDeviceActions,
+  providePortOnly,
   type DeviceActionsSlotProps,
 } from '../../composables/useDeviceActions'
 
@@ -21,13 +22,20 @@ function mountRow(
   open = false,
   attachToBody = false,
   deviceActions?: Slot<DeviceActionsSlotProps>,
+  portOnly = false,
 ) {
   const device = makeDevice(deviceOverrides)
   useLocalSdrStore().applyDeviceChanged(device)
   const mounted = mountWithDeviceEdits(
     LocalDeviceRow,
     { device, open },
-    { attachToBody, prepare: () => provideDeviceActions(() => deviceActions) },
+    {
+      attachToBody,
+      prepare: () => {
+        provideDeviceActions(() => deviceActions)
+        providePortOnly(() => portOnly)
+      },
+    },
   )
   return { device, ...mounted }
 }
@@ -54,6 +62,11 @@ describe('LocalDeviceRow', () => {
     expect(wrapper.text()).not.toContain('STREAMING')
     expect(wrapper.get('.local-device-name').text()).toBe('Roof')
     expect(wrapper.get('.local-device-address').text()).toBe('0.0.0.0:1234')
+  })
+
+  it("shows only the port under a title that gives the machine's address", () => {
+    const { wrapper } = mountRow({}, false, false, undefined, true)
+    expect(wrapper.get('.local-device-address').text()).toBe('port 1234')
   })
 
   it("ends the row with the host page's action for that device", () => {

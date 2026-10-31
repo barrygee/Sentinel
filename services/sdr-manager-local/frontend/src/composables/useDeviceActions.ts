@@ -23,3 +23,18 @@ export function provideDeviceActions(getSlot: DeviceActionsSlotGetter): void {
 export function useDeviceActions(): DeviceActionsSlotGetter {
   return inject(DEVICE_ACTIONS_KEY, () => undefined)
 }
+
+const PORT_ONLY_KEY: InjectionKey<() => boolean> = Symbol('localDevicePortOnly')
+
+/**
+ * Whether `LocalDevicesControl`'s rows show only each SDR's port: Settings ›
+ * SDR lists them under This machine's title, which already gives the address.
+ */
+export function providePortOnly(getPortOnly: () => boolean): void {
+  provide(PORT_ONLY_KEY, getPortOnly)
+}
+
+/** The rows' view of it: false (address and port) outside a control that says otherwise. */
+export function usePortOnly(): () => boolean {
+  return inject(PORT_ONLY_KEY, () => false)
+}

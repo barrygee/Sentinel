@@ -39,7 +39,7 @@ describe('SdrHostDeviceRow', () => {
     expect(wrapper.find('.sdr-device-info').text()).not.toContain('usb:1/2')
   })
 
-  it('shows the address the device streams on after its name, once it has one', () => {
+  it('shows the port the device streams on after its name, once it has one (its host gives the address)', () => {
     const withPort = mount(SdrHostDeviceRow, {
       props: {
         device: buildDevice({
@@ -49,7 +49,7 @@ describe('SdrHostDeviceRow', () => {
         adding: false,
       },
     })
-    expect(withPort.find('.sdr-device-meta').text()).toBe('192.168.1.30:1234')
+    expect(withPort.find('.sdr-device-meta').text()).toBe('port 1234')
     const withoutPort = mount(SdrHostDeviceRow, {
       props: { device: buildDevice({ output: null }), adding: false },
     })

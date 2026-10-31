@@ -544,6 +544,27 @@ describe('SdrDevicesControl', () => {
     })
   })
 
+  it("shows only the port of a host's radios, whose address its title gives, and the full address elsewhere", async () => {
+    const orphan: SdrRadioRecord = { ...MIRRORED_RADIO, id: 6, sdr_manager_device_id: 'gone' }
+    const atHostAddress: SdrRadioRecord = { ...MANUAL_RADIO, id: 8, host: HOST.address }
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
+    mockListRadios.mockResolvedValue([MIRRORED_RADIO, orphan, atHostAddress, MANUAL_RADIO])
+    const wrapper = mountControl()
+    await flushPromises()
+    const portOnlyById = Object.fromEntries(
+      wrapper
+        .findAllComponents(SdrRadioRow)
+        .map((row) => [(row.props('radio') as SdrRadioRecord).id, row.props('portOnly')]),
+    )
+    expect(portOnlyById).toEqual({
+      [MIRRORED_RADIO.id]: true,
+      6: true,
+      8: true,
+      [MANUAL_RADIO.id]: false,
+    })
+  })
+
   it('marks a manual radio disconnected when its status probe reports not connected', async () => {
     mockListRadios.mockResolvedValue([MANUAL_RADIO])
     mockGetRadioStatus.mockResolvedValue({ connected: false })
@@ -1196,6 +1217,7 @@ describe('SdrDevicesControl', () => {
     })
     const FakeDevicesPanel = defineComponent({
       name: 'FakeDevicesPanel',
+      props: { portOnly: Boolean },
       emits: ['stage'],
       setup(_props, { slots }) {
         const getSlot = () => slots['device-actions']
@@ -1227,6 +1249,8 @@ describe('SdrDevicesControl', () => {
       mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
       const wrapper = mountControl()
       await flushPromises()
+      // Its title gives the address: the rows give only their ports.
+      expect(wrapper.findComponent(FakeDevicesPanel).props('portOnly')).toBe(true)
       const thisMachineList = wrapper.find('#sdr-host-7-sdrs')
       expect(thisMachineList.find('.fake-this-machine').exists()).toBe(true)
       expect(thisMachineList.findComponent(SdrHostDeviceRow).exists()).toBe(false)

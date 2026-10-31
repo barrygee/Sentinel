@@ -12,7 +12,11 @@
         />
         <span class="local-device-name">{{ label }}</span>
         <span v-if="device.output" class="local-device-address sdr-device-meta">
-          {{ device.output.host }}:{{ device.output.iq_port }}
+          {{
+            portOnly()
+              ? `port ${device.output.iq_port}`
+              : `${device.output.host}:${device.output.iq_port}`
+          }}
         </span>
         <span v-else-if="isNew" class="local-device-address sdr-device-meta">NOT SET UP</span>
         <span v-if="hasStagedEdit" class="local-device-staged sdr-device-meta"
@@ -106,7 +110,7 @@ import { useLocalDeviceEdits } from '../../composables/useLocalDeviceEdits'
 import { deviceLabel, useLocalSdrStore } from '../../stores/localSdrStore'
 import { deviceErrorMessage } from '../../utils/errorMessages'
 import LocalDeviceForm from './LocalDeviceForm.vue'
-import { useDeviceActions } from '../../composables/useDeviceActions'
+import { useDeviceActions, usePortOnly } from '../../composables/useDeviceActions'
 
 const props = defineProps<{ device: LocalDeviceStatus; open: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
@@ -121,6 +125,8 @@ const confirmingForget = ref(false)
 
 // The host page's action for this SDR (Settings › SDR's ADD), if it gave one.
 const deviceActionsSlot = useDeviceActions()
+// Under This machine's title in Settings › SDR the address is already given.
+const portOnly = usePortOnly()
 const DeviceActions = (): VNodeChild =>
   deviceActionsSlot()?.({ deviceId: props.device.device_id }) ?? null
 const rowError = ref<string | null>(null)

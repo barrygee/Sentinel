@@ -114,6 +114,17 @@ describe('LocalDevicesControl', () => {
     ])
   })
 
+  it('gives each SDR its address, or only its port when asked', async () => {
+    seedDevices(makeDevice())
+    const full = mountControl()
+    await flushPromises()
+    expect(full.get('.local-device-address').text()).toBe('0.0.0.0:1234')
+    const portOnly = mount(LocalDevicesControl, { props: { portOnly: true } })
+    mounted.push(portOnly)
+    await flushPromises()
+    expect(portOnly.get('.local-device-address').text()).toBe('port 1234')
+  })
+
   it('renders its rows with no action when given no slot', async () => {
     seedDevices(makeDevice())
     const wrapper = mountControl()

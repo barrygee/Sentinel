@@ -250,16 +250,17 @@ watch(
   flex-direction: column;
   gap: 4px;
 }
-/* Edit and remove line up with the SDR rows' below: the same 14px between
-   them and 16px from the right edge (.sdr-device-row), with the chevron in
-   that edge. */
+/* Edit, remove and the chevron are three equal columns 14px apart, the
+   chevron's 23px wide like an icon button, 16px from the right edge. The SDR
+   rows below keep the chevron's column (and its gap) free at their right
+   end (SdrDevicesControl), so edit and remove line up with theirs. */
 .remote-host-header-row {
   position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   min-height: 32px;
-  padding-right: 16px;
+  padding-right: 53px;
 }
 .remote-host-header-toggle {
   display: inline-flex;
@@ -295,7 +296,9 @@ watch(
 .remote-host-header-chevron {
   position: absolute;
   top: 0;
-  right: 3px;
+  right: 16px;
+  width: 23px;
+  justify-content: center;
   bottom: 0;
   display: flex;
   align-items: center;

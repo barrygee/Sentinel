@@ -45,6 +45,7 @@
 import { onMounted, useSlots } from 'vue'
 import {
   provideDeviceActions,
+  providePortOnly,
   type DeviceActionsSlotProps,
 } from '../../composables/useDeviceActions'
 import { provideLocalDeviceEdits } from '../../composables/useLocalDeviceEdits'
@@ -61,6 +62,13 @@ import LocalAnnouncer from '../shared/LocalAnnouncer.vue'
 import LocalDeviceList from './LocalDeviceList.vue'
 import SerialConflictBanner from './SerialConflictBanner.vue'
 
+const props = withDefaults(
+  defineProps<{
+    /** Show only each SDR's port: the page lists them under a title giving the address. */
+    portOnly?: boolean
+  }>(),
+  { portOnly: false },
+)
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 defineSlots<{
   /** Rendered at the end of each SDR's row: Settings › SDR puts ADD there. */
@@ -68,6 +76,7 @@ defineSlots<{
 }>()
 const slots = useSlots()
 provideDeviceActions(() => slots['device-actions'])
+providePortOnly(() => props.portOnly)
 
 const store = useLocalSdrStore()
 const auth = useLocalAuthStore()

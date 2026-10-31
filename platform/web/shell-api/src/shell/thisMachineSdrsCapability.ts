@@ -12,7 +12,9 @@ export interface ThisMachineSdrsCapability {
    * and settings, with the console password and warnings that concern them.
    * It emits `stage` with a closure that saves its staged edits (APPLY
    * CHANGES), and renders the scoped slot `device-actions` (`{ deviceId }`)
-   * at the end of each SDR's row, where the SDR section puts ADD.
+   * at the end of each SDR's row, where the SDR section puts ADD. With
+   * `portOnly` its rows give each SDR's port, not its address, which This
+   * machine's title already gives.
    */
   DevicesPanel: Component
 }
