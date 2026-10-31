@@ -8,6 +8,11 @@ import { expectNoAxeViolations, mountWithDeviceEdits } from '../../testing/compo
 import { makeDevice } from '../../testing/factories'
 import LocalDeviceForm from './LocalDeviceForm.vue'
 import LocalDeviceRow from './LocalDeviceRow.vue'
+import { h, type Slot } from 'vue'
+import {
+  provideDeviceActions,
+  type DeviceActionsSlotProps,
+} from '../../composables/useDeviceActions'
 
 vi.mock('../../api/sdrManagerLocalApi')
 
@@ -15,12 +20,22 @@ function mountRow(
   deviceOverrides: Parameters<typeof makeDevice>[0] = {},
   open = false,
   attachToBody = false,
+  deviceActions?: Slot<DeviceActionsSlotProps>,
 ) {
   const device = makeDevice(deviceOverrides)
   useLocalSdrStore().applyDeviceChanged(device)
-  const mounted = mountWithDeviceEdits(LocalDeviceRow, { device, open }, { attachToBody })
+  const mounted = mountWithDeviceEdits(
+    LocalDeviceRow,
+    { device, open },
+    { attachToBody, prepare: () => provideDeviceActions(() => deviceActions) },
+  )
   return { device, ...mounted }
 }
+
+/** A host page's action for each row, as Settings › SDR's ADD would be. */
+const markActions: Slot<DeviceActionsSlotProps> = ({ deviceId }) => [
+  h('button', { type: 'button', class: 'host-action' }, `ADD ${deviceId}`),
+]
 
 const ABSENT = { present: false, usb: null, state: 'configured' as const }
 
@@ -31,11 +46,39 @@ describe('LocalDeviceRow', () => {
     vi.mocked(api.listDevices).mockRejectedValue(new Error('offline'))
   })
 
-  it('shows the state, name and the address the device streams on', () => {
+  it('shows the state as a dot, then the name and the address the device streams on', () => {
     const { wrapper } = mountRow({ state: 'streaming' })
-    expect(wrapper.get('.sdr-state-badge').text()).toBe('STREAMING')
+    const dot = wrapper.get('.sdr-device-state-dot')
+    expect(dot.classes()).toContain('sdr-device-state-dot--live')
+    expect(dot.attributes('title')).toBe('Streaming')
+    expect(wrapper.text()).not.toContain('STREAMING')
     expect(wrapper.get('.local-device-name').text()).toBe('Roof')
     expect(wrapper.get('.local-device-address').text()).toBe('0.0.0.0:1234')
+  })
+
+  it("ends the row with the host page's action for that device", () => {
+    const { wrapper } = mountRow({ device_id: 'serial:7' }, false, false, markActions)
+    const action = wrapper.get('.host-action')
+    expect(action.text()).toBe('ADD serial:7')
+    // After the edit button, at the row's end.
+    const rowButtons = wrapper.findAll('.sdr-device-row button')
+    expect(rowButtons.at(-1)!.classes()).toContain('host-action')
+  })
+
+  it('has no action of its own when the host page gives none', () => {
+    const { wrapper } = mountRow({}, false, false, undefined)
+    expect(wrapper.find('.host-action').exists()).toBe(false)
+  })
+
+  it('hides the action while asking whether to forget the device', async () => {
+    const { wrapper } = mountRow(ABSENT, false, false, markActions)
+    await wrapper.get('button[title="Forget"]').trigger('click')
+    expect(wrapper.find('.host-action').exists()).toBe(false)
+  })
+
+  it('makes the dot red while the device is unplugged', () => {
+    const { wrapper } = mountRow(ABSENT)
+    expect(wrapper.get('.sdr-device-state-dot').attributes('title')).toBe('Not plugged in')
   })
 
   it('names an unnamed device by its id', () => {

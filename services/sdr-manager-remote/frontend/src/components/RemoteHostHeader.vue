@@ -43,9 +43,11 @@
           </svg>
         </button>
         <!-- This machine is linked, not added: sdr-manager-remote keeps its
-             row while sdr-manager-local is deployed, so it has no remove. -->
+             row while sdr-manager-local is deployed, so it has no remove. Its
+             place stays, so the pencil lines up with every other host's. -->
+        <span v-if="host.is_local" class="remote-host-header-button-slot" aria-hidden="true" />
         <button
-          v-if="!host.is_local"
+          v-else
           class="sdr-device-btn sdr-device-btn--danger"
           title="Remove"
           :aria-label="`Remove ${hostLabel}`"
@@ -248,14 +250,16 @@ watch(
   flex-direction: column;
   gap: 4px;
 }
-/* Room on the right for the chevron, which sits past edit/remove. */
+/* Edit and remove line up with the SDR rows' below: the same 14px between
+   them and 16px from the right edge (.sdr-device-row), with the chevron in
+   that edge. */
 .remote-host-header-row {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 14px;
   min-height: 32px;
-  padding-right: 26px;
+  padding-right: 16px;
 }
 .remote-host-header-toggle {
   display: inline-flex;
@@ -283,14 +287,18 @@ watch(
 /* The app's accordion chevron (the SDR panel's section headers): pointing
    right and faint while folded, down in the accent colour while open, and lit
    on hover to preview that. */
+/* As wide as an icon button (.sdr-device-btn: a 13px icon, 5px each side). */
+.remote-host-header-button-slot {
+  width: 23px;
+  flex-shrink: 0;
+}
 .remote-host-header-chevron {
   position: absolute;
   top: 0;
-  right: 0;
+  right: 3px;
   bottom: 0;
   display: flex;
   align-items: center;
-  padding: 0 6px;
   color: rgba(var(--ink-rgb), 0.25);
   transform: rotate(-90deg);
   transition:
@@ -336,8 +344,9 @@ watch(
 .remote-host-header-error {
   color: var(--danger-strong);
 }
+/* As an edited SDR row says it (.sdr-device-meta). */
 .remote-host-header-staged {
-  font-size: var(--settings-text-caption);
+  letter-spacing: 0.04em;
   color: var(--ink-secondary);
 }
 </style>

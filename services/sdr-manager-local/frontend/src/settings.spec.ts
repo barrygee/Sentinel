@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AppMode } from '@sentinel/shell-api/types/appMode'
 
-const ITEM_IDS = [
-  'sdr-manager-local-devices',
+/** THIS MACHINE's cards, in both modes. */
+const THIS_MACHINE_IDS = [
   'sdr-manager-local-console-password',
   'sdr-manager-local-configuration',
   'sdr-manager-local-hotspot',
@@ -39,17 +39,12 @@ describe('registerSdrManagerLocalSettings', () => {
       expect(registry.getSettingsSections().map((section) => section.key)).toEqual(['sdr'])
     })
 
-    it('puts its SDRs card in DEVICES with no description, the rest under THIS MACHINE', async () => {
+    it('adds THIS MACHINE only: its SDRs are listed in the radios card, not a card of their own', async () => {
       const { registry } = await registered()
 
-      expect(
-        registry.getSettingItems().map((item) => [item.id, item.groupLabel, item.desc === '']),
-      ).toEqual([
-        ['sdr-manager-local-devices', 'DEVICES', true],
-        ['sdr-manager-local-console-password', 'THIS MACHINE', false],
-        ['sdr-manager-local-configuration', 'THIS MACHINE', false],
-        ['sdr-manager-local-hotspot', 'THIS MACHINE', false],
-      ])
+      expect(registry.getSettingItems().map((item) => [item.id, item.groupLabel])).toEqual(
+        THIS_MACHINE_IDS.map((id) => [id, 'THIS MACHINE']),
+      )
     })
 
     it('places its cards below the radios and above the SDR options, whichever registers first', async () => {
@@ -74,7 +69,7 @@ describe('registerSdrManagerLocalSettings', () => {
 
       expect(registry.getSettingItems().map((item) => item.id)).toEqual([
         'sdr-devices',
-        ...ITEM_IDS,
+        ...THIS_MACHINE_IDS,
         'sdr-options',
       ])
     })
@@ -102,6 +97,31 @@ describe('registerSdrManagerLocalSettings', () => {
       }
     })
 
+    it('lists its SDRs as the first card, under DEVICES, before THIS MACHINE', async () => {
+      const { registry } = await registered('sdr-manager-local-only')
+
+      expect(registry.getSettingItems().map((item) => [item.id, item.groupLabel])).toEqual([
+        ['sdr-manager-local-devices', 'DEVICES'],
+        ...THIS_MACHINE_IDS.map((id) => [id, 'THIS MACHINE']),
+      ])
+    })
+
+    it('wires its SDRs card to the SDR list, staged for APPLY CHANGES', async () => {
+      const { registry } = await registered('sdr-manager-local-only')
+      const [devices] = registry.getSettingItems()
+      const { default: LocalDevicesControl } =
+        await import('./components/devices/LocalDevicesControl.vue')
+
+      expect(devices!.label).toBe('SDRs on This Machine')
+      expect(devices!.control).toEqual({
+        component: LocalDevicesControl,
+        emits: ['stage'],
+        layout: 'full',
+        naturalHeight: true,
+      })
+      expect(devices!.control.collapsible).toBeUndefined()
+    })
+
     it('says what the SDRs card is for, there being no radios list above it', async () => {
       const { registry } = await registered('sdr-manager-local-only')
       const [devices] = registry.getSettingItems()
@@ -112,28 +132,15 @@ describe('registerSdrManagerLocalSettings', () => {
     })
   })
 
-  it('adds the four items in order', async () => {
+  it('wires each THIS MACHINE card to its control component and layout', async () => {
     const { registry } = await registered()
-
-    expect(registry.getSettingItems().map((item) => item.id)).toEqual(ITEM_IDS)
-  })
-
-  it('wires each item to its control component and layout', async () => {
-    const { registry } = await registered()
-    const [devices, password, configuration, hotspot] = registry.getSettingItems()
-    const { default: LocalDevicesControl } =
-      await import('./components/devices/LocalDevicesControl.vue')
+    const [password, configuration, hotspot] = registry.getSettingItems()
     const { default: ConsolePasswordControl } =
       await import('./components/auth/ConsolePasswordControl.vue')
     const { default: ConfigTransferControl } =
       await import('./components/config/ConfigTransferControl.vue')
     const { default: HotspotControl } = await import('./components/hotspot/HotspotControl.vue')
 
-    expect(devices!.control).toMatchObject({
-      component: LocalDevicesControl,
-      emits: ['stage'],
-      layout: 'full',
-    })
     expect(password!.control).toMatchObject({ component: ConsolePasswordControl, layout: 'half' })
     expect(configuration!.control).toMatchObject({
       component: ConfigTransferControl,
@@ -142,17 +149,12 @@ describe('registerSdrManagerLocalSettings', () => {
     expect(hotspot!.control).toMatchObject({ component: HotspotControl, layout: 'full' })
   })
 
-  it('folds every card but its SDRs', async () => {
+  it('folds every THIS MACHINE card', async () => {
     const { registry } = await registered()
 
-    expect(
-      registry.getSettingItems().map((item) => [item.id, item.control.collapsible !== undefined]),
-    ).toEqual([
-      ['sdr-manager-local-devices', false],
-      ['sdr-manager-local-console-password', true],
-      ['sdr-manager-local-configuration', true],
-      ['sdr-manager-local-hotspot', true],
-    ])
+    expect(registry.getSettingItems().every((item) => item.control.collapsible !== undefined)).toBe(
+      true,
+    )
   })
 
   it('opens Console Password only while this machine has no password', async () => {
@@ -161,7 +163,7 @@ describe('registerSdrManagerLocalSettings', () => {
     setActivePinia(createPinia())
     const { useLocalAuthStore } = await import('./stores/localAuthStore')
     const auth = useLocalAuthStore()
-    const [, password, configuration, hotspot] = registry.getSettingItems()
+    const [password, configuration, hotspot] = registry.getSettingItems()
     const openWhen = password!.control.collapsible!.openWhen!
 
     // Not known yet: no reason to open it.

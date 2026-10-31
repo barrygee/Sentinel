@@ -1,6 +1,6 @@
 # SDR Manager
 
-One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: other computers under **SENTINEL HOSTS**, this computer's dongles in **SDRS ON THIS MACHINE**, with its password, configuration and hotspot under **THIS MACHINE** below. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer has a page of its own, **Settings › SDR Manager**.
+One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's password, configuration and hotspot are under **THIS MACHINE** below. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer has a page of its own, **Settings › SDR Manager**.
 
 ## Features
 
@@ -14,11 +14,11 @@ One place to manage your RTL-SDR dongles: the ones plugged into this computer an
 - **Host sites** on every map, usable as range-ring centres and overhead-alert places.
 - **SDR Manager only** mode for a small computer that just shares its dongles: [SDR Manager only](../sdr-manager-local-only.md).
 
-![Settings › SDR: SDRS ON THIS MACHINE with one streaming dongle and its switch, then THIS MACHINE's Console Password and Configuration.](../images/settings-sdr-manager.png)
+![Settings › SDR: This machine with one streaming dongle, its switch, pencil and ADD, then THIS MACHINE's Console Password and Configuration.](../images/settings-sdr-manager.png)
 
 ## Switch on this machine
 
-**SDRS ON THIS MACHINE** and **THIS MACHINE** show only when SDR Manager for this computer runs. Pick your setup once in `.env`:
+This computer's dongles and **THIS MACHINE** show only when SDR Manager for this computer runs. Pick your setup once in `.env`:
 
 | Computer              | `.env`                                                              | Guide                                      |
 | --------------------- | ------------------------------------------------------------------- | ------------------------------------------ |
@@ -31,19 +31,20 @@ Then `docker compose up -d`. Windows can't manage its own dongles; it can still 
 
 ### Set up a dongle
 
-1. Set a **Console Password** first: until you do, **SDRS ON THIS MACHINE** shows only the notice asking for one.
-2. Plug the dongle in. Within a few seconds it is listed under **SDRS ON THIS MACHINE** as **NEW** and **NOT SET UP**.
+1. Set a **Console Password** first: until you do, **This machine** shows only the notice asking for one.
+2. Plug the dongle in. Within a few seconds it is listed under **This machine**, with a yellow dot (**New**) and **NOT SET UP**.
 3. Select the pencil, then fill in **NAME** and **OUTPUT PORT** (a free one is suggested), and optionally **ANTENNA** and **NOTES**. Set **VISIBILITY** to **PUBLIC** to listen to it in Sentinel.
-4. **APPLY CHANGES**. It shows **READY**.
-5. Switch its stream on, then **APPLY CHANGES**. It shows **STREAMING**.
+4. **APPLY CHANGES**. Its dot stays yellow (**Ready**).
+5. Switch its stream on, then **APPLY CHANGES**. Its dot turns green (**Streaming**).
+6. **ADD** at the end of its row makes it a radio in the SDR panel; it then reads **ADDED**, and its cross removes the radio (the dongle stays).
 
-| State                        | Means                                         |
-| ---------------------------- | --------------------------------------------- |
-| **NEW**                      | Plugged in, not set up                        |
-| **READY**                    | Set up, stream off                            |
-| **STARTING** / **STREAMING** | Stream starting / on                          |
-| **DEGRADED**                 | Streaming with problems                       |
-| **STOPPED** / **ERROR**      | Stopped / failed (the reason shows beside it) |
+The dot at the start of each row shows the dongle's state; point at it to read the state, and an error's reason.
+
+| Dot    | State                          | Means                                                        |
+| ------ | ------------------------------ | ------------------------------------------------------------ |
+| Green  | Streaming                      | Stream on                                                    |
+| Yellow | New, Ready, Starting, Degraded | Not set up, stream off, starting, or streaming with problems |
+| Red    | Stopped, Error, Not plugged in | Stopped, failed (the reason is in the tooltip) or unplugged  |
 
 ### Device settings
 
@@ -108,7 +109,7 @@ A program that only speaks `rtl_tcp` (SDR++, GQRX) can use any streaming dongle 
 
 ## If it's not working
 
-- **No SDRS ON THIS MACHINE or THIS MACHINE:** SDR Manager for this computer isn't running. Linux: `docker compose ps sdr-manager-local`. Mac: `uv run --project backend sdr-manager-local status`.
+- **No dongles under This machine, and no THIS MACHINE:** SDR Manager for this computer isn't running. Linux: `docker compose ps sdr-manager-local`. Mac: `uv run --project backend sdr-manager-local status`.
 - **This machine "not running":** the same; it comes back within 10 seconds of starting.
 - **A remote host says unauthenticated:** a wrong console password, or the host runs the old Sentry program. Replace Sentry with SDR Manager there ([Linux and Pi](../sdr-manager-linux.md)).
 - **"port … is already in use":** something else has port 8000. Stop it, or set `SDR_MANAGER_LOCAL_HTTP_PORT` in `.env`.

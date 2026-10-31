@@ -1,14 +1,23 @@
 <template>
   <div class="sdr-device-item" :class="{ 'sdr-device-item--open': open }">
     <div class="sdr-device-row">
-      <span class="sdr-device-info" :class="{ 'sdr-device-info--unavailable': !device.present }">
-        <SdrDeviceStateBadge :state="device.state" :reason="device.state_reason" />
+      <span
+        class="sdr-device-info sdr-device-info--named"
+        :class="{ 'sdr-device-info--unavailable': !device.present }"
+      >
+        <SdrDeviceStateDot
+          :state="device.state"
+          :reason="device.state_reason"
+          :present="device.present"
+        />
         <span class="local-device-name">{{ label }}</span>
-        <span v-if="device.output" class="local-device-address">
+        <span v-if="device.output" class="local-device-address sdr-device-meta">
           {{ device.output.host }}:{{ device.output.iq_port }}
         </span>
-        <span v-else-if="isNew" class="local-device-address">NOT SET UP</span>
-        <span v-if="hasStagedEdit" class="local-device-staged">EDITED — APPLY TO SAVE</span>
+        <span v-else-if="isNew" class="local-device-address sdr-device-meta">NOT SET UP</span>
+        <span v-if="hasStagedEdit" class="local-device-staged sdr-device-meta"
+          >EDITED — APPLY TO SAVE</span
+        >
       </span>
       <template v-if="!confirmingForget">
         <BaseToggleSwitch
@@ -51,6 +60,7 @@
             />
           </svg>
         </button>
+        <DeviceActions />
       </template>
       <div v-else class="sdr-device-confirm" style="display: flex">
         <span class="sdr-device-confirm-label">FORGET?</span>
@@ -85,16 +95,18 @@
  * a name and port first. An absent device can be forgotten (its saved settings
  * discarded), after a YES / NO confirmation, which acts at once. The stream
  * switch and the form's edits wait for APPLY CHANGES, and the row says so
- * while one is staged.
+ * while one is staged. The host page's own action for the SDR (ADD, in
+ * Settings › SDR) ends the row, through `LocalDevicesControl`'s slot.
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch, type VNodeChild } from 'vue'
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
-import SdrDeviceStateBadge from '@sentinel/ui/sdr/SdrDeviceStateBadge.vue'
+import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import type { LocalDeviceStatus } from '../../api/types'
 import { useLocalDeviceEdits } from '../../composables/useLocalDeviceEdits'
 import { deviceLabel, useLocalSdrStore } from '../../stores/localSdrStore'
 import { deviceErrorMessage } from '../../utils/errorMessages'
 import LocalDeviceForm from './LocalDeviceForm.vue'
+import { useDeviceActions } from '../../composables/useDeviceActions'
 
 const props = defineProps<{ device: LocalDeviceStatus; open: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()
@@ -106,6 +118,11 @@ const deviceEdits = useLocalDeviceEdits()
 const hasStagedEdit = computed(() => deviceEdits.edits.drafts.has(props.device.device_id))
 const stagedEnabled = computed(() => deviceEdits.draftFor(props.device).enabled)
 const confirmingForget = ref(false)
+
+// The host page's action for this SDR (Settings › SDR's ADD), if it gave one.
+const deviceActionsSlot = useDeviceActions()
+const DeviceActions = (): VNodeChild =>
+  deviceActionsSlot()?.({ deviceId: props.device.device_id }) ?? null
 const rowError = ref<string | null>(null)
 const confirmButton = ref<HTMLButtonElement | null>(null)
 
@@ -135,18 +152,23 @@ async function forget(): Promise<void> {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 12px;
+  /* 8px between name and address, as in the other SDR rows (.sdr-device-meta). */
+  gap: 6px 8px;
   min-width: 0;
+}
+/* Placed as in the other SDR rows, where the dot sits inline before the name
+   (8px margin and a space): here the row's 8px gap already follows it, and
+   the flex row centres it a little above the name's text. */
+.sdr-device-info :deep(.sdr-device-state-dot) {
+  margin-right: 3px;
+  top: 1px;
 }
 .local-device-name {
   overflow-wrap: anywhere;
 }
-.local-device-address {
-  color: var(--ink-secondary);
-}
-.local-device-staged {
-  font-size: var(--settings-text-caption);
-  color: var(--ink-secondary);
+/* The row is a flex box with its own gap: no extra margin before the meta. */
+.sdr-device-info .sdr-device-meta {
+  margin-left: 0;
 }
 .local-device-row-error {
   margin: 4px 16px;

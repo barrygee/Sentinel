@@ -43,7 +43,7 @@ Without it, Sentinel works the same but the **Docs** entry and the **LEARN MORE*
 
 ## SDR Manager: your dongles
 
-**Settings › SDR** looks after RTL-SDR dongles: the ones plugged into this computer (**SDRS ON THIS MACHINE**) and the ones on other computers, such as a Raspberry Pi by the antenna (**SENTINEL HOSTS**). Managing other computers works out of the box. For this computer's own dongles, pick one setup in `.env` (the top of `.env.example` lists them) and start Sentinel as usual:
+**Settings › SDR** looks after RTL-SDR dongles: the ones plugged into this computer and the ones on other computers, such as a Raspberry Pi by the antenna, all under **SENTINEL HOSTS**. Managing other computers works out of the box. For this computer's own dongles, pick one setup in `.env` (the top of `.env.example` lists them) and start Sentinel as usual:
 
 | Setup                                     | `.env`                                                                                      |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------- |

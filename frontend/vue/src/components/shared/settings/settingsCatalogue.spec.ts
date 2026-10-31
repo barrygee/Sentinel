@@ -49,7 +49,6 @@ import SeaAisSdrSourceControl from '@sentinel/section-sea/settings/SeaAisSdrSour
 import SeaCoverageAreaControl from '@sentinel/section-sea/settings/SeaCoverageAreaControl.vue'
 import SeaLabelFieldsControl from '@sentinel/section-sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@sentinel/section-sea/settings/SeaMapLayersControl.vue'
-import LocalDevicesControl from '@sentinel/sdr-manager-local/components/devices/LocalDevicesControl.vue'
 import ConsolePasswordControl from '@sentinel/sdr-manager-local/components/auth/ConsolePasswordControl.vue'
 import ConfigTransferControl from '@sentinel/sdr-manager-local/components/config/ConfigTransferControl.vue'
 import HotspotControl from '@sentinel/sdr-manager-local/components/hotspot/HotspotControl.vue'
@@ -66,8 +65,9 @@ registerSeaSettings()
 registerLandSettings()
 registerSdrSettings()
 // sdr-manager-local registers after the SDR section here, as it may at boot;
-// its cards still land between the radios and the SDR options (positions).
-// sdr-manager-remote adds no settings: its hosts are in the radios card.
+// its THIS MACHINE cards still land between the radios and the SDR options
+// (positions). Its SDRs and sdr-manager-remote's hosts add no cards: both are
+// listed in the radios card, through capabilities.
 registerSdrManagerLocalSettings()
 
 /**
@@ -262,11 +262,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     },
   ],
   ['sdr', 'sdr-devices', { component: SdrDevicesControl, emits: ['stage'], layout: 'half' }],
-  [
-    'sdr',
-    'sdr-manager-local-devices',
-    { component: LocalDevicesControl, emits: ['stage'], layout: 'full', naturalHeight: true },
-  ],
   [
     'sdr',
     'sdr-manager-local-console-password',

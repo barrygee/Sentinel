@@ -1232,7 +1232,7 @@ test.describe('docs screenshots', () => {
   // hosts in DEVICES, and this machine's own SDRs and cards.
   for (const [heading, name] of [
     ['Sentinel Hosts', 'settings-sdr-manager-remote'],
-    ['SDRs on This Machine', 'settings-sdr-manager'],
+    ['This machine', 'settings-sdr-manager'],
   ] as const) {
     test(`Settings › SDR › ${heading}`, async ({ page }) => {
       await prepare(page)

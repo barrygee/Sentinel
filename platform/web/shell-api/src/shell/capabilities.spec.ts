@@ -93,4 +93,11 @@ describe('shell/capabilities', () => {
     expect(getCapability('radioSites')).toBe(radioSites)
     expect(getCapability('radio')).toBeUndefined()
   })
+
+  it('keeps thisMachineSdrs separate from the other capabilities', () => {
+    const thisMachineSdrs = { DevicesPanel: {} }
+    withdrawals.push(provideCapability('thisMachineSdrs', thisMachineSdrs))
+    expect(getCapability('thisMachineSdrs')).toBe(thisMachineSdrs)
+    expect(getCapability('radioSites')).toBeUndefined()
+  })
 })

@@ -27,8 +27,9 @@
 
 <script setup lang="ts">
 /**
- * `LocalDevicesControl` — the SDRs on This Machine card of Settings › SDR
- * (Settings › SDR Manager in SDR Manager-only mode): the RTL-SDRs plugged into
+ * `LocalDevicesControl` — this machine's SDR list: in Settings › SDR, inside
+ * SENTINEL HOSTS › This machine (in SDR Manager-only mode, the first card of
+ * Settings › SDR Manager). The RTL-SDRs plugged into
  * this machine, live from its sdr-manager-local, with the warnings that
  * concern them (no location, a shared serial) and the serial-flash panel.
  * While no console password is set it shows only the notice asking for one.
@@ -36,8 +37,16 @@
  * It holds the page's one sign-in form and its one live region, and keeps the
  * event stream open while it is shown. Device edits are staged for APPLY
  * CHANGES (`useLocalDeviceEdits`); serial flash and forgetting a device act at once.
+ *
+ * In the full app Settings › SDR renders it inside SENTINEL HOSTS › This
+ * machine (the `thisMachineSdrs` capability), filling the `device-actions`
+ * slot of each row with ADD; in SDR Manager-only mode it is that page's card.
  */
-import { onMounted } from 'vue'
+import { onMounted, useSlots } from 'vue'
+import {
+  provideDeviceActions,
+  type DeviceActionsSlotProps,
+} from '../../composables/useDeviceActions'
 import { provideLocalDeviceEdits } from '../../composables/useLocalDeviceEdits'
 import { useLocalSdrEvents } from '../../composables/useLocalSdrEvents'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
@@ -53,6 +62,12 @@ import LocalDeviceList from './LocalDeviceList.vue'
 import SerialConflictBanner from './SerialConflictBanner.vue'
 
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
+defineSlots<{
+  /** Rendered at the end of each SDR's row: Settings › SDR puts ADD there. */
+  'device-actions'?: (props: DeviceActionsSlotProps) => unknown
+}>()
+const slots = useSlots()
+provideDeviceActions(() => slots['device-actions'])
 
 const store = useLocalSdrStore()
 const auth = useLocalAuthStore()

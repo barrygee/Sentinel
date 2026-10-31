@@ -36,9 +36,11 @@ const SDR_MANAGER_SOURCES: SectionSource[] = [
  * remotes load only when the backend lists them (`GET /api/app/sections`), as
  * in the built app: sdr-manager-local runs only under its compose profile,
  * and loading it without its service leaves its cards retrying a stream that
- * isn't there. With no list to go by (no backend, as in specs) both load.
+ * isn't there. With no list to go by (no backend), and in specs, both load.
  */
 export async function sectionSources(): Promise<SectionSource[]> {
+  // Specs have no backend to ask: they load every remote.
+  if (import.meta.env.MODE === 'test') return [...MAP_SECTION_SOURCES, ...SDR_MANAGER_SOURCES]
   const deployedIds = await deployedRemoteIds()
   return [
     ...MAP_SECTION_SOURCES,

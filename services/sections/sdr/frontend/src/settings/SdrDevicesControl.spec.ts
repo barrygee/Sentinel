@@ -6,6 +6,9 @@ import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrHostDeviceRow from './SdrHostDeviceRow.vue'
+import SdrDeviceRadioAction from './SdrDeviceRadioAction.vue'
+import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'
+import { defineComponent, h, type Slot } from 'vue'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { RADIOS_CHANGED_EVENT } from '../composables/sdrDeviceEvents'
 import { provideCapability } from '@sentinel/shell-api/shell/capabilities'
@@ -1152,6 +1155,223 @@ describe('SdrDevicesControl', () => {
     expect(mockGetSdrManagerHostDevices).not.toHaveBeenCalled()
     // The groups already shown stay, as they do when a host poll fails.
     expect(wrapper.find('#sdr-host-1-sdrs').text()).toBe('No SDRs plugged in.')
+  })
+
+  describe("this machine's SDRs (sdr-manager-local deployed)", () => {
+    const THIS_MACHINE: SdrManagerHost = {
+      ...HOST,
+      id: 7,
+      name: null,
+      address: 'host.docker.internal',
+      is_local: true,
+    }
+    const LOCAL_DEVICE: SdrManagerDeviceStatus = { ...DEVICE, device_id: 'rtl-local' }
+    const LOCAL_RADIO: SdrRadioRecord = {
+      ...MANUAL_RADIO,
+      id: 9,
+      name: 'Shack RTL',
+      host: THIS_MACHINE.address,
+      sdr_manager_host_id: THIS_MACHINE.id,
+      sdr_manager_device_id: 'rtl-local',
+    }
+
+    /**
+     * Stands in for sdr-manager-local's list: one row per id, each ending in
+     * the `device-actions` slot. Like the real rows, each reads the slot it
+     * was given once and doesn't redraw when the card does.
+     */
+    const FakeLocalRow = defineComponent({
+      props: {
+        deviceId: { type: String, required: true },
+        getSlot: { type: Function, required: true },
+      },
+      setup(props) {
+        return () =>
+          h(
+            'div',
+            { class: 'fake-local-row', 'data-device-id': props.deviceId },
+            (props.getSlot() as Slot | undefined)?.({ deviceId: props.deviceId }),
+          )
+      },
+    })
+    const FakeDevicesPanel = defineComponent({
+      name: 'FakeDevicesPanel',
+      emits: ['stage'],
+      setup(_props, { slots }) {
+        const getSlot = () => slots['device-actions']
+        return () =>
+          h(
+            'div',
+            { class: 'fake-this-machine' },
+            ['rtl-local'].map((deviceId) => h(FakeLocalRow, { key: deviceId, deviceId, getSlot })),
+          )
+      },
+    })
+
+    let withdrawThisMachine: () => void = () => {}
+    beforeEach(() => {
+      withdrawThisMachine = provideCapability('thisMachineSdrs', {
+        DevicesPanel: FakeDevicesPanel,
+      })
+    })
+    afterEach(() => {
+      withdrawThisMachine()
+    })
+
+    function localRow(wrapper: ReturnType<typeof mount>) {
+      return wrapper.find('.fake-local-row[data-device-id="rtl-local"]')
+    }
+
+    it("lists them inside This machine's accordion, in place of its device rows", async () => {
+      mockListSdrManagerHosts.mockResolvedValue([HOST, THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
+      const wrapper = mountControl()
+      await flushPromises()
+      const thisMachineList = wrapper.find('#sdr-host-7-sdrs')
+      expect(thisMachineList.find('.fake-this-machine').exists()).toBe(true)
+      expect(thisMachineList.findComponent(SdrHostDeviceRow).exists()).toBe(false)
+      expect(thisMachineList.text()).not.toContain('No SDRs plugged in.')
+      // Other hosts list their SDRs as before.
+      expect(wrapper.find('#sdr-host-1-sdrs').findComponent(SdrHostDeviceRow).exists()).toBe(true)
+      expect(wrapper.findAll('.fake-this-machine')).toHaveLength(1)
+    })
+
+    it("ends each row with ADD, which adds that SDR from this machine's host", async () => {
+      mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
+      mockCreateRadio.mockResolvedValue(LOCAL_RADIO)
+      const wrapper = mountControl()
+      await flushPromises()
+      const add = localRow(wrapper).findComponent(SdrDeviceRadioAction)
+      expect(add.props('radio')).toBeNull()
+      add.vm.$emit('add')
+      await flushPromises()
+      expect(mockCreateRadio).toHaveBeenCalledWith(
+        expect.objectContaining({
+          host: THIS_MACHINE.address,
+          port: 1234,
+          sdr_manager_host_id: THIS_MACHINE.id,
+          sdr_manager_device_id: 'rtl-local',
+        }),
+      )
+    })
+
+    it('shows ADD once the host reports the SDR, though the rows drew before it did', async () => {
+      // The regression this guards: the rows keep the slot they first got,
+      // so it must read the current device list, not one captured then.
+      let reportDevices: (value: ReturnType<typeof snapshot>) => void = () => {}
+      mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockReturnValue(
+        new Promise((resolve) => {
+          reportDevices = resolve
+        }),
+      )
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(localRow(wrapper).findComponent(SdrHostDeviceAddButton).exists()).toBe(false)
+      reportDevices(snapshot([LOCAL_DEVICE]))
+      await flushPromises()
+      expect(localRow(wrapper).findComponent(SdrHostDeviceAddButton).exists()).toBe(true)
+    })
+
+    it('reads ADDED for an SDR that is a radio, and removes the radio after asking', async () => {
+      const changed = vi.fn()
+      document.addEventListener(RADIOS_CHANGED_EVENT, changed)
+      mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
+      mockListRadios.mockResolvedValue([LOCAL_RADIO])
+      mockDeleteRadio.mockResolvedValue(true)
+      const wrapper = mountControl()
+      await flushPromises()
+      const action = () => localRow(wrapper).findComponent(SdrDeviceRadioAction)
+      expect(action().props('radio')).toMatchObject({ id: 9 })
+      expect(action().props('confirming')).toBe(false)
+
+      action().vm.$emit('start-delete')
+      await flushPromises()
+      expect(action().props('confirming')).toBe(true)
+      action().vm.$emit('cancel-delete')
+      await flushPromises()
+      expect(action().props('confirming')).toBe(false)
+
+      action().vm.$emit('start-delete')
+      action().vm.$emit('confirm-delete')
+      await flushPromises()
+      expect(mockDeleteRadio).toHaveBeenCalledWith(9)
+      expect(changed).toHaveBeenCalled()
+      document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
+    })
+
+    it('ignores the radio actions of an SDR the host has not reported', async () => {
+      mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
+      const wrapper = mountControl()
+      await flushPromises()
+      const action = localRow(wrapper).findComponent(SdrDeviceRadioAction)
+      expect(action.props('device')).toBeUndefined()
+      action.vm.$emit('add')
+      action.vm.$emit('start-delete')
+      action.vm.$emit('confirm-delete')
+      await flushPromises()
+      expect(mockCreateRadio).not.toHaveBeenCalled()
+      expect(mockDeleteRadio).not.toHaveBeenCalled()
+      expect(action.props('confirming')).toBe(false)
+    })
+
+    it("hands this machine's staged edits to APPLY CHANGES with the hosts'", async () => {
+      mockListSdrManagerHosts.mockResolvedValue([HOST, THIS_MACHINE])
+      const wrapper = mountControl()
+      await flushPromises()
+      const saveLocal = vi.fn().mockResolvedValue(undefined)
+      const saveHost = vi.fn().mockResolvedValue(undefined)
+      wrapper.findComponent(FakeDevicesPanel).vm.$emit('stage', saveLocal)
+      hostHeaders(wrapper)[1]!.vm.$emit('stage', saveHost)
+      await (wrapper.emitted('stage')!.at(-1)![0] as () => Promise<void>)()
+      expect(saveLocal).toHaveBeenCalledOnce()
+      expect(saveHost).toHaveBeenCalledOnce()
+    })
+
+    describe('before this machine is a listed host', () => {
+      it('lists them under a This machine title, with no actions, and no empty line', async () => {
+        mockListSdrManagerHosts.mockResolvedValue([HOST])
+        const wrapper = mountControl()
+        await flushPromises()
+        const hosts = subcategory(wrapper, 'Sentinel Hosts')!
+        expect(hosts.find('.sdr-this-machine-title').text()).toBe('This machine')
+        expect(hosts.find('.fake-this-machine').exists()).toBe(true)
+        expect(localRow(wrapper).findComponent(SdrDeviceRadioAction).exists()).toBe(false)
+        expect(hosts.text()).not.toContain('No Sentinel hosts yet.')
+      })
+
+      it('stages its edits too', async () => {
+        const wrapper = mountControl()
+        await flushPromises()
+        const saveLocal = vi.fn().mockResolvedValue(undefined)
+        wrapper.findComponent(FakeDevicesPanel).vm.$emit('stage', saveLocal)
+        await (wrapper.emitted('stage')!.at(-1)![0] as () => Promise<void>)()
+        expect(saveLocal).toHaveBeenCalledOnce()
+      })
+
+      it('shows SENTINEL HOSTS for them even without sdr-manager-remote', async () => {
+        withdrawFakeSdrManagerHosts()
+        const wrapper = mountControl()
+        await flushPromises()
+        const hosts = subcategory(wrapper, 'Sentinel Hosts')!
+        expect(hosts.find('.fake-this-machine').exists()).toBe(true)
+        // No hosts to add without sdr-manager-remote.
+        expect(hosts.find('.sdr-devices-add-btn').exists()).toBe(false)
+      })
+    })
+
+    it('has no accessibility violations', async () => {
+      mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
   })
 
   describe('without SDR Manager (sdr-manager-remote not deployed)', () => {

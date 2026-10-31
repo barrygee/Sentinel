@@ -5,7 +5,7 @@ Manage the RTL-SDR dongles plugged into a Linux computer or a Raspberry Pi. SDR 
 ## Features
 
 - **Two setups**, picked once in `.env`: the whole of Sentinel plus this computer's dongles, or [SDR Manager only](sdr-manager-local-only.md) for a Pi by the antenna.
-- **Plug and play**: dongles appear in **Settings › SDR › SDRS ON THIS MACHINE** as you plug them in.
+- **Plug and play**: dongles appear in **Settings › SDR**, under **This machine**, as you plug them in.
 - **Keeps streaming** while the rest of Sentinel restarts.
 - Any 64-bit Linux with Docker: a PC, or a Raspberry Pi 4 or 5 on 64-bit Raspberry Pi OS.
 
@@ -56,7 +56,7 @@ If `id -u` isn't `1000`, also set `SENTINEL_RUNTIME_USER_ID` and `SENTINEL_RUNTI
 docker compose up --build -d
 ```
 
-Open **http://\<this computer\>:8080/settings/sdr**. Set a console password if it asks for one; your dongles are then under **SDRS ON THIS MACHINE**. Set them up as in [SDR Manager](use/sdr-manager.md#set-up-a-dongle).
+Open **http://\<this computer\>:8080/settings/sdr**. Set a console password if it asks for one; your dongles are then under **SENTINEL HOSTS › This machine**. Set them up as in [SDR Manager](use/sdr-manager.md#set-up-a-dongle).
 
 ## Replace Sentry
 
@@ -64,7 +64,7 @@ A Pi still running the old Sentry program can't be managed by this Sentinel (it 
 
 1. On the Pi, stop Sentry (in its folder: `docker compose down`).
 2. Set up SDR Manager only on the Pi (above).
-3. Set the dongles up again in its **SDRS ON THIS MACHINE**, with the same output ports, so existing radios keep working.
+3. Set the dongles up again under its **This machine**, with the same output ports, so existing radios keep working.
 4. On your main Sentinel: edit the Pi under **SENTINEL HOSTS** with the new console password, then **APPLY CHANGES**.
 
 ## Things to know

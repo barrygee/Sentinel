@@ -12,9 +12,10 @@ import SdrOptionsControl from './settings/SdrOptionsControl.vue'
 
 /**
  * SDR's Settings section (F3): radios, receiver options and the frequency / band-plan files.
- * The Radios card lists the SDR hosts too, through sdr-manager-remote's
- * `radioSites` capability; sdr-manager-local adds this machine's own cards
- * below it (SDRs on This Machine, then its THIS MACHINE group).
+ * The Radios card lists the Sentinel hosts too, through sdr-manager-remote's
+ * `radioSites` capability, and this machine's SDRs inside its host, through
+ * sdr-manager-local's `thisMachineSdrs`; sdr-manager-local adds its THIS
+ * MACHINE group below.
  */
 export function registerSdrSettings(): void {
   registerSettingsSection({ ...SDR_SETTINGS_SECTION })

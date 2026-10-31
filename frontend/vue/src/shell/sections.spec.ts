@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
 /**
@@ -48,9 +48,31 @@ describe('shell/sections', () => {
     expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)
   })
 
-  describe('which SDR Manager remotes it loads', () => {
+  it('asks no backend in specs, loading every remote', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    vi.resetModules()
+    const { sectionSources } = await import('./sections')
+    expect((await sectionSources()).map((source) => source.id)).toEqual([
+      'air',
+      'space',
+      'sea',
+      'land',
+      'sdr',
+      'sdr-manager-local',
+      'sdr-manager-remote',
+    ])
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  describe('which SDR Manager remotes it loads, in the dev server', () => {
+    beforeEach(() => {
+      vi.stubEnv('MODE', 'development')
+    })
     afterEach(() => {
       vi.unstubAllGlobals()
+      vi.unstubAllEnvs()
     })
 
     const MAP_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr']

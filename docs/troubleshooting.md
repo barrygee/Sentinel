@@ -22,7 +22,7 @@ Start with `docker compose ps -a`: every Sentinel service should say **(healthy)
 | Greyed out, **section unavailable**   | `docker compose logs <section>`, then `docker compose restart <section>`                                                   |
 | SDR has no waterfall or audio         | The radio hub is down: `docker compose logs radio`                                                                         |
 | No **SDR Manager** in Settings        | `docker compose up -d sdr-manager-remote`                                                                                  |
-| No **SDRS ON THIS MACHINE** in Settings › SDR | SDR Manager for this computer isn't running: [Linux](sdr-manager-linux.md) or [Mac](sdr-manager-mac.md#if-its-not-working) |
+| No dongles under **This machine** in Settings › SDR | SDR Manager for this computer isn't running: [Linux](sdr-manager-linux.md) or [Mac](sdr-manager-mac.md#if-its-not-working) |
 
 ## Service logins
 

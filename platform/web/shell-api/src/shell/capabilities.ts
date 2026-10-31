@@ -1,12 +1,14 @@
 import { shallowReactive } from 'vue'
 import type { RadioCapability } from '@sentinel/shell-api/shell/radioCapability'
 import type { RadioSitesCapability } from '@sentinel/shell-api/shell/radioSitesCapability'
+import type { ThisMachineSdrsCapability } from '@sentinel/shell-api/shell/thisMachineSdrsCapability'
 
 /**
  * Shell capability registry (docs/plans/section-containers.md §3.6).
  *
  * A capability is a typed service one section offers the others — `radio`
- * (from the sdr section) and `radioSites` (from sdr-manager-remote). It replaces reaching into another
+ * (from the sdr section), `radioSites` (from sdr-manager-remote) and
+ * `thisMachineSdrs` (from sdr-manager-local). It replaces reaching into another
  * section's store or firing an untyped document `CustomEvent` at whichever
  * component happens to listen: the caller asks the shell for the capability
  * by name and gets `undefined` when no section provides it, so it can degrade
@@ -18,6 +20,7 @@ import type { RadioSitesCapability } from '@sentinel/shell-api/shell/radioSitesC
 export interface CapabilityMap {
   radio: RadioCapability
   radioSites: RadioSitesCapability
+  thisMachineSdrs: ThisMachineSdrsCapability
 }
 
 export type CapabilityName = keyof CapabilityMap

@@ -170,6 +170,9 @@ describe('RemoteHostHeader', () => {
       const wrapper = mountHeader({ host: THIS_MACHINE })
       expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
       expect(wrapper.find('button[aria-label="Edit This machine"]').exists()).toBe(true)
+      // Its place is kept, so the pencil lines up with other hosts' pencils.
+      expect(wrapper.find('.remote-host-header-button-slot').exists()).toBe(true)
+      expect(mountHeader().find('.remote-host-header-button-slot').exists()).toBe(false)
     })
 
     it('asks before removing, closing the form and dimming the title meanwhile', async () => {

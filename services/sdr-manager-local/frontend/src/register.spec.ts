@@ -42,6 +42,22 @@ describe('register (sdr-manager-local)', () => {
     expect(getSettingsSections().map((section) => section.key)).toEqual(['sdr-manager'])
   })
 
+  it("provides this machine's SDR list to Settings › SDR in the full app", async () => {
+    await registerOnShellPinia('full')
+    const { getCapability } = await import('@sentinel/shell-api/shell/capabilities')
+    const { default: LocalDevicesControl } =
+      await import('./components/devices/LocalDevicesControl.vue')
+
+    expect(getCapability('thisMachineSdrs')).toEqual({ DevicesPanel: LocalDevicesControl })
+  })
+
+  it('provides no SDR list in SDR Manager-only mode, where its page has the card', async () => {
+    await registerOnShellPinia('sdr-manager-local-only')
+    const { getCapability } = await import('@sentinel/shell-api/shell/capabilities')
+
+    expect(getCapability('thisMachineSdrs')).toBeUndefined()
+  })
+
   it('marks the console signed out when a request comes back 401', async () => {
     const pinia = await registerOnShellPinia()
     const { useLocalAuthStore } = await import('./stores/localAuthStore')

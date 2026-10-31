@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { h } from 'vue'
 import * as api from '../../api/sdrManagerLocalApi'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
@@ -91,6 +92,34 @@ describe('LocalDevicesControl', () => {
     wrapper.unmount()
     mounted.pop()
     expect(FakeEventSource.latest.closed).toBe(true)
+  })
+
+  it('puts its device-actions slot at the end of every SDR row', async () => {
+    seedDevices(
+      makeDevice({ device_id: 'serial:1', name: 'Roof' }),
+      makeDevice({ device_id: 'serial:2', name: 'Loft', record_id: 2 }),
+    )
+    const wrapper = mount(LocalDevicesControl, {
+      attachTo: document.body,
+      slots: {
+        'device-actions': ({ deviceId }: { deviceId: string }) =>
+          h('button', { type: 'button', class: 'host-action' }, `ADD ${deviceId}`),
+      },
+    })
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.findAll('.host-action').map((action) => action.text())).toEqual([
+      'ADD serial:1',
+      'ADD serial:2',
+    ])
+  })
+
+  it('renders its rows with no action when given no slot', async () => {
+    seedDevices(makeDevice())
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(wrapper.findAll('.sdr-device-row')).toHaveLength(1)
+    expect(wrapper.find('.host-action').exists()).toBe(false)
   })
 
   it('holds the page’s one live region', () => {

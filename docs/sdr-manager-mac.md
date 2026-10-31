@@ -158,7 +158,7 @@ A ✗ comes with a **Fix:** line under it: do what it says, then run `status` ag
 
 1. Open Safari (or Chrome) and go to **http://localhost:8080/settings/sdr**.
 
-**You should see:** **Settings › SDR**, with your dongle under **SDRS ON THIS MACHINE**, marked **NEW** and **NOT SET UP**. If it asks for a console password, set one first (**SET A PASSWORD**).
+**You should see:** **Settings › SDR**, with your dongle under **SENTINEL HOSTS › This machine**, marked **NOT SET UP**. If it asks for a console password, set one first (**SET A PASSWORD**).
 
 ## 13. Set a console password
 
@@ -226,7 +226,7 @@ docker compose down -v
 | `status`: **.env** is not 1                 | Step 8, then `docker compose up -d`                                                                                                 |
 | `status`: **SDR Manager** not answering     | `uv run --project backend sdr-manager-local install`; still not? Read the log: `open ~/Library/Logs/Sentinel/sdr-manager-local.log` |
 | `doctor`: **Port 8000** used by another app | Quit that app, or add `SDR_MANAGER_LOCAL_HTTP_PORT=8001` to `.env`, then run the **Update** commands                                |
-| No **SDRS ON THIS MACHINE** in Settings › SDR | Run `status`; when it is all ticked, wait 10 seconds and reload the page                                                            |
+| No dongles under **This machine** in Settings › SDR | Run `status`; when it is all ticked, wait 10 seconds and reload the page                                                            |
 | "SDR MANAGER IS NOT RUNNING"                | The same                                                                                                                            |
 | The dongle never shows **STREAMING**        | Its **OUTPUT PORT** is in use: pick another, then **APPLY CHANGES**                                                                 |
 | The page doesn't open                       | Docker Desktop isn't running, or step 9 failed: run it again                                                                        |

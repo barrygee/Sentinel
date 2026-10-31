@@ -2,12 +2,20 @@
   <div class="sdr-device-item" :class="{ 'sdr-device-item--open': open }">
     <div class="sdr-device-row">
       <span
-        class="sdr-device-info"
+        class="sdr-device-info sdr-device-info--named"
         :class="{ 'sdr-device-info--unavailable': isUnavailable }"
         :style="confirming ? 'opacity:0.4' : ''"
       >
-        <SdrSourceStatusDot :connected="connected" />
-        {{ radio.name }}&nbsp;&nbsp;{{ radio.host }}:{{ radio.port }}
+        <!-- A host's SDR shows its state (streaming, ready, stopped…); a radio
+             added by IP and port only whether it answers. -->
+        <SdrDeviceStateDot
+          v-if="sdrManagerDeviceStatus"
+          :state="sdrManagerDeviceStatus.state"
+          :reason="sdrManagerDeviceStatus.state_reason"
+          :present="sdrManagerDeviceStatus.present"
+        />
+        <SdrSourceStatusDot v-else :connected="connected" />
+        {{ radio.name }}<span class="sdr-device-meta">{{ radio.host }}:{{ radio.port }}</span>
       </span>
       <span v-if="isUnavailable && !confirming" class="sdr-device-unavailable">
         {{ radio.unavailable_reason }}
@@ -91,6 +99,7 @@
  * the row chrome per grouping.
  */
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
+import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import { computed } from 'vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'

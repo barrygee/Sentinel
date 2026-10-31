@@ -39,28 +39,50 @@ describe('SdrHostDeviceRow', () => {
     expect(wrapper.find('.sdr-device-info').text()).not.toContain('usb:1/2')
   })
 
-  it('renders the uppercased state with no parenthetical when there is no state reason', () => {
+  it('shows the address the device streams on after its name, once it has one', () => {
+    const withPort = mount(SdrHostDeviceRow, {
+      props: {
+        device: buildDevice({
+          name: 'Airband',
+          output: { iq_port: 1234, control_port: 1236, host: '192.168.1.30' },
+        }),
+        adding: false,
+      },
+    })
+    expect(withPort.find('.sdr-device-meta').text()).toBe('192.168.1.30:1234')
+    const withoutPort = mount(SdrHostDeviceRow, {
+      props: { device: buildDevice({ output: null }), adding: false },
+    })
+    expect(withoutPort.find('.sdr-device-meta').exists()).toBe(false)
+  })
+
+  it('shows the state as a dot, not a word: green while streaming', () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: { device: buildDevice({ state: 'streaming', state_reason: null }), adding: false },
     })
-    expect(wrapper.find('.sdr-sdr-manager-device-state').text()).toBe('STREAMING')
+    const dot = wrapper.find('.sdr-device-state-dot')
+    expect(dot.classes()).toContain('sdr-device-state-dot--live')
+    expect(dot.attributes('title')).toBe('Streaming')
+    expect(wrapper.text()).not.toContain('STREAMING')
   })
 
-  it('appends the state reason in parentheses when present', () => {
+  it("gives the dot an error's reason", () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: {
         device: buildDevice({ state: 'error', state_reason: 'usb reset' }),
         adding: false,
       },
     })
-    expect(wrapper.find('.sdr-sdr-manager-device-state').text()).toBe('ERROR (usb reset)')
+    const dot = wrapper.find('.sdr-device-state-dot')
+    expect(dot.classes()).toContain('sdr-device-state-dot--off')
+    expect(dot.attributes('title')).toBe('Error: usb reset')
   })
 
-  it('passes the device present flag through to the status dot', () => {
+  it('makes the dot red for an unplugged device', () => {
     const wrapper = mount(SdrHostDeviceRow, {
-      props: { device: buildDevice({ present: false }), adding: false },
+      props: { device: buildDevice({ state: 'streaming', present: false }), adding: false },
     })
-    expect(wrapper.find('.sdr-status-dot--disconnected').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-state-dot').attributes('title')).toBe('Not plugged in')
   })
 
   it('disables the ADD button and explains why when SDR host has not allocated an output port', () => {

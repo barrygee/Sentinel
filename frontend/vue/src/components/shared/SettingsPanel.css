@@ -1280,6 +1280,24 @@
   text-overflow: ellipsis;
 }
 
+/* A row led by an SDR's name (the devices card, this machine's SDRs): the
+   name at the size of a host's name above it (RemoteHostHeader), so every
+   name there reads alike; what follows the name is .sdr-device-meta. */
+.sdr-device-info--named {
+  font-size: var(--settings-text-body);
+  color: var(--ink);
+}
+
+/* What follows an SDR's name (its address, NOT SET UP, EDITED…): the size and
+   tone of a host's address and SDR count. */
+.sdr-device-meta {
+  margin-left: 8px;
+  font-size: var(--settings-text-small);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-secondary);
+}
+
 /* A radio whose SDR Manager device is unplugged, disabled or gone. Dimmed rather
    than hidden: the radio still exists and is still the operator's to keep,
    rename or delete — it simply cannot be connected to right now. */

@@ -1,9 +1,10 @@
 <template>
-  <div class="sdr-devices-wrap">
-    <!-- SENTINEL HOSTS: computers sharing their SDRs through SDR Manager.
-         Only with sdr-manager-remote deployed (it supplies the host rows). -->
+  <div class="sdr-devices-wrap sdr-devices-card">
+    <!-- SENTINEL HOSTS: computers sharing their SDRs through SDR Manager,
+         this one included. Only with sdr-manager-remote (it supplies the host
+         rows) or sdr-manager-local (this machine's SDRs) deployed. -->
     <section
-      v-if="hostEditor || unlistedHostRadios.length > 0"
+      v-if="hostEditor || thisMachine || unlistedHostRadios.length > 0"
       class="sdr-devices-subcategory"
       aria-labelledby="sdr-devices-sentinel-hosts-heading"
     >
@@ -12,11 +13,21 @@
       </h3>
       <div class="sdr-devices-list">
         <div
-          v-if="sdrManagerHosts.length === 0 && unlistedHostRadios.length === 0"
+          v-if="sdrManagerHosts.length === 0 && unlistedHostRadios.length === 0 && !thisMachine"
           class="sdr-devices-empty"
         >
           No Sentinel hosts yet.
         </div>
+        <!-- This machine's SDRs before sdr-manager-remote has linked this
+             machine as a host (or without it): listed, with nothing to add
+             them from yet. -->
+        <template v-if="thisMachine && !hasLocalHost">
+          <div class="sdr-this-machine-title">This machine</div>
+          <component
+            :is="thisMachine.DevicesPanel"
+            @stage="(apply: () => Promise<void>) => onStage(THIS_MACHINE_STAGE_KEY, apply)"
+          />
+        </template>
         <!-- One accordion per SDR host: the host's own title row (status,
            name, address, SDR count, edit/remove — sdr-manager-remote's,
            through the capability) opens and folds its SDRs below. -->
@@ -29,7 +40,7 @@
             :sdr-count="group.snapshot?.status ? group.devices.length : null"
             :controls-id="hostSdrListId(group.host.id)"
             @toggle="toggleHost(group.host.id)"
-            @stage="(apply: () => Promise<void>) => onHostStage(group.host.id, apply)"
+            @stage="(apply: () => Promise<void>) => onStage(`host-${group.host.id}`, apply)"
           />
           <div
             v-show="isHostExpanded(group.host.id)"
@@ -44,14 +55,37 @@
                 group.snapshot?.status &&
                 group.devices.length === 0 &&
                 group.orphanedRadios.length === 0 &&
-                group.addressRadios.length === 0
+                group.addressRadios.length === 0 &&
+                !showsThisMachinePanel(group)
               "
               class="sdr-devices-empty"
             >
               No SDRs plugged in.
             </div>
+            <!-- This machine: one row per SDR, sdr-manager-local's (state,
+                 stream switch, settings), ending in its radio's ADD / ADDED. -->
+            <component
+              :is="thisMachine.DevicesPanel"
+              v-if="thisMachine && showsThisMachinePanel(group)"
+              @stage="(apply: () => Promise<void>) => onStage(THIS_MACHINE_STAGE_KEY, apply)"
+            >
+              <template #device-actions="{ deviceId }: { deviceId: string }">
+                <!-- By host id, not the group: the rows keep this slot and
+                     don't redraw when the groups do, so it must read them now. -->
+                <SdrDeviceRadioAction
+                  :device="hostDeviceEntry(group.host.id, deviceId)?.device"
+                  :radio="hostDeviceEntry(group.host.id, deviceId)?.radio ?? null"
+                  :adding="addingDeviceKey === group.host.id + ':' + deviceId"
+                  :confirming="confirmingRadioOf(group.host.id, deviceId)"
+                  @add="addHostDevice(group.host.id, deviceId)"
+                  @start-delete="startDeleteRadioOf(group.host.id, deviceId)"
+                  @confirm-delete="confirmDeleteRadioOf(group.host.id, deviceId)"
+                  @cancel-delete="confirmId = null"
+                />
+              </template>
+            </component>
             <template
-              v-for="entry in group.devices"
+              v-for="entry in showsThisMachinePanel(group) ? [] : group.devices"
               :key="group.host.id + ':' + entry.device.device_id"
             >
               <SdrRadioRow
@@ -238,6 +272,8 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrRadioRow from './SdrRadioRow.vue'
 import SdrHostDeviceRow from './SdrHostDeviceRow.vue'
+import SdrDeviceRadioAction from './SdrDeviceRadioAction.vue'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import {
   listRadios,
@@ -263,6 +299,59 @@ const notificationsStore = useNotificationsStore()
 const sdrManagerDeployed = findSdrManagerHosts() !== undefined
 /** sdr-manager-remote's host title row and add form, or undefined while it is not deployed. */
 const hostEditor = findSdrManagerHosts()?.hostEditor
+
+/**
+ * This machine's SDR list (sdr-manager-local's, through its capability), or
+ * undefined while sdr-manager-local is not deployed: then This machine's
+ * group lists its SDRs as any host's are, from the host's device list.
+ */
+const thisMachine = computed(() => getCapability('thisMachineSdrs'))
+
+/** Whether sdr-manager-remote lists this machine as a host yet. */
+const hasLocalHost = computed(() => sdrManagerHosts.value.some((host) => host.is_local))
+
+/** Whether this host group lists its SDRs through this machine's own list. */
+function showsThisMachinePanel(group: SdrManagerHostGroup): boolean {
+  return group.host.is_local && thisMachine.value !== undefined
+}
+
+/**
+ * One SDR of a host, by ids, or undefined while the host hasn't reported it.
+ * Reads the current groups: this machine's rows (sdr-manager-local's) keep the
+ * slot they were first given, so a group captured then would go stale.
+ */
+function hostDeviceEntry(hostId: number, deviceId: string): SdrManagerDeviceRowModel | undefined {
+  return sdrManagerGroups.value
+    .find((group) => group.host.id === hostId)
+    ?.devices.find((entry) => entry.device.device_id === deviceId)
+}
+
+/** Adds a host's SDR as a radio, by ids (this machine's rows name their SDR by id). */
+function addHostDevice(hostId: number, deviceId: string): void {
+  const host = sdrManagerHosts.value.find((candidate) => candidate.id === hostId)
+  const entry = hostDeviceEntry(hostId, deviceId)
+  if (host && entry) void addDeviceAsRadio(host, entry.device)
+}
+
+/** The id of the radio mirroring a host's SDR, or null while it isn't one. */
+function radioIdOf(hostId: number, deviceId: string): number | null {
+  return hostDeviceEntry(hostId, deviceId)?.radio?.id ?? null
+}
+
+function confirmingRadioOf(hostId: number, deviceId: string): boolean {
+  const radioId = radioIdOf(hostId, deviceId)
+  return radioId !== null && confirmId.value === radioId
+}
+
+function startDeleteRadioOf(hostId: number, deviceId: string): void {
+  const radioId = radioIdOf(hostId, deviceId)
+  if (radioId !== null) startDelete(radioId)
+}
+
+function confirmDeleteRadioOf(hostId: number, deviceId: string): void {
+  const radioId = radioIdOf(hostId, deviceId)
+  if (radioId !== null) void confirmDelete(radioId)
+}
 const addingHost = ref(false)
 
 const radios = ref<SdrRadioRecord[]>([])
@@ -564,21 +653,24 @@ function toggleNewHost(): void {
 }
 
 /**
- * Each host title row hands over the closure that saves its own staged edit;
- * APPLY CHANGES runs every one. All are kept (one with nothing staged saves
+ * Each host title row, and this machine's SDR list, hands over the closure
+ * that saves its own staged edits; APPLY CHANGES runs every one. All are kept (one with nothing staged saves
  * nothing), so a retry after a refused edit still reaches it.
  */
-const hostEditAppliers = new Map<number, () => Promise<void>>()
+const stagedAppliers = new Map<string, () => Promise<void>>()
 
-function onHostStage(hostId: number, apply: () => Promise<void>): void {
-  hostEditAppliers.set(hostId, apply)
-  emit('stage', applyHostEdits)
+/** The staging key of this machine's SDR edits; a host's is `host-<id>`. */
+const THIS_MACHINE_STAGE_KEY = 'this-machine'
+
+function onStage(key: string, apply: () => Promise<void>): void {
+  stagedAppliers.set(key, apply)
+  emit('stage', applyStagedEdits)
 }
 
-/** Saves every host's staged edit; throws the first refusal once all have run. */
-async function applyHostEdits(): Promise<void> {
+/** Saves every staged edit (hosts, this machine's SDRs); throws the first refusal once all have run. */
+async function applyStagedEdits(): Promise<void> {
   let firstFailure: unknown = null
-  for (const apply of [...hostEditAppliers.values()]) {
+  for (const apply of [...stagedAppliers.values()]) {
     try {
       await apply()
     } catch (error) {
@@ -703,8 +795,13 @@ onBeforeUnmount(() => {
    DEVICES (.settings-group-label + .settings-item--headless, -40px). Its
    subcategory headings stand in for card titles, so put back the distance a
    card title keeps from its group label. */
-.sdr-devices-wrap {
+.sdr-devices-card {
   margin-top: 40px;
+}
+/* This machine's SDR list (sdr-manager-local's) brings the list spacing of a
+   card of its own; inside a host it sits like any host's SDRs. */
+.sdr-host-sdrs :deep(.sdr-devices-list) {
+  margin-bottom: 0;
 }
 /* Spaced like the cards around them: 12px from a title to its content (the
    card's own gap) and 48px between subcategories (the settings grid's gap). */
@@ -736,6 +833,14 @@ onBeforeUnmount(() => {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
   color: var(--ink-secondary);
+}
+/* This machine's name when it isn't (yet) a listed host: as a host's name. */
+.sdr-this-machine-title {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink);
 }
 .sdr-devices-add-actions {
   display: flex;

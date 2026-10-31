@@ -21,9 +21,10 @@ const DEVICES_GROUP = 'DEVICES'
 /**
  * sdr-manager-local's THIS MACHINE group — the RTL-SDRs plugged into this
  * machine, its console password, its Wi-Fi hotspot and its configuration file.
- * In the full app it sits on Settings › SDR, its SDRs card in DEVICES below
- * the Sentinel hosts and remote SDR devices; in SDR Manager-only mode, which
- * has no SDR section, on that mode's own page, Settings › SDR Manager.
+ * In the full app it sits on Settings › SDR (its SDRs are listed in DEVICES,
+ * under SENTINEL HOSTS › This machine, through the `thisMachineSdrs`
+ * capability); in SDR Manager-only mode, which has no SDR section, on that
+ * mode's own page, Settings › SDR Manager, with its SDRs as the first card.
  */
 export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void {
   const sdrManagerOnly = appMode === 'sdr-manager-local-only'
@@ -36,29 +37,30 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
     groupLabel: THIS_MACHINE_GROUP,
     position: SDR_SETTINGS_POSITIONS.thisMachine,
   } as const
+  // SDR Manager-only mode's page lists this machine's SDRs as a card of their
+  // own. The full app lists them in Settings › SDR's SENTINEL HOSTS › This
+  // machine instead (the `thisMachineSdrs` capability, see register.ts).
+  const devicesCard: SettingItem[] = sdrManagerOnly
+    ? [
+        {
+          ...sharedFields,
+          groupLabel: DEVICES_GROUP,
+          id: 'sdr-manager-local-devices',
+          label: 'SDRs on This Machine',
+          desc: 'The SDRs plugged into this computer. Name each one, set its port and switch it on to share it.',
+          searchTerms:
+            'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
+          control: {
+            component: LocalDevicesControl,
+            emits: ['stage'],
+            layout: 'full',
+            naturalHeight: true,
+          },
+        },
+      ]
+    : []
   const items: SettingItem[] = [
-    {
-      ...sharedFields,
-      // In DEVICES with the Sentinel hosts and remote SDR devices: the third
-      // place radios come from. Its console password, configuration and
-      // hotspot follow under THIS MACHINE.
-      groupLabel: DEVICES_GROUP,
-      id: 'sdr-manager-local-devices',
-      label: 'SDRs on This Machine',
-      // SDR Manager-only mode has no Radios list above it, so its one page
-      // says what the card is for; in the full app it needs no explaining.
-      desc: sdrManagerOnly
-        ? 'The SDRs plugged into this computer. Name each one, set its port and switch it on to share it.'
-        : '',
-      searchTerms:
-        'rtl-sdr dongle usb this machine local devices port stream serial flash eeprom forget sdr manager',
-      control: {
-        component: LocalDevicesControl,
-        emits: ['stage'],
-        layout: 'full',
-        naturalHeight: true,
-      },
-    },
+    ...devicesCard,
     {
       ...sharedFields,
       id: 'sdr-manager-local-console-password',
