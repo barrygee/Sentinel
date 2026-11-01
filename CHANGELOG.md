@@ -245,6 +245,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR Manager-only mode: compose file, shell, CI matrix
 - Drop the SDR MANAGER ONLY badge from the header
 - Fold SDR Manager cards until they are needed
+- Manage Sentinel hosts and this machine's SDRs in Settings › SDR
+- List this machine's SDRs inside its Sentinel host
+- Add a Sentinel host's SDRs automatically when asked
 
 ### Bug Fixes
 
@@ -577,6 +580,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Send COOP and COEP only when HTTPS is enforced
 - Show a notice instead of overflowing when no section loads
 - Tidy the SDR Manager and SDR Devices settings cards
+- Space host actions evenly and drop repeated addresses
 
 ### Chores
 
@@ -1680,6 +1684,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #549 from barrygee/fix/coop-coep-plain-http
 - Merge pull request #550 from barrygee/fix/shell-sections-load-error
 - Merge pull request #551 from barrygee/fix/sdr-manager-devices-header
+- Merge pull request #552 from barrygee/refactor/sdr-manager-into-sdr-settings
 
 ### Refactoring
 
