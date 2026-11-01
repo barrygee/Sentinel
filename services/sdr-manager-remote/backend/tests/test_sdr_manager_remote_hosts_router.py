@@ -282,6 +282,49 @@ class TestUpdateHost:
         assert "TOP-SECRET-VALUE" not in resp.text
 
 
+class TestAutoAddSdrs:
+    """`auto_add_sdrs`: whether the host's public SDRs become radios by themselves."""
+
+    def test_a_new_host_adds_its_sdrs_manually_unless_told_otherwise(self, client):
+        host = _create_host(client)
+
+        assert host["auto_add_sdrs"] is False
+        assert client.get(f"/api/sdr-manager/remote/hosts/{host['id']}").json()["auto_add_sdrs"] is False
+
+    def test_a_host_can_be_added_set_to_add_automatically(self, client):
+        host = _create_host(client, auto_add_sdrs=True)
+
+        assert host["auto_add_sdrs"] is True
+        assert client.get("/api/sdr-manager/remote/hosts").json()[0]["auto_add_sdrs"] is True
+
+    def test_it_can_be_switched_and_the_poller_restarts_to_act_on_it(self, client):
+        host = _create_host(client)
+        hosts_router.host_poller.restart_host.reset_mock()
+
+        resp = client.put(f"/api/sdr-manager/remote/hosts/{host['id']}", json={"auto_add_sdrs": True})
+
+        assert resp.status_code == 200
+        assert resp.json()["auto_add_sdrs"] is True
+        hosts_router.host_poller.restart_host.assert_awaited_once_with(host["id"])
+        resp = client.put(f"/api/sdr-manager/remote/hosts/{host['id']}", json={"auto_add_sdrs": False})
+        assert resp.json()["auto_add_sdrs"] is False
+
+    def test_an_edit_that_leaves_it_out_keeps_it(self, client):
+        host = _create_host(client, auto_add_sdrs=True)
+
+        resp = client.put(f"/api/sdr-manager/remote/hosts/{host['id']}", json={"name": "Loft Pi"})
+
+        assert resp.json()["auto_add_sdrs"] is True
+
+    def test_it_must_be_a_boolean(self, client):
+        resp = client.post(
+            "/api/sdr-manager/remote/hosts",
+            json={"address": "10.0.0.5", "auth_token": "s3cret-token", "auto_add_sdrs": "sometimes"},
+        )
+
+        assert resp.status_code == 422
+
+
 class TestDeleteHost:
     def test_delete_known_host_returns_204_and_stops_the_poller(self, client):
         created = _create_host(client)

@@ -1324,6 +1324,13 @@
   text-overflow: ellipsis;
 }
 
+/* Where a row has no button that its neighbours have (a cross): the button's
+   width (13px icon + 5px padding each side), so the buttons before it line up. */
+.sdr-device-btn-slot {
+  flex-shrink: 0;
+  width: 23px;
+}
+
 .sdr-device-btn {
   flex-shrink: 0;
   background: none;

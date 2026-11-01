@@ -24,3 +24,15 @@ export function hostDeviceAddBlockedReason(device: SdrManagerDeviceStatus): stri
   }
   return ''
 }
+
+/**
+ * Why an SDR on a host that adds its SDRs automatically (`auto_add_sdrs`) is
+ * not a radio, as a short tag: **private** — the operator keeping it to its
+ * host, the way to leave one out — or not set up yet, with no output port. A
+ * public SDR with a port is only waiting for the next poll to add it.
+ */
+export function hostDeviceNotRadioReason(device: SdrManagerDeviceStatus): string {
+  if (device.visibility !== 'public') return 'PRIVATE'
+  if (device.output === null) return 'NOT SET UP'
+  return 'ADDING…'
+}

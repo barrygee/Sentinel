@@ -20,6 +20,7 @@ function host(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost {
     enabled: true,
     auth_token_set: true,
     is_local: false,
+    auto_add_sdrs: false,
     created_at: 0,
     last_seen_at: null,
     last_error: null,

@@ -174,6 +174,32 @@ describe('SdrHostDeviceRow', () => {
     expect(wrapper.emitted('add')).toHaveLength(1)
   })
 
+  describe('on a host that adds its SDRs automatically', () => {
+    it.each([
+      [
+        'PRIVATE',
+        { visibility: 'private' as const, output: { iq_port: 1, control_port: 2, host: 'h' } },
+      ],
+      ['NOT SET UP', { output: null }],
+      ['ADDING…', { output: { iq_port: 1, control_port: 2, host: 'h' } }],
+    ])('has no ADD, and says %s', (reason, overrides) => {
+      const wrapper = mount(SdrHostDeviceRow, {
+        props: { device: buildDevice(overrides), adding: false, autoAdd: true },
+      })
+      expect(wrapper.find('.sdr-devices-btn').exists()).toBe(false)
+      expect(wrapper.find('.sdr-host-device-reason').text()).toBe(reason)
+    })
+
+    it('has no accessibility violations', async () => {
+      const wrapper = mount(SdrHostDeviceRow, {
+        props: { device: buildDevice({ visibility: 'private' }), adding: false, autoAdd: true },
+      })
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(SdrHostDeviceRow, { props: { device: buildDevice(), adding: false } })
     expect(

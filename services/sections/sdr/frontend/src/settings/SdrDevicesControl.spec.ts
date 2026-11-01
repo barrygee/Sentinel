@@ -71,6 +71,7 @@ const HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: false,
   is_local: false,
+  auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 0,
   last_error: null,
@@ -1178,6 +1179,56 @@ describe('SdrDevicesControl', () => {
     expect(wrapper.find('#sdr-host-1-sdrs').text()).toBe('No SDRs plugged in.')
   })
 
+  describe('a host set to add its SDRs automatically', () => {
+    const AUTO_HOST: SdrManagerHost = { ...HOST, auto_add_sdrs: true }
+
+    it("offers no ADD for its SDRs that aren't radios, and no delete for those that are", async () => {
+      const privateDevice = { ...DEVICE, device_id: 'rtl-2', visibility: 'private' as const }
+      mockListSdrManagerHosts.mockResolvedValue([AUTO_HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE, privateDevice]))
+      mockListRadios.mockResolvedValue([MIRRORED_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.findComponent(SdrRadioRow).props('removable')).toBe(false)
+      expect(wrapper.findComponent(SdrHostDeviceRow).props('autoAdd')).toBe(true)
+      expect(wrapper.findComponent(SdrHostDeviceRow).text()).toContain('PRIVATE')
+    })
+
+    it('keeps ADD and delete for a host that adds them manually', async () => {
+      const second = { ...DEVICE, device_id: 'rtl-2' }
+      mockListSdrManagerHosts.mockResolvedValue([HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE, second]))
+      mockListRadios.mockResolvedValue([MIRRORED_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      expect(wrapper.findComponent(SdrRadioRow).props('removable')).toBe(true)
+      expect(wrapper.findComponent(SdrHostDeviceRow).props('autoAdd')).toBe(false)
+    })
+
+    it('shows the radios it adds at the next poll, and tells the radio pickers once', async () => {
+      vi.useFakeTimers()
+      const changed = vi.fn()
+      document.addEventListener(RADIOS_CHANGED_EVENT, changed)
+      mockListSdrManagerHosts.mockResolvedValue([AUTO_HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE]))
+      const wrapper = mountControl()
+      await vi.runOnlyPendingTimersAsync()
+      expect(wrapper.findComponent(SdrRadioRow).exists()).toBe(false)
+      changed.mockClear()
+
+      // sdr-manager-remote's poller adds the radio between two of the card's polls.
+      mockListRadios.mockResolvedValue([MIRRORED_RADIO])
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(wrapper.findComponent(SdrRadioRow).props('radio')).toEqual(MIRRORED_RADIO)
+      expect(changed).toHaveBeenCalledTimes(1)
+
+      // Nothing new on the next poll: nothing to announce.
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(changed).toHaveBeenCalledTimes(1)
+      document.removeEventListener(RADIOS_CHANGED_EVENT, changed)
+    })
+  })
+
   describe("this machine's SDRs (sdr-manager-local deployed)", () => {
     const THIS_MACHINE: SdrManagerHost = {
       ...HOST,
@@ -1278,6 +1329,17 @@ describe('SdrDevicesControl', () => {
           sdr_manager_device_id: 'rtl-local',
         }),
       )
+    })
+
+    it('passes This machine set to add automatically on to each SDR row', async () => {
+      mockListSdrManagerHosts.mockResolvedValue([{ ...THIS_MACHINE, auto_add_sdrs: true }])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([LOCAL_DEVICE]))
+      mockListRadios.mockResolvedValue([LOCAL_RADIO])
+      const wrapper = mountControl()
+      await flushPromises()
+      const action = localRow(wrapper).findComponent(SdrDeviceRadioAction)
+      expect(action.props('autoAdd')).toBe(true)
+      expect(action.props('radio')).toEqual(LOCAL_RADIO)
     })
 
     it('shows ADD once the host reports the SDR, though the rows drew before it did', async () => {

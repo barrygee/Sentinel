@@ -79,6 +79,7 @@
                   :radio="hostDeviceEntry(group.host.id, deviceId)?.radio ?? null"
                   :adding="addingDeviceKey === group.host.id + ':' + deviceId"
                   :confirming="confirmingRadioOf(group.host.id, deviceId)"
+                  :auto-add="group.host.auto_add_sdrs"
                   @add="addHostDevice(group.host.id, deviceId)"
                   @start-delete="startDeleteRadioOf(group.host.id, deviceId)"
                   @confirm-delete="confirmDeleteRadioOf(group.host.id, deviceId)"
@@ -98,6 +99,7 @@
                 :open="openId === entry.radio.id"
                 :confirming="confirmId === entry.radio.id"
                 :sdr-manager-device-status="entry.device"
+                :removable="!group.host.auto_add_sdrs"
                 @toggle-edit="toggleEdit(entry.radio.id)"
                 @start-delete="startDelete(entry.radio.id)"
                 @confirm-delete="confirmDelete(entry.radio.id)"
@@ -109,6 +111,7 @@
                 v-else
                 :device="entry.device"
                 :adding="addingDeviceKey === group.host.id + ':' + entry.device.device_id"
+                :auto-add="group.host.auto_add_sdrs"
                 @add="addDeviceAsRadio(group.host, entry.device)"
               />
             </template>
@@ -250,7 +253,10 @@
  *   this machine's own included — titled by the host's own row
  *   (`hostEditor.HostHeader`: status, name, address, edit/remove, its last
  *   error), listing every device the host currently reports (`SdrHostDeviceRow` for one not yet mirrored
- *   into Sentinel's own radio list, `SdrRadioRow` once it has been). The
+ *   into Sentinel's own radio list, `SdrRadioRow` once it has been). A host
+ *   set to add its SDRs automatically (`auto_add_sdrs`) has no ADD and no
+ *   cross: sdr-manager-remote's poller makes each public SDR a radio, and
+ *   the poll here shows it. The
  *   hosts, their title rows and the "+ ADD A NEW SENTINEL HOST" form come through the
  *   `radioSites` capability sdr-manager-remote provides; while it is not
  *   deployed there are no host groups, only single SDRs added by IP/port. A
@@ -593,12 +599,23 @@ async function pollAll(): Promise<void> {
   if (pollInFlight) return
   pollInFlight = true
   try {
-    // The hosts too: their title rows show each one's reachability and last error.
-    await loadSdrManagerHosts()
+    // The hosts too: their title rows show each one's reachability and last
+    // error. And the radios: a host set to add its SDRs automatically makes
+    // them radios by itself (sdr-manager-remote's poller), shown as it does.
+    const radioIdsBefore = radioIdsKey()
+    await Promise.all([loadSdrManagerHosts(), loadRadios()])
+    // Tell the radio pickers too, as an ADD here would.
+    if (radioIdsKey() !== radioIdsBefore)
+      document.dispatchEvent(new CustomEvent(RADIOS_CHANGED_EVENT))
     await Promise.all([pollManualRadioStatuses(), pollSdrManagerHostDevices()])
   } finally {
     pollInFlight = false
   }
+}
+
+/** The radios' ids, comparable between polls: which radios exist, not their details. */
+function radioIdsKey(): string {
+  return radios.value.map((radio) => radio.id).join(',')
 }
 
 async function loadRadios(): Promise<void> {

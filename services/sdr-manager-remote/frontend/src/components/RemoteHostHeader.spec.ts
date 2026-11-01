@@ -27,6 +27,7 @@ const ROOF_PI: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 100,
   last_error: null,
@@ -259,6 +260,7 @@ describe('RemoteHostHeader', () => {
         name: 'Shed',
         address: '192.168.1.50',
         port: 8000,
+        auto_add_sdrs: false,
       })
       expect(wrapper.findComponent(RemoteHostForm).exists()).toBe(false)
       expect(wrapper.find('.remote-host-header-staged').exists()).toBe(false)

@@ -96,6 +96,29 @@ describe('SdrDeviceRadioAction', () => {
     expect(wrapper.emitted('cancel-delete')).toHaveLength(1)
   })
 
+  describe('when This machine adds its SDRs automatically', () => {
+    it('reads ADDED with no cross, keeping its place so the pencils line up', () => {
+      const wrapper = mountAction({ radio: RADIO, autoAdd: true })
+      expect(wrapper.find('.sdr-device-radio-added-label').text()).toBe('ADDED')
+      expect(wrapper.find('button').exists()).toBe(false)
+      expect(wrapper.find('.sdr-device-btn-slot').attributes('aria-hidden')).toBe('true')
+    })
+
+    it.each([
+      ['PRIVATE', { visibility: 'private' as const }],
+      ['NOT SET UP', { output: null }],
+    ])('has no ADD for an SDR that is not a radio, and says %s', (reason, overrides) => {
+      const wrapper = mountAction({ device: { ...DEVICE, ...overrides }, autoAdd: true })
+      expect(wrapper.findComponent(SdrHostDeviceAddButton).exists()).toBe(false)
+      expect(wrapper.find('.sdr-host-device-reason').text()).toBe(reason)
+    })
+
+    it('shows nothing before the host has reported the SDR', () => {
+      const wrapper = mountAction({ device: undefined, autoAdd: true })
+      expect(wrapper.text()).toBe('')
+    })
+  })
+
   it.each([
     ['ADD', {}],
     ['ADDED', { radio: RADIO }],

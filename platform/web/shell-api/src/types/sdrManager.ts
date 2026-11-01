@@ -22,6 +22,12 @@ export interface SdrManagerHost {
    * changed, and it cannot be deleted.
    */
   is_local: boolean
+  /**
+   * Whether every public SDR the host reports becomes a radio by itself
+   * (sdr-manager-remote's poller adds it, and removes it when made private),
+   * rather than with ADD.
+   */
+  auto_add_sdrs: boolean
   created_at: number
   last_seen_at: number | null
   last_error: string | null

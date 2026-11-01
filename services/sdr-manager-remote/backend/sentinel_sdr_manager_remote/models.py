@@ -43,6 +43,10 @@ class RemoteSdrHost(Base):
     # How the client proves itself: `password` signs in with the console
     # password; `service` (this machine only) presents the service bearer.
     auth_mode = Column(Text, nullable=False, default=AUTH_MODE_PASSWORD, server_default=text(f"'{AUTH_MODE_PASSWORD}'"))
+    # Whether every public SDR the host reports becomes a Sentinel radio by
+    # itself (and stops being one when made private), instead of by ADD. Off
+    # unless the operator turns it on: radios are theirs to choose.
+    auto_add_sdrs = Column(Boolean, nullable=False, default=False, server_default=text("0"))
 
     __table_args__ = (
         UniqueConstraint("address", "port", name="uq_remote_sdr_hosts_address_port"),

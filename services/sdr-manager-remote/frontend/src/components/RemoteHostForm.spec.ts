@@ -30,6 +30,7 @@ const EXISTING_HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 100,
   last_error: null,
@@ -127,6 +128,7 @@ describe('RemoteHostForm', () => {
       address: '10.0.0.9',
       port: 8000,
       auth_token: 'secret-token',
+      auto_add_sdrs: false,
     })
     expect(mockTestSdrManagerHost).toHaveBeenCalledWith(5)
     expect(wrapper.find('.remote-host-probe').text()).toContain('ok')
@@ -143,6 +145,65 @@ describe('RemoteHostForm', () => {
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
       expect.objectContaining({ name: null, auth_token: '' }),
     )
+  })
+
+  describe('ADD SDRS', () => {
+    function autoAddRadios(wrapper: ReturnType<typeof mount>) {
+      return wrapper.findAll('[role="radio"]')
+    }
+
+    it('starts a new host on MANUALLY, saying how its SDRs become radios', () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      expect(autoAddRadios(wrapper)[0]!.attributes('aria-checked')).toBe('true')
+      expect(wrapper.find('.remote-host-auto-add-note').text()).toBe(
+        'Choose which of its SDRs become radios with ADD.',
+      )
+      // The group is named by its label, unique to the new-host form.
+      const labelId = wrapper.find('[role="radiogroup"]').attributes('aria-labelledby')
+      expect(labelId).toBe('remote-host-new-auto-add')
+      expect(wrapper.find(`#${labelId}`).text()).toBe('ADD SDRS')
+    })
+
+    it('adds a host set to AUTOMATICALLY with auto_add_sdrs on', async () => {
+      mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+      await autoAddRadios(wrapper)[1]!.trigger('click')
+      expect(wrapper.find('.remote-host-auto-add-note').text()).toBe(
+        'Every public SDR on this host becomes a radio. Make one private on the host to leave it out.',
+      )
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
+        expect.objectContaining({ address: '10.0.0.9', auto_add_sdrs: true }),
+      )
+    })
+
+    it("shows an existing host's setting, under its own label id", () => {
+      const wrapper = mount(RemoteHostForm, {
+        props: { host: makeSavedHost({ auto_add_sdrs: true }) },
+      })
+      expect(autoAddRadios(wrapper)[1]!.attributes('aria-checked')).toBe('true')
+      expect(wrapper.find('[role="radiogroup"]').attributes('aria-labelledby')).toBe(
+        'remote-host-5-auto-add',
+      )
+    })
+
+    it('stages a change to it as a draft, and none once switched back', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await autoAddRadios(wrapper)[1]!.trigger('click')
+      const drafts = () => wrapper.emitted('draft')!
+      expect(drafts().at(-1)![0]).toEqual({
+        address: '192.168.1.50',
+        name: 'Roof Pi',
+        port: 8000,
+        authToken: '',
+        autoAddSdrs: true,
+      })
+      await autoAddRadios(wrapper)[0]!.trigger('click')
+      expect(drafts().at(-1)![0]).toBeNull()
+    })
   })
 
   describe('editing an existing host (staged for APPLY CHANGES)', () => {
@@ -189,6 +250,7 @@ describe('RemoteHostForm', () => {
         name: 'Attic',
         port: 9000,
         authToken: 'new-token',
+        autoAddSdrs: false,
       })
     })
 
@@ -200,6 +262,7 @@ describe('RemoteHostForm', () => {
         name: '',
         port: 8000,
         authToken: '',
+        autoAddSdrs: false,
       })
     })
 
@@ -221,7 +284,13 @@ describe('RemoteHostForm', () => {
       const wrapper = mount(RemoteHostForm, {
         props: {
           host: EXISTING_HOST,
-          stagedDraft: { address: '10.1.1.1', name: 'Staged', port: 8100, authToken: 'tok' },
+          stagedDraft: {
+            address: '10.1.1.1',
+            name: 'Staged',
+            port: 8100,
+            authToken: 'tok',
+            autoAddSdrs: false,
+          },
         },
       })
       const inputs = fields(wrapper)
@@ -235,7 +304,13 @@ describe('RemoteHostForm', () => {
       const wrapper = mount(RemoteHostForm, {
         props: {
           host: EXISTING_HOST,
-          stagedDraft: { address: '192.168.1.50', name: 'Staged', port: 8000, authToken: '' },
+          stagedDraft: {
+            address: '192.168.1.50',
+            name: 'Staged',
+            port: 8000,
+            authToken: '',
+            autoAddSdrs: false,
+          },
         },
       })
       await fields(wrapper)[1]!.setValue('Roof Pi')
@@ -435,12 +510,13 @@ describe('RemoteHostForm', () => {
       address: 'host.docker.internal',
       auth_token_set: false,
       is_local: true,
+      auto_add_sdrs: false,
     })
 
-    it('shows only the label field, with a note that the row is linked automatically', () => {
+    it('shows only the label and ADD SDRS, with a note that the row is linked automatically', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
       const labels = wrapper.findAll('.sdr-devices-form-label').map((label) => label.text())
-      expect(labels).toEqual(['LABEL'])
+      expect(labels).toEqual(['LABEL', 'ADD SDRS'])
       expect(wrapper.find('input[aria-label="SDR host IP address or hostname"]').exists()).toBe(
         false,
       )
@@ -487,6 +563,7 @@ describe('RemoteHostForm', () => {
             name: 'Shack',
             port: 8000,
             authToken: '',
+            autoAddSdrs: false,
           },
         },
       })

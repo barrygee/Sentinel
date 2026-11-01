@@ -722,6 +722,13 @@
         "nullable": false,
         "primary_key": false,
         "type": "TEXT"
+      },
+      {
+        "default": "0",
+        "name": "auto_add_sdrs",
+        "nullable": false,
+        "primary_key": false,
+        "type": "BOOLEAN"
       }
     ],
     "indexes": [

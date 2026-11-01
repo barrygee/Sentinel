@@ -8,6 +8,8 @@ export interface RemoteHostDraft {
   port: number
   /** Blank keeps the stored console password. */
   authToken: string
+  /** Whether every public SDR on the host becomes a radio by itself. */
+  autoAddSdrs: boolean
 }
 
 /** Thrown when a host's staged edit can't be saved; `message` is shown under its form. */
@@ -18,7 +20,7 @@ export class RemoteHostSaveError extends Error {
 /**
  * Saves an existing host's staged edit (APPLY CHANGES).
  *
- * This machine's row (`is_local`) sends only its label: sdr-manager-remote
+ * This machine's row (`is_local`) sends only its label and ADD SDRS: sdr-manager-remote
  * links it from core's registry and refuses any other change to it (409
  * `local_host_managed`). A blank label clears it. The console password is sent
  * only when one was typed, so a blank field keeps the stored one.
@@ -36,9 +38,10 @@ export async function saveRemoteHostDraft(
     await updateHost(
       host.id,
       host.is_local
-        ? { name }
+        ? { name, auto_add_sdrs: draft.autoAddSdrs }
         : {
             name,
+            auto_add_sdrs: draft.autoAddSdrs,
             address,
             port: draft.port || 8000,
             ...(draft.authToken ? { auth_token: draft.authToken } : {}),

@@ -1410,6 +1410,11 @@
             "title": "Auth Token",
             "type": "string"
           },
+          "auto_add_sdrs": {
+            "default": false,
+            "title": "Auto Add Sdrs",
+            "type": "boolean"
+          },
           "enabled": {
             "default": true,
             "title": "Enabled",
@@ -1458,6 +1463,10 @@
           },
           "auth_token_set": {
             "title": "Auth Token Set",
+            "type": "boolean"
+          },
+          "auto_add_sdrs": {
+            "title": "Auto Add Sdrs",
             "type": "boolean"
           },
           "control_port_offset": {
@@ -1595,6 +1604,7 @@
           "enabled",
           "auth_token_set",
           "is_local",
+          "auto_add_sdrs",
           "created_at",
           "last_seen_at",
           "last_error",
@@ -1625,6 +1635,10 @@
           },
           "auth_token_set": {
             "title": "Auth Token Set",
+            "type": "boolean"
+          },
+          "auto_add_sdrs": {
+            "title": "Auto Add Sdrs",
             "type": "boolean"
           },
           "created_at": {
@@ -1693,6 +1707,7 @@
           "enabled",
           "auth_token_set",
           "is_local",
+          "auto_add_sdrs",
           "created_at",
           "last_seen_at",
           "last_error",
@@ -1726,6 +1741,17 @@
               }
             ],
             "title": "Auth Token"
+          },
+          "auto_add_sdrs": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auto Add Sdrs"
           },
           "enabled": {
             "anyOf": [

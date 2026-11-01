@@ -161,6 +161,43 @@ describe('SdrRadioRow', () => {
     expect(wrapper.emitted('start-delete')).toHaveLength(1)
   })
 
+  it('offers no delete when not removable, keeping its place so the pencils line up', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: null,
+        open: false,
+        confirming: false,
+        removable: false,
+      },
+    })
+    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
+    const slot = wrapper.find('.sdr-device-btn-slot')
+    expect(slot.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.find('.sdr-device-btn[title="Edit"]').exists()).toBe(true)
+  })
+
+  it('is removable unless told otherwise, with no placeholder', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },
+    })
+    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-btn-slot').exists()).toBe(false)
+  })
+
+  it('shows no placeholder while confirming a delete either', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: null,
+        open: false,
+        confirming: true,
+        removable: false,
+      },
+    })
+    expect(wrapper.find('.sdr-device-btn-slot').exists()).toBe(false)
+  })
+
   it('hides the edit/delete buttons and dims the row while confirming a delete', () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: true },

@@ -79,6 +79,8 @@ SDR Manager looks after dongles; the SDR section listens to them. To listen to o
 
 **ADD** is greyed out while the dongle is private, switched off or has no port.
 
+On a host set to **ADD SDRS: AUTOMATICALLY** there is no **ADD**: every public dongle with a port is a radio already. To leave one out, make it **PRIVATE** on its host; a dongle that isn't a radio says why (**PRIVATE** or **NOT SET UP**).
+
 ## Share this machine with other Sentinels
 
 1. Set a **Console Password** (the notice says so until you do).
@@ -88,12 +90,17 @@ A program that only speaks `rtl_tcp` (SDR++, GQRX) can use any streaming dongle 
 
 ## Sentinel hosts
 
-1. **Settings › SDR › DEVICES › + ADD A NEW SENTINEL HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD**.
+1. **Settings › SDR › DEVICES › + ADD A NEW SENTINEL HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD SDRS**, **ADD**.
 2. The host is listed under **SENTINEL HOSTS** with its address and how many SDRs it has, and its dongles below it.
+
+| **ADD SDRS**               | What it does                                                                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **MANUALLY** (the default) | Each dongle becomes a radio when you press **ADD**                                                                                        |
+| **AUTOMATICALLY**          | Every public dongle on the host becomes a radio within a few seconds, and stops being one when made private. Radios can't be removed here |
 
 - The pencil opens a host: its details, devices and site map, **TEST CONNECTION**, and edits (they wait for **APPLY CHANGES**). The cross removes it.
 - A host that can't be reached says why under its name.
-- **This machine** is listed first and added for you. Only its label can be changed, and it can't be removed.
+- **This machine** is listed first and added for you. Only its label and **ADD SDRS** can be changed, and it can't be removed.
 - An SDR added by IP and port at a host's own address is listed under that host. If the host already lists it, a note says so: delete one, so it is listed once.
 
 ![SENTINEL HOSTS: This machine and a Raspberry Pi, each with its dongles below it, and + ADD A NEW SENTINEL HOST.](../images/settings-sdr-manager-remote.png)
