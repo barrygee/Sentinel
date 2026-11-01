@@ -356,7 +356,7 @@ watch(
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-letter-spacing: 0.02em;
   --ba-cell-value-color: rgba(16, 19, 29, 0.92);
-  --ba-cell-value-emphasis-color: #d94436;
+  --ba-cell-value-emphasis-color: var(--danger-strong);
   --ba-cell-value-white-space: normal;
   --ba-cell-value-word-break: break-word;
   display: flex;

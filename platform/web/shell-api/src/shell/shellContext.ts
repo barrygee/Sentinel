@@ -1,15 +1,21 @@
 import type { Pinia } from 'pinia'
+import type { AppMode } from '@sentinel/shell-api/types/appMode'
 
 /**
  * What the shell hands every section's `register()` (docs/plans/section-containers.md §3.6).
  *
- * Today it carries only the host's Pinia; the registries are still reached by
+ * It carries the host's Pinia and the app mode; the registries are reached by
  * importing their `@sentinel/shell-api/shell/*` modules, which the host shares
  * with every remote as singletons.
  */
 export interface ShellContext {
   /** The Pinia instance the shell installed on the app. */
   pinia: Pinia
+  /**
+   * The mode the page booted in (`GET /api/app/mode`), for a remote whose
+   * settings sit somewhere else in SDR Manager-only mode. Omitted = the full app.
+   */
+  appMode?: AppMode
 }
 
 /**

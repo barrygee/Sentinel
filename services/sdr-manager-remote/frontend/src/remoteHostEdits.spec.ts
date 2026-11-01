@@ -20,6 +20,7 @@ const REMOTE_HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 100,
   last_error: null,
@@ -32,10 +33,18 @@ const LOCAL_HOST: SdrManagerHost = {
   name: null,
   address: 'host.docker.internal',
   is_local: true,
+  auto_add_sdrs: false,
 }
 
 function draftOf(overrides: Partial<RemoteHostDraft> = {}): RemoteHostDraft {
-  return { address: '192.168.1.50', name: 'Roof Pi', port: 8000, authToken: '', ...overrides }
+  return {
+    address: '192.168.1.50',
+    name: 'Roof Pi',
+    port: 8000,
+    authToken: '',
+    autoAddSdrs: false,
+    ...overrides,
+  }
 }
 
 beforeEach(() => {
@@ -44,12 +53,22 @@ beforeEach(() => {
 })
 
 describe('saveRemoteHostDraft for a remote host', () => {
+  it('sends ADD SDRS: AUTOMATICALLY as auto_add_sdrs', async () => {
+    await saveRemoteHostDraft(REMOTE_HOST, draftOf({ autoAddSdrs: true }))
+    expect(mockUpdateHost.mock.calls[0]![1]).toMatchObject({ auto_add_sdrs: true })
+  })
+
   it('sends name, address and port, and no auth_token when none was typed', async () => {
     await saveRemoteHostDraft(REMOTE_HOST, draftOf())
     expect(mockUpdateHost).toHaveBeenCalledTimes(1)
     const [hostId, patch] = mockUpdateHost.mock.calls[0]!
     expect(hostId).toBe(5)
-    expect(patch).toEqual({ name: 'Roof Pi', address: '192.168.1.50', port: 8000 })
+    expect(patch).toEqual({
+      name: 'Roof Pi',
+      address: '192.168.1.50',
+      port: 8000,
+      auto_add_sdrs: false,
+    })
     expect(patch).not.toHaveProperty('auth_token')
   })
 
@@ -90,17 +109,17 @@ describe('saveRemoteHostDraft for a remote host', () => {
 })
 
 describe("saveRemoteHostDraft for this machine's row", () => {
-  it('sends only the label', async () => {
+  it('sends only the label and ADD SDRS', async () => {
     await saveRemoteHostDraft(
       LOCAL_HOST,
       draftOf({ name: ' Shack ', address: 'ignored', port: 1, authToken: 'ignored' }),
     )
-    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: 'Shack' })
+    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: 'Shack', auto_add_sdrs: false })
   })
 
   it('clears a blank label to null', async () => {
     await saveRemoteHostDraft(LOCAL_HOST, draftOf({ name: '  ' }))
-    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: null })
+    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: null, auto_add_sdrs: false })
   })
 
   it('does not require an address', async () => {

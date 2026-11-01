@@ -43,6 +43,8 @@ export interface SdrManagerHostCreateInput {
   port?: number
   auth_token?: string
   enabled?: boolean
+  /** Make every public SDR on the host a radio by itself; off when omitted. */
+  auto_add_sdrs?: boolean
 }
 
 /**
@@ -58,6 +60,7 @@ export interface SdrManagerHostPatchInput {
   port?: number
   auth_token?: string
   enabled?: boolean
+  auto_add_sdrs?: boolean
 }
 
 /** Response for `POST /api/sdr-manager/remote/hosts/{id}/test` — always HTTP 200. */

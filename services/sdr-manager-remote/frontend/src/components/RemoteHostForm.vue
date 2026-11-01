@@ -1,10 +1,11 @@
 <template>
   <div class="sdr-devices-accordion">
     <!-- This machine's row is linked by sdr-manager-remote, which keeps its
-         address and sign-in itself (PR 5's local link): only its label is the
-         operator's to change. -->
+         address and sign-in itself (PR 5's local link): only its label and
+         ADD SDRS are the operator's to change. -->
     <p v-if="isLocal" class="remote-host-local-note">
-      Linked automatically to this machine's SDR Manager. Only the label can be changed here.
+      Linked automatically to this machine's SDR Manager. Only the label and how its SDRs are added
+      can be changed here.
     </p>
     <div v-else class="sdr-devices-form-row">
       <span class="sdr-devices-form-label">IP ADDRESS</span>
@@ -58,6 +59,18 @@
         />
       </div>
     </template>
+
+    <div class="sdr-devices-form-row remote-host-auto-add-row">
+      <span :id="autoAddLabelId" class="sdr-devices-form-label">ADD SDRS</span>
+      <RemoteHostAutoAddToggle v-model="form.autoAddSdrs" :labelled-by="autoAddLabelId" />
+    </div>
+    <p class="remote-host-auto-add-note">
+      {{
+        form.autoAddSdrs
+          ? 'Every public SDR on this host becomes a radio. Make one private on the host to leave it out.'
+          : 'Choose which of its SDRs become radios with ADD.'
+      }}
+    </p>
 
     <div
       v-if="probeResult"
@@ -114,7 +127,7 @@
  * A new host is added at once with ADD, which then probes `POST .../test` and
  * reports reachability inline. An existing host's edits are drafted
  * (`draft`, null once they match what is saved) and saved by APPLY CHANGES
- * (`RemoteHostsControl`); its TEST CONNECTION probes the *stored* connection.
+ * (`RemoteHostHeader`); its TEST CONNECTION probes the *stored* connection.
  *
  * The password is write-only end to end — the API never returns it, so this
  * form never shows a stored value, only the "password set" placeholder text and
@@ -122,9 +135,14 @@
  * the address or port changes, when the backend drops it rather than send it
  * to a different machine, and the placeholder asks for it again.
  *
- * This machine's own row (`is_local`) shows the label alone: sdr-manager-remote
- * links it from core's registry and signs in with its service bearer, and the
- * API refuses any other change to it (409 `local_host_managed`).
+ * This machine's own row (`is_local`) shows only the label and ADD SDRS:
+ * sdr-manager-remote links it from core's registry and signs in with its
+ * service bearer, and the API refuses any other change to it (409
+ * `local_host_managed`).
+ *
+ * ADD SDRS picks how the host's SDRs become radios: MANUALLY (the default),
+ * one at a time with ADD, or AUTOMATICALLY, every public one by itself
+ * (`auto_add_sdrs`; sdr-manager-remote's poller adds them).
  *
  * Below the fields (and above the actions) sits the collapsed `MORE`
  * disclosure — everything else known about this host, including its
@@ -138,6 +156,7 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostDetails from './RemoteHostDetails.vue'
+import RemoteHostAutoAddToggle from './RemoteHostAutoAddToggle.vue'
 import type { RemoteHostDraft } from '../remoteHostEdits'
 import {
   createHost,
@@ -180,7 +199,10 @@ const savedForm: RemoteHostDraft = {
   name: props.host?.name ?? '',
   port: props.host?.port ?? 8000,
   authToken: '',
+  // Off unless the operator turns it on: which SDRs are radios is theirs to choose.
+  autoAddSdrs: props.host?.auto_add_sdrs ?? false,
 }
+const autoAddLabelId = `remote-host-${props.host?.id ?? 'new'}-auto-add`
 const form = ref<RemoteHostDraft>({ ...(props.stagedDraft ?? savedForm) })
 
 const passwordPlaceholder = computed(() => {
@@ -235,6 +257,7 @@ async function addHost(): Promise<void> {
       address,
       port: form.value.port || 8000,
       auth_token: form.value.authToken,
+      auto_add_sdrs: form.value.autoAddSdrs,
     })
     // Report reachability of the connection just written, before closing the
     // form — an operator who mistyped the address sees it immediately.
@@ -260,6 +283,17 @@ async function addHost(): Promise<void> {
   font-size: var(--settings-text-small);
   color: rgba(16, 19, 29, 0.75);
 }
+.remote-host-auto-add-row {
+  /* The two pills don't fit beside the label on a phone. */
+  flex-wrap: wrap;
+}
+.remote-host-auto-add-note {
+  margin: 0;
+  padding: 0 0 8px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  color: rgba(16, 19, 29, 0.75);
+}
 .remote-host-probe {
   display: flex;
   align-items: center;
@@ -269,6 +303,7 @@ async function addHost(): Promise<void> {
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-probe--fail {
-  color: #d94436;
+  /* --danger-strong: AA contrast on the light settings canvas. */
+  color: var(--danger-strong);
 }
 </style>

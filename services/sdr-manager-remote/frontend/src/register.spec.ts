@@ -9,8 +9,8 @@ vi.mock('@sentinel/shell-api/shell/sectionRegistry', () => ({
 }))
 
 /**
- * sdr-manager-remote's `./register` entry: Settings › SDR Manager's REMOTE SDR
- * HOSTS group and the `radioSites` capability — and never a map section.
+ * sdr-manager-remote's `./register` entry: the `radioSites` capability (with
+ * the host editor Settings › SDR renders) — no settings and no map section.
  */
 describe('register (sdr-manager-remote)', () => {
   beforeEach(() => {
@@ -26,26 +26,13 @@ describe('register (sdr-manager-remote)', () => {
     register({ pinia })
   }
 
-  it('adds the SDR Manager section with its REMOTE SDR HOSTS item', async () => {
+  it('adds no settings of its own: its hosts live in Settings › SDR’s radios card', async () => {
     await registerOnShellPinia()
     const { getSettingsSections, getSettingItems } =
       await import('@sentinel/shell-api/shell/settingsRegistry')
-    const { default: RemoteHostsControl } = await import('./components/RemoteHostsControl.vue')
 
-    expect(getSettingsSections()).toEqual([
-      { key: 'sdr-manager', label: 'SDR Manager', order: 15, domain: false },
-    ])
-    const items = getSettingItems()
-    expect(items).toHaveLength(1)
-    expect(items[0]).toMatchObject({
-      section: 'sdr-manager',
-      sectionLabel: 'SDR Manager',
-      id: 'sdr-manager-remote-hosts',
-      groupLabel: 'REMOTE SDR HOSTS',
-      hideLabel: true,
-      docPath: 'use/sdr-manager#remote-sdr-hosts',
-      control: { component: RemoteHostsControl, layout: 'half' },
-    })
+    expect(getSettingsSections()).toEqual([])
+    expect(getSettingItems()).toEqual([])
   })
 
   it('provides the radioSites capability with every method the app reads', async () => {
@@ -66,6 +53,12 @@ describe('register (sdr-manager-remote)', () => {
     ]) {
       expect(typeof (capability as Record<string, unknown>)[method]).toBe('function')
     }
+    const { default: RemoteHostHeader } = await import('./components/RemoteHostHeader.vue')
+    const { default: RemoteHostAddForm } = await import('./components/RemoteHostAddForm.vue')
+    expect((capability as { hostEditor: unknown }).hostEditor).toEqual({
+      HostHeader: RemoteHostHeader,
+      NewHostForm: RemoteHostAddForm,
+    })
   })
 
   it('registers no map section', async () => {
@@ -80,23 +73,5 @@ describe('register (sdr-manager-remote)', () => {
 
     expect(() => register({ pinia: createPinia() })).toThrow()
     expect(provideCapability).not.toHaveBeenCalled()
-  })
-})
-
-describe('registerSdrManagerRemoteSettings', () => {
-  beforeEach(() => {
-    vi.resetModules()
-  })
-
-  it('shares the section with sdr-manager-local: an identical entry registered first is accepted', async () => {
-    const { registerSettingsSection, getSettingsSections } =
-      await import('@sentinel/shell-api/shell/settingsRegistry')
-    const { SDR_MANAGER_SETTINGS_SECTION } =
-      await import('@sentinel/shell-api/shell/sdrManagerSettingsSection')
-    const { registerSdrManagerRemoteSettings } = await import('./settings')
-    registerSettingsSection({ ...SDR_MANAGER_SETTINGS_SECTION })
-
-    expect(() => registerSdrManagerRemoteSettings()).not.toThrow()
-    expect(getSettingsSections()).toHaveLength(1)
   })
 })

@@ -72,7 +72,7 @@ useThemeStore()
       ? (await import('./boot/sdrManagerOnlyBoot')).sdrManagerOnlyBoot(appMode)
       : (await import('./boot/fullAppBoot')).fullAppBoot()
   try {
-    await loadSections(await sectionSources(), { pinia })
+    await loadSections(await sectionSources(), { pinia, appMode: appMode.mode })
   } catch (error) {
     console.error('[sentinel] loading sections failed:', error)
   }

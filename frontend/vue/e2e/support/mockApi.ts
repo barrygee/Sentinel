@@ -25,9 +25,10 @@ export const OFFLINE_MAP_STATUS = {
 
 /** Every section, as `GET /api/app/sections` lists a full deployment: the
  *  shell loads each as a federation remote from `/remotes/<id>/`. Then the two
- *  SDR Manager services' settings-only remotes (ADR 0007): sdr-manager-local's
- *  THIS MACHINE group of Settings › SDR Manager, and sdr-manager-remote's
- *  REMOTE SDR HOSTS group plus the `radioSites` capability the host markers read. */
+ *  SDR Manager services' remotes (ADR 0007): sdr-manager-local's cards on
+ *  Settings › SDR (its SDRs in DEVICES, then THIS MACHINE), and
+ *  sdr-manager-remote's `radioSites` capability — the Sentinel hosts the
+ *  host markers and Settings › SDR's DEVICES card read. */
 export const DEPLOYED_SECTIONS = [
   ...['air', 'space', 'sea', 'land', 'sdr'].map((id) => ({
     id,

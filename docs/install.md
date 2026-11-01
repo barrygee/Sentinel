@@ -41,7 +41,7 @@ Pick one setup in `.env`, then `docker compose up -d`:
 
 | Setup | `.env` | Guide |
 |---|---|---|
-| Manage dongles on other computers only | nothing | [SDR Manager](use/sdr-manager.md#remote-sdr-hosts) |
+| Manage dongles on other computers only | nothing | [SDR Manager](use/sdr-manager.md#sentinel-hosts) |
 | Linux: Sentinel + this computer's dongles | `COMPOSE_PROFILES=sdr-manager-local` | [Linux and Pi](sdr-manager-linux.md) |
 | Linux or Pi: SDR Manager only | `COMPOSE_FILE=compose.sdr-manager-local-only.yaml`, `COMPOSE_PROFILES=sdr-manager-local` | [SDR Manager only](sdr-manager-local-only.md) |
 | Mac: Sentinel + this Mac's dongles | `SDR_MANAGER_LOCAL_NATIVE=1` | [Mac, step by step](sdr-manager-mac.md) |

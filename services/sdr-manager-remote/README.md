@@ -1,14 +1,14 @@
 # sdr-manager-remote
 
-SDR Manager for SDR hosts on **other** computers (ADR [0007](../../docs/adr/0007-sdr-manager.md)). It keeps the list of hosts and their console passwords, polls each host's status over the SDR Manager API, and links this computer's `sdr-manager-local` as **This machine** (with a service bearer token, never the password). Its UI is the **REMOTE SDR HOSTS** group of Settings › SDR Manager, and it provides the `radioSites` capability the SDR section, Air and the maps read.
+SDR Manager for SDR hosts on **other** computers (ADR [0007](../../docs/adr/0007-sdr-manager.md)). It keeps the list of hosts and their console passwords, polls each host's status over the SDR Manager API, and links this computer's `sdr-manager-local` as **This machine** (with a service bearer token, never the password). It adds no settings page of its own: it provides the `radioSites` capability the SDR section, Air and the maps read, including the host title rows and add form Settings › SDR's **SENTINEL HOSTS** shows.
 
-User guide: [SDR Manager](../../docs/use/sdr-manager.md#remote-sdr-hosts).
+User guide: [SDR Manager](../../docs/use/sdr-manager.md#sentinel-hosts).
 
 | Folder | Holds |
 |---|---|
 | `backend/sentinel_sdr_manager_remote/` | `routers/hosts.py` (`/api/sdr-manager/remote/hosts`), `services/sdr_manager_client.py`, `host_poller.py`, `local_link.py`, `reservations.py` (bus responders and claim events), `models.py` |
 | `backend/tests/` | Its tests, every file prefixed `test_sdr_manager_remote_` |
-| `frontend/` | `@sentinel/sdr-manager-remote`, its Module Federation remote (REMOTE SDR HOSTS, `LocalNotEnabledNotice`) |
+| `frontend/` | `@sentinel/sdr-manager-remote`, its Module Federation remote (the `radioSites` capability, `RemoteHostHeader`, `RemoteHostAddForm`) |
 
 On the bus it answers `sdr-manager.remote.{reservation.acquire,reservation.release,device.address,host.location,hosts.snapshot}` and sends `sdr-manager.claims.granted` (a request the radio hub acknowledges before the claim's retune; 2 s timeout) and `sdr-manager.claims.released`.
 

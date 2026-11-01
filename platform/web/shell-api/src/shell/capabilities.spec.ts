@@ -86,10 +86,18 @@ describe('shell/capabilities', () => {
       patchHostDevice: vi.fn(),
       flashHostDeviceSerial: async () => {},
       onHostsChanged: () => () => {},
+      hostEditor: { HostHeader: {}, NewHostForm: {} },
     }
     withdrawals.push(provideCapability('radioSites', radioSites))
 
     expect(getCapability('radioSites')).toBe(radioSites)
     expect(getCapability('radio')).toBeUndefined()
+  })
+
+  it('keeps thisMachineSdrs separate from the other capabilities', () => {
+    const thisMachineSdrs = { DevicesPanel: {} }
+    withdrawals.push(provideCapability('thisMachineSdrs', thisMachineSdrs))
+    expect(getCapability('thisMachineSdrs')).toBe(thisMachineSdrs)
+    expect(getCapability('radioSites')).toBeUndefined()
   })
 })

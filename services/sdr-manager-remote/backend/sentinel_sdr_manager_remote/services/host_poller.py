@@ -19,6 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Any
 
+from backend.cache import now_ms
 from backend.database import AsyncSessionLocal
 from backend.platform.settings_client import read_setting, write_setting
 from sqlalchemy import select
@@ -149,6 +150,8 @@ class HostPoller:
             if host is None or not host.enabled:
                 return False
             client = client_for_host(host)
+            host_address = host.address
+            auto_add_sdrs = bool(host.auto_add_sdrs)
 
         snapshot = self._snapshots.setdefault(host_id, HostSnapshot(host_id=host_id))
         polled_at = int(time.time() * 1000)
@@ -174,7 +177,7 @@ class HostPoller:
         snapshot.last_error = None
         snapshot.last_success_at = polled_at
         await self._update_host_row(host_id, last_seen_at=polled_at, last_error=None)
-        await self._follow_device_addresses(host_id, response.data)
+        await self._sync_device_radios(host_id, host_address, response.data, auto_add_sdrs=auto_add_sdrs)
         await self._refresh_export(snapshot, client, polled_at)
         return True
 
@@ -203,35 +206,38 @@ class HostPoller:
             # take down the loop that keeps device state fresh.
             logger.exception("Unexpected error reading the SDR export for host %d", snapshot.host_id)
 
-    async def _follow_device_addresses(self, host_id: int, payload: dict[str, Any] | None) -> None:
-        """Re-point mirrored radios at wherever their device now answers.
+    async def _sync_device_radios(
+        self, host_id: int, host_address: str, payload: dict[str, Any] | None, *, auto_add_sdrs: bool
+    ) -> None:
+        """Keep `sdr.radios` in step with the SDRs a Sentinel host reports.
 
-        A Sentinel radio created from an SDR host's device is a *mirror*: the device
-        identity is the fact, and the address is a detail the host owns and
-        reassigns. Replug a dongle into another USB socket and the host may give it
-        a different output port — at which point the mirror is pointing at a port
-        nothing listens on, and connecting to it fails with a bare socket error
-        that says nothing about why.
+        On a host set to add its SDRs automatically (`auto_add_sdrs`), every
+        **public** SDR with an output port becomes a radio mirroring it, without
+        anyone pressing ADD, and an SDR made **private** on its host stops being
+        one. Private is how an operator keeps a dongle to that host. Otherwise
+        radios are added with ADD, and only their ports are followed here.
 
-        Since this poll already carries every device's current address, the
-        cheapest place to notice is here. Nothing is written unless an address
-        actually changed, so the ordinary case costs one comparison per device.
+        A mirror is matched by device identity, never by address: the address
+        is a detail the host owns and reassigns. Replug a dongle into another
+        USB socket and the host may give it a different output port, so the
+        mirror's port follows it here (the poll already carries every device's
+        address). A radio typed in by hand at this host's address and the SDR's
+        port is adopted as its mirror rather than duplicated, and a radio saved
+        before the SDR Manager rename (`sentry_*` fields) is renamed in place.
 
-        Deliberately does **not** delete a radio whose device has disappeared. A
-        dongle is unplugged for all sorts of temporary reasons, and quietly
-        destroying the operator's configuration — its name, its frequency groups,
-        its recordings — because a USB plug was loose would be far worse than
-        showing it as unavailable, which is what `GET /api/sdr/radios` now does.
+        Deliberately does **not** delete a radio whose device has disappeared
+        or is unplugged. A dongle is unplugged for all sorts of temporary
+        reasons, and quietly destroying the operator's configuration — its name,
+        its frequency groups, its recordings — because a USB plug was loose
+        would be far worse than showing it as unavailable, which is what
+        `GET /api/sdr/radios` does. Nothing is written unless something changed.
         """
-        addresses: dict[str, tuple[str, int]] = {}
-        for device in (payload or {}).get("sdrs", []):
-            output = device.get("output") or {}
-            iq_port = output.get("iq_port")
-            device_id = device.get("device_id")
-            if isinstance(device_id, str) and isinstance(iq_port, int):
-                addresses[device_id] = (output.get("host") or "", iq_port)
-
-        if not addresses:
+        devices = [
+            device
+            for device in (payload or {}).get("sdrs", [])
+            if isinstance(device, dict) and isinstance(device.get("device_id"), str)
+        ]
+        if not devices:
             return
 
         # `sdr.radios` is a core setting (it is in the config file), so the
@@ -241,28 +247,9 @@ class HostPoller:
             radios = await read_setting(db, "sdr", "radios", default=[])
             if not isinstance(radios, list):
                 return
-            changed = False
-            for radio in radios:
-                if not isinstance(radio, dict) or radio.get("sdr_manager_host_id") != host_id:
-                    continue
-                current = addresses.get(radio.get("sdr_manager_device_id") or "")
-                if current is None:
-                    continue
-                _, iq_port = current
-                # Only the port is followed. The host in the payload is the SDR
-                # host's own view of itself and can be empty or container-internal,
-                # whereas the address the operator registered is the one Sentinel
-                # can actually reach.
-                if radio.get("port") != iq_port:
-                    logger.info(
-                        "Radio %s followed device %s from port %s to %s",
-                        radio.get("id"),
-                        radio.get("sdr_manager_device_id"),
-                        radio.get("port"),
-                        iq_port,
-                    )
-                    radio["port"] = iq_port
-                    changed = True
+            changed = any([_rename_legacy_mirror_fields(radio) for radio in radios])
+            for device in devices:
+                changed = _sync_device_radio(radios, host_id, host_address, device, auto_add_sdrs) or changed
             if changed:
                 await write_setting(db, "sdr", "radios", radios)
 
@@ -282,6 +269,108 @@ class HostPoller:
                 host.last_seen_at = last_seen_at
             host.last_error = last_error
             await db.commit()
+
+
+def _rename_legacy_mirror_fields(radio: Any) -> bool:
+    """Rename a pre-SDR-Manager radio's `sentry_*` mirror fields in place. Returns whether it changed."""
+    if not isinstance(radio, dict) or "sentry_host_id" not in radio:
+        return False
+    host_id = radio.pop("sentry_host_id")
+    device_id = radio.pop("sentry_device_id", None)
+    radio.setdefault("sdr_manager_host_id", host_id)
+    radio.setdefault("sdr_manager_device_id", device_id)
+    return True
+
+
+def _sync_device_radio(
+    radios: list[Any], host_id: int, host_address: str, device: dict[str, Any], auto_add_sdrs: bool
+) -> bool:
+    """Re-point the radio for one reported SDR, and add, adopt or remove it with `auto_add_sdrs`.
+
+    Returns whether `radios` changed.
+    """
+    device_id = device["device_id"]
+    mirror = next(
+        (
+            radio
+            for radio in radios
+            if isinstance(radio, dict)
+            and radio.get("sdr_manager_host_id") == host_id
+            and radio.get("sdr_manager_device_id") == device_id
+        ),
+        None,
+    )
+    if auto_add_sdrs and device.get("visibility") == "private":
+        if mirror is None:
+            return False
+        logger.info("Radio %s removed: device %s was made private on its host", mirror.get("id"), device_id)
+        radios.remove(mirror)
+        return True
+
+    iq_port = (device.get("output") or {}).get("iq_port")
+    if not isinstance(iq_port, int):
+        # Not set up yet: there is nothing to listen to, and a mirror keeps its last port.
+        return False
+    if mirror is not None:
+        # Only the port is followed. The host in the payload is the SDR host's
+        # own view of itself and can be empty or container-internal, whereas the
+        # address the operator registered is the one Sentinel can actually reach.
+        if mirror.get("port") == iq_port:
+            return False
+        logger.info(
+            "Radio %s followed device %s from port %s to %s", mirror.get("id"), device_id, mirror.get("port"), iq_port
+        )
+        mirror["port"] = iq_port
+        return True
+    if not auto_add_sdrs:
+        return False
+
+    typed_in = next(
+        (
+            radio
+            for radio in radios
+            if isinstance(radio, dict)
+            and radio.get("sdr_manager_host_id") is None
+            and radio.get("host") == host_address
+            and radio.get("port") == iq_port
+        ),
+        None,
+    )
+    if typed_in is not None:
+        logger.info("Radio %s adopted as the mirror of device %s", typed_in.get("id"), device_id)
+        typed_in["sdr_manager_host_id"] = host_id
+        typed_in["sdr_manager_device_id"] = device_id
+        return True
+
+    new_id = (
+        max(
+            (radio.get("id") for radio in radios if isinstance(radio, dict) and isinstance(radio.get("id"), int)),
+            default=0,
+        )
+        + 1
+    )
+    radios.append(
+        {
+            # The same shape as POST /api/sdr/radios (the radio hub's `RadioIn`).
+            "id": new_id,
+            "created_at": now_ms(),
+            "name": device.get("name") or device_id,
+            "host": host_address,
+            "port": iq_port,
+            "description": "",
+            "enabled": True,
+            "bandwidth": None,
+            "rf_gain": None,
+            "agc": None,
+            "sdr_manager_host_id": host_id,
+            "sdr_manager_device_id": device_id,
+            "notes": device.get("notes") or "",
+            "antenna": device.get("antenna") or "",
+            "visibility": "public",
+        }
+    )
+    logger.info("Radio %s added for device %s on SDR host %d", new_id, device_id, host_id)
+    return True
 
 
 # Process-wide singleton, started by the service's lifecycle and cancelled when it stops.

@@ -1,10 +1,7 @@
 /**
- * The Settings › SDR Manager nav entry (ADR 0007), shared by the two remotes
- * that fill it: sdr-manager-local adds the THIS MACHINE group and
- * sdr-manager-remote the REMOTE SDR HOSTS group. Each registers this identical
- * entry, and whichever loads first creates it (`registerSettingsSection`
- * accepts an identical re-registration). Here, not in either remote, because
- * neither may import the other.
+ * The Settings › SDR Manager nav entry (ADR 0007): the one page of SDR
+ * Manager-only mode, which sdr-manager-local's THIS MACHINE group fills. In the
+ * full app that group sits on Settings › SDR instead (`SDR_SETTINGS_SECTION`).
  */
 export const SDR_MANAGER_SETTINGS_SECTION = {
   key: 'sdr-manager',

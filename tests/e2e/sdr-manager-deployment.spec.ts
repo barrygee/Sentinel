@@ -12,9 +12,9 @@ import { isSdrManagerLocalOnly } from './support/appMode';
  *   3. It downloads no MapLibre, no map module and no tiles.
  *
  * The full app:
- *   4. Settings › SDR Manager has REMOTE SDR HOSTS exactly when sdr-manager-remote
- *      runs, and THIS MACHINE's own group when sdr-manager-local runs (else
- *      sdr-manager-remote's notice saying how to start it).
+ *   4. There is no Settings › SDR Manager: Settings › SDR lists the Sentinel
+ *      hosts exactly when sdr-manager-remote runs, and THIS MACHINE exactly
+ *      when sdr-manager-local runs.
  *   5. It still downloads MapLibre and draws a map.
  */
 
@@ -31,13 +31,11 @@ function recordMapRequests(page: Page): string[] {
 }
 
 /**
- * The Settings panel's group headings, plus sdr-manager-remote's THIS MACHINE
- * notice heading — not the headings inside cards that reuse the class (IMPORT).
+ * The Settings panel's group headings — not the headings inside cards that
+ * reuse the class (IMPORT).
  */
 async function groupLabels(page: Page): Promise<string[]> {
-    const headings = page.locator(
-        '#settings-panel div.settings-group-label, #sdr-manager-local-not-enabled-heading',
-    );
+    const headings = page.locator('#settings-panel div.settings-group-label');
     return (await headings.allTextContents()).map((label) => label.trim());
 }
 
@@ -88,25 +86,28 @@ test.describe('SDR Manager-only mode', () => {
 test.describe('the full app', () => {
     test.skip(isSdrManagerLocalOnly, 'the stack runs SDR Manager-only mode');
 
-    test('Settings › SDR Manager has a group for each SDR Manager service the stack runs', async ({
+    test('Settings › SDR lists Sentinel hosts and this machine only when their services run', async ({
         page,
     }) => {
-        test.skip(
-            !isDeployed('sdr-manager-local') && !isDeployed('sdr-manager-remote'),
-            'no SDR Manager service, so no SDR Manager settings',
-        );
-        await page.goto('/settings/sdr-manager');
+        test.skip(!isDeployed('sdr'), 'no SDR section, so no Settings › SDR');
+        await page.goto('/settings/sdr');
 
-        const remoteGroups = isDeployed('sdr-manager-remote') ? ['REMOTE SDR HOSTS'] : [];
-        // Either sdr-manager-local's own THIS MACHINE group, or (it not running)
-        // sdr-manager-remote's notice under the same heading saying how to start it.
-        const thisMachine = isDeployed('sdr-manager-local') || isDeployed('sdr-manager-remote');
-        await expect
-            .poll(async () => (await groupLabels(page)).sort())
-            .toEqual([...remoteGroups, ...(thisMachine ? ['THIS MACHINE'] : [])].sort());
-        await expect(page.locator('#sdr-manager-local-not-enabled-heading')).toHaveCount(
-            isDeployed('sdr-manager-local') ? 0 : 1,
+        const panel = page.locator('#settings-panel');
+        // Radios added by IP and port need no SDR Manager service at all.
+        await expect(
+            panel.getByRole('heading', { name: 'Non-Sentinel SDR Devices' }),
+        ).toBeVisible();
+        await expect(panel.getByRole('heading', { name: 'Sentinel Hosts' })).toHaveCount(
+            isDeployed('sdr-manager-remote') ? 1 : 0,
         );
+        await expect.poll(() => groupLabels(page)).toContain('DEVICES');
+        if (isDeployed('sdr-manager-local')) {
+            await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
+        } else {
+            expect(await groupLabels(page)).not.toContain('THIS MACHINE');
+        }
+        // The full app has no SDR Manager page of its own.
+        await expect(page.getByRole('button', { name: 'SDR Manager', exact: true })).toHaveCount(0);
     });
 
     test('still downloads MapLibre and draws a map', async ({ page }) => {

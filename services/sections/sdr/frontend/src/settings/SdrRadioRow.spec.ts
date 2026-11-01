@@ -91,6 +91,60 @@ describe('SdrRadioRow', () => {
     expect(wrapper.find('.sdr-status-dot--disconnected').exists()).toBe(false)
   })
 
+  it("shows a host's SDR state as the coloured dot, in place of the connected dot", () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: true,
+        open: false,
+        confirming: false,
+        sdrManagerDeviceStatus: {
+          ...SDR_MANAGER_DEVICE_STATUS,
+          state: 'configured',
+          present: true,
+        },
+      },
+    })
+    const dot = wrapper.find('.sdr-device-state-dot')
+    expect(dot.classes()).toContain('sdr-device-state-dot--waiting')
+    expect(dot.attributes('title')).toBe('Ready')
+    expect(wrapper.find('.sdr-status-dot').exists()).toBe(false)
+  })
+
+  it("makes a host's unplugged SDR red whatever its last state", () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: true,
+        open: false,
+        confirming: false,
+        sdrManagerDeviceStatus: {
+          ...SDR_MANAGER_DEVICE_STATUS,
+          state: 'streaming',
+          present: false,
+        },
+      },
+    })
+    expect(wrapper.find('.sdr-device-state-dot').attributes('title')).toBe('Not plugged in')
+  })
+
+  it('shows the address and port after the name, or only the port under a host', () => {
+    const anywhere = mount(SdrRadioRow, {
+      props: { radio: MANUAL_RADIO, connected: true, open: false, confirming: false },
+    })
+    expect(anywhere.find('.sdr-device-meta').text()).toBe('10.0.0.1:1234')
+    const underHost = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: true,
+        open: false,
+        confirming: false,
+        portOnly: true,
+      },
+    })
+    expect(underHost.find('.sdr-device-meta').text()).toBe('port 1234')
+  })
+
   it('emits toggle-edit when the edit button is clicked', async () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },
@@ -105,6 +159,43 @@ describe('SdrRadioRow', () => {
     })
     await wrapper.find('.sdr-device-btn--danger').trigger('click')
     expect(wrapper.emitted('start-delete')).toHaveLength(1)
+  })
+
+  it('offers no delete when not removable, keeping its place so the pencils line up', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: null,
+        open: false,
+        confirming: false,
+        removable: false,
+      },
+    })
+    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
+    const slot = wrapper.find('.sdr-device-btn-slot')
+    expect(slot.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.find('.sdr-device-btn[title="Edit"]').exists()).toBe(true)
+  })
+
+  it('is removable unless told otherwise, with no placeholder', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },
+    })
+    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-btn-slot').exists()).toBe(false)
+  })
+
+  it('shows no placeholder while confirming a delete either', () => {
+    const wrapper = mount(SdrRadioRow, {
+      props: {
+        radio: MANUAL_RADIO,
+        connected: null,
+        open: false,
+        confirming: true,
+        removable: false,
+      },
+    })
+    expect(wrapper.find('.sdr-device-btn-slot').exists()).toBe(false)
   })
 
   it('hides the edit/delete buttons and dims the row while confirming a delete', () => {

@@ -2,12 +2,20 @@
   <div class="sdr-device-item" :class="{ 'sdr-device-item--open': open }">
     <div class="sdr-device-row">
       <span
-        class="sdr-device-info"
+        class="sdr-device-info sdr-device-info--named"
         :class="{ 'sdr-device-info--unavailable': isUnavailable }"
         :style="confirming ? 'opacity:0.4' : ''"
       >
-        <SdrSourceStatusDot :connected="connected" />
-        {{ radio.name }}&nbsp;&nbsp;{{ radio.host }}:{{ radio.port }}
+        <!-- A host's SDR shows its state (streaming, ready, stopped…); a radio
+             added by IP and port only whether it answers. -->
+        <SdrDeviceStateDot
+          v-if="sdrManagerDeviceStatus"
+          :state="sdrManagerDeviceStatus.state"
+          :reason="sdrManagerDeviceStatus.state_reason"
+          :present="sdrManagerDeviceStatus.present"
+        />
+        <SdrSourceStatusDot v-else :connected="connected" />
+        {{ radio.name }}<span class="sdr-device-meta">{{ addressText }}</span>
       </span>
       <span v-if="isUnavailable && !confirming" class="sdr-device-unavailable">
         {{ radio.unavailable_reason }}
@@ -29,8 +37,11 @@
           />
         </svg>
       </button>
+      <!-- A host's SDR is removed by making it private on its host, so its
+           radio has no cross; the space keeps the pencils in line. -->
+      <span v-if="!confirming && !removable" class="sdr-device-btn-slot" aria-hidden="true" />
       <button
-        v-if="!confirming"
+        v-if="!confirming && removable"
         class="sdr-device-btn sdr-device-btn--danger"
         title="Delete"
         aria-label="Delete device"
@@ -91,24 +102,41 @@
  * the row chrome per grouping.
  */
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
+import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import { computed } from 'vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 
-const props = defineProps<{
-  radio: SdrRadioRecord
-  /** Reachability dot state: manual radios read their rtl_tcp TCP probe;
-   * SDR-Manager-mirrored radios read the device's live `present` flag. Null while
-   * unknown. */
-  connected: boolean | null
-  open: boolean
-  confirming: boolean
-  /** Live SDR host status for this radio's device, when it mirrors one. */
-  sdrManagerDeviceStatus?: SdrManagerDeviceStatus | null
-  /** Edit a host radio whose host is gone as a manual radio (see `SdrDeviceForm`). */
-  editAsManual?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    radio: SdrRadioRecord
+    /** Reachability dot state: manual radios read their rtl_tcp TCP probe;
+     * SDR-Manager-mirrored radios read the device's live `present` flag. Null while
+     * unknown. */
+    connected: boolean | null
+    open: boolean
+    confirming: boolean
+    /** Live SDR host status for this radio's device, when it mirrors one. */
+    sdrManagerDeviceStatus?: SdrManagerDeviceStatus | null
+    /** Edit a host radio whose host is gone as a manual radio (see `SdrDeviceForm`). */
+    editAsManual?: boolean
+    /** Under a host's title, which already gives its address: show only the port. */
+    portOnly?: boolean
+    /**
+     * Whether the row offers delete. False for a radio mirroring an SDR its host
+     * still lists: the host's public SDRs are always radios, so deleting one
+     * would only bring it back (`sdr-manager-remote`'s poller).
+     */
+    removable?: boolean
+  }>(),
+  { sdrManagerDeviceStatus: null, removable: true },
+)
+
+/** Where the radio connects: its port alone under a host's title, else address and port. */
+const addressText = computed(() =>
+  props.portOnly ? `port ${props.radio.port}` : `${props.radio.host}:${props.radio.port}`,
+)
 
 /**
  * Whether this radio's device is currently unusable.

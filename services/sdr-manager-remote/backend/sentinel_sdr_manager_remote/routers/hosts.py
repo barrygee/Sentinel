@@ -87,6 +87,8 @@ class RemoteSdrHostIn(BaseModel):
     port: int = 8000
     auth_token: str = ""
     enabled: bool = True
+    # Make every public SDR on the host a radio by itself (see the model).
+    auto_add_sdrs: bool = False
 
     @field_validator("address")
     @classmethod
@@ -139,6 +141,7 @@ class RemoteSdrHostPatch(BaseModel):
     port: int | None = None
     auth_token: str | None = None
     enabled: bool | None = None
+    auto_add_sdrs: bool | None = None
 
     @field_validator("address")
     @classmethod
@@ -207,6 +210,7 @@ class RemoteSdrHostOut(BaseModel):
     # This machine's own sdr-manager-local, linked from core's registry: it
     # signs in with the service bearer, so `auth_token_set` stays false.
     is_local: bool
+    auto_add_sdrs: bool
     created_at: int
     last_seen_at: int | None
     last_error: str | None
@@ -426,6 +430,7 @@ def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         enabled=host.enabled,
         auth_token_set=bool(host.auth_token),
         is_local=host.is_local,
+        auto_add_sdrs=host.auto_add_sdrs,
         created_at=host.created_at,
         last_seen_at=host.last_seen_at,
         last_error=host.last_error,
@@ -474,6 +479,7 @@ async def create_host(body: RemoteSdrHostIn, db: AsyncSession = Depends(get_db))
         port=body.port,
         auth_token=body.auth_token,
         enabled=body.enabled,
+        auto_add_sdrs=body.auto_add_sdrs,
         created_at=now_ms(),
     )
     db.add(host)
@@ -577,6 +583,8 @@ async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession =
         host.auth_token = body.auth_token
     if body.enabled is not None:
         host.enabled = body.enabled
+    if body.auto_add_sdrs is not None:
+        host.auto_add_sdrs = body.auto_add_sdrs
     await db.commit()
     await db.refresh(host)
     if host.enabled:

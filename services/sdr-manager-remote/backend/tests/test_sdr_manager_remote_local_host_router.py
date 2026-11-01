@@ -201,3 +201,12 @@ def test_a_refused_bearer_is_surfaced_without_a_sign_in(client, local_host_id, m
     assert response.status_code == 401
     assert response.json()["detail"]["code"] == "unauthenticated"
     assert [request.url.path for request in received] == ["/api/devices"]
+
+
+async def test_the_local_row_can_be_set_to_add_its_sdrs_automatically(client, sessions, local_host_id):
+    # Not one of the linked fields: how its SDRs become radios is the operator's call.
+    resp = client.put(f"{HOSTS}/{local_host_id}", json={"auto_add_sdrs": True})
+
+    assert resp.status_code == 200
+    assert resp.json()["auto_add_sdrs"] is True
+    assert (await stored_local_host(sessions)).auto_add_sdrs is True

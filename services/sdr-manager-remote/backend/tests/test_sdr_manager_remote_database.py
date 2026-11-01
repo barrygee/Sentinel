@@ -84,6 +84,23 @@ class TestCreateSdrManagerRemoteTables:
 
         assert set(await table_columns(service_engine)) == {"remote_sdr_hosts"}
 
+    async def test_adds_the_auto_add_column_to_a_table_made_before_it(self, service_engine):
+        # A database from before `auto_add_sdrs` existed: the table is there, so
+        # create_all skips it, and only the ALTER can add the column.
+        async with service_engine.begin() as connection:
+            await connection.exec_driver_sql(
+                "CREATE TABLE remote_sdr_hosts (id INTEGER PRIMARY KEY, address TEXT NOT NULL, port INTEGER)"
+            )
+            await connection.exec_driver_sql("INSERT INTO remote_sdr_hosts (id, address, port) VALUES (1, 'pi', 8000)")
+
+        await remote_database.create_sdr_manager_remote_tables()
+
+        assert "auto_add_sdrs" in (await table_columns(service_engine))["remote_sdr_hosts"]
+        async with service_engine.connect() as connection:
+            rows = (await connection.exec_driver_sql("SELECT auto_add_sdrs FROM remote_sdr_hosts")).all()
+        # An existing host keeps adding its SDRs manually.
+        assert rows == [(0,)]
+
     def test_registers_its_model_itself_in_a_fresh_interpreter(self, tmp_path):
         # Core's backend.models doesn't define RemoteSdrHost, so nothing else
         # registers the table with Base before the service's prepare runs.
