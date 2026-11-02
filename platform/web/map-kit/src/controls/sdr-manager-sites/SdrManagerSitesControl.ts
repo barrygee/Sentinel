@@ -12,6 +12,7 @@ import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAr
 import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
+import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import type { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import type { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
@@ -507,16 +508,6 @@ function siteMarkerLabel(site: RadioSite): string {
 /** Identity of a site for clustering — its host id, which is stable across polls. */
 function siteKey(site: RadioSite): string {
   return String(site.id)
-}
-
-/** Escape text bound for the a11y table's markup — an SDR host's name is set on
- *  the Pi, so it is remote input and never goes into HTML unescaped. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
 }
 
 /**

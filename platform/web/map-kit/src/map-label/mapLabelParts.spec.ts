@@ -85,6 +85,21 @@ describe('mapLabelParts', () => {
     it('embeds the shape markup it was given', () => {
       expect(createGlyphSvg('<polygon id="arrow"/>')).toContain('<polygon id="arrow"/>')
     })
+
+    it('accepts a heading that arrives as a numeric string', () => {
+      // Feed JSON is untyped at runtime, so a "45" must still rotate the glyph.
+      expect(createGlyphSvg('<circle/>', '45' as unknown as number)).toContain('rotate(45deg)')
+    })
+
+    it.each([
+      ['NaN', Number.NaN],
+      ['Infinity', Number.POSITIVE_INFINITY],
+      ['a style-breaking string', '0deg);background:url(https://example.invalid/x)'],
+    ])('draws %s as an unrotated glyph', (_name, rotation) => {
+      const svg = createGlyphSvg('<circle/>', rotation as unknown as number)
+      expect(svg).toContain('rotate(0deg)')
+      expect(svg).not.toContain('background:url')
+    })
   })
 
   describe('shapes', () => {
@@ -152,6 +167,25 @@ describe('mapLabelParts', () => {
       expect(label!.getAttribute('style')).toContain('opacity:0.45')
       expect(value!.textContent).toBe('FL350')
       expect(badge.style.color).toBe('rgb(176, 124, 255)')
+    })
+
+    it('treats a hostile value as text, never markup', () => {
+      const hostile = '<img src=x onerror="alert(1)">'
+      const badge = createDimBadge('SQK', hostile, '#ffffff')
+      expect(badge.querySelector('img')).toBeNull()
+      expect(badge.querySelectorAll('span')[1]!.textContent).toBe(hostile)
+    })
+
+    it('shows an ampersand as itself rather than an entity', () => {
+      // Callers pass raw values; escaping here as well would print "&amp;".
+      const badge = createDimBadge('DEST', 'R&D <PORT>', '#ffffff')
+      expect(badge.textContent).toBe('DESTR&D <PORT>')
+    })
+
+    it('treats a hostile label as text too', () => {
+      const badge = createDimBadge('<b>X</b>', '1', '#ffffff')
+      expect(badge.querySelector('b')).toBeNull()
+      expect(badge.querySelector('span')!.textContent).toBe('<b>X</b>')
     })
   })
 

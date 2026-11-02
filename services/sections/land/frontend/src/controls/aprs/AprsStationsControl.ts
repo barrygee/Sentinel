@@ -2,7 +2,7 @@ import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import { aprsSymbolIcon, aprsSymbolSvg } from '@sentinel/ui/utils/aprsSymbols'
-import { escapeHtml } from '../../utils/escapeHtml'
+import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import {
   APRS_ACCENT_COLOR,
   APRS_BADGE_BACKGROUND,
@@ -402,7 +402,7 @@ export class AprsStationsControl extends SentinelControlBase {
    *  packet didn't carry it. */
   private _dimField(enabled: boolean, label: string, value: string | null): HTMLSpanElement | null {
     if (!enabled || value === null) return null
-    return createDimBadge(label, escapeHtml(value), APRS_ACCENT_COLOR)
+    return createDimBadge(label, value, APRS_ACCENT_COLOR)
   }
 
   // ── accessibility ────────────────────────────────────────────────────────────

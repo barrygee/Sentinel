@@ -1102,6 +1102,99 @@ describe('AdsbLiveControl._buildTagHTML', () => {
   })
 })
 
+describe('AdsbLiveControl tag escaping', () => {
+  // Callsigns, registrations, squawks and types come off the air, so any
+  // transponder or feeder can send markup. None of it may become an element.
+  const HOSTILE = '<img src=x onerror="alert(1)">'
+
+  function render(html: string): HTMLElement {
+    const host = document.createElement('div')
+    host.innerHTML = html
+    return host
+  }
+
+  it('escapes a hostile callsign', () => {
+    const { control } = mounted()
+    const host = render(priv(control)._buildTagHTML(props({ flight: HOSTILE })))
+    expect(host.querySelector('img')).toBeNull()
+    expect(host.textContent).toContain(HOSTILE)
+  })
+
+  it('escapes a hostile registration in the callsign fallback and the REG badge', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    const host = render(priv(control)._buildTagHTML(props({ flight: '', r: HOSTILE })))
+    expect(host.querySelector('img')).toBeNull()
+    expect(host.textContent!.split(HOSTILE)).toHaveLength(3)
+  })
+
+  it('escapes a hostile hex in the callsign fallback and the bell button attribute', () => {
+    const { control } = mounted()
+    const hostileHex = '" onclick="alert(1)" x="<img src=x>'
+    airNotifStore.enable(hostileHex)
+    const host = render(priv(control)._buildTagHTML(props({ flight: '', r: '', hex: hostileHex })))
+    const bell = host.querySelector('.tag-notif-btn')!
+    expect(bell.getAttribute('data-hex')).toBe(hostileHex)
+    expect(bell.getAttribute('onclick')).toBeNull()
+    expect(host.querySelector('img')).toBeNull()
+  })
+
+  it('escapes a hostile squawk in the SQK badge', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    const host = render(priv(control)._buildTagHTML(props({ squawk: HOSTILE })))
+    expect(host.querySelector('img')).toBeNull()
+    expect(host.textContent).toContain(`SQK${HOSTILE}`)
+  })
+
+  it('escapes a hostile squawk on an emergency tag', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    const host = render(priv(control)._buildTagHTML(props({ squawkEmerg: 1, squawk: HOSTILE })))
+    expect(host.querySelector('img')).toBeNull()
+    expect(host.textContent).toContain(HOSTILE)
+    expect(host.textContent).not.toContain('SQK')
+  })
+
+  it('escapes a hostile aircraft type after upper-casing it', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    const host = render(priv(control)._buildTagHTML(props({ t: '<b>x</b>' })))
+    expect(host.querySelector('b')).toBeNull()
+    expect(host.textContent).toContain('<B>X</B>')
+  })
+
+  it('escapes hostile values on a tracked tag as well', () => {
+    const { control } = mounted()
+    enableAllFields(control)
+    control._followEnabled = true
+    control._tagHex = 'abc123'
+    const host = render(
+      priv(control)._buildTagHTML(props({ flight: HOSTILE, r: HOSTILE, squawk: HOSTILE })),
+    )
+    expect(host.textContent).toContain('TRACKING')
+    expect(host.querySelector('img')).toBeNull()
+  })
+
+  it('shows an ampersand in a callsign as itself, escaped only once', () => {
+    const { control } = mounted()
+    const host = render(priv(control)._buildTagHTML(props({ flight: 'A&B' })))
+    expect(host.textContent).toContain('A&B')
+    expect(host.textContent).not.toContain('&amp;')
+  })
+
+  it('keeps a hostile squawk inert on the callsign marker badge', () => {
+    const { control } = mounted()
+    control.labelsVisible = true
+    enableAllFields(control)
+    seedFeature(control, { hex: 'evil1', squawk: HOSTILE })
+    priv(control)._updateCallsignMarkers()
+    const element = priv(control)._callsignMarkers['evil1'].getElement() as HTMLElement
+    expect(element.querySelector('img')).toBeNull()
+    expect(element.textContent).toContain(HOSTILE)
+  })
+})
+
 describe('AdsbLiveControl._categoryLabel + helpers', () => {
   it('labels a known category, an unknown one, and a blank one', () => {
     const { control } = mounted()

@@ -702,7 +702,7 @@ export class AisVesselsControl extends SentinelControlBase {
           : null,
         fields.mmsi ? createDimBadge('MMSI', vessel.mmsi, color) : null,
         fields.destination && vessel.destination
-          ? createDimBadge('DEST', escapeHtml(vessel.destination), color)
+          ? createDimBadge('DEST', vessel.destination, color)
           : null,
         fields.speed && vessel.sog !== null
           ? createDimBadge('SPD', `${vessel.sog.toFixed(1)}KN`, color)
@@ -849,21 +849,4 @@ export function wrapLongitude(lon: number): number {
   while (wrapped > 180) wrapped -= 360
   while (wrapped < -180) wrapped += 360
   return wrapped
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (char) => {
-    switch (char) {
-      case '&':
-        return '&amp;'
-      case '<':
-        return '&lt;'
-      case '>':
-        return '&gt;'
-      case '"':
-        return '&quot;'
-      default:
-        return '&#39;'
-    }
-  })
 }

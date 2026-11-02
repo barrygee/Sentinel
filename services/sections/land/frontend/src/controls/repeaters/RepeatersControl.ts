@@ -30,7 +30,7 @@ import {
   MAP_LABEL_SIZE_PX,
 } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
-import { escapeHtml } from '../../utils/escapeHtml'
+import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import type { useLandStore } from '../../stores/land'
 import type { useRepeatersStore } from '../../stores/repeaters'
 import type { RepeaterChannel, RepeaterStation, RepeaterStatus } from '../../types/repeaters'
@@ -502,7 +502,7 @@ export class RepeatersControl extends SentinelControlBase {
       return values.length === 0 ? null : [...new Set(values)].join(' · ')
     }
     const dim = (label: string, value: string | null): HTMLSpanElement | null =>
-      value === null ? null : createDimBadge(label, escapeHtml(value), '#ffffff')
+      value === null ? null : createDimBadge(label, value, '#ffffff')
     appendMirrored(
       pill,
       [
