@@ -23,6 +23,9 @@ from __future__ import annotations
 
 import datetime
 import logging
+import shutil
+from pathlib import Path
+from typing import BinaryIO
 
 from backend.cache import now_ms
 from backend.database import get_db
@@ -33,6 +36,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from sentinel_sdr.database import sync_sdr_groups_to_config, sync_sdr_search_ranges_to_config
 from sentinel_sdr.models import (
@@ -48,6 +52,11 @@ from sentinel_sdr.services.sdr_frequencies import reconcile_sdr_frequencies
 from sentinel_sdr.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
 
 logger = logging.getLogger(__name__)
+
+# A WAV's RIFF header stores its size in 32 bits, so no valid recording is
+# larger. The request guard's `recording_upload` group caps the request just
+# above this; the check here holds when the guard is off or the body is chunked.
+WAV_FORMAT_MAX_BYTES = 2**32
 
 router = APIRouter(tags=["sdr"])
 
@@ -623,10 +632,16 @@ async def stop_recording(
     duration_s: float = Form(0.0),
     db: AsyncSession = Depends(get_db),
 ):
-    """Finalise a recording: upload WAV, stop IQ capture, update DB row."""
+    """Finalise a recording: upload WAV, stop IQ capture, update DB row.
+
+    Only a recording still in progress can be stopped (409 otherwise), so a
+    stop can't overwrite the audio of a recording that has already finished.
+    """
     row = (await db.execute(select(SdrRecording).where(SdrRecording.id == recording_id))).scalar_one_or_none()
     if not row:
         raise HTTPException(404, "Recording not found")
+    if row.status != "recording":
+        raise HTTPException(409, "Recording is not in progress")
 
     # Stop IQ capture if one was started (the hub flushes the file before replying)
     if row.has_iq_file:
@@ -638,8 +653,10 @@ async def stop_recording(
     # Save WAV file
     audio_path = wav_path(row)
     audio_path.parent.mkdir(parents=True, exist_ok=True)
-    content = await file.read()
-    audio_path.write_bytes(content)
+    try:
+        audio_size = await run_in_threadpool(_save_recording_audio, file.file, audio_path)
+    except ValueError as error:
+        raise HTTPException(413, "Recording is larger than a WAV file can be") from error
 
     # Update IQ file size if it was recorded
     iq_file_size = 0
@@ -654,7 +671,7 @@ async def stop_recording(
     row.name = name or row.name
     row.ended_at = ended_at
     row.duration_s = duration_s
-    row.file_size_bytes = len(content)
+    row.file_size_bytes = audio_size
     row.iq_file_size_bytes = iq_file_size
     row.status = "complete"
     await db.commit()
@@ -664,6 +681,26 @@ async def stop_recording(
     if iq_file_pending(row):
         schedule_collect(recording_id)
     return JSONResponse(_recording_to_dict(row))
+
+
+def _save_recording_audio(source: BinaryIO, destination: Path) -> int:
+    """Copy an uploaded WAV to `destination` without holding it in memory; returns its size.
+
+    Written beside the destination and renamed into place, so an oversized or
+    failed upload leaves no partial file. Raises `ValueError` past
+    `WAV_FORMAT_MAX_BYTES`.
+    """
+    partial_path = destination.with_name(destination.name + ".partial")
+    try:
+        with partial_path.open("wb") as partial_file:
+            shutil.copyfileobj(source, partial_file)
+            size = partial_file.tell()
+        if size > WAV_FORMAT_MAX_BYTES:
+            raise ValueError(f"{size} bytes is more than a WAV file can hold")
+        partial_path.replace(destination)
+    finally:
+        partial_path.unlink(missing_ok=True)
+    return size
 
 
 @router.patch("/api/sdr/recordings/{rec_id}")

@@ -157,8 +157,8 @@ Profile `section`.
 | GET | `/api/sdr/data/bandplan` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
 | POST | `/api/sdr/data/bandplan` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
 | GET | `/api/sdr/recordings` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
-| POST | `/api/sdr/recordings/start` | `browser` | `radio_control` | SDR: starting and stopping recordings. |
-| POST | `/api/sdr/recordings/stop` | `browser` | `radio_control` | SDR: starting and stopping recordings. |
+| POST | `/api/sdr/recordings/start` | `browser` | `radio_control` | SDR: starting a recording. |
+| POST | `/api/sdr/recordings/stop` | `browser` | `recording_upload` | SDR: stopping a recording, which uploads its WAV. |
 | PATCH | `/api/sdr/recordings/{rec_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | DELETE | `/api/sdr/recordings/{rec_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | GET | `/api/sdr/recordings/{rec_id}/file` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |

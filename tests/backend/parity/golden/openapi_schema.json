@@ -5679,7 +5679,7 @@
     },
     "/api/sdr/recordings/stop": {
       "post": {
-        "description": "Finalise a recording: upload WAV, stop IQ capture, update DB row.",
+        "description": "Finalise a recording: upload WAV, stop IQ capture, update DB row.\n\nOnly a recording still in progress can be stopped (409 otherwise), so a\nstop can't overwrite the audio of a recording that has already finished.",
         "operationId": "stop_recording_api_sdr_recordings_stop_post",
         "requestBody": {
           "content": {
