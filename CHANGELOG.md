@@ -583,6 +583,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Space host actions evenly and drop repeated addresses
 - Save long recordings and refuse a stop for a finished one
 - Escape feed values in ADS-B map labels
+- Refuse browser requests under unlisted host names **(breaking change)**
 
 ### Chores
 
@@ -1689,6 +1690,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #552 from barrygee/refactor/sdr-manager-into-sdr-settings
 - Merge pull request #553 from barrygee/fix/recording-stop-guard
 - Merge pull request #554 from barrygee/fix/adsb-label-escaping
+- Merge pull request #555 from barrygee/fix/allowed-hosts
 
 ### Refactoring
 
