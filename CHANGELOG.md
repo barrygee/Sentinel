@@ -581,6 +581,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show a notice instead of overflowing when no section loads
 - Tidy the SDR Manager and SDR Devices settings cards
 - Space host actions evenly and drop repeated addresses
+- Save long recordings and refuse a stop for a finished one
 
 ### Chores
 
@@ -1685,6 +1686,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #550 from barrygee/fix/shell-sections-load-error
 - Merge pull request #551 from barrygee/fix/sdr-manager-devices-header
 - Merge pull request #552 from barrygee/refactor/sdr-manager-into-sdr-settings
+- Merge pull request #553 from barrygee/fix/recording-stop-guard
 
 ### Refactoring
 
