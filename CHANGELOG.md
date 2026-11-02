@@ -582,6 +582,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Tidy the SDR Manager and SDR Devices settings cards
 - Space host actions evenly and drop repeated addresses
 - Save long recordings and refuse a stop for a finished one
+- Escape feed values in ADS-B map labels
 
 ### Chores
 
@@ -1687,6 +1688,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #551 from barrygee/fix/sdr-manager-devices-header
 - Merge pull request #552 from barrygee/refactor/sdr-manager-into-sdr-settings
 - Merge pull request #553 from barrygee/fix/recording-stop-guard
+- Merge pull request #554 from barrygee/fix/adsb-label-escaping
 
 ### Refactoring
 
