@@ -113,10 +113,16 @@ export function createGlyphWell(glyphMarkup: string, background = 'none'): HTMLS
 export function createGlyphSvg(shapeMarkup: string, rotationDeg = 0): string {
   return (
     `<svg class="adsb-arrow" width="${MAP_LABEL_ARROW_SIZE_PX}" height="${MAP_LABEL_ARROW_SIZE_PX}" viewBox="0 0 12 12" ` +
-    `style="transform:rotate(${rotationDeg}deg);transform-origin:center;transform-box:fill-box;` +
+    `style="transform:rotate(${finiteDegrees(rotationDeg)}deg);transform-origin:center;transform-box:fill-box;` +
     `display:block;overflow:visible;flex-shrink:0" xmlns="http://www.w3.org/2000/svg">` +
     `${shapeMarkup}</svg>`
   )
+}
+
+/** A bearing as a plain number for markup: a feed's heading is untrusted JSON. */
+function finiteDegrees(rotationDeg: unknown): number {
+  const degrees = Number(rotationDeg)
+  return Number.isFinite(degrees) ? degrees : 0
 }
 
 /**
@@ -184,9 +190,17 @@ export function createDimBadge(label: string, value: string, color: string): HTM
   badge.style.cssText =
     `background:#000000;color:${color} !important;font-size:12px;font-weight:700;` +
     `padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;`
-  badge.innerHTML =
-    `<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span>` +
-    `<span>${value}</span>`
+  // Text nodes, not markup: the value is often remote input (a squawk, an MMSI,
+  // an APRS comment), so it can never become HTML however a caller builds it.
+  const labelText = document.createElement('span')
+  labelText.setAttribute(
+    'style',
+    'opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em',
+  )
+  labelText.textContent = label
+  const valueText = document.createElement('span')
+  valueText.textContent = value
+  badge.append(labelText, valueText)
   return badge
 }
 

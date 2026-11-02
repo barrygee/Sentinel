@@ -15,6 +15,7 @@ import {
 } from './aircraftPosition'
 import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '../../constants/adsb'
 import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
+import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import {
   createRadarBlip,
   createBracket,
@@ -801,9 +802,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Data tag HTML builders ----
 
+  // Every value from the feed is escaped on its way into this markup: callsigns,
+  // registrations, squawks and types come off the air (anyone with a transponder
+  // or a feeder can send any text), and the tag is set with innerHTML.
   private _buildTagHTML(props: AircraftProperties, forceLeftFacing?: boolean): string {
     const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
-    const callsign = raw || 'UNKNOWN'
+    const callsign = escapeHtml(raw || 'UNKNOWN')
     const isEmergency = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
     const callsignColor = isEmergency ? '#ff4040' : '#ffffff'
     const isTracked = this._followEnabled && props.hex === this._tagHex
@@ -819,7 +823,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       ? `onmouseenter="this.style.color='#c8ff00'" onmouseleave="this.style.color='#c8ff00'"`
       : ''
     const bellBtn =
-      `<button class="tag-notif-btn" data-hex="${props.hex}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
+      `<button class="tag-notif-btn" data-hex="${escapeHtml(String(props.hex))}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
       `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">` +
       `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
       `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
@@ -829,7 +833,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       `</svg></button>`
 
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:#000000;color:${badgeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${value}</span></span>`
+      `<span style="background:#000000;color:${badgeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
@@ -842,13 +846,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:#000;color:#ff2222;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${props.squawk}</span>`
+          ? `<span style="background:#000;color:#ff2222;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
-            ? _dimBadge('SQK', props.squawk, badgeColor)
+            ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${typeBg};color:${typeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${props.t.toUpperCase()}</span>`
+          ? `<span style="background:${typeBg};color:${typeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =
@@ -859,7 +863,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         has('speed') && props.gs != null
           ? _dimBadge('SPD', Math.round(props.gs) + 'kt', badgeColor)
           : ''
-      const regBadge = has('registration') && props.r ? _dimBadge('REG', props.r, badgeColor) : ''
+      const regBadge =
+        has('registration') && props.r ? _dimBadge('REG', String(props.r), badgeColor) : ''
       const catBadge = has('category') && catLbl ? _dimBadge('CAT', catLbl, badgeColor) : ''
       return leftFacing
         ? `${catBadge}${regBadge}${spdBadge}${hdgBadge}${altBadge}${sqkBadge}${typeBadge}`
