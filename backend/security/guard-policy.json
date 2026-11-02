@@ -145,14 +145,16 @@
     },
     "access_classes": {
         "page": {
-            "description": "Anyone on the LAN opening Sentinel: the shell document, its bundle, map assets and section remotes.",
-            "networks": ["$client_networks"]
+            "description": "Anyone on the LAN opening Sentinel under an IP address, localhost or a SENTINEL_ALLOWED_HOSTS name: the shell document, its bundle, map assets and section remotes.",
+            "networks": ["$client_networks"],
+            "require_allowed_host": true
         },
         "browser": {
-            "description": "The SPA's own API calls: a client on the LAN whose browser says the request came from this site (Sec-Fetch-Site; over plain HTTP, where browsers send none, an Origin naming this host, or no Origin on a GET/HEAD), so another site can't make it change anything.",
+            "description": "The SPA's own API calls: a client on the LAN, under an allowed host like `page`, whose browser says the request came from this site (Sec-Fetch-Site; over plain HTTP, where browsers send none, an Origin naming this host, or no Origin on a GET/HEAD), so another site can't make it change anything.",
             "networks": ["$client_networks"],
             "fetch_sites": ["same-origin", "none"],
-            "allow_missing_fetch_metadata": false
+            "allow_missing_fetch_metadata": false,
+            "require_allowed_host": true
         },
         "internal": {
             "description": "Another Sentinel process: a container on this deployment's network, or a service host (a radio host's hub). Sections read core's settings this way, without a credential.",

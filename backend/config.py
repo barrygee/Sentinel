@@ -427,6 +427,10 @@ class Settings(BaseSettings):
     # Origins allowed to call the API cross-origin (CORS). Empty = CORS off;
     # the SPA is same-origin through the gateway and needs none.
     guard_cors_allow_origins: str = ""
+    # Host names browsers may open Sentinel under, besides IP addresses and
+    # localhost (e.g. `sentinel.lan,pi.local`). Any other name is refused: a
+    # page on a name that resolves here may be a DNS-rebinding attack.
+    sentinel_allowed_hosts: str = ""
     # Host names the SPA is opened under (e.g. `sentinel.lan,192.168.1.20`).
     # Set = settings writes must come with a Referer from one of them.
     guard_allowed_referrer_domains: str = ""

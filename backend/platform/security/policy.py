@@ -338,6 +338,9 @@ class AccessClass(_Strict):
     # With neither header: GET and HEAD are always admitted (a browser's own
     # read over plain HTTP sends neither); this admits every other method too.
     allow_missing_fetch_metadata: bool = True
+    # Only requests whose Host is an IP, localhost or a SENTINEL_ALLOWED_HOSTS
+    # name: the DNS-rebinding defence for what browsers call (see `hosts.py`).
+    require_allowed_host: bool = False
 
 
 class GuardPolicy(_Strict):

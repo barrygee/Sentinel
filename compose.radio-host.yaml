@@ -90,6 +90,8 @@ services:
       GUARD_TRUSTED_PROXY_DEPTH: ${GUARD_TRUSTED_PROXY_DEPTH:-1}
       GUARD_INTERNAL_NETWORKS: ${SENTINEL_RADIO_HOST_NETWORK_SUBNET:-172.29.0.0/24}
       GUARD_CLIENT_NETWORKS: ${GUARD_CLIENT_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10}
+      # Names browsers may open Sentinel under besides IPs and localhost (DNS-rebinding defence).
+      SENTINEL_ALLOWED_HOSTS: ${SENTINEL_ALLOWED_HOSTS:-}
       # REQUIRED: the core host's address. Core's health probes and the SDR
       # section's IQ-capture copies come from there with a service credential.
       GUARD_SERVICE_HOSTS: ${GUARD_SERVICE_HOSTS:-}

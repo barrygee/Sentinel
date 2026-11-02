@@ -9,6 +9,7 @@ Sentinel has no user logins, so the guard can't tell people apart. It goes by **
 | Feature | Default | What it means |
 |---|---|---|
 | Who may call what | On | Each route is for some callers only (below). Anyone else gets `404`, the same as for a route that doesn't exist. A route the policy doesn't mention can't be called by anyone, and a service with one won't start. |
+| Host names | On | Browsers may open Sentinel by IP address, `localhost`, or a name in `SENTINEL_ALLOWED_HOSTS`; any other name gets `404` ([below](#host-names)). |
 | Rate limits | On | 1200 requests a minute per client address, and tighter limits on costly routes. Over the limit: `429` with `Retry-After`. Map tiles, decoder events and the app shell aren't limited. |
 | Automatic bans | On | 10 attacks in an hour gets an address banned for an hour. SQL, command or code injection gets 3 strikes and a day. Also banned: 20 rate-limit refusals, or, within 5 minutes, 100 `404`s, 20 `401`s or 30 `403`s from one address, counted across every route it tries (probing for paths, guessing passwords). Sentinel's own containers are never banned, and restarting a service bans nobody. |
 | Attack detection | On | Requests that send data — changes, radio control, offline-map jobs, SDR Manager sign-in — are checked for 18 kinds of attack (XSS, SQL injection, path traversal…). Plain reads and polls aren't: they carry no input worth checking, and checking every one cost about 40 ms each. Not SSRF: Sentinel is meant to reach addresses on your network, and your browser's own address would look like one. Settings writes and config uploads aren't checked either: they are your own settings, and checking a large one held Sentinel up for over a second. Text received over the air is never checked, so a hostile radio message can't get a decoder banned. |
@@ -31,8 +32,8 @@ Nothing reaches the internet unless you switch on a feature marked "needs intern
 
 | Caller | Who | Recognised by |
 |---|---|---|
-| `page` | Anyone on your network opening Sentinel | A private (LAN) address |
-| `browser` | The app's own API calls | A LAN address, and a browser saying the request came from this site (`Sec-Fetch-Site`). Over plain HTTP browsers don't send that header, so there an `Origin` naming this address counts, and a GET or HEAD with no `Origin` at all. Another website can't change anything. |
+| `page` | Anyone on your network opening Sentinel | A private (LAN) address, opening an [allowed host name](#host-names) |
+| `browser` | The app's own API calls | A LAN address and an allowed host name, and a browser saying the request came from this site (`Sec-Fetch-Site`). Over plain HTTP browsers don't send that header, so there an `Origin` naming this address counts, and a GET or HEAD with no `Origin` at all. Another website can't change anything. |
 | `internal` | Sentinel's own containers | An address on Sentinel's Docker network, or a [service host](#radio-hosts) |
 | `service` | A Sentinel service with its credential | As `internal`, plus `Authorization: Bearer`, which the route then checks |
 | `decoder` | A decoder with its credential | As `internal` or a decoder host, plus `X-Decode-Secret`, which the route then checks |
@@ -40,6 +41,16 @@ Nothing reaches the internet unless you switch on a feature marked "needs intern
 | `operator` | You, on this machine | `GUARD_OPERATOR_IPS`: API docs (`/api/docs`) and schema |
 
 The full list, route by route: [API access matrix](reference/api-access-matrix.md).
+
+### Host names
+
+A web page on the internet can point a name it owns at your Sentinel's address (DNS rebinding). Your browser then treats Sentinel as part of that site, so its scripts could read and change Sentinel as if they were the app. The name in the request is the one thing that gives them away, so pages and the app's API calls are only answered under:
+
+- an IP address (`http://192.168.1.20:8080`),
+- `localhost`,
+- a name in `SENTINEL_ALLOWED_HOSTS` (`.env`, comma-separated, names only: `SENTINEL_ALLOWED_HOSTS=sentinel.lan,pi.local`).
+
+Any other name gets `404`, and the log says which name to add (below). An entry with a port or `http://` stops the services from starting. Sentinel's own containers, decoders and other machines' SDR Managers are recognised by address and credential, so the setting never affects them. On a [radio host](#radio-hosts), set the same names there too: browsers reach its hub through core's gateway under the name they opened Sentinel by.
 
 ## Settings
 
@@ -86,6 +97,7 @@ docker compose logs app air sea | grep guard
 ```
 
 - `guard access refused … (route is for …)`: the caller isn't one the route is for. Check the address is in the right `GUARD_*` list.
+- `… host 'sentinel.lan' is not an IP, localhost or in SENTINEL_ALLOWED_HOSTS`: you opened Sentinel by a name it doesn't know. Add the name to `SENTINEL_ALLOWED_HOSTS`, then `docker compose up -d`.
 - `guard blocked … (user_agent | rate_limit | penetration | …)`: one of the checks above.
 
 To see what would be refused without refusing it:

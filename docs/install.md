@@ -13,6 +13,8 @@ docker compose up --build -d
 
 Open **http://localhost:8080**. The first build takes a few minutes; after that, `docker compose up -d` starts it.
 
+From another device, open it by this computer's IP address (`http://192.168.1.20:8080`). To use a name instead (`http://sentinel.lan:8080`), add it to `SENTINEL_ALLOWED_HOSTS` in `.env` first, then `docker compose up -d`: any other name gets `404` ([why](security-guard.md#host-names)).
+
 ## First things to set
 
 In **Settings** (the gear, bottom right), then **APPLY CHANGES**:
