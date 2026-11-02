@@ -258,6 +258,13 @@
             "max_request_bytes": 65536,
             "detection": { "enabled": true }
         },
+        "recording_upload": {
+            "description": "Stopping an SDR recording uploads its whole WAV: capped at the WAV format's own 4 GiB limit plus room for the form fields, and the audio isn't scanned.",
+            "rate_limit": { "requests": 60, "window_seconds": 60 },
+            "allowed_content_types": ["multipart/form-data"],
+            "max_request_bytes": 4295032832,
+            "detection": { "scan_body": false }
+        },
         "secret_write": {
             "description": "Setting or clearing a secret (the AISStream key).",
             "rate_limit": { "requests": 10, "window_seconds": 60 },
@@ -620,11 +627,18 @@
         },
 
         {
-            "note": "SDR: starting and stopping recordings.",
-            "paths": ["/api/sdr/recordings/start", "/api/sdr/recordings/stop"],
+            "note": "SDR: starting a recording.",
+            "paths": ["/api/sdr/recordings/start"],
             "methods": ["POST"],
             "access": ["browser"],
             "group": "radio_control"
+        },
+        {
+            "note": "SDR: stopping a recording, which uploads its WAV.",
+            "paths": ["/api/sdr/recordings/stop"],
+            "methods": ["POST"],
+            "access": ["browser"],
+            "group": "recording_upload"
         },
         {
             "note": "SDR: the frequency and band-plan data files.",
