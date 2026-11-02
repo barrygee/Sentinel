@@ -84,6 +84,7 @@ What each check does, and how to switch on the optional ones: [Request guard](se
 | `GUARD_PASSIVE_MODE` | `false` | `true` to log what would be refused without refusing |
 | `GUARD_ACCESS_ENFORCEMENT` | `enforce` | `log` to log, not refuse, callers outside a route's caller classes |
 | `GUARD_CLIENT_NETWORKS` | private ranges | Where browsers may use Sentinel from |
+| `SENTINEL_ALLOWED_HOSTS` | empty | The names you open Sentinel by, e.g. `sentinel.lan,pi.local`. IP addresses and `localhost` always work ([host names](security-guard.md#host-names)) |
 | `GUARD_SERVICE_HOSTS` | empty | A radio host's IP (core host), or the core host's (radio host) |
 | `GUARD_DECODER_HOSTS` | empty | Decoders on other machines, by IP |
 | `GUARD_PEER_NETWORKS` | client networks | Other machines' SDR Managers |

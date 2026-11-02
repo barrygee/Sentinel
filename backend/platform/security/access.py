@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from urllib.parse import urlsplit
 
+from backend.platform.security.hosts import configured_allowed_hosts, host_is_allowed, normalise_host
 from backend.platform.security.networks import IpNetwork, address_in, parse_networks
 from backend.platform.security.policy import AccessClass, CallerClass, GuardPolicy, RouteRule
 
@@ -71,18 +72,22 @@ class CompiledRule:
 
 @dataclass(frozen=True)
 class CompiledAccessClass:
-    """A caller class with its networks parsed."""
+    """A caller class with its networks parsed and, if it checks Host, its allowed host names."""
 
     name: CallerClass
     networks: tuple[IpNetwork, ...]
     definition: AccessClass
+    allowed_hosts: frozenset[str] = frozenset()
 
 
 class AccessRules:
     """The policy's route rules and caller classes, ready to answer per request."""
 
     def __init__(self, policy: GuardPolicy, profile: str) -> None:
-        """Compile `policy`'s rules for `profile`. Raises `ValueError` for a bad network."""
+        """Compile `policy`'s rules for `profile`.
+
+        Raises `ValueError` for a bad network or a bad `SENTINEL_ALLOWED_HOSTS` entry.
+        """
         self.rules = tuple(
             CompiledRule(
                 rule=rule,
@@ -92,8 +97,14 @@ class AccessRules:
             for rule in policy.route_rules
             if not rule.profiles or profile in rule.profiles
         )
+        allowed_hosts = configured_allowed_hosts()
         self.classes = {
-            name: CompiledAccessClass(name=name, networks=parse_networks(definition.networks), definition=definition)
+            name: CompiledAccessClass(
+                name=name,
+                networks=parse_networks(definition.networks),
+                definition=definition,
+                allowed_hosts=allowed_hosts if definition.require_allowed_host else frozenset(),
+            )
             for name, definition in policy.access_classes.items()
         }
         self._match = lru_cache(maxsize=4096)(self._first_match)
@@ -134,6 +145,21 @@ class AccessRules:
             if name in self.classes
         )
 
+    def unlisted_host(self, rule: CompiledRule, headers: Mapping[str, str]) -> str | None:
+        """The host a refused request was sent to, when that is why `rule` refused it.
+
+        Set when one of the rule's caller classes checks Host and the request's
+        is not allowed, so the refusal log can say which name to add to
+        `SENTINEL_ALLOWED_HOSTS`. None otherwise.
+        """
+        host_header = headers.get("host", "")
+        for name in rule.rule.access:
+            caller_class = self.classes.get(name)
+            if caller_class is not None and caller_class.definition.require_allowed_host:
+                if not host_is_allowed(host_header, caller_class.allowed_hosts):
+                    return normalise_host(host_header) or host_header
+        return None
+
 
 def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mapping[str, str], method: str) -> bool:
     """Whether a `method` request from `client_ip` with `headers` is a `caller_class` caller.
@@ -145,6 +171,8 @@ def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mappin
     if not address_in(client_ip, caller_class.networks):
         return False
     if any(not headers.get(header) for header in definition.required_headers):
+        return False
+    if definition.require_allowed_host and not host_is_allowed(headers.get("host", ""), caller_class.allowed_hosts):
         return False
     if definition.fetch_sites:
         return _browser_request(headers, definition.fetch_sites, definition.allow_missing_fetch_metadata, method)

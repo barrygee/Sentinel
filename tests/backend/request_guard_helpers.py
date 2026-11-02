@@ -143,6 +143,7 @@ def pin_guard_settings(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Non
         "guard_enforce_https": False,
         "guard_cors_allow_origins": "",
         "guard_allowed_referrer_domains": "",
+        "sentinel_allowed_hosts": "",
         "guard_blocked_countries": "",
         "guard_allowed_countries": "",
         "guard_ipinfo_token": "",

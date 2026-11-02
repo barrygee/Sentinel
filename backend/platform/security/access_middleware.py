@@ -24,10 +24,10 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
-from backend.platform.security.access import AccessRules, compile_path_pattern
+from backend.platform.security.access import AccessRules, CompiledRule, compile_path_pattern
 from backend.platform.security.networks import address_in, parse_networks
 from backend.platform.security.route_inventory import WEBSOCKET_METHOD, RouteEntry
 from guard import SecurityConfig, make_guard_websocket
@@ -132,7 +132,7 @@ class AccessControlMiddleware:
                 method,
                 path,
                 client_ip,
-                f"route is for {', '.join(rule.rule.access)}" if rule else "no rule covers this route",
+                self._refusal_reason(rule, request.headers),
             )
             if self.enforce:
                 await self._refuse(scope, receive, send, is_websocket)
@@ -143,6 +143,15 @@ class AccessControlMiddleware:
         if is_websocket and not await self._websocket_checks_pass(scope, receive, send):
             return
         await self.app(scope, receive, send)
+
+    def _refusal_reason(self, rule: CompiledRule | None, headers: Mapping[str, str]) -> str:
+        """Why a request was refused, for the log: names the Host when that was the reason."""
+        if rule is None:
+            return "no rule covers this route"
+        reason = f"route is for {', '.join(rule.rule.access)}"
+        if (host := self.access_rules.unlisted_host(rule, headers)) is not None:
+            reason += f"; host {host!r} is not an IP, localhost or in SENTINEL_ALLOWED_HOSTS"
+        return reason
 
     def _blocked_scanner(self, user_agent: str, client_ip: str) -> bool:
         if not self.blocked_user_agents or address_in(client_ip, self._exempt_networks):

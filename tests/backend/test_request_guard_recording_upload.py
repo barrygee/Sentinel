@@ -47,17 +47,31 @@ def browser() -> Iterator[TestClient]:
         return {"received": len(await request.body())}
 
     install_request_guard(app, service_name="sdr")
-    with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000), raise_server_exceptions=False) as client:
+    # Opened by IP, as on a LAN: TestClient's own `testserver` host is not an allowed host.
+    with TestClient(
+        app,
+        base_url="http://192.168.1.20:8080",
+        client=(LAN_BROWSER_ADDRESS, 50000),
+        raise_server_exceptions=False,
+    ) as client:
         yield client
 
 
 class TestShippedRules:
     @pytest.mark.parametrize("profile", ["section", "core"])
-    def test_stop_has_its_own_upload_group_and_start_keeps_the_small_cap(self, profile: str) -> None:
+    def test_stop_has_its_own_upload_group_and_start_keeps_the_small_cap(
+        self, profile: str
+    ) -> None:
         rules = AccessRules(read_policy(DEFAULT_POLICY_PATH), profile)
 
-        assert rules.rule_for("POST", "/api/sdr/recordings/stop").rule.group == "recording_upload"
-        assert rules.rule_for("POST", "/api/sdr/recordings/start").rule.group == "radio_control"
+        assert (
+            rules.rule_for("POST", "/api/sdr/recordings/stop").rule.group
+            == "recording_upload"
+        )
+        assert (
+            rules.rule_for("POST", "/api/sdr/recordings/start").rule.group
+            == "radio_control"
+        )
 
     def test_the_upload_group_fits_the_largest_wav_but_no_more_than_the_form_around_it(
         self,
@@ -65,7 +79,11 @@ class TestShippedRules:
         group = read_policy(DEFAULT_POLICY_PATH).route_groups["recording_upload"]
 
         assert group.max_request_bytes is not None
-        assert WAV_FORMAT_MAX_BYTES < group.max_request_bytes <= WAV_FORMAT_MAX_BYTES + 65_536
+        assert (
+            WAV_FORMAT_MAX_BYTES
+            < group.max_request_bytes
+            <= WAV_FORMAT_MAX_BYTES + 65_536
+        )
         assert group.allowed_content_types == ["multipart/form-data"]
 
     def test_the_audio_is_never_scanned_for_attacks(self) -> None:
@@ -97,7 +115,9 @@ class TestThroughTheGuard:
 
         assert response.status_code == 415
 
-    def test_a_request_claiming_more_than_a_wav_can_hold_is_refused(self, browser: TestClient) -> None:
+    def test_a_request_claiming_more_than_a_wav_can_hold_is_refused(
+        self, browser: TestClient
+    ) -> None:
         response = browser.post(
             "/api/sdr/recordings/stop",
             headers={
