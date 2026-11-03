@@ -170,6 +170,7 @@ function fakeMap(options: { styleLoaded?: boolean; zoom?: number } = {}): FakeMa
     getCanvas: vi.fn(() => ({ style: canvasStyle })),
     hasImage: vi.fn(() => false),
     addImage: vi.fn(),
+    setMissingStyleImageResolver: vi.fn(),
     updateImage: vi.fn(),
     project: vi.fn((coords: [number, number]) => ({ x: coords[0], y: coords[1] })),
   } as unknown as maplibregl.Map
@@ -4680,9 +4681,19 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
   })
 
   describe('map images', () => {
+    /** Ask the resolver the control registered for a missing image, as MapLibre does. */
     function fireMissing(map: FakeMap, id: string) {
-      map.fire('styleimagemissing', undefined, { id })
+      const setResolver = map.map.setMissingStyleImageResolver as unknown as ReturnType<
+        typeof vi.fn
+      >
+      const resolver = setResolver.mock.calls.at(-1)![0] as (imageId: string) => void
+      resolver(id)
     }
+
+    it('registers a resolver, so images exist before MapLibre lays out the icons', () => {
+      const { map } = mounted()
+      expect(map.map.setMissingStyleImageResolver).toHaveBeenCalledWith(expect.any(Function))
+    })
 
     it('leaves images that are not silhouettes to their owners', () => {
       const { map } = mounted()
@@ -4735,10 +4746,10 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(map.map.addImage).not.toHaveBeenCalled()
     })
 
-    it('stops listening when removed from the map', () => {
+    it('clears its resolver when removed from the map', () => {
       const { control, map } = mounted()
       control.onRemove()
-      expect(map.map.off).toHaveBeenCalledWith('styleimagemissing', expect.any(Function))
+      expect(map.map.setMissingStyleImageResolver).toHaveBeenLastCalledWith(null)
     })
   })
 
@@ -4880,12 +4891,22 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(html).not.toContain('<svg')
     })
 
+    it('sizes the text in proportion to the silhouette: 12px callsign, 11px fields', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props()) as string
+      expect(html).toMatch(/^<div style="[^"]*font-size:12px;[^"]*min-height:20px;/)
+      expect(html).toContain('font-size:11px;')
+      expect(html).not.toContain('font-size:14px;')
+    })
+
     it('keeps arrow-mode tags on their black block with an arrow', () => {
       const { control } = mountedIn('arrow')
       const html = priv(control)._buildTagHTML(props()) as string
       expect(html).toContain('background:#000000')
       expect(html).not.toContain('text-shadow:')
       expect(html).toContain('<svg')
+      expect(html).toMatch(/^<div style="[^"]*font-size:14px;[^"]*min-height:26px;/)
     })
 
     it.each([

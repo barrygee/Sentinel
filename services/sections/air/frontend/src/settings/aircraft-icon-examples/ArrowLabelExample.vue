@@ -2,7 +2,8 @@
 /**
  * Example of the ARROW option: one aircraft label exactly as the map draws it
  * — black pill, direction arrow, callsign — built with the same map-kit label
- * parts the map's labels use, so the example can never drift from the map.
+ * parts and left/right rule the map's labels use, so the example can never
+ * drift from the map.
  */
 import { onMounted, ref } from 'vue'
 import {
@@ -12,6 +13,7 @@ import {
   createGlyphWell,
   createLabelPill,
   createNameSegment,
+  isLeftFacing,
 } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { SILHOUETTE_COLOURS } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 
@@ -29,15 +31,18 @@ const labelHost = ref<HTMLElement | null>(null)
 
 onMounted(() => {
   const label = createLabelPill()
+  // The map's rule: an aircraft heading right (east) carries its label on the
+  // left, so the arrow sits at the end it is travelling towards.
+  const leftFacing = isLeftFacing(props.trackDeg)
   appendMirrored(
     label,
     [
       createGlyphWell(
         createGlyphSvg(createDirectionArrowShape(SILHOUETTE_COLOURS.civil), props.trackDeg),
       ),
-      createNameSegment(props.callsign, 'right'),
+      createNameSegment(props.callsign, leftFacing ? 'left' : 'right'),
     ],
-    false,
+    leftFacing,
   )
   labelHost.value?.replaceChildren(label)
 })

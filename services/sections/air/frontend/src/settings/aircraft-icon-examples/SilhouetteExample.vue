@@ -15,7 +15,11 @@ import {
   silhouetteForShape,
   silhouetteIconSizePx,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
-import { SILHOUETTE_TAG_TEXT_HALO } from '../../controls/adsb/silhouetteTagStyle'
+import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
+import {
+  SILHOUETTE_TAG_CALLSIGN_PX,
+  SILHOUETTE_TAG_TEXT_HALO,
+} from '../../controls/adsb/silhouetteTagStyle'
 
 const props = withDefaults(
   defineProps<{
@@ -30,6 +34,11 @@ const props = withDefaults(
 )
 
 const sizePx = computed(() => silhouetteIconSizePx(props.shapeKey))
+/**
+ * The map's rule for which side the text goes: an aircraft heading right
+ * (east) carries it on the left, clear of where it is going.
+ */
+const textOnLeft = computed(() => isLeftFacing(props.trackDeg))
 /** The outline and where it sits in the SVG, or `null` for an unknown shape. */
 const drawing = computed(() => {
   const silhouette = silhouetteForShape(props.shapeKey)
@@ -42,7 +51,7 @@ const drawing = computed(() => {
 </script>
 
 <template>
-  <span class="silhouette-example">
+  <span class="silhouette-example" :class="{ 'silhouette-example--text-left': textOnLeft }">
     <svg
       v-if="drawing"
       :width="sizePx"
@@ -61,7 +70,11 @@ const drawing = computed(() => {
         <path :d="drawing.pathData" :fill="SILHOUETTE_COLOURS.civil" />
       </g>
     </svg>
-    <span v-if="callsign" class="silhouette-example-callsign" :style="SILHOUETTE_TAG_TEXT_HALO">
+    <span
+      v-if="callsign"
+      class="silhouette-example-callsign"
+      :style="`${SILHOUETTE_TAG_TEXT_HALO}font-size:${SILHOUETTE_TAG_CALLSIGN_PX}px;`"
+    >
       {{ callsign }}
     </span>
   </span>
@@ -74,11 +87,14 @@ const drawing = computed(() => {
   gap: 3px;
 }
 
+.silhouette-example--text-left {
+  flex-direction: row-reverse;
+}
+
 /* The map's hover and selected tag text (AdsbLiveControl._buildTagHTML). */
 .silhouette-example-callsign {
   color: #ffffff;
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;

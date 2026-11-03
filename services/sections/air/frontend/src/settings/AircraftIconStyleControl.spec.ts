@@ -45,11 +45,9 @@ describe('AircraftIconStyleControl', () => {
     const [arrow, silhouette] = wrapper.findAll('[role="radio"]')
     // ARROW: a label with its arrow.
     expect(arrow!.find('.adsb-label-name').text()).toBe('BAW123')
-    // SILHOUETTE: an airliner with its callsign beside a light aircraft without.
-    expect(silhouette!.findAll('svg')).toHaveLength(2)
-    expect(silhouette!.findAll('.silhouette-example-callsign').map((text) => text.text())).toEqual([
-      'BAW123',
-    ])
+    // SILHOUETTE: one airliner, with its callsign as on hover.
+    expect(silhouette!.findAll('svg')).toHaveLength(1)
+    expect(silhouette!.find('.silhouette-example-callsign').text()).toBe('BAW123')
   })
 
   it('selects the store’s current style', async () => {

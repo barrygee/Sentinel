@@ -49,7 +49,11 @@ import {
   SILHOUETTE_ZOOMED_IN_THRESHOLD,
   type SilhouetteColourKey,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
-import { SILHOUETTE_TAG_TEXT_HALO } from './silhouetteTagStyle'
+import {
+  SILHOUETTE_TAG_CALLSIGN_PX,
+  SILHOUETTE_TAG_FIELD_PX,
+  SILHOUETTE_TAG_TEXT_HALO,
+} from './silhouetteTagStyle'
 
 // ---- Internal types ----
 
@@ -234,7 +238,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   _iconStyle: AircraftIconStyle = 'arrow'
   // Draws silhouette images the moment the map first needs one (and again after
   // a style reload drops them), so only shapes actually on screen are built.
-  private _onStyleImageMissing: ((event: { id: string }) => void) | null = null
+  private _resolveMissingImage: ((imageId: string) => void) | null = null
   private _onPageVisibilityChange: (() => void) | null = null
 
   constructor(
@@ -463,15 +467,18 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     // Silhouettes are rasterised the first time the map asks for one by name,
     // and again after a style reload drops the map's images. Names belonging to
-    // anything else are left for their owners.
-    this._onStyleImageMissing = (event: { id: string }) => {
-      // onRemove unhooks this handler, so the map is always there when it runs.
-      if (!event.id.startsWith(SILHOUETTE_IMAGE_PREFIX)) return
-      if (this.map.hasImage(event.id)) return
-      const image = createSilhouetteImageData(event.id)
-      if (image) this.map.addImage(event.id, image, { pixelRatio: 2 })
+    // anything else are left for their owners. MapLibre 6 asks this resolver
+    // *before* laying out the icons; its `styleimagemissing` event fires only
+    // afterwards, too late for that layout (every icon then logged "could not
+    // be loaded" and appeared a frame late).
+    this._resolveMissingImage = (imageId: string) => {
+      // onRemove clears the resolver, so the map is always there when it runs.
+      if (!imageId.startsWith(SILHOUETTE_IMAGE_PREFIX)) return
+      if (this.map.hasImage(imageId)) return
+      const image = createSilhouetteImageData(imageId)
+      if (image) this.map.addImage(imageId, image, { pixelRatio: 2 })
     }
-    this.map.on('styleimagemissing', this._onStyleImageMissing)
+    this.map.setMissingStyleImageResolver(this._resolveMissingImage)
 
     // A hidden tab still polls (browsers only slow its timers to once a
     // minute), and online every poll can cost a call from the feed's daily
@@ -502,9 +509,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       document.removeEventListener('visibilitychange', this._onPageVisibilityChange)
       this._onPageVisibilityChange = null
     }
-    if (this._onStyleImageMissing) {
-      this.map?.off('styleimagemissing', this._onStyleImageMissing)
-      this._onStyleImageMissing = null
+    if (this._resolveMissingImage) {
+      this.map?.setMissingStyleImageResolver(null)
+      this._resolveMissingImage = null
     }
     if (this.container && this.container.parentNode)
       this.container.parentNode.removeChild(this.container)
@@ -1029,12 +1036,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // with no background blocks; arrow mode keeps its solid black tag.
     const plainText = this._iconStyle === 'silhouette'
     const surface = (colour: string) => (plainText ? 'transparent' : colour)
+    // Smaller text beside a silhouette, in proportion to the aircraft.
+    const callsignPx = plainText ? SILHOUETTE_TAG_CALLSIGN_PX : 14
+    const fieldPx = plainText ? SILHOUETTE_TAG_FIELD_PX : 12
     const tagStyle =
-      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:26px;` +
+      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:${plainText ? 20 : 26}px;` +
       (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
 
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
+      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
@@ -1047,13 +1057,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
+          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
             ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
+          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =

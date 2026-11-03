@@ -132,9 +132,11 @@ export function registerAirSettings(): void {
       sectionLabel: 'AIR',
       id: 'air-aircraft-icon-style',
       label: 'Aircraft Icons',
-      desc: "ARROW labels every aircraft. SILHOUETTE draws each aircraft's own shape, and shows its data only when hovered or selected",
+      desc: '',
+      // The option examples show what each style looks like; these keep the
+      // setting findable by the words a description would have carried.
       searchTerms:
-        'silhouette icon shape aircraft type plane symbol arrow adsbexchange flightradar',
+        'silhouette icon shape aircraft type plane symbol arrow labels hover selected adsbexchange flightradar',
       // The option examples are taller than a plain segmented row.
       control: { component: AircraftIconStyleControl, emits: ['stage'], naturalHeight: true },
       groupLabel: 'MAP',

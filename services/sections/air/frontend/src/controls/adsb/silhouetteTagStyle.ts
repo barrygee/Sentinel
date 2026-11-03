@@ -11,3 +11,12 @@
  */
 export const SILHOUETTE_TAG_TEXT_HALO =
   'text-shadow:0 0 2px #000,0 0 3px #000,1px 1px 1px #000,-1px -1px 1px #000;'
+
+/**
+ * Text sizes beside a silhouette, in CSS pixels: ADS-B Exchange's 12px labels,
+ * which sit in proportion to a 21–32px aircraft. The arrow-mode tag's 14px
+ * reads as larger than the aircraft it names.
+ */
+export const SILHOUETTE_TAG_CALLSIGN_PX = 12
+/** Data fields (type, altitude, squawk…) one step smaller than the callsign. */
+export const SILHOUETTE_TAG_FIELD_PX = 11

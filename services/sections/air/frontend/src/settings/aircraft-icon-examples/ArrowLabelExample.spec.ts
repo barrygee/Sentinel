@@ -4,15 +4,31 @@ import { axe } from 'jest-axe'
 import ArrowLabelExample from './ArrowLabelExample.vue'
 
 describe('ArrowLabelExample', () => {
-  it('shows a map label: a black pill with the arrow leading the callsign', () => {
-    const wrapper = mount(ArrowLabelExample, { attachTo: document.body })
+  /** The label's segments in screen order: 'arrow' or the callsign text. */
+  function segmentOrder(wrapper: ReturnType<typeof mount>): string[] {
+    const pill = wrapper.element.firstElementChild as HTMLElement
+    return Array.from(pill.children).map((segment) =>
+      segment.querySelector('svg') ? 'arrow' : (segment.textContent ?? ''),
+    )
+  }
+
+  it('shows a map label: a black pill with an arrow and the callsign', () => {
+    const wrapper = mount(ArrowLabelExample)
     const pill = wrapper.element.firstElementChild as HTMLElement
     expect(pill.style.background).toBe('rgb(0, 0, 0)')
-    expect(pill.querySelector('svg')).not.toBeNull()
     expect(pill.querySelector('.adsb-label-name')?.textContent).toBe('BAW123')
-    // Arrow first, then the name: the order the map draws a right-hand label in.
-    expect(pill.firstElementChild?.querySelector('svg')).not.toBeNull()
-    wrapper.unmount()
+  })
+
+  it('puts the text on the left of an aircraft heading right, as the map does', () => {
+    // The default 60° track heads right (east): the arrow leads at the right end.
+    expect(segmentOrder(mount(ArrowLabelExample))).toEqual(['BAW123', 'arrow'])
+  })
+
+  it('puts the text on the right of an aircraft heading left', () => {
+    expect(segmentOrder(mount(ArrowLabelExample, { props: { trackDeg: 270 } }))).toEqual([
+      'arrow',
+      'BAW123',
+    ])
   })
 
   it('points the arrow along the given track and shows the given callsign', () => {

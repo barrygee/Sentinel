@@ -10,8 +10,8 @@
  * CHANGES, like every other staged setting.
  *
  * Each option shows an example above its name: an arrow label for ARROW; for
- * SILHOUETTE, an airliner with its callsign as on hover beside a light
- * aircraft with none, both at the size the map draws them.
+ * SILHOUETTE, an airliner at the size the map draws it, with its callsign as
+ * on hover.
  */
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
 import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
@@ -49,10 +49,7 @@ const { value, applyChange } = useStagedSetting<AircraftIconStyle>({
       <span class="aircraft-icon-option">
         <AircraftIconExampleTile>
           <ArrowLabelExample v-if="option.value === 'arrow'" />
-          <template v-else>
-            <SilhouetteExample shape-key="type:A320" :track-deg="60" callsign="BAW123" />
-            <SilhouetteExample shape-key="type:C172" :track-deg="300" />
-          </template>
+          <SilhouetteExample v-else shape-key="type:A320" :track-deg="60" callsign="BAW123" />
         </AircraftIconExampleTile>
         {{ option.label }}
       </span>

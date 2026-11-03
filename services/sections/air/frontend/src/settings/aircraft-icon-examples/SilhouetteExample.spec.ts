@@ -42,6 +42,22 @@ describe('SilhouetteExample', () => {
     const callsign = wrapper.find('.silhouette-example-callsign')
     expect(callsign.text()).toBe('BAW123')
     expect(callsign.attributes('style')).toContain('text-shadow')
+    // The map's silhouette-mode tag size, smaller than an arrow label's 14px.
+    expect(callsign.attributes('style')).toContain('font-size: 12px')
+  })
+
+  it('puts the text on the left of an aircraft heading right, as the map does', () => {
+    const wrapper = mount(SilhouetteExample, {
+      props: { shapeKey: 'type:A320', trackDeg: 60, callsign: 'BAW123' },
+    })
+    expect(wrapper.classes()).toContain('silhouette-example--text-left')
+  })
+
+  it('puts the text on the right of an aircraft heading left', () => {
+    const wrapper = mount(SilhouetteExample, {
+      props: { shapeKey: 'type:A320', trackDeg: 270, callsign: 'BAW123' },
+    })
+    expect(wrapper.classes()).not.toContain('silhouette-example--text-left')
   })
 
   it('shows no text for an aircraft that is not hovered', () => {
