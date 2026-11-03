@@ -593,6 +593,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Load silhouettes before layout, smaller tag text, true-to-map examples
 - Tell the map sidebar its section after a first-loaded Settings page
 - Show where recordings are saved and size the Recordings Folder field
+- Tighten the line spacing of stacked silhouette tags
+- Write silhouette tag fields as plain text in the callsign's colour
+- Keep a silhouette tag's callsign level with the aircraft
+- Move a selected aircraft's tag when it turns to face the other way
+- Drop the shadow and outline from silhouette tag text
+- Drop the green dot before each settings section heading
 
 ### Chores
 
@@ -1707,6 +1713,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #560 from barrygee/feat/silhouette-stacked-tag
 - Merge pull request #561 from barrygee/fix/sidebar-section-after-settings
 - Merge pull request #562 from barrygee/fix/recordings-folder-input-width
+- Merge pull request #563 from barrygee/fix/silhouette-tag-line-spacing
+- Merge pull request #564 from barrygee/fix/settings-heading-dot
 
 ### Performance
 
@@ -1977,6 +1985,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Request guard, 100% line and branch coverage
 - Send Sec-Fetch-Site from the API fixture only, not the browser
 - Look for the SDR-only map in Settings, not behind the spectrum
+- Make the turning-tag poll tests deterministic
 
 ### Build System
 
@@ -2033,6 +2042,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the Monaco services fix
 - Rebuild the bundle for the setup docs change
 - Rebuild the bundle for the offline area fields fix
+- Rebuild the bundle for the silhouette tag changes
+- Rebuild the bundle for the level silhouette callsign
+- Rebuild the bundle for the turning-aircraft tag fix
+- Rebuild the bundle without the tag text shadow
+- Rebuild the bundle without the settings heading dot
 
 ### Continuous Integration
 
