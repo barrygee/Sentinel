@@ -26,11 +26,29 @@ import { AIRCRAFT_TYPE_DIMENSIONS } from '@sentinel/map-kit/aircraft-silhouettes
 /** The three states an aircraft is coloured by, everywhere in the Air section. */
 export type SilhouetteColourKey = 'civil' | 'military' | 'emergency'
 
-/** Body colour per state — the same values the arrows, trails and labels use. */
+/** Body colour per state on the dark map — the same values the arrows, trails and labels use. */
 export const SILHOUETTE_COLOURS: Readonly<Record<SilhouetteColourKey, string>> = {
   civil: '#00aaff',
   military: '#c8ff00',
   emergency: '#ff2222',
+}
+
+/**
+ * Which basemap a silhouette is drawn for. The dark map's bright fills wash
+ * out against the light map's cream land, so the light map gets deeper ones.
+ */
+export type SilhouettePalette = 'dark' | 'light'
+
+/** Body colours per palette. The light map's military olive is its overlay accent. */
+export const SILHOUETTE_PALETTES: Readonly<
+  Record<SilhouettePalette, Readonly<Record<SilhouetteColourKey, string>>>
+> = {
+  dark: SILHOUETTE_COLOURS,
+  light: {
+    civil: '#0057b8',
+    military: '#4d6600',
+    emergency: '#c40000',
+  },
 }
 
 /** Outline colour: black keeps a silhouette readable over imagery and terrain. */
@@ -55,9 +73,18 @@ export const SILHOUETTE_ZOOMED_IN_SCALE = 1.18
 /** Prefix every silhouette image name carries, so a handler can recognise its own. */
 export const SILHOUETTE_IMAGE_PREFIX = 'aircraft-silhouette:'
 
-/** Name of the map image for one shape in one colour. */
+/**
+ * Name of the map image for one shape in one colour. A feature carries this
+ * name; the map layer appends the palette for the basemap on screen (see
+ * {@link silhouetteImageIdForPalette}), so a palette change needs no new data.
+ */
 export function silhouetteImageId(shapeKey: string, colourKey: SilhouetteColourKey): string {
   return `${SILHOUETTE_IMAGE_PREFIX}${shapeKey}:${colourKey}`
+}
+
+/** A feature's image name with the palette suffix the map layer adds to it. */
+export function silhouetteImageIdForPalette(imageId: string, palette: SilhouettePalette): string {
+  return `${imageId}:${palette}`
 }
 
 /** Whether `value` is one of the three colour keys. */
@@ -65,21 +92,36 @@ function isColourKey(value: string): value is SilhouetteColourKey {
   return value === 'civil' || value === 'military' || value === 'emergency'
 }
 
+/** Whether `value` names a palette. */
+function isPalette(value: string): value is SilhouettePalette {
+  return value === 'dark' || value === 'light'
+}
+
 /**
- * Split an image name back into its shape and colour.
+ * Split an image name back into its shape, colour and palette. A name with no
+ * palette suffix is the dark map's.
  *
  * @returns `null` for a name that is not a well-formed silhouette image name.
  */
-export function parseSilhouetteImageId(
-  imageId: string,
-): { shapeKey: string; colourKey: SilhouetteColourKey } | null {
+export function parseSilhouetteImageId(imageId: string): {
+  shapeKey: string
+  colourKey: SilhouetteColourKey
+  palette: SilhouettePalette
+} | null {
   if (!imageId.startsWith(SILHOUETTE_IMAGE_PREFIX)) return null
-  const remainder = imageId.slice(SILHOUETTE_IMAGE_PREFIX.length)
+  let remainder = imageId.slice(SILHOUETTE_IMAGE_PREFIX.length)
+  let palette: SilhouettePalette = 'dark'
+  const paletteSeparator = remainder.lastIndexOf(':')
+  const lastSegment = remainder.slice(paletteSeparator + 1)
+  if (paletteSeparator > 0 && isPalette(lastSegment)) {
+    palette = lastSegment
+    remainder = remainder.slice(0, paletteSeparator)
+  }
   const colourSeparator = remainder.lastIndexOf(':')
   if (colourSeparator <= 0) return null
   const colourKey = remainder.slice(colourSeparator + 1)
   if (!isColourKey(colourKey)) return null
-  return { shapeKey: remainder.slice(0, colourSeparator), colourKey }
+  return { shapeKey: remainder.slice(0, colourSeparator), colourKey, palette }
 }
 
 /** What one shape key draws: its outline and whether it turns with the track. */
@@ -190,7 +232,7 @@ export function createSilhouetteImageData(imageId: string, pixelRatio = 2): Imag
   context.strokeStyle = OUTLINE_COLOUR
   context.fill(outline)
   context.stroke(outline)
-  context.fillStyle = SILHOUETTE_COLOURS[parsed.colourKey]
+  context.fillStyle = SILHOUETTE_PALETTES[parsed.palette][parsed.colourKey]
   context.fill(outline)
 
   return context.getImageData(0, 0, canvasSide, canvasSide)

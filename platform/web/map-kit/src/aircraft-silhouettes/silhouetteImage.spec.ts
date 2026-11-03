@@ -4,9 +4,11 @@ import {
   parseSilhouetteImageId,
   SILHOUETTE_COLOURS,
   SILHOUETTE_FALLBACK_ICON_PX,
+  SILHOUETTE_PALETTES,
   silhouetteForShape,
   silhouetteIconSizePx,
   silhouetteImageId,
+  silhouetteImageIdForPalette,
   silhouetteRotatesWithTrack,
 } from './silhouetteImage'
 import { buildAircraftSilhouette, silhouetteImageSidePx } from './aircraftSilhouette'
@@ -18,10 +20,24 @@ describe('silhouette image names', () => {
     )
   })
 
-  it.each(['civil', 'military', 'emergency'] as const)('reads back a %s name', (colourKey) => {
-    expect(parseSilhouetteImageId(silhouetteImageId('family:glider', colourKey))).toEqual({
-      shapeKey: 'family:glider',
-      colourKey,
+  it.each(['civil', 'military', 'emergency'] as const)(
+    'reads back a %s name with no palette as the dark map’s',
+    (colourKey) => {
+      expect(parseSilhouetteImageId(silhouetteImageId('family:glider', colourKey))).toEqual({
+        shapeKey: 'family:glider',
+        colourKey,
+        palette: 'dark',
+      })
+    },
+  )
+
+  it.each(['dark', 'light'] as const)('reads back the %s palette the map layer adds', (palette) => {
+    const imageId = silhouetteImageIdForPalette(silhouetteImageId('type:A320', 'military'), palette)
+    expect(imageId).toBe(`aircraft-silhouette:type:A320:military:${palette}`)
+    expect(parseSilhouetteImageId(imageId)).toEqual({
+      shapeKey: 'type:A320',
+      colourKey: 'military',
+      palette,
     })
   })
 
@@ -30,6 +46,9 @@ describe('silhouette image names', () => {
     ['a name with no colour', 'aircraft-silhouette:'],
     ['a name with no shape', 'aircraft-silhouette::civil'],
     ['an unknown colour', 'aircraft-silhouette:type:A320:purple'],
+    ['an unknown colour before a palette', 'aircraft-silhouette:type:A320:purple:light'],
+    ['a palette with no colour', 'aircraft-silhouette:light'],
+    ['a palette and colour with no shape', 'aircraft-silhouette::civil:light'],
   ])('rejects %s', (_description, imageId) => {
     expect(parseSilhouetteImageId(imageId)).toBeNull()
   })
@@ -133,6 +152,16 @@ describe('createSilhouetteImageData', () => {
       { call: 'fill', colour: SILHOUETTE_COLOURS.military, path: pathData },
     ])
     expect(context.lineJoin).toBe('round')
+  })
+
+  it('fills the light map’s silhouettes with its deeper colours', () => {
+    const lightImage = silhouetteImageIdForPalette(silhouetteImageId('type:A320', 'civil'), 'light')
+    createSilhouetteImageData(lightImage)
+    expect(drawCalls.at(-1)).toMatchObject({
+      call: 'fill',
+      colour: SILHOUETTE_PALETTES.light.civil,
+    })
+    expect(SILHOUETTE_PALETTES.light.civil).not.toBe(SILHOUETTE_COLOURS.civil)
   })
 
   it('draws at twice the icon size by default, for high-density screens', () => {

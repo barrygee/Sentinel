@@ -39,12 +39,14 @@ import {
   isLeftFacing,
 } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
+import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import {
   createSilhouetteImageData,
   silhouetteIconSizePx,
   silhouetteImageId,
   silhouetteRotatesWithTrack,
   SILHOUETTE_IMAGE_PREFIX,
+  type SilhouettePalette,
   SILHOUETTE_ZOOMED_IN_SCALE,
   SILHOUETTE_ZOOMED_IN_THRESHOLD,
   type SilhouetteColourKey,
@@ -53,6 +55,8 @@ import {
   SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX,
   SILHOUETTE_TAG_CALLSIGN_PX,
   SILHOUETTE_TAG_FIELD_PX,
+  SILHOUETTE_TAG_LIGHT_MAP_EMERGENCY_INK,
+  SILHOUETTE_TAG_LIGHT_MAP_INK,
   SILHOUETTE_TAG_LINE_HEIGHT,
 } from './silhouetteTagStyle'
 
@@ -243,6 +247,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _onTagFieldsChanged: ((e: Event) => void) | null = null
   /** Arrow inside the label, or silhouette beside it (Settings › AIR › Aircraft Icons). */
   _iconStyle: AircraftIconStyle = 'arrow'
+  /**
+   * Which basemap the silhouettes are coloured for, read in initLayers — which
+   * every map re-runs when the palette changes and reloads the basemap.
+   */
+  private _silhouettePalette: SilhouettePalette = 'dark'
   // Draws silhouette images the moment the map first needs one (and again after
   // a style reload drops them), so only shapes actually on screen are built.
   private _resolveMissingImage: ((imageId: string) => void) | null = null
@@ -590,7 +599,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
   /** Which map image each aircraft gets: its silhouette, or the arrow-mode symbol. */
   private _iconImageExpression(): maplibregl.ExpressionSpecification {
     return this._preferSilhouette<maplibregl.ExpressionSpecification>(
-      ['get', 'silhouetteImage'],
+      // The feature names its shape and colour; the palette is the map's.
+      ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
       [
         'case',
         ['==', ['get', 'category'], 'C1'],
@@ -690,7 +700,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   initLayers(): void {
     const layerVisibility = this.visible ? 'visible' : 'none'
-
+    this._silhouettePalette = isBrightBasemap() ? 'light' : 'dark'
     ;['adsb-icons', 'adsb-hit', 'adsb-bracket', 'adsb-trail-dots', 'adsb-trail-line'].forEach(
       (id) => {
         if (this.map.getLayer(id)) this.map.removeLayer(id)
@@ -1016,7 +1026,17 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
     const callsign = escapeHtml(raw || 'UNKNOWN')
     const isEmergency = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
-    const callsignColor = isEmergency ? '#ff4040' : '#ffffff'
+    // Arrow mode's text sits on its own black block, so it is always light.
+    // Beside a silhouette the text sits on the map itself: on the light map it
+    // takes the map's dark overlay ink, and a deeper red for an emergency.
+    const textOnBrightMap = this._iconStyle === 'silhouette' && isBrightBasemap()
+    const callsignColor = isEmergency
+      ? textOnBrightMap
+        ? SILHOUETTE_TAG_LIGHT_MAP_EMERGENCY_INK
+        : '#ff4040'
+      : textOnBrightMap
+        ? SILHOUETTE_TAG_LIGHT_MAP_INK
+        : '#ffffff'
     const isTracked = this._followEnabled && props.hex === this._tagHex
     const isMilProps = !!props.military
     const tfieldsProps = isMilProps ? this._tagFields.mil : this._tagFields.civil
