@@ -1053,29 +1053,46 @@ export class AdsbLiveControl implements maplibregl.IControl {
       (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
     // A stacked field needs no side padding or full-height block.
     const fieldPadding = plainText ? '0' : '0 7px'
+    // Beside a silhouette the fields are plain text in the callsign's colour
+    // and weight; arrow mode keeps its bold, colour-coded blocks.
+    const fieldWeight = plainText ? 400 : 700
+    const fieldLabelWeight = plainText ? 400 : 600
     const fieldAlignSelf = plainText ? 'auto' : 'stretch'
 
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
+      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:${fieldLabelWeight};font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
       const has = (f: keyof typeof tfields) => !!tfields[f]
-      const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
+      const badgeColor = plainText
+        ? callsignColor
+        : isEmerg
+          ? '#ff4040'
+          : isMil
+            ? '#c8ff00'
+            : 'rgba(255,255,255,0.7)'
       const typeBg = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
-      const typeColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+      const typeColor = plainText
+        ? callsignColor
+        : isEmerg
+          ? '#ff2222'
+          : isMil
+            ? '#c8ff00'
+            : '#00aaff'
+      const emergencySquawkColor = plainText ? callsignColor : '#ff2222'
       const catLbl = this._categoryLabel(props.category)
       const altStr =
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
+          ? `<span style="background:${surface('#000')};color:${emergencySquawkColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
             ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
+          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =

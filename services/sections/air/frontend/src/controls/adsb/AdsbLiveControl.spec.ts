@@ -4952,6 +4952,40 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(rows.at(-1)).toBe('TRACKING')
     })
 
+    it('writes a military aircraft’s fields as plain white text, not lime or bold', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props({ military: true, alt_baro: 30000 })) as string
+      expect(html).not.toContain('#c8ff00')
+      expect(html).not.toMatch(/font-weight:(600|700)/)
+      const { rows } = tagLayout(html)
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const fields = Array.from(host.firstElementChild!.children).slice(1) as HTMLElement[]
+      expect(rows.length).toBeGreaterThan(2)
+      for (const field of fields) expect(field.style.color).toBe('rgb(255, 255, 255)')
+    })
+
+    it('writes an emergency’s fields in the callsign’s red', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(
+        props({ squawkEmerg: 1, squawk: '7700', emergency: 'general' }),
+      ) as string
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const fields = Array.from(host.firstElementChild!.children).slice(1) as HTMLElement[]
+      for (const field of fields) expect(field.style.color).toBe('rgb(255, 64, 64)')
+    })
+
+    it('keeps arrow-mode fields bold and colour-coded', () => {
+      const { control } = mountedIn('arrow')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props({ military: true })) as string
+      expect(html).toContain('#c8ff00')
+      expect(html).toContain('font-weight:700')
+    })
+
     it('drops the side padding so stacked fields line up under the callsign', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
