@@ -25,6 +25,7 @@ from backend.services.app_config import (
     build_config_snapshot,
     canonical_key_order,
     rows_to_namespace_dict,
+    validated_aircraft_icon_style,
     validated_location,
 )
 
@@ -87,6 +88,34 @@ class TestValidatedLocation:
             "latitude": 51.5,
             "longitude": -0.1,
         }
+
+
+class TestValidatedAircraftIconStyle:
+    @pytest.mark.parametrize("style", ["arrow", "silhouette"])
+    def test_accepts_each_style(self, style):
+        assert validated_aircraft_icon_style(style) == style
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "ARROW",
+            "Silhouette",
+            "sideways",
+            "",
+            " arrow",
+            None,
+            1,
+            True,
+            ["arrow"],
+            {"style": "arrow"},
+        ],
+    )
+    def test_rejects_anything_else(self, value):
+        with pytest.raises(
+            InvalidConfigError,
+            match="aircraftIconStyle must be 'arrow' or 'silhouette'",
+        ):
+            validated_aircraft_icon_style(value)
 
 
 class TestCanonicalKeyOrder:
@@ -171,6 +200,34 @@ class TestApplyConfig:
                     },
                 )
         assert await _value(session_factory, "app", "notificationSound") is None
+
+    async def test_stores_a_valid_aircraft_icon_style(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"air": {"aircraftIconStyle": "silhouette"}})
+        assert await _value(session_factory, "air", "aircraftIconStyle") == "silhouette"
+
+    async def test_rejects_an_invalid_aircraft_icon_style_without_writing_anything(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            with pytest.raises(InvalidConfigError, match="aircraftIconStyle"):
+                await apply_config(
+                    session,
+                    {
+                        "app": {"notificationSound": True},
+                        "air": {"aircraftIconStyle": "<script>"},
+                    },
+                )
+        assert await _value(session_factory, "app", "notificationSound") is None
+        assert await _value(session_factory, "air", "aircraftIconStyle") is None
+
+    async def test_leaves_an_air_block_without_the_icon_style_alone(
+        self, session_factory
+    ):
+        async with session_factory() as session:
+            await apply_config(session, {"air": {"enabled": True}})
+        assert await _value(session_factory, "air", "aircraftIconStyle") is None
+        assert await _value(session_factory, "air", "enabled") is True
 
     async def test_ignores_reserved_entries_like_the_comment(self, session_factory):
         async with session_factory() as session:

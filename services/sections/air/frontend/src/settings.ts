@@ -4,6 +4,7 @@ import {
 } from '@sentinel/shell-api/shell/settingsRegistry'
 import AdsbSdrSourceControl from './settings/AdsbSdrSourceControl.vue'
 import AdsbTagFieldsControl from './settings/AdsbTagFieldsControl.vue'
+import AircraftIconStyleControl from './settings/AircraftIconStyleControl.vue'
 import MapLayersControl from './settings/MapLayersControl.vue'
 import OnlineDailyCallLimitControl from './settings/OnlineDailyCallLimitControl.vue'
 import OnlineQuotaUsageControl from './settings/OnlineQuotaUsageControl.vue'
@@ -14,7 +15,7 @@ import SourceOverrideControl from '@sentinel/shell-api/settings/SourceOverrideCo
 import SquawkWatchIntervalControl from './settings/SquawkWatchIntervalControl.vue'
 
 /**
- * AIR's Settings section (F3): data sources, map layers, aircraft labels and overhead alerts.
+ * AIR's Settings section (F3): data sources, map layers, aircraft icons and labels, and overhead alerts.
  * Each data source setting shows only in the mode it belongs to (`sourceMode`).
  */
 export function registerAirSettings(): void {
@@ -124,6 +125,20 @@ export function registerAirSettings(): void {
         layout: 'half',
         naturalHeight: true,
       },
+      groupLabel: 'MAP',
+    },
+    {
+      section: 'air',
+      sectionLabel: 'AIR',
+      id: 'air-aircraft-icon-style',
+      label: 'Aircraft Icons',
+      desc: '',
+      // The option examples show what each style looks like; these keep the
+      // setting findable by the words a description would have carried.
+      searchTerms:
+        'silhouette icon shape aircraft type plane symbol arrow labels hover selected adsbexchange flightradar',
+      // The option examples are taller than a plain segmented row.
+      control: { component: AircraftIconStyleControl, emits: ['stage'], naturalHeight: true },
       groupLabel: 'MAP',
     },
     {

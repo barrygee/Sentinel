@@ -106,6 +106,26 @@ def validated_location(value: Any) -> dict:
     return {"latitude": latitude, "longitude": longitude}
 
 
+# How the Air map draws aircraft (Settings › AIR › Aircraft Icons): the
+# direction arrow inside each label, or a silhouette of the aircraft's type.
+AIRCRAFT_ICON_STYLES: frozenset[str] = frozenset({"arrow", "silhouette"})
+
+
+def validated_aircraft_icon_style(value: Any) -> str:
+    """Validate an `air.aircraftIconStyle` value against the allow-list.
+
+    The SPA ignores a style it does not know, but the value is still echoed into
+    every config export and the live config file, so anything else is refused
+    rather than stored.
+
+    Raises:
+        InvalidConfigError: when the value is not one of AIRCRAFT_ICON_STYLES.
+    """
+    if not isinstance(value, str) or value not in AIRCRAFT_ICON_STYLES:
+        raise InvalidConfigError("aircraftIconStyle must be 'arrow' or 'silhouette'")
+    return value
+
+
 @lru_cache(maxsize=1)
 def canonical_key_order() -> dict[str, list[str]]:
     """Per-namespace canonical key order, read from default_config.json.
@@ -233,7 +253,8 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
 
     Raises:
         InvalidConfigError: when the document is not an object or holds an
-            invalid `app.location` — nothing is written in that case.
+            invalid `app.location` or `air.aircraftIconStyle` — nothing is
+            written in that case.
     """
     if not isinstance(config, dict):
         raise InvalidConfigError("Config must be a JSON object")
@@ -247,6 +268,9 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     app_block = config.get("app")
     if isinstance(app_block, dict) and "location" in app_block:
         app_block["location"] = validated_location(app_block["location"])
+    air_block = config.get("air")
+    if isinstance(air_block, dict) and "aircraftIconStyle" in air_block:
+        air_block["aircraftIconStyle"] = validated_aircraft_icon_style(air_block["aircraftIconStyle"])
 
     # The APRS/AIS decoders are running processes, not just stored values: if
     # the document changes which radio feeds them, the bridges must follow so

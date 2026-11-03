@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import {
   useAirStore,
+  AIRCRAFT_ICON_STYLE_SETTING,
+  isAircraftIconStyle,
   DEFAULT_OVERHEAD_ALERT_RADIUS_NM,
   USER_ALERT_LOCATION_ID,
   parseStoredOverheadAlerts,
@@ -566,5 +568,69 @@ describe('air store — overhead alerts from the config database', () => {
       await store.loadOverheadAlertsFromConfig()
       expect(store.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(true)
     })
+  })
+})
+
+describe('air store aircraft icon style', () => {
+  const STORAGE_KEY = 'sentinel_air_aircraftIconStyle'
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('recognises only the two styles', () => {
+    expect(isAircraftIconStyle('arrow')).toBe(true)
+    expect(isAircraftIconStyle('silhouette')).toBe(true)
+    for (const value of ['ARROW', 'sideways', '', null, undefined, 1, {}]) {
+      expect(isAircraftIconStyle(value)).toBe(false)
+    }
+  })
+
+  it('starts on arrows', () => {
+    expect(useAirStore().aircraftIconStyle).toBe('arrow')
+  })
+
+  it('remembers the style across reloads', () => {
+    useAirStore().setAircraftIconStyle('silhouette')
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toBe('silhouette')
+    setActivePinia(createPinia())
+    expect(useAirStore().aircraftIconStyle).toBe('silhouette')
+  })
+
+  it('ignores a stored value that is not a style', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify('sideways'))
+    expect(useAirStore().aircraftIconStyle).toBe('arrow')
+  })
+
+  it('adopts a valid style from the config and ignores anything else', () => {
+    const store = useAirStore()
+    store.hydrateAircraftIconStyle('silhouette')
+    expect(store.aircraftIconStyle).toBe('silhouette')
+    store.hydrateAircraftIconStyle('sideways')
+    store.hydrateAircraftIconStyle(undefined)
+    expect(store.aircraftIconStyle).toBe('silhouette')
+  })
+
+  it('re-reads the style from the config database', async () => {
+    vi.spyOn(settingsApi, 'getNamespace').mockResolvedValue({
+      [AIRCRAFT_ICON_STYLE_SETTING]: 'silhouette',
+    })
+    const store = useAirStore()
+    await store.hydrateAircraftIconStyleFromDb()
+    expect(settingsApi.getNamespace).toHaveBeenCalledWith('air')
+    expect(store.aircraftIconStyle).toBe('silhouette')
+  })
+
+  it('keeps the current style when the database has no air settings', async () => {
+    vi.spyOn(settingsApi, 'getNamespace').mockResolvedValue(null)
+    const store = useAirStore()
+    store.setAircraftIconStyle('silhouette')
+    await store.hydrateAircraftIconStyleFromDb()
+    expect(store.aircraftIconStyle).toBe('silhouette')
   })
 })

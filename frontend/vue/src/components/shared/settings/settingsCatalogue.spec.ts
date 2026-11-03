@@ -18,6 +18,7 @@ import { registerLandSettings } from '@sentinel/section-land/settings'
 import { registerSdrSettings } from '@sentinel/section-sdr/settings'
 import { registerSdrManagerLocalSettings } from '@sentinel/sdr-manager-local/settings'
 import AdsbSdrSourceControl from '@sentinel/section-air/settings/AdsbSdrSourceControl.vue'
+import AircraftIconStyleControl from '@sentinel/section-air/settings/AircraftIconStyleControl.vue'
 import AdsbTagFieldsControl from '@sentinel/section-air/settings/AdsbTagFieldsControl.vue'
 import SquawkWatchIntervalControl from '@sentinel/section-air/settings/SquawkWatchIntervalControl.vue'
 import OnlineRefreshIntervalControl from '@sentinel/section-air/settings/OnlineRefreshIntervalControl.vue'
@@ -157,6 +158,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'air',
     'map-layers',
     { component: MapLayersControl, emits: ['stage'], layout: 'half', naturalHeight: true },
+  ],
+  [
+    'air',
+    'air-aircraft-icon-style',
+    { component: AircraftIconStyleControl, emits: ['stage'], naturalHeight: true },
   ],
   ['air', 'air-tag-fields', { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' }],
   [

@@ -1,4 +1,4 @@
-import { useAirStore, type AdsbTagFields } from './stores/air'
+import { AIRCRAFT_ICON_STYLE_SETTING, useAirStore, type AdsbTagFields } from './stores/air'
 import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 
 /** The aircraft label fields a fresh install starts with. */
@@ -27,13 +27,15 @@ const DEFAULT_LABEL_DATA_POINTS = {
 
 /**
  * Air's boot hydration (moved out of `main.ts`, F1): the map overlays
- * (Settings › AIR › Map Layers) and the aircraft label fields, adopted from
+ * (Settings › AIR › Map Layers), the aircraft icon style and the aircraft
+ * label fields, adopted from
  * the config so a choice made in the app-config JSON or on another device is
  * what the map draws from the first frame.
  */
 export function hydrateAirFromSettings(settings: AllSettings): void {
   const airStore = useAirStore()
   airStore.hydrateMapLayers(settings.air?.mapLayers)
+  airStore.hydrateAircraftIconStyle(settings.air?.[AIRCRAFT_ICON_STYLE_SETTING])
 
   const remote = settings.air?.labelDataPoints as AdsbTagFields | undefined
   if (

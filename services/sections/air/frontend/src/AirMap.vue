@@ -383,6 +383,13 @@ onMounted(() => {
     () => airStore.overlayStates.towers,
     (shown) => adsbControl?.setHideTowers(!shown),
   )
+  // Arrow or silhouette (Settings › AIR › Aircraft Icons). The control reads the
+  // store when it is built; this carries later changes — the setting itself, a
+  // config upload, or an edit on another device — to the live map.
+  watch(
+    () => airStore.aircraftIconStyle,
+    (style) => adsbControl?.setIconStyle(style),
+  )
   // Place names are a shared base-map layer, so this one follows the basemap
   // store — and is equally how the Land map's own names button reaches this map.
   watch(

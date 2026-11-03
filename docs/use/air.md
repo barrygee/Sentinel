@@ -14,6 +14,7 @@ Live aircraft near you, from ADS-B. Online from [adsb.lol](https://adsb.lol); of
 - **Show** all, civil or military aircraft, airports or military bases.
 - **Airport frequencies**: select one to tune your radio to it in AM.
 - **Layers**: **RANGE RING**, **A2A REFUELING**, **AWACS**, **TERRAIN**, more under **MAP LAYERS**.
+- **Aircraft silhouettes**: draw each aircraft as its type (an A321, a Chinook, a Typhoon) instead of an arrow, in **Aircraft Icons**.
 
 ![An aircraft's details in the FILTER pane: POSITION and IDENTIFICATION, squawk 7700, and the track, alert and centre buttons beneath; its headings are red for the emergency. On the map the aircraft is red too, with its recent trail behind it.](../images/air-aircraft-details.png)
 
@@ -42,6 +43,7 @@ All in **Settings › AIR**.
 | **Online Squawk Checks** | Seconds between emergency checks of the online feed while no Air map is open and showing. Default 300. Never more often than **Online Refresh Interval**, and each check uses one daily call (300 is 288 a day) |
 | **Off Grid Squawk Checks** | Seconds between emergency checks of the local decoder while no Air map is open. Default 20 |
 | **Map Layers** | Layers on when the map opens |
+| **Aircraft Icons** | **ARROW** (default): a direction arrow at the front of each label. **SILHOUETTE**: each aircraft drawn as its own type, seen from above, at about the size ADS-B Exchange draws it (larger aircraft a little larger, and all of them a little larger once zoomed in). Labels are hidden: hover over an aircraft, or select it, to see its data as plain text beside it. Types Sentinel doesn't know are drawn from their broadcast category (light, heavy, helicopter, glider, balloon, drone), or keep the arrow |
 | **Aircraft Label Fields** | What each aircraft label shows |
 | **Overhead Aircraft Alerts** | Places to watch, civil or military, and how close |
 

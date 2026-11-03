@@ -2,6 +2,7 @@ import { readCachedSectionMode, type SourceMode } from '@sentinel/shell-api/util
 import * as maplibregl from 'maplibre-gl'
 import type { AirStore, AirNotifStore, NotificationsStore, TrackingStore } from '../types'
 import { createNotifEnabledAdapter, type NotifEnabledAdapter } from '../../stores/airNotif'
+import type { AircraftIconStyle } from '../../stores/air'
 import { parseAlt, isMilitary, type AdsbApiEntry } from './adsbParse'
 import {
   displayedPosition,
@@ -37,6 +38,22 @@ import {
   createNameSegment,
   isLeftFacing,
 } from '@sentinel/map-kit/map-label/mapLabelParts'
+import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
+import {
+  createSilhouetteImageData,
+  silhouetteIconSizePx,
+  silhouetteImageId,
+  silhouetteRotatesWithTrack,
+  SILHOUETTE_IMAGE_PREFIX,
+  SILHOUETTE_ZOOMED_IN_SCALE,
+  SILHOUETTE_ZOOMED_IN_THRESHOLD,
+  type SilhouetteColourKey,
+} from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import {
+  SILHOUETTE_TAG_CALLSIGN_PX,
+  SILHOUETTE_TAG_FIELD_PX,
+  SILHOUETTE_TAG_TEXT_HALO,
+} from './silhouetteTagStyle'
 
 // ---- Internal types ----
 
@@ -67,6 +84,51 @@ interface AircraftProperties {
   rssi: number | null
   military: boolean
   stale: 0 | 1
+  /**
+   * Map image of this aircraft's silhouette in its colour, or '' when its type
+   * and category name no shape (it then keeps the arrow even in silhouette mode).
+   */
+  silhouetteImage: string
+  /** Half the silhouette icon's size in px: how far the label sits off the position. */
+  silhouetteRadiusPx: number
+  /** 1 when the silhouette turns with the track; 0 for a side-view shape (a balloon). */
+  silhouetteRotates: 0 | 1
+}
+
+/** Pixel gap between a silhouette's edge and its label. */
+const SILHOUETTE_LABEL_GAP_PX = 3
+
+/**
+ * Horizontal offset that puts a label's glyph well (26px, centred) on the
+ * aircraft's position in arrow mode — the label's own arrow marks the aircraft.
+ */
+const ARROW_LABEL_OFFSET_PX = 13
+
+/**
+ * The silhouette-related feature properties for one aircraft.
+ *
+ * Resolved when the feature is built, not by the map, because the colour is
+ * part of the image name: an emergency squawk picks the red image, military the
+ * lime one. Kept outside the class so it can be read and checked on its own.
+ */
+function silhouetteProperties(
+  typeDesignator: string,
+  category: string,
+  military: boolean,
+  squawkEmergency: boolean,
+): Pick<AircraftProperties, 'silhouetteImage' | 'silhouetteRadiusPx' | 'silhouetteRotates'> {
+  const shape = resolveAircraftShape(typeDesignator, category)
+  if (!shape) return { silhouetteImage: '', silhouetteRadiusPx: 0, silhouetteRotates: 0 }
+  const colourKey: SilhouetteColourKey = squawkEmergency
+    ? 'emergency'
+    : military
+      ? 'military'
+      : 'civil'
+  return {
+    silhouetteImage: silhouetteImageId(shape.shapeKey, colourKey),
+    silhouetteRadiusPx: silhouetteIconSizePx(shape.shapeKey) / 2,
+    silhouetteRotates: silhouetteRotatesWithTrack(shape.shapeKey) ? 1 : 0,
+  }
 }
 
 // The raw feed entry shape lives with the shared parser: a second copy here is
@@ -172,6 +234,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     mil: { aircraftType: true },
   }
   private _onTagFieldsChanged: ((e: Event) => void) | null = null
+  /** Arrow inside the label, or silhouette beside it (Settings › AIR › Aircraft Icons). */
+  _iconStyle: AircraftIconStyle = 'arrow'
+  // Draws silhouette images the moment the map first needs one (and again after
+  // a style reload drops them), so only shapes actually on screen are built.
+  private _resolveMissingImage: ((imageId: string) => void) | null = null
   private _onPageVisibilityChange: (() => void) | null = null
 
   constructor(
@@ -203,6 +270,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       civil: { ...airStore.adsbTagFields.civil },
       mil: { ...airStore.adsbTagFields.mil },
     }
+    this._iconStyle = airStore.aircraftIconStyle
     // Restore the persisted type/visibility filter here (not via a delayed
     // setTimeout in AirSideMenu) so the very first poll renders under the
     // correct filter — otherwise civil aircraft flash for ~1s on load before
@@ -347,9 +415,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setFilter('adsb-hit', filter as maplibregl.FilterSpecification)
     if (this.map.getLayer('adsb-icons')) {
       this.map.setFilter('adsb-icons', filter as maplibregl.FilterSpecification)
-      // Labels are permanently on, so HTML markers always replace the symbol
-      // layer — keep the icon symbols hidden after re-filtering.
-      this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
+      // Labels are permanently on. In arrow mode their glyph wells replace the
+      // symbol layer, so it stays hidden; in silhouette mode it draws the aircraft.
+      this.map.setLayoutProperty('adsb-icons', 'visibility', this._iconLayerVisibility())
     }
   }
 
@@ -397,6 +465,21 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
     window.addEventListener('adsb:tagFieldsChanged', this._onTagFieldsChanged)
 
+    // Silhouettes are rasterised the first time the map asks for one by name,
+    // and again after a style reload drops the map's images. Names belonging to
+    // anything else are left for their owners. MapLibre 6 asks this resolver
+    // *before* laying out the icons; its `styleimagemissing` event fires only
+    // afterwards, too late for that layout (every icon then logged "could not
+    // be loaded" and appeared a frame late).
+    this._resolveMissingImage = (imageId: string) => {
+      // onRemove clears the resolver, so the map is always there when it runs.
+      if (!imageId.startsWith(SILHOUETTE_IMAGE_PREFIX)) return
+      if (this.map.hasImage(imageId)) return
+      const image = createSilhouetteImageData(imageId)
+      if (image) this.map.addImage(imageId, image, { pixelRatio: 2 })
+    }
+    this.map.setMissingStyleImageResolver(this._resolveMissingImage)
+
     // A hidden tab still polls (browsers only slow its timers to once a
     // minute), and online every poll can cost a call from the feed's daily
     // limit. Nobody is looking at a hidden map, so stop asking until the tab is
@@ -425,6 +508,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (this._onPageVisibilityChange) {
       document.removeEventListener('visibilitychange', this._onPageVisibilityChange)
       this._onPageVisibilityChange = null
+    }
+    if (this._resolveMissingImage) {
+      this.map?.setMissingStyleImageResolver(null)
+      this._resolveMissingImage = null
     }
     if (this.container && this.container.parentNode)
       this.container.parentNode.removeChild(this.container)
@@ -475,6 +562,121 @@ export class AdsbLiveControl implements maplibregl.IControl {
       sdf: false,
     })
     _addOrUpdate('adsb-blip-tower', createTowerBlip(1.1), { pixelRatio: 2, sdf: false })
+  }
+
+  // ---- Icon layer expressions ----
+
+  /**
+   * In silhouette mode, prefer `silhouetteValue` for features that have a
+   * silhouette and fall back to `arrowValue` for the rest; in arrow mode, just
+   * `arrowValue`. Aircraft whose type and category name no shape, and surface
+   * traffic, keep their arrow-mode symbol either way.
+   */
+  private _preferSilhouette<LayoutValue extends maplibregl.ExpressionSpecification | number>(
+    silhouetteValue: LayoutValue,
+    arrowValue: LayoutValue,
+  ): LayoutValue | maplibregl.ExpressionSpecification {
+    if (this._iconStyle !== 'silhouette') return arrowValue
+    return ['case', ['!=', ['get', 'silhouetteImage'], ''], silhouetteValue, arrowValue]
+  }
+
+  /** Which map image each aircraft gets: its silhouette, or the arrow-mode symbol. */
+  private _iconImageExpression(): maplibregl.ExpressionSpecification {
+    return this._preferSilhouette<maplibregl.ExpressionSpecification>(
+      ['get', 'silhouetteImage'],
+      [
+        'case',
+        ['==', ['get', 'category'], 'C1'],
+        'adsb-blip-emerg-gnd',
+        ['==', ['get', 'category'], 'C2'],
+        'adsb-blip-gnd',
+        ['==', ['get', 'category'], 'C3'],
+        'adsb-blip-tower',
+        ['==', ['get', 't'], 'TWR'],
+        'adsb-blip-tower',
+        ['==', ['get', 'squawkEmerg'], 1],
+        'adsb-blip-emerg',
+        ['boolean', ['get', 'military'], false],
+        'adsb-blip-mil',
+        ['==', ['get', 'category'], 'B6'],
+        'adsb-blip-uav',
+        'adsb-blip',
+      ],
+    )
+  }
+
+  /**
+   * Icon scale. Silhouette images are drawn at their zoomed-out size (already
+   * sized by the aircraft's real size) and grow by
+   * {@link SILHOUETTE_ZOOMED_IN_SCALE} once zoomed in, as ADS-B Exchange's do;
+   * the arrow-mode sprites are drawn larger and shown at 0.75, as they always
+   * have been. MapLibre only allows `zoom` at the top of an expression, so the
+   * zoom step wraps the per-feature choice rather than the other way round.
+   */
+  private _iconSizeExpression(): maplibregl.ExpressionSpecification | number {
+    if (this._iconStyle !== 'silhouette') return 0.75
+    return [
+      'step',
+      ['zoom'],
+      this._preferSilhouette(1, 0.75),
+      SILHOUETTE_ZOOMED_IN_THRESHOLD,
+      this._preferSilhouette(SILHOUETTE_ZOOMED_IN_SCALE, 0.75),
+    ]
+  }
+
+  /** The zoom scale silhouettes are drawn at right now (see {@link _iconSizeExpression}). */
+  private _silhouetteZoomScale(): number {
+    return this.map.getZoom() >= SILHOUETTE_ZOOMED_IN_THRESHOLD ? SILHOUETTE_ZOOMED_IN_SCALE : 1
+  }
+
+  /**
+   * Icon rotation. Aircraft turn to their track; surface traffic, towers and
+   * side-view silhouettes (a balloon) stay upright, since their reported track
+   * is not a heading worth showing.
+   */
+  private _iconRotateExpression(): maplibregl.ExpressionSpecification {
+    return this._preferSilhouette<maplibregl.ExpressionSpecification>(
+      ['case', ['==', ['get', 'silhouetteRotates'], 1], ['get', 'track'], 0],
+      [
+        'case',
+        ['match', ['get', 'category'], ['C1', 'C2', 'C3', 'C4', 'C5'], true, false],
+        0,
+        ['==', ['get', 't'], 'TWR'],
+        0,
+        ['get', 'track'],
+      ],
+    )
+  }
+
+  /**
+   * Whether the `adsb-icons` symbol layer is shown outside isolation mode.
+   * Arrow mode hides it — each label's own arrow marks the aircraft — while
+   * silhouette mode is drawn by it.
+   */
+  private _iconLayerVisibility(): 'visible' | 'none' {
+    return this._iconStyle === 'silhouette' ? 'visible' : 'none'
+  }
+
+  /**
+   * Switch between arrows inside labels and silhouettes beside them, and
+   * redraw everything that depends on it: the icon layer's expressions and
+   * visibility, every label (their glyph wells and offsets change), and any
+   * open selected or hover tag.
+   */
+  setIconStyle(style: AircraftIconStyle): void {
+    if (style === this._iconStyle) return
+    this._iconStyle = style
+    if (!this.map) return
+    if (this.map.getLayer('adsb-icons')) {
+      this.map.setLayoutProperty('adsb-icons', 'icon-image', this._iconImageExpression())
+      this.map.setLayoutProperty('adsb-icons', 'icon-size', this._iconSizeExpression())
+      this.map.setLayoutProperty('adsb-icons', 'icon-rotate', this._iconRotateExpression())
+    }
+    this._applyTypeFilter()
+    this._hideHoverTagNow()
+    this._clearCallsignMarkers()
+    this._updateCallsignMarkers()
+    if (this._tagHex) this._rebuildTagForHex(this._tagHex)
   }
 
   // ---- Map layer initialisation ----
@@ -600,33 +802,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       ] as maplibregl.FilterSpecification,
       layout: {
         visibility: layerVisibility,
-        'icon-image': [
-          'case',
-          ['==', ['get', 'category'], 'C1'],
-          'adsb-blip-emerg-gnd',
-          ['==', ['get', 'category'], 'C2'],
-          'adsb-blip-gnd',
-          ['==', ['get', 'category'], 'C3'],
-          'adsb-blip-tower',
-          ['==', ['get', 't'], 'TWR'],
-          'adsb-blip-tower',
-          ['==', ['get', 'squawkEmerg'], 1],
-          'adsb-blip-emerg',
-          ['boolean', ['get', 'military'], false],
-          'adsb-blip-mil',
-          ['==', ['get', 'category'], 'B6'],
-          'adsb-blip-uav',
-          'adsb-blip',
-        ] as maplibregl.ExpressionSpecification,
-        'icon-size': 0.75,
-        'icon-rotate': [
-          'case',
-          ['match', ['get', 'category'], ['C1', 'C2', 'C3', 'C4', 'C5'], true, false],
-          0,
-          ['==', ['get', 't'], 'TWR'],
-          0,
-          ['get', 'track'],
-        ] as maplibregl.ExpressionSpecification,
+        'icon-image': this._iconImageExpression(),
+        'icon-size': this._iconSizeExpression(),
+        'icon-rotate': this._iconRotateExpression(),
         'icon-rotation-alignment': 'map',
         'icon-pitch-alignment': 'map',
         'icon-allow-overlap': true,
@@ -738,6 +916,23 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.on('mouseenter', 'adsb-icons', handleHoverEnter)
       this.map.on('mouseleave', 'adsb-icons', handleHoverLeave)
 
+      // `mouseenter` fires only on entering the layer, so sliding straight from
+      // one aircraft onto an overlapping neighbour would keep the first one's
+      // tag. Arrow mode never needed this (each label has its own hover); in
+      // silhouette mode the hover tag is the only label, so follow the pointer.
+      const handleSilhouetteHoverMove = (e: maplibregl.MapLayerMouseEvent) => {
+        if (this._iconStyle !== 'silhouette') return
+        const hoveredHex = (e.features?.[0]?.properties as AircraftProperties | undefined)?.hex
+        // The hover trail follows the hovered aircraft, so it says which one
+        // the pointer was last over — including the selected one, which gets
+        // no hover tag of its own.
+        if (!hoveredHex || hoveredHex === this._trailHex) return
+        if (hoveredHex === this._selectedHex) this._hideHoverTagNow()
+        handleHoverEnter(e)
+      }
+      this.map.on('mousemove', 'adsb-icons', handleSilhouetteHoverMove)
+      this.map.on('mousemove', 'adsb-hit', handleSilhouetteHoverMove)
+
       const handleTrailHoverEnter = (e: maplibregl.MapLayerMouseEvent) => {
         if (!e.features || !e.features.length) return
         const hex = (e.features[0].properties as { hex?: string }).hex
@@ -760,7 +955,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.on('mouseenter', 'adsb-trail-dots', handleTrailHoverEnter)
       this.map.on('mouseleave', 'adsb-trail-dots', handleTrailHoverLeave)
 
-      this.map.on('zoomend', () => this._updateCallsignMarkers())
+      this.map.on('zoomend', () => {
+        this._updateCallsignMarkers()
+        // Silhouettes grow past a zoom threshold, so the selected tag moves out
+        // to stay clear of the larger icon.
+        if (this._iconStyle === 'silhouette' && this._tagHex) this._rebuildTagForHex(this._tagHex)
+      })
     }
 
     this._raiseLayers()
@@ -832,8 +1032,19 @@ export class AdsbLiveControl implements maplibregl.IControl {
         : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
       `</svg></button>`
 
+    // Silhouette mode draws the tag as plain haloed text beside the aircraft,
+    // with no background blocks; arrow mode keeps its solid black tag.
+    const plainText = this._iconStyle === 'silhouette'
+    const surface = (colour: string) => (plainText ? 'transparent' : colour)
+    // Smaller text beside a silhouette, in proportion to the aircraft.
+    const callsignPx = plainText ? SILHOUETTE_TAG_CALLSIGN_PX : 14
+    const fieldPx = plainText ? SILHOUETTE_TAG_FIELD_PX : 12
+    const tagStyle =
+      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:${plainText ? 20 : 26}px;` +
+      (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
+
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:#000000;color:${badgeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
+      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
@@ -846,13 +1057,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:#000;color:#ff2222;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
+          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
             ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${typeBg};color:${typeColor};font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
+          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =
@@ -886,7 +1097,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const inner = leftFacing
         ? `${trkBtn}${dataBadges}${callsignSpan}${arrowSvg}`
         : `${arrowSvg}${callsignSpan}${dataBadges}${trkBtn}`
-      return `<div style="background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:26px">${inner}</div>`
+      return `<div style="${tagStyle}">${inner}</div>`
     }
 
     const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
@@ -908,10 +1119,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const inner = leftFacing
       ? `${activeBell}${dataBadges}${callsignSpan}${arrowSvg}`
       : `${arrowSvg}${callsignSpan}${dataBadges}${activeBell}`
-    return (
-      `<div style="background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:14px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:26px">` +
-      `${inner}</div>`
-    )
+    return `<div style="${tagStyle}">${inner}</div>`
   }
 
   private _buildTrackingFields(props: AircraftProperties): TrackingField[] {
@@ -1052,7 +1260,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._tagMarker = new maplibregl.Marker({
         element: newEl,
         anchor: trkLeft ? 'right' : 'left',
-        offset: trkLeft ? [13, 0] : [-13, 0],
+        offset: this._labelOffset(aircraftFeature.properties, trkLeft),
       })
         .setLngLat(coords)
         .addTo(this.map)
@@ -1129,11 +1337,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (isTracked) {
       const trkLeft3 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
       anchor = trkLeft3 ? 'right' : 'left'
-      offset = trkLeft3 ? [13, 0] : [-13, 0]
+      offset = this._labelOffset(taggedFeature.properties, trkLeft3)
     } else {
       const rebuildLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
       anchor = rebuildLeft ? 'right' : 'left'
-      offset = rebuildLeft ? [13, 0] : [-13, 0]
+      offset = this._labelOffset(taggedFeature.properties, rebuildLeft)
     }
     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
       .setLngLat(coords)
@@ -1153,7 +1361,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const coords = this._interpolatedCoords(feature.properties.hex) || feature.geometry.coordinates
     const selLeft = this._isLeftFacing(feature.properties.track ?? 0)
     const selAnchor = (selLeft ? 'right' : 'left') as 'right' | 'left'
-    const selOffset: [number, number] = selLeft ? [13, 0] : [-13, 0]
+    const selOffset = this._labelOffset(feature.properties, selLeft)
     this._tagMarker = new maplibregl.Marker({ element: el, anchor: selAnchor, offset: selOffset })
       .setLngLat(coords)
       .addTo(this.map)
@@ -1210,9 +1418,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
       fromLabel && labelDir
         ? labelDir === 'left'
         : this._isLeftFacing(feature.properties.track ?? 0)
+    // Silhouette mode has no resting labels, so the hover tag is the label: it
+    // sits beside the icon on the same side a label would, not below-right.
+    const besideIcon = fromLabel || this._iconStyle === 'silhouette'
     wrapper.innerHTML = this._buildTagHTML(
       feature.properties,
-      fromLabel ? hoverLeftFacing : undefined,
+      besideIcon ? hoverLeftFacing : undefined,
     )
     const el = wrapper.firstElementChild as HTMLElement
     el.style.pointerEvents = 'auto'
@@ -1236,13 +1447,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
     // Hover tags carry no action buttons (no follow/bell), so there is nothing to
     // wire — those actions live in the side panel.
-    const hoverAnchor = fromLabel
+    const hoverAnchor = besideIcon
       ? ((hoverLeftFacing ? 'right' : 'left') as 'right' | 'left')
       : ('top-left' as const)
-    const hoverOffset: [number, number] = fromLabel
-      ? hoverLeftFacing
-        ? [13, 0]
-        : [-13, 0]
+    const hoverOffset: [number, number] = besideIcon
+      ? this._labelOffset(feature.properties, hoverLeftFacing)
       : [14, -13]
     this._hoverMarker = new maplibregl.Marker({
       element: el,
@@ -1284,6 +1493,34 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Callsign label markers ----
 
+  /**
+   * How far a label sits from the aircraft's position in silhouette mode: the
+   * edge of its icon (at the current zoom's scale) plus a small gap. Aircraft
+   * with no silhouette keep their
+   * map symbol (the 24px radar blip, ground ring or tower dot), so they use
+   * that symbol's half-size instead.
+   */
+  private _silhouetteLabelDistance(props: AircraftProperties): number {
+    const symbolRadiusPx =
+      props.silhouetteRadiusPx > 0 ? props.silhouetteRadiusPx * this._silhouetteZoomScale() : 12
+    return symbolRadiusPx + SILHOUETTE_LABEL_GAP_PX
+  }
+
+  /**
+   * Marker offset for a label anchored on the side facing away from `leftFacing`.
+   *
+   * Arrow mode pulls the label 13px back over the position so its glyph well —
+   * the arrow — sits exactly on the aircraft. Silhouette mode pushes it the
+   * other way, clear of the icon the map draws there.
+   */
+  private _labelOffset(props: AircraftProperties, leftFacing: boolean): [number, number] {
+    if (this._iconStyle === 'silhouette') {
+      const distance = this._silhouetteLabelDistance(props)
+      return leftFacing ? [-distance, 0] : [distance, 0]
+    }
+    return leftFacing ? [ARROW_LABEL_OFFSET_PX, 0] : [-ARROW_LABEL_OFFSET_PX, 0]
+  }
+
   private _isLeftFacing(track: number): boolean {
     return isLeftFacing(track)
   }
@@ -1307,6 +1544,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   private _makeArrowSvg(color: string, track: number, category?: string, type?: string): string {
+    // In silhouette mode the map draws the aircraft itself; the tag is text only.
+    if (this._iconStyle === 'silhouette') return ''
     const well = createGlyphWell(this._glyphMarkup({ category, t: type }, color, track), '#000')
     return well.outerHTML
   }
@@ -1331,6 +1570,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
     el.dataset.dir = leftFacing ? 'left' : 'right'
     el.dataset.notif = notifOn ? '1' : '0'
 
+    // Only arrow mode builds resting labels (silhouette mode shows none), so a
+    // label always leads with its arrow.
     const arrowWrap = createGlyphWell(this._glyphMarkup(props, arrowColor, track))
     const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
     const nameColor = isEmerg ? '#ff4040' : '#ffffff'
@@ -1463,11 +1704,17 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this.labelsVisible = true
     this._updateCallsignMarkers()
     if (this.map?.getLayer('adsb-icons'))
-      this.map.setLayoutProperty('adsb-icons', 'visibility', 'none')
+      this.map.setLayoutProperty('adsb-icons', 'visibility', this._iconLayerVisibility())
   }
 
   private _updateCallsignMarkers(): void {
     if (!this.map || !this.labelsVisible) return
+    // Silhouette mode shows an aircraft's data only while it is hovered or
+    // selected (the hover and selected tags), so no resting labels are drawn.
+    if (this._iconStyle === 'silhouette') {
+      this._clearCallsignMarkers()
+      return
+    }
     const features = this._geojson.features
     const seen = new Set<string>()
     for (const f of features) {
@@ -1576,7 +1823,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           }
           const isLeftFacing2 = this._isLeftFacing(f.properties.track ?? 0)
           const anchor2 = (isLeftFacing2 ? 'right' : 'left') as 'right' | 'left'
-          const offset2: [number, number] = isLeftFacing2 ? [13, 0] : [-13, 0]
+          const offset2 = this._labelOffset(f.properties, isLeftFacing2)
           this._callsignMarkers[hex] = new maplibregl.Marker({
             element: labelEl2,
             anchor: anchor2,
@@ -1736,7 +1983,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         }
         const isLeftFacing = this._isLeftFacing(f.properties.track ?? 0)
         const anchor = (isLeftFacing ? 'right' : 'left') as 'right' | 'left'
-        const markerOffset: [number, number] = isLeftFacing ? [13, 0] : [-13, 0]
+        const markerOffset = this._labelOffset(f.properties, isLeftFacing)
         const marker = new maplibregl.Marker({ element: labelEl, anchor, offset: markerOffset })
           .setLngLat(lngLat)
           .addTo(this.map)
@@ -2166,6 +2413,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
             rssi: a.rssi ?? null,
             military,
             stale: 0,
+            ...silhouetteProperties(
+              a.t || '',
+              a.category || '',
+              military,
+              this._emergencySquawks.has(a.squawk || ''),
+            ),
           } as AircraftProperties,
         })
         existingByHex.delete(hex)
@@ -2365,7 +2618,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._tagMarker = new maplibregl.Marker({
         element: newEl,
         anchor: trkLeft4 ? 'right' : 'left',
-        offset: trkLeft4 ? [13, 0] : [-13, 0],
+        offset: this._labelOffset(aircraftFeature.properties, trkLeft4),
       })
         .setLngLat(coords)
         .addTo(this.map)

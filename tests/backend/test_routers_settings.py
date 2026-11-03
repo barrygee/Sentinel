@@ -181,6 +181,65 @@ class TestAppLocationValidation:
         }
 
 
+class TestAircraftIconStyleValidation:
+    """`air/aircraftIconStyle` is an allow-list: only the two styles are stored."""
+
+    @pytest.mark.parametrize("style", ["arrow", "silhouette"])
+    def test_stores_each_style(self, client, style):
+        resp = client.put("/api/settings/air/aircraftIconStyle", json={"value": style})
+        assert resp.status_code == 200
+        assert client.get("/api/settings/air").json()["aircraftIconStyle"] == style
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "sideways",
+            "SILHOUETTE",
+            "",
+            None,
+            7,
+            ["arrow"],
+            {"style": "arrow"},
+            "<img src=x>",
+        ],
+    )
+    def test_rejects_anything_else_and_keeps_the_stored_style(self, client, value):
+        client.put("/api/settings/air/aircraftIconStyle", json={"value": "silhouette"})
+        resp = client.put("/api/settings/air/aircraftIconStyle", json={"value": value})
+        assert resp.status_code == 400
+        assert (
+            resp.json()["detail"] == "aircraftIconStyle must be 'arrow' or 'silhouette'"
+        )
+        assert (
+            client.get("/api/settings/air").json()["aircraftIconStyle"] == "silhouette"
+        )
+
+    def test_does_not_constrain_other_air_keys(self, client):
+        resp = client.put("/api/settings/air/someOtherKey", json={"value": "sideways"})
+        assert resp.status_code == 200
+
+    def test_upload_with_an_invalid_style_returns_400_and_writes_nothing(self, client):
+        resp = client.post(
+            "/api/settings/config/upload",
+            files={
+                "file": (
+                    "config.json",
+                    io.BytesIO(
+                        json.dumps(
+                            {
+                                "app": {"notificationSound": True},
+                                "air": {"aircraftIconStyle": "sideways"},
+                            }
+                        ).encode()
+                    ),
+                    "application/json",
+                )
+            },
+        )
+        assert resp.status_code == 400
+        assert "aircraftIconStyle" not in client.get("/api/settings/air").json()
+
+
 # ── GET /api/settings/config/preview ──────────────────────────────────────────
 
 

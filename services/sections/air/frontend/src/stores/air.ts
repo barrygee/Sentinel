@@ -28,6 +28,23 @@ function readStoredAdsbTypeFilter(): AdsbTypeFilter {
     return 'all'
   }
 }
+/**
+ * How aircraft are drawn on the map: the original direction arrow inside each
+ * label, or a top-down silhouette of the aircraft's type beside it.
+ */
+export type AircraftIconStyle = 'arrow' | 'silhouette'
+
+/** The `air` setting holding the icon style (validated by backend/routers/settings.py). */
+export const AIRCRAFT_ICON_STYLE_SETTING = 'aircraftIconStyle'
+
+/** localStorage key, so the map opens in the right style before settings load. */
+const AIRCRAFT_ICON_STYLE_STORAGE_KEY = 'sentinel_air_aircraftIconStyle'
+
+/** Whether `value` is a valid icon style. */
+export function isAircraftIconStyle(value: unknown): value is AircraftIconStyle {
+  return value === 'arrow' || value === 'silhouette'
+}
+
 const AIR_FILTER_CATEGORIES: readonly AirFilterCategory[] = ['aircraft', 'airports', 'mil']
 function isAirFilterCategory(value: unknown): value is AirFilterCategory {
   return typeof value === 'string' && (AIR_FILTER_CATEGORIES as readonly string[]).includes(value)
@@ -313,6 +330,28 @@ export const useAirStore = defineStore('air', () => {
     DEFAULT_TAG_FIELDS,
     migrateTagFields,
   )
+  /** How aircraft are drawn; edited in Settings › AIR › Aircraft Icons. */
+  const aircraftIconStyle = usePersistedRef<AircraftIconStyle>(
+    AIRCRAFT_ICON_STYLE_STORAGE_KEY,
+    'arrow',
+    isAircraftIconStyle,
+  )
+  function setAircraftIconStyle(style: AircraftIconStyle): void {
+    aircraftIconStyle.value = style
+  }
+  /**
+   * Adopt `air.aircraftIconStyle` from the config (startup, a config upload, or
+   * an edit made on another device). Anything that is not a known style is
+   * ignored, leaving the current one in place.
+   */
+  function hydrateAircraftIconStyle(remote: unknown): void {
+    if (isAircraftIconStyle(remote)) aircraftIconStyle.value = remote
+  }
+  /** Re-read the icon style from the config database. */
+  async function hydrateAircraftIconStyleFromDb(): Promise<void> {
+    const air = await settingsApi.getNamespace('air')
+    hydrateAircraftIconStyle(air?.[AIRCRAFT_ICON_STYLE_SETTING])
+  }
   /** Overhead-alert settings per location — see `OverheadAlertConfig`. */
   const overheadAlerts = ref<Record<string, OverheadAlertConfig>>(readPersistedOverheadAlerts())
   /** Background squawk-check interval per mode; edited in Settings › AIR, enforced by the backend. */
@@ -481,6 +520,10 @@ export const useAirStore = defineStore('air', () => {
   return {
     overlayStates,
     adsbTagFields,
+    aircraftIconStyle,
+    setAircraftIconStyle,
+    hydrateAircraftIconStyle,
+    hydrateAircraftIconStyleFromDb,
     overheadAlerts,
     overheadAlertFor,
     setOverheadAlert,
