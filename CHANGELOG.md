@@ -248,6 +248,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Manage Sentinel hosts and this machine's SDRs in Settings › SDR
 - List this machine's SDRs inside its Sentinel host
 - Add a Sentinel host's SDRs automatically when asked
+- Fold settings groups and give the recordings folder its own card
 
 ### Bug Fixes
 
@@ -1692,6 +1693,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #554 from barrygee/fix/adsb-label-escaping
 - Merge pull request #555 from barrygee/fix/allowed-hosts
 - Merge pull request #556 from barrygee/perf/map-load
+- Merge pull request #557 from barrygee/feat/settings-group-accordions
 
 ### Performance
 
