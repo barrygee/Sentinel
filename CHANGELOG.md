@@ -601,6 +601,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the shadow and outline from silhouette tag text
 - Drop the green dot before each settings section heading
 - A lighter civil blue for silhouettes on the light map
+- Wait for each staged save before APPLY re-reads settings
 
 ### Chores
 
@@ -1718,6 +1719,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #563 from barrygee/fix/silhouette-tag-line-spacing
 - Merge pull request #564 from barrygee/fix/settings-heading-dot
 - Merge pull request #565 from barrygee/feat/silhouettes-light-map
+- Merge pull request #566 from barrygee/fix/settings-apply-awaits-saves
 
 ### Performance
 
