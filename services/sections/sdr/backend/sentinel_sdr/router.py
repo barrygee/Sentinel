@@ -46,7 +46,12 @@ from sentinel_sdr.models import (
     SdrSearchRange,
     SdrStoredFrequency,
 )
-from sentinel_sdr.services.recording_folders import folder_for_new_recording, iq_path, wav_path
+from sentinel_sdr.services.recording_folders import (
+    folder_for_new_recording,
+    iq_path,
+    recordings_location,
+    wav_path,
+)
 from sentinel_sdr.services.sdr_data import write_sdr_frequencies_file
 from sentinel_sdr.services.sdr_frequencies import reconcile_sdr_frequencies
 from sentinel_sdr.services.sdr_iq_capture_transfer import discard_hub_capture, iq_file_pending, schedule_collect
@@ -558,6 +563,12 @@ async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
         raise HTTPException(400, "Body must be a JSON object with a bandPlan array")
     await set_bandplan(db, body["bandPlan"])
     return JSONResponse({"status": "ok"})
+
+
+@router.get("/api/sdr/recordings/location")
+async def get_recordings_location() -> dict[str, str]:
+    """Where new recordings are saved (Settings › SDR › Recordings Folder shows it as the default)."""
+    return recordings_location()
 
 
 @router.get("/api/sdr/recordings")

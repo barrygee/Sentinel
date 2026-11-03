@@ -42,6 +42,39 @@ describe('SdrRecordingsFolderControl', () => {
     )
   })
 
+  /** Answer the recordings-location request with `location`, everything else with `{}`. */
+  function stubLocation(location: unknown, ok = true): void {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) =>
+        url === '/api/sdr/recordings/location'
+          ? { ok, json: async () => location }
+          : { ok: true, json: async () => ({}) },
+      ),
+    )
+  }
+
+  it('shows the default Docker volume as the empty field’s hint', async () => {
+    stubLocation({ directory: 'sdr_recordings', kind: 'volume' })
+    const wrapper = mount(SdrRecordingsFolderControl)
+    await flushPromises()
+    expect(wrapper.get('input').attributes('placeholder')).toBe('sdr_recordings (Docker volume)')
+  })
+
+  it('shows the host folder recordings are saved in as the hint', async () => {
+    stubLocation({ directory: '~/SentinelRecordings', kind: 'host' })
+    const wrapper = mount(SdrRecordingsFolderControl)
+    await flushPromises()
+    expect(wrapper.get('input').attributes('placeholder')).toBe('~/SentinelRecordings')
+  })
+
+  it('keeps the generic hint when the location is unavailable', async () => {
+    stubLocation({ detail: 'Not Found' }, false)
+    const wrapper = mount(SdrRecordingsFolderControl)
+    await flushPromises()
+    expect(wrapper.get('input').attributes('placeholder')).toBe('Recordings directory')
+  })
+
   it('hydrates the saved folder from the DB on mount', async () => {
     stubFetch({ recordingsFolder: 'satellites/noaa' })
     const wrapper = mount(SdrRecordingsFolderControl)

@@ -318,6 +318,11 @@ class Settings(BaseSettings):
     # folder SENTINEL_RECORDINGS_DIRECTORY names. Empty = recordings/ next to
     # the database.
     recordings_directory: str = ""
+    # Where that folder is on the machine running Sentinel, as the operator set
+    # it: SENTINEL_RECORDINGS_DIRECTORY (a host path, or the `sdr_recordings`
+    # volume name). Shown in Settings so the operator knows where files land;
+    # never used to open anything. Empty outside compose.
+    recordings_host_directory: str = ""
 
     # ── In-app docs ──────────────────────────────────────────────────────────
     # The folder holding `docs/` and `CONTRIBUTING.md` that the docs service

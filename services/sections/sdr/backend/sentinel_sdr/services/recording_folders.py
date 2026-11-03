@@ -54,6 +54,26 @@ def recordings_root() -> Path:
     return sdr_recordings_dir()
 
 
+def recordings_location() -> dict[str, str]:
+    """Where new recordings are saved, as the operator would find it.
+
+    Under compose the service only sees `/recordings`; the folder behind it is
+    the operator's SENTINEL_RECORDINGS_DIRECTORY — a host path (it starts with
+    `/`, `~` or `.`, as compose requires of a bind mount) or a Docker volume
+    name such as the default `sdr_recordings`. Outside compose it is the
+    recordings root itself.
+
+    Returns:
+        `directory` (the path or volume name) and `kind`: `host`, `volume` or
+        `local`.
+    """
+    host_directory = settings.recordings_host_directory.strip()
+    if host_directory:
+        is_bind_mount = host_directory.startswith(("/", "~", "."))
+        return {"directory": host_directory, "kind": "host" if is_bind_mount else "volume"}
+    return {"directory": str(recordings_root()), "kind": "local"}
+
+
 def parse_recordings_folder(value: object) -> PurePosixPath:
     """`value` as a relative subfolder of the root; raises `RecordingsFolderError` when it isn't a safe one."""
     if not isinstance(value, str):

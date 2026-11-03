@@ -665,7 +665,7 @@
             "group": "json_write"
         },
         {
-            "note": "SDR: groups, frequencies, search ranges, band plan, recordings and their files.",
+            "note": "SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files.",
             "paths": [
                 "/api/sdr/groups",
                 "/api/sdr/frequencies",
@@ -673,6 +673,7 @@
                 "/api/sdr/data/frequencies",
                 "/api/sdr/data/bandplan",
                 "/api/sdr/recordings",
+                "/api/sdr/recordings/location",
                 "/api/sdr/recordings/{rec_id}/file",
                 "/api/sdr/recordings/{rec_id}/iq"
             ],

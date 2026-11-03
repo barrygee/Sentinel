@@ -130,3 +130,30 @@ class TestEarlierRecordingsStayWhereTheyWere:
         assert client.get(f"/api/sdr/recordings/{recording_id}/file").content == b"legacy audio"
         assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
         assert not (legacy / f"{recording_id}.wav").exists()
+
+
+class TestRecordingsLocationEndpoint:
+    """`GET /api/sdr/recordings/location` — the default the Recordings Folder field shows."""
+
+    def test_reports_the_folder_compose_was_given(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "recordings_host_directory", "~/SentinelRecordings")
+        response = client.get("/api/sdr/recordings/location")
+        assert response.status_code == 200
+        assert response.json() == {"directory": "~/SentinelRecordings", "kind": "host"}
+
+    def test_reports_the_default_docker_volume(self, client, monkeypatch):
+        monkeypatch.setattr(settings, "recordings_host_directory", "sdr_recordings")
+        assert client.get("/api/sdr/recordings/location").json() == {
+            "directory": "sdr_recordings",
+            "kind": "volume",
+        }
+
+    def test_reports_the_root_outside_compose(self, client, monkeypatch, recordings_root):
+        monkeypatch.setattr(settings, "recordings_host_directory", "")
+        assert client.get("/api/sdr/recordings/location").json() == {
+            "directory": str(recordings_root),
+            "kind": "local",
+        }
+
+    def test_only_answers_reads(self, client):
+        assert client.post("/api/sdr/recordings/location").status_code == 405

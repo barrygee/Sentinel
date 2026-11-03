@@ -139,30 +139,31 @@ Profile `section`.
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
 | GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
-| GET | `/api/sdr/groups` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/groups` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/groups` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | PUT | `/api/sdr/groups/{group_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | DELETE | `/api/sdr/groups/{group_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
-| GET | `/api/sdr/frequencies` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/frequencies` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/frequencies` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | PUT | `/api/sdr/frequencies/{freq_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | PATCH | `/api/sdr/frequencies/{freq_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | DELETE | `/api/sdr/frequencies/{freq_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
-| GET | `/api/sdr/search-ranges` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/search-ranges` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/search-ranges` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | PUT | `/api/sdr/search-ranges/{range_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | DELETE | `/api/sdr/search-ranges/{range_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
-| GET | `/api/sdr/data/frequencies` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/data/frequencies` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/data/frequencies` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
-| GET | `/api/sdr/data/bandplan` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/data/bandplan` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/data/bandplan` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
-| GET | `/api/sdr/recordings` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/recordings/location` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
+| GET | `/api/sdr/recordings` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/recordings/start` | `browser` | `radio_control` | SDR: starting a recording. |
 | POST | `/api/sdr/recordings/stop` | `browser` | `recording_upload` | SDR: stopping a recording, which uploads its WAV. |
 | PATCH | `/api/sdr/recordings/{rec_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
 | DELETE | `/api/sdr/recordings/{rec_id}` | `browser` | `json_write` | SDR: editing groups, frequencies, search ranges and recordings. |
-| GET | `/api/sdr/recordings/{rec_id}/file` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
-| GET | `/api/sdr/recordings/{rec_id}/iq` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings and their files. |
+| GET | `/api/sdr/recordings/{rec_id}/file` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
+| GET | `/api/sdr/recordings/{rec_id}/iq` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sdr/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 

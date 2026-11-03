@@ -8,7 +8,9 @@ Pinned here:
   * a new recording's folder falls back to the root, with a warning, whenever
     the setting is refused, unreadable or can't be created;
   * each recording's files are found in the folder it remembers, and a row
-    from before the setting existed in the old recordings/ folder.
+    from before the setting existed in the old recordings/ folder;
+  * where recordings are saved is reported as the operator set it: a host
+    path, a Docker volume name, or (outside compose) the root itself.
 """
 
 from __future__ import annotations
@@ -30,6 +32,7 @@ from sentinel_sdr.services.recording_folders import (
     parse_recordings_folder,
     recording_folder,
     recordings_folder_path,
+    recordings_location,
     recordings_root,
     wav_path,
 )
@@ -40,6 +43,7 @@ def data_directory(monkeypatch, tmp_path):
     """The SDR database lives in tmp_path/data; no recordings root is configured."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sdr.db"))
     monkeypatch.setattr(settings, "recordings_directory", "")
+    monkeypatch.setattr(settings, "recordings_host_directory", "")
 
 
 @pytest.fixture()
@@ -73,6 +77,37 @@ class TestRecordingsRoot:
 
     def test_is_the_configured_directory_when_set(self, configured_root):
         assert recordings_root() == configured_root
+
+
+class TestRecordingsLocation:
+    @pytest.mark.parametrize(
+        "host_directory",
+        ["/Volumes/Radio/Recordings", "~/SentinelRecordings", "./recordings", "../shared/recordings"],
+    )
+    def test_reports_a_host_folder_as_set(self, monkeypatch, host_directory):
+        # Compose treats a value starting with /, ~ or . as a folder on the host.
+        monkeypatch.setattr(settings, "recordings_host_directory", host_directory)
+        assert recordings_location() == {"directory": host_directory, "kind": "host"}
+
+    @pytest.mark.parametrize("volume_name", ["sdr_recordings", "radio-archive"])
+    def test_reports_anything_else_as_a_docker_volume(self, monkeypatch, volume_name):
+        monkeypatch.setattr(settings, "recordings_host_directory", volume_name)
+        assert recordings_location() == {"directory": volume_name, "kind": "volume"}
+
+    def test_ignores_surrounding_space(self, monkeypatch):
+        monkeypatch.setattr(settings, "recordings_host_directory", "  sdr_recordings \n")
+        assert recordings_location() == {"directory": "sdr_recordings", "kind": "volume"}
+
+    @pytest.mark.parametrize("unset", ["", "   "])
+    def test_outside_compose_is_the_root_itself(self, monkeypatch, configured_root, unset):
+        monkeypatch.setattr(settings, "recordings_host_directory", unset)
+        assert recordings_location() == {"directory": str(configured_root), "kind": "local"}
+
+    def test_outside_compose_with_no_root_configured_is_recordings_beside_the_database(self, tmp_path):
+        assert recordings_location() == {
+            "directory": str(tmp_path / "data" / "recordings"),
+            "kind": "local",
+        }
 
 
 class TestParseRecordingsFolder:
