@@ -105,6 +105,43 @@ describe('createAppRouter', () => {
     })
   })
 
+  describe('the first section after a page the app was opened on', () => {
+    // The map sidebar reads its section from the path it mounted on; opened on
+    // /settings/… or /docs/… that is no section, so it needs this event to
+    // learn the one it is closed onto (without it Air's FILTER sub-tabs went
+    // missing).
+    it.each([
+      ['/settings/air', '/air/', 'air'],
+      ['/docs/operations', '/space/', 'space'],
+    ])('announces the section when %s closes onto %s', async (openedOn, closedOnto, domain) => {
+      const router = createAppRouter()
+      await router.push(openedOn)
+      const changes = domainChanges()
+
+      await router.push(closedOnto)
+
+      expect(document.body.dataset.domain).toBe(domain)
+      expect(changes).toEqual([{ domain, prev: '' }])
+    })
+
+    it('announces nothing for the first section when the app was opened on it', async () => {
+      const router = createAppRouter()
+      const changes = domainChanges()
+      await router.push('/air/')
+      expect(document.body.dataset.domain).toBe('air')
+      expect(changes).toEqual([])
+    })
+
+    it('announces nothing returning from Settings to the section it was opened from', async () => {
+      const router = createAppRouter()
+      await router.push('/air/')
+      await router.push('/settings/air')
+      const changes = domainChanges()
+      await router.push('/air/')
+      expect(changes).toEqual([])
+    })
+  })
+
   describe('settings routes', () => {
     it('leaves the section for the Settings page, remembering it to return to', async () => {
       const router = createAppRouter()

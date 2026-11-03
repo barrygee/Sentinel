@@ -86,6 +86,21 @@ test.describe('Map sidebar', () => {
     await expect(page.locator('[data-tab="passes"]')).toBeVisible()
   })
 
+  test("FILTER shows Air's sub-tabs after a Settings link closes onto Air", async ({ page }) => {
+    // Opened straight on a Settings page, the sidebar mounts on a path that is
+    // no section; closing onto Air must still give FILTER Air's sub-tabs.
+    await page.goto('/settings/air')
+    await waitForShellHydration(page)
+    await page.keyboard.press('Escape')
+    await expect(page).toHaveURL(/\/air\/$/)
+
+    await page.locator('#map-sidebar-rail [data-tab="search"]').click()
+
+    const rail = page.locator('#map-sidebar-rail')
+    await expect(rail.getByRole('button', { name: 'CIVIL AIRCRAFT' })).toBeVisible()
+    await expect(rail.getByRole('button', { name: 'MILITARY AIRCRAFT' })).toBeVisible()
+  })
+
   test('Air has no REPLAY tab (flight replay was removed)', async ({ page }) => {
     await page.goto('/air/')
     await waitForShellHydration(page)
