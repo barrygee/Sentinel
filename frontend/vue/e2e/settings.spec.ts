@@ -266,6 +266,27 @@ test.describe('Settings panel', () => {
     await expect(page.locator('#settings-apply-btn')).toContainText(/apply changes/i)
   })
 
+  test('a group heading chevron points right while folded and down while open', async ({
+    page,
+  }) => {
+    await page.goto('/settings/app')
+    await waitForShellHydration(page)
+    const heading = page.locator('#settings-panel button.settings-group-label').first()
+    const chevron = heading.locator('.settings-group-chevron')
+    // The computed matrix of the wrapper's turn: identity = the icon's own
+    // downward point; (0, -1, 1, 0) = rotated -90deg, pointing right.
+    const pointingDown = 'matrix(1, 0, 0, 1, 0, 0)'
+    const pointingRight = 'matrix(0, -1, 1, 0, 0, 0)'
+    const turn = () => chevron.evaluate((element) => getComputedStyle(element).transform)
+
+    await expect(heading).toHaveAttribute('aria-expanded', 'true')
+    await expect.poll(turn).toBe(pointingDown)
+
+    await heading.click()
+    await expect(heading).toHaveAttribute('aria-expanded', 'false')
+    await expect.poll(turn).toBe(pointingRight)
+  })
+
   test('APPLY CHANGES saves in place: no page reload, Settings stays open on its section', async ({
     page,
   }) => {

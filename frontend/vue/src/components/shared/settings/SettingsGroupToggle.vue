@@ -8,7 +8,12 @@
       @click="emit('toggle')"
     >
       <span class="settings-group-label-text">{{ label }}</span>
-      <ChevronIcon :open="expanded" />
+      <span
+        class="settings-group-chevron"
+        :class="{ 'settings-group-chevron--expanded': expanded }"
+      >
+        <ChevronIcon />
+      </span>
     </button>
   </h3>
 </template>
@@ -17,8 +22,10 @@
 /**
  * `SettingsGroupToggle` — a Settings group's heading (DATA SOURCES, MAP,
  * LABELS…) as the button that folds and unfolds the group's cards. The title
- * keeps the group-label look; the chevron sits at the right edge and turns the
- * way every other accordion's in the app does (down folded, up open).
+ * keeps the group-label look; the chevron sits at the right edge and points the
+ * way the app's section accordions do (SDR panel, Space, Land, SDR hosts):
+ * right while folded, down while open — the same -90deg → 0deg turn on a
+ * wrapper, not `ChevronIcon`'s own `open` flip (down → up).
  */
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 
@@ -73,8 +80,19 @@ const emit = defineEmits<{ toggle: [] }>()
   outline-offset: 4px;
 }
 
+.settings-group-chevron {
+  display: flex;
+  flex-shrink: 0;
+  transform: rotate(-90deg);
+  transition: transform 0.2s ease;
+}
+
+.settings-group-chevron--expanded {
+  transform: rotate(0deg);
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .settings-group-label :deep(.chevron-icon) {
+  .settings-group-chevron {
     transition: none;
   }
 }

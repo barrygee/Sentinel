@@ -28,13 +28,28 @@ describe('SettingsGroupToggle', () => {
     wrapper.unmount()
   })
 
-  it('says whether the group is open, and turns the chevron up only while it is', async () => {
+  it('says whether the group is open, and marks the chevron turned down only while it is', async () => {
     const wrapper = mountToggle({ expanded: true })
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.get('.chevron-icon').classes()).toContain('chevron-icon--open')
+    expect(wrapper.get('.settings-group-chevron').classes()).toContain(
+      'settings-group-chevron--expanded',
+    )
 
     await wrapper.setProps({ expanded: false })
     expect(wrapper.get('button').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.get('.settings-group-chevron').classes()).not.toContain(
+      'settings-group-chevron--expanded',
+    )
+    wrapper.unmount()
+  })
+
+  it('never flips the icon itself, which would point it up when open', async () => {
+    // The wrapper's -90deg → 0deg turn is the whole motion; ChevronIcon's own
+    // `open` flip (180deg) on top would send it right → up instead of down.
+    const wrapper = mountToggle({ expanded: true })
+    expect(wrapper.get('.chevron-icon').classes()).not.toContain('chevron-icon--open')
+
+    await wrapper.setProps({ expanded: false })
     expect(wrapper.get('.chevron-icon').classes()).not.toContain('chevron-icon--open')
     wrapper.unmount()
   })
@@ -45,8 +60,9 @@ describe('SettingsGroupToggle', () => {
     const children = [...wrapper.get('button').element.children]
     expect(children.map((child) => child.classList[0])).toEqual([
       'settings-group-label-text',
-      'chevron-icon',
+      'settings-group-chevron',
     ])
+    expect(wrapper.get('.settings-group-chevron').find('.chevron-icon').exists()).toBe(true)
     wrapper.unmount()
   })
 
