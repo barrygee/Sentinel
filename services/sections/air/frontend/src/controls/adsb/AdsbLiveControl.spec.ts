@@ -4861,10 +4861,11 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       control._tagHex = 'abc123'
       control.setIconStyle('silhouette')
       const tag = markerRegistry.instances.at(-1)!
-      // Zoomed in (12 ≥ 7.5): 20px × 1.18 + the 3px gap, on the right.
-      expect(tag.options.anchor).toBe('left')
+      // Zoomed in (12 ≥ 7.5): 20px × 1.18 + the 3px gap, on the right, hung
+      // from its top corner and raised half a 12px × 1.2 callsign line.
+      expect(tag.options.anchor).toBe('top-left')
       expect(tag.options.offset![0]).toBeCloseTo(20 * 1.18 + 3)
-      expect(tag.options.offset![1]).toBe(0)
+      expect(tag.options.offset![1]).toBeCloseTo(-7.2)
     })
   })
 
@@ -5016,8 +5017,8 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
     })
 
     it.each([
-      [270, 'left', 1],
-      [90, 'right', -1],
+      [270, 'top-left', 1],
+      [90, 'top-right', -1],
     ])(
       'puts the hover tag beside the icon, away from the aircraft’s heading (track %i)',
       (track, anchor, side) => {
@@ -5025,16 +5026,30 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
         seedSilhouette(control, { track })
         map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
         const tag = markerRegistry.instances.at(-1)!
+        // Hung from the corner nearest the aircraft, so the fields grow
+        // downwards and the callsign (raised half a line) stays level with it.
         expect(tag.options.anchor).toBe(anchor)
         expect(tag.options.offset![0]).toBeCloseTo(side * (20 * 1.18 + 3))
+        expect(tag.options.offset![1]).toBeCloseTo(-7.2)
       },
     )
+
+    it('keeps the selected tag’s callsign level with the aircraft too', () => {
+      const { control } = mountedIn('silhouette', 12)
+      const feature = seedSilhouette(control, { track: 90 })
+      priv(control)._showSelectedTag(feature)
+      const tag = markerRegistry.instances.at(-1)!
+      expect(tag.options.anchor).toBe('top-right')
+      expect(tag.options.offset![1]).toBeCloseTo(-7.2)
+    })
 
     it('keeps the icon’s own size when zoomed out', () => {
       const { control, map } = mountedIn('silhouette', 6)
       seedSilhouette(control, { track: 270 })
       map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
-      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([23, 0])
+      const [sideways, raise] = markerRegistry.instances.at(-1)!.options.offset!
+      expect(sideways).toBe(23)
+      expect(raise).toBeCloseTo(-7.2)
     })
 
     it('clears the arrow-mode symbol for an aircraft with no silhouette', () => {
@@ -5042,7 +5057,9 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       seedFeature(control, { track: 270 })
       map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
       // The 24px radar blip's half-size plus the gap.
-      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([15, 0])
+      const [sideways, raise] = markerRegistry.instances.at(-1)!.options.offset!
+      expect(sideways).toBe(15)
+      expect(raise).toBeCloseTo(-7.2)
     })
 
     it('keeps the arrow-mode hover tag below-right of the aircraft', () => {

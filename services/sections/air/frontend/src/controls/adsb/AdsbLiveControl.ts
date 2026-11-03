@@ -50,8 +50,10 @@ import {
   type SilhouetteColourKey,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 import {
+  SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX,
   SILHOUETTE_TAG_CALLSIGN_PX,
   SILHOUETTE_TAG_FIELD_PX,
+  SILHOUETTE_TAG_LINE_HEIGHT,
   SILHOUETTE_TAG_TEXT_HALO,
 } from './silhouetteTagStyle'
 
@@ -1045,9 +1047,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const tagStyle = (leftFacing: boolean) =>
       `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
       (plainText
-        ? // The app's 20px line height would leave a line's worth of space under
-          // each 11–12px row; stacked rows sit at the text's own height.
-          `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:0;line-height:1.2;`
+        ? `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:0;line-height:${SILHOUETTE_TAG_LINE_HEIGHT};`
         : 'align-items:stretch;gap:0;min-height:26px;') +
       'white-space:nowrap;user-select:none;cursor:pointer;' +
       (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
@@ -1306,7 +1306,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const trkLeft = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
       this._tagMarker = new maplibregl.Marker({
         element: newEl,
-        anchor: trkLeft ? 'right' : 'left',
+        anchor: this._tagAnchor(trkLeft),
         offset: this._labelOffset(aircraftFeature.properties, trkLeft),
       })
         .setLngLat(coords)
@@ -1379,15 +1379,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._tagMarker = null
     }
     const isTracked = this._followEnabled && hex === this._tagHex
-    let anchor: 'left' | 'right' | 'top-left'
+    let anchor: maplibregl.PositionAnchor
     let offset: [number, number]
     if (isTracked) {
       const trkLeft3 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-      anchor = trkLeft3 ? 'right' : 'left'
+      anchor = this._tagAnchor(trkLeft3)
       offset = this._labelOffset(taggedFeature.properties, trkLeft3)
     } else {
       const rebuildLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-      anchor = rebuildLeft ? 'right' : 'left'
+      anchor = this._tagAnchor(rebuildLeft)
       offset = this._labelOffset(taggedFeature.properties, rebuildLeft)
     }
     this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
@@ -1407,7 +1407,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._wireTagButton(el)
     const coords = this._interpolatedCoords(feature.properties.hex) || feature.geometry.coordinates
     const selLeft = this._isLeftFacing(feature.properties.track ?? 0)
-    const selAnchor = (selLeft ? 'right' : 'left') as 'right' | 'left'
+    const selAnchor = this._tagAnchor(selLeft)
     const selOffset = this._labelOffset(feature.properties, selLeft)
     this._tagMarker = new maplibregl.Marker({ element: el, anchor: selAnchor, offset: selOffset })
       .setLngLat(coords)
@@ -1494,9 +1494,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
     // Hover tags carry no action buttons (no follow/bell), so there is nothing to
     // wire — those actions live in the side panel.
-    const hoverAnchor = besideIcon
-      ? ((hoverLeftFacing ? 'right' : 'left') as 'right' | 'left')
-      : ('top-left' as const)
+    const hoverAnchor: maplibregl.PositionAnchor = besideIcon
+      ? this._tagAnchor(hoverLeftFacing)
+      : 'top-left'
     const hoverOffset: [number, number] = besideIcon
       ? this._labelOffset(feature.properties, hoverLeftFacing)
       : [14, -13]
@@ -1563,9 +1563,24 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _labelOffset(props: AircraftProperties, leftFacing: boolean): [number, number] {
     if (this._iconStyle === 'silhouette') {
       const distance = this._silhouetteLabelDistance(props)
-      return leftFacing ? [-distance, 0] : [distance, 0]
+      // The tag hangs from its top edge (see _tagAnchor); raising it half a
+      // callsign line puts the callsign level with the aircraft.
+      const raise = -SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX
+      return leftFacing ? [-distance, raise] : [distance, raise]
     }
     return leftFacing ? [ARROW_LABEL_OFFSET_PX, 0] : [-ARROW_LABEL_OFFSET_PX, 0]
+  }
+
+  /**
+   * Which point of a hover or selected tag sits at the aircraft. Arrow mode
+   * centres its one-row tag on it. A silhouette's tag is a column that grows
+   * downwards as fields are added, so it hangs from its top corner nearest the
+   * aircraft, keeping the callsign level with the aircraft (with the raise in
+   * _labelOffset) and the fields below.
+   */
+  private _tagAnchor(leftFacing: boolean): maplibregl.PositionAnchor {
+    if (this._iconStyle === 'silhouette') return leftFacing ? 'top-right' : 'top-left'
+    return leftFacing ? 'right' : 'left'
   }
 
   private _isLeftFacing(track: number): boolean {
@@ -2664,7 +2679,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const trkLeft4 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
       this._tagMarker = new maplibregl.Marker({
         element: newEl,
-        anchor: trkLeft4 ? 'right' : 'left',
+        anchor: this._tagAnchor(trkLeft4),
         offset: this._labelOffset(aircraftFeature.properties, trkLeft4),
       })
         .setLngLat(coords)
