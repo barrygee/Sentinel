@@ -1691,6 +1691,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #553 from barrygee/fix/recording-stop-guard
 - Merge pull request #554 from barrygee/fix/adsb-label-escaping
 - Merge pull request #555 from barrygee/fix/allowed-hosts
+- Merge pull request #556 from barrygee/perf/map-load
+
+### Performance
+
+- Cache and compress the bundle and drop the hidden map
 
 ### Refactoring
 
@@ -1956,6 +1961,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - List the AIR online refresh interval in the catalogue specs
 - Request guard, 100% line and branch coverage
 - Send Sec-Fetch-Site from the API fixture only, not the browser
+- Look for the SDR-only map in Settings, not behind the spectrum
 
 ### Build System
 
