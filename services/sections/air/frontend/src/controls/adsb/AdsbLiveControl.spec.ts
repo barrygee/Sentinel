@@ -5073,13 +5073,29 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
   })
 
   describe('a selected aircraft that turns', () => {
+    /**
+     * One poll that reports `entry`. Answered by URL rather than queued with
+     * mockResolvedValueOnce: the control's tracking-state requests
+     * (/api/air/tracking) run alongside polls and could otherwise take the
+     * feed's answer, leaving the poll with an empty feed. And it waits for
+     * any poll already in flight (the control can start one in the
+     * background), since _fetch returns at once while one is.
+     */
     async function poll(control: AdsbLiveControl, entry: ApiEntry) {
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        headers: new Headers(),
-        status: 200,
-        json: () => Promise.resolve({ ac: [entry] }),
-      } as Response)
+      fetchMock.mockImplementation((url: string) =>
+        Promise.resolve({
+          ok: true,
+          headers: new Headers(),
+          status: 200,
+          json: () =>
+            Promise.resolve(String(url).startsWith('/api/air/tracking') ? {} : { ac: [entry] }),
+        } as Response),
+      )
+      await vi.waitFor(() => expect(priv(control)._isFetching).toBe(false))
+      // A report no newer than the last is dropped (aircraftPosition.reanchor),
+      // so let the clock move past the previous poll's millisecond.
+      const previousPollAt = Date.now()
+      await vi.waitFor(() => expect(Date.now()).toBeGreaterThan(previousPollAt))
       await (control as unknown as { _fetch: () => Promise<void> })._fetch()
     }
 
