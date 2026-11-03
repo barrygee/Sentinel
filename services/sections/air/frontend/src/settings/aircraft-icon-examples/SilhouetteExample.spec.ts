@@ -35,13 +35,13 @@ describe('SilhouetteExample', () => {
     expect(wrapper.find('g').attributes('transform')).toBe('rotate(0)')
   })
 
-  it('writes the callsign as plain haloed text, as the map shows it on hover', () => {
+  it('writes the callsign as plain text, as the map shows it on hover', () => {
     const wrapper = mount(SilhouetteExample, {
       props: { shapeKey: 'type:A320', callsign: 'BAW123' },
     })
     const callsign = wrapper.find('.silhouette-example-callsign')
     expect(callsign.text()).toBe('BAW123')
-    expect(callsign.attributes('style')).toContain('text-shadow')
+    expect(callsign.attributes('style')).not.toContain('text-shadow')
     // The map's silhouette-mode tag size, smaller than an arrow label's 14px.
     expect(callsign.attributes('style')).toContain('font-size: 12px')
   })

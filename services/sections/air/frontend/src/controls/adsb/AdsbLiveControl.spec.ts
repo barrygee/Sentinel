@@ -4861,10 +4861,11 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       control._tagHex = 'abc123'
       control.setIconStyle('silhouette')
       const tag = markerRegistry.instances.at(-1)!
-      // Zoomed in (12 ≥ 7.5): 20px × 1.18 + the 3px gap, on the right.
-      expect(tag.options.anchor).toBe('left')
+      // Zoomed in (12 ≥ 7.5): 20px × 1.18 + the 3px gap, on the right, hung
+      // from its top corner and raised half a 12px × 1.2 callsign line.
+      expect(tag.options.anchor).toBe('top-left')
       expect(tag.options.offset![0]).toBeCloseTo(20 * 1.18 + 3)
-      expect(tag.options.offset![1]).toBe(0)
+      expect(tag.options.offset![1]).toBeCloseTo(-7.2)
     })
   })
 
@@ -4878,7 +4879,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(markerRegistry.instances.length).toBe(before)
     })
 
-    it('writes the tag as plain haloed text with no background blocks', () => {
+    it('writes the tag as plain text with no background blocks or shadow', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
       const html = priv(control)._buildTagHTML(
@@ -4886,7 +4887,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       ) as string
       expect(html).not.toMatch(/background:(#000|#4d|#0022|rgba)/)
       expect(html).toContain('background:transparent')
-      expect(html).toContain('text-shadow:')
+      expect(html).not.toContain('text-shadow')
       // No arrow well: the map draws the aircraft itself.
       expect(html).not.toContain('<svg')
     })
@@ -4922,6 +4923,8 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const { style } = tagLayout(priv(control)._buildTagHTML(props({ track })) as string)
       expect(style).toContain('flex-direction:column;')
       expect(style).toContain(`align-items:${align};`)
+      // Rows sit at the text's height, not the app's 20px line height.
+      expect(style).toContain('gap:0;line-height:1.2;')
     })
 
     it.each([90, 270])(
@@ -4950,6 +4953,40 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(rows.at(-1)).toBe('TRACKING')
     })
 
+    it('writes a military aircraft’s fields as plain white text, not lime or bold', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props({ military: true, alt_baro: 30000 })) as string
+      expect(html).not.toContain('#c8ff00')
+      expect(html).not.toMatch(/font-weight:(600|700)/)
+      const { rows } = tagLayout(html)
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const fields = Array.from(host.firstElementChild!.children).slice(1) as HTMLElement[]
+      expect(rows.length).toBeGreaterThan(2)
+      for (const field of fields) expect(field.style.color).toBe('rgb(255, 255, 255)')
+    })
+
+    it('writes an emergency’s fields in the callsign’s red', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(
+        props({ squawkEmerg: 1, squawk: '7700', emergency: 'general' }),
+      ) as string
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const fields = Array.from(host.firstElementChild!.children).slice(1) as HTMLElement[]
+      for (const field of fields) expect(field.style.color).toBe('rgb(255, 64, 64)')
+    })
+
+    it('keeps arrow-mode fields bold and colour-coded', () => {
+      const { control } = mountedIn('arrow')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props({ military: true })) as string
+      expect(html).toContain('#c8ff00')
+      expect(html).toContain('font-weight:700')
+    })
+
     it('drops the side padding so stacked fields line up under the callsign', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
@@ -4967,6 +5004,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(html).toMatch(/^<div style="[^"]*font-size:14px;[^"]*min-height:26px;/)
       // One row of blocks, as before.
       expect(html).not.toContain('flex-direction:column')
+      expect(html).not.toContain('line-height:1.2')
     })
 
     it('keeps arrow-mode fields as padded full-height blocks in one row', () => {
@@ -4979,8 +5017,8 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
     })
 
     it.each([
-      [270, 'left', 1],
-      [90, 'right', -1],
+      [270, 'top-left', 1],
+      [90, 'top-right', -1],
     ])(
       'puts the hover tag beside the icon, away from the aircraft’s heading (track %i)',
       (track, anchor, side) => {
@@ -4988,16 +5026,30 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
         seedSilhouette(control, { track })
         map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
         const tag = markerRegistry.instances.at(-1)!
+        // Hung from the corner nearest the aircraft, so the fields grow
+        // downwards and the callsign (raised half a line) stays level with it.
         expect(tag.options.anchor).toBe(anchor)
         expect(tag.options.offset![0]).toBeCloseTo(side * (20 * 1.18 + 3))
+        expect(tag.options.offset![1]).toBeCloseTo(-7.2)
       },
     )
+
+    it('keeps the selected tag’s callsign level with the aircraft too', () => {
+      const { control } = mountedIn('silhouette', 12)
+      const feature = seedSilhouette(control, { track: 90 })
+      priv(control)._showSelectedTag(feature)
+      const tag = markerRegistry.instances.at(-1)!
+      expect(tag.options.anchor).toBe('top-right')
+      expect(tag.options.offset![1]).toBeCloseTo(-7.2)
+    })
 
     it('keeps the icon’s own size when zoomed out', () => {
       const { control, map } = mountedIn('silhouette', 6)
       seedSilhouette(control, { track: 270 })
       map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
-      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([23, 0])
+      const [sideways, raise] = markerRegistry.instances.at(-1)!.options.offset!
+      expect(sideways).toBe(23)
+      expect(raise).toBeCloseTo(-7.2)
     })
 
     it('clears the arrow-mode symbol for an aircraft with no silhouette', () => {
@@ -5005,7 +5057,9 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       seedFeature(control, { track: 270 })
       map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
       // The 24px radar blip's half-size plus the gap.
-      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([15, 0])
+      const [sideways, raise] = markerRegistry.instances.at(-1)!.options.offset!
+      expect(sideways).toBe(15)
+      expect(raise).toBeCloseTo(-7.2)
     })
 
     it('keeps the arrow-mode hover tag below-right of the aircraft', () => {
@@ -5015,6 +5069,76 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const tag = markerRegistry.instances.at(-1)!
       expect(tag.options.anchor).toBe('top-left')
       expect(tag.options.offset).toEqual([14, -13])
+    })
+  })
+
+  describe('a selected aircraft that turns', () => {
+    /**
+     * One poll that reports `entry`. Answered by URL rather than queued with
+     * mockResolvedValueOnce: the control's tracking-state requests
+     * (/api/air/tracking) run alongside polls and could otherwise take the
+     * feed's answer, leaving the poll with an empty feed. And it waits for
+     * any poll already in flight (the control can start one in the
+     * background), since _fetch returns at once while one is.
+     */
+    async function poll(control: AdsbLiveControl, entry: ApiEntry) {
+      fetchMock.mockImplementation((url: string) =>
+        Promise.resolve({
+          ok: true,
+          headers: new Headers(),
+          status: 200,
+          json: () =>
+            Promise.resolve(String(url).startsWith('/api/air/tracking') ? {} : { ac: [entry] }),
+        } as Response),
+      )
+      await vi.waitFor(() => expect(priv(control)._isFetching).toBe(false))
+      // A report no newer than the last is dropped (aircraftPosition.reanchor),
+      // so let the clock move past the previous poll's millisecond.
+      const previousPollAt = Date.now()
+      await vi.waitFor(() => expect(Date.now()).toBeGreaterThan(previousPollAt))
+      await (control as unknown as { _fetch: () => Promise<void> })._fetch()
+    }
+
+    async function selectedHeading(style: 'arrow' | 'silhouette', track: number) {
+      const { control } = mountedIn(style)
+      await poll(control, apiEntry({ track }))
+      priv(control)._showSelectedTag(control._geojson.features[0])
+      return { control, firstTag: markerRegistry.instances.at(-1)! }
+    }
+
+    it('moves the tag to the other side when the aircraft turns to face the other way', async () => {
+      const { control, firstTag } = await selectedHeading('silhouette', 270)
+      expect(firstTag.options.anchor).toBe('top-left')
+
+      await poll(control, apiEntry({ track: 90 }))
+
+      const newTag = markerRegistry.instances.at(-1)!
+      expect(firstTag.removed).toBe(true)
+      expect(newTag).not.toBe(firstTag)
+      expect(newTag.options.anchor).toBe('top-right')
+      expect(newTag.options.offset![0]).toBeLessThan(0)
+      // Text and side agree: right-aligned against the aircraft on its left.
+      expect(newTag.getElement().innerHTML).toContain('align-items:flex-end')
+    })
+
+    it('refreshes the tag in place while the aircraft keeps facing the same way', async () => {
+      const { control, firstTag } = await selectedHeading('silhouette', 270)
+
+      await poll(control, apiEntry({ track: 250, flight: 'NEWCALL' }))
+
+      expect(markerRegistry.instances.at(-1)).toBe(firstTag)
+      expect(firstTag.removed).toBe(false)
+      expect(firstTag.getElement().textContent).toContain('NEWCALL')
+    })
+
+    it('moves an arrow-mode tag to the other side too', async () => {
+      const { control, firstTag } = await selectedHeading('arrow', 270)
+      expect(firstTag.options.anchor).toBe('left')
+
+      await poll(control, apiEntry({ track: 90 }))
+
+      expect(firstTag.removed).toBe(true)
+      expect(markerRegistry.instances.at(-1)!.options.anchor).toBe('right')
     })
   })
 
