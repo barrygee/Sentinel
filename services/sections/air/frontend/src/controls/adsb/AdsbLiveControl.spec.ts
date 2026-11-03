@@ -5072,6 +5072,60 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
     })
   })
 
+  describe('a selected aircraft that turns', () => {
+    async function poll(control: AdsbLiveControl, entry: ApiEntry) {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers(),
+        status: 200,
+        json: () => Promise.resolve({ ac: [entry] }),
+      } as Response)
+      await (control as unknown as { _fetch: () => Promise<void> })._fetch()
+    }
+
+    async function selectedHeading(style: 'arrow' | 'silhouette', track: number) {
+      const { control } = mountedIn(style)
+      await poll(control, apiEntry({ track }))
+      priv(control)._showSelectedTag(control._geojson.features[0])
+      return { control, firstTag: markerRegistry.instances.at(-1)! }
+    }
+
+    it('moves the tag to the other side when the aircraft turns to face the other way', async () => {
+      const { control, firstTag } = await selectedHeading('silhouette', 270)
+      expect(firstTag.options.anchor).toBe('top-left')
+
+      await poll(control, apiEntry({ track: 90 }))
+
+      const newTag = markerRegistry.instances.at(-1)!
+      expect(firstTag.removed).toBe(true)
+      expect(newTag).not.toBe(firstTag)
+      expect(newTag.options.anchor).toBe('top-right')
+      expect(newTag.options.offset![0]).toBeLessThan(0)
+      // Text and side agree: right-aligned against the aircraft on its left.
+      expect(newTag.getElement().innerHTML).toContain('align-items:flex-end')
+    })
+
+    it('refreshes the tag in place while the aircraft keeps facing the same way', async () => {
+      const { control, firstTag } = await selectedHeading('silhouette', 270)
+
+      await poll(control, apiEntry({ track: 250, flight: 'NEWCALL' }))
+
+      expect(markerRegistry.instances.at(-1)).toBe(firstTag)
+      expect(firstTag.removed).toBe(false)
+      expect(firstTag.getElement().textContent).toContain('NEWCALL')
+    })
+
+    it('moves an arrow-mode tag to the other side too', async () => {
+      const { control, firstTag } = await selectedHeading('arrow', 270)
+      expect(firstTag.options.anchor).toBe('left')
+
+      await poll(control, apiEntry({ track: 90 }))
+
+      expect(firstTag.removed).toBe(true)
+      expect(markerRegistry.instances.at(-1)!.options.anchor).toBe('right')
+    })
+  })
+
   describe('hovering between aircraft', () => {
     function move(map: FakeMap, layer: string, hex?: string) {
       map.fire('mousemove', layer, { features: hex ? [{ properties: { hex } }] : [] })

@@ -190,6 +190,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
   _selectedHex: string | null = null
+  /**
+   * Which way the selected tag faced when it was placed. Its anchor is fixed
+   * then (a MapLibre marker's can't change), so when the aircraft turns to
+   * face the other way the tag has to be placed again on its new side.
+   */
+  private _tagLeftFacing: boolean | null = null
   _isolatedHex: string | null = null
   private _eventsAdded = false
   _followEnabled = false
@@ -1303,14 +1309,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._tagMarker = null
       }
       /* v8 ignore stop */
-      const trkLeft = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
-      this._tagMarker = new maplibregl.Marker({
-        element: newEl,
-        anchor: this._tagAnchor(trkLeft),
-        offset: this._labelOffset(aircraftFeature.properties, trkLeft),
-      })
-        .setLngLat(coords)
-        .addTo(this.map)
+      this._tagMarker = this._placeTagMarker(newEl, aircraftFeature.properties, coords)
     }
     this._saveTrackingState()
   }
@@ -1378,19 +1377,26 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._tagMarker.remove()
       this._tagMarker = null
     }
-    const isTracked = this._followEnabled && hex === this._tagHex
-    let anchor: maplibregl.PositionAnchor
-    let offset: [number, number]
-    if (isTracked) {
-      const trkLeft3 = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-      anchor = this._tagAnchor(trkLeft3)
-      offset = this._labelOffset(taggedFeature.properties, trkLeft3)
-    } else {
-      const rebuildLeft = this._isLeftFacing(taggedFeature.properties.track ?? 0)
-      anchor = this._tagAnchor(rebuildLeft)
-      offset = this._labelOffset(taggedFeature.properties, rebuildLeft)
-    }
-    this._tagMarker = new maplibregl.Marker({ element: newEl, anchor, offset })
+    this._tagMarker = this._placeTagMarker(newEl, taggedFeature.properties, coords)
+  }
+
+  /**
+   * Pin the selected (or tracked) tag beside its aircraft on the side its text
+   * was built for, remembering that side for the next poll (see
+   * {@link _tagLeftFacing}).
+   */
+  private _placeTagMarker(
+    element: HTMLElement,
+    props: AircraftProperties,
+    coords: maplibregl.LngLatLike,
+  ): maplibregl.Marker {
+    const leftFacing = this._isLeftFacing(props.track ?? 0)
+    this._tagLeftFacing = leftFacing
+    return new maplibregl.Marker({
+      element,
+      anchor: this._tagAnchor(leftFacing),
+      offset: this._labelOffset(props, leftFacing),
+    })
       .setLngLat(coords)
       .addTo(this.map)
   }
@@ -1406,12 +1412,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     el.innerHTML = this._buildTagHTML(feature.properties)
     this._wireTagButton(el)
     const coords = this._interpolatedCoords(feature.properties.hex) || feature.geometry.coordinates
-    const selLeft = this._isLeftFacing(feature.properties.track ?? 0)
-    const selAnchor = this._tagAnchor(selLeft)
-    const selOffset = this._labelOffset(feature.properties, selLeft)
-    this._tagMarker = new maplibregl.Marker({ element: el, anchor: selAnchor, offset: selOffset })
-      .setLngLat(coords)
-      .addTo(this.map)
+    this._tagMarker = this._placeTagMarker(el, feature.properties, coords)
     if (this._allHidden && !this._selectedHex) el.style.visibility = 'hidden'
     this._tagHex = feature.properties.hex
     this._showStatusBar(feature.properties)
@@ -2511,8 +2512,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
       if (this._tagHex && this._tagMarker) {
         const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
         if (taggedFeature) {
-          this._tagMarker.getElement().innerHTML = this._buildTagHTML(taggedFeature.properties)
-          this._wireTagButton(this._tagMarker.getElement())
+          // A polled aircraft always has a track (the feed's, or 0), set above.
+          if (this._isLeftFacing(taggedFeature.properties.track) !== this._tagLeftFacing) {
+            // Turned to face the other way: the text flips sides, so the tag
+            // must be placed again on the aircraft's other side.
+            this._rebuildTagForHex(this._tagHex)
+          } else {
+            this._tagMarker.getElement().innerHTML = this._buildTagHTML(taggedFeature.properties)
+            this._wireTagButton(this._tagMarker.getElement())
+          }
           this._updateStatusBar()
         } else {
           this._hideSelectedTag()
@@ -2676,14 +2684,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._tagMarker.remove()
         this._tagMarker = null
       }
-      const trkLeft4 = this._isLeftFacing(aircraftFeature.properties.track ?? 0)
-      this._tagMarker = new maplibregl.Marker({
-        element: newEl,
-        anchor: this._tagAnchor(trkLeft4),
-        offset: this._labelOffset(aircraftFeature.properties, trkLeft4),
-      })
-        .setLngLat(coords)
-        .addTo(this.map)
+      this._tagMarker = this._placeTagMarker(newEl, aircraftFeature.properties, coords)
       this._tagHex = hex
       this._showStatusBar(aircraftFeature.properties)
       const is3D = this._is3DActive()
