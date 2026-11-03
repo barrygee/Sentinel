@@ -16,6 +16,7 @@ vi.mock('../services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '../services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '../testing/stagedSave'
 
 const NS = 'air'
 const LS_KEY = `sentinel_${NS}_sourceOverride`
@@ -139,13 +140,36 @@ describe('SourceOverrideControl', () => {
     expect(wrapper.find('.settings-source-override-note').exists()).toBe(true)
     expect(settingsApi.put).not.toHaveBeenCalled()
 
+    // The save is held open, to show the change event waits for it: the
+    // event's listener asks the backend which source is in use.
+    let finishSave!: () => void
+    vi.mocked(settingsApi.put).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishSave = resolve
+      }),
+    )
     const events: Event[] = []
     window.addEventListener('sentinel:sourceOverrideChanged', (event) => events.push(event))
-    const staged = wrapper.emitted('stage')![0]![0] as () => void
-    staged()
+    const staged = wrapper.emitted('stage')![0]![0] as () => Promise<unknown>
+    const saved = staged()
     expect(settingsApi.put).toHaveBeenCalledWith(NS, 'sourceOverride', 'offgrid')
     expect(localStorage.getItem(LS_KEY)).toBe('offgrid')
+    await flushPromises()
+    expect(events).toHaveLength(0)
+
+    // APPLY awaits what the staged work returns, so it is the save itself.
+    finishSave()
+    await saved
     expect(events).toHaveLength(1)
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old mode', async () => {
+    const wrapper = await mountControl()
+    await radio(wrapper, 'OFF GRID').trigger('click')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves).toEqual([[NS, 'sourceOverride', 'offgrid']])
   })
 
   it('re-clicking the mode already shown stages nothing', async () => {

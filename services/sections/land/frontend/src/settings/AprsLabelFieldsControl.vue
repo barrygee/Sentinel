@@ -58,8 +58,7 @@ function onToggle(_column: string, key: string): void {
   const field = key as keyof AprsLabelFieldMap
   fields.value = { ...fields.value, [field]: !fields.value[field] }
   landStore.setAprsLabelFields({ ...fields.value })
-  emit('stage', () => {
-    settingsApi.put('land', 'labelDataPoints', { ...fields.value })
-  })
+  // Returned, so APPLY waits for the save before it re-reads every setting.
+  emit('stage', () => settingsApi.put('land', 'labelDataPoints', { ...fields.value }))
 }
 </script>

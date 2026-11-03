@@ -11,6 +11,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 
 const LS_KEY = 'sentinel_space_filterHoverPreview'
 
@@ -79,6 +80,16 @@ describe('SpaceHoverPreviewControl', () => {
     await (wrapper.emitted('stage')![0]![0] as () => unknown)()
     expect(localStorage.getItem(LS_KEY)).toBe('fly')
     expect(settingsApi.put).toHaveBeenCalledWith('space', 'filterHoverPreview', 'fly')
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old choice', async () => {
+    const wrapper = mount(SpaceHoverPreviewControl)
+    await flushPromises()
+    await wrapper.findAll('.settings-source-override-btn')[1]!.trigger('click')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves).toEqual([['space', 'filterHoverPreview', 'fly']])
   })
 
   it('does nothing when the already-active option is clicked', async () => {

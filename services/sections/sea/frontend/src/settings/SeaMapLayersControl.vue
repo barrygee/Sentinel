@@ -52,8 +52,7 @@ function isLayerOn(_columnKey: string, layer: string): boolean {
 function toggleLayer(layer: SeaMapLayerKey): void {
   seaStore.setOverlay(layer, !seaStore.overlayStates[layer])
   if (layer === 'rangeRings') return
-  emit('stage', () => {
-    settingsApi.put('sea', 'defaultLayers', seaStore.currentDefaultLayers())
-  })
+  // Returned, so APPLY waits for the save before it re-reads every setting.
+  emit('stage', () => settingsApi.put('sea', 'defaultLayers', seaStore.currentDefaultLayers()))
 }
 </script>

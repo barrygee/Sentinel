@@ -59,8 +59,7 @@ function onToggle(_column: string, key: string): void {
   const field = key as keyof RepeaterLabelFieldMap
   fields.value = { ...fields.value, [field]: !fields.value[field] }
   repeatersStore.setLabelFields({ ...fields.value })
-  emit('stage', () => {
-    settingsApi.put('land', 'repeaterLabelFields', { ...fields.value })
-  })
+  // Returned, so APPLY waits for the save before it re-reads every setting.
+  emit('stage', () => settingsApi.put('land', 'repeaterLabelFields', { ...fields.value }))
 }
 </script>

@@ -61,7 +61,8 @@ function select(val: 'stay' | 'fly'): void {
     try {
       localStorage.setItem(LS_KEY, current.value)
     } catch {}
-    settingsApi.put('space', 'filterHoverPreview', current.value)
+    // Returned, so APPLY waits for the save before it re-reads every setting.
+    return settingsApi.put('space', 'filterHoverPreview', current.value)
   })
 }
 

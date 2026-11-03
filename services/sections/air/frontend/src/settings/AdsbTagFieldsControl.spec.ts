@@ -12,6 +12,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 
 describe('AdsbTagFieldsControl', () => {
   beforeEach(() => {
@@ -45,6 +46,16 @@ describe('AdsbTagFieldsControl', () => {
       expect.objectContaining({ civil: expect.objectContaining({ callsign: !before }) }),
     )
     window.removeEventListener('adsb:tagFieldsChanged', broadcast)
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old fields', async () => {
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    await wrapper.findAll('input[type="checkbox"]')[0]!.trigger('change')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual(['air.labelDataPoints'])
   })
 
   it('toggling a military checkbox flips the military map', async () => {

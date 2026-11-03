@@ -12,6 +12,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 
 const ROW = { name: 0, type: 1, mmsi: 2, flag: 3, destination: 4, speed: 5, course: 6 } as const
 
@@ -67,6 +68,39 @@ describe('SeaLabelFieldsControl', () => {
       'labelDataPoints',
       expect.objectContaining({ destination: true, name: true }),
     )
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old fields', async () => {
+    const wrapper = mount(SeaLabelFieldsControl)
+    await flushPromises()
+    await wrapper.findAll('input[type="checkbox"]')[ROW.destination]!.trigger('change')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    // The labels layer was already on, so only the fields are written.
+    expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual(['sea.labelDataPoints'])
+  })
+
+  it('also waits for the layer save that rides along when the last field goes off', async () => {
+    useSeaStore().setLabelFields({
+      name: true,
+      type: false,
+      mmsi: false,
+      flag: false,
+      destination: false,
+      speed: false,
+      course: false,
+    })
+    const wrapper = mount(SeaLabelFieldsControl)
+    await flushPromises()
+    await wrapper.findAll('input[type="checkbox"]')[ROW.name]!.trigger('change')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual([
+      'sea.labelDataPoints',
+      'sea.defaultLayers',
+    ])
   })
 
   it('switches the labels layer off with the last field, and back on with the first', async () => {
