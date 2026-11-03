@@ -22,6 +22,7 @@ from tests.in_process_app import app
 from backend.platform.service_manifest import ServiceManifest
 
 NO_CACHE = "no-cache, no-store, must-revalidate"
+IMMUTABLE = "public, max-age=31536000, immutable"
 
 
 def build_remote(remotes_dir: Path, section_id: str) -> Path:
@@ -32,6 +33,8 @@ def build_remote(remotes_dir: Path, section_id: str) -> Path:
     (section_dir / "spa-assets" / "section-Ab12Cd34.js").write_text(
         "export default 1\n"
     )
+    # Outside spa-assets/: neither the entry nor a hashed chunk.
+    (section_dir / "notes.txt").write_text("unhashed\n")
     return section_dir
 
 
@@ -266,8 +269,15 @@ class TestRemotesStaticFiles:
         assert response.headers["cache-control"] == NO_CACHE
         assert response.headers["content-type"].startswith("text/javascript")
 
-    def test_leaves_hashed_chunks_cacheable(self, remotes_client: TestClient):
+    def test_caches_hashed_chunks_for_good(self, remotes_client: TestClient):
         response = remotes_client.get("/remotes/air/spa-assets/section-Ab12Cd34.js")
+
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == IMMUTABLE
+
+    def test_leaves_other_remote_files_to_the_browser(self, remotes_client: TestClient):
+        # Not content-hashed, so not safe to keep for good.
+        response = remotes_client.get("/remotes/air/notes.txt")
 
         assert response.status_code == 200
         assert "cache-control" not in response.headers

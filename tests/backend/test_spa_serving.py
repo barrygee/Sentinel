@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from starlette.routing import Mount
 
 from backend.core import spa_csp, spa_serving
-from backend.platform.remote_files import REMOTE_ENTRY_FILENAME
+from backend.platform.remote_files import IMMUTABLE_CACHE_CONTROL, REMOTE_ENTRY_FILENAME
 
 NO_CACHE = "no-cache, no-store, must-revalidate"
 INDEX_HTML = "<!doctype html><html><head><script>window.boot = 1</script></head><body></body></html>"
@@ -96,6 +96,35 @@ class TestBuiltSpa:
 
         assert client.get("/spa-assets/index-Ab12Cd34.js").text == "export {}\n"
         assert client.get("/fonts/font.woff2").content == b"woff2"
+
+    def test_caches_the_hashed_bundle_for_good(self, frontend):
+        # Every file name in spa-assets/ carries its content hash, so a browser
+        # can keep it without ever asking again; index.html names the new ones.
+        build_spa(frontend)
+        _app, client = serve()
+
+        response = client.get("/spa-assets/index-Ab12Cd34.js")
+
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == IMMUTABLE_CACHE_CONTROL
+        assert client.get("/").headers["cache-control"] == NO_CACHE
+
+    def test_a_missing_bundle_file_is_a_404_not_cached(self, frontend):
+        build_spa(frontend)
+        _app, client = serve()
+
+        response = client.get("/spa-assets/index-Zz99Yy88.js")
+
+        assert response.status_code == 404
+        assert "cache-control" not in response.headers
+
+    def test_leaves_fonts_and_map_assets_to_the_browser(self, frontend):
+        # Unhashed names: caching them for good would pin an old file after an upgrade.
+        build_spa(frontend)
+        _app, client = serve()
+
+        assert "cache-control" not in client.get("/fonts/font.woff2").headers
+        assert "cache-control" not in client.get("/assets/sprite.png").headers
 
     def test_serves_map_assets_and_the_favicon(self, frontend):
         build_spa(frontend)
