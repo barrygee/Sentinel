@@ -31,11 +31,11 @@ function recordMapRequests(page: Page): string[] {
 }
 
 /**
- * The Settings panel's group headings — not the headings inside cards that
- * reuse the class (IMPORT).
+ * The Settings panel's group headings (the buttons that fold each group) — not
+ * the headings inside cards that reuse the class (IMPORT).
  */
 async function groupLabels(page: Page): Promise<string[]> {
-    const headings = page.locator('#settings-panel div.settings-group-label');
+    const headings = page.locator('#settings-panel button.settings-group-label');
     return (await headings.allTextContents()).map((label) => label.trim());
 }
 

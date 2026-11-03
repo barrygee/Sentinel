@@ -29,15 +29,17 @@ describe('SdrRecordingsFolderControl', () => {
     vi.unstubAllGlobals()
   })
 
-  it('starts empty, saying an empty folder means the recordings root', async () => {
+  it('starts empty, saying an empty folder means the recordings directory', async () => {
     const wrapper = mount(SdrRecordingsFolderControl)
     await flushPromises()
 
     const input = wrapper.get('input')
     expect((input.element as HTMLInputElement).value).toBe('')
-    expect(input.attributes('placeholder')).toBe('Recordings root')
+    expect(input.attributes('placeholder')).toBe('Recordings directory')
     expect(input.attributes('maxlength')).toBe('200')
-    expect(input.attributes('aria-label')).toBe('Recordings folder, inside the recordings root')
+    expect(input.attributes('aria-label')).toBe(
+      'Recordings folder, inside the recordings directory',
+    )
   })
 
   it('hydrates the saved folder from the DB on mount', async () => {

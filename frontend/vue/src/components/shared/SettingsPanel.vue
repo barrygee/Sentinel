@@ -112,24 +112,31 @@
           </template>
           <template v-else>
             <div class="settings-grid">
-              <template v-for="(item, idx) in currentSectionItems" :key="item.id">
-                <div
-                  v-if="
-                    item.groupLabel !== undefined &&
-                    item.groupLabel !== currentSectionItems[idx - 1]?.groupLabel
-                  "
-                  class="settings-group-label"
-                  :class="{ 'settings-group-label--spaced': idx > 0 }"
-                >
-                  {{ item.groupLabel }}
-                </div>
-                <SettingRow
-                  v-show="isShownInSourceMode(item)"
-                  :item="item"
-                  :pending="pending"
-                  @stage="stagePending"
-                  @commit="commitAll"
+              <template v-for="(group, groupIndex) in currentSectionGroups" :key="group.key">
+                <SettingsGroupToggle
+                  v-if="group.label !== undefined"
+                  :label="group.label"
+                  :expanded="!store.isGroupCollapsed(group.key)"
+                  :controls-id="group.bodyId"
+                  :spaced="groupIndex > 0 && !followsFoldedGroup(groupIndex)"
+                  @toggle="store.toggleGroup(group.key)"
                 />
+                <!-- display: contents, so the cards stay items of the settings grid. -->
+                <div
+                  v-show="!store.isGroupCollapsed(group.key)"
+                  :id="group.bodyId"
+                  class="settings-group-body"
+                >
+                  <SettingRow
+                    v-for="item in group.items"
+                    v-show="isShownInSourceMode(item)"
+                    :key="item.id"
+                    :item="item"
+                    :pending="pending"
+                    @stage="stagePending"
+                    @commit="commitAll"
+                  />
+                </div>
               </template>
             </div>
           </template>
@@ -161,6 +168,7 @@ import {
 import { useDialog } from '@/composables/useDialog'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import SettingRow from './settings/SettingRow.vue'
+import SettingsGroupToggle from './settings/SettingsGroupToggle.vue'
 import './settings/appSettings'
 import { getSettingItems } from '@sentinel/shell-api/shell/settingsRegistry'
 import { useOfferedSettingsSections } from '@/composables/useOfferedSettingsSections'
@@ -249,6 +257,51 @@ function isShownInSourceMode(setting: SettingItem): boolean {
 const currentSectionItems = computed(() =>
   allSettings.filter((setting) => setting.section === activeSection.value),
 )
+
+/** A run of the active section's cards under one group heading (or none, at the top). */
+interface SettingsGroup {
+  /** `<section>:<groupLabel>`: what the settings store folds by. */
+  key: string
+  /** The heading, or undefined for cards listed before any group heading. */
+  label: string | undefined
+  /** The id of the element holding the group's cards (the heading's aria-controls). */
+  bodyId: string
+  items: SettingItem[]
+}
+
+/**
+ * The active section's cards, split into groups: a card with a `groupLabel`
+ * different from the card before it starts a new group, and a card without
+ * one stays in the group above it (Band Plan sits under FREQUENCY DATA).
+ */
+/**
+ * Whether the group before this one is folded: its heading is then the last
+ * thing above, so the extra space that sets a group off from the cards above
+ * would only leave a hole.
+ */
+function followsFoldedGroup(groupIndex: number): boolean {
+  const previousGroup = currentSectionGroups.value[groupIndex - 1]
+  return previousGroup !== undefined && store.isGroupCollapsed(previousGroup.key)
+}
+
+const currentSectionGroups = computed<SettingsGroup[]>(() => {
+  const groups: SettingsGroup[] = []
+  for (const item of currentSectionItems.value) {
+    const currentGroup = groups.at(-1)
+    if (currentGroup && (item.groupLabel === undefined || item.groupLabel === currentGroup.label)) {
+      currentGroup.items.push(item)
+      continue
+    }
+    const key = `${item.section}:${item.groupLabel ?? ''}`
+    groups.push({
+      key,
+      label: item.groupLabel,
+      bodyId: `settings-group-${key.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}`,
+      items: [item],
+    })
+  }
+  return groups
+})
 
 // Prepared once: the shared matcher lower-cases each field up front.
 const settingRecords = allSettings.map((setting) =>

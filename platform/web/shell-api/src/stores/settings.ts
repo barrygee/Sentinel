@@ -18,6 +18,24 @@ export const useSettingsStore = defineStore('settings', () => {
    * once it has acted on it, so a later manual visit opens as usual.
    */
   const focusSdrManagerHostId = ref<number | null>(null)
+  /**
+   * The Settings groups (DATA SOURCES, MAP, LABELS…) the operator has folded,
+   * by `groupKey`. Here rather than in the panel, so a fold survives the panel
+   * remounting; not persisted, so every page load starts with them all open.
+   */
+  const collapsedGroups = ref<string[]>([])
+
+  /** Whether the Settings group `groupKey` is folded. */
+  function isGroupCollapsed(groupKey: string): boolean {
+    return collapsedGroups.value.includes(groupKey)
+  }
+
+  /** Fold the Settings group `groupKey`, or unfold it if it is folded. */
+  function toggleGroup(groupKey: string): void {
+    collapsedGroups.value = isGroupCollapsed(groupKey)
+      ? collapsedGroups.value.filter((collapsedKey) => collapsedKey !== groupKey)
+      : [...collapsedGroups.value, groupKey]
+  }
 
   function openPanel(section?: string) {
     open.value = true
@@ -86,6 +104,9 @@ export const useSettingsStore = defineStore('settings', () => {
     activeSection,
     allSettings,
     focusSdrManagerHostId,
+    collapsedGroups,
+    isGroupCollapsed,
+    toggleGroup,
     openPanel,
     openSdrManagerHost,
     clearSdrManagerHostFocus,

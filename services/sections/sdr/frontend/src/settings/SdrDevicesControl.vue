@@ -814,7 +814,7 @@ onBeforeUnmount(() => {
   margin-bottom: 8px;
 }
 /* The card has no title of its own, so the settings grid pulls it up under
-   DEVICES (.settings-group-label + .settings-item--headless, -40px). Its
+   DEVICES (.settings-group-heading + .settings-group-body > .settings-item--headless, -40px). Its
    subcategory headings stand in for card titles, so put back the distance a
    card title keeps from its group label. */
 .sdr-devices-card {

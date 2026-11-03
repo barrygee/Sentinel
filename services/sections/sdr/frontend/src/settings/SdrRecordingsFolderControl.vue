@@ -19,8 +19,8 @@ const emit = defineEmits<{
 
 <template>
   <BaseTextSetting
-    accessible-name="Recordings folder, inside the recordings root"
-    placeholder="Recordings root"
+    accessible-name="Recordings folder, inside the recordings directory"
+    placeholder="Recordings directory"
     :max-length="MAX_RECORDINGS_FOLDER_LENGTH"
     :validate="recordingsFolderError"
     namespace="sdr"
