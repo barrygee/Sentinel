@@ -84,8 +84,8 @@ function toggle(group: keyof AdsbTagFields, key: keyof AdsbTagFieldMap): void {
   }
   airStore.setAdsbTagFields({ ...fields.value })
   window.dispatchEvent(new CustomEvent('adsb:tagFieldsChanged', { detail: { ...fields.value } }))
-  emit('stage', () => {
-    settingsApi.put('air', 'labelDataPoints', { ...fields.value })
-  })
+  // Returned, so APPLY waits for the save before it re-reads every setting —
+  // otherwise that re-read can land first and put the old fields back.
+  emit('stage', () => settingsApi.put('air', 'labelDataPoints', { ...fields.value }))
 }
 </script>

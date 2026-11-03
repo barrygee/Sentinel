@@ -12,6 +12,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 
 /** Index of a field's checkbox, matching the control's row order. */
 const ROW = {
@@ -100,6 +101,16 @@ describe('AprsLabelFieldsControl', () => {
       'labelDataPoints',
       expect.objectContaining({ speed: true }),
     )
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old fields', async () => {
+    const wrapper = mount(AprsLabelFieldsControl)
+    await flushPromises()
+    await wrapper.findAll('input[type="checkbox"]')[ROW.speed]!.trigger('change')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual(['land.labelDataPoints'])
   })
 
   it('switching a default-on field off updates the store', async () => {

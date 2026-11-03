@@ -64,6 +64,8 @@ onMounted(async () => {
 })
 
 function onInput(): void {
+  // Each branch returns its save, so APPLY waits for it before it re-reads
+  // every setting.
   emit('stage', () => {
     const val = urlValue.value.trim()
     if (val) {
@@ -71,12 +73,12 @@ function onInput(): void {
       try {
         localStorage.setItem(LS_KEY, val)
       } catch {}
-      settingsApi.put(props.ns, _key, val)
+      return settingsApi.put(props.ns, _key, val)
     } else {
       try {
         localStorage.removeItem(LS_KEY)
       } catch {}
-      settingsApi.put(props.ns, _key, '')
+      return settingsApi.put(props.ns, _key, '')
     }
   })
 }

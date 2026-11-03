@@ -11,6 +11,7 @@ vi.mock('../services/settingsApi', () => ({
   getAll: vi.fn(),
 }))
 import * as settingsApi from '../services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '../testing/stagedSave'
 
 // ns 'space' → onlineKey() falls back to 'onlineUrl'.
 const NS = 'space'
@@ -96,6 +97,27 @@ describe('OnlineSourceControl', () => {
     await (wrapper.emitted('stage')![0]![0] as () => unknown)()
     expect(localStorage.getItem(LS_KEY)).toBeNull()
     expect(settingsApi.put).toHaveBeenCalledWith(NS, KEY, '')
+  })
+
+  it('hands a new URL’s save back to APPLY, so the re-read after it cannot restore the old one', async () => {
+    const wrapper = mountControl()
+    await flushPromises()
+    await wrapper.find('input').setValue('https://feed.example')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves).toEqual([[NS, KEY, 'https://feed.example']])
+  })
+
+  it('hands the save that clears the source back to APPLY too', async () => {
+    localStorage.setItem(LS_KEY, 'https://feed.example')
+    const wrapper = mountControl()
+    await flushPromises()
+    await wrapper.find('input').setValue('')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (wrapper.emitted('stage')![0]![0] as () => unknown)(),
+    )
+    expect(saves).toEqual([[NS, KEY, '']])
   })
 
   it('throws from the staged callback for a malformed URL', async () => {

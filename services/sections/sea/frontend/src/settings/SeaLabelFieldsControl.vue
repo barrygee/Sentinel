@@ -62,10 +62,15 @@ function onToggle(_column: string, key: string): void {
   const anyFieldShown = Object.values(fields.value).some(Boolean)
   const layerChanged = anyFieldShown !== seaStore.overlayStates.vesselLabels
   if (layerChanged) seaStore.setOverlay('vesselLabels', anyFieldShown)
-  emit('stage', () => {
-    settingsApi.put('sea', 'labelDataPoints', { ...fields.value })
-    // One staged writer per setting, so the layer flip rides along here.
-    if (layerChanged) settingsApi.put('sea', 'defaultLayers', seaStore.currentDefaultLayers())
-  })
+  // Both saves are returned, so APPLY waits for them before it re-reads every
+  // setting. One staged writer per setting, so the layer flip rides along here.
+  emit('stage', () =>
+    Promise.all([
+      settingsApi.put('sea', 'labelDataPoints', { ...fields.value }),
+      layerChanged
+        ? settingsApi.put('sea', 'defaultLayers', seaStore.currentDefaultLayers())
+        : undefined,
+    ]),
+  )
 }
 </script>

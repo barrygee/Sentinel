@@ -69,8 +69,12 @@ function select(nextMode: SourceMode): void {
     try {
       localStorage.setItem(LS_KEY, nextMode)
     } catch {}
-    void settingsApi.put(props.ns, 'sourceOverride', nextMode)
-    window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+    // Returned, so APPLY waits for the save before it re-reads every setting;
+    // the event waits too, because its listener asks the backend which source
+    // is in use and would otherwise be told the old one.
+    return settingsApi.put(props.ns, 'sourceOverride', nextMode).then(() => {
+      window.dispatchEvent(new CustomEvent('sentinel:sourceOverrideChanged'))
+    })
   })
 }
 </script>

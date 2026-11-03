@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useSeaStore } from '../stores/sea'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 import SeaMapLayersControl from './SeaMapLayersControl.vue'
 
 vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
@@ -92,6 +93,15 @@ describe('SeaMapLayersControl', () => {
     await switchOf(wrapper, 'Vessel labels').trigger('click')
     lastStaged(wrapper)!()
     expect(settingsApi.put).toHaveBeenLastCalledWith('sea', 'defaultLayers', ['vessels', 'ports'])
+  })
+
+  it('hands its save back to APPLY, so the re-read after it cannot restore the old layers', async () => {
+    const wrapper = mountControl()
+    await switchOf(wrapper, 'Ports').trigger('click')
+    const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+      (lastStaged(wrapper) as () => unknown)(),
+    )
+    expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual(['sea.defaultLayers'])
   })
 
   it('keeps range rings local: no config write is staged for them', async () => {

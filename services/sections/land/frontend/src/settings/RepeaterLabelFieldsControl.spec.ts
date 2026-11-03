@@ -13,6 +13,7 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
   notifySettingsChanged: vi.fn(),
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import { expectStagedWorkAwaitsSave } from '@sentinel/shell-api/testing/stagedSave'
 
 /**
  * Settings › LAND › Repeaters › label fields. The control has two jobs worth
@@ -168,6 +169,18 @@ describe('RepeaterLabelFieldsControl', () => {
         'repeaterLabelFields',
         expect.objectContaining({ ...DEFAULT_REPEATER_LABEL_FIELDS, location: true }),
       )
+    })
+
+    it('hands its save back to APPLY, so the re-read after it cannot restore the old fields', async () => {
+      const wrapper = await mountControl()
+      await checkboxes(wrapper)[ROW.location]!.trigger('change')
+      const staged = wrapper.emitted('stage')!
+      const saves = await expectStagedWorkAwaitsSave(vi.mocked(settingsApi.put), () =>
+        (staged[staged.length - 1]![0] as () => unknown)(),
+      )
+      expect(saves.map(([namespace, key]) => `${namespace}.${key}`)).toEqual([
+        'land.repeaterLabelFields',
+      ])
     })
 
     it('switches a field that is on back off', async () => {
