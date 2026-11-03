@@ -3,7 +3,7 @@
     ref="mapRef"
     :style-url="styleUrl"
     region-label="Space domain map — satellites"
-    region-description="Interactive map of satellites and their ground tracks. Satellites are listed in the Search panel, and upcoming overhead passes in the Passes panel, of the map sidebar — both keyboard and screen-reader accessible."
+    region-description="Interactive map of satellites and their ground tracks. Satellites are listed in the Filter panel, and upcoming overhead passes in the Passes panel, of the map sidebar — both keyboard and screen-reader accessible."
     :center="spaceStore.mapCenter ?? [0, 30]"
     :zoom="spaceStore.mapZoom ?? 2"
     @map-created="onMapCreated"
