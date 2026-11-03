@@ -112,7 +112,7 @@ export function createAppRouter(): Router {
     }
   })
 
-  router.afterEach((to) => {
+  router.afterEach((to, from) => {
     // Docs keeps the domain of the section it came from, as Settings does.
     if (isDocsRoute(to)) return
     // Docs closes back to whatever came before it, a Settings page included.
@@ -125,7 +125,12 @@ export function createAppRouter(): Router {
     const domain = (to.meta?.domain as string) ?? ''
     const prev = document.body.dataset.domain ?? ''
     document.body.dataset.domain = domain
-    if (prev && prev !== domain) {
+    // Leaving a Settings or Docs page the app was opened on is entering a
+    // section too, though no section was recorded before it (`prev` is empty):
+    // the map sidebar, which read its section from that page's path, only
+    // learns which section it is in from this event.
+    const leftPageOpenedFirst = !prev && !!domain && (isSettingsRoute(from) || isDocsRoute(from))
+    if ((prev && prev !== domain) || leftPageOpenedFirst) {
       document.dispatchEvent(
         new CustomEvent('sentinel:domain-changed', { detail: { domain, prev } }),
       )
