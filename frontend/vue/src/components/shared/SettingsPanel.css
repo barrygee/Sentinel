@@ -255,7 +255,9 @@
   padding: 8px 0 0;
 }
 
-/* Full-width subsection label (ALERTS, LABELS, DATA SOURCES, …). */
+/* The group-label look (ALERTS, LABELS, DATA SOURCES, …): the folding group
+   headings (SettingsGroupToggle.vue) and the sub-headings some cards draw
+   inside themselves (sdr-manager-local's IMPORT, CONNECTED DEVICES…). */
 .settings-group-label {
   grid-column: 1 / -1;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
@@ -267,14 +269,17 @@
   padding: 4px 0 0;
 }
 
-.settings-group-label--spaced {
-  padding-top: 30px;
+/* A group's cards (under its folding heading, SettingsGroupToggle.vue) stay
+   items of the settings grid: the wrapper only exists so the heading has one
+   element to show, hide and name in aria-controls. */
+.settings-group-body {
+  display: contents;
 }
 
-/* A card with no visible title or description (its group label names it)
-   would start the grid's whole row gap below that label, with nothing in the
-   space a title fills on every other card. Pull it up under the label. */
-.settings-group-label + .settings-item--headless {
+/* A card with no visible title or description (its group heading names it)
+   would start the grid's whole row gap below that heading, with nothing in the
+   space a title fills on every other card. Pull it up under the heading. */
+.settings-group-heading + .settings-group-body > .settings-item--headless:first-child {
   margin-top: -40px;
 }
 

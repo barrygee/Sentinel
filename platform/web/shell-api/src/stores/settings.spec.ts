@@ -180,4 +180,32 @@ describe('settings store', () => {
       document.removeEventListener('sentinel:settings-changed', listener)
     })
   })
+
+  describe('folded Settings groups', () => {
+    it('starts with every group open', () => {
+      const store = useSettingsStore()
+      expect(store.collapsedGroups).toEqual([])
+      expect(store.isGroupCollapsed('air:DATA SOURCES')).toBe(false)
+    })
+
+    it('folds a group, then unfolds it again', () => {
+      const store = useSettingsStore()
+      store.toggleGroup('air:DATA SOURCES')
+      expect(store.isGroupCollapsed('air:DATA SOURCES')).toBe(true)
+      store.toggleGroup('air:DATA SOURCES')
+      expect(store.isGroupCollapsed('air:DATA SOURCES')).toBe(false)
+      expect(store.collapsedGroups).toEqual([])
+    })
+
+    it('folds each group on its own, the same label in another section included', () => {
+      const store = useSettingsStore()
+      store.toggleGroup('air:DATA SOURCES')
+      store.toggleGroup('air:LABELS')
+      store.toggleGroup('air:LABELS')
+
+      expect(store.isGroupCollapsed('air:DATA SOURCES')).toBe(true)
+      expect(store.isGroupCollapsed('air:LABELS')).toBe(false)
+      expect(store.isGroupCollapsed('sea:DATA SOURCES')).toBe(false)
+    })
+  })
 })
