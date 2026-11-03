@@ -13,7 +13,11 @@ from pathlib import Path
 
 from backend.core import spa_csp
 from backend.core.app_sections import SPA_DIR
-from backend.platform.remote_files import RemotesStaticFiles
+from backend.platform.remote_files import (
+    NEVER_CACHE_CONTROL,
+    HashedAssetsStaticFiles,
+    RemotesStaticFiles,
+)
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -67,7 +71,12 @@ def _mount_shell_bundle(app: FastAPI) -> None:
     if fonts_dir.exists():
         app.mount("/fonts", StaticFiles(directory=str(fonts_dir)), name="fonts")
     if SPA_DIR.exists():
-        app.mount("/spa-assets", StaticFiles(directory=str(SPA_DIR / "spa-assets")), name="spa-assets")
+        # Every file here is content-hashed, so it is served as immutable.
+        app.mount(
+            "/spa-assets",
+            HashedAssetsStaticFiles(directory=str(SPA_DIR / "spa-assets")),
+            name="spa-assets",
+        )
 
 
 def _add_spa_fallback(app: FastAPI, index: Path) -> None:
@@ -83,7 +92,7 @@ def _add_spa_fallback(app: FastAPI, index: Path) -> None:
                 index,
                 media_type="text/html",
                 headers={
-                    "Cache-Control": "no-cache, no-store, must-revalidate",
+                    "Cache-Control": NEVER_CACHE_CONTROL,
                     # Pins where the shell (and every section remote it loads)
                     # may run scripts from; see backend/core/spa_csp.py.
                     "Content-Security-Policy": spa_csp.policy_for_index(index),

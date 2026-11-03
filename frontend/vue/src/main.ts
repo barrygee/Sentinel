@@ -65,6 +65,11 @@ useThemeStore()
   // Which app this deployment is (never throws: the full app when core can't
   // say). Each mode's boot is its own chunk, so SDR Manager-only mode never
   // downloads the map app: App, map-kit, MapLibre, pmtiles, the SDR engine.
+  // Asked for now, not after the mode: the section list is the same in every
+  // mode, and reading it only once the mode is known put one more round trip
+  // between page load and the first map tile. It only lists and registers the
+  // remotes; none is loaded until loadSections() below.
+  const sectionSourcesListed = sectionSources()
   const appMode = await fetchAppMode()
   setAppMode(appMode)
   const modeBoot: ModeBoot =
@@ -72,7 +77,7 @@ useThemeStore()
       ? (await import('./boot/sdrManagerOnlyBoot')).sdrManagerOnlyBoot(appMode)
       : (await import('./boot/fullAppBoot')).fullAppBoot()
   try {
-    await loadSections(await sectionSources(), { pinia, appMode: appMode.mode })
+    await loadSections(await sectionSourcesListed, { pinia, appMode: appMode.mode })
   } catch (error) {
     console.error('[sentinel] loading sections failed:', error)
   }

@@ -124,19 +124,20 @@ class TestServedRoutes:
             for path in ("/docs", "/redoc", "/openapi.json", "/api/docs"):
                 assert (await client.get(path)).status_code == 404
 
-    async def test_serves_its_own_remote_uncached(self, tmp_path):
+    async def test_serves_its_own_remote_entry_uncached_and_its_chunks_immutable(self, tmp_path):
         (tmp_path / "remoteEntry.js").write_text("export const entry = 1")
-        (tmp_path / "chunk-abc.js").write_text("export const chunk = 1")
+        (tmp_path / "spa-assets").mkdir()
+        (tmp_path / "spa-assets" / "chunk-Ab12Cd34.js").write_text("export const chunk = 1")
         app = create_service(manifest=make_manifest(), routers=[], lifecycles=[], remote_dir=tmp_path)
 
         async with client_for(app) as client:
             entry = await client.get("/remotes/space/remoteEntry.js")
-            chunk = await client.get("/remotes/space/chunk-abc.js")
+            chunk = await client.get("/remotes/space/spa-assets/chunk-Ab12Cd34.js")
 
         assert entry.status_code == 200
         assert entry.headers["cache-control"] == "no-cache, no-store, must-revalidate"
         assert chunk.status_code == 200
-        assert "no-store" not in chunk.headers.get("cache-control", "")
+        assert chunk.headers["cache-control"] == "public, max-age=31536000, immutable"
 
     async def test_a_remote_that_is_not_built_yet_is_a_404(self, tmp_path):
         app = create_service(manifest=make_manifest(), routers=[], lifecycles=[], remote_dir=tmp_path / "missing")

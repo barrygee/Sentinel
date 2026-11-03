@@ -1,6 +1,11 @@
 <template>
   <div class="oma-shell">
+    <!-- Only while Settings is open: the panel stays mounted (hidden) on every
+         section page, and a hidden MapLibre map still costs a WebGL context, a
+         style load and its tiles beside the section's own map. Its selection and
+         region outlines come from the store, so reopening redraws them. -->
     <OfflineAreaMap
+      v-if="settingsStore.open"
       ref="areaMapRef"
       :selection="hasArea ? draftBounds : null"
       :regions="completedRegionBounds"
@@ -104,8 +109,9 @@
  * form's buttons (`AreaSelector`), and the store that is everyone else's
  * single source of truth for the draft/regions/status.
  */
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import {
   OFFLINE_MAX_ZOOM,
   OFFLINE_MIN_ZOOM,
@@ -126,9 +132,19 @@ import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
 
 const appStore = useAppStore()
 const store = useOfflineMapsStore()
+const settingsStore = useSettingsStore()
 
 const areaMapRef = ref<InstanceType<typeof OfflineAreaMap> | null>(null)
 const drawArmed = ref(false)
+
+// Closing Settings removes the map mid-draw without it reporting the draw
+// cancelled, so the form would otherwise reopen still showing DRAW armed.
+watch(
+  () => settingsStore.open,
+  (open) => {
+    if (!open) drawArmed.value = false
+  },
+)
 
 const hasArea = computed(() => store.hasDraftArea)
 /** Drawing in progress or an area chosen — the label, bounds, depth and content fields show. */
@@ -203,9 +219,9 @@ function onBoundsFieldsUpdate(bounds: LngLatBounds): void {
 }
 
 function getCurrentViewBounds(): LngLatBounds | null {
-  /* v8 ignore start -- the map renders unconditionally beside the buttons, so
-     its ref is always set by the time USE CURRENT VIEW can be clicked; the
-     guard only satisfies the template ref's nullable type. */
+  /* v8 ignore start -- the map renders whenever Settings is open, which it
+     must be for USE CURRENT VIEW to be clicked, so its ref is always set by
+     then; the guard only satisfies the template ref's nullable type. */
   if (!areaMapRef.value) return null
   /* v8 ignore stop */
   return areaMapRef.value.currentViewBounds()

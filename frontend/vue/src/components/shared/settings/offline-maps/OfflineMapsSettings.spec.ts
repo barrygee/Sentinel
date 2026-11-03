@@ -51,6 +51,7 @@ vi.mock('./OfflineAreaMap.vue', () => ({
 import OfflineMapsSettings from './OfflineMapsSettings.vue'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
 const STATUS = {
   basemap_available: true,
@@ -87,6 +88,9 @@ function areaFieldsShown(wrapper: ReturnType<typeof mountSettings>): boolean[] {
 describe('OfflineMapsSettings', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    // The area map only exists while Settings is open; every test but the
+    // ones about that starts with the panel open, as an operator sees it.
+    useSettingsStore().openPanel('app')
     vi.clearAllMocks()
     apiMock.getOfflineMapStatus.mockResolvedValue(STATUS)
     apiMock.listOfflineRegions.mockResolvedValue([])
@@ -560,5 +564,68 @@ describe('OfflineMapsSettings', () => {
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
+  })
+
+  describe('the area map only while Settings is open', () => {
+    it('does not create the map while Settings is closed, but keeps the form', async () => {
+      useSettingsStore().closePanel()
+      const wrapper = mountSettings()
+      await flushPromises()
+      expect(wrapper.findComponent({ name: 'OfflineAreaMap' }).exists()).toBe(false)
+      expect(wrapper.findComponent({ name: 'AreaSelector' }).exists()).toBe(true)
+      expect(wrapper.findComponent({ name: 'RegionList' }).exists()).toBe(true)
+    })
+
+    it('creates the map when Settings opens and removes it when Settings closes', async () => {
+      const settingsStore = useSettingsStore()
+      settingsStore.closePanel()
+      const wrapper = mountSettings()
+      await flushPromises()
+
+      settingsStore.openPanel('app')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findComponent({ name: 'OfflineAreaMap' }).exists()).toBe(true)
+
+      settingsStore.closePanel()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.findComponent({ name: 'OfflineAreaMap' }).exists()).toBe(false)
+    })
+
+    it('redraws the chosen area and completed regions from the store when Settings reopens', async () => {
+      apiMock.listOfflineRegions.mockResolvedValue([
+        { id: 'a', label: 'A', status: 'complete', west: -3, south: 54, east: -2, north: 55 },
+      ])
+      const settingsStore = useSettingsStore()
+      const wrapper = mountSettings()
+      await flushPromises()
+      useOfflineMapsStore().setDraftBbox(-1, 50, 1, 52)
+      settingsStore.closePanel()
+      await wrapper.vm.$nextTick()
+
+      settingsStore.openPanel('app')
+      await wrapper.vm.$nextTick()
+      const areaMap = wrapper.findComponent({ name: 'OfflineAreaMap' })
+      expect(areaMap.props('selection')).toEqual({ west: -1, south: 50, east: 1, north: 52 })
+      expect(areaMap.props('regions')).toEqual([
+        { west: -3, south: 54, east: -2, north: 55, label: 'A' },
+      ])
+    })
+
+    it('stops showing drawing armed when Settings closes mid-draw', async () => {
+      const settingsStore = useSettingsStore()
+      const wrapper = mountSettings()
+      await flushPromises()
+      await startDrawing(wrapper)
+      expect(areaFieldsShown(wrapper)).toEqual([true, true, true, true])
+      expect(wrapper.findComponent({ name: 'AreaSelector' }).props('armed')).toBe(true)
+
+      settingsStore.closePanel()
+      await wrapper.vm.$nextTick()
+      settingsStore.openPanel('app')
+      await wrapper.vm.$nextTick()
+
+      expect(wrapper.findComponent({ name: 'AreaSelector' }).props('armed')).toBe(false)
+      expect(areaFieldsShown(wrapper)).toEqual([false, false, false, false])
+    })
   })
 })
