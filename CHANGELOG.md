@@ -253,6 +253,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an Aircraft Icons setting that draws aircraft as silhouettes
 - Draw ~200 more aircraft types and give every aircraft a shape
 - Stack silhouette tag fields, aligned to the aircraft's side
+- Darker silhouettes and tag text on the light map
 
 ### Bug Fixes
 
@@ -599,6 +600,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move a selected aircraft's tag when it turns to face the other way
 - Drop the shadow and outline from silhouette tag text
 - Drop the green dot before each settings section heading
+- A lighter civil blue for silhouettes on the light map
 
 ### Chores
 
@@ -1715,6 +1717,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #562 from barrygee/fix/recordings-folder-input-width
 - Merge pull request #563 from barrygee/fix/silhouette-tag-line-spacing
 - Merge pull request #564 from barrygee/fix/settings-heading-dot
+- Merge pull request #565 from barrygee/feat/silhouettes-light-map
 
 ### Performance
 
@@ -2047,6 +2050,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the turning-aircraft tag fix
 - Rebuild the bundle without the tag text shadow
 - Rebuild the bundle without the settings heading dot
+- Rebuild the bundle for the light-map silhouette colours
+- Rebuild the bundle for the lighter light-map blue
 
 ### Continuous Integration
 
