@@ -2,15 +2,20 @@
  * Decides which silhouette to draw for one aircraft, from what its ADS-B
  * report says about it.
  *
- * Two sources, most specific first:
+ * Most specific first:
  *
  * 1. **Type designator** (`t`, e.g. `A321`) found in Sentinel's type table —
  *    the family drawing stretched to that type's real length and span.
  * 2. **Emitter category** (`category`, e.g. `A3`) the transponder broadcasts —
  *    a family's reference drawing chosen for that weight class.
+ * 3. **Anything else that is an aircraft** — a light single, since an aircraft
+ *    that broadcasts no usable category and has a type Sentinel doesn't know is
+ *    almost always a light aircraft (every such aircraft in a sample of UK
+ *    traffic was).
  *
- * Anything else (no category, ground vehicles, towers, obstacles) resolves to
- * `null`, and the caller keeps drawing it the way it always has.
+ * Only things that are not aircraft resolve to `null` — ground vehicles,
+ * towers, obstacles, parachutists, space vehicles — and the caller keeps
+ * drawing them the way it always has.
  */
 import type { AircraftFamilyId } from '@sentinel/map-kit/aircraft-silhouettes/aircraftFamilies'
 import type { AircraftDimensions } from '@sentinel/map-kit/aircraft-silhouettes/aircraftSilhouette'
@@ -56,6 +61,15 @@ const CATEGORY_FAMILIES: Readonly<Record<string, AircraftFamilyId>> = {
   B6: 'uav',
 }
 
+/** Designators feeds give things that are not aircraft: a tower, ground units. */
+const NON_AIRCRAFT_DESIGNATORS: ReadonlySet<string> = new Set(['TWR', 'GND', 'SERV'])
+
+/** Categories that are not aircraft: B3 parachutist, B7 space vehicle. */
+const NON_AIRCRAFT_CATEGORIES: ReadonlySet<string> = new Set(['B3', 'B7'])
+
+/** Drawn for an aircraft nothing else identifies (see the module comment). */
+const UNIDENTIFIED_AIRCRAFT_FAMILY: AircraftFamilyId = 'lightSingleProp'
+
 /** Surface categories (C1–C7) are vehicles and obstacles, never aircraft. */
 function isSurfaceCategory(category: string): boolean {
   return category.startsWith('C')
@@ -66,7 +80,7 @@ function isSurfaceCategory(category: string): boolean {
  *
  * @param typeDesignator - ICAO type designator from the feed's `t` field; may be empty.
  * @param category - ADS-B emitter category from the feed's `category` field; may be empty.
- * @returns The shape to draw, or `null` to keep the default symbol.
+ * @returns The shape to draw, or `null` for something that is not an aircraft.
  */
 export function resolveAircraftShape(
   typeDesignator: string,
@@ -91,5 +105,15 @@ export function resolveAircraftShape(
   if (categoryFamily) {
     return { shapeKey: `family:${categoryFamily}`, familyId: categoryFamily }
   }
-  return null
+
+  if (
+    NON_AIRCRAFT_DESIGNATORS.has(normalisedDesignator) ||
+    NON_AIRCRAFT_CATEGORIES.has(normalisedCategory)
+  ) {
+    return null
+  }
+  return {
+    shapeKey: `family:${UNIDENTIFIED_AIRCRAFT_FAMILY}`,
+    familyId: UNIDENTIFIED_AIRCRAFT_FAMILY,
+  }
 }

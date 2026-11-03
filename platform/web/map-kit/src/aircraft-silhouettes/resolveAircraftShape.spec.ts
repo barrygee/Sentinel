@@ -52,10 +52,25 @@ describe('resolveAircraftShape', () => {
     },
   )
 
-  it.each(['A0', 'B0', 'B3', 'B7', ''])(
-    'leaves category %s with no known type on its default symbol',
+  it.each(['', 'A0', 'B0', 'A9'])(
+    'draws an unidentified aircraft (category %s, unknown type) as a light single',
     (category) => {
-      expect(resolveAircraftShape('', category)).toBeNull()
+      expect(resolveAircraftShape('ZZZZ', category)).toEqual({
+        shapeKey: 'family:lightSingleProp',
+        familyId: 'lightSingleProp',
+      })
     },
   )
+
+  it('draws an aircraft with no type and no category as a light single', () => {
+    expect(resolveAircraftShape('', '')?.shapeKey).toBe('family:lightSingleProp')
+  })
+
+  it.each(['TWR', 'twr', 'GND', 'SERV'])('never draws the non-aircraft designator %s', (type) => {
+    expect(resolveAircraftShape(type, '')).toBeNull()
+  })
+
+  it.each(['B3', 'B7'])('never draws category %s (not an aircraft)', (category) => {
+    expect(resolveAircraftShape('', category)).toBeNull()
+  })
 })
