@@ -104,4 +104,45 @@ describe('BaseSegmentedSetting', () => {
       expect(wrapper.emitted('update:modelValue')).toEqual([['light']])
     })
   })
+
+  describe('option slot', () => {
+    function mountWithExamples(modelValue: 'dark' | 'light' | 'colour' = 'light') {
+      return mount(BaseSegmentedSetting, {
+        props: { modelValue, options: OPTIONS, accessibleName: 'Basemap palette' },
+        slots: {
+          option: `<template #option="{ option, selected }">
+            <span class="example" aria-hidden="true">{{ selected ? 'on' : 'off' }}</span>
+            {{ option.label }}
+          </template>`,
+        },
+      })
+    }
+
+    it('renders each pill from the slot, told its option and whether it is selected', () => {
+      const wrapper = mountWithExamples('light')
+      expect(wrapper.findAll('.example').map((example) => example.text())).toEqual([
+        'off',
+        'on',
+        'off',
+      ])
+      expect(radios(wrapper).map((radio) => radio.text().replace(/\s+/g, ' ').trim())).toEqual([
+        'off DARK',
+        'on LIGHT',
+        'off COLOUR',
+      ])
+    })
+
+    it('still selects from a slotted pill', async () => {
+      const wrapper = mountWithExamples('light')
+      await radios(wrapper)[0]!.trigger('click')
+      expect(wrapper.emitted('update:modelValue')).toEqual([['dark']])
+    })
+
+    it('has no accessibility violations with visual examples hidden', async () => {
+      const wrapper = mountWithExamples('colour')
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
+  })
 })

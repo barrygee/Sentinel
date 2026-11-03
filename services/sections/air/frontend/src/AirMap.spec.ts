@@ -50,6 +50,8 @@ const controlMocks = vi.hoisted(() => {
       setAllHidden = vi.fn()
       setTypeFilter = vi.fn()
       setHideTowers = vi.fn()
+      // Arrow or silhouette icons, driven from the store.
+      setIconStyle = vi.fn()
       setZones = vi.fn()
       updateCenter = vi.fn()
       setVisible = vi.fn()
@@ -597,6 +599,26 @@ describe('AirMap', () => {
       // The store holds them as "shown"; the control takes "hide".
       expect(last('adsb').setHideGroundVehicles).toHaveBeenCalledWith(true)
       expect(last('adsb').setHideTowers).toHaveBeenCalledWith(false)
+    })
+
+    it('switches the ADS-B icons when the icon style changes', async () => {
+      const air = useAirStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+
+      air.setAircraftIconStyle('silhouette')
+      await nextTick()
+
+      expect(last('adsb').setIconStyle).toHaveBeenCalledWith('silhouette')
+    })
+
+    it('ignores an icon style change that lands before the ADS-B control exists', async () => {
+      const air = useAirStore()
+      mountMap()
+      air.setAircraftIconStyle('silhouette')
+      await nextTick()
+      expect(controlMocks.instances.adsb).toBeUndefined()
     })
 
     it.each([

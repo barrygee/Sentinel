@@ -289,6 +289,10 @@ function seedFeature(
       rssi: null,
       military: overrides.military ?? false,
       stale: 0 as 0 | 1,
+      // Arrow-mode fixture: no silhouette resolved.
+      silhouetteImage: '',
+      silhouetteRadiusPx: 0,
+      silhouetteRotates: 0 as 0 | 1,
     },
   }
   control._geojson.features.push(feature)
@@ -4586,5 +4590,413 @@ describe('AdsbLiveControl pauses while the browser tab is hidden', () => {
     setTabHidden(true)
     setTabHidden(false)
     expect(startSpy).not.toHaveBeenCalled()
+  })
+})
+
+describe('AdsbLiveControl aircraft silhouettes', () => {
+  /** Mount a control with the icon style already set, as a reload would. */
+  function mountedIn(style: 'arrow' | 'silhouette', zoom = 12) {
+    airStore.setAircraftIconStyle(style)
+    return mounted({ zoom })
+  }
+
+  /** The layout the `adsb-icons` layer was created with. */
+  function iconLayerLayout(map: FakeMap): Record<string, unknown> {
+    const addLayer = map.map.addLayer as unknown as ReturnType<typeof vi.fn>
+    const call = addLayer.mock.calls.find(
+      ([layer]) => (layer as { id: string }).id === 'adsb-icons',
+    )
+    return (call![0] as { layout: Record<string, unknown> }).layout
+  }
+
+  /** Seed a feature that has a silhouette of the given (half-)size. */
+  function seedSilhouette(
+    control: AdsbLiveControl,
+    overrides: Parameters<typeof seedFeature>[1] = {},
+    silhouetteRadiusPx = 20,
+  ) {
+    const feature = seedFeature(control, overrides)
+    Object.assign(feature.properties, {
+      silhouetteImage: 'aircraft-silhouette:type:A320:civil',
+      silhouetteRadiusPx,
+      silhouetteRotates: 1,
+    })
+    return feature
+  }
+
+  async function fetchOne(control: AdsbLiveControl, entry: ApiEntry) {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers(),
+      status: 200,
+      json: () => Promise.resolve({ ac: [entry] }),
+    } as Response)
+    await (control as unknown as { _fetch: () => Promise<void> })._fetch()
+    return control._geojson.features[0]!.properties
+  }
+
+  describe('feature properties', () => {
+    it('names a civil aircraft’s silhouette image by its type and sizes it', async () => {
+      const { control } = mounted()
+      const properties = await fetchOne(control, apiEntry({ t: 'A320', category: 'A3' }))
+      const { silhouetteIconSizePx } =
+        await import('@sentinel/map-kit/aircraft-silhouettes/silhouetteImage')
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:civil')
+      expect(properties.silhouetteRadiusPx).toBe(silhouetteIconSizePx('type:A320') / 2)
+      expect(properties.silhouetteRotates).toBe(1)
+    })
+
+    it('draws a military aircraft in the military colour', async () => {
+      const { control } = mounted()
+      const properties = await fetchOne(control, apiEntry({ t: 'EUFI', dbFlags: 1 }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:EUFI:military')
+    })
+
+    it('draws an emergency squawk in red, even on a military aircraft', async () => {
+      const { control } = mounted()
+      const properties = await fetchOne(
+        control,
+        apiEntry({ t: 'EUFI', dbFlags: 1, squawk: '7700' }),
+      )
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:EUFI:emergency')
+    })
+
+    it('keeps a balloon upright rather than turning it to its track', async () => {
+      const { control } = mounted()
+      const properties = await fetchOne(control, apiEntry({ t: '', category: 'B2' }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:family:balloon:civil')
+      expect(properties.silhouetteRotates).toBe(0)
+    })
+
+    it('gives an aircraft with no known shape no silhouette', async () => {
+      const { control } = mounted()
+      const properties = await fetchOne(control, apiEntry({ t: 'ZZZZ', category: 'B7' }))
+      expect(properties).toMatchObject({
+        silhouetteImage: '',
+        silhouetteRadiusPx: 0,
+        silhouetteRotates: 0,
+      })
+    })
+  })
+
+  describe('map images', () => {
+    function fireMissing(map: FakeMap, id: string) {
+      map.fire('styleimagemissing', undefined, { id })
+    }
+
+    it('leaves images that are not silhouettes to their owners', () => {
+      const { map } = mounted()
+      fireMissing(map, 'some-other-sprite')
+      expect(map.map.addImage).not.toHaveBeenCalledWith('some-other-sprite', expect.anything(), {
+        pixelRatio: 2,
+      })
+    })
+
+    it('does not redraw a silhouette the map already has', () => {
+      const { map } = mounted()
+      vi.mocked(map.map.hasImage).mockReturnValue(true)
+      vi.mocked(map.map.addImage).mockClear()
+      fireMissing(map, 'aircraft-silhouette:type:A320:civil')
+      expect(map.map.addImage).not.toHaveBeenCalled()
+    })
+
+    it('rasterises a missing silhouette at twice the pixel density', () => {
+      const { map } = mounted()
+      const fakeContext = {
+        translate: vi.fn(),
+        scale: vi.fn(),
+        fill: vi.fn(),
+        stroke: vi.fn(),
+        getImageData: vi.fn(() => ({ width: 2, height: 2 })),
+      }
+      vi.stubGlobal(
+        'Path2D',
+        class {
+          constructor(readonly pathData: string) {}
+        },
+      )
+      const getContext = vi
+        .spyOn(HTMLCanvasElement.prototype, 'getContext')
+        .mockReturnValue(fakeContext as unknown as CanvasRenderingContext2D)
+      vi.mocked(map.map.addImage).mockClear()
+      fireMissing(map, 'aircraft-silhouette:type:A320:civil')
+      expect(map.map.addImage).toHaveBeenCalledWith(
+        'aircraft-silhouette:type:A320:civil',
+        { width: 2, height: 2 },
+        { pixelRatio: 2 },
+      )
+      getContext.mockRestore()
+    })
+
+    it('adds nothing for a silhouette name it cannot draw', () => {
+      const { map } = mounted()
+      vi.mocked(map.map.addImage).mockClear()
+      fireMissing(map, 'aircraft-silhouette:type:NOPE:civil')
+      expect(map.map.addImage).not.toHaveBeenCalled()
+    })
+
+    it('stops listening when removed from the map', () => {
+      const { control, map } = mounted()
+      control.onRemove()
+      expect(map.map.off).toHaveBeenCalledWith('styleimagemissing', expect.any(Function))
+    })
+  })
+
+  describe('icon layer', () => {
+    it('keeps arrow mode exactly as it was: arrow sprites at 0.75, layer hidden', () => {
+      const { map } = mountedIn('arrow')
+      const layout = iconLayerLayout(map)
+      expect(layout['icon-size']).toBe(0.75)
+      expect(JSON.stringify(layout['icon-image'])).not.toContain('silhouetteImage')
+      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'none')
+    })
+
+    it('draws silhouettes where a feature has one, the arrow sprite where not', () => {
+      const { map } = mountedIn('silhouette')
+      const image = iconLayerLayout(map)['icon-image'] as unknown[]
+      expect(image.slice(0, 3)).toEqual([
+        'case',
+        ['!=', ['get', 'silhouetteImage'], ''],
+        ['get', 'silhouetteImage'],
+      ])
+      expect(JSON.stringify(image[3])).toContain('adsb-blip')
+      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'visible')
+    })
+
+    it('grows silhouettes 1.18× past zoom 7.5, as ADS-B Exchange does', () => {
+      const { map } = mountedIn('silhouette')
+      const size = iconLayerLayout(map)['icon-size'] as unknown[]
+      expect(size[0]).toBe('step')
+      expect(size[1]).toEqual(['zoom'])
+      expect(size[3]).toBe(7.5)
+      expect(size[2]).toEqual(['case', ['!=', ['get', 'silhouetteImage'], ''], 1, 0.75])
+      expect(size[4]).toEqual(['case', ['!=', ['get', 'silhouetteImage'], ''], 1.18, 0.75])
+    })
+
+    it('turns only the silhouettes that turn with their track', () => {
+      const { map } = mountedIn('silhouette')
+      const rotate = iconLayerLayout(map)['icon-rotate'] as unknown[]
+      expect(rotate[2]).toEqual([
+        'case',
+        ['==', ['get', 'silhouetteRotates'], 1],
+        ['get', 'track'],
+        0,
+      ])
+    })
+  })
+
+  describe('setIconStyle', () => {
+    it('does nothing when the style is unchanged', () => {
+      const { control, map } = mountedIn('arrow')
+      map.setLayoutProperty.mockClear()
+      control.setIconStyle('arrow')
+      expect(map.setLayoutProperty).not.toHaveBeenCalled()
+    })
+
+    it('rewrites the icon layer and shows it when switching to silhouettes', () => {
+      const { control, map } = mountedIn('arrow')
+      map.setLayoutProperty.mockClear()
+      control.setIconStyle('silhouette')
+      const properties = map.setLayoutProperty.mock.calls
+        .filter(([layer]) => layer === 'adsb-icons')
+        .map(([, property]) => property)
+      expect(properties).toEqual(
+        expect.arrayContaining(['icon-image', 'icon-size', 'icon-rotate', 'visibility']),
+      )
+      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'visible')
+    })
+
+    it('hides the icon layer again when switching back to arrows', () => {
+      const { control, map } = mountedIn('silhouette')
+      map.setLayoutProperty.mockClear()
+      control.setIconStyle('arrow')
+      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'icon-size', 0.75)
+      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'none')
+    })
+
+    it('skips the layer when it is not on the map yet', () => {
+      const { control, map } = mountedIn('arrow')
+      map.layers.delete('adsb-icons')
+      map.setLayoutProperty.mockClear()
+      control.setIconStyle('silhouette')
+      expect(map.setLayoutProperty).not.toHaveBeenCalledWith(
+        'adsb-icons',
+        'icon-image',
+        expect.anything(),
+      )
+    })
+
+    it('just remembers the style before the control is on a map', () => {
+      const control = makeControl()
+      control.setIconStyle('silhouette')
+      expect(priv(control)._iconStyle).toBe('silhouette')
+    })
+
+    it('removes every resting label when switching to silhouettes', () => {
+      const { control } = mountedIn('arrow')
+      control.labelsVisible = true
+      seedFeature(control)
+      priv(control)._updateCallsignMarkers()
+      const label = markerRegistry.instances.at(-1)!
+      expect(label.removed).toBe(false)
+      control.setIconStyle('silhouette')
+      expect(label.removed).toBe(true)
+      expect(priv(control)._callsignMarkers).toEqual({})
+    })
+
+    it('rebuilds an open selected tag beside the silhouette', () => {
+      const { control } = mountedIn('arrow', 12)
+      seedSilhouette(control, { track: 270 })
+      control._tagHex = 'abc123'
+      control.setIconStyle('silhouette')
+      const tag = markerRegistry.instances.at(-1)!
+      // Zoomed in (12 ≥ 7.5): 20px × 1.18 + the 3px gap, on the right.
+      expect(tag.options.anchor).toBe('left')
+      expect(tag.options.offset![0]).toBeCloseTo(20 * 1.18 + 3)
+      expect(tag.options.offset![1]).toBe(0)
+    })
+  })
+
+  describe('labels and tags', () => {
+    it('shows no resting labels in silhouette mode', () => {
+      const { control } = mountedIn('silhouette')
+      control.labelsVisible = true
+      seedSilhouette(control)
+      const before = markerRegistry.instances.length
+      priv(control)._updateCallsignMarkers()
+      expect(markerRegistry.instances.length).toBe(before)
+    })
+
+    it('writes the tag as plain haloed text with no background blocks', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(
+        props({ squawkEmerg: 1, squawk: '7700', military: true }),
+      ) as string
+      expect(html).not.toMatch(/background:(#000|#4d|#0022|rgba)/)
+      expect(html).toContain('background:transparent')
+      expect(html).toContain('text-shadow:')
+      // No arrow well: the map draws the aircraft itself.
+      expect(html).not.toContain('<svg')
+    })
+
+    it('keeps arrow-mode tags on their black block with an arrow', () => {
+      const { control } = mountedIn('arrow')
+      const html = priv(control)._buildTagHTML(props()) as string
+      expect(html).toContain('background:#000000')
+      expect(html).not.toContain('text-shadow:')
+      expect(html).toContain('<svg')
+    })
+
+    it.each([
+      [270, 'left', 1],
+      [90, 'right', -1],
+    ])(
+      'puts the hover tag beside the icon, away from the aircraft’s heading (track %i)',
+      (track, anchor, side) => {
+        const { control, map } = mountedIn('silhouette', 12)
+        seedSilhouette(control, { track })
+        map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
+        const tag = markerRegistry.instances.at(-1)!
+        expect(tag.options.anchor).toBe(anchor)
+        expect(tag.options.offset![0]).toBeCloseTo(side * (20 * 1.18 + 3))
+      },
+    )
+
+    it('keeps the icon’s own size when zoomed out', () => {
+      const { control, map } = mountedIn('silhouette', 6)
+      seedSilhouette(control, { track: 270 })
+      map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
+      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([23, 0])
+    })
+
+    it('clears the arrow-mode symbol for an aircraft with no silhouette', () => {
+      const { control, map } = mountedIn('silhouette', 12)
+      seedFeature(control, { track: 270 })
+      map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
+      // The 24px radar blip's half-size plus the gap.
+      expect(markerRegistry.instances.at(-1)!.options.offset).toEqual([15, 0])
+    })
+
+    it('keeps the arrow-mode hover tag below-right of the aircraft', () => {
+      const { control, map } = mountedIn('arrow', 12)
+      seedFeature(control)
+      map.fire('mouseenter', 'adsb-icons', { features: [{ properties: { hex: 'abc123' } }] })
+      const tag = markerRegistry.instances.at(-1)!
+      expect(tag.options.anchor).toBe('top-left')
+      expect(tag.options.offset).toEqual([14, -13])
+    })
+  })
+
+  describe('hovering between aircraft', () => {
+    function move(map: FakeMap, layer: string, hex?: string) {
+      map.fire('mousemove', layer, { features: hex ? [{ properties: { hex } }] : [] })
+    }
+
+    it('follows the pointer onto a neighbour in silhouette mode', () => {
+      const { control, map } = mountedIn('silhouette')
+      seedSilhouette(control, { hex: 'first' })
+      seedSilhouette(control, { hex: 'second' })
+      move(map, 'adsb-icons', 'first')
+      expect(priv(control)._hoverHex).toBe('first')
+      move(map, 'adsb-hit', 'second')
+      expect(priv(control)._hoverHex).toBe('second')
+    })
+
+    it('does nothing while the pointer stays on the same aircraft', () => {
+      const { control, map } = mountedIn('silhouette')
+      seedSilhouette(control, { hex: 'first' })
+      move(map, 'adsb-icons', 'first')
+      const markers = markerRegistry.instances.length
+      move(map, 'adsb-icons', 'first')
+      expect(markerRegistry.instances.length).toBe(markers)
+    })
+
+    it('ignores a move that is over no aircraft', () => {
+      const { control, map } = mountedIn('silhouette')
+      move(map, 'adsb-icons')
+      expect(priv(control)._hoverHex ?? null).toBeNull()
+    })
+
+    it('drops a neighbour’s tag when the pointer reaches the selected aircraft', () => {
+      const { control, map } = mountedIn('silhouette')
+      seedSilhouette(control, { hex: 'first' })
+      seedSilhouette(control, { hex: 'chosen' })
+      move(map, 'adsb-icons', 'first')
+      const neighbourTag = markerRegistry.instances.at(-1)!
+      control._selectedHex = 'chosen'
+      move(map, 'adsb-icons', 'chosen')
+      expect(neighbourTag.removed).toBe(true)
+      expect(priv(control)._hoverHex ?? null).toBeNull()
+    })
+
+    it('leaves arrow mode to its labels’ own hover', () => {
+      const { control, map } = mountedIn('arrow')
+      seedFeature(control, { hex: 'first' })
+      move(map, 'adsb-icons', 'first')
+      expect(priv(control)._hoverHex ?? null).toBeNull()
+    })
+  })
+
+  describe('zooming', () => {
+    it('moves the selected tag out when silhouettes grow past the zoom threshold', () => {
+      const { control, map } = mountedIn('silhouette', 6)
+      seedSilhouette(control, { track: 270 })
+      control._tagHex = 'abc123'
+      map.zoom = 9
+      const rebuildTag = vi.spyOn(control, '_rebuildTagForHex')
+      map.fire('zoomend', undefined)
+      expect(rebuildTag).toHaveBeenCalledWith('abc123')
+      expect(markerRegistry.instances.at(-1)!.options.offset![0]).toBeCloseTo(20 * 1.18 + 3)
+    })
+
+    it('leaves arrow-mode tags alone on zoom', () => {
+      const { control, map } = mountedIn('arrow')
+      seedFeature(control)
+      control._tagHex = 'abc123'
+      const rebuildTag = vi.spyOn(control, '_rebuildTagForHex')
+      map.fire('zoomend', undefined)
+      expect(rebuildTag).not.toHaveBeenCalled()
+    })
   })
 })

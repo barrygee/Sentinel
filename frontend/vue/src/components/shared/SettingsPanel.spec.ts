@@ -933,6 +933,7 @@ describe('SettingsPanel', () => {
         'air-online-daily-call-limit',
         'air-online-squawk-watch-interval',
         'map-layers',
+        'air-aircraft-icon-style',
         'air-tag-fields',
         'air-overhead-alerts',
       ])

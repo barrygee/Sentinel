@@ -1,5 +1,6 @@
 {
   "air": {
+    "aircraftIconStyle": "arrow",
     "enabled": true,
     "labelDataPoints": {
       "civil": {

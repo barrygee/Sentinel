@@ -26,6 +26,7 @@ from backend.services.app_config import (
     build_config_snapshot,
     is_secret_setting,
     rows_to_namespace_dict,
+    validated_aircraft_icon_style,
     validated_location,
 )
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -157,6 +158,11 @@ async def upsert_setting_endpoint(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
     if namespace == "land" and key == "aprsChannelHz":
         value = _validated_aprs_channel_hz(value)
+    if namespace == "air" and key == "aircraftIconStyle":
+        try:
+            value = validated_aircraft_icon_style(value)
+        except InvalidConfigError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     is_mode_setting = (namespace in SOURCE_MODE_SECTIONS and key == "sourceOverride") or (
         namespace == "app" and key == "connectivityMode"
     )

@@ -57,6 +57,19 @@ describe('hydrateAirFromSettings', () => {
     expect(body.value.mil.aircraftType).toBe(true)
   })
 
+  it('adopts the stored aircraft icon style', () => {
+    const airStore = useAirStore()
+    hydrateAirFromSettings({ air: { aircraftIconStyle: 'silhouette' } })
+    expect(airStore.aircraftIconStyle).toBe('silhouette')
+  })
+
+  it('keeps the current icon style when none is stored', () => {
+    const airStore = useAirStore()
+    airStore.setAircraftIconStyle('silhouette')
+    hydrateAirFromSettings({})
+    expect(airStore.aircraftIconStyle).toBe('silhouette')
+  })
+
   it('swallows a failed seed write', async () => {
     fetchSpy.mockRejectedValue(new Error('offline'))
     expect(() => hydrateAirFromSettings({})).not.toThrow()

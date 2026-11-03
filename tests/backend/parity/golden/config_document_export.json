@@ -39,6 +39,7 @@
       "airports": true,
       "militaryBases": true
     },
+    "aircraftIconStyle": "arrow",
     "labelDataPoints": {
       "civil": {
         "callsign": true,

@@ -14,7 +14,9 @@
         @click="select(option.value)"
         @keydown="keyboard.onRadioKeydown($event, optionIndex)"
       >
-        {{ option.label }}
+        <slot name="option" :option="option" :selected="modelValue === option.value">
+          {{ option.label }}
+        </slot>
       </BasePillToggle>
     </div>
   </div>
@@ -34,6 +36,11 @@ import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKey
  * keyboard model. Callers own persistence: this emits the picked value and
  * nothing else, which keeps it usable both for staged settings and for
  * immediate ones.
+ *
+ * Each pill shows its option's label; the `option` slot (given `option` and
+ * `selected`) replaces that content, for settings whose choices are easier to
+ * pick from an example than from a word. Whatever the slot renders becomes the
+ * radio's accessible name, so mark purely visual content `aria-hidden`.
  */
 const props = defineProps<{
   /** The selected value. */
