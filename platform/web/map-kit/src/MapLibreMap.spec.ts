@@ -168,12 +168,12 @@ describe('MapLibreMap', () => {
         props: {
           styleUrl: STYLE,
           regionLabel: 'Air domain map',
-          regionDescription: 'Aircraft are also listed in the Search panel.',
+          regionDescription: 'Aircraft are also listed in the Filter panel.',
         },
       })
       const description = wrapper.find('p.sr-only')
       expect(description.exists()).toBe(true)
-      expect(description.text()).toBe('Aircraft are also listed in the Search panel.')
+      expect(description.text()).toBe('Aircraft are also listed in the Filter panel.')
       // The description is programmatically associated with the region.
       expect(wrapper.find('.map-container').attributes('aria-describedby')).toBe(
         description.attributes('id'),
@@ -185,7 +185,7 @@ describe('MapLibreMap', () => {
         props: {
           styleUrl: STYLE,
           regionLabel: 'Air domain map',
-          regionDescription: 'Aircraft are also listed in the Search panel.',
+          regionDescription: 'Aircraft are also listed in the Filter panel.',
         },
       })
       expect(await axe(wrapper.html())).toHaveNoViolations()
