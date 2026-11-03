@@ -58,7 +58,6 @@
 
     <div id="settings-content">
       <div id="settings-section-heading">
-        <span class="settings-heading-dot" aria-hidden="true"></span>
         <span>{{ sectionHeading }}</span>
       </div>
 
