@@ -1039,12 +1039,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // Smaller text beside a silhouette, in proportion to the aircraft.
     const callsignPx = plainText ? SILHOUETTE_TAG_CALLSIGN_PX : 14
     const fieldPx = plainText ? SILHOUETTE_TAG_FIELD_PX : 12
-    const tagStyle =
-      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;align-items:stretch;gap:0;white-space:nowrap;user-select:none;cursor:pointer;min-height:${plainText ? 20 : 26}px;` +
+    // Arrow mode lays the tag out as one row of blocks. Beside a silhouette the
+    // fields stack one per line, aligned to the aircraft's side of the tag:
+    // right-aligned when the tag sits to the aircraft's left, left otherwise.
+    const tagStyle = (leftFacing: boolean) =>
+      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
+      (plainText
+        ? `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:1px;`
+        : 'align-items:stretch;gap:0;min-height:26px;') +
+      'white-space:nowrap;user-select:none;cursor:pointer;' +
       (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
+    // A stacked field needs no side padding or full-height block.
+    const fieldPadding = plainText ? '0' : '0 7px'
+    const fieldAlignSelf = plainText ? 'auto' : 'stretch'
 
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
+      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
@@ -1057,13 +1067,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
+          ? `<span style="background:${surface('#000')};color:#ff2222;font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
             ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
+          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:700;padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =
@@ -1082,6 +1092,34 @@ export class AdsbLiveControl implements maplibregl.IControl {
         : `${typeBadge}${sqkBadge}${altBadge}${hdgBadge}${spdBadge}${regBadge}${catBadge}`
     }
 
+    /**
+     * Assemble the tag. Arrow mode: one row led by the arrow, mirrored for a
+     * left-facing aircraft so the arrow stays at the nose. Silhouette mode: a
+     * column — callsign on top, then the fields in reading order, then any
+     * action button — whatever the direction; only its alignment flips.
+     */
+    const assembleTag = (
+      leftFacing: boolean,
+      arrowSvg: string,
+      callsignSpan: string,
+      isEmerg: boolean,
+      isMil: boolean,
+      actionButton: string,
+    ): string => {
+      if (plainText) {
+        const stacked = `${callsignSpan}${_buildDataBadges(isEmerg, isMil, false)}${actionButton}`
+        return `<div style="${tagStyle(leftFacing)}">${stacked}</div>`
+      }
+      const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
+      const inner = leftFacing
+        ? `${actionButton}${dataBadges}${callsignSpan}${arrowSvg}`
+        : `${arrowSvg}${callsignSpan}${dataBadges}${actionButton}`
+      return `<div style="${tagStyle(leftFacing)}">${inner}</div>`
+    }
+    // A stacked callsign lines up with the fields under it, so it has no padding.
+    const callsignPadding = (leftFacing: boolean) =>
+      plainText ? '0' : leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+
     if (isTracked) {
       const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
       const isMil = !!props.military
@@ -1089,15 +1127,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const track = props.track ?? 0
       const arrowSvg = this._makeArrowSvg(arrowColor, track, props.category, props.t)
       const leftFacing = this._isLeftFacing(track)
-      const callsignPad = leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
       const callsignSpan = showCallsign
-        ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPad};display:flex;align-items:center;">${callsign}</span>`
+        ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPadding(leftFacing)};display:flex;align-items:center;">${callsign}</span>`
         : ''
-      const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
-      const inner = leftFacing
-        ? `${trkBtn}${dataBadges}${callsignSpan}${arrowSvg}`
-        : `${arrowSvg}${callsignSpan}${dataBadges}${trkBtn}`
-      return `<div style="${tagStyle}">${inner}</div>`
+      return assembleTag(leftFacing, arrowSvg, callsignSpan, isEmerg, isMil, trkBtn)
     }
 
     const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
@@ -1106,20 +1139,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const heading = props.track ?? 0
     const leftFacing = forceLeftFacing !== undefined ? forceLeftFacing : this._isLeftFacing(heading)
     const arrowSvg = this._makeArrowSvg(arrowColor, heading, props.category, props.t)
-    const callsignPad = leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
     const callsignSpan = showCallsign
-      ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPad};display:flex;align-items:center;">${callsign}</span>`
+      ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPadding(leftFacing)};display:flex;align-items:center;">${callsign}</span>`
       : ''
     // Only the notification bell is shown on the untracked tag, and only when the
     // aircraft is opted-in. The track button (and the bell on hover) live in the side
     // panel now, so hover tags carry no action buttons. The tracked tag with its
     // TRACKING/untrack button is built in the isTracked branch above.
     const activeBell = notifOn ? bellBtn : ''
-    const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
-    const inner = leftFacing
-      ? `${activeBell}${dataBadges}${callsignSpan}${arrowSvg}`
-      : `${arrowSvg}${callsignSpan}${dataBadges}${activeBell}`
-    return `<div style="${tagStyle}">${inner}</div>`
+    return assembleTag(leftFacing, arrowSvg, callsignSpan, isEmerg, isMil, activeBell)
   }
 
   private _buildTrackingFields(props: AircraftProperties): TrackingField[] {
