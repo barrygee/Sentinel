@@ -4922,6 +4922,8 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const { style } = tagLayout(priv(control)._buildTagHTML(props({ track })) as string)
       expect(style).toContain('flex-direction:column;')
       expect(style).toContain(`align-items:${align};`)
+      // Rows sit at the text's height, not the app's 20px line height.
+      expect(style).toContain('gap:0;line-height:1.2;')
     })
 
     it.each([90, 270])(
@@ -4967,6 +4969,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(html).toMatch(/^<div style="[^"]*font-size:14px;[^"]*min-height:26px;/)
       // One row of blocks, as before.
       expect(html).not.toContain('flex-direction:column')
+      expect(html).not.toContain('line-height:1.2')
     })
 
     it('keeps arrow-mode fields as padded full-height blocks in one row', () => {

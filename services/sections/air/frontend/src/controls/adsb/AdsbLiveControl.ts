@@ -1045,7 +1045,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const tagStyle = (leftFacing: boolean) =>
       `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
       (plainText
-        ? `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:1px;`
+        ? // The app's 20px line height would leave a line's worth of space under
+          // each 11–12px row; stacked rows sit at the text's own height.
+          `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:0;line-height:1.2;`
         : 'align-items:stretch;gap:0;min-height:26px;') +
       'white-space:nowrap;user-select:none;cursor:pointer;' +
       (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
