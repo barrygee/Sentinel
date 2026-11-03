@@ -602,6 +602,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the green dot before each settings section heading
 - A lighter civil blue for silhouettes on the light map
 - Wait for each staged save before APPLY re-reads settings
+- Name the Filter panel in the Air and Space map descriptions
 
 ### Chores
 
@@ -1720,6 +1721,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #564 from barrygee/fix/settings-heading-dot
 - Merge pull request #565 from barrygee/feat/silhouettes-light-map
 - Merge pull request #566 from barrygee/fix/settings-apply-awaits-saves
+- Merge pull request #567 from barrygee/fix/map-description-filter-tab
 
 ### Performance
 
