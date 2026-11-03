@@ -112,10 +112,11 @@ test.describe('the full app', () => {
 
     test('still downloads MapLibre and draws a map', async ({ page }) => {
         const mapRequests = recordMapRequests(page);
-        // A section whose map shows on open; the SDR section's (the only one
-        // some legs deploy) sits behind its spectrum, so there it is only built.
+        // A section whose map shows on open. The SDR section (the only one some
+        // legs deploy) has no map, so there the map is Settings › App Settings'
+        // Offline Maps area map, built only while Settings is open.
         const mapSection = ['air', 'space', 'sea'].find((sectionId) => isDeployed(sectionId));
-        await page.goto(mapSection ? `/${mapSection}/` : '/');
+        await page.goto(mapSection ? `/${mapSection}/` : '/settings/app');
 
         const canvas = page.locator('canvas.maplibregl-canvas').first();
         if (mapSection) await expect(canvas).toBeVisible({ timeout: 30_000 });
