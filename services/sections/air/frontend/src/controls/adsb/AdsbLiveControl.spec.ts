@@ -4768,7 +4768,8 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(image.slice(0, 3)).toEqual([
         'case',
         ['!=', ['get', 'silhouetteImage'], ''],
-        ['get', 'silhouetteImage'],
+        // The feature names shape and colour; the layer adds the map's palette.
+        ['concat', ['get', 'silhouetteImage'], ':dark'],
       ])
       expect(JSON.stringify(image[3])).toContain('adsb-blip')
       expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-icons', 'visibility', 'visible')
@@ -5069,6 +5070,73 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const tag = markerRegistry.instances.at(-1)!
       expect(tag.options.anchor).toBe('top-left')
       expect(tag.options.offset).toEqual([14, -13])
+    })
+  })
+
+  describe('on the light map', () => {
+    afterEach(() => {
+      delete document.documentElement.dataset.mapTheme
+    })
+
+    function onLightMap() {
+      document.documentElement.dataset.mapTheme = 'light'
+    }
+
+    /** The colour of each row of a stacked tag. */
+    function rowColours(html: string): string[] {
+      const host = document.createElement('div')
+      host.innerHTML = html
+      return Array.from(host.firstElementChild!.children).map(
+        (row) => (row as HTMLElement).style.color,
+      )
+    }
+
+    it('draws the silhouettes in the light map’s deeper colours', () => {
+      onLightMap()
+      const { map } = mountedIn('silhouette')
+      const image = iconLayerLayout(map)['icon-image'] as unknown[]
+      expect(image[2]).toEqual(['concat', ['get', 'silhouetteImage'], ':light'])
+    })
+
+    it('switches the silhouettes’ palette when the map is re-styled', () => {
+      const { control, map } = mountedIn('silhouette')
+      onLightMap()
+      ;(map.map.addLayer as unknown as ReturnType<typeof vi.fn>).mockClear()
+      control.initLayers()
+      const image = iconLayerLayout(map)['icon-image'] as unknown[]
+      expect(image[2]).toEqual(['concat', ['get', 'silhouetteImage'], ':light'])
+    })
+
+    it('writes the tag in the light map’s dark ink', () => {
+      onLightMap()
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const colours = rowColours(
+        priv(control)._buildTagHTML(props({ military: true, alt_baro: 30000 })) as string,
+      )
+      expect(colours.length).toBeGreaterThan(2)
+      for (const colour of colours) expect(colour).toBe('rgb(27, 29, 34)')
+    })
+
+    it('writes an emergency’s tag in a deeper red', () => {
+      onLightMap()
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const colours = rowColours(
+        priv(control)._buildTagHTML(
+          props({ squawkEmerg: 1, squawk: '7700', emergency: 'general' }),
+        ) as string,
+      )
+      for (const colour of colours) expect(colour).toBe('rgb(196, 0, 0)')
+    })
+
+    it('keeps arrow-mode tags white, on their own black block', () => {
+      onLightMap()
+      const { control } = mountedIn('arrow')
+      const html = priv(control)._buildTagHTML(props()) as string
+      expect(html).toContain('background:#000000')
+      expect(html).toContain('color:#ffffff')
+      expect(html).not.toContain('#1b1d22')
     })
   })
 

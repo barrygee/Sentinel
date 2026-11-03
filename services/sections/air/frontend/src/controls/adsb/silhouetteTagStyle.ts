@@ -28,3 +28,13 @@ export const SILHOUETTE_TAG_LINE_HEIGHT = 1.2
  */
 export const SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX =
   (SILHOUETTE_TAG_CALLSIGN_PX * SILHOUETTE_TAG_LINE_HEIGHT) / 2
+
+/**
+ * Tag text on the light map, where white would vanish against cream land: the
+ * light map's overlay ink (`--map-overlay-ink` in template.css), as its
+ * airport and place labels use.
+ */
+export const SILHOUETTE_TAG_LIGHT_MAP_INK = '#1b1d22'
+
+/** An emergency's tag text on the light map: the red, deepened to read on cream. */
+export const SILHOUETTE_TAG_LIGHT_MAP_EMERGENCY_INK = '#c40000'
