@@ -143,18 +143,6 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-
-/* Accent dot to the left of the section title — echoes the main nav's
-   active-domain dot and the logo mark's green dot (scaled up to sit against
-   the 21px heading). */
-.settings-heading-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-accent);
-  flex-shrink: 0;
 }
 
 #settings-search-wrap {
