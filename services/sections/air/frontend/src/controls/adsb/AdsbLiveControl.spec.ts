@@ -4879,7 +4879,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(markerRegistry.instances.length).toBe(before)
     })
 
-    it('writes the tag as plain haloed text with no background blocks', () => {
+    it('writes the tag as plain text with no background blocks or shadow', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
       const html = priv(control)._buildTagHTML(
@@ -4887,7 +4887,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       ) as string
       expect(html).not.toMatch(/background:(#000|#4d|#0022|rgba)/)
       expect(html).toContain('background:transparent')
-      expect(html).toContain('text-shadow:')
+      expect(html).not.toContain('text-shadow')
       // No arrow well: the map draws the aircraft itself.
       expect(html).not.toContain('<svg')
     })

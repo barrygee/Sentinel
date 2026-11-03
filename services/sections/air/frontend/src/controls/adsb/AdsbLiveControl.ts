@@ -54,7 +54,6 @@ import {
   SILHOUETTE_TAG_CALLSIGN_PX,
   SILHOUETTE_TAG_FIELD_PX,
   SILHOUETTE_TAG_LINE_HEIGHT,
-  SILHOUETTE_TAG_TEXT_HALO,
 } from './silhouetteTagStyle'
 
 // ---- Internal types ----
@@ -1040,7 +1039,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
       `</svg></button>`
 
-    // Silhouette mode draws the tag as plain haloed text beside the aircraft,
+    // Silhouette mode draws the tag as plain text beside the aircraft,
     // with no background blocks; arrow mode keeps its solid black tag.
     const plainText = this._iconStyle === 'silhouette'
     const surface = (colour: string) => (plainText ? 'transparent' : colour)
@@ -1055,8 +1054,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       (plainText
         ? `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:0;line-height:${SILHOUETTE_TAG_LINE_HEIGHT};`
         : 'align-items:stretch;gap:0;min-height:26px;') +
-      'white-space:nowrap;user-select:none;cursor:pointer;' +
-      (plainText ? SILHOUETTE_TAG_TEXT_HALO : '')
+      'white-space:nowrap;user-select:none;cursor:pointer;'
     // A stacked field needs no side padding or full-height block.
     const fieldPadding = plainText ? '0' : '0 7px'
     // Beside a silhouette the fields are plain text in the callsign's colour

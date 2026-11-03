@@ -2,7 +2,7 @@
 /**
  * One aircraft as the SILHOUETTE option draws it: its type's outline at the
  * size the map draws it (zoomed out), turned to its track, with — when a
- * callsign is given — the plain haloed text the map shows on hover or select.
+ * callsign is given — the plain text the map shows on hover or select.
  *
  * Drawn as an inline SVG from the same outline, colours and sizing the map's
  * icon images are rasterised from.
@@ -16,10 +16,7 @@ import {
   silhouetteIconSizePx,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
-import {
-  SILHOUETTE_TAG_CALLSIGN_PX,
-  SILHOUETTE_TAG_TEXT_HALO,
-} from '../../controls/adsb/silhouetteTagStyle'
+import { SILHOUETTE_TAG_CALLSIGN_PX } from '../../controls/adsb/silhouetteTagStyle'
 
 const props = withDefaults(
   defineProps<{
@@ -73,7 +70,7 @@ const drawing = computed(() => {
     <span
       v-if="callsign"
       class="silhouette-example-callsign"
-      :style="`${SILHOUETTE_TAG_TEXT_HALO}font-size:${SILHOUETTE_TAG_CALLSIGN_PX}px;`"
+      :style="`font-size:${SILHOUETTE_TAG_CALLSIGN_PX}px;`"
     >
       {{ callsign }}
     </span>
