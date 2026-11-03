@@ -249,6 +249,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - List this machine's SDRs inside its Sentinel host
 - Add a Sentinel host's SDRs automatically when asked
 - Fold settings groups and give the recordings folder its own card
+- Draw aircraft silhouettes from each type's dimensions
+- Add an Aircraft Icons setting that draws aircraft as silhouettes
+- Draw ~200 more aircraft types and give every aircraft a shape
 
 ### Bug Fixes
 
@@ -586,6 +589,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Escape feed values in ADS-B map labels
 - Refuse browser requests under unlisted host names **(breaking change)**
 - Point group chevrons right when folded and down when open
+- Load silhouettes before layout, smaller tag text, true-to-map examples
 
 ### Chores
 
@@ -1696,6 +1700,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #556 from barrygee/perf/map-load
 - Merge pull request #557 from barrygee/feat/settings-group-accordions
 - Merge pull request #558 from barrygee/fix/settings-group-chevron
+- Merge pull request #559 from barrygee/feat/aircraft-silhouettes
 
 ### Performance
 
