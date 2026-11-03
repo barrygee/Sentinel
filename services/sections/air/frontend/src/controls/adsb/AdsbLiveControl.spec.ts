@@ -4895,9 +4895,67 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
       const html = priv(control)._buildTagHTML(props()) as string
-      expect(html).toMatch(/^<div style="[^"]*font-size:12px;[^"]*min-height:20px;/)
+      expect(html).toMatch(/^<div style="[^"]*font-size:12px;/)
       expect(html).toContain('font-size:11px;')
       expect(html).not.toContain('font-size:14px;')
+    })
+
+    /** The tag's own style, and its rows' text in order. */
+    function tagLayout(html: string) {
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const tag = host.firstElementChild as HTMLElement
+      return {
+        style: tag.getAttribute('style')!,
+        rows: Array.from(tag.children).map((row) => row.textContent),
+      }
+    }
+
+    it.each([
+      // Heading east: the tag sits on the aircraft's left, so it is right-aligned.
+      [90, 'flex-end'],
+      // Heading west: the tag sits on its right, so it is left-aligned.
+      [270, 'flex-start'],
+    ])('stacks the fields aligned to the aircraft’s side (track %i → %s)', (track, align) => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const { style } = tagLayout(priv(control)._buildTagHTML(props({ track })) as string)
+      expect(style).toContain('flex-direction:column;')
+      expect(style).toContain(`align-items:${align};`)
+    })
+
+    it.each([90, 270])(
+      'puts the callsign on top and the fields under it in reading order (track %i)',
+      (track) => {
+        const { control } = mountedIn('silhouette')
+        enableAllFields(control)
+        const { rows } = tagLayout(
+          priv(control)._buildTagHTML(props({ track, alt_baro: 30000 })) as string,
+        )
+        expect(rows[0]).toBe('TEST123')
+        expect(rows[1]).toBe('A320')
+        expect(rows[2]).toMatch(/^SQK/)
+        expect(rows[3]).toMatch(/^ALT/)
+      },
+    )
+
+    it('stacks the tracked tag too, its button last', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      control._followEnabled = true
+      control._tagHex = 'abc123'
+      const { style, rows } = tagLayout(priv(control)._buildTagHTML(props({ track: 90 })) as string)
+      expect(style).toContain('flex-direction:column;')
+      expect(rows[0]).toBe('TEST123')
+      expect(rows.at(-1)).toBe('TRACKING')
+    })
+
+    it('drops the side padding so stacked fields line up under the callsign', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props()) as string
+      expect(html).not.toContain('padding:0 7px')
+      expect(html).not.toContain('align-self:stretch')
     })
 
     it('keeps arrow-mode tags on their black block with an arrow', () => {
@@ -4907,6 +4965,17 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(html).not.toContain('text-shadow:')
       expect(html).toContain('<svg')
       expect(html).toMatch(/^<div style="[^"]*font-size:14px;[^"]*min-height:26px;/)
+      // One row of blocks, as before.
+      expect(html).not.toContain('flex-direction:column')
+    })
+
+    it('keeps arrow-mode fields as padded full-height blocks in one row', () => {
+      const { control } = mountedIn('arrow')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props()) as string
+      expect(html).toContain('padding:0 7px')
+      expect(html).toContain('align-self:stretch')
+      expect(html).not.toContain('flex-direction:column')
     })
 
     it.each([
