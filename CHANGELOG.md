@@ -252,6 +252,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw aircraft silhouettes from each type's dimensions
 - Add an Aircraft Icons setting that draws aircraft as silhouettes
 - Draw ~200 more aircraft types and give every aircraft a shape
+- Stack silhouette tag fields, aligned to the aircraft's side
 
 ### Bug Fixes
 
@@ -590,6 +591,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Refuse browser requests under unlisted host names **(breaking change)**
 - Point group chevrons right when folded and down when open
 - Load silhouettes before layout, smaller tag text, true-to-map examples
+- Tell the map sidebar its section after a first-loaded Settings page
 
 ### Chores
 
@@ -1701,6 +1703,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #557 from barrygee/feat/settings-group-accordions
 - Merge pull request #558 from barrygee/fix/settings-group-chevron
 - Merge pull request #559 from barrygee/feat/aircraft-silhouettes
+- Merge pull request #560 from barrygee/feat/silhouette-stacked-tag
+- Merge pull request #561 from barrygee/fix/sidebar-section-after-settings
 
 ### Performance
 
