@@ -45,7 +45,7 @@ export const SILHOUETTE_PALETTES: Readonly<
 > = {
   dark: SILHOUETTE_COLOURS,
   light: {
-    civil: '#0057b8',
+    civil: '#1e88e5',
     military: '#4d6600',
     emergency: '#c40000',
   },
