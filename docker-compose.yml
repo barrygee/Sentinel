@@ -428,6 +428,8 @@ services:
       DB_PATH: /app/data/sdr.db
       SERVICE_INTERNAL_URL: http://sdr:8000
       RECORDINGS_DIRECTORY: /recordings
+      # Shown in Settings as where recordings are saved; the service still uses /recordings.
+      RECORDINGS_HOST_DIRECTORY: ${SENTINEL_RECORDINGS_DIRECTORY:-sdr_recordings}
       # Handed to the runtime user on start, with the database volume.
       SENTINEL_WRITABLE_DIRECTORIES: /app/data /recordings
     command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers

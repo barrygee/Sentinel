@@ -575,6 +575,7 @@ SDR_PATHS = {
     "/api/sdr/data/frequencies",
     "/api/sdr/data/bandplan",
     "/api/sdr/recordings",
+    "/api/sdr/recordings/location",
     "/api/sdr/recordings/start",
     "/api/sdr/recordings/stop",
     "/api/sdr/recordings/{rec_id}",

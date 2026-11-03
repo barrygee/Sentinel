@@ -99,13 +99,16 @@ function onInput(): void {
 </template>
 
 <style scoped>
+/* Free text (a folder path, a name) reads left to right, so it is
+   left-aligned rather than right-aligned like a number, and the field is wide
+   enough for a typical path without running across the whole card. */
 .text-setting-wrap {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 4px;
   width: 100%;
-  max-width: 240px;
+  max-width: 360px;
 }
 .text-setting-input {
   width: 100%;
@@ -122,7 +125,7 @@ function onInput(): void {
   font-size: var(--settings-text-value);
   font-weight: 500;
   letter-spacing: 0.04em;
-  text-align: right;
+  text-align: left;
   outline: none;
   transition: box-shadow 0.15s;
 }
@@ -144,7 +147,7 @@ function onInput(): void {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
   color: var(--danger);
-  text-align: right;
+  text-align: left;
 }
 .text-setting-error:empty {
   display: none;

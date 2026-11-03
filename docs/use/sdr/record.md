@@ -31,7 +31,7 @@ Each recording is `<id>.wav` (and `<id>.u8`) in one folder.
   ```
 
   On Linux also set `SENTINEL_RUNTIME_USER_ID` / `_GROUP_ID` to your ids so the files are yours.
-- **Folder**: **Recordings Folder** picks a subfolder inside the root. It must stay inside it.
+- **Folder**: **Recordings Folder** picks a subfolder inside the root. It must stay inside it. Left empty, the field shows the root itself: your folder, or `sdr_recordings (Docker volume)`.
 
 Changing either affects new recordings only; old ones stay where they are.
 
