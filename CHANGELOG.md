@@ -592,6 +592,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point group chevrons right when folded and down when open
 - Load silhouettes before layout, smaller tag text, true-to-map examples
 - Tell the map sidebar its section after a first-loaded Settings page
+- Show where recordings are saved and size the Recordings Folder field
 
 ### Chores
 
@@ -1705,6 +1706,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #559 from barrygee/feat/aircraft-silhouettes
 - Merge pull request #560 from barrygee/feat/silhouette-stacked-tag
 - Merge pull request #561 from barrygee/fix/sidebar-section-after-settings
+- Merge pull request #562 from barrygee/fix/recordings-folder-input-width
 
 ### Performance
 
