@@ -585,6 +585,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Save long recordings and refuse a stop for a finished one
 - Escape feed values in ADS-B map labels
 - Refuse browser requests under unlisted host names **(breaking change)**
+- Point group chevrons right when folded and down when open
 
 ### Chores
 
@@ -1694,6 +1695,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #555 from barrygee/fix/allowed-hosts
 - Merge pull request #556 from barrygee/perf/map-load
 - Merge pull request #557 from barrygee/feat/settings-group-accordions
+- Merge pull request #558 from barrygee/fix/settings-group-chevron
 
 ### Performance
 
