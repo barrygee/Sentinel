@@ -1,12 +1,14 @@
 /**
  * Airport and military base labels, drawn as a map layer beneath the aircraft.
  *
- * Flat black labels at aircraft tag size: a dot on the site, blue for civil and
- * green for military, then the name. Each is rendered to a map image rather than
- * built as an HTML marker, because HTML markers always sit above the map canvas
- * and so above every aircraft.
+ * Flat labels at aircraft tag size, in a darker shade of the map's own sea so they
+ * sit into the map: a dot on the site, blue for civil and green for military,
+ * then the name. Each is rendered to a map image rather than built as an HTML
+ * marker, because HTML markers always sit above the map canvas and so above every
+ * aircraft.
  */
 import type * as maplibregl from 'maplibre-gl'
+import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 
 /** Whose airfield it is, which sets its colours. */
 export type AirfieldKind = 'civil' | 'military'
@@ -30,6 +32,13 @@ const DOT_COLOURS: Readonly<Record<AirfieldKind, string>> = {
   military: '#c8ff00',
 }
 
+/**
+ * Label fill per basemap: the sea's hue, darkened. The dark map's water is
+ * `#38435C`, about `#242C3C` once dimmed; the light map's is `#AAD3DF`. Both stay
+ * dark enough for white text and the coloured dots.
+ */
+const LABEL_FILLS = { dark: '#1a2130', light: '#274f60' } as const
+
 const FONT_FAMILY = "'Barlow Condensed', 'Barlow', sans-serif"
 const NAME_FONT = `400 14px ${FONT_FAMILY}`
 
@@ -44,7 +53,7 @@ const NAME_LETTER_SPACING = '1.68px'
 const PIXEL_RATIO = 2
 
 /** Render one site's label: dot, then name. */
-function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
+function renderLabel(site: AirfieldSite, kind: AirfieldKind, fill: string): ImageData | null {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
   if (!context) return null
@@ -65,7 +74,7 @@ function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
   context.scale(PIXEL_RATIO, PIXEL_RATIO)
   context.textBaseline = 'middle'
 
-  context.fillStyle = '#000000'
+  context.fillStyle = fill
   context.fillRect(0, 0, width, LABEL_HEIGHT_PX)
   context.fillStyle = DOT_COLOURS[kind]
   context.beginPath()
@@ -120,9 +129,11 @@ export class AirfieldMarkers {
   async attach(): Promise<void> {
     await document.fonts.load(NAME_FONT)
     if (this._map.getLayer(this._layerId)) return
+    const palette = isBrightBasemap() ? 'light' : 'dark'
     const features = this._sites.map((site, siteIndex) => {
-      const imageId = `${this._layerId}:${siteIndex}`
-      const image = renderLabel(site, this._kind)
+      // Named for the palette: a theme change must not reuse the other map's fill.
+      const imageId = `${this._layerId}:${palette}:${siteIndex}`
+      const image = renderLabel(site, this._kind, LABEL_FILLS[palette])
       if (image && !this._map.hasImage(imageId)) {
         this._map.addImage(imageId, image, { pixelRatio: PIXEL_RATIO })
       }
