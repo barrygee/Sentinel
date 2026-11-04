@@ -64,12 +64,8 @@
       <span :id="autoAddLabelId" class="sdr-devices-form-label">ADD SDRS</span>
       <RemoteHostAutoAddToggle v-model="form.autoAddSdrs" :labelled-by="autoAddLabelId" />
     </div>
-    <p class="remote-host-auto-add-note">
-      {{
-        form.autoAddSdrs
-          ? 'Every public SDR on this host becomes a radio. Make one private on the host to leave it out.'
-          : 'Choose which of its SDRs become radios with ADD.'
-      }}
+    <p v-if="!form.autoAddSdrs" class="remote-host-auto-add-note">
+      Choose which of its SDRs become radios with ADD.
     </p>
 
     <div
@@ -281,6 +277,7 @@ async function addHost(): Promise<void> {
   padding: 8px 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
+  letter-spacing: 0.02em;
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-auto-add-row {
@@ -292,6 +289,7 @@ async function addHost(): Promise<void> {
   padding: 0 0 8px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
+  letter-spacing: 0.02em;
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-probe {
@@ -300,6 +298,7 @@ async function addHost(): Promise<void> {
   padding: 8px 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
+  letter-spacing: 0.02em;
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-probe--fail {
