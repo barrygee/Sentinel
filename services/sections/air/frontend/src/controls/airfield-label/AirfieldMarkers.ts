@@ -37,7 +37,7 @@ const DOT_COLOURS: Readonly<Record<AirfieldKind, string>> = {
  * `#38435C`, about `#242C3C` once dimmed; the light map's is `#AAD3DF`. Both stay
  * dark enough for white text and the coloured dots.
  */
-const LABEL_FILLS = { dark: '#1a2130', light: '#274f60' } as const
+export const AIRFIELD_LABEL_FILLS = { dark: '#1a2130', light: '#274f60' } as const
 
 const FONT_FAMILY = "'Barlow Condensed', 'Barlow', sans-serif"
 const NAME_FONT = `400 14px ${FONT_FAMILY}`
@@ -133,7 +133,7 @@ export class AirfieldMarkers {
     const features = this._sites.map((site, siteIndex) => {
       // Named for the palette: a theme change must not reuse the other map's fill.
       const imageId = `${this._layerId}:${palette}:${siteIndex}`
-      const image = renderLabel(site, this._kind, LABEL_FILLS[palette])
+      const image = renderLabel(site, this._kind, AIRFIELD_LABEL_FILLS[palette])
       if (image && !this._map.hasImage(imageId)) {
         this._map.addImage(imageId, image, { pixelRatio: PIXEL_RATIO })
       }

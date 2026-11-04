@@ -1,5 +1,5 @@
 <template>
-  <figure class="altitude-legend" :class="`altitude-legend--${palette}`">
+  <figure class="altitude-legend" :style="{ background: AIRFIELD_LABEL_FILLS[palette] }">
     <figcaption class="altitude-legend-title">ALT</figcaption>
     <div class="altitude-legend-scale">
       <div class="altitude-legend-bar" :style="{ background: gradient }" aria-hidden="true" />
@@ -18,6 +18,7 @@ import {
   altitudeColour,
 } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import type { SilhouettePalette } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import { AIRFIELD_LABEL_FILLS } from './controls/airfield-label/AirfieldMarkers'
 
 const props = defineProps<{
   /** The basemap on screen, whose colours the aircraft are drawn in. */
@@ -63,6 +64,7 @@ function tickLabel(tickFeet: number): string {
   padding: 11px 16px 9px;
   transform: translateX(-50%);
   font-family: var(--font-primary);
+  color: #ffffff;
   font-size: 10px;
   letter-spacing: 0.08em;
   /* A key, not a control: the map underneath stays draggable. */
@@ -89,17 +91,6 @@ function tickLabel(tickFeet: number): string {
   .altitude-legend {
     transition: none;
   }
-}
-
-/* A solid backing: aircraft and labels pass underneath it. */
-.altitude-legend--dark {
-  background: rgba(21, 23, 29, 0.88);
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.altitude-legend--light {
-  background: rgba(255, 255, 255, 0.88);
-  color: #1b1d22;
 }
 
 .altitude-legend-title {

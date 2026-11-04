@@ -26,9 +26,12 @@ describe('AircraftAltitudeLegend', () => {
     expect(bar('dark')).not.toBe(bar('light'))
   })
 
-  it.each(['dark', 'light'] as const)('marks its %s styling', (palette) => {
+  it.each([
+    ['dark', 'rgb(26, 33, 48)'],
+    ['light', 'rgb(39, 79, 96)'],
+  ] as const)('sits on the same solid fill as the %s map’s airfield labels', (palette, fill) => {
     const wrapper = mount(AircraftAltitudeLegend, { props: { palette } })
-    expect(wrapper.classes()).toContain(`altitude-legend--${palette}`)
+    expect((wrapper.element as HTMLElement).style.background).toBe(fill)
   })
 
   it('spaces the gradient to match the evenly spaced labels', () => {
