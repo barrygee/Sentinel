@@ -170,9 +170,7 @@ describe('RemoteHostForm', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: null } })
       await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
       await autoAddRadios(wrapper)[1]!.trigger('click')
-      expect(wrapper.find('.remote-host-auto-add-note').text()).toBe(
-        'Every public SDR on this host becomes a radio. Make one private on the host to leave it out.',
-      )
+      expect(wrapper.find('.remote-host-auto-add-note').exists()).toBe(false)
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
       expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(

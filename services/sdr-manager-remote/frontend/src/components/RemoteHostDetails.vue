@@ -301,7 +301,7 @@ watch(
   background: none;
   border: none;
   border-radius: 0;
-  color: rgba(16, 19, 29, 0.5);
+  color: var(--ink-secondary);
   cursor: pointer;
   text-align: left;
 }
@@ -346,16 +346,16 @@ watch(
      can afford. */
   --ba-grid-title-font-size: var(--settings-text-title);
   --ba-grid-title-font-weight: 600;
-  --ba-grid-title-letter-spacing: 0.22em;
+  --ba-grid-title-letter-spacing: 0.14em;
   --ba-grid-title-color: rgba(16, 19, 29, 0.75);
   --ba-cell-label-font-size: var(--settings-text-caption);
   --ba-cell-label-font-weight: 600;
   --ba-cell-label-letter-spacing: 0.14em;
-  --ba-cell-label-color: rgba(16, 19, 29, 0.62);
+  --ba-cell-label-color: var(--ink-secondary);
   --ba-cell-value-font-size: var(--settings-text-value);
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-letter-spacing: 0.02em;
-  --ba-cell-value-color: rgba(16, 19, 29, 0.92);
+  --ba-cell-value-color: var(--ink);
   --ba-cell-value-emphasis-color: var(--danger-strong);
   --ba-cell-value-white-space: normal;
   --ba-cell-value-word-break: break-word;

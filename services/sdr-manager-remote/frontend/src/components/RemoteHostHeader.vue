@@ -307,7 +307,9 @@ watch(
   transition:
     transform 0.2s ease,
     color 0.15s;
-  pointer-events: none;
+  /* Past the button's own box but still its child, so it must take the pointer
+     for a click here to reach the button. */
+  cursor: pointer;
 }
 .remote-host-header-toggle:hover .remote-host-header-chevron,
 .remote-host-header-chevron--open {
@@ -325,15 +327,15 @@ watch(
    host's name as the operator typed it (no uppercasing). */
 .remote-host-header-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-body);
+  font-size: var(--settings-text-value);
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--ink);
 }
 .remote-host-header-address {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--ink-secondary);
 }
 .remote-host-header-error,
@@ -349,7 +351,7 @@ watch(
 }
 /* As an edited SDR row says it (.sdr-device-meta). */
 .remote-host-header-staged {
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--ink-secondary);
 }
 </style>
