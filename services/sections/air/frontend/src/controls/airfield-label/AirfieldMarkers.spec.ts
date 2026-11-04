@@ -11,14 +11,7 @@ function recordingContext() {
     fillStyle: '',
     textBaseline: '',
     scale: vi.fn(),
-    strokeStyle: '',
-    lineWidth: 0,
     beginPath: vi.fn(),
-    roundRect: vi.fn(),
-    save: vi.fn(),
-    restore: vi.fn(),
-    clip: vi.fn(),
-    stroke: vi.fn(() => drawn.push(`stroke ${context.strokeStyle}`)),
     arc: vi.fn(),
     fill: vi.fn(() => drawn.push(`fill ${context.fillStyle}`)),
     fillRect: vi.fn(() => drawn.push(`rect ${context.fillStyle}`)),
@@ -56,7 +49,7 @@ function fakeMap(layers = new Set<string>()) {
 
 const onClick = vi.fn()
 const SITES: AirfieldSite[] = [
-  { name: 'Newcastle', code: 'EGNT', coordinates: [-1.69, 55.04], onClick },
+  { name: 'Newcastle', coordinates: [-1.69, 55.04], onClick },
   { name: 'Mystery Field', coordinates: [-2, 54], onClick: vi.fn() },
 ]
 const CIVIL_LAYER = AIRFIELD_LAYER_IDS.civil
@@ -151,42 +144,25 @@ describe('AirfieldMarkers', () => {
   })
 
   it.each([
-    ['civil', '#00aaff', '#002244'],
-    ['military', '#c8ff00', '#4d6600'],
-  ] as const)('draws a %s label in its colours', async (kind, accent, block) => {
-    await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), kind).attach()
-    expect(recorder.drawn).toContain(`fill ${accent}`)
-    expect(recorder.drawn).toContain(`rect ${block}`)
-  })
-
-  it.each([
     ['civil', '#00aaff'],
     ['military', '#c8ff00'],
-  ] as const)('sets a %s label apart from aircraft: rounded and outlined', async (kind, accent) => {
+  ] as const)('draws a %s label as a coloured dot on flat black', async (kind, dot) => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), kind).attach()
-    expect(recorder.context.roundRect).toHaveBeenCalled()
-    expect(recorder.context.clip).toHaveBeenCalled()
-    expect(recorder.drawn.at(-1)).toBe(`stroke ${accent}`)
-    expect(recorder.drawn).not.toContain('rect #000000')
+    expect(recorder.drawn).toContain('rect #000000')
+    expect(recorder.drawn).toContain(`fill ${dot}`)
   })
 
-  it('draws the code before the name, in capitals', async () => {
+  it('draws only the name, in capitals', async () => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), 'civil').attach()
     const texts = recorder.drawn.filter((entry) => entry.startsWith('text'))
-    expect(texts[0]).toContain('EGNT')
-    expect(texts[1]).toContain('NEWCASTLE')
-  })
-
-  it('leaves the code block out for a site with no code', async () => {
-    await new AirfieldMarkers(fakeMap().asMap, SITES.slice(1), 'civil').attach()
-    expect(recorder.drawn).not.toContain('rect #002244')
-    expect(recorder.drawn.filter((entry) => entry.startsWith('text'))).toHaveLength(1)
+    expect(texts).toHaveLength(1)
+    expect(texts[0]).toContain('NEWCASTLE')
   })
 
   it('pads the drawn ink evenly, not the text’s advance width', async () => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(1), 'civil').attach()
-    // Dot well 26 + padding 10 + the ink's 1px left bearing.
-    expect(recorder.drawn.find((entry) => entry.startsWith('text'))).toContain('@37')
+    // Dot well 26 + the ink's 1px left bearing: the well is the left padding.
+    expect(recorder.drawn.find((entry) => entry.startsWith('text'))).toContain('@27')
   })
 
   it('starts hidden, and shows when set visible', async () => {

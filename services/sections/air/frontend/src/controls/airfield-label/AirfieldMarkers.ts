@@ -1,12 +1,10 @@
 /**
  * Airport and military base labels, drawn as a map layer beneath the aircraft.
  *
- * They follow the design of the Land map's repeaters and the aircraft tag: a dot
- * on the site, the ICAO code in a block coloured blue for civil and green for
- * military, then the name. Rounded corners, a charcoal fill and a thin coloured
- * outline set them apart from an aircraft's square black tag at the same size.
- * Each is rendered to a map image rather than built as an HTML marker, because
- * HTML markers always sit above the map canvas and so above every aircraft.
+ * Flat black labels at aircraft tag size: a dot on the site, blue for civil and
+ * green for military, then the name. Each is rendered to a map image rather than
+ * built as an HTML marker, because HTML markers always sit above the map canvas
+ * and so above every aircraft.
  */
 import type * as maplibregl from 'maplibre-gl'
 
@@ -16,8 +14,6 @@ export type AirfieldKind = 'civil' | 'military'
 /** One airfield on the map. */
 export interface AirfieldSite {
   name: string
-  /** ICAO code; a site without one shows its name alone. */
-  code?: string
   coordinates: [number, number]
   onClick: () => void
 }
@@ -28,57 +24,40 @@ export const AIRFIELD_LAYER_IDS: Readonly<Record<AirfieldKind, string>> = {
   military: 'airfield-labels-military',
 }
 
-/** The dot and code text, and the code block's fill, per kind. */
-const KIND_COLOURS: Readonly<Record<AirfieldKind, { accent: string; block: string }>> = {
-  civil: { accent: '#00aaff', block: '#002244' },
-  military: { accent: '#c8ff00', block: '#4d6600' },
+/** The dot's colour per kind. */
+const DOT_COLOURS: Readonly<Record<AirfieldKind, string>> = {
+  civil: '#00aaff',
+  military: '#c8ff00',
 }
 
 const FONT_FAMILY = "'Barlow Condensed', 'Barlow', sans-serif"
 const NAME_FONT = `400 14px ${FONT_FAMILY}`
-const CODE_FONT = `700 12px ${FONT_FAMILY}`
 
 /** Label height, and the width of the square well the dot sits in, in CSS pixels. */
 const LABEL_HEIGHT_PX = 26
 const DOT_RADIUS_PX = 3.5
 
 const NAME_PADDING_PX = 10
-const CODE_PADDING_PX = 7
 const NAME_LETTER_SPACING = '1.68px'
-const CODE_LETTER_SPACING = '0.6px'
-
-/** Corner radius and fill: what sets a place apart from an aircraft's square black tag. */
-const CORNER_RADIUS_PX = 6
-const LABEL_FILL = '#1a1e26'
 
 /** Drawn at this multiple of CSS pixels, so labels stay sharp on high-density screens. */
 const PIXEL_RATIO = 2
 
-/** Render one site's label: dot, then code, then name. */
+/** Render one site's label: dot, then name. */
 function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
   const canvas = document.createElement('canvas')
   const context = canvas.getContext('2d')
   if (!context) return null
-  const { accent, block } = KIND_COLOURS[kind]
   const name = site.name.toUpperCase()
 
   // The drawn ink, not the advance width: letter spacing trails the last glyph
   // and glyphs carry side bearings, either of which would make the padding on
   // the two sides differ.
-  const measure = (text: string, font: string, letterSpacing: string) => {
-    context.font = font
-    context.letterSpacing = letterSpacing
-    const metrics = context.measureText(text)
-    return {
-      inkLeft: metrics.actualBoundingBoxLeft,
-      inkWidth: metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight,
-    }
-  }
-  const codeInk = site.code ? measure(site.code, CODE_FONT, CODE_LETTER_SPACING) : null
-  const nameInk = measure(name, NAME_FONT, NAME_LETTER_SPACING)
-  const codeWidth = codeInk ? codeInk.inkWidth + 2 * CODE_PADDING_PX : 0
-  const nameWidth = nameInk.inkWidth + 2 * NAME_PADDING_PX
-  const width = LABEL_HEIGHT_PX + codeWidth + nameWidth
+  context.font = NAME_FONT
+  context.letterSpacing = NAME_LETTER_SPACING
+  const metrics = context.measureText(name)
+  const inkWidth = metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight
+  const width = LABEL_HEIGHT_PX + inkWidth + NAME_PADDING_PX
 
   // Resizing a canvas resets its context, so sizing comes after measuring.
   canvas.width = Math.ceil(width * PIXEL_RATIO)
@@ -86,42 +65,18 @@ function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
   context.scale(PIXEL_RATIO, PIXEL_RATIO)
   context.textBaseline = 'middle'
 
-  // Inset half the outline's width, so the outline stays inside the image.
-  const outline = (): void => {
-    context.beginPath()
-    context.roundRect(0.5, 0.5, width - 1, LABEL_HEIGHT_PX - 1, CORNER_RADIUS_PX)
-  }
-  context.save()
-  outline()
-  context.clip()
-  context.fillStyle = LABEL_FILL
+  context.fillStyle = '#000000'
   context.fillRect(0, 0, width, LABEL_HEIGHT_PX)
-  context.fillStyle = accent
+  context.fillStyle = DOT_COLOURS[kind]
   context.beginPath()
   context.arc(LABEL_HEIGHT_PX / 2, LABEL_HEIGHT_PX / 2, DOT_RADIUS_PX, 0, 2 * Math.PI)
   context.fill()
 
-  if (site.code && codeInk) {
-    context.fillStyle = block
-    context.fillRect(LABEL_HEIGHT_PX, 0, codeWidth, LABEL_HEIGHT_PX)
-    context.fillStyle = accent
-    context.font = CODE_FONT
-    context.letterSpacing = CODE_LETTER_SPACING
-    const codeLeft = LABEL_HEIGHT_PX + CODE_PADDING_PX + codeInk.inkLeft
-    context.fillText(site.code, codeLeft, LABEL_HEIGHT_PX / 2 + 0.5)
-  }
-
   context.fillStyle = '#ffffff'
   context.font = NAME_FONT
   context.letterSpacing = NAME_LETTER_SPACING
-  const nameLeft = LABEL_HEIGHT_PX + codeWidth + NAME_PADDING_PX + nameInk.inkLeft
+  const nameLeft = LABEL_HEIGHT_PX + metrics.actualBoundingBoxLeft
   context.fillText(name, nameLeft, LABEL_HEIGHT_PX / 2 + 0.5)
-  context.restore()
-
-  context.strokeStyle = accent
-  context.lineWidth = 1
-  outline()
-  context.stroke()
   return context.getImageData(0, 0, canvas.width, canvas.height)
 }
 
@@ -163,7 +118,7 @@ export class AirfieldMarkers {
    * three. Waits for the label font, because a canvas won't load it itself.
    */
   async attach(): Promise<void> {
-    await Promise.all([document.fonts.load(NAME_FONT), document.fonts.load(CODE_FONT)])
+    await document.fonts.load(NAME_FONT)
     if (this._map.getLayer(this._layerId)) return
     const features = this._sites.map((site, siteIndex) => {
       const imageId = `${this._layerId}:${siteIndex}`

@@ -7,7 +7,6 @@ const fieldRegistry = vi.hoisted(() => ({
   instances: [] as Array<{
     sites: Array<{
       name: string
-      code?: string
       coordinates: [number, number]
       onClick: () => void
     }>
@@ -107,7 +106,6 @@ describe('MilitaryBasesToggleControl.onInit', () => {
     const [labels] = fieldRegistry.instances
     expect(labels!.kind).toBe('military')
     expect(labels!.sites).toHaveLength(MILITARY_BASES_DATA.features.length)
-    expect(labels!.sites[0]!.code).toBe(MILITARY_BASES_DATA.features[0]!.properties.icao)
     expect(labels!.setVisible).toHaveBeenCalledWith(true)
     expect(labels!.attach).toHaveBeenCalled()
   })

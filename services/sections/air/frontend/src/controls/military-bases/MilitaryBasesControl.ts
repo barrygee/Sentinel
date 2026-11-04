@@ -194,7 +194,6 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
         const coordinates = feature.geometry.coordinates as LngLat
         return {
           name: feature.properties.name,
-          code: feature.properties.icao,
           coordinates,
           onClick: () => {
             const pitch = this._is3DActive() ? 45 : undefined
