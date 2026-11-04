@@ -10,6 +10,10 @@
     @map-created="onMapCreated"
     @style-loaded="onStyleLoaded"
   />
+  <AircraftAltitudeLegend
+    v-if="airStore.overlayStates.altitudeLegend"
+    :palette="themeStore.mapTheme === 'light' ? 'light' : 'dark'"
+  />
 </template>
 
 <script setup lang="ts">
@@ -55,6 +59,7 @@ import { MilitaryBasesToggleControl } from './controls/military-bases/MilitaryBa
 import { AaraToggleControl } from './controls/aara/AaraControl'
 import { AwacToggleControl } from './controls/awacs/AwacControl'
 import { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
+import AircraftAltitudeLegend from './AircraftAltitudeLegend.vue'
 
 const appStore = useAppStore()
 const airStore = useAirStore()

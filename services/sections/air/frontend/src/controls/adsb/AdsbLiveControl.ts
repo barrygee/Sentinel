@@ -40,25 +40,24 @@ import {
 } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
+import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
+import { AIRFIELD_LAYER_IDS } from '../airfield-label/AirfieldMarkers'
 import {
+  altitudeColourKey,
+  ARROW_COLOURS,
   createSilhouetteImageData,
+  parseSilhouetteImageId,
   silhouetteIconSizePx,
+  silhouetteSideReachPx,
   silhouetteImageId,
   silhouetteRotatesWithTrack,
   SILHOUETTE_IMAGE_PREFIX,
+  SILHOUETTE_SELECTED_SUFFIX,
   type SilhouettePalette,
   SILHOUETTE_ZOOMED_IN_SCALE,
   SILHOUETTE_ZOOMED_IN_THRESHOLD,
   type SilhouetteColourKey,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
-import {
-  SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX,
-  SILHOUETTE_TAG_CALLSIGN_PX,
-  SILHOUETTE_TAG_FIELD_PX,
-  SILHOUETTE_TAG_LIGHT_MAP_EMERGENCY_INK,
-  SILHOUETTE_TAG_LIGHT_MAP_INK,
-  SILHOUETTE_TAG_LINE_HEIGHT,
-} from './silhouetteTagStyle'
 
 // ---- Internal types ----
 
@@ -100,8 +99,21 @@ interface AircraftProperties {
   silhouetteRotates: 0 | 1
 }
 
+/** The layer that dims the dark map beneath the silhouettes (see `_applyMapDimming`). */
+const MAP_DIM_LAYER_ID = 'adsb-map-dim'
+
+/** Black at this opacity matches the stylesheet's `brightness(0.65)`. */
+const MAP_DIM_OPACITY = 0.35
+
+/**
+ * A callsign's padding beside a silhouette, with no arrow to balance. The right
+ * side gives back the 1.68px of letter spacing (.12em at 14px) that trails the
+ * last letter, so the gap measures the same on both sides.
+ */
+const SILHOUETTE_NAME_PADDING = '3px 8.32px 3px 10px'
+
 /** Pixel gap between a silhouette's edge and its label. */
-const SILHOUETTE_LABEL_GAP_PX = 3
+const SILHOUETTE_LABEL_GAP_PX = 6
 
 /**
  * Horizontal offset that puts a label's glyph well (26px, centred) on the
@@ -113,22 +125,25 @@ const ARROW_LABEL_OFFSET_PX = 13
  * The silhouette-related feature properties for one aircraft.
  *
  * Resolved when the feature is built, not by the map, because the colour is
- * part of the image name: an emergency squawk picks the red image, military the
- * lime one. Kept outside the class so it can be read and checked on its own.
+ * part of the image name: an emergency squawk picks the red image and everything
+ * else its altitude's colour, with the state's colour when there is no altitude. Kept outside the class so it can be read and checked on its own.
  */
 function silhouetteProperties(
   typeDesignator: string,
   category: string,
   military: boolean,
   squawkEmergency: boolean,
+  altitudeFeet: number,
 ): Pick<AircraftProperties, 'silhouetteImage' | 'silhouetteRadiusPx' | 'silhouetteRotates'> {
   const shape = resolveAircraftShape(typeDesignator, category)
   if (!shape) return { silhouetteImage: '', silhouetteRadiusPx: 0, silhouetteRotates: 0 }
   const colourKey: SilhouetteColourKey = squawkEmergency
     ? 'emergency'
-    : military
-      ? 'military'
-      : 'civil'
+    : altitudeFeet > 0
+      ? altitudeColourKey(altitudeFeet)
+      : military
+        ? 'military'
+        : 'civil'
   return {
     silhouetteImage: silhouetteImageId(shape.shapeKey, colourKey),
     silhouetteRadiusPx: silhouetteIconSizePx(shape.shapeKey) / 2,
@@ -192,7 +207,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _snapshotLifetimeMs = 0
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
-  _selectedHex: string | null = null
+  private _selectedHexValue: string | null = null
+
+  get _selectedHex(): string | null {
+    return this._selectedHexValue
+  }
+
+  /** Setting this repaints the silhouettes, because the selected one is drawn in its own colour. */
+  set _selectedHex(hex: string | null) {
+    if (hex === this._selectedHexValue) return
+    this._selectedHexValue = hex
+    if (this._iconStyle === 'silhouette' && this.map?.getLayer('adsb-icons'))
+      this.map.setLayoutProperty('adsb-icons', 'icon-image', this._iconImageExpression())
+  }
+
   /**
    * Which way the selected tag faced when it was placed. Its anchor is fixed
    * then (a MapLibre marker's can't change), so when the aircraft turns to
@@ -240,7 +268,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
   _hideGroundVehicles = false
   _hideTowers = false
 
-  private _tagFields: { civil: Record<string, boolean>; mil: Record<string, boolean> } = {
+  private _tagFields: {
+    civil: Record<string, boolean>
+    mil: Record<string, boolean>
+    always: Record<string, boolean>
+  } = {
+    always: {},
     civil: {},
     mil: { aircraftType: true },
   }
@@ -285,6 +318,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._tagFields = {
       civil: { ...airStore.adsbTagFields.civil },
       mil: { ...airStore.adsbTagFields.mil },
+      always: { ...airStore.adsbTagFields.always },
     }
     this._iconStyle = airStore.aircraftIconStyle
     // Restore the persisted type/visibility filter here (not via a delayed
@@ -474,8 +508,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const detail = (e as CustomEvent).detail as {
         civil: Record<string, boolean>
         mil: Record<string, boolean>
+        always: Record<string, boolean>
       }
-      if (detail) this._tagFields = detail
+      if (detail) this._tagFields = { ...detail, always: detail.always ?? {} }
       this._clearCallsignMarkers()
       this._updateCallsignMarkers()
     }
@@ -515,6 +550,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   onRemove(): void {
     this._stopPolling()
+    // Back to the stylesheet's filter, for whatever uses this map next.
+    if (this.map) this.map.getCanvas().style.filter = ''
     // Don't deactivate — keep the onUntrack callback so untracking from another
     // section clears adsbTracking in localStorage. _handleUntrack guards all map ops.
     if (this._onTagFieldsChanged) {
@@ -599,8 +636,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
   /** Which map image each aircraft gets: its silhouette, or the arrow-mode symbol. */
   private _iconImageExpression(): maplibregl.ExpressionSpecification {
     return this._preferSilhouette<maplibregl.ExpressionSpecification>(
-      // The feature names its shape and colour; the palette is the map's.
-      ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
+      // The feature names its shape and colour; selection and the palette are the map's.
+      this._selectedHex
+        ? [
+            'concat',
+            ['get', 'silhouetteImage'],
+            ['case', ['==', ['get', 'hex'], this._selectedHex], SILHOUETTE_SELECTED_SUFFIX, ''],
+            `:${this._silhouettePalette}`,
+          ]
+        : ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
       [
         'case',
         ['==', ['get', 'category'], 'C1'],
@@ -666,6 +710,24 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   /**
+   * Keep silhouettes at full brightness on the dark map. `MapLibreMap.vue` dims
+   * the whole canvas with a CSS filter, which would cap a white aircraft at mid
+   * grey; here the same dimming comes from a layer just under the aircraft
+   * instead, so everything else on the map looks as it did. Arrow mode and the
+   * light map keep the stylesheet's behaviour.
+   */
+  private _applyMapDimming(): void {
+    const dimBelowAircraft = this._iconStyle === 'silhouette' && this._silhouettePalette === 'dark'
+    this.map.getCanvas().style.filter = dimBelowAircraft ? 'none' : ''
+    if (this.map.getLayer(MAP_DIM_LAYER_ID))
+      this.map.setLayoutProperty(
+        MAP_DIM_LAYER_ID,
+        'visibility',
+        dimBelowAircraft ? 'visible' : 'none',
+      )
+  }
+
+  /**
    * Whether the `adsb-icons` symbol layer is shown outside isolation mode.
    * Arrow mode hides it — each label's own arrow marks the aircraft — while
    * silhouette mode is drawn by it.
@@ -689,6 +751,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setLayoutProperty('adsb-icons', 'icon-size', this._iconSizeExpression())
       this.map.setLayoutProperty('adsb-icons', 'icon-rotate', this._iconRotateExpression())
     }
+    this._applyMapDimming()
     this._applyTypeFilter()
     this._hideHoverTagNow()
     this._clearCallsignMarkers()
@@ -701,11 +764,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
   initLayers(): void {
     const layerVisibility = this.visible ? 'visible' : 'none'
     this._silhouettePalette = isBrightBasemap() ? 'light' : 'dark'
-    ;['adsb-icons', 'adsb-hit', 'adsb-bracket', 'adsb-trail-dots', 'adsb-trail-line'].forEach(
-      (id) => {
-        if (this.map.getLayer(id)) this.map.removeLayer(id)
-      },
-    )
+    ;[
+      'adsb-icons',
+      'adsb-hit',
+      'adsb-bracket',
+      'adsb-trail-dots',
+      'adsb-trail-line',
+      MAP_DIM_LAYER_ID,
+    ].forEach((id) => {
+      if (this.map.getLayer(id)) this.map.removeLayer(id)
+    })
+    this.map.addLayer({
+      id: MAP_DIM_LAYER_ID,
+      type: 'background',
+      paint: { 'background-color': '#000000', 'background-opacity': MAP_DIM_OPACITY },
+    })
+    this._applyMapDimming()
 
     if (this._hoverHideTimer) {
       clearTimeout(this._hoverHideTimer)
@@ -1026,17 +1100,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
     const callsign = escapeHtml(raw || 'UNKNOWN')
     const isEmergency = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
-    // Arrow mode's text sits on its own black block, so it is always light.
-    // Beside a silhouette the text sits on the map itself: on the light map it
-    // takes the map's dark overlay ink, and a deeper red for an emergency.
-    const textOnBrightMap = this._iconStyle === 'silhouette' && isBrightBasemap()
-    const callsignColor = isEmergency
-      ? textOnBrightMap
-        ? SILHOUETTE_TAG_LIGHT_MAP_EMERGENCY_INK
-        : '#ff4040'
-      : textOnBrightMap
-        ? SILHOUETTE_TAG_LIGHT_MAP_INK
-        : '#ffffff'
+    // Both tag styles sit on black, so the text is always light.
+    const callsignColor = isEmergency ? '#ff4040' : '#ffffff'
     const isTracked = this._followEnabled && props.hex === this._tagHex
     const isMilProps = !!props.military
     const tfieldsProps = isMilProps ? this._tagFields.mil : this._tagFields.civil
@@ -1044,6 +1109,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const notifOn = this._notifEnabled.has(props.hex)
     const trkColor = isTracked ? (isMilProps ? '#c8ff00' : '#00aaff') : 'rgba(255,255,255,0.3)'
     const trkBtnText = isTracked ? 'TRACKING' : 'TRACK'
+    const plainText = this._iconStyle === 'silhouette'
     const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;padding:0 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
     const bellColor = notifOn ? '#c8ff00' : 'rgba(255,255,255,0.3)'
     const bellHoverHandlers = notifOn
@@ -1059,64 +1125,40 @@ export class AdsbLiveControl implements maplibregl.IControl {
         : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
       `</svg></button>`
 
-    // Silhouette mode draws the tag as plain text beside the aircraft,
-    // with no background blocks; arrow mode keeps its solid black tag.
-    const plainText = this._iconStyle === 'silhouette'
-    const surface = (colour: string) => (plainText ? 'transparent' : colour)
-    // Smaller text beside a silhouette, in proportion to the aircraft.
-    const callsignPx = plainText ? SILHOUETTE_TAG_CALLSIGN_PX : 14
-    const fieldPx = plainText ? SILHOUETTE_TAG_FIELD_PX : 12
-    // Arrow mode lays the tag out as one row of blocks. Beside a silhouette the
-    // fields stack one per line, aligned to the aircraft's side of the tag:
-    // right-aligned when the tag sits to the aircraft's left, left otherwise.
-    const tagStyle = (leftFacing: boolean) =>
-      `background:${surface('#000000')};color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
-      (plainText
-        ? `flex-direction:column;align-items:${leftFacing ? 'flex-end' : 'flex-start'};gap:0;line-height:${SILHOUETTE_TAG_LINE_HEIGHT};`
-        : 'align-items:stretch;gap:0;min-height:26px;') +
+    // One tag design for both icon styles.
+    const callsignPx = 14
+    const fieldPx = 12
+    const tagStyle = () =>
+      `background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
+      'align-items:stretch;gap:0;min-height:26px;' +
       'white-space:nowrap;user-select:none;cursor:pointer;'
-    // A stacked field needs no side padding or full-height block.
-    const fieldPadding = plainText ? '0' : '0 7px'
-    // Beside a silhouette the fields are plain text in the callsign's colour
-    // and weight; arrow mode keeps its bold, colour-coded blocks.
-    const fieldWeight = plainText ? 400 : 700
-    const fieldLabelWeight = plainText ? 400 : 600
-    const fieldAlignSelf = plainText ? 'auto' : 'stretch'
+    const fieldPadding = '0 7px'
+    const fieldWeight = 700
+    const fieldLabelWeight = 600
+    const fieldAlignSelf = 'stretch'
 
     const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:${surface('#000000')};color:${badgeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:${fieldLabelWeight};font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
+      `<span style="background:#000000;color:${badgeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:${fieldLabelWeight};font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
 
     const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
       const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
       const has = (f: keyof typeof tfields) => !!tfields[f]
-      const badgeColor = plainText
-        ? callsignColor
-        : isEmerg
-          ? '#ff4040'
-          : isMil
-            ? '#c8ff00'
-            : 'rgba(255,255,255,0.7)'
+      const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
       const typeBg = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
-      const typeColor = plainText
-        ? callsignColor
-        : isEmerg
-          ? '#ff2222'
-          : isMil
-            ? '#c8ff00'
-            : '#00aaff'
-      const emergencySquawkColor = plainText ? callsignColor : '#ff2222'
+      const typeColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+      const emergencySquawkColor = '#ff2222'
       const catLbl = this._categoryLabel(props.category)
       const altStr =
         props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
       const sqkBadge =
         isEmerg && props.squawk
-          ? `<span style="background:${surface('#000')};color:${emergencySquawkColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
+          ? `<span style="background:#000;color:${emergencySquawkColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
           : has('squawk') && props.squawk
             ? _dimBadge('SQK', String(props.squawk), badgeColor)
             : ''
       const typeBadge =
         has('aircraftType') && props.t
-          ? `<span style="background:${surface(typeBg)};color:${typeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
+          ? `<span style="background:${typeBg};color:${typeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
           : ''
       const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
       const hdgBadge =
@@ -1136,10 +1178,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
     }
 
     /**
-     * Assemble the tag. Arrow mode: one row led by the arrow, mirrored for a
-     * left-facing aircraft so the arrow stays at the nose. Silhouette mode: a
-     * column — callsign on top, then the fields in reading order, then any
-     * action button — whatever the direction; only its alignment flips.
+     * Assemble the tag: one row, mirrored for a left-facing aircraft so the
+     * callsign stays nearest it. Silhouette mode is the same tag without the
+     * arrow, since the map draws the aircraft.
      */
     const assembleTag = (
       leftFacing: boolean,
@@ -1149,24 +1190,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
       isMil: boolean,
       actionButton: string,
     ): string => {
-      if (plainText) {
-        const stacked = `${callsignSpan}${_buildDataBadges(isEmerg, isMil, false)}${actionButton}`
-        return `<div style="${tagStyle(leftFacing)}">${stacked}</div>`
-      }
       const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
       const inner = leftFacing
         ? `${actionButton}${dataBadges}${callsignSpan}${arrowSvg}`
         : `${arrowSvg}${callsignSpan}${dataBadges}${actionButton}`
-      return `<div style="${tagStyle(leftFacing)}">${inner}</div>`
+      return `<div style="${tagStyle()}">${inner}</div>`
     }
     // A stacked callsign lines up with the fields under it, so it has no padding.
     const callsignPadding = (leftFacing: boolean) =>
-      plainText ? '0' : leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+      plainText ? SILHOUETTE_NAME_PADDING : leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
 
     if (isTracked) {
       const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
       const isMil = !!props.military
-      const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+      const arrowColor = this._arrowColour(props, isEmerg, isMil)
       const track = props.track ?? 0
       const arrowSvg = this._makeArrowSvg(arrowColor, track, props.category, props.t)
       const leftFacing = this._isLeftFacing(track)
@@ -1178,7 +1215,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
     const isMil = !!props.military
-    const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+    const arrowColor = this._arrowColour(props, isEmerg, isMil)
     const heading = props.track ?? 0
     const leftFacing = forceLeftFacing !== undefined ? forceLeftFacing : this._isLeftFacing(heading)
     const arrowSvg = this._makeArrowSvg(arrowColor, heading, props.category, props.t)
@@ -1513,17 +1550,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
     // Hover tags carry no action buttons (no follow/bell), so there is nothing to
     // wire — those actions live in the side panel.
-    const hoverAnchor: maplibregl.PositionAnchor = besideIcon
-      ? this._tagAnchor(hoverLeftFacing)
-      : 'top-left'
-    const hoverOffset: [number, number] = besideIcon
-      ? this._labelOffset(feature.properties, hoverLeftFacing)
-      : [14, -13]
-    this._hoverMarker = new maplibregl.Marker({
-      element: el,
-      anchor: hoverAnchor,
-      offset: hoverOffset,
-    })
+    const hoverPlacement: { anchor: maplibregl.PositionAnchor; offset: [number, number] } =
+      besideIcon
+        ? {
+            anchor: this._tagAnchor(hoverLeftFacing),
+            offset: this._labelOffset(feature.properties, hoverLeftFacing),
+          }
+        : { anchor: 'top-left', offset: [14, -13] }
+    this._hoverMarker = new maplibregl.Marker({ element: el, ...hoverPlacement })
       .setLngLat(coords)
       .addTo(this.map)
     this._hoverHex = hex
@@ -1566,10 +1600,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
    * map symbol (the 24px radar blip, ground ring or tower dot), so they use
    * that symbol's half-size instead.
    */
-  private _silhouetteLabelDistance(props: AircraftProperties): number {
-    const symbolRadiusPx =
-      props.silhouetteRadiusPx > 0 ? props.silhouetteRadiusPx * this._silhouetteZoomScale() : 12
-    return symbolRadiusPx + SILHOUETTE_LABEL_GAP_PX
+  private _silhouetteLabelDistance(props: AircraftProperties, leftFacing: boolean): number {
+    const shape = parseSilhouetteImageId(props.silhouetteImage)
+    if (!shape) return 12 + SILHOUETTE_LABEL_GAP_PX
+    const track = props.silhouetteRotates ? (props.track ?? 0) : 0
+    const reachPx = silhouetteSideReachPx(shape.shapeKey, track, leftFacing ? 'left' : 'right')
+    return reachPx * this._silhouetteZoomScale() + SILHOUETTE_LABEL_GAP_PX
   }
 
   /**
@@ -1581,24 +1617,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
    */
   private _labelOffset(props: AircraftProperties, leftFacing: boolean): [number, number] {
     if (this._iconStyle === 'silhouette') {
-      const distance = this._silhouetteLabelDistance(props)
-      // The tag hangs from its top edge (see _tagAnchor); raising it half a
-      // callsign line puts the callsign level with the aircraft.
-      const raise = -SILHOUETTE_TAG_CALLSIGN_HALF_LINE_PX
-      return leftFacing ? [-distance, raise] : [distance, raise]
+      const distance = this._silhouetteLabelDistance(props, leftFacing)
+      return leftFacing ? [-distance, 0] : [distance, 0]
     }
     return leftFacing ? [ARROW_LABEL_OFFSET_PX, 0] : [-ARROW_LABEL_OFFSET_PX, 0]
   }
 
-  /**
-   * Which point of a hover or selected tag sits at the aircraft. Arrow mode
-   * centres its one-row tag on it. A silhouette's tag is a column that grows
-   * downwards as fields are added, so it hangs from its top corner nearest the
-   * aircraft, keeping the callsign level with the aircraft (with the raise in
-   * _labelOffset) and the fields below.
-   */
+  /** Which side of a tag sits at the aircraft. */
   private _tagAnchor(leftFacing: boolean): maplibregl.PositionAnchor {
-    if (this._iconStyle === 'silhouette') return leftFacing ? 'top-right' : 'top-left'
     return leftFacing ? 'right' : 'left'
   }
 
@@ -1624,6 +1650,17 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return createGlyphSvg(createDirectionArrowShape(color), track)
   }
 
+  /**
+   * An arrow's colour: red for an emergency, otherwise its altitude's. Always
+   * the dark ramp, because an arrow sits in a black well on either map. With no
+   * altitude it falls back to the military or civil colour.
+   */
+  private _arrowColour(props: AircraftProperties, isEmerg: boolean, isMil: boolean): string {
+    if (isEmerg) return ARROW_COLOURS.emergency
+    if (props.alt_baro > 0) return altitudeColour(props.alt_baro, 'dark')
+    return isMil ? ARROW_COLOURS.military : ARROW_COLOURS.civil
+  }
+
   private _makeArrowSvg(color: string, track: number, category?: string, type?: string): string {
     // In silhouette mode the map draws the aircraft itself; the tag is text only.
     if (this._iconStyle === 'silhouette') return ''
@@ -1631,14 +1668,30 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return well.outerHTML
   }
 
+  /**
+   * The fields on a resting label: the civil or military selection, which in
+   * silhouette mode is narrowed to those also set to ALWAYS. Hover and click
+   * tags show the full selection in either mode.
+   */
+  private _restingLabelFields(isMil: boolean): Record<string, boolean> {
+    const fields = isMil ? this._tagFields.mil : this._tagFields.civil
+    if (this._iconStyle !== 'silhouette') return fields
+    return Object.fromEntries(
+      Object.entries(fields).map(([field, shown]) => [
+        field,
+        shown && !!this._tagFields.always[field],
+      ]),
+    )
+  }
+
   private _buildCallsignLabelEl(props: AircraftProperties): HTMLElement {
     const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
     const callsign = raw || 'UNKNOWN'
     const isEmerg = props.squawkEmerg === 1
     const isMil = !!props.military
-    const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+    const arrowColor = this._arrowColour(props, isEmerg, isMil)
     const track = props.track ?? 0
-    const fields = isMil ? this._tagFields.mil : this._tagFields.civil
+    const fields = this._restingLabelFields(isMil)
     const has = (f: keyof typeof fields) => !!fields[f]
     const showCallsign = has('callsign')
     const showType = has('aircraftType')
@@ -1651,9 +1704,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
     el.dataset.dir = leftFacing ? 'left' : 'right'
     el.dataset.notif = notifOn ? '1' : '0'
 
-    // Only arrow mode builds resting labels (silhouette mode shows none), so a
-    // label always leads with its arrow.
-    const arrowWrap = createGlyphWell(this._glyphMarkup(props, arrowColor, track))
+    // Arrow mode leads a label with its arrow; in silhouette mode the map draws
+    // the aircraft itself.
+    const arrowWrap =
+      this._iconStyle === 'silhouette'
+        ? null
+        : createGlyphWell(this._glyphMarkup(props, arrowColor, track))
     const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
     const nameColor = isEmerg ? '#ff4040' : '#ffffff'
     const typeBg = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
@@ -1665,7 +1721,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     const makeCallsign = (side: 'left' | 'right') => {
       if (!showCallsign) return null
-      return createNameSegment(callsign, side, nameColor)
+      const name = createNameSegment(callsign, side, nameColor)
+      if (this._iconStyle === 'silhouette') name.style.padding = SILHOUETTE_NAME_PADDING
+      return name
     }
 
     const makeType = () => {
@@ -1790,17 +1848,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   private _updateCallsignMarkers(): void {
     if (!this.map || !this.labelsVisible) return
-    // Silhouette mode shows an aircraft's data only while it is hovered or
-    // selected (the hover and selected tags), so no resting labels are drawn.
-    if (this._iconStyle === 'silhouette') {
-      this._clearCallsignMarkers()
-      return
-    }
     const features = this._geojson.features
     const seen = new Set<string>()
     for (const f of features) {
       const hex = f.properties.hex
       if (!hex) continue
+      // With no field set to ALWAYS, a silhouette has nothing to show at rest.
+      if (!Object.values(this._restingLabelFields(!!f.properties.military)).some(Boolean)) continue
       seen.add(hex)
       const zoom = this.map.getZoom()
       const isMil = !!f.properties.military
@@ -1864,16 +1918,21 @@ export class AdsbLiveControl implements maplibregl.IControl {
         /* v8 ignore stop */
         const isEmerg = f.properties.squawkEmerg === 1
         const isMil = !!f.properties.military
-        const lfields = isMil ? this._tagFields.mil : this._tagFields.civil
+        const lfields = this._restingLabelFields(isMil)
         const showType = !!lfields.aircraftType
         const showAlt = !!lfields.altitude
         box.style.background = isEmerg ? 'rgba(180,0,0,0.85)' : '#000000'
         labelEl.style.opacity = isDim ? '0.3' : '1'
+        // A turning silhouette reaches further or less far towards its label.
+        if (this._iconStyle === 'silhouette') {
+          const facingLeft = this._isLeftFacing(f.properties.track ?? 0)
+          this._callsignMarkers[hex].setOffset(this._labelOffset(f.properties, facingLeft))
+        }
         const arrowSvg = box.querySelector('.adsb-arrow') as SVGElement | null
         /* v8 ignore start -- defensive: a built label always contains its arrow svg */
         if (arrowSvg) {
           /* v8 ignore stop */
-          const arrowColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
+          const arrowColor = this._arrowColour(f.properties, isEmerg, isMil)
           const cat = (f.properties.category || '').toUpperCase()
           const isTwr = (f.properties.t || '').toUpperCase() === 'TWR'
           const isSolidCircle = cat === 'C3' || cat === 'C4' || cat === 'C5' || isTwr
@@ -1923,7 +1982,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
         /* v8 ignore start -- defensive: raw is always truthy (hex present), so the || never runs */
         if (nameSpan) nameSpan.textContent = raw || 'UNKNOWN'
         /* v8 ignore stop */
-        const namePad = box.dataset.dir === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+        const arrowNamePad = box.dataset.dir === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
+        const namePad = this._iconStyle === 'silhouette' ? SILHOUETTE_NAME_PADDING : arrowNamePad
         if (isMil) {
           const dimColor = isDim
             ? 'color:rgba(255,255,255,0.45) !important'
@@ -2047,6 +2107,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           badge.remove()
           box.style.gap = '5px'
           if (
+            this._iconStyle !== 'silhouette' &&
             !box.querySelector('.mil-model-badge') &&
             !box.querySelector('.mil-trk-btn') &&
             !box.querySelector('.mil-alt-badge') &&
@@ -2499,6 +2560,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
               a.category || '',
               military,
               this._emergencySquawks.has(a.squawk || ''),
+              this._parseAlt(a.alt_baro ?? null),
             ),
           } as AircraftProperties,
         })
@@ -2537,6 +2599,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
             this._rebuildTagForHex(this._tagHex)
           } else {
             this._tagMarker.getElement().innerHTML = this._buildTagHTML(taggedFeature.properties)
+            if (this._iconStyle === 'silhouette') {
+              this._tagMarker.setOffset(
+                this._labelOffset(taggedFeature.properties, this._tagLeftFacing as boolean),
+              )
+            }
             this._wireTagButton(this._tagMarker.getElement())
           }
           this._updateStatusBar()
@@ -2572,6 +2639,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _raiseLayers(): void {
     if (!this.map) return
     try {
+      if (this.map.getLayer(MAP_DIM_LAYER_ID)) this.map.moveLayer(MAP_DIM_LAYER_ID)
+      // Airfields sit above the dimming but beneath every aircraft.
+      for (const layerId of Object.values(AIRFIELD_LAYER_IDS)) {
+        if (this.map.getLayer(layerId)) this.map.moveLayer(layerId)
+      }
       if (this.map.getLayer('adsb-trail-line')) this.map.moveLayer('adsb-trail-line')
       if (this.map.getLayer('adsb-trail-dots')) this.map.moveLayer('adsb-trail-dots')
       if (this.map.getLayer('adsb-bracket')) this.map.moveLayer('adsb-bracket')

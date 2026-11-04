@@ -257,6 +257,13 @@ describe('air store', () => {
       expect(store.adsbTagFields.mil.aircraftType).toBe(true) // mil default
     })
 
+    it('merges a stored always on map over the defaults', () => {
+      localStorage.setItem(LS_TAGS, JSON.stringify({ always: { callsign: true } }))
+      const store = useAirStore()
+      expect(store.adsbTagFields.always.callsign).toBe(true)
+      expect(store.adsbTagFields.always.altitude).toBe(false)
+    })
+
     it('merges a stored mil tag map over the defaults', () => {
       localStorage.setItem(LS_TAGS, JSON.stringify({ mil: { squawk: true } }))
       const store = useAirStore()
@@ -411,6 +418,7 @@ describe('air store — map layers config mirroring', () => {
     towers: true,
     airports: true,
     militaryBases: true,
+    altitudeLegend: true,
   }
 
   it('writes air.mapLayers when a configurable overlay changes', () => {

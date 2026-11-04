@@ -133,12 +133,10 @@ export function registerAirSettings(): void {
       id: 'air-aircraft-icon-style',
       label: 'Aircraft Icons',
       desc: '',
-      // The option examples show what each style looks like; these keep the
-      // setting findable by the words a description would have carried.
+      // Keeps the setting findable by the words a description would have carried.
       searchTerms:
         'silhouette icon shape aircraft type plane symbol arrow labels hover selected adsbexchange flightradar',
-      // The option examples are taller than a plain segmented row.
-      control: { component: AircraftIconStyleControl, emits: ['stage'], naturalHeight: true },
+      control: { component: AircraftIconStyleControl, emits: ['stage'] },
       groupLabel: 'MAP',
     },
     {

@@ -224,8 +224,8 @@ test.describe('Air domain', () => {
  */
 /** Every aircraft in the classification fixture renders one callsign label. */
 const FIXTURE_AIRCRAFT_COUNT = milClassificationFixture.ac.length
-const MILITARY_LIME = '#c8ff00'
-const CIVIL_BLUE = '#00aaff'
+/** Arrows take a colour from the altitude ramp. */
+const ALTITUDE_COLOUR = /^hsl\(/
 
 test.describe('Air domain aircraft classification', () => {
   test.beforeEach(async ({ page }) => {
@@ -289,11 +289,11 @@ test.describe('Air domain aircraft classification', () => {
     })
   }
 
-  test('renders a military aircraft lime and a civil aircraft blue', async ({ page }) => {
+  test('colours military and civil arrows by altitude', async ({ page }) => {
     await gotoAirWithAircraft(page)
 
-    await expect(arrowShapeFor(page, 'RCH456')).toHaveAttribute('stroke', MILITARY_LIME)
-    await expect(arrowShapeFor(page, 'BAW123')).toHaveAttribute('stroke', CIVIL_BLUE)
+    await expect(arrowShapeFor(page, 'RCH456')).toHaveAttribute('stroke', ALTITUDE_COLOUR)
+    await expect(arrowShapeFor(page, 'BAW123')).toHaveAttribute('stroke', ALTITUDE_COLOUR)
   })
 
   test('classifies a military aircraft flying on a civil-block hex', async ({ page }) => {
@@ -302,8 +302,10 @@ test.describe('Air domain aircraft classification', () => {
     // PAT090 is a US Army C172 on an N-number: hex 0xAAB198 sits in a civil
     // allocation block, so no ICAO hex range can identify it. Only the feed's
     // dbFlags marker can, which is exactly what the classifier previously
-    // ignored — this aircraft rendered civil blue.
-    await expect(arrowShapeFor(page, 'PAT090')).toHaveAttribute('stroke', MILITARY_LIME)
+    // ignored. Its arrow takes the altitude colour like any other; the type
+    // badge is what shows it was classified military.
+    const label = page.locator('.maplibregl-marker').filter({ hasText: 'PAT090' })
+    await expect(label.locator('.mil-model-badge')).toBeVisible()
   })
 
   test('gives a military aircraft its lime type badge and leaves a civil one without', async ({
@@ -325,14 +327,14 @@ test.describe('Air domain aircraft classification', () => {
     await gotoAirWithAircraft(page)
 
     // Both are on the map before any filtering.
-    await expect(arrowShapeFor(page, 'BAW123')).toHaveAttribute('stroke', CIVIL_BLUE)
+    await expect(arrowShapeFor(page, 'BAW123')).toHaveCount(1)
 
     // The aircraft-filter modes are the sidebar's sub-tabs beneath FILTER.
     await page.locator('[data-tab="search"]').click()
     await page.locator('.msb-rail-subbtn[data-filter-cat="milAircraft"]').click()
 
     await expect(page.locator('.maplibregl-marker').filter({ hasText: 'BAW123' })).toHaveCount(0)
-    await expect(arrowShapeFor(page, 'RCH456')).toHaveAttribute('stroke', MILITARY_LIME)
-    await expect(arrowShapeFor(page, 'PAT090')).toHaveAttribute('stroke', MILITARY_LIME)
+    await expect(arrowShapeFor(page, 'RCH456')).toHaveCount(1)
+    await expect(arrowShapeFor(page, 'PAT090')).toHaveCount(1)
   })
 })

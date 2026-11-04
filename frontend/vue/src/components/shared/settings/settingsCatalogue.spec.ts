@@ -159,11 +159,7 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'map-layers',
     { component: MapLayersControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
-  [
-    'air',
-    'air-aircraft-icon-style',
-    { component: AircraftIconStyleControl, emits: ['stage'], naturalHeight: true },
-  ],
+  ['air', 'air-aircraft-icon-style', { component: AircraftIconStyleControl, emits: ['stage'] }],
   ['air', 'air-tag-fields', { component: AdsbTagFieldsControl, emits: ['stage'], layout: 'half' }],
   [
     'air',

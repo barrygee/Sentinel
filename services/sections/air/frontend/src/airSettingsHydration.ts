@@ -48,6 +48,7 @@ export function hydrateAirFromSettings(settings: AllSettings): void {
     airStore.setAdsbTagFields({
       civil: { ...DEFAULT_LABEL_DATA_POINTS.civil, ...(remote.civil as object) },
       mil: { ...DEFAULT_LABEL_DATA_POINTS.mil, ...(remote.mil as object) },
+      always: { ...airStore.adsbTagFields.always, ...(remote.always as object | undefined) },
     })
   } else {
     // Seed labelDataPoints into the DB if not yet stored.

@@ -27,6 +27,7 @@
     "mapLayers": {
       "aara": true,
       "airports": true,
+      "altitudeLegend": true,
       "awacs": true,
       "groundVehicles": true,
       "militaryBases": true,

@@ -47,6 +47,7 @@ vi.mock('maplibre-gl', () => ({ Marker: mocks.MockMarker }))
 
 // Canvas sprites need a 2D context jsdom does not have.
 vi.mock('./vesselSprites', () => ({
+  createVesselArrowShape: vi.fn(() => '<polygon/>'),
   createVesselArrow: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
   createVesselDot: vi.fn(() => ({ width: 64, height: 64, data: new Uint8ClampedArray(4) })),
 }))

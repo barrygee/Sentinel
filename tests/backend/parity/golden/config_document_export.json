@@ -37,7 +37,8 @@
       "groundVehicles": true,
       "towers": true,
       "airports": true,
-      "militaryBases": true
+      "militaryBases": true,
+      "altitudeLegend": true
     },
     "aircraftIconStyle": "arrow",
     "labelDataPoints": {
