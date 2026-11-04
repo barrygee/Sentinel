@@ -254,6 +254,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw ~200 more aircraft types and give every aircraft a shape
 - Stack silhouette tag fields, aligned to the aircraft's side
 - Darker silhouettes and tag text on the light map
+- Draw silhouettes in neutral colours with part detail
+- Redraw airfields as a map layer beneath the aircraft
+- Shape the vessel arrow like a hull
+- Colour aircraft by altitude and rework their labels
+- Set airfield labels apart from aircraft tags
+- Simplify airfield labels to a dot and name
 
 ### Bug Fixes
 
@@ -603,6 +609,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - A lighter civil blue for silhouettes on the light map
 - Wait for each staged save before APPLY re-reads settings
 - Name the Filter panel in the Air and Space map descriptions
+- Put the TRACKING label on the silhouette callsign row
+- Draw microlights as small planes, not flex-wing trikes
 
 ### Chores
 
@@ -1722,6 +1730,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #565 from barrygee/feat/silhouettes-light-map
 - Merge pull request #566 from barrygee/fix/settings-apply-awaits-saves
 - Merge pull request #567 from barrygee/fix/map-description-filter-tab
+- Merge pull request #568 from barrygee/feat/silhouette-altitude-colours
 
 ### Performance
 
@@ -1826,6 +1835,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move remote host management out of the radio hub
 - SDR Manager settings section
 - Rename remaining sentry identifiers
+- Make Aircraft Icons a plain two-option setting
 
 ### Documentation
 
@@ -1993,6 +2003,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Send Sec-Fetch-Site from the API fixture only, not the browser
 - Look for the SDR-only map in Settings, not behind the spectrum
 - Make the turning-tag poll tests deterministic
+- Expect the plain Aircraft Icons row
 
 ### Build System
 
@@ -2056,6 +2067,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle without the settings heading dot
 - Rebuild the bundle for the light-map silhouette colours
 - Rebuild the bundle for the lighter light-map blue
+- Rebuild the bundle for the silhouette tag layout
+- Rebuild the bundle for the neutral silhouette colours
+- Rebuild the bundle for altitude colours and airfield labels
+- Rebuild the bundle for the plain Aircraft Icons setting
+- Rebuild the bundle for the airfield label design
+- Rebuild the bundle for the simpler airfield labels
 
 ### Continuous Integration
 
