@@ -613,6 +613,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Name the Filter panel in the Air and Space map descriptions
 - Put the TRACKING label on the silhouette callsign row
 - Draw microlights as small planes, not flex-wing trikes
+- Make the host accordion arrow work and tidy the host panel
 
 ### Chores
 
@@ -1734,6 +1735,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #567 from barrygee/fix/map-description-filter-tab
 - Merge pull request #568 from barrygee/feat/silhouette-altitude-colours
 - Merge pull request #569 from barrygee/feat/airfield-label-map-colours
+- Merge pull request #570 from barrygee/fix/sdr-host-panel
 
 ### Performance
 
@@ -2078,6 +2080,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the simpler airfield labels
 - Rebuild the bundle for the airfield label colours
 - Rebuild the bundle for the solid altitude legend
+- Rebuild the bundle for the host panel fixes
 
 ### Continuous Integration
 
