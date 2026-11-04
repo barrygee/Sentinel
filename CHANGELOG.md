@@ -262,6 +262,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Simplify airfield labels to a dot and name
 - Match airfield labels to the map's sea colour
 - Give the altitude legend the airfield labels' solid fill
+- Colour aircraft trails by the altitude at each position
+- Drop the ALT title from the altitude bar
 
 ### Bug Fixes
 
@@ -1736,6 +1738,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #568 from barrygee/feat/silhouette-altitude-colours
 - Merge pull request #569 from barrygee/feat/airfield-label-map-colours
 - Merge pull request #570 from barrygee/fix/sdr-host-panel
+- Merge pull request #571 from barrygee/feat/altitude-coloured-trails
 
 ### Performance
 
@@ -2081,6 +2084,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the airfield label colours
 - Rebuild the bundle for the solid altitude legend
 - Rebuild the bundle for the host panel fixes
+- Rebuild the bundle for altitude trails and airfield labels
 
 ### Continuous Integration
 
@@ -2155,6 +2159,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Put every settings view on one type scale
 - Drop borders from the docs page and rename Develop to Developer docs
 - Make the docs menu group headings regular weight and 11px
+- Reduce the airfield label text to 12.5px
 
 ### Dependencies
 
