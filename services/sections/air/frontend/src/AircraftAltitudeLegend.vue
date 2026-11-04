@@ -1,6 +1,9 @@
 <template>
-  <figure class="altitude-legend" :style="{ background: AIRFIELD_LABEL_FILLS[palette] }">
-    <figcaption class="altitude-legend-title">ALT</figcaption>
+  <figure
+    class="altitude-legend"
+    :style="{ background: AIRFIELD_LABEL_FILLS[palette] }"
+    aria-label="Aircraft altitude, in feet"
+  >
     <div class="altitude-legend-scale">
       <div class="altitude-legend-bar" :style="{ background: gradient }" aria-hidden="true" />
       <ol class="altitude-legend-ticks">
@@ -91,13 +94,6 @@ function tickLabel(tickFeet: number): string {
   .altitude-legend {
     transition: none;
   }
-}
-
-.altitude-legend-title {
-  flex-shrink: 0;
-  /* The bar's height, so the word sits level with the bar, not the labels. */
-  line-height: 6px;
-  white-space: nowrap;
 }
 
 .altitude-legend-scale {
