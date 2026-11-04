@@ -1044,13 +1044,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const notifOn = this._notifEnabled.has(props.hex)
     const trkColor = isTracked ? (isMilProps ? '#c8ff00' : '#00aaff') : 'rgba(255,255,255,0.3)'
     const trkBtnText = isTracked ? 'TRACKING' : 'TRACK'
-    const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;padding:0 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
+    // Silhouette mode draws the tag as plain text beside the aircraft,
+    // with no background blocks; arrow mode keeps its solid black tag.
+    const plainText = this._iconStyle === 'silhouette'
+    // A plain-text action sits flush with the text around it. The padding keeps
+    // its target at 24px (WCAG 2.5.8) and the matching negative margin stops
+    // that padding moving anything.
+    const plainActionBox = 'padding:7px;margin:-7px'
+    const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;${plainText ? plainActionBox : 'padding:0 12px'};color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
     const bellColor = notifOn ? '#c8ff00' : 'rgba(255,255,255,0.3)'
     const bellHoverHandlers = notifOn
       ? `onmouseenter="this.style.color='#c8ff00'" onmouseleave="this.style.color='#c8ff00'"`
       : ''
     const bellBtn =
-      `<button class="tag-notif-btn" data-hex="${escapeHtml(String(props.hex))}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
+      `<button class="tag-notif-btn" data-hex="${escapeHtml(String(props.hex))}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;${plainText ? plainActionBox : 'padding:0 6px'};color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
       `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">` +
       `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
       `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
@@ -1059,9 +1066,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
         : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
       `</svg></button>`
 
-    // Silhouette mode draws the tag as plain text beside the aircraft,
-    // with no background blocks; arrow mode keeps its solid black tag.
-    const plainText = this._iconStyle === 'silhouette'
     const surface = (colour: string) => (plainText ? 'transparent' : colour)
     // Smaller text beside a silhouette, in proportion to the aircraft.
     const callsignPx = plainText ? SILHOUETTE_TAG_CALLSIGN_PX : 14
@@ -1138,8 +1142,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     /**
      * Assemble the tag. Arrow mode: one row led by the arrow, mirrored for a
      * left-facing aircraft so the arrow stays at the nose. Silhouette mode: a
-     * column — callsign on top, then the fields in reading order, then any
-     * action button — whatever the direction; only its alignment flips.
+     * column — callsign on top, then the fields in reading order — whatever the
+     * direction; only its alignment flips. Any action button shares the
+     * callsign's row, on the side away from the aircraft, so the callsign stays
+     * level with and next to the aircraft.
      */
     const assembleTag = (
       leftFacing: boolean,
@@ -1150,7 +1156,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
       actionButton: string,
     ): string => {
       if (plainText) {
-        const stacked = `${callsignSpan}${_buildDataBadges(isEmerg, isMil, false)}${actionButton}`
+        const headingRow = actionButton
+          ? `<div style="display:flex;align-items:center;gap:8px">${leftFacing ? `${actionButton}${callsignSpan}` : `${callsignSpan}${actionButton}`}</div>`
+          : callsignSpan
+        const stacked = `${headingRow}${_buildDataBadges(isEmerg, isMil, false)}`
         return `<div style="${tagStyle(leftFacing)}">${stacked}</div>`
       }
       const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)

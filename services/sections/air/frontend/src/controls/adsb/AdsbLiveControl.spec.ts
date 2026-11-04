@@ -4943,15 +4943,97 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       },
     )
 
-    it('stacks the tracked tag too, its button last', () => {
+    /** The callsign row's text in order, and the action button's inline style. */
+    function headingRow(html: string, buttonSelector: string) {
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const row = (host.firstElementChild as HTMLElement).firstElementChild as HTMLElement
+      return {
+        children: Array.from(row.children).map((child) => child.className),
+        buttonStyle: row.querySelector(buttonSelector)!.getAttribute('style')!,
+      }
+    }
+
+    it.each([
+      // Heading east: the tag is on the aircraft's left, so the callsign comes last.
+      [90, ['tag-follow-btn', 'adsb-label-name']],
+      // Heading west: the tag is on its right, so the callsign comes first.
+      [270, ['adsb-label-name', 'tag-follow-btn']],
+    ])('keeps the callsign next to the aircraft on a tracked tag (track %i)', (track, order) => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      control._followEnabled = true
+      control._tagHex = 'abc123'
+      const html = priv(control)._buildTagHTML(props({ track })) as string
+      expect(headingRow(html, '.tag-follow-btn').children).toEqual(order)
+    })
+
+    it.each([
+      [90, ['tag-notif-btn', 'adsb-label-name']],
+      [270, ['adsb-label-name', 'tag-notif-btn']],
+    ])('puts an active alert bell on the callsign row too (track %i)', (track, order) => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      priv(control)._notifEnabled.add('abc123')
+      const html = priv(control)._buildTagHTML(props({ track })) as string
+      expect(headingRow(html, '.tag-notif-btn').children).toEqual(order)
+    })
+
+    it('leaves the callsign as the plain first row when there is no action', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      const html = priv(control)._buildTagHTML(props({ track: 90 })) as string
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const firstRow = (host.firstElementChild as HTMLElement).firstElementChild as HTMLElement
+      expect(firstRow.className).toBe('adsb-label-name')
+    })
+
+    it('keeps the row usable when the callsign field is off', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      priv(control)._tagFields.civil.callsign = false
+      control._followEnabled = true
+      control._tagHex = 'abc123'
+      const html = priv(control)._buildTagHTML(props({ track: 90 })) as string
+      expect(headingRow(html, '.tag-follow-btn').children).toEqual(['tag-follow-btn'])
+    })
+
+    it('gives a plain-text action a 24px target without moving the text around it', () => {
+      const { control } = mountedIn('silhouette')
+      enableAllFields(control)
+      control._followEnabled = true
+      control._tagHex = 'abc123'
+      const html = priv(control)._buildTagHTML(props({ track: 90 })) as string
+      const { buttonStyle } = headingRow(html, '.tag-follow-btn')
+      expect(buttonStyle).toContain('padding:7px;margin:-7px;')
+    })
+
+    it('keeps the arrow tag and its button exactly as they were', () => {
+      const { control } = mountedIn('arrow')
+      enableAllFields(control)
+      control._followEnabled = true
+      control._tagHex = 'abc123'
+      const html = priv(control)._buildTagHTML(props({ track: 270 })) as string
+      expect(html).toContain('padding:0 12px;')
+      expect(html).not.toContain('margin:-7px')
+      const host = document.createElement('div')
+      host.innerHTML = html
+      const lastChild = (host.firstElementChild as HTMLElement).lastElementChild as HTMLElement
+      expect(lastChild.className).toBe('tag-follow-btn')
+    })
+
+    it('stacks the tracked tag too, its button on the callsign row', () => {
       const { control } = mountedIn('silhouette')
       enableAllFields(control)
       control._followEnabled = true
       control._tagHex = 'abc123'
       const { style, rows } = tagLayout(priv(control)._buildTagHTML(props({ track: 90 })) as string)
       expect(style).toContain('flex-direction:column;')
-      expect(rows[0]).toBe('TEST123')
-      expect(rows.at(-1)).toBe('TRACKING')
+      expect(rows[0]).toContain('TEST123')
+      expect(rows[0]).toContain('TRACKING')
+      expect(rows.length).toBeGreaterThan(1)
+      expect(rows.slice(1).join('')).not.toContain('TRACKING')
     })
 
     it('writes a military aircraft’s fields as plain white text, not lime or bold', () => {
