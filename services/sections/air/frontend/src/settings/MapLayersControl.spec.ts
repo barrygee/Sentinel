@@ -41,6 +41,7 @@ describe('MapLayersControl', () => {
       'Terrain contours',
       'Airports',
       'Military bases',
+      'Altitude colour bar',
     ])
   })
 

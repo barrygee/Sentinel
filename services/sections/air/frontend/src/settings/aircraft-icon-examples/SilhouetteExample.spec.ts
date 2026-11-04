@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
+import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import SilhouetteExample from './SilhouetteExample.vue'
 import {
-  SILHOUETTE_COLOURS,
   SILHOUETTE_DETAIL_COLOURS,
   silhouetteForShape,
   silhouetteIconSizePx,
@@ -18,14 +18,14 @@ describe('SilhouetteExample', () => {
     expect(svg.attributes('height')).toBe(sizePx)
   })
 
-  it('draws the body in the civil colour with the faint detail line', () => {
+  it('draws the body in a cruise-height colour with the faint detail line', () => {
     const wrapper = mount(SilhouetteExample, { props: { shapeKey: 'type:A320' } })
     const [body, detail] = wrapper.findAll('path')
     const pathData = silhouetteForShape('type:A320')!.pathData
     expect(body!.attributes()).toMatchObject({
       d: pathData,
-      fill: SILHOUETTE_COLOURS.civil,
-      stroke: SILHOUETTE_COLOURS.civil,
+      fill: altitudeColour(36_000, 'dark'),
+      stroke: altitudeColour(36_000, 'dark'),
     })
     expect(detail!.attributes()).toMatchObject({
       d: pathData,
@@ -44,15 +44,11 @@ describe('SilhouetteExample', () => {
     expect(wrapper.find('g').attributes('transform')).toBe('rotate(0)')
   })
 
-  it('writes the callsign as plain text, as the map shows it on hover', () => {
+  it('shows the callsign beside the aircraft', () => {
     const wrapper = mount(SilhouetteExample, {
       props: { shapeKey: 'type:A320', callsign: 'BAW123' },
     })
-    const callsign = wrapper.find('.silhouette-example-callsign')
-    expect(callsign.text()).toBe('BAW123')
-    expect(callsign.attributes('style')).not.toContain('text-shadow')
-    // The map's silhouette-mode tag size, smaller than an arrow label's 14px.
-    expect(callsign.attributes('style')).toContain('font-size: 12px')
+    expect(wrapper.find('.silhouette-example-callsign').text()).toBe('BAW123')
   })
 
   it('puts the text on the left of an aircraft heading right, as the map does', () => {

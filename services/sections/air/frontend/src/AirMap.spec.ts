@@ -188,6 +188,7 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useAirStore } from './stores/air'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
+import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { getAircraftClickHandler } from './aircraftNotificationTarget'
 
 /** Every style swap carries the MapLibre 6 sprite fix — see `setMapStyle`. */
@@ -265,6 +266,22 @@ describe('AirMap', () => {
   })
 
   describe('map creation + style load', () => {
+    it('shows the altitude bar until the setting turns it off', async () => {
+      const wrapper = mountMap()
+      expect(wrapper.findComponent({ name: 'AircraftAltitudeLegend' }).exists()).toBe(true)
+      useAirStore().setOverlay('altitudeLegend', false)
+      await nextTick()
+      expect(wrapper.findComponent({ name: 'AircraftAltitudeLegend' }).exists()).toBe(false)
+    })
+
+    it('draws the altitude bar for the map on screen', async () => {
+      const wrapper = mountMap()
+      useThemeStore().setMapTheme('light')
+      await nextTick()
+      const legend = wrapper.findComponent({ name: 'AircraftAltitudeLegend' })
+      expect(legend.props('palette')).toBe('light')
+    })
+
     it('wires the marker, location and context menu on map-created', () => {
       const map = makeFakeMap()
       mountMap()

@@ -11,15 +11,14 @@ import { computed } from 'vue'
 import { silhouetteSvgFrame } from '@sentinel/map-kit/aircraft-silhouettes/aircraftSilhouette'
 import {
   SILHOUETTE_BODY_SPREAD_PX,
-  SILHOUETTE_COLOURS,
   SILHOUETTE_DETAIL_COLOURS,
   SILHOUETTE_DETAIL_WIDTH_PX,
   SILHOUETTE_OUTLINE_WIDTH_PX,
   silhouetteForShape,
   silhouetteIconSizePx,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
-import { SILHOUETTE_TAG_CALLSIGN_PX } from '../../controls/adsb/silhouetteTagStyle'
 
 const props = withDefaults(
   defineProps<{
@@ -32,6 +31,9 @@ const props = withDefaults(
   }>(),
   { trackDeg: 0, callsign: undefined },
 )
+
+/** An airliner at cruise height, in the map's altitude colour. */
+const EXAMPLE_COLOUR = altitudeColour(36_000, 'dark')
 
 const sizePx = computed(() => silhouetteIconSizePx(props.shapeKey))
 /**
@@ -62,8 +64,8 @@ const drawing = computed(() => {
       <g :transform="`rotate(${trackDeg})`">
         <path
           :d="drawing.pathData"
-          :fill="SILHOUETTE_COLOURS.civil"
-          :stroke="SILHOUETTE_COLOURS.civil"
+          :fill="EXAMPLE_COLOUR"
+          :stroke="EXAMPLE_COLOUR"
           :stroke-width="2 * SILHOUETTE_BODY_SPREAD_PX"
           stroke-linejoin="round"
           vector-effect="non-scaling-stroke"
@@ -78,11 +80,7 @@ const drawing = computed(() => {
         />
       </g>
     </svg>
-    <span
-      v-if="callsign"
-      class="silhouette-example-callsign"
-      :style="`font-size:${SILHOUETTE_TAG_CALLSIGN_PX}px;`"
-    >
+    <span v-if="callsign" class="silhouette-example-callsign">
       {{ callsign }}
     </span>
   </span>
@@ -99,9 +97,12 @@ const drawing = computed(() => {
   flex-direction: row-reverse;
 }
 
-/* The map's hover and selected tag text (AdsbLiveControl._buildTagHTML). */
+/* The map's label: a black block (AdsbLiveControl._buildTagHTML). */
 .silhouette-example-callsign {
+  padding: 3px 12px;
+  background: #000000;
   color: #ffffff;
+  font-size: 14px;
   font-family: 'Barlow Condensed', 'Barlow', sans-serif;
   font-weight: 400;
   letter-spacing: 0.12em;

@@ -22,11 +22,73 @@ describe('AdsbTagFieldsControl', () => {
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
   })
 
-  it('renders a civil + military checkbox for every field option', async () => {
+  it('renders civil, military and always on checkboxes for every field option', async () => {
     const wrapper = mount(AdsbTagFieldsControl)
     await flushPromises()
-    // 8 field options × 2 columns.
-    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(16)
+    // 8 field options × 3 columns.
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(24)
+    expect(wrapper.text()).toContain('Always On')
+  })
+
+  /** The field's checkbox in a column: 0 civil, 1 military, 2 always on. */
+  function fieldBox(wrapper: ReturnType<typeof mount>, fieldIndex: number, column: number) {
+    return wrapper.findAll('input[type="checkbox"]')[fieldIndex * 3 + column]!
+  }
+
+  it('locks always on for a field switched on for neither group', async () => {
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    // Speed is off for both by default; callsign is on for both.
+    expect(fieldBox(wrapper, 2, 2).attributes('disabled')).toBeDefined()
+    expect(fieldBox(wrapper, 0, 2).attributes('disabled')).toBeUndefined()
+  })
+
+  it('unlocks always on as soon as one group shows the field', async () => {
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    await fieldBox(wrapper, 2, 1).trigger('change')
+    expect(fieldBox(wrapper, 2, 2).attributes('disabled')).toBeUndefined()
+  })
+
+  it('keeps always on while one group still shows the field', async () => {
+    const store = useAirStore()
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    await fieldBox(wrapper, 0, 2).trigger('change')
+    await fieldBox(wrapper, 0, 0).trigger('change')
+    expect(store.adsbTagFields.always.callsign).toBe(true)
+  })
+
+  it('clears always on when the field is switched off for both groups', async () => {
+    const store = useAirStore()
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    await fieldBox(wrapper, 0, 2).trigger('change')
+    expect(store.adsbTagFields.always.callsign).toBe(true)
+    await fieldBox(wrapper, 0, 0).trigger('change')
+    await fieldBox(wrapper, 0, 1).trigger('change')
+    expect(store.adsbTagFields.always.callsign).toBe(false)
+  })
+
+  it('saves always on with the other fields', async () => {
+    const wrapper = mount(AdsbTagFieldsControl)
+    await flushPromises()
+    await fieldBox(wrapper, 0, 2).trigger('change')
+    const stage = wrapper.emitted('stage')!.at(-1)![0] as () => void
+    stage()
+    const saved = vi.mocked(settingsApi.put).mock.calls.at(-1)![2] as {
+      always: { callsign: boolean }
+    }
+    expect(saved.always.callsign).toBe(true)
+  })
+
+  it('adopts a saved always on choice', async () => {
+    vi.mocked(settingsApi.getNamespace).mockResolvedValue({
+      labelDataPoints: { civil: {}, mil: {}, always: { callsign: true } },
+    })
+    mount(AdsbTagFieldsControl)
+    await flushPromises()
+    expect(useAirStore().adsbTagFields.always.callsign).toBe(true)
   })
 
   it('toggling the civil callsign checkbox updates the store, broadcasts, and stages', async () => {
@@ -80,7 +142,7 @@ describe('AdsbTagFieldsControl', () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({ labelDataPoints: [1, 2] })
     const wrapper = mount(AdsbTagFieldsControl)
     await flushPromises()
-    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(16)
+    expect(wrapper.findAll('input[type="checkbox"]')).toHaveLength(24)
     // No stage emitted on mount.
     expect(wrapper.emitted('stage')).toBeUndefined()
   })

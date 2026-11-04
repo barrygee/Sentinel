@@ -50,6 +50,7 @@ const LAYER_ROWS: LabelFieldRow[] = [
   { key: 'terrain', label: 'Terrain contours' },
   { key: 'airports', label: 'Airports' },
   { key: 'militaryBases', label: 'Military bases' },
+  { key: 'altitudeLegend', label: 'Altitude colour bar' },
 ]
 
 const airStore = useAirStore()

@@ -11,7 +11,13 @@ import {
   silhouetteImageId,
   silhouetteImageIdForPalette,
   silhouetteRotatesWithTrack,
+  silhouetteSideReachPx,
+  altitudeColourKey,
+  ARROW_COLOURS,
+  SILHOUETTE_SELECTED_CIVIL_COLOURS,
+  SILHOUETTE_SELECTED_SUFFIX,
 } from './silhouetteImage'
+import { ALTITUDE_BAND_MAX, altitudeBandColour } from './altitudeColour'
 import { buildAircraftSilhouette, silhouetteImageSidePx } from './aircraftSilhouette'
 
 describe('silhouette image names', () => {
@@ -30,6 +36,33 @@ describe('silhouette image names', () => {
         selected: false,
         palette: 'dark',
       })
+    },
+  )
+
+  it('reads back an altitude colour', () => {
+    expect(parseSilhouetteImageId(silhouetteImageId('type:A320', 'alt12'))).toMatchObject({
+      colourKey: 'alt12',
+      selected: false,
+    })
+  })
+
+  it('reads back the selected aircraft’s suffix', () => {
+    const imageId = silhouetteImageIdForPalette(
+      `${silhouetteImageId('type:A320', 'civil')}${SILHOUETTE_SELECTED_SUFFIX}`,
+      'light',
+    )
+    expect(parseSilhouetteImageId(imageId)).toEqual({
+      shapeKey: 'type:A320',
+      colourKey: 'civil',
+      selected: true,
+      palette: 'light',
+    })
+  })
+
+  it.each([`alt${ALTITUDE_BAND_MAX + 1}`, 'altitude', 'alt'])(
+    'rejects %s as a colour',
+    (colourKey) => {
+      expect(parseSilhouetteImageId(`aircraft-silhouette:type:A320:${colourKey}`)).toBeNull()
     },
   )
 
@@ -95,6 +128,61 @@ describe('shape lookups', () => {
     expect(silhouetteRotatesWithTrack('type:A320')).toBe(true)
     expect(silhouetteRotatesWithTrack('family:helicopter')).toBe(true)
     expect(silhouetteRotatesWithTrack('family:balloon')).toBe(false)
+  })
+})
+
+describe('altitudeColourKey', () => {
+  it('names the altitude’s band', () => {
+    expect(altitudeColourKey(0)).toBe('alt0')
+    expect(altitudeColourKey(36_000)).toBe('alt33')
+  })
+})
+
+describe('colour tables', () => {
+  it('keeps arrow mode’s civil blue apart from the silhouettes’ neutral fallback', () => {
+    expect(ARROW_COLOURS.civil).toBe('#00aaff')
+    expect(SILHOUETTE_COLOURS.civil).not.toBe(ARROW_COLOURS.civil)
+  })
+
+  it('uses the app’s lime for military on both maps', () => {
+    expect(SILHOUETTE_PALETTES.dark.military).toBe('#c8ff00')
+    expect(SILHOUETTE_PALETTES.light.military).toBe('#c8ff00')
+  })
+})
+
+describe('silhouetteSideReachPx', () => {
+  it('is 0 for a shape with no drawing', () => {
+    expect(silhouetteSideReachPx('type:NOPE', 90, 'right')).toBe(0)
+  })
+
+  it('reaches further across a wingspan than along the nose-to-side of a turned aircraft', () => {
+    // A Cessna spans more than it is long, so heading north its wing is the reach.
+    const across = silhouetteSideReachPx('type:C172', 0, 'right')
+    const along = silhouetteSideReachPx('type:C172', 90, 'right')
+    expect(across).toBeGreaterThan(along)
+  })
+
+  it('mirrors a symmetrical aircraft heading north', () => {
+    expect(silhouetteSideReachPx('type:A320', 0, 'left')).toBeCloseTo(
+      silhouetteSideReachPx('type:A320', 0, 'right'),
+    )
+  })
+
+  it('turns with the aircraft: the nose leads on the side it heads towards', () => {
+    expect(silhouetteSideReachPx('type:A320', 90, 'right')).toBeGreaterThan(
+      silhouetteSideReachPx('type:A320', 90, 'left') - 1,
+    )
+    expect(silhouetteSideReachPx('type:A320', 90, 'right')).toBeCloseTo(
+      silhouetteSideReachPx('type:A320', 270, 'left'),
+    )
+  })
+
+  it('stays inside the icon', () => {
+    for (let track = 0; track < 360; track += 30) {
+      expect(silhouetteSideReachPx('type:A320', track, 'right')).toBeLessThan(
+        silhouetteIconSizePx('type:A320') / 2 + 1,
+      )
+    }
   })
 })
 
@@ -165,6 +253,27 @@ describe('createSilhouetteImageData', () => {
       colour: SILHOUETTE_PALETTES.light.civil,
     })
     expect(SILHOUETTE_PALETTES.light.civil).not.toBe(SILHOUETTE_COLOURS.civil)
+  })
+
+  it.each([
+    ['civil', 'dark'],
+    ['civil', 'light'],
+    ['alt10', 'dark'],
+    ['alt10', 'light'],
+  ] as const)('draws a selected %s aircraft in the %s selected colour', (colourKey, palette) => {
+    const selected = `${silhouetteImageId('type:A320', colourKey)}${SILHOUETTE_SELECTED_SUFFIX}`
+    createSilhouetteImageData(silhouetteImageIdForPalette(selected, palette))
+    expect(drawCalls[0]!.colour).toBe(SILHOUETTE_SELECTED_CIVIL_COLOURS[palette])
+  })
+
+  it.each(['military', 'emergency'] as const)('keeps a selected %s aircraft’s colour', (key) => {
+    createSilhouetteImageData(`${silhouetteImageId('type:A320', key)}${SILHOUETTE_SELECTED_SUFFIX}`)
+    expect(drawCalls[0]!.colour).toBe(SILHOUETTE_COLOURS[key])
+  })
+
+  it('draws an altitude band in its ramp colour', () => {
+    createSilhouetteImageData(silhouetteImageId('type:A320', 'alt10'))
+    expect(drawCalls[0]!.colour).toBe(altitudeBandColour(10, 'dark'))
   })
 
   it('draws at twice the icon size by default, for high-density screens', () => {

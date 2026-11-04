@@ -64,6 +64,8 @@ export interface OverlayStates {
   groundVehicles: boolean
   /** Fixed ADS-B ground stations ("towers") — shown by default. */
   towers: boolean
+  /** The altitude colour bar along the bottom of the map — shown by default. */
+  altitudeLegend: boolean
 }
 
 // Last-known search-result entry for an expanded aircraft, persisted so the
@@ -90,6 +92,11 @@ export interface SearchExpandedPlane {
 export interface AdsbTagFields {
   civil: AdsbTagFieldMap
   mil: AdsbTagFieldMap
+  /**
+   * In silhouette mode, the fields shown on the resting label as well as on
+   * hover and click. Only counts for a field switched on for civil or military.
+   */
+  always: AdsbTagFieldMap
 }
 
 export interface AdsbTagFieldMap {
@@ -118,6 +125,7 @@ export const MAP_LAYER_KEYS = [
   'towers',
   'airports',
   'militaryBases',
+  'altitudeLegend',
 ] as const
 export type MapLayerKey = (typeof MAP_LAYER_KEYS)[number]
 /** The persisted shape of `air.mapLayers` in the app config. */
@@ -266,6 +274,16 @@ const DEFAULT_TAG_FIELDS: AdsbTagFields = {
     squawk: false,
     category: false,
   },
+  always: {
+    callsign: false,
+    altitude: false,
+    speed: false,
+    heading: false,
+    aircraftType: false,
+    registration: false,
+    squawk: false,
+    category: false,
+  },
 }
 
 const DEFAULTS: OverlayStates = {
@@ -278,6 +296,7 @@ const DEFAULTS: OverlayStates = {
   awacs: true,
   groundVehicles: true,
   towers: true,
+  altitudeLegend: true,
 }
 
 function migrateOverlays(parsed: unknown): Partial<OverlayStates> {
@@ -307,6 +326,9 @@ function migrateTagFields(parsed: unknown): Partial<AdsbTagFields> {
     mil: isTagFieldMap(obj.mil)
       ? { ...DEFAULT_TAG_FIELDS.mil, ...obj.mil }
       : { ...DEFAULT_TAG_FIELDS.mil },
+    always: isTagFieldMap(obj.always)
+      ? { ...DEFAULT_TAG_FIELDS.always, ...obj.always }
+      : { ...DEFAULT_TAG_FIELDS.always },
   }
 }
 
