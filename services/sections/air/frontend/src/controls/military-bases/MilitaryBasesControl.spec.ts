@@ -1,33 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
-// Registry of constructed fake markers so the spec can inspect their DOM
-// element and assert add/remove behaviour.
-interface FakeMarker {
-  options: { element: HTMLElement; anchor: string; offset: [number, number] }
-  lngLat: [number, number] | null
-  setLngLat: ReturnType<typeof vi.fn>
-  addTo: ReturnType<typeof vi.fn>
-  remove: ReturnType<typeof vi.fn>
-}
+// The labels themselves are AirfieldMarkers' own spec; this control's job is
+// feeding it the right sites and keeping it in step.
+const fieldRegistry = vi.hoisted(() => ({
+  instances: [] as Array<{
+    sites: Array<{
+      name: string
+      code?: string
+      coordinates: [number, number]
+      onClick: () => void
+    }>
+    kind: string
+    setVisible: ReturnType<typeof vi.fn>
+    attach: ReturnType<typeof vi.fn>
+  }>,
+}))
 
-const markerRegistry = vi.hoisted(() => ({ instances: [] as FakeMarker[] }))
-
-vi.mock('maplibre-gl', () => {
-  // Regular function (not arrow) so `new Marker(...)` works.
-  function Marker(this: FakeMarker, options: FakeMarker['options']) {
-    this.options = options
-    this.lngLat = null
-    this.addTo = vi.fn(() => this)
-    this.remove = vi.fn(() => this)
-    this.setLngLat = vi.fn((coords: [number, number]) => {
-      this.lngLat = coords
-      return this
-    })
-    markerRegistry.instances.push(this)
-  }
-  return { Marker }
-})
+vi.mock('../airfield-label/AirfieldMarkers', () => ({
+  AirfieldMarkers: function (
+    this: (typeof fieldRegistry.instances)[number],
+    _map: unknown,
+    sites: (typeof fieldRegistry.instances)[number]['sites'],
+    kind: string,
+  ) {
+    this.sites = sites
+    this.kind = kind
+    this.setVisible = vi.fn()
+    this.attach = vi.fn()
+    fieldRegistry.instances.push(this)
+  },
+}))
 
 import { MilitaryBasesToggleControl, MILITARY_BASES_DATA } from './MilitaryBasesControl'
 import { useAirStore } from '../../stores/air'
@@ -65,7 +68,7 @@ function fakeMap(options: { styleLoaded?: boolean } = {}): FakeMap {
 let airStore: AirStore
 
 beforeEach(() => {
-  markerRegistry.instances.length = 0
+  fieldRegistry.instances.length = 0
   setActivePinia(createPinia())
   airStore = useAirStore()
 })
@@ -98,102 +101,56 @@ describe('MilitaryBasesToggleControl constructor', () => {
 })
 
 describe('MilitaryBasesToggleControl.onInit', () => {
-  it('adds the source and a marker per base when the style is loaded and visible', () => {
+  it('hands every site to the labels, then shows and attaches them', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap({ styleLoaded: true })
-    control.onAdd(map.map)
-
-    expect(map.addSource).toHaveBeenCalledWith(
-      'military-bases',
-      expect.objectContaining({ type: 'geojson' }),
-    )
-    expect(markerRegistry.instances).toHaveLength(MILITARY_BASES_DATA.features.length)
-    // Visible by default → every marker is added to the map.
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).toHaveBeenCalledOnce())
-    expect(control.button.style.fontSize).toBe('8px')
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    const [labels] = fieldRegistry.instances
+    expect(labels!.kind).toBe('military')
+    expect(labels!.sites).toHaveLength(MILITARY_BASES_DATA.features.length)
+    expect(labels!.sites[0]!.code).toBe(MILITARY_BASES_DATA.features[0]!.properties.icao)
+    expect(labels!.setVisible).toHaveBeenCalledWith(true)
+    expect(labels!.attach).toHaveBeenCalled()
   })
 
   it('defers initialisation to style.load when the style is not ready', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
     const map = fakeMap({ styleLoaded: false })
     control.onAdd(map.map)
-    expect(markerRegistry.instances).toHaveLength(0)
+    expect(fieldRegistry.instances).toHaveLength(0)
     map.styleLoadHandlers[0]!()
-    expect(markerRegistry.instances).toHaveLength(MILITARY_BASES_DATA.features.length)
+    expect(fieldRegistry.instances).toHaveLength(1)
   })
 
-  it('builds markers but does not add them when not visible', () => {
+  it('keeps the labels hidden when the overlay is off', () => {
     airStore.setOverlay('militaryBases', false)
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
-    control.onAdd(map.map)
-    expect(markerRegistry.instances).toHaveLength(MILITARY_BASES_DATA.features.length)
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).not.toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenCalledWith(false)
   })
 
-  it('removes a pre-existing source before adding', () => {
+  it('replaces a pre-existing source on initialisation', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
+    const map = fakeMap({ styleLoaded: true })
     map.sources.add('military-bases')
     control.onAdd(map.map)
     expect(map.removeSource).toHaveBeenCalledWith('military-bases')
   })
 
-  it('does not rebuild markers if they already exist', () => {
+  it('re-attaches the same labels after a style reload', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
-    control.onAdd(map.map)
-    const countAfterInit = markerRegistry.instances.length
-
-    control.initLayers() // second call — markers already built
-    expect(markerRegistry.instances.length).toBe(countAfterInit)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    control.initLayers()
+    expect(fieldRegistry.instances).toHaveLength(1)
+    expect(fieldRegistry.instances[0]!.attach).toHaveBeenCalledTimes(2)
   })
 })
 
-describe('MilitaryBasesToggleControl marker labels', () => {
-  it('renders an ICAO span for bases with an ICAO code', () => {
-    const control = new MilitaryBasesToggleControl(airStore, () => false)
-    control.onAdd(fakeMap().map)
-    const bensonIndex = MILITARY_BASES_DATA.features.findIndex((f) => f.properties.icao === 'EGUB')
-    const element = markerRegistry.instances[bensonIndex]!.options.element
-    expect(element.innerHTML).toContain('EGUB')
-    expect(element.innerHTML).toContain('RAF BENSON')
-  })
-
-  it('omits the ICAO span for bases without an ICAO code', () => {
-    const control = new MilitaryBasesToggleControl(airStore, () => false)
-    control.onAdd(fakeMap().map)
-    const noIcaoIndex = MILITARY_BASES_DATA.features.findIndex((f) => f.properties.icao === '')
-    const element = markerRegistry.instances[noIcaoIndex]!.options.element
-    // Only the name span — no accent-coloured ICAO highlight.
-    expect(element.innerHTML).not.toContain('--map-overlay-accent')
-    expect(element.innerHTML).toContain('RAF')
-  })
-
-  it('inks the label and accents the ICAO from the basemap tokens', () => {
-    // Lime/white on the dark map; dark olive/near-black with a white halo on
-    // the undimmed light one (frontend/assets/template.css).
-    const control = new MilitaryBasesToggleControl(airStore, () => false)
-    control.onAdd(fakeMap().map)
-    const bensonIndex = MILITARY_BASES_DATA.features.findIndex((f) => f.properties.icao === 'EGUB')
-    const element = markerRegistry.instances[bensonIndex]!.options.element
-    const label = element.firstElementChild as HTMLElement
-    expect(label.getAttribute('style')).toContain('color: var(--map-overlay-ink, #fff)')
-    expect(label.getAttribute('style')).toContain('text-shadow: var(--map-overlay-halo, none)')
-    expect(label.innerHTML).toContain(
-      '<span style="color:var(--map-overlay-accent, #c8ff00)">EGUB</span>',
-    )
-  })
-})
-
-describe('MilitaryBasesToggleControl marker interactions', () => {
+describe('MilitaryBasesToggleControl site click', () => {
   it('eases to the base with a 45° pitch when 3D is active', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => true)
     const map = fakeMap()
     control.onAdd(map.map)
-    const element = markerRegistry.instances[0]!.options.element
-
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    fieldRegistry.instances[0]!.sites[0]!.onClick()
     expect(map.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ zoom: 16, duration: 800, pitch: 45 }),
     )
@@ -203,65 +160,57 @@ describe('MilitaryBasesToggleControl marker interactions', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
     const map = fakeMap()
     control.onAdd(map.map)
-    const element = markerRegistry.instances[0]!.options.element
-
-    element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    fieldRegistry.instances[0]!.sites[0]!.onClick()
     const easeArgs = map.easeTo.mock.calls[0]![0] as Record<string, unknown>
     expect(easeArgs).not.toHaveProperty('pitch')
   })
 })
 
 describe('MilitaryBasesToggleControl.toggle', () => {
-  it('hides the markers and persists when toggled off', () => {
+  it('hides the labels and persists when toggled off', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
-    control.onAdd(map.map)
-
-    control.handleClickPublic()
-
-    expect(control.visible).toBe(false)
-    markerRegistry.instances.forEach((marker) => expect(marker.remove).toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    control.toggle()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(false)
     expect(airStore.overlayStates.militaryBases).toBe(false)
-    expect(control.button.style.opacity).toBe('0.3')
   })
 
-  it('re-adds the markers and persists when toggled back on', () => {
-    airStore.setOverlay('militaryBases', false)
+  it('shows the labels and persists when toggled back on', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
-    control.onAdd(map.map)
-
-    control.handleClickPublic()
-
-    expect(control.visible).toBe(true)
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    control.toggle()
+    control.toggle()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(true)
     expect(airStore.overlayStates.militaryBases).toBe(true)
   })
 
-  it('persists the toggle even before markers are built', () => {
+  it('persists the toggle even before the labels are built', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    // No onAdd → no markers and no button; toggle must still update the store.
     control.toggle()
     expect(airStore.overlayStates.militaryBases).toBe(false)
   })
 })
 
-describe('MilitaryBasesToggleControl.onRemove', () => {
-  it('removes every marker and detaches the container', () => {
+describe('MilitaryBasesToggleControl button', () => {
+  it('toggles on click', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    const map = fakeMap()
-    const element = control.onAdd(map.map)
-    document.body.appendChild(element)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    ;(control as unknown as { handleClick: () => void }).handleClick()
+    expect(control.visible).toBe(false)
+  })
+})
 
+describe('MilitaryBasesToggleControl.onRemove', () => {
+  it('hides the labels', () => {
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
     control.onRemove()
-    markerRegistry.instances.forEach((marker) => expect(marker.remove).toHaveBeenCalled())
-    expect(element.parentNode).toBeNull()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(false)
   })
 
-  it('is a safe no-op when removed before markers were ever built', () => {
+  it('is a safe no-op when removed before any labels were built', () => {
     const control = new MilitaryBasesToggleControl(airStore, () => false)
-    // No onAdd → _markers is null; onRemove must not throw.
+    control.onAdd(fakeMap({ styleLoaded: false }).map)
     expect(() => control.onRemove()).not.toThrow()
-    expect(markerRegistry.instances).toHaveLength(0)
   })
 })

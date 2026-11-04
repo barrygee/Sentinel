@@ -1,5 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { AirfieldMarkers } from '../airfield-label/AirfieldMarkers'
 import type { AirStore } from '../types'
 
 type LngLat = [number, number]
@@ -147,7 +148,7 @@ export const MILITARY_BASES_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, Milit
 
 export class MilitaryBasesToggleControl extends SentinelControlBase {
   visible: boolean
-  private _markers: maplibregl.Marker[] | null = null
+  private _markers: AirfieldMarkers | null = null
   private _airStore: AirStore
   private _is3DActive: () => boolean
 
@@ -180,7 +181,7 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
   }
 
   onRemove(): void {
-    if (this._markers) this._markers.forEach((m) => m.remove())
+    this._markers?.setVisible(false)
     super.onRemove()
   }
 
@@ -189,47 +190,33 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
     this.map.addSource('military-bases', { type: 'geojson', data: MILITARY_BASES_DATA })
 
     if (!this._markers) {
-      this._markers = MILITARY_BASES_DATA.features.map((f) => {
-        const baseProperties = f.properties
-        const coords = f.geometry.coordinates as LngLat
-
-        const el = document.createElement('div')
-        el.style.cssText =
-          'padding:6px 16px 6px 0;cursor:pointer;pointer-events:auto;user-select:none'
-
-        const label = document.createElement('div')
-        label.style.cssText =
-          "color:var(--map-overlay-ink, #fff);text-shadow:var(--map-overlay-halo, none);font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none"
-        label.innerHTML = baseProperties.icao
-          ? `<span style="color:var(--map-overlay-accent, #c8ff00)">${baseProperties.icao}</span><br><span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
-          : `<span style="opacity:0.7;font-weight:400">${baseProperties.name.toUpperCase()}</span>`
-        el.appendChild(label)
-
-        el.addEventListener('click', (e: Event) => {
-          e.stopPropagation()
-          const pitch = this._is3DActive() ? 45 : undefined
-          const easeOpts: maplibregl.EaseToOptions = { center: coords, zoom: 16, duration: 800 }
-          if (pitch !== undefined) easeOpts.pitch = pitch
-          this.map.easeTo(easeOpts)
-        })
-
-        return new maplibregl.Marker({
-          element: el,
-          anchor: 'top-left',
-          offset: [8, -6],
-        }).setLngLat(coords)
+      const sites = MILITARY_BASES_DATA.features.map((feature) => {
+        const coordinates = feature.geometry.coordinates as LngLat
+        return {
+          name: feature.properties.name,
+          code: feature.properties.icao,
+          coordinates,
+          onClick: () => {
+            const pitch = this._is3DActive() ? 45 : undefined
+            const easeOpts: maplibregl.EaseToOptions = {
+              center: coordinates,
+              zoom: 16,
+              duration: 800,
+            }
+            if (pitch !== undefined) easeOpts.pitch = pitch
+            this.map.easeTo(easeOpts)
+          },
+        }
       })
-
-      if (this.visible) this._markers.forEach((m) => m.addTo(this.map))
+      this._markers = new AirfieldMarkers(this.map, sites, 'military')
     }
+    this._markers.setVisible(this.visible)
+    void this._markers.attach()
   }
 
   toggle(): void {
     this.visible = !this.visible
-    if (this._markers) {
-      if (this.visible) this._markers.forEach((m) => m.addTo(this.map))
-      else this._markers.forEach((m) => m.remove())
-    }
+    this._markers?.setVisible(this.visible)
     this.setButtonActive(this.visible)
     this._airStore.setOverlay('militaryBases', this.visible)
   }

@@ -1,5 +1,5 @@
-import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { AirfieldMarkers } from '../airfield-label/AirfieldMarkers'
 import type { AirStore } from '../types'
 
 type LngLat = [number, number]
@@ -322,8 +322,7 @@ export const AIRPORTS_DATA: GeoJSON.FeatureCollection<GeoJSON.Point, AirportProp
 
 export class AirportsToggleControl extends SentinelControlBase {
   visible: boolean
-  private _markers: maplibregl.Marker[] | null = null
-  private _hoverMarker: maplibregl.Marker | null = null
+  private _markers: AirfieldMarkers | null = null
   private _airStore: AirStore
 
   constructor(airStore: AirStore) {
@@ -354,7 +353,7 @@ export class AirportsToggleControl extends SentinelControlBase {
   }
 
   onRemove(): void {
-    if (this._markers) this._markers.forEach((m) => m.remove())
+    this._markers?.setVisible(false)
     super.onRemove()
   }
 
@@ -363,59 +362,27 @@ export class AirportsToggleControl extends SentinelControlBase {
     this.map.addSource('airports', { type: 'geojson', data: AIRPORTS_DATA })
 
     if (!this._markers) {
-      this._hoverMarker = null
-
-      this._markers = AIRPORTS_DATA.features.map((f) => {
-        const airportProperties = f.properties
-        const coords = f.geometry.coordinates as LngLat
-
-        const el = document.createElement('div')
-        el.style.cssText =
-          'padding:6px 16px 6px 0;cursor:pointer;pointer-events:auto;user-select:none'
-
-        const label = document.createElement('div')
-        label.style.cssText =
-          "color:var(--map-overlay-ink, #fff);text-shadow:var(--map-overlay-halo, none);font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none"
-        label.innerHTML =
-          `<span class="apt-icao" style="color:var(--map-overlay-ink, #fff)">${airportProperties.icao}</span>` +
-          `<br><span class="apt-name" style="opacity:0.7;font-weight:400">${airportProperties.name.toUpperCase()}</span>`
-        el.appendChild(label)
-
+      const sites = AIRPORTS_DATA.features.map((feature) => ({
+        name: feature.properties.name,
+        code: feature.properties.icao,
+        coordinates: feature.geometry.coordinates as LngLat,
         // Clicking an airport opens its accordion in the side-panel SEARCH
         // list (AirFilter listens for this) — no on-map panel is shown.
-        el.addEventListener('click', (e: Event) => {
-          e.stopPropagation()
+        onClick: () => {
           document.dispatchEvent(
-            new CustomEvent('air-open-airport', {
-              detail: { icao: airportProperties.icao },
-            }),
+            new CustomEvent('air-open-airport', { detail: { icao: feature.properties.icao } }),
           )
-        })
-
-        return new maplibregl.Marker({
-          element: el,
-          anchor: 'top-left',
-          offset: [8, -6],
-        }).setLngLat(coords)
-      })
-
-      if (this.visible) this._markers.forEach((m) => m.addTo(this.map))
+        },
+      }))
+      this._markers = new AirfieldMarkers(this.map, sites, 'civil')
     }
+    this._markers.setVisible(this.visible)
+    void this._markers.attach()
   }
 
   toggle(): void {
     this.visible = !this.visible
-    if (this._markers) {
-      if (this.visible) {
-        this._markers.forEach((m) => m.addTo(this.map))
-      } else {
-        this._markers.forEach((m) => m.remove())
-        if (this._hoverMarker) {
-          this._hoverMarker.remove()
-          this._hoverMarker = null
-        }
-      }
-    }
+    this._markers?.setVisible(this.visible)
     this.setButtonActive(this.visible)
     this._airStore.setOverlay('airports', this.visible)
   }

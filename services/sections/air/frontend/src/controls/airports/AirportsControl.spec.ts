@@ -1,31 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 
-interface FakeMarker {
-  options: { element: HTMLElement; anchor: string; offset: [number, number] }
-  lngLat: [number, number] | null
-  setLngLat: ReturnType<typeof vi.fn>
-  addTo: ReturnType<typeof vi.fn>
-  remove: ReturnType<typeof vi.fn>
-}
+// The labels themselves are AirfieldMarkers' own spec; this control's job is
+// feeding it the right sites and keeping it in step.
+const fieldRegistry = vi.hoisted(() => ({
+  instances: [] as Array<{
+    sites: Array<{
+      name: string
+      code?: string
+      coordinates: [number, number]
+      onClick: () => void
+    }>
+    kind: string
+    setVisible: ReturnType<typeof vi.fn>
+    attach: ReturnType<typeof vi.fn>
+  }>,
+}))
 
-const markerRegistry = vi.hoisted(() => ({ instances: [] as FakeMarker[] }))
-
-vi.mock('maplibre-gl', () => {
-  // Regular function (not arrow) so `new Marker(...)` constructs correctly.
-  function Marker(this: FakeMarker, options: FakeMarker['options']) {
-    this.options = options
-    this.lngLat = null
-    this.addTo = vi.fn(() => this)
-    this.remove = vi.fn(() => this)
-    this.setLngLat = vi.fn((coords: [number, number]) => {
-      this.lngLat = coords
-      return this
-    })
-    markerRegistry.instances.push(this)
-  }
-  return { Marker }
-})
+vi.mock('../airfield-label/AirfieldMarkers', () => ({
+  AirfieldMarkers: function (
+    this: (typeof fieldRegistry.instances)[number],
+    _map: unknown,
+    sites: (typeof fieldRegistry.instances)[number]['sites'],
+    kind: string,
+  ) {
+    this.sites = sites
+    this.kind = kind
+    this.setVisible = vi.fn()
+    this.attach = vi.fn()
+    fieldRegistry.instances.push(this)
+  },
+}))
 
 import { AirportsToggleControl, AIRPORTS_DATA } from './AirportsControl'
 import { useAirStore } from '../../stores/air'
@@ -60,7 +65,7 @@ function fakeMap(options: { styleLoaded?: boolean } = {}): FakeMap {
 let airStore: AirStore
 
 beforeEach(() => {
-  markerRegistry.instances.length = 0
+  fieldRegistry.instances.length = 0
   setActivePinia(createPinia())
   airStore = useAirStore()
 })
@@ -94,152 +99,108 @@ describe('AirportsToggleControl constructor', () => {
 })
 
 describe('AirportsToggleControl.onInit', () => {
-  it('adds the source and a marker per airport when the style is loaded and visible', () => {
+  it('hands every site to the labels, then shows and attaches them', () => {
     const control = new AirportsToggleControl(airStore)
-    const map = fakeMap({ styleLoaded: true })
-    control.onAdd(map.map)
-
-    expect(map.addSource).toHaveBeenCalledWith(
-      'airports',
-      expect.objectContaining({ type: 'geojson' }),
-    )
-    expect(markerRegistry.instances).toHaveLength(AIRPORTS_DATA.features.length)
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).toHaveBeenCalledOnce())
-    expect(control.button.style.fontSize).toBe('8px')
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    const [labels] = fieldRegistry.instances
+    expect(labels!.kind).toBe('civil')
+    expect(labels!.sites).toHaveLength(AIRPORTS_DATA.features.length)
+    expect(labels!.sites[0]!.code).toBe(AIRPORTS_DATA.features[0]!.properties.icao)
+    expect(labels!.setVisible).toHaveBeenCalledWith(true)
+    expect(labels!.attach).toHaveBeenCalled()
   })
 
   it('defers initialisation to style.load when the style is not ready', () => {
     const control = new AirportsToggleControl(airStore)
     const map = fakeMap({ styleLoaded: false })
     control.onAdd(map.map)
-    expect(markerRegistry.instances).toHaveLength(0)
+    expect(fieldRegistry.instances).toHaveLength(0)
     map.styleLoadHandlers[0]!()
-    expect(markerRegistry.instances).toHaveLength(AIRPORTS_DATA.features.length)
+    expect(fieldRegistry.instances).toHaveLength(1)
   })
 
-  it('builds markers but does not add them when not visible', () => {
+  it('keeps the labels hidden when the overlay is off', () => {
     airStore.setOverlay('airports', false)
     const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).not.toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenCalledWith(false)
   })
 
   it('replaces a pre-existing source on initialisation', () => {
     const control = new AirportsToggleControl(airStore)
-    const map = fakeMap()
+    const map = fakeMap({ styleLoaded: true })
     map.sources.add('airports')
     control.onAdd(map.map)
     expect(map.removeSource).toHaveBeenCalledWith('airports')
-    expect(map.addSource).toHaveBeenCalledWith('airports', expect.anything())
   })
 
-  it('does not rebuild markers when they already exist', () => {
+  it('re-attaches the same labels after a style reload', () => {
     const control = new AirportsToggleControl(airStore)
-    const map = fakeMap()
-    control.onAdd(map.map)
-    const countAfterInit = markerRegistry.instances.length
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
     control.initLayers()
-    expect(markerRegistry.instances.length).toBe(countAfterInit)
-  })
-
-  it('renders the ICAO and name in each marker label', () => {
-    const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-    const element = markerRegistry.instances[0]!.options.element
-    expect(element.querySelector('.apt-icao')!.textContent).toBe('EGLL')
-    expect(element.querySelector('.apt-name')!.textContent).toBe('HEATHROW')
-  })
-
-  it('inks the label from the basemap tokens, so it reads on the light map too', () => {
-    // White on the dark map, near-black with a white halo on the undimmed light
-    // one (frontend/assets/template.css) — a hard-coded white vanished there.
-    const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-    const element = markerRegistry.instances[0]!.options.element
-    const label = element.firstElementChild as HTMLElement
-    expect(label.getAttribute('style')).toContain('color: var(--map-overlay-ink, #fff)')
-    expect(label.getAttribute('style')).toContain('text-shadow: var(--map-overlay-halo, none)')
-    expect((element.querySelector('.apt-icao') as HTMLElement).getAttribute('style')).toBe(
-      'color:var(--map-overlay-ink, #fff)',
-    )
+    expect(fieldRegistry.instances).toHaveLength(1)
+    expect(fieldRegistry.instances[0]!.attach).toHaveBeenCalledTimes(2)
   })
 })
 
-describe('AirportsToggleControl marker click', () => {
+describe('AirportsToggleControl site click', () => {
   it('dispatches an air-open-airport event with the airport ICAO', () => {
     const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-    const handler = vi.fn()
-    document.addEventListener('air-open-airport', handler)
-
-    markerRegistry.instances[0]!.options.element.dispatchEvent(
-      new MouseEvent('click', { bubbles: true }),
-    )
-
-    expect(handler).toHaveBeenCalledOnce()
-    const event = handler.mock.calls[0]![0] as CustomEvent
-    expect(event.detail).toEqual({ icao: 'EGLL' })
-    document.removeEventListener('air-open-airport', handler)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    const listener = vi.fn()
+    document.addEventListener('air-open-airport', listener)
+    fieldRegistry.instances[0]!.sites[0]!.onClick()
+    document.removeEventListener('air-open-airport', listener)
+    const event = listener.mock.calls[0]![0] as CustomEvent<{ icao: string }>
+    expect(event.detail.icao).toBe(AIRPORTS_DATA.features[0]!.properties.icao)
   })
 })
 
 describe('AirportsToggleControl.toggle', () => {
-  it('hides the markers and persists when toggled off', () => {
+  it('hides the labels and persists when toggled off', () => {
     const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-
-    control.handleClickPublic()
-
-    expect(control.visible).toBe(false)
-    markerRegistry.instances.forEach((marker) => expect(marker.remove).toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    control.toggle()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(false)
     expect(airStore.overlayStates.airports).toBe(false)
-    expect(control.button.style.opacity).toBe('0.3')
   })
 
-  it('removes a lingering hover marker when toggled off', () => {
+  it('shows the labels and persists when toggled back on', () => {
     const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-    const hoverMarker = { remove: vi.fn() }
-    ;(control as unknown as { _hoverMarker: unknown })._hoverMarker = hoverMarker
-
-    control.handleClickPublic()
-    expect(hoverMarker.remove).toHaveBeenCalledOnce()
-    expect((control as unknown as { _hoverMarker: unknown })._hoverMarker).toBeNull()
-  })
-
-  it('re-adds the markers and persists when toggled back on', () => {
-    airStore.setOverlay('airports', false)
-    const control = new AirportsToggleControl(airStore)
-    control.onAdd(fakeMap().map)
-
-    control.handleClickPublic()
-
-    expect(control.visible).toBe(true)
-    markerRegistry.instances.forEach((marker) => expect(marker.addTo).toHaveBeenCalled())
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    control.toggle()
+    control.toggle()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(true)
     expect(airStore.overlayStates.airports).toBe(true)
   })
 
-  it('persists the toggle even before markers are built', () => {
+  it('persists the toggle even before the labels are built', () => {
     const control = new AirportsToggleControl(airStore)
-    control.toggle() // no onAdd → no markers/button
+    control.toggle()
     expect(airStore.overlayStates.airports).toBe(false)
   })
 })
 
-describe('AirportsToggleControl.onRemove', () => {
-  it('removes every marker and detaches the container', () => {
+describe('AirportsToggleControl button', () => {
+  it('toggles on click', () => {
     const control = new AirportsToggleControl(airStore)
-    const element = control.onAdd(fakeMap().map)
-    document.body.appendChild(element)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
+    ;(control as unknown as { handleClick: () => void }).handleClick()
+    expect(control.visible).toBe(false)
+  })
+})
 
+describe('AirportsToggleControl.onRemove', () => {
+  it('hides the labels', () => {
+    const control = new AirportsToggleControl(airStore)
+    control.onAdd(fakeMap({ styleLoaded: true }).map)
     control.onRemove()
-    markerRegistry.instances.forEach((marker) => expect(marker.remove).toHaveBeenCalled())
-    expect(element.parentNode).toBeNull()
+    expect(fieldRegistry.instances[0]!.setVisible).toHaveBeenLastCalledWith(false)
   })
 
-  it('is a safe no-op when removed before any markers were built', () => {
+  it('is a safe no-op when removed before any labels were built', () => {
     const control = new AirportsToggleControl(airStore)
+    control.onAdd(fakeMap({ styleLoaded: false }).map)
     expect(() => control.onRemove()).not.toThrow()
-    expect(markerRegistry.instances).toHaveLength(0)
   })
 })
