@@ -54,6 +54,7 @@ vi.mock('@sentinel/map-kit/sprites/adsbSprites', () => {
 import { AdsbLiveControl } from './AdsbLiveControl'
 import { CORRECTION_MS, deadReckon } from './aircraftPosition'
 import { silhouetteSideReachPx } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { useAirStore } from '../../stores/air'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
@@ -161,6 +162,7 @@ function fakeMap(options: { styleLoaded?: boolean; zoom?: number } = {}): FakeMa
     }),
     addLayer: vi.fn((layer: { id: string }) => layers.add(layer.id)),
     removeLayer: vi.fn((id: string) => layers.delete(id)),
+    setPaintProperty: vi.fn(),
     removeSource: vi.fn((id: string) => sources.delete(id)),
     setLayoutProperty,
     setFilter,
@@ -4942,6 +4944,109 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
         silhouetteSideReachPx('type:A320', 270, 'right') * 1.18 + 6,
       )
       expect(tag.options.offset![1]).toBe(0)
+    })
+  })
+
+  describe('trail colours', () => {
+    function trailFor(style: 'arrow' | 'silhouette', alts: number[]) {
+      const mountedControl = mountedIn(style)
+      const { control, map } = mountedControl
+      map.layers.add('adsb-trail-line')
+      seedFeature(control)
+      priv(control)._trails['abc123'] = alts.map((alt, index) => ({
+        lon: -0.1 + index / 10,
+        lat: 51.5,
+        alt,
+      }))
+      control._selectedHex = 'abc123'
+      priv(control)._rebuildTrails()
+      return mountedControl
+    }
+
+    /** The colour on each trail dot, oldest first. */
+    function dotColours(map: FakeMap): string[] {
+      const trail = map.sourceData['adsb-trails-source'] as GeoJSON.FeatureCollection
+      return trail.features.map((feature) => feature.properties!.colour as string)
+    }
+
+    function lineGradient(map: FakeMap): unknown[] {
+      const call = (map.map.setPaintProperty as unknown as ReturnType<typeof vi.fn>).mock.calls.at(
+        -1,
+      )!
+      expect(call.slice(0, 2)).toEqual(['adsb-trail-line', 'line-gradient'])
+      return call[2] as unknown[]
+    }
+
+    it('gives the line source the metrics a gradient needs', () => {
+      const { map } = mountedIn('silhouette')
+      const addSource = map.map.addSource as unknown as ReturnType<typeof vi.fn>
+      const call = addSource.mock.calls.find(([id]) => id === 'adsb-trail-line-source')
+      expect((call![1] as { lineMetrics?: boolean }).lineMetrics).toBe(true)
+    })
+
+    it('paints dots from their own colour, and no flat colour over the line', () => {
+      const { map } = mountedIn('silhouette')
+      const addLayer = map.map.addLayer as unknown as ReturnType<typeof vi.fn>
+      const paintOf = (id: string) =>
+        (
+          addLayer.mock.calls.find(([layer]) => (layer as { id: string }).id === id)![0] as {
+            paint: Record<string, unknown>
+          }
+        ).paint
+      expect(paintOf('adsb-trail-dots')['circle-color']).toEqual(['get', 'colour'])
+      // `line-color` would be ignored beside a gradient, so it must not linger.
+      expect(paintOf('adsb-trail-line')).not.toHaveProperty('line-color')
+    })
+
+    it('ends the line in the colour of the latest report', () => {
+      const { map } = trailFor('silhouette', [2000, 30000])
+      expect(lineGradient(map).at(-1)).toBe(altitudeColour(30000, 'dark'))
+    })
+
+    it('colours each dot by the altitude stored at that position', () => {
+      const { map } = trailFor('silhouette', [2000, 30000])
+      expect(dotColours(map)).toEqual([altitudeColour(2000, 'dark'), altitudeColour(30000, 'dark')])
+    })
+
+    it('runs the line through the altitude colours, in arrow mode too', () => {
+      const { map } = trailFor('arrow', [2000, 30000])
+      const gradient = lineGradient(map)
+      expect(gradient).toContain(altitudeColour(2000, 'dark'))
+      expect(gradient).toContain(altitudeColour(30000, 'dark'))
+    })
+
+    it('keeps an emergency’s whole trail red', () => {
+      const { control, map } = trailFor('silhouette', [2000, 30000])
+      control._geojson.features[0]!.properties.squawkEmerg = 1
+      priv(control)._rebuildTrails()
+      expect(new Set(dotColours(map))).toEqual(new Set(['#ff2222']))
+      expect(lineGradient(map)).not.toContain(altitudeColour(2000, 'dark'))
+    })
+
+    it('matches a silhouette on the ground', () => {
+      const { map } = trailFor('silhouette', [0])
+      expect(dotColours(map)).toEqual(['#8f949a'])
+    })
+
+    it('matches an arrow on the ground', () => {
+      const { map } = trailFor('arrow', [0])
+      expect(dotColours(map)).toEqual(['#00aaff'])
+    })
+
+    it('uses the light map’s deeper colours there', () => {
+      document.documentElement.dataset.mapTheme = 'light'
+      const { map } = trailFor('silhouette', [30000])
+      delete document.documentElement.dataset.mapTheme
+      expect(dotColours(map)).toEqual([altitudeColour(30000, 'light')])
+    })
+
+    it('leaves the paint alone when the line layer is not on the map', () => {
+      const { control, map } = trailFor('silhouette', [2000, 30000])
+      map.layers.delete('adsb-trail-line')
+      const setPaint = map.map.setPaintProperty as unknown as ReturnType<typeof vi.fn>
+      setPaint.mockClear()
+      priv(control)._rebuildTrails()
+      expect(setPaint).not.toHaveBeenCalled()
     })
   })
 

@@ -7,9 +7,10 @@ describe('AircraftAltitudeLegend', () => {
   const ticks = (wrapper: ReturnType<typeof mount>) =>
     wrapper.findAll('.altitude-legend-ticks li').map((tick) => tick.text())
 
-  it('is titled ALT', () => {
+  it('names the bar for assistive tech, with no visible title', () => {
     const wrapper = mount(AircraftAltitudeLegend, { props: { palette: 'dark' } })
-    expect(wrapper.get('figcaption').text()).toBe('ALT')
+    expect(wrapper.find('figcaption').exists()).toBe(false)
+    expect(wrapper.attributes('aria-label')).toBe('Aircraft altitude, in feet')
   })
 
   it('marks the ground, thousands of feet, and the top of the ramp', () => {

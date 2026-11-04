@@ -40,14 +40,14 @@ const DOT_COLOURS: Readonly<Record<AirfieldKind, string>> = {
 export const AIRFIELD_LABEL_FILLS = { dark: '#1a2130', light: '#274f60' } as const
 
 const FONT_FAMILY = "'Barlow Condensed', 'Barlow', sans-serif"
-const NAME_FONT = `400 14px ${FONT_FAMILY}`
+const NAME_FONT = `400 12.5px ${FONT_FAMILY}`
 
 /** Label height, and the width of the square well the dot sits in, in CSS pixels. */
 const LABEL_HEIGHT_PX = 26
 const DOT_RADIUS_PX = 3.5
 
 const NAME_PADDING_PX = 10
-const NAME_LETTER_SPACING = '1.68px'
+const NAME_LETTER_SPACING = '1.5px'
 
 /** Drawn at this multiple of CSS pixels, so labels stay sharp on high-density screens. */
 const PIXEL_RATIO = 2
