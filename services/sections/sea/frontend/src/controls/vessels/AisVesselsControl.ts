@@ -2,13 +2,12 @@ import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import { createBracket } from '@sentinel/map-kit/sprites/adsbSprites'
-import { createVesselArrow, createVesselDot } from './vesselSprites'
+import { createVesselArrow, createVesselArrowShape, createVesselDot } from './vesselSprites'
 import { createFlagBadge } from './vesselFlagBadge'
 import {
   appendMirrored,
   createAccentBadge,
   createDimBadge,
-  createDirectionArrowShape,
   createFilledDotShape,
   createGlyphSvg,
   createGlyphWell,
@@ -691,7 +690,7 @@ export class AisVesselsControl extends SentinelControlBase {
     const glyph =
       bearing === null
         ? createGlyphSvg(createFilledDotShape(color))
-        : createGlyphSvg(createDirectionArrowShape(color), bearing)
+        : createGlyphSvg(createVesselArrowShape(color), bearing)
     appendMirrored(
       pill,
       [

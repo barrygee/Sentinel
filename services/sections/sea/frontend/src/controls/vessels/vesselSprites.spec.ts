@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { createVesselArrow, createVesselDot, VESSEL_SPRITE_SIZE_PX } from './vesselSprites'
+import {
+  createVesselArrow,
+  createVesselArrowShape,
+  createVesselDot,
+  VESSEL_SPRITE_SIZE_PX,
+} from './vesselSprites'
 
 // jsdom has no canvas: stand in a recording 2D context so the sprites' shape
 // and colour decisions can be asserted.
@@ -45,13 +50,13 @@ describe('vesselSprites', () => {
     context = installCanvasRecorder()
   })
 
-  it('draws the hollow arrowhead of the label glyph, stroked in the family colour', () => {
+  it('draws the hollow vessel arrow of the label glyph, stroked in the family colour', () => {
     const image = createVesselArrow('#ff6a13')
     expect(image.width).toBe(VESSEL_SPRITE_SIZE_PX)
     expect(context.strokeStyle).toBe('#ff6a13')
     expect(context.lineJoin).toBe('round')
-    // Four corners of the glyph's polygon, closed, stroked and never filled.
-    expect(context.calls.filter((call) => call.startsWith('lineTo'))).toHaveLength(3)
+    // Six corners of the glyph's polygon, closed, stroked and never filled.
+    expect(context.calls.filter((call) => call.startsWith('lineTo'))).toHaveLength(5)
     expect(context.calls).toContain('closePath()')
     expect(context.calls).toContain('stroke()')
     expect(context.calls).not.toContain('fill()')
@@ -74,5 +79,14 @@ describe('vesselSprites', () => {
     expect(context.calls.some((call) => call.startsWith('arc('))).toBe(true)
     expect(context.calls).toContain('fill()')
     expect(context.calls).not.toContain('stroke()')
+  })
+})
+
+describe('createVesselArrowShape', () => {
+  it('outlines a hull with a pointed bow and notched stern, in the given colour', () => {
+    const shape = createVesselArrowShape('#ff6a13')
+    expect(shape).toContain('points="6,1 8.8,4.2 8.8,11 6,9.6 3.2,11 3.2,4.2"')
+    expect(shape).toContain('stroke="#ff6a13"')
+    expect(shape).toContain('fill="none"')
   })
 })
