@@ -10,7 +10,10 @@
 import { computed } from 'vue'
 import { silhouetteSvgFrame } from '@sentinel/map-kit/aircraft-silhouettes/aircraftSilhouette'
 import {
+  SILHOUETTE_BODY_SPREAD_PX,
   SILHOUETTE_COLOURS,
+  SILHOUETTE_DETAIL_COLOURS,
+  SILHOUETTE_DETAIL_WIDTH_PX,
   SILHOUETTE_OUTLINE_WIDTH_PX,
   silhouetteForShape,
   silhouetteIconSizePx,
@@ -59,12 +62,20 @@ const drawing = computed(() => {
       <g :transform="`rotate(${trackDeg})`">
         <path
           :d="drawing.pathData"
-          fill="#000000"
-          stroke="#000000"
-          :stroke-width="drawing.frame.outlineStrokeWidth"
+          :fill="SILHOUETTE_COLOURS.civil"
+          :stroke="SILHOUETTE_COLOURS.civil"
+          :stroke-width="2 * SILHOUETTE_BODY_SPREAD_PX"
           stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"
         />
-        <path :d="drawing.pathData" :fill="SILHOUETTE_COLOURS.civil" />
+        <path
+          :d="drawing.pathData"
+          fill="none"
+          :stroke="SILHOUETTE_DETAIL_COLOURS.dark"
+          :stroke-width="SILHOUETTE_DETAIL_WIDTH_PX"
+          stroke-linejoin="round"
+          vector-effect="non-scaling-stroke"
+        />
       </g>
     </svg>
     <span

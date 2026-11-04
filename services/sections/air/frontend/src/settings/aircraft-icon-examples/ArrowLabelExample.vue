@@ -15,7 +15,7 @@ import {
   createNameSegment,
   isLeftFacing,
 } from '@sentinel/map-kit/map-label/mapLabelParts'
-import { SILHOUETTE_COLOURS } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import { ARROW_COLOURS } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 
 const props = withDefaults(
   defineProps<{
@@ -38,7 +38,7 @@ onMounted(() => {
     label,
     [
       createGlyphWell(
-        createGlyphSvg(createDirectionArrowShape(SILHOUETTE_COLOURS.civil), props.trackDeg),
+        createGlyphSvg(createDirectionArrowShape(ARROW_COLOURS.civil), props.trackDeg),
       ),
       createNameSegment(props.callsign, leftFacing ? 'left' : 'right'),
     ],

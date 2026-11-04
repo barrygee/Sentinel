@@ -3,6 +3,7 @@ import {
   createSilhouetteImageData,
   parseSilhouetteImageId,
   SILHOUETTE_COLOURS,
+  SILHOUETTE_DETAIL_COLOURS,
   SILHOUETTE_FALLBACK_ICON_PX,
   SILHOUETTE_PALETTES,
   silhouetteForShape,
@@ -26,6 +27,7 @@ describe('silhouette image names', () => {
       expect(parseSilhouetteImageId(silhouetteImageId('family:glider', colourKey))).toEqual({
         shapeKey: 'family:glider',
         colourKey,
+        selected: false,
         palette: 'dark',
       })
     },
@@ -37,6 +39,7 @@ describe('silhouette image names', () => {
     expect(parseSilhouetteImageId(imageId)).toEqual({
       shapeKey: 'type:A320',
       colourKey: 'military',
+      selected: false,
       palette,
     })
   })
@@ -143,13 +146,13 @@ describe('createSilhouetteImageData', () => {
     vi.unstubAllGlobals()
   })
 
-  it('draws the black outline first, then the body in the image’s colour', () => {
+  it('thickens the body in the image’s colour, then traces its parts with the faint line', () => {
     expect(createSilhouetteImageData(silhouetteImageId('type:A320', 'military'))).toBe(imageData)
     const pathData = silhouetteForShape('type:A320')!.pathData
     expect(drawCalls).toEqual([
-      { call: 'fill', colour: '#000000', path: pathData },
-      { call: 'stroke', colour: '#000000' },
       { call: 'fill', colour: SILHOUETTE_COLOURS.military, path: pathData },
+      { call: 'stroke', colour: SILHOUETTE_COLOURS.military },
+      { call: 'stroke', colour: SILHOUETTE_DETAIL_COLOURS.dark },
     ])
     expect(context.lineJoin).toBe('round')
   })
@@ -157,7 +160,7 @@ describe('createSilhouetteImageData', () => {
   it('fills the light map’s silhouettes with its deeper colours', () => {
     const lightImage = silhouetteImageIdForPalette(silhouetteImageId('type:A320', 'civil'), 'light')
     createSilhouetteImageData(lightImage)
-    expect(drawCalls.at(-1)).toMatchObject({
+    expect(drawCalls[0]).toMatchObject({
       call: 'fill',
       colour: SILHOUETTE_PALETTES.light.civil,
     })
@@ -172,14 +175,13 @@ describe('createSilhouetteImageData', () => {
     expect(context.translate).toHaveBeenCalledWith(side / 2, side / 2)
   })
 
-  it('fits the bounding circle inside the outline, with a 1 CSS px outline', () => {
+  it('fits the bounding circle inside a 1 CSS px margin, with a half-pixel detail line', () => {
     createSilhouetteImageData(silhouetteImageId('type:A320', 'civil'), 1)
     const side = silhouetteIconSizePx('type:A320')
     const silhouette = silhouetteForShape('type:A320')!
     const metresToPx = (side - 2) / (2 * silhouette.boundingRadius)
     expect(context.scale).toHaveBeenCalledWith(metresToPx, metresToPx)
-    // A 2px stroke centred on the edge leaves 1px outside the body.
-    expect(context.lineWidth).toBeCloseTo(2 / metresToPx)
+    expect(context.lineWidth).toBeCloseTo(0.5 / metresToPx)
   })
 
   it.each([

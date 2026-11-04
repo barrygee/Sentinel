@@ -1,8 +1,9 @@
 /**
  * Turns silhouettes into MapLibre map images, on demand.
  *
- * Each image is named for exactly what it draws — shape and colour, e.g.
- * `aircraft-silhouette:type:A321:military` — so the map can ask for one by name
+ * Each image is named for exactly what it draws — shape, colour and whether it
+ * is the selected aircraft, e.g. `aircraft-silhouette:type:A321:military` or
+ * `aircraft-silhouette:type:A321:civil:selected` — so the map can ask for one by name
  * from a feature property, and a `styleimagemissing` handler can rebuild any
  * name it is handed. Only the shapes and colours actually on screen are ever
  * rasterised; a style reload simply asks for them again.
@@ -26,11 +27,21 @@ import { AIRCRAFT_TYPE_DIMENSIONS } from '@sentinel/map-kit/aircraft-silhouettes
 /** The three states an aircraft is coloured by, everywhere in the Air section. */
 export type SilhouetteColourKey = 'civil' | 'military' | 'emergency'
 
-/** Body colour per state on the dark map — the same values the arrows, trails and labels use. */
-export const SILHOUETTE_COLOURS: Readonly<Record<SilhouetteColourKey, string>> = {
+/** Colour per state for arrow mode, whose arrows, trails and labels all share these. */
+export const ARROW_COLOURS: Readonly<Record<SilhouetteColourKey, string>> = {
   civil: '#00aaff',
   military: '#c8ff00',
   emergency: '#ff2222',
+}
+
+/**
+ * Body colour per state on the dark map. Civil traffic is a slightly dimmed
+ * white, which leaves full white for the selected aircraft and colour for the
+ * states that need attention.
+ */
+export const SILHOUETTE_COLOURS: Readonly<Record<SilhouetteColourKey, string>> = {
+  ...ARROW_COLOURS,
+  civil: '#d9dcdf',
 }
 
 /**
@@ -39,23 +50,53 @@ export const SILHOUETTE_COLOURS: Readonly<Record<SilhouetteColourKey, string>> =
  */
 export type SilhouettePalette = 'dark' | 'light'
 
-/** Body colours per palette. The light map's military olive is its overlay accent. */
+/**
+ * Body colours per palette. The light map's civil grey is dark enough to read
+ * on cream land. Military keeps the app's lime on both maps; on the light one
+ * its black detail line is what holds the shape against the land.
+ */
 export const SILHOUETTE_PALETTES: Readonly<
   Record<SilhouettePalette, Readonly<Record<SilhouetteColourKey, string>>>
 > = {
   dark: SILHOUETTE_COLOURS,
   light: {
-    civil: '#1e88e5',
-    military: '#4d6600',
+    civil: '#4b5057',
+    military: SILHOUETTE_COLOURS.military,
     emergency: '#c40000',
   },
 }
 
-/** Outline colour: black keeps a silhouette readable over imagery and terrain. */
-const OUTLINE_COLOUR = '#000000'
+/**
+ * Body colour of the selected civil aircraft per palette: the strongest colour
+ * the map can take. Military and emergency aircraft keep their state colour
+ * when selected, because that colour is what they are there to show.
+ */
+export const SILHOUETTE_SELECTED_CIVIL_COLOURS: Readonly<Record<SilhouettePalette, string>> = {
+  dark: '#ffffff',
+  light: '#0e1013',
+}
 
-/** Outline thickness around the body, in CSS pixels. */
+/**
+ * The faint line tracing each part of an aircraft (wings, tail, engines) per
+ * palette. Black on both maps, a little stronger on the dark map's pale bodies.
+ */
+export const SILHOUETTE_DETAIL_COLOURS: Readonly<Record<SilhouettePalette, string>> = {
+  dark: 'rgba(0, 0, 0, 0.8)',
+  light: 'rgba(0, 0, 0, 0.7)',
+}
+
+/** Width of that line, in CSS pixels. */
+export const SILHOUETTE_DETAIL_WIDTH_PX = 0.5
+
+/** Margin kept around the body inside its image, in CSS pixels. */
 export const SILHOUETTE_OUTLINE_WIDTH_PX = 1
+
+/**
+ * How far the body is thickened past its outline, in CSS pixels. Enough for
+ * thin parts (wing tips, tailplanes) to read at icon size; much more closes
+ * the gaps between parts and the aircraft turns into a blob.
+ */
+export const SILHOUETTE_BODY_SPREAD_PX = 0.4
 
 /** Image size, in CSS pixels, given to a shape key that names no known drawing. */
 export const SILHOUETTE_FALLBACK_ICON_PX = 32
@@ -82,6 +123,9 @@ export function silhouetteImageId(shapeKey: string, colourKey: SilhouetteColourK
   return `${SILHOUETTE_IMAGE_PREFIX}${shapeKey}:${colourKey}`
 }
 
+/** Segment the map layer adds to the selected aircraft's image name. */
+export const SILHOUETTE_SELECTED_SUFFIX = ':selected'
+
 /** A feature's image name with the palette suffix the map layer adds to it. */
 export function silhouetteImageIdForPalette(imageId: string, palette: SilhouettePalette): string {
   return `${imageId}:${palette}`
@@ -98,14 +142,15 @@ function isPalette(value: string): value is SilhouettePalette {
 }
 
 /**
- * Split an image name back into its shape, colour and palette. A name with no
- * palette suffix is the dark map's.
+ * Split an image name back into its shape, colour, selection and palette. A
+ * name with no palette suffix is the dark map's.
  *
  * @returns `null` for a name that is not a well-formed silhouette image name.
  */
 export function parseSilhouetteImageId(imageId: string): {
   shapeKey: string
   colourKey: SilhouetteColourKey
+  selected: boolean
   palette: SilhouettePalette
 } | null {
   if (!imageId.startsWith(SILHOUETTE_IMAGE_PREFIX)) return null
@@ -117,11 +162,13 @@ export function parseSilhouetteImageId(imageId: string): {
     palette = lastSegment
     remainder = remainder.slice(0, paletteSeparator)
   }
+  const selected = remainder.endsWith(SILHOUETTE_SELECTED_SUFFIX)
+  if (selected) remainder = remainder.slice(0, -SILHOUETTE_SELECTED_SUFFIX.length)
   const colourSeparator = remainder.lastIndexOf(':')
   if (colourSeparator <= 0) return null
   const colourKey = remainder.slice(colourSeparator + 1)
   if (!isColourKey(colourKey)) return null
-  return { shapeKey: remainder.slice(0, colourSeparator), colourKey, palette }
+  return { shapeKey: remainder.slice(0, colourSeparator), colourKey, selected, palette }
 }
 
 /** What one shape key draws: its outline and whether it turns with the track. */
@@ -199,9 +246,9 @@ export function silhouetteRotatesWithTrack(shapeKey: string): boolean {
  * Rasterise one silhouette image for `map.addImage`.
  *
  * Drawn at `pixelRatio` × the icon size and registered with the same pixel
- * ratio, so it stays sharp on high-density screens. The outline is the shape
- * filled and stroked in black first, then filled in colour on top, so parts
- * that overlap (wing over fuselage) never show a seam.
+ * ratio, so it stays sharp on high-density screens. The body is filled and
+ * stroked in one colour, which gives it its weight; a faint line then traces
+ * every part, which is what shows the engines and wings within it.
  *
  * @param imageId - A name from {@link silhouetteImageId}.
  * @param pixelRatio - Device pixels per CSS pixel to draw at.
@@ -227,13 +274,18 @@ export function createSilhouetteImageData(imageId: string, pixelRatio = 2): Imag
   context.translate(canvasSide / 2, canvasSide / 2)
   context.scale(metresToDevicePx, metresToDevicePx)
   context.lineJoin = 'round'
-  context.lineWidth = (2 * outlineDevicePx) / metresToDevicePx
-  context.fillStyle = OUTLINE_COLOUR
-  context.strokeStyle = OUTLINE_COLOUR
+  const bodyColour =
+    parsed.selected && parsed.colourKey === 'civil'
+      ? SILHOUETTE_SELECTED_CIVIL_COLOURS[parsed.palette]
+      : SILHOUETTE_PALETTES[parsed.palette][parsed.colourKey]
+  context.lineWidth = (2 * SILHOUETTE_BODY_SPREAD_PX * pixelRatio) / metresToDevicePx
+  context.fillStyle = bodyColour
+  context.strokeStyle = bodyColour
   context.fill(outline)
   context.stroke(outline)
-  context.fillStyle = SILHOUETTE_PALETTES[parsed.palette][parsed.colourKey]
-  context.fill(outline)
+  context.lineWidth = (SILHOUETTE_DETAIL_WIDTH_PX * pixelRatio) / metresToDevicePx
+  context.strokeStyle = SILHOUETTE_DETAIL_COLOURS[parsed.palette]
+  context.stroke(outline)
 
   return context.getImageData(0, 0, canvasSide, canvasSide)
 }

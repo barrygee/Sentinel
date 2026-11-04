@@ -4,6 +4,7 @@ import { axe } from 'jest-axe'
 import SilhouetteExample from './SilhouetteExample.vue'
 import {
   SILHOUETTE_COLOURS,
+  SILHOUETTE_DETAIL_COLOURS,
   silhouetteForShape,
   silhouetteIconSizePx,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
@@ -17,12 +18,20 @@ describe('SilhouetteExample', () => {
     expect(svg.attributes('height')).toBe(sizePx)
   })
 
-  it('draws the black outline under the body in the civil colour', () => {
+  it('draws the body in the civil colour with the faint detail line', () => {
     const wrapper = mount(SilhouetteExample, { props: { shapeKey: 'type:A320' } })
-    const [outline, body] = wrapper.findAll('path')
+    const [body, detail] = wrapper.findAll('path')
     const pathData = silhouetteForShape('type:A320')!.pathData
-    expect(outline!.attributes()).toMatchObject({ d: pathData, fill: '#000000', stroke: '#000000' })
-    expect(body!.attributes()).toMatchObject({ d: pathData, fill: SILHOUETTE_COLOURS.civil })
+    expect(body!.attributes()).toMatchObject({
+      d: pathData,
+      fill: SILHOUETTE_COLOURS.civil,
+      stroke: SILHOUETTE_COLOURS.civil,
+    })
+    expect(detail!.attributes()).toMatchObject({
+      d: pathData,
+      fill: 'none',
+      stroke: SILHOUETTE_DETAIL_COLOURS.dark,
+    })
   })
 
   it('turns the aircraft to its track', () => {

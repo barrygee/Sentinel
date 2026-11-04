@@ -46,6 +46,7 @@ import {
   silhouetteImageId,
   silhouetteRotatesWithTrack,
   SILHOUETTE_IMAGE_PREFIX,
+  SILHOUETTE_SELECTED_SUFFIX,
   type SilhouettePalette,
   SILHOUETTE_ZOOMED_IN_SCALE,
   SILHOUETTE_ZOOMED_IN_THRESHOLD,
@@ -99,6 +100,12 @@ interface AircraftProperties {
   /** 1 when the silhouette turns with the track; 0 for a side-view shape (a balloon). */
   silhouetteRotates: 0 | 1
 }
+
+/** The layer that dims the dark map beneath the silhouettes (see `_applyMapDimming`). */
+const MAP_DIM_LAYER_ID = 'adsb-map-dim'
+
+/** Black at this opacity matches the stylesheet's `brightness(0.65)`. */
+const MAP_DIM_OPACITY = 0.35
 
 /** Pixel gap between a silhouette's edge and its label. */
 const SILHOUETTE_LABEL_GAP_PX = 3
@@ -192,7 +199,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _snapshotLifetimeMs = 0
   private _interpolatedFeatures: AircraftGeoFeature[] | null = null
 
-  _selectedHex: string | null = null
+  private _selectedHexValue: string | null = null
+
+  get _selectedHex(): string | null {
+    return this._selectedHexValue
+  }
+
+  /** Setting this repaints the silhouettes, because the selected one is drawn in its own colour. */
+  set _selectedHex(hex: string | null) {
+    if (hex === this._selectedHexValue) return
+    this._selectedHexValue = hex
+    if (this._iconStyle === 'silhouette' && this.map?.getLayer('adsb-icons'))
+      this.map.setLayoutProperty('adsb-icons', 'icon-image', this._iconImageExpression())
+  }
+
   /**
    * Which way the selected tag faced when it was placed. Its anchor is fixed
    * then (a MapLibre marker's can't change), so when the aircraft turns to
@@ -515,6 +535,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   onRemove(): void {
     this._stopPolling()
+    // Back to the stylesheet's filter, for whatever uses this map next.
+    if (this.map) this.map.getCanvas().style.filter = ''
     // Don't deactivate — keep the onUntrack callback so untracking from another
     // section clears adsbTracking in localStorage. _handleUntrack guards all map ops.
     if (this._onTagFieldsChanged) {
@@ -599,8 +621,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
   /** Which map image each aircraft gets: its silhouette, or the arrow-mode symbol. */
   private _iconImageExpression(): maplibregl.ExpressionSpecification {
     return this._preferSilhouette<maplibregl.ExpressionSpecification>(
-      // The feature names its shape and colour; the palette is the map's.
-      ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
+      // The feature names its shape and colour; selection and the palette are the map's.
+      this._selectedHex
+        ? [
+            'concat',
+            ['get', 'silhouetteImage'],
+            ['case', ['==', ['get', 'hex'], this._selectedHex], SILHOUETTE_SELECTED_SUFFIX, ''],
+            `:${this._silhouettePalette}`,
+          ]
+        : ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
       [
         'case',
         ['==', ['get', 'category'], 'C1'],
@@ -666,6 +695,24 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   /**
+   * Keep silhouettes at full brightness on the dark map. `MapLibreMap.vue` dims
+   * the whole canvas with a CSS filter, which would cap a white aircraft at mid
+   * grey; here the same dimming comes from a layer just under the aircraft
+   * instead, so everything else on the map looks as it did. Arrow mode and the
+   * light map keep the stylesheet's behaviour.
+   */
+  private _applyMapDimming(): void {
+    const dimBelowAircraft = this._iconStyle === 'silhouette' && this._silhouettePalette === 'dark'
+    this.map.getCanvas().style.filter = dimBelowAircraft ? 'none' : ''
+    if (this.map.getLayer(MAP_DIM_LAYER_ID))
+      this.map.setLayoutProperty(
+        MAP_DIM_LAYER_ID,
+        'visibility',
+        dimBelowAircraft ? 'visible' : 'none',
+      )
+  }
+
+  /**
    * Whether the `adsb-icons` symbol layer is shown outside isolation mode.
    * Arrow mode hides it — each label's own arrow marks the aircraft — while
    * silhouette mode is drawn by it.
@@ -689,6 +736,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setLayoutProperty('adsb-icons', 'icon-size', this._iconSizeExpression())
       this.map.setLayoutProperty('adsb-icons', 'icon-rotate', this._iconRotateExpression())
     }
+    this._applyMapDimming()
     this._applyTypeFilter()
     this._hideHoverTagNow()
     this._clearCallsignMarkers()
@@ -701,11 +749,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
   initLayers(): void {
     const layerVisibility = this.visible ? 'visible' : 'none'
     this._silhouettePalette = isBrightBasemap() ? 'light' : 'dark'
-    ;['adsb-icons', 'adsb-hit', 'adsb-bracket', 'adsb-trail-dots', 'adsb-trail-line'].forEach(
-      (id) => {
-        if (this.map.getLayer(id)) this.map.removeLayer(id)
-      },
-    )
+    ;[
+      'adsb-icons',
+      'adsb-hit',
+      'adsb-bracket',
+      'adsb-trail-dots',
+      'adsb-trail-line',
+      MAP_DIM_LAYER_ID,
+    ].forEach((id) => {
+      if (this.map.getLayer(id)) this.map.removeLayer(id)
+    })
+    this.map.addLayer({
+      id: MAP_DIM_LAYER_ID,
+      type: 'background',
+      paint: { 'background-color': '#000000', 'background-opacity': MAP_DIM_OPACITY },
+    })
+    this._applyMapDimming()
 
     if (this._hoverHideTimer) {
       clearTimeout(this._hoverHideTimer)
@@ -2581,6 +2640,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _raiseLayers(): void {
     if (!this.map) return
     try {
+      if (this.map.getLayer(MAP_DIM_LAYER_ID)) this.map.moveLayer(MAP_DIM_LAYER_ID)
       if (this.map.getLayer('adsb-trail-line')) this.map.moveLayer('adsb-trail-line')
       if (this.map.getLayer('adsb-trail-dots')) this.map.moveLayer('adsb-trail-dots')
       if (this.map.getLayer('adsb-bracket')) this.map.moveLayer('adsb-bracket')
