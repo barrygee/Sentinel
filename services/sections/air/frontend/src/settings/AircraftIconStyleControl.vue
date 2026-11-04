@@ -8,17 +8,10 @@
  * The map redraws as the choice moves (the store change reaches the ADS-B
  * control through AirMap's watcher) while the persisted write waits for APPLY
  * CHANGES, like every other staged setting.
- *
- * Each option shows an example above its name: an arrow label for ARROW; for
- * SILHOUETTE, an airliner at the size the map draws it, with its callsign as
- * on hover.
  */
 import BaseSegmentedSetting from '@sentinel/ui/base/BaseSegmentedSetting.vue'
 import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
 import { AIRCRAFT_ICON_STYLE_SETTING, useAirStore, type AircraftIconStyle } from '../stores/air'
-import AircraftIconExampleTile from './aircraft-icon-examples/AircraftIconExampleTile.vue'
-import ArrowLabelExample from './aircraft-icon-examples/ArrowLabelExample.vue'
-import SilhouetteExample from './aircraft-icon-examples/SilhouetteExample.vue'
 
 const airStore = useAirStore()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
@@ -44,24 +37,5 @@ const { value, applyChange } = useStagedSetting<AircraftIconStyle>({
     :options="OPTIONS"
     accessible-name="Aircraft icons"
     @update:model-value="applyChange($event)"
-  >
-    <template #option="{ option }">
-      <span class="aircraft-icon-option">
-        <AircraftIconExampleTile>
-          <ArrowLabelExample v-if="option.value === 'arrow'" />
-          <SilhouetteExample v-else shape-key="type:A320" :track-deg="60" callsign="BAW123" />
-        </AircraftIconExampleTile>
-        {{ option.label }}
-      </span>
-    </template>
-  </BaseSegmentedSetting>
+  />
 </template>
-
-<style scoped>
-.aircraft-icon-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-</style>

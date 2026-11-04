@@ -24,30 +24,19 @@ async function mountControl() {
   return wrapper
 }
 
-/** The radios' accessible names: their text with the hidden examples left out. */
-function radioNames(wrapper: Awaited<ReturnType<typeof mountControl>>) {
-  return wrapper.findAll('[role="radio"]').map((radio) => {
-    const copy = radio.element.cloneNode(true) as HTMLElement
-    copy.querySelectorAll('[aria-hidden="true"]').forEach((hidden) => hidden.remove())
-    return copy.textContent?.trim()
-  })
-}
-
 describe('AircraftIconStyleControl', () => {
   it('offers ARROW and SILHOUETTE, named for the setting', async () => {
     const wrapper = await mountControl()
     expect(wrapper.find('[role="radiogroup"]').attributes('aria-label')).toBe('Aircraft icons')
-    expect(radioNames(wrapper)).toEqual(['ARROW', 'SILHOUETTE'])
+    expect(wrapper.findAll('[role="radio"]').map((radio) => radio.text())).toEqual([
+      'ARROW',
+      'SILHOUETTE',
+    ])
   })
 
-  it('shows an example on each option', async () => {
+  it('shows plain options, with no example drawings', async () => {
     const wrapper = await mountControl()
-    const [arrow, silhouette] = wrapper.findAll('[role="radio"]')
-    // ARROW: a label with its arrow.
-    expect(arrow!.find('.adsb-label-name').text()).toBe('BAW123')
-    // SILHOUETTE: one airliner, with its callsign as on hover.
-    expect(silhouette!.findAll('svg')).toHaveLength(1)
-    expect(silhouette!.find('.silhouette-example-callsign').text()).toBe('BAW123')
+    expect(wrapper.find('svg').exists()).toBe(false)
   })
 
   it('selects the store’s current style', async () => {
