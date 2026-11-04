@@ -12,6 +12,14 @@
                     "automatic_https": { "disable": true },
                     "routes": [
                         {
+                            "match": [{ "path": ["/api/sdr/recordings/stop"] }],
+                            "handle": [{ "handler": "request_body", "max_size": 4295032832 }]
+                        },
+                        {
+                            "match": [{ "not": [{ "path": ["/api/sdr/recordings/stop"] }] }],
+                            "handle": [{ "handler": "request_body", "max_size": 16777216 }]
+                        },
+                        {
                             "match": [{ "path": ["/internal", "/internal/*"] }],
                             "handle": [
                                 {
@@ -77,6 +85,9 @@
                     "automatic_https": { "disable": true },
                     "tls_connection_policies": [{ "default_sni": "gateway" }],
                     "routes": [
+                        {
+                            "handle": [{ "handler": "request_body", "max_size": 16777216 }]
+                        },
                         {
                             "@id": "service_entrypoint_paths",
                             "match": [

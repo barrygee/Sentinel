@@ -124,7 +124,9 @@ class TestGenerate:
         setup.generate(tmp_path)
         config = _read_config(tmp_path)
         assert config["port"] == 4222
-        assert config["http_port"] == 8222
+        # Loopback only: a decoder must not reach the monitor, which is unauthenticated.
+        assert config["http"] == "127.0.0.1:8222"
+        assert "http_port" not in config
         assert config["tls"] == {
             "cert_file": "/etc/nats-sentinel/certificate.pem",
             "key_file": "/etc/nats-sentinel/private-key.pem",

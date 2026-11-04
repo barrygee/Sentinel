@@ -73,7 +73,7 @@ ARG SENTINEL_RUNTIME_GROUP_ID=1000
 RUN groupadd --gid "${SENTINEL_RUNTIME_GROUP_ID}" sentinel \
     && useradd --uid "${SENTINEL_RUNTIME_USER_ID}" --gid sentinel --create-home --shell /usr/sbin/nologin sentinel
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /uvx /bin/
 COPY --from=pmtiles-fetcher /usr/local/bin/pmtiles /usr/local/bin/pmtiles
 
 # uv's own settings (the names are uv's): how long a package download may take,

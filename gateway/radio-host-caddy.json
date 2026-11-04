@@ -18,6 +18,9 @@
                     ],
                     "routes": [
                         {
+                            "handle": [{ "handler": "request_body", "max_size": 16777216 }]
+                        },
+                        {
                             "handle": [
                                 {
                                     "handler": "reverse_proxy",
