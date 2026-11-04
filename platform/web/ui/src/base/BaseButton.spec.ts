@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
@@ -102,6 +104,95 @@ describe('BaseButton', () => {
     )
   })
 
+  describe('size', () => {
+    it.each(['compact', 'fitted'] as const)('adds the ba-btn--size-%s class', (size) => {
+      const wrapper = mount(BaseButton, { props: { size } })
+      expect(wrapper.get('button').classes()).toContain(`ba-btn--size-${size}`)
+    })
+
+    it('adds no size class when left at the default', () => {
+      const unset = mount(BaseButton).get('button').classes()
+      const explicit = mount(BaseButton, { props: { size: 'default' } })
+        .get('button')
+        .classes()
+      expect(unset.filter((name) => name.includes('--size-'))).toEqual([])
+      expect(explicit.filter((name) => name.includes('--size-'))).toEqual([])
+    })
+
+    it.each(['rail', 'ghost', 'primary', 'danger'] as const)(
+      'combines with the %s variant',
+      (variant) => {
+        const classes = mount(BaseButton, { props: { variant, size: 'compact' } })
+          .get('button')
+          .classes()
+        expect(classes).toEqual(
+          expect.arrayContaining([`ba-btn--${variant}`, 'ba-btn--size-compact']),
+        )
+      },
+    )
+
+    it('applies to the link form too', () => {
+      const wrapper = mount(BaseButton, { props: { href: '/docs', size: 'compact' } })
+      expect(wrapper.get('a').classes()).toContain('ba-btn--size-compact')
+    })
+  })
+
+  describe('color', () => {
+    it.each(['strong', 'muted'] as const)('adds the ba-btn--color-%s class', (color) => {
+      const wrapper = mount(BaseButton, { props: { color } })
+      expect(wrapper.get('button').classes()).toContain(`ba-btn--color-${color}`)
+    })
+
+    it('adds no colour class when left at the default', () => {
+      const unset = mount(BaseButton).get('button').classes()
+      const explicit = mount(BaseButton, { props: { color: 'default' } })
+        .get('button')
+        .classes()
+      expect(unset.filter((name) => name.includes('--color-'))).toEqual([])
+      expect(explicit.filter((name) => name.includes('--color-'))).toEqual([])
+    })
+
+    it('keeps an inline hook alongside the colour class, so a one-off can still win', () => {
+      const wrapper = mount(BaseButton, {
+        props: { color: 'strong' },
+        attrs: { style: '--ba-ghost-color: red' },
+      })
+      const button = wrapper.get('button')
+      expect(button.classes()).toContain('ba-btn--color-strong')
+      expect(button.attributes('style')).toContain('--ba-ghost-color: red')
+    })
+  })
+
+  describe('modifier stylesheet', () => {
+    const componentSource = readFileSync(resolve(process.cwd(), 'src/base/BaseButton.vue'), 'utf8')
+
+    function ruleBody(selector: string): string {
+      const ruleStart = componentSource.lastIndexOf(`\n${selector} {`)
+      expect(ruleStart, selector).toBeGreaterThan(-1)
+      return componentSource.slice(ruleStart, componentSource.indexOf('}', ruleStart))
+    }
+
+    it.each([
+      ['.ba-btn--size-compact', '--ba-ghost-height: 28px'],
+      ['.ba-btn--size-compact', '--ba-primary-height: 28px'],
+      ['.ba-btn--size-compact', '--ba-danger-height: 28px'],
+      ['.ba-btn--size-compact', '--ba-rail-height: 30px'],
+      ['.ba-btn--size-fitted', '--ba-ghost-height: auto'],
+      ['.ba-btn--size-fitted', '--ba-primary-height: auto'],
+      ['.ba-btn--size-fitted', '--ba-danger-height: auto'],
+      ['.ba-btn--color-strong', '--ba-ghost-color: var(--ink-strong)'],
+      ['.ba-btn--color-muted', '--ba-ghost-hover-color: var(--ink)'],
+    ])('%s sets %s', (selector, declaration) => {
+      expect(ruleBody(selector)).toContain(declaration)
+    })
+
+    it('keeps both sizes at the 24px minimum target', () => {
+      const floorRule = ruleBody('.ba-btn--size-compact,\n.ba-btn--size-fitted')
+      expect(floorRule).toContain('min-height: 24px')
+      expect(floorRule).toContain('min-width: 24px')
+    })
+  })
+
   describe('as a link (href)', () => {
     it('renders an <a> with the href instead of a <button>', () => {
       const wrapper = mount(BaseButton, {
@@ -157,6 +248,16 @@ describe('BaseButton', () => {
 
   it('has no accessibility violations with visible text content', async () => {
     const wrapper = mount(BaseButton, { slots: { default: 'Apply changes' } })
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+
+  it.each([
+    ['compact', 'strong'],
+    ['fitted', 'muted'],
+  ] as const)('has no accessibility violations at size %s, colour %s', async (size, color) => {
+    const wrapper = mount(BaseButton, { props: { size, color }, slots: { default: 'Save' } })
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()

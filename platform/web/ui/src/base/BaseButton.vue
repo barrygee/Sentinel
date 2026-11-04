@@ -7,6 +7,21 @@
 export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
 
 /**
+ * Named sizes, each backed by a recurring hand-tuned override in the app (see
+ * `BaseButtonProps.size`). `'default'` adds nothing, so the variant's own
+ * sizing applies untouched.
+ */
+export type BaseButtonSize = 'default' | 'compact' | 'fitted'
+
+/**
+ * Token-backed text colours that clear AA contrast in BOTH themes on the
+ * panel canvas, `--surface` and `--surface-raised`, at rest and on hover (see
+ * `BaseButtonProps.color`). `'default'` adds nothing. Deliberately a closed
+ * union, not a free string, so contrast stays controlled.
+ */
+export type BaseButtonColor = 'default' | 'strong' | 'muted'
+
+/**
  * `BaseButton` — the generic button atom underlying every icon-rail, ghost,
  * primary, and danger button in the app. Extracted from (not a rewrite of)
  * the button CSS copy-pasted across `AirSideMenu.vue`, `SpaceSideMenu.vue`,
@@ -35,13 +50,38 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  *   they stay on their own scoped CSS rather than being forced into this
  *   variant.
  *
- * Callers needing a pixel-exact deviation from a variant's default sizing or
- * hover/active colour (e.g. MapSidebar's shorter, differently-tinted FILTER
- * sub-tabs, which also sit on a solid panel background instead of the rail's
- * transparent default) override the relevant CSS custom property via an
- * inline `style` binding rather than the component growing more props for
- * every one-off; see `MapSidebar.vue` for a real rail example. Each variant's
- * hooks:
+ * Common looks are chosen with props, not CSS: `size` and `color` (below) map
+ * onto the same `--ba-*` hooks the variants read, so there is ONE styling
+ * path. Each prop only adds a modifier class (nothing when left at
+ * `'default'`), and that class does nothing but set the hooks.
+ * - `size`: `'default'` | `'compact'` (28px tall, 10px type — the SDR groups /
+ *   panel buttons, the docs code-block copy button; rail: 30px tall, as
+ *   MapZoomButtons) | `'fitted'` (height from content, `8px 16px` padding,
+ *   10px type — the Settings panel's bar buttons, `SdrHostDeviceAddButton`).
+ *   Both sized looks keep a target of at least 24x24 CSS px (WCAG 2.5.8).
+ *   Affects every variant; `'fitted'` is not defined for `rail` and leaves it
+ *   unchanged.
+ * - `color`: `'default'` | `'strong'` (full-strength `--ink-strong` text,
+ *   unchanged on hover — SdrGroupsTab, SDR panel, docs code block) |
+ *   `'muted'` (`rgba(var(--ink-rgb), 0.7)` text that darkens to `--ink` on
+ *   hover — the "secondary" ghost actions in the SDR settings). Ghost only:
+ *   `primary` is always the brand lime on `--accent-ink`, `danger` is always
+ *   danger red, and `rail` follows `--rail-ink`/`--accent-text`, so `color` is
+ *   ignored there. Not offered: amber "warn" (`--warn-text` on `--warn-soft`,
+ *   used by SpaceTleDatabaseControl's confirm state) and `--danger-strong`
+ *   text (three sdr-manager-local panels) — both have tokens but fail AA in
+ *   the dark theme (and amber also in light), so they stay one-off inline
+ *   overrides. `--ink-secondary` was also rejected for `muted`: 3.6-4.0:1 in
+ *   the light theme.
+ *
+ * The inline hooks stay as the escape hatch for a true one-off (a pixel-exact
+ * deviation, e.g. MapSidebar's shorter, differently-tinted FILTER sub-tabs on
+ * a solid panel background). An inline `style` binding always wins over the
+ * props, because the props only set the same custom properties from a class
+ * on the button itself. A prop DOES override a hook inherited from an
+ * ancestor's stylesheet rule, since the class sets it on the element — so
+ * don't combine a prop with an ancestor-supplied hook for the same property.
+ * Each variant's hooks:
  * - `rail`: `--ba-rail-height`, `--ba-rail-bg`, `--ba-rail-hover-bg`,
  *   `--ba-rail-active-bg`.
  * - `ghost`: `--ba-ghost-height`, `--ba-ghost-padding`, `--ba-ghost-font-size`,
@@ -62,7 +102,8 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  *   `#settings-apply-btn` look). Inside the Settings panel, `SettingsPanel.css`
  *   sizes every ghost/primary/danger button (bar APPLY CHANGES) to match the
  *   segmented pickers.
- * - `danger`: `--ba-danger-bg`, `--ba-danger-color` — e.g.
+ * - `danger`: `--ba-danger-height`, `--ba-danger-padding`,
+ *   `--ba-danger-font-size`, `--ba-danger-bg`, `--ba-danger-color` — e.g.
  *   `SpaceTleDatabaseControl.vue`'s CLEAR ALL button, which swaps to an amber
  *   "confirm this?" tint while a destructive action is pending (hover keeps
  *   the plain danger red, matching the pre-BaseButton CSS's cascade).
@@ -75,6 +116,18 @@ export type BaseButtonVariant = 'rail' | 'ghost' | 'primary' | 'danger'
  */
 interface BaseButtonProps {
   variant?: BaseButtonVariant
+  /**
+   * Named size. Sets the variant's `--ba-*-height/-padding/-font-size` hooks
+   * (rail: `--ba-rail-height`) and a 24px minimum target. Defaults to
+   * `'default'`, which leaves the variant's own sizing unchanged.
+   */
+  size?: BaseButtonSize
+  /**
+   * Named text colour for the `ghost` variant (ignored by the others — see the
+   * component doc for why and for the colours deliberately left out).
+   * Defaults to `'default'`, which leaves the variant's own colour unchanged.
+   */
+  color?: BaseButtonColor
   /**
    * Rail-only. Adds the left accent border and a faint accent background
    * tint while `active` (Settings panel's section nav) instead of the plain
@@ -97,6 +150,8 @@ interface BaseButtonProps {
 
 withDefaults(defineProps<BaseButtonProps>(), {
   variant: 'ghost',
+  size: 'default',
+  color: 'default',
   bordered: false,
   active: false,
   disabled: false,
@@ -111,6 +166,8 @@ withDefaults(defineProps<BaseButtonProps>(), {
     class="ba-btn"
     :class="[
       `ba-btn--${variant}`,
+      size === 'default' ? undefined : `ba-btn--size-${size}`,
+      color === 'default' ? undefined : `ba-btn--color-${color}`,
       { 'ba-btn--active': active, 'ba-btn--bordered': bordered && variant === 'rail' },
     ]"
     :href="href"
@@ -229,10 +286,10 @@ withDefaults(defineProps<BaseButtonProps>(), {
   background: var(--ba-danger-bg, rgba(var(--danger-wash-rgb), 0.1));
   border: none;
   border-radius: 6px;
-  height: 37px;
-  padding: 0 18px;
+  height: var(--ba-danger-height, 37px);
+  padding: var(--ba-danger-padding, 0 18px);
   color: var(--ba-danger-color, var(--danger));
-  font-size: 11px;
+  font-size: var(--ba-danger-font-size, 11px);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -246,5 +303,51 @@ withDefaults(defineProps<BaseButtonProps>(), {
 .ba-btn--danger:hover:not(:disabled) {
   background: rgba(var(--danger-wash-rgb), 0.18);
   color: var(--danger-hover);
+}
+
+/* ---- size / color modifiers: only ever set the hooks above ---- */
+/* Defined after the variants but they set custom properties, not the
+   properties the variants own, so source order doesn't matter. An inline
+   `style` still beats them. */
+.ba-btn--size-compact,
+.ba-btn--size-fitted {
+  /* WCAG 2.2 SC 2.5.8 floor, whatever the label length. */
+  min-height: 24px;
+  min-width: 24px;
+}
+
+.ba-btn--size-compact {
+  --ba-rail-height: 30px;
+  --ba-ghost-height: 28px;
+  --ba-ghost-padding: 0 12px;
+  --ba-ghost-font-size: var(--settings-text-caption);
+  --ba-primary-height: 28px;
+  --ba-primary-padding: 0 12px;
+  --ba-primary-font-size: var(--settings-text-caption);
+  --ba-danger-height: 28px;
+  --ba-danger-padding: 0 12px;
+  --ba-danger-font-size: var(--settings-text-caption);
+}
+
+.ba-btn--size-fitted {
+  --ba-ghost-height: auto;
+  --ba-ghost-padding: 8px 16px;
+  --ba-ghost-font-size: var(--settings-text-caption);
+  --ba-primary-height: auto;
+  --ba-primary-padding: 8px 16px;
+  --ba-primary-font-size: var(--settings-text-caption);
+  --ba-danger-height: auto;
+  --ba-danger-padding: 8px 16px;
+  --ba-danger-font-size: var(--settings-text-caption);
+}
+
+.ba-btn--color-strong {
+  --ba-ghost-color: var(--ink-strong);
+  --ba-ghost-hover-color: var(--ink-strong);
+}
+
+.ba-btn--color-muted {
+  --ba-ghost-color: rgba(var(--ink-rgb), 0.7);
+  --ba-ghost-hover-color: var(--ink);
 }
 </style>
