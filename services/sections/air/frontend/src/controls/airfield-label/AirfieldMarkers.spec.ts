@@ -90,7 +90,7 @@ describe('AirfieldMarkers', () => {
   it('adds one image per site, a source and a symbol layer', async () => {
     const { map, asMap } = fakeMap()
     await new AirfieldMarkers(asMap, SITES, 'civil').attach()
-    expect(map.addImage).toHaveBeenCalledWith(`${CIVIL_LAYER}:0`, expect.anything(), {
+    expect(map.addImage).toHaveBeenCalledWith(`${CIVIL_LAYER}:dark:0`, expect.anything(), {
       pixelRatio: 2,
     })
     const [sourceId, source] = map.addSource.mock.calls[0] as unknown as [
@@ -130,7 +130,7 @@ describe('AirfieldMarkers', () => {
 
   it('reuses an image the map still holds', async () => {
     const { map, images, asMap } = fakeMap()
-    images.add(`${CIVIL_LAYER}:0`)
+    images.add(`${CIVIL_LAYER}:dark:0`)
     await new AirfieldMarkers(asMap, SITES, 'civil').attach()
     expect(map.addImage).toHaveBeenCalledTimes(1)
   })
@@ -146,10 +146,25 @@ describe('AirfieldMarkers', () => {
   it.each([
     ['civil', '#00aaff'],
     ['military', '#c8ff00'],
-  ] as const)('draws a %s label as a coloured dot on flat black', async (kind, dot) => {
+  ] as const)('draws a %s label with its coloured dot', async (kind, dot) => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), kind).attach()
-    expect(recorder.drawn).toContain('rect #000000')
     expect(recorder.drawn).toContain(`fill ${dot}`)
+  })
+
+  it.each([
+    ['dark', '#1a2130'],
+    ['light', '#274f60'],
+  ] as const)('fills a label for the %s map in its sea colour', async (theme, fill) => {
+    document.documentElement.dataset.mapTheme = theme
+    const { map, asMap } = fakeMap()
+    await new AirfieldMarkers(asMap, SITES.slice(0, 1), 'civil').attach()
+    delete document.documentElement.dataset.mapTheme
+    expect(recorder.drawn).toContain(`rect ${fill}`)
+    expect(map.addImage).toHaveBeenCalledWith(
+      `${CIVIL_LAYER}:${theme}:0`,
+      expect.anything(),
+      expect.anything(),
+    )
   })
 
   it('draws only the name, in capitals', async () => {
