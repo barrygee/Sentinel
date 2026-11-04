@@ -260,6 +260,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Colour aircraft by altitude and rework their labels
 - Set airfield labels apart from aircraft tags
 - Simplify airfield labels to a dot and name
+- Match airfield labels to the map's sea colour
+- Give the altitude legend the airfield labels' solid fill
 
 ### Bug Fixes
 
@@ -1731,6 +1733,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #566 from barrygee/fix/settings-apply-awaits-saves
 - Merge pull request #567 from barrygee/fix/map-description-filter-tab
 - Merge pull request #568 from barrygee/feat/silhouette-altitude-colours
+- Merge pull request #569 from barrygee/feat/airfield-label-map-colours
 
 ### Performance
 
@@ -2073,6 +2076,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the plain Aircraft Icons setting
 - Rebuild the bundle for the airfield label design
 - Rebuild the bundle for the simpler airfield labels
+- Rebuild the bundle for the airfield label colours
+- Rebuild the bundle for the solid altitude legend
 
 ### Continuous Integration
 
