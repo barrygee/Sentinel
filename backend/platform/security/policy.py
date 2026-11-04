@@ -329,6 +329,8 @@ class AccessClass(_Strict):
     description: str
     # CIDRs/addresses, or `$name` for a list from settings (see `networks.py`).
     networks: list[str] = Field(min_length=1)
+    # Addresses inside `networks` that still aren't this class.
+    excluded_networks: list[str] = Field(default_factory=list)
     # Headers that must be present (their value is checked by the route itself).
     required_headers: list[str] = Field(default_factory=list)
     # Browser checks: Sec-Fetch-Site must be one of these, or — for a browser
@@ -341,6 +343,11 @@ class AccessClass(_Strict):
     # Only requests whose Host is an IP, localhost or a SENTINEL_ALLOWED_HOSTS
     # name: the DNS-rebinding defence for what browsers call (see `hosts.py`).
     require_allowed_host: bool = False
+    # For machine callers: a request a browser's page sent (any Origin, or
+    # Sec-Fetch-Site other than `none`, a user's own navigation) is not this
+    # class. Machine clients send neither, so a hostile site can't use a LAN
+    # browser to pose as one, even by DNS rebinding.
+    refuse_browser_pages: bool = False
 
 
 class GuardPolicy(_Strict):

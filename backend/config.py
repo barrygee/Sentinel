@@ -404,6 +404,10 @@ class Settings(BaseSettings):
     # Where browsers may call from. Default: the private (RFC 1918), loopback
     # and IPv6 unique-local/link-local ranges — Sentinel is a LAN app.
     guard_client_networks: str = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10"
+    # Where containers get their addresses. These fall inside the client
+    # networks but are never browsers, so `page` and `browser` exclude them.
+    # Not the whole subnet: a browser on the Docker host arrives from its gateway.
+    guard_container_networks: str = ""
     # Other machines' Sentinel processes (a radio host's hub, a remote
     # section), by address or CIDR. They call the `service`/`internal` routes
     # over the TLS service entrypoint (:8443). Empty = none.

@@ -37,7 +37,7 @@ Nothing reaches the internet unless you switch on a feature marked "needs intern
 | `internal` | Sentinel's own containers | An address on Sentinel's Docker network, or a [service host](#radio-hosts) |
 | `service` | A Sentinel service with its credential | As `internal`, plus `Authorization: Bearer`, which the route then checks |
 | `decoder` | A decoder with its credential | As `internal` or a decoder host, plus `X-Decode-Secret`, which the route then checks |
-| `peer` | Another machine's SDR Manager | A LAN address. This machine's SDR Manager only. |
+| `peer` | Another machine's SDR Manager | A LAN address, and no sign that a web page sent it (no `Origin`, and no `Sec-Fetch-Site` other than `none`). This machine's SDR Manager only. |
 | `operator` | You, on this machine | `GUARD_OPERATOR_IPS`: API docs (`/api/docs`) and schema |
 
 The full list, route by route: [API access matrix](reference/api-access-matrix.md).
