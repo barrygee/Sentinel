@@ -41,11 +41,13 @@ import {
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
+import { trailLineGradient } from './trailLineGradient'
 import { AIRFIELD_LAYER_IDS } from '../airfield-label/AirfieldMarkers'
 import {
   altitudeColourKey,
   ARROW_COLOURS,
   createSilhouetteImageData,
+  SILHOUETTE_PALETTES,
   parseSilhouetteImageId,
   silhouetteIconSizePx,
   silhouetteSideReachPx,
@@ -164,7 +166,14 @@ interface AircraftGeoFeature {
 interface TrailGeoFeature {
   type: 'Feature'
   geometry: { type: 'Point'; coordinates: [number, number] }
-  properties: { alt: number; opacity: number; emerg: 0 | 1; military: 0 | 1; hex: string }
+  properties: {
+    alt: number
+    colour: string
+    opacity: number
+    emerg: 0 | 1
+    military: 0 | 1
+    hex: string
+  }
 }
 
 export class AdsbLiveControl implements maplibregl.IControl {
@@ -829,6 +838,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
     this.map.addSource('adsb-trail-line-source', {
       type: 'geojson',
+      // The altitude gradient along the line needs the source's line metrics.
+      lineMetrics: true,
       data: this._trailLineGeojson as GeoJSON.GeoJSON,
     })
     this.map.addLayer({
@@ -838,15 +849,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' },
       paint: {
         'line-width': 4,
-        'line-opacity': 0.35,
-        'line-color': [
-          'case',
-          ['==', ['get', 'emerg'], 1],
-          '#ff2222',
-          ['==', ['get', 'military'], 1],
-          '#c8ff00',
-          '#00aaff',
-        ] as maplibregl.ExpressionSpecification,
+        'line-opacity': 0.75,
       },
     })
     this.map.addLayer({
@@ -858,14 +861,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         'circle-radius': 2.5,
         'circle-opacity': ['get', 'opacity'],
         'circle-stroke-width': 0,
-        'circle-color': [
-          'case',
-          ['==', ['get', 'emerg'], 1],
-          '#ff2222',
-          ['==', ['get', 'military'], 1],
-          '#c8ff00',
-          '#00aaff',
-        ] as maplibregl.ExpressionSpecification,
+        'circle-color': ['get', 'colour'],
       },
     })
 
@@ -2191,6 +2187,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       { emerg: 0 | 1; military: 0 | 1; hex: string }
     >[] = []
     const showTrail = !!(hex && this._trails[hex])
+    let lineGradient: maplibregl.ExpressionSpecification | null = null
 
     if (showTrail && hex) {
       const points = this._trails[hex]
@@ -2212,6 +2209,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           geometry: { type: 'Point', coordinates: [tp.lon, tp.lat] },
           properties: {
             alt: tp.alt,
+            colour: this._trailColour(tp.alt, isEmerg),
             opacity: (i + 1) / pointCount,
             emerg: isEmerg,
             military: isMil,
@@ -2222,6 +2220,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
       const dedupedCoords = this._trailLineCoords(hex, points)
       if (dedupedCoords.length >= 2) {
+        const reported = points.map((point) => ({
+          lon: point.lon,
+          lat: point.lat,
+          colour: this._trailColour(point.alt, isEmerg),
+        }))
+        // The line runs on to the aircraft, in the colour of its latest report.
+        const [headLon, headLat] = dedupedCoords.at(-1)!
+        const head = { lon: headLon, lat: headLat, colour: reported.at(-1)!.colour }
+        lineGradient = trailLineGradient([...reported, head])
         lineFeatures.push({
           type: 'Feature',
           geometry: { type: 'LineString', coordinates: dedupedCoords },
@@ -2250,7 +2257,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
         (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource).setData(
           this._trailLineGeojson as GeoJSON.GeoJSON,
         )
+      if (lineGradient && this.map.getLayer('adsb-trail-line'))
+        this.map.setPaintProperty('adsb-trail-line', 'line-gradient', lineGradient)
     } catch (_) {}
+  }
+
+  /**
+   * A trail's colour at a stored position: the aircraft's altitude colour then,
+   * or red throughout for an emergency, as the aircraft itself is drawn. On the
+   * ground it matches the aircraft's no-altitude colour.
+   */
+  private _trailColour(altitudeFeet: number, isEmergency: 0 | 1): string {
+    if (isEmergency) return ARROW_COLOURS.emergency
+    if (altitudeFeet > 0) return altitudeColour(altitudeFeet, this._silhouettePalette)
+    return this._iconStyle === 'silhouette'
+      ? SILHOUETTE_PALETTES[this._silhouettePalette].civil
+      : ARROW_COLOURS.civil
   }
 
   /** Trail line vertices: historical reported points, then the aircraft's current interpolated position. */
