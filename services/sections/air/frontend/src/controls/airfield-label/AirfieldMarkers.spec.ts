@@ -11,7 +11,14 @@ function recordingContext() {
     fillStyle: '',
     textBaseline: '',
     scale: vi.fn(),
+    strokeStyle: '',
+    lineWidth: 0,
     beginPath: vi.fn(),
+    roundRect: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    clip: vi.fn(),
+    stroke: vi.fn(() => drawn.push(`stroke ${context.strokeStyle}`)),
     arc: vi.fn(),
     fill: vi.fn(() => drawn.push(`fill ${context.fillStyle}`)),
     fillRect: vi.fn(() => drawn.push(`rect ${context.fillStyle}`)),
@@ -111,7 +118,7 @@ describe('AirfieldMarkers', () => {
     expect(layout['icon-allow-overlap']).toBe(true)
     expect(layout['icon-ignore-placement']).toBe(true)
     expect(layout['icon-anchor']).toBe('left')
-    expect(layout['icon-offset']).toEqual([-9, 0])
+    expect(layout['icon-offset']).toEqual([-13, 0])
   })
 
   it('goes beneath the aircraft when they are already on the map', async () => {
@@ -152,6 +159,17 @@ describe('AirfieldMarkers', () => {
     expect(recorder.drawn).toContain(`rect ${block}`)
   })
 
+  it.each([
+    ['civil', '#00aaff'],
+    ['military', '#c8ff00'],
+  ] as const)('sets a %s label apart from aircraft: rounded and outlined', async (kind, accent) => {
+    await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), kind).attach()
+    expect(recorder.context.roundRect).toHaveBeenCalled()
+    expect(recorder.context.clip).toHaveBeenCalled()
+    expect(recorder.drawn.at(-1)).toBe(`stroke ${accent}`)
+    expect(recorder.drawn).not.toContain('rect #000000')
+  })
+
   it('draws the code before the name, in capitals', async () => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(0, 1), 'civil').attach()
     const texts = recorder.drawn.filter((entry) => entry.startsWith('text'))
@@ -167,8 +185,8 @@ describe('AirfieldMarkers', () => {
 
   it('pads the drawn ink evenly, not the text’s advance width', async () => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(1), 'civil').attach()
-    // Dot well 18 + padding 6 + the ink's 1px left bearing.
-    expect(recorder.drawn.find((entry) => entry.startsWith('text'))).toContain('@25')
+    // Dot well 26 + padding 10 + the ink's 1px left bearing.
+    expect(recorder.drawn.find((entry) => entry.startsWith('text'))).toContain('@37')
   })
 
   it('starts hidden, and shows when set visible', async () => {

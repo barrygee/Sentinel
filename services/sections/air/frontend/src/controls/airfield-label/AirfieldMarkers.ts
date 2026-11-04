@@ -3,10 +3,10 @@
  *
  * They follow the design of the Land map's repeaters and the aircraft tag: a dot
  * on the site, the ICAO code in a block coloured blue for civil and green for
- * military, then the name. Each is rendered to a map image rather than built as
- * an HTML marker, because HTML markers always sit above the map canvas and so
- * above every aircraft. They are a step smaller than aircraft tags, so they stay
- * in the background.
+ * military, then the name. Rounded corners, a charcoal fill and a thin coloured
+ * outline set them apart from an aircraft's square black tag at the same size.
+ * Each is rendered to a map image rather than built as an HTML marker, because
+ * HTML markers always sit above the map canvas and so above every aircraft.
  */
 import type * as maplibregl from 'maplibre-gl'
 
@@ -35,17 +35,21 @@ const KIND_COLOURS: Readonly<Record<AirfieldKind, { accent: string; block: strin
 }
 
 const FONT_FAMILY = "'Barlow Condensed', 'Barlow', sans-serif"
-const NAME_FONT = `400 10px ${FONT_FAMILY}`
-const CODE_FONT = `700 9px ${FONT_FAMILY}`
+const NAME_FONT = `400 14px ${FONT_FAMILY}`
+const CODE_FONT = `700 12px ${FONT_FAMILY}`
 
 /** Label height, and the width of the square well the dot sits in, in CSS pixels. */
-const LABEL_HEIGHT_PX = 18
-const DOT_RADIUS_PX = 3
+const LABEL_HEIGHT_PX = 26
+const DOT_RADIUS_PX = 3.5
 
-const NAME_PADDING_PX = 6
-const CODE_PADDING_PX = 5
-const NAME_LETTER_SPACING = '1.2px'
-const CODE_LETTER_SPACING = '0.5px'
+const NAME_PADDING_PX = 10
+const CODE_PADDING_PX = 7
+const NAME_LETTER_SPACING = '1.68px'
+const CODE_LETTER_SPACING = '0.6px'
+
+/** Corner radius and fill: what sets a place apart from an aircraft's square black tag. */
+const CORNER_RADIUS_PX = 6
+const LABEL_FILL = '#1a1e26'
 
 /** Drawn at this multiple of CSS pixels, so labels stay sharp on high-density screens. */
 const PIXEL_RATIO = 2
@@ -82,7 +86,15 @@ function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
   context.scale(PIXEL_RATIO, PIXEL_RATIO)
   context.textBaseline = 'middle'
 
-  context.fillStyle = '#000000'
+  // Inset half the outline's width, so the outline stays inside the image.
+  const outline = (): void => {
+    context.beginPath()
+    context.roundRect(0.5, 0.5, width - 1, LABEL_HEIGHT_PX - 1, CORNER_RADIUS_PX)
+  }
+  context.save()
+  outline()
+  context.clip()
+  context.fillStyle = LABEL_FILL
   context.fillRect(0, 0, width, LABEL_HEIGHT_PX)
   context.fillStyle = accent
   context.beginPath()
@@ -104,6 +116,12 @@ function renderLabel(site: AirfieldSite, kind: AirfieldKind): ImageData | null {
   context.letterSpacing = NAME_LETTER_SPACING
   const nameLeft = LABEL_HEIGHT_PX + codeWidth + NAME_PADDING_PX + nameInk.inkLeft
   context.fillText(name, nameLeft, LABEL_HEIGHT_PX / 2 + 0.5)
+  context.restore()
+
+  context.strokeStyle = accent
+  context.lineWidth = 1
+  outline()
+  context.stroke()
   return context.getImageData(0, 0, canvas.width, canvas.height)
 }
 
