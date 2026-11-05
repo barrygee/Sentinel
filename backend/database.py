@@ -246,6 +246,72 @@ _REMOVED_SETTING_PREFIXES: tuple[tuple[str, str], ...] = (
 )
 
 
+# Settings whose key changed: (namespace, old key, new key). The startup migration
+# moves the stored row and `apply_config` translates older documents, so a rename
+# keeps the operator's value. Add an entry here for any setting renamed.
+RENAMED_SETTINGS: tuple[tuple[str, str, str], ...] = (
+    ("sdr", "showBandPlan", "displayBandPlan"),
+    ("sdr", "showWaterfallTimestamps", "displayWaterfallTimestamps"),
+)
+
+# The same for flags inside the `air.mapLayers` object: (old key, new key).
+RENAMED_MAP_LAYERS: tuple[tuple[str, str], ...] = (("altitudeLegend", "altitudeColouring"),)
+
+
+def rename_map_layers(map_layers: dict) -> bool:
+    """Move renamed flags in an `air.mapLayers` object to their current keys.
+
+    A value already under the new key wins, as it is the more recent one.
+
+    Returns:
+        Whether anything changed.
+    """
+    changed = False
+    for old_key, new_key in RENAMED_MAP_LAYERS:
+        if old_key in map_layers:
+            map_layers.setdefault(new_key, map_layers.pop(old_key))
+            changed = True
+    return changed
+
+
+async def _migrate_renamed_settings() -> None:
+    """Move stored settings to their renamed keys, keeping their values."""
+    from backend.models import UserSettings  # avoid circular import
+
+    async with AsyncSessionLocal() as session:
+        for namespace, old_key, new_key in RENAMED_SETTINGS:
+            old_row = (
+                await session.execute(
+                    select(UserSettings).where(UserSettings.namespace == namespace, UserSettings.key == old_key)
+                )
+            ).scalar_one_or_none()
+            if old_row is None:
+                continue
+            new_row = (
+                await session.execute(
+                    select(UserSettings).where(UserSettings.namespace == namespace, UserSettings.key == new_key)
+                )
+            ).scalar_one_or_none()
+            if new_row is None:
+                old_row.key = new_key
+            else:
+                await session.delete(old_row)
+
+        layers_row = (
+            await session.execute(
+                select(UserSettings).where(UserSettings.namespace == "air", UserSettings.key == "mapLayers")
+            )
+        ).scalar_one_or_none()
+        if layers_row is not None:
+            try:
+                map_layers = json.loads(layers_row.value)
+            except (json.JSONDecodeError, TypeError):
+                map_layers = None
+            if isinstance(map_layers, dict) and rename_map_layers(map_layers):
+                layers_row.value = json.dumps(map_layers)
+        await session.commit()
+
+
 def is_removed_setting(namespace: str, key: str) -> bool:
     """True for a setting that belongs to a removed feature (see the lists above).
 
@@ -422,6 +488,8 @@ async def seed_default_settings() -> None:
         if colour_row is not None:
             colour_row.value = json.dumps("light")
             await session.commit()
+
+    await _migrate_renamed_settings()
 
     # Remove stale rows seeded by earlier versions.
     #   land: no built-in default URLs; users must configure them. (sea now

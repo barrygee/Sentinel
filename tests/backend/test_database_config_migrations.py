@@ -243,7 +243,7 @@ class TestDefaultConfigJson:
             ("air", "mapLayers"),
             ("land", "aprsChannelHz"),
             ("sdr", "snapToKnown"),
-            ("sdr", "showWaterfallTimestamps"),
+            ("sdr", "displayWaterfallTimestamps"),
             ("sdr", "waterfallTimestampIntervalSec"),
             ("sdr", "resumeDelaySec"),
             ("sdr", "recordRawIq"),
@@ -268,3 +268,92 @@ class TestDefaultConfigJson:
                     assert not db.is_removed_setting(namespace, key), (
                         f"{namespace}.{key}"
                     )
+
+
+class TestRenamedSettings:
+    """A renamed setting keeps the operator's value, in the database and in the
+    `air.mapLayers` object alike."""
+
+    async def test_a_saved_value_moves_to_the_new_key(self, session_factory):
+        await _add(
+            session_factory,
+            [
+                ("sdr", "showBandPlan", json.dumps(False)),
+                ("sdr", "showWaterfallTimestamps", json.dumps(False)),
+            ],
+        )
+        await db._migrate_renamed_settings()
+        stored = await _stored(session_factory)
+        assert stored[("sdr", "displayBandPlan")][0] == "false"
+        assert stored[("sdr", "displayWaterfallTimestamps")][0] == "false"
+        assert ("sdr", "showBandPlan") not in stored
+        assert ("sdr", "showWaterfallTimestamps") not in stored
+
+    async def test_a_value_already_under_the_new_key_wins(self, session_factory):
+        await _add(
+            session_factory,
+            [
+                ("sdr", "showBandPlan", json.dumps(False)),
+                ("sdr", "displayBandPlan", json.dumps(True)),
+            ],
+        )
+        await db._migrate_renamed_settings()
+        stored = await _stored(session_factory)
+        assert stored[("sdr", "displayBandPlan")][0] == "true"
+        assert ("sdr", "showBandPlan") not in stored
+
+    async def test_the_same_key_in_another_namespace_is_left_alone(
+        self, session_factory
+    ):
+        await _add(session_factory, [("air", "showBandPlan", json.dumps(False))])
+        await db._migrate_renamed_settings()
+        assert ("air", "showBandPlan") in await _stored(session_factory)
+
+    async def test_a_map_layer_keeps_its_value_and_its_neighbours(
+        self, session_factory
+    ):
+        layers = {"altitudeLegend": False, "airports": True}
+        await _add(session_factory, [("air", "mapLayers", json.dumps(layers))])
+        await db._migrate_renamed_settings()
+        stored = await _stored(session_factory)
+        assert json.loads(stored[("air", "mapLayers")][0]) == {
+            "altitudeColouring": False,
+            "airports": True,
+        }
+
+    async def test_map_layers_already_renamed_are_not_rewritten(self, session_factory):
+        stored_text = '{ "altitudeColouring":   false }'
+        await _add(session_factory, [("air", "mapLayers", stored_text)])
+        await db._migrate_renamed_settings()
+        assert (await _stored(session_factory))[("air", "mapLayers")][0] == stored_text
+
+    @pytest.mark.parametrize("stored_text", ["not json", "[1, 2]"])
+    async def test_unusable_map_layers_are_left_as_they_are(
+        self, session_factory, stored_text
+    ):
+        await _add(session_factory, [("air", "mapLayers", stored_text)])
+        await db._migrate_renamed_settings()
+        assert (await _stored(session_factory))[("air", "mapLayers")][0] == stored_text
+
+    async def test_running_it_twice_changes_nothing_more(self, session_factory):
+        await _add(session_factory, [("sdr", "showBandPlan", json.dumps(False))])
+        await db._migrate_renamed_settings()
+        first_pass = await _stored(session_factory)
+        await db._migrate_renamed_settings()
+        assert await _stored(session_factory) == first_pass
+
+    async def test_startup_runs_it_before_seeding_the_defaults(self, session_factory):
+        await _add(session_factory, [("sdr", "showBandPlan", json.dumps(False))])
+        await db.seed_default_settings()
+        # Seeded first, the default would have taken the new key's place.
+        assert (await _stored(session_factory))[("sdr", "displayBandPlan")][
+            0
+        ] == "false"
+
+    def test_rename_map_layers_prefers_the_new_key(self):
+        layers = {"altitudeLegend": False, "altitudeColouring": True}
+        assert db.rename_map_layers(layers) is True
+        assert layers == {"altitudeColouring": True}
+
+    def test_rename_map_layers_reports_no_change(self):
+        assert db.rename_map_layers({"airports": True}) is False

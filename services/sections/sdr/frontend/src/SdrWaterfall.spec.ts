@@ -854,7 +854,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { name: 'Air Band', startHz: 99_000_000, endHz: 101_000_000 },
       { name: 'Out Of Range', startHz: 1, endHz: 2 },
     ])
-    store.setShowBandPlan(true)
+    store.setDisplayBandPlan(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const bands = wrapper.findAll('.sdr-wf-band')
@@ -870,7 +870,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { name: '30m Amateur', startHz: 100_000_000, endHz: 100_100_000 }, // ~45px
       { name: '60m Amateur', startHz: 100_200_000, endHz: 100_250_000 }, // ~23px
     ])
-    store.setShowBandPlan(true)
+    store.setDisplayBandPlan(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
 
@@ -890,7 +890,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     settings.setSetting('sdr', 'bandPlan', [
       { name: 'Air Band', startHz: 99_000_000, endHz: 101_000_000 },
     ])
-    store.setShowBandPlan(true)
+    store.setDisplayBandPlan(true)
     await playWithFrame(store)
     store.setOwnership(false, true, true) // follower: another instance owns tuning
     await wrapper.vm.$nextTick()
@@ -1328,7 +1328,7 @@ describe('SdrWaterfall — document & sidebar events', () => {
 
   it('re-hydrates overlay flags when a config upload event fires', async () => {
     const { store } = mountWaterfall()
-    const bandSpy = vi.spyOn(store, 'hydrateShowBandPlanFromDb')
+    const bandSpy = vi.spyOn(store, 'hydrateDisplayBandPlanFromDb')
     const knownSpy = vi.spyOn(store, 'hydrateShowKnownFreqsFromDb')
     const snapSpy = vi.spyOn(store, 'hydrateSnapToKnownFromDb')
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
@@ -3145,7 +3145,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('draws nothing once the setting is switched off, so the raster stays clean', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(false)
+    store.setDisplayWaterfallTimestamps(false)
 
     await pushRows(store, 60, 10)
 
@@ -3154,7 +3154,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('labels rows on whole-second boundaries with the setting on by default', async () => {
     const { wrapper, store } = mountWaterfall()
-    expect(store.showWaterfallTimestamps).toBe(true)
+    expect(store.displayWaterfallTimestamps).toBe(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     // 300 rows 10 ms apart: ~3 s of history over a 248 px box, so a one-second
@@ -3166,7 +3166,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('spaces the labels down the box in proportion to their age', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
@@ -3181,7 +3181,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('hangs the overlay on the raster’s measured data box, not the element', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
@@ -3194,7 +3194,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('insets the overlay to the data-box left edge, not the raster element edge', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
@@ -3218,7 +3218,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('keeps one label per interval, not one per row', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     await pushRows(store, 300, 10)
@@ -3229,7 +3229,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('needs two rows before an interval exists to measure', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
 
     await pushRows(store, 1, 10)
 
@@ -3238,7 +3238,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('draws nothing when every row carries the same instant', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
 
     // A stalled clock spans no time, so there is no scale to hang labels on.
     await pushRows(store, 60, 0)
@@ -3248,7 +3248,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('honours a coarse interval from settings, however tight the rows are', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(600)
 
     // A minute per row: a ten-minute interval is only ~6 px of raster, but the
@@ -3262,7 +3262,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('keeps only the newest WF_ROWS row times, so the buffer cannot grow forever', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
 
     // 800 rows into a 400-row raster: the oldest 400 stamps must fall off with
@@ -3279,7 +3279,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
     // A very tall raster gives each row more pixels, so every boundary the
     // interval produces has room to draw — more than the limit allows.
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     const tallRaster = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientHeight')!
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
       configurable: true,
@@ -3298,7 +3298,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('ignores a mid-layout box that reports no height, keeping the last good one', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
     await pushRows(store, 300, 10)
 
@@ -3315,7 +3315,7 @@ describe('SdrWaterfall — waterfall time markers', () => {
 
   it('drops its row times when the raster history is cleared', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     store.setWaterfallTimestampIntervalSec(1)
     await pushRows(store, 300, 10)
     expect(wrapper.find('.sdr-wf-time-overlay').exists()).toBe(true)
@@ -3399,7 +3399,7 @@ describe('SdrWaterfall — waterfall per-second tick marks', () => {
 
   it('draws no ticks or markers when the waterfall timestamps setting is off', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(false)
+    store.setDisplayWaterfallTimestamps(false)
     store.setWaterfallTimestampIntervalSec(3)
     await pushRows(store, 400, 10)
     expect(wrapper.findAll('.sdr-wf-second-tick')).toHaveLength(0)
@@ -3773,11 +3773,11 @@ describe('SdrWaterfall — signal marker (hover tracking & Shift+Click pin)', ()
 
   it('never detects a signal before the waterfall timestamps setting is on', async () => {
     const { wrapper, store } = mountWaterfall()
-    store.setShowWaterfallTimestamps(false)
+    store.setDisplayWaterfallTimestamps(false)
     for (let index = 0; index < 5; index++) await pushSignalRow(store, SIGNAL_RANGE)
 
     await shiftClickAt(wrapper, 0, SIGNAL_FREQ_HZ)
-    store.setShowWaterfallTimestamps(true)
+    store.setDisplayWaterfallTimestamps(true)
     await wrapper.vm.$nextTick()
 
     // Nothing was pinned while the setting was off, so turning it back on

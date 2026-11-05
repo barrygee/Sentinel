@@ -276,7 +276,7 @@ describe('useStagedSetting', () => {
     const readFromStore = vi.fn(() => storeValue)
     const { result, unmount } = mountStagedSetting<boolean>({
       namespace: 'sdr',
-      key: 'showBandPlan',
+      key: 'displayBandPlan',
       hydrateFromDb,
       readFromStore,
       mirrorToStore: vi.fn(),

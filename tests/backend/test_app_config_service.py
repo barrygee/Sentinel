@@ -290,6 +290,38 @@ class TestApplyConfig:
         assert calls == [(None, 4)]
 
 
+class TestRenamedSettingsInADocument:
+    """An older export, or the live config file written before a rename, still
+    carries the old key: without translating it the file sync would bring it back."""
+
+    async def test_an_old_key_lands_on_the_new_one(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"sdr": {"showBandPlan": False}})
+        assert await _value(session_factory, "sdr", "displayBandPlan") is False
+        assert await _value(session_factory, "sdr", "showBandPlan") is None
+
+    async def test_the_new_key_wins_when_a_document_has_both(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(
+                session, {"sdr": {"showBandPlan": False, "displayBandPlan": True}}
+            )
+        assert await _value(session_factory, "sdr", "displayBandPlan") is True
+
+    async def test_an_old_map_layer_lands_on_the_new_one(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(
+                session, {"air": {"mapLayers": {"altitudeLegend": False}}}
+            )
+        assert await _value(session_factory, "air", "mapLayers") == {
+            "altitudeColouring": False
+        }
+
+    async def test_a_document_without_map_layers_is_fine(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"air": {"mapZoom": 6}, "sdr": "not a block"})
+        assert await _value(session_factory, "air", "mapZoom") == 6
+
+
 class TestRetiredColourMapTheme:
     """COLOUR was renamed LIGHT; an imported "colour" — an older export, or the
     live config file written before the rename — means today's LIGHT map."""

@@ -235,6 +235,22 @@ def _resolve_retired_map_theme(config: dict) -> None:
         app_block["mapTheme"] = "light"
 
 
+def _resolve_renamed_settings(config: dict) -> None:
+    """Translate renamed keys in an older export or config file. Without this the
+    config-file sync re-imports the old key after the startup migration moved it.
+    A value already under the new key wins."""
+    from backend.database import RENAMED_SETTINGS, rename_map_layers  # avoid import cycle
+
+    for namespace, old_key, new_key in RENAMED_SETTINGS:
+        block = config.get(namespace)
+        if isinstance(block, dict) and old_key in block:
+            block.setdefault(new_key, block.pop(old_key))
+    air_block = config.get("air")
+    map_layers = air_block.get("mapLayers") if isinstance(air_block, dict) else None
+    if isinstance(map_layers, dict):
+        rename_map_layers(map_layers)
+
+
 # Settings a config upload announces on the bus when it changes them (the
 # Settings PUT announces every write; apply_config writes rows directly).
 _ANNOUNCED_SETTINGS: tuple[tuple[str, str], ...] = (
@@ -262,6 +278,7 @@ async def apply_config(db: AsyncSession, config: Any) -> None:
     _assign_missing_radio_ids(config)
     await _resolve_retired_auto_modes(db, config)
     _resolve_retired_map_theme(config)
+    _resolve_renamed_settings(config)
 
     # Validate app.location up front so a bad coordinate rejects the whole
     # document rather than being persisted.

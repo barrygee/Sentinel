@@ -74,7 +74,7 @@ class TestPruneRemovedSettings:
             session_factory,
             [
                 ("sdr", "trunkTrackingEnabled", True),
-                ("sdr", "showBandPlan", True),
+                ("sdr", "displayBandPlan", True),
                 ("sdr", "radios", []),
                 ("app", "theme", "dark"),
             ],
@@ -82,8 +82,8 @@ class TestPruneRemovedSettings:
         await db.prune_removed_settings()
         assert await _stored_keys(session_factory) == [
             ("app", "theme"),
+            ("sdr", "displayBandPlan"),
             ("sdr", "radios"),
-            ("sdr", "showBandPlan"),
         ]
 
     async def test_matches_on_namespace_as_well_as_key(self, session_factory):
@@ -105,20 +105,20 @@ class TestPruneRemovedSettings:
         assert await _stored_keys(session_factory) == []
 
     async def test_no_op_when_only_live_settings_exist(self, session_factory):
-        await _add_settings(session_factory, [("sdr", "showBandPlan", True)])
+        await _add_settings(session_factory, [("sdr", "displayBandPlan", True)])
         await db.prune_removed_settings()
-        assert await _stored_keys(session_factory) == [("sdr", "showBandPlan")]
+        assert await _stored_keys(session_factory) == [("sdr", "displayBandPlan")]
 
     async def test_is_idempotent_across_startups(self, session_factory):
         # It runs on every startup, so the second run must neither fail nor
         # delete anything further.
         await _add_settings(
             session_factory,
-            [("sdr", "trunkTrackingEnabled", True), ("sdr", "showBandPlan", True)],
+            [("sdr", "trunkTrackingEnabled", True), ("sdr", "displayBandPlan", True)],
         )
         await db.prune_removed_settings()
         await db.prune_removed_settings()
-        assert await _stored_keys(session_factory) == [("sdr", "showBandPlan")]
+        assert await _stored_keys(session_factory) == [("sdr", "displayBandPlan")]
 
     async def test_removed_keys_are_all_namespace_key_pairs(self):
         # The delete builds one AND-clause per entry; a bare string would make
