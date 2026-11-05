@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { mount, flushPromises } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import RemoteHostForm from './RemoteHostForm.vue'
 import { SdrManagerApiError } from '../api/sdrManagerRemoteApi'
@@ -131,7 +132,8 @@ describe('RemoteHostForm', () => {
       auto_add_sdrs: false,
     })
     expect(mockTestSdrManagerHost).toHaveBeenCalledWith(5)
-    expect(wrapper.find('.remote-host-probe').text()).toContain('ok')
+    // A reachable host needs no message.
+    expect(wrapper.find('.remote-host-probe').exists()).toBe(false)
     expect(wrapper.emitted('save')).toHaveLength(1)
   })
 
@@ -448,7 +450,7 @@ describe('RemoteHostForm', () => {
     await testButton.trigger('click')
     await flushPromises()
     expect(mockTestSdrManagerHost).toHaveBeenCalledWith(5)
-    expect(wrapper.find('.remote-host-probe--fail').text()).toContain('Connection refused')
+    expect(wrapper.find('.remote-host-probe').text()).toBe('Connection refused')
   })
 
   it('reports a probe failure inline when TEST CONNECTION throws', async () => {
@@ -459,9 +461,107 @@ describe('RemoteHostForm', () => {
       .find((button) => button.text() === 'TEST CONNECTION')!
     await testButton.trigger('click')
     await flushPromises()
-    expect(wrapper.find('.remote-host-probe--fail').text()).toContain(
+    expect(wrapper.find('.remote-host-probe').text()).toBe(
       'Could not reach Sentinel to run the probe.',
     )
+  })
+
+  describe('the test button', () => {
+    const testButton = (wrapper: VueWrapper) => wrapper.find('.remote-host-test button')
+
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('says connecting, and can’t be pressed, while the test runs', async () => {
+      let finishTest: (result: { reachable: boolean; detail: string }) => void = () => {}
+      mockTestSdrManagerHost.mockReturnValue(new Promise((resolve) => (finishTest = resolve)))
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      expect(testButton(wrapper).text()).toBe('CONNECTING')
+      expect(testButton(wrapper).attributes('disabled')).toBeDefined()
+      finishTest({ reachable: true, detail: 'ok' })
+      await flushPromises()
+    })
+
+    it('shows a success on the button, with no message or status dot', async () => {
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(testButton(wrapper).text()).toBe('SUCCESSFULLY CONNECTED')
+      expect(testButton(wrapper).attributes('disabled')).toBeDefined()
+      expect(wrapper.find('.remote-host-probe').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('ok')
+    })
+
+    it('shows a failure on the button, with the reason below', async () => {
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: false, detail: 'Connection refused' })
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(testButton(wrapper).text()).toBe('UNSUCCESSFUL')
+      expect(wrapper.find('.remote-host-probe').text()).toBe('Connection refused')
+    })
+
+    it('shows a test that couldn’t run as a failure', async () => {
+      mockTestSdrManagerHost.mockRejectedValue(new Error('network down'))
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(testButton(wrapper).text()).toBe('UNSUCCESSFUL')
+    })
+
+    it('holds the result, then can be run again', async () => {
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      vi.advanceTimersByTime(3999)
+      await nextTick()
+      expect(testButton(wrapper).text()).toBe('SUCCESSFULLY CONNECTED')
+      vi.advanceTimersByTime(1)
+      await nextTick()
+      expect(testButton(wrapper).text()).toBe('TEST CONNECTION')
+      expect(testButton(wrapper).attributes('disabled')).toBeUndefined()
+    })
+
+    it('clears the old reason when a new test starts', async () => {
+      mockTestSdrManagerHost.mockResolvedValueOnce({ reachable: false, detail: 'Refused' })
+      mockTestSdrManagerHost.mockResolvedValueOnce({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      vi.advanceTimersByTime(4000)
+      await nextTick()
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.remote-host-probe').exists()).toBe(false)
+    })
+
+    it('cancels the pending reset when the form closes', async () => {
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
+      await testButton(wrapper).trigger('click')
+      await flushPromises()
+      const pendingTimers = vi.getTimerCount()
+      wrapper.unmount()
+      expect(vi.getTimerCount()).toBe(pendingTimers - 1)
+    })
+  })
+
+  it('reports why a newly added host could not be reached', async () => {
+    mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
+    mockTestSdrManagerHost.mockResolvedValue({ reachable: false, detail: 'Connection refused' })
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('.remote-host-probe').text()).toBe('Connection refused')
   })
 
   it('does nothing when probeExisting is invoked without a stored host', async () => {
