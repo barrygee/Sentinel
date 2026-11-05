@@ -921,8 +921,8 @@ async function serveAprsReceiver(page: Page): Promise<void> {
 
 /** This machine's linked row and one fictional Pi, each with streaming dongles. */
 const DEMO_SDR_HOSTS = [
-  { id: 1, name: null, address: 'host.docker.internal', is_local: true },
-  { id: 2, name: 'Roof Pi', address: '192.168.1.30', is_local: false },
+  { id: 1, name: null, address: 'host.docker.internal', is_local: true, may_use_private: true },
+  { id: 2, name: 'Roof Pi', address: '192.168.1.30', is_local: false, may_use_private: false },
 ].map((host) => ({
   ...host,
   port: 8000,

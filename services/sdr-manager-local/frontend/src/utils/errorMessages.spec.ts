@@ -8,6 +8,7 @@ import {
   hotspotErrorMessage,
   serialFlashErrorMessage,
   serialFlashFailureMessage,
+  privateAccessErrorMessage,
 } from './errorMessages'
 
 function apiError(code: string, message = 'API words', status = 409, context = {}) {
@@ -105,6 +106,22 @@ describe('configErrorMessage', () => {
 
   it('uses the fallback for a non-API error', () => {
     expect(configErrorMessage(null, 'Could not import.')).toBe('Could not import.')
+  })
+})
+
+describe('privateAccessErrorMessage', () => {
+  it('explains a missing console password', () => {
+    const error = new SdrManagerApiError(409, 'console_password_required', 'refused')
+    expect(privateAccessErrorMessage(error, 'fallback')).toContain('Set a console password first')
+  })
+
+  it('uses the API message for any other refusal', () => {
+    const error = new SdrManagerApiError(422, 'validation_error', 'That is too long.')
+    expect(privateAccessErrorMessage(error, 'fallback')).toBe('That is too long.')
+  })
+
+  it('falls back for anything that is not an API error', () => {
+    expect(privateAccessErrorMessage(new Error('boom'), 'fallback')).toBe('fallback')
   })
 })
 

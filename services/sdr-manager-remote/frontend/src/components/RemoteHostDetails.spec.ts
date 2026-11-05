@@ -33,6 +33,7 @@ const HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  may_use_private: false,
   auto_add_sdrs: false,
   created_at: 1_700_000_000_000,
   last_seen_at: 1_700_000_500_000,

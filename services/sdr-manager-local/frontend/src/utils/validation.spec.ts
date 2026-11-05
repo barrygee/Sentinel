@@ -12,7 +12,28 @@ import {
   validatePassphrase,
   validateSerial,
   validateSsid,
+  validateIpAddress,
 } from './validation'
+
+describe('validateIpAddress', () => {
+  it.each(['192.168.1.20', '0.0.0.1', '255.255.255.255', '2001:db8::1', '::1', '::ffff:10.0.0.1'])(
+    'accepts %s',
+    (address) => {
+      expect(validateIpAddress(address)).toBeNull()
+    },
+  )
+
+  it('asks for an address when empty', () => {
+    expect(validateIpAddress('')).toBe('Enter an IP address.')
+  })
+
+  it.each(['192.168.1.0/24', '256.1.1.1', '1.2.3', 'host.local', '1.2.3.4.5', 'fe80::1%eth0'])(
+    'refuses %s',
+    (address) => {
+      expect(validateIpAddress(address)).toContain('Enter one IP address')
+    },
+  )
+})
 
 describe('validateDeviceName', () => {
   it('accepts every allowed character class', () => {
