@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import pytest
 
+from sentinel_radio.routers import radio_control
 from sentinel_radio.services import sdr as sdr_svc
 from sentinel_radio.services.sdr import (
     MAX_TUNE_HZ,
@@ -175,14 +176,18 @@ class TestTheLoopIsBroken:
     async def test_a_first_connect_as_owner_asserts_a_valid_centre(self, monkeypatch):
         # The relay is wedged at 7.812 GHz; connecting as owner tunes it back.
         control = _FakeControl(owner=False, claim_result=True, center_hz=WEDGED_HZ)
-        monkeypatch.setattr(sdr_svc, "RelayControlClient", lambda host, port, on_state=None: control)
+        monkeypatch.setattr(
+            sdr_svc, "RelayControlClient", lambda host, port, on_state=None: control
+        )
         connection = sdr_svc.RtlTcpConnection(host="pi", port=4444)
         await connection._ensure_control()
         assert control.sets == [{"sample_rate": connection.sample_rate, "center_hz": 100_000_000}]
 
     async def test_a_follower_keeps_its_valid_centre(self, monkeypatch):
         control = _FakeControl(owner=False, claim_result=False, center_hz=WEDGED_HZ)
-        monkeypatch.setattr(sdr_svc, "RelayControlClient", lambda host, port, on_state=None: control)
+        monkeypatch.setattr(
+            sdr_svc, "RelayControlClient", lambda host, port, on_state=None: control
+        )
         connection = sdr_svc.RtlTcpConnection(host="pi", port=4444)
         await connection._ensure_control()
         assert connection.center_hz == 100_000_000
@@ -197,14 +202,74 @@ class TestTheLoopIsBroken:
         assert queue.get_nowait()[4:8] == (100_000_000).to_bytes(4, "little")
 
 
+class TestConnectToAnUnavailableRadio:
+    """An offline radio is an expected state, so it is reported in a 200: the
+    browser logs any error status as a console error however the page handles it."""
+
+    RADIO = {"id": 1, "name": "Roof dongle", "host": "192.0.2.10", "port": 1234}
+
+    @pytest.fixture()
+    def known_radio(self, monkeypatch):
+        async def get_radios(_db):
+            return [self.RADIO]
+
+        monkeypatch.setattr(radio_control.radio_registry, "get_radios", get_radios)
+
+    def _device_availability(self, monkeypatch, available: bool, reason: str = "") -> None:
+        async def device_availability(_radio):
+            return available, reason
+
+        monkeypatch.setattr(
+            radio_control.radio_registry, "device_availability", device_availability
+        )
+
+    def test_says_so_when_the_device_is_gone(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, False, "The dongle is unplugged.")
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": "unavailable",
+            "radio_id": 1,
+            "detail": "Roof dongle is unavailable. The dongle is unplugged.",
+        }
+
+    def test_falls_back_to_a_general_name(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, False, "Device not found.")
+        monkeypatch.setitem(self.RADIO, "name", "")
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.json()["detail"] == "This radio is unavailable. Device not found."
+
+    def test_says_so_when_the_connection_is_refused(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, True)
+
+        async def refuse(_host, _port):
+            raise ConnectionError("Cannot connect to rtl_tcp at 192.0.2.10:1234")
+
+        monkeypatch.setattr(radio_control.sdr_svc, "get_or_create_connection", refuse)
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": "unavailable",
+            "radio_id": 1,
+            "detail": "Cannot connect to rtl_tcp at 192.0.2.10:1234",
+        }
+
+
 class TestConnectEndpoint:
     @pytest.mark.parametrize("frequency_hz", [WEDGED_HZ, MIN_TUNE_HZ - 1, MAX_TUNE_HZ + 1])
     def test_rejects_a_frequency_no_tuner_can_reach(self, client, frequency_hz):
-        response = client.post("/api/sdr/connect", json={"radio_id": 1, "frequency_hz": frequency_hz})
+        response = client.post(
+            "/api/sdr/connect", json={"radio_id": 1, "frequency_hz": frequency_hz}
+        )
         assert response.status_code == 422
         assert "frequency_hz must be between" in response.text
 
     def test_accepts_an_absent_or_tunable_frequency(self, client):
         # Validation passes, so the request reaches the radio lookup (404: no such radio).
         assert client.post("/api/sdr/connect", json={"radio_id": 1}).status_code == 404
-        assert client.post("/api/sdr/connect", json={"radio_id": 1, "frequency_hz": 145_500_000}).status_code == 404
+        assert (
+            client.post(
+                "/api/sdr/connect", json={"radio_id": 1, "frequency_hz": 145_500_000}
+            ).status_code
+            == 404
+        )
