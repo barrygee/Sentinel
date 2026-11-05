@@ -269,6 +269,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an altitude colouring setting
 - Add size and color props to BaseButton
 - Keep closed airport dots black until the label opens
+- Rename the display settings and sort the options list
 
 ### Bug Fixes
 
@@ -1752,6 +1753,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #573 from barrygee/fix/security-quick-fixes
 - Merge pull request #574 from barrygee/feat/base-button-size-colour
 - Merge pull request #575 from barrygee/feat/airport-black-dots
+- Merge pull request #576 from barrygee/feat/sdr-display-settings
 
 ### Performance
 
@@ -2025,6 +2027,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Look for the SDR-only map in Settings, not behind the spectrum
 - Make the turning-tag poll tests deterministic
 - Expect the plain Aircraft Icons row
+- Cover the renamed setting migration
 
 ### Build System
 
@@ -2101,6 +2104,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for airfield dots and altitude colouring
 - Rebuild the bundle for the BaseButton props
 - Rebuild the bundle for black airport dots
+- Rebuild the bundle for the display settings
 
 ### Continuous Integration
 
