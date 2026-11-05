@@ -268,6 +268,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show airfields as dots, with labels on hover or click
 - Add an altitude colouring setting
 - Add size and color props to BaseButton
+- Keep closed airport dots black until the label opens
 
 ### Bug Fixes
 
@@ -1750,6 +1751,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #572 from barrygee/feat/airport-icao-labels
 - Merge pull request #573 from barrygee/fix/security-quick-fixes
 - Merge pull request #574 from barrygee/feat/base-button-size-colour
+- Merge pull request #575 from barrygee/feat/airport-black-dots
 
 ### Performance
 
@@ -2098,6 +2100,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for altitude trails and airfield labels
 - Rebuild the bundle for airfield dots and altitude colouring
 - Rebuild the bundle for the BaseButton props
+- Rebuild the bundle for black airport dots
 
 ### Continuous Integration
 
