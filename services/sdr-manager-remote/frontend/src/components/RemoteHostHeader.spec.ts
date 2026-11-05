@@ -40,7 +40,6 @@ const THIS_MACHINE: SdrManagerHost = { ...ROOF_PI, id: 1, name: null, is_local: 
 interface HeaderProps {
   host?: SdrManagerHost
   expanded?: boolean
-  sdrCount?: number | null
   controlsId?: string
 }
 
@@ -49,7 +48,6 @@ function mountHeader(props: HeaderProps = {}): VueWrapper {
     props: {
       host: ROOF_PI,
       expanded: true,
-      sdrCount: 1,
       controlsId: 'sdr-host-5-sdrs',
       ...props,
     },
@@ -88,7 +86,7 @@ describe('RemoteHostHeader', () => {
       const wrapper = mountHeader()
       expect(wrapper.find('.remote-host-header-name').text()).toBe('Roof Pi')
       const meta = wrapper.findAll('.remote-host-header-address').map((span) => span.text())
-      expect(meta).toEqual(['192.168.1.50:8000', '1 SDR'])
+      expect(meta).toEqual(['192.168.1.50:8000'])
     })
 
     it('names an unlabelled host by its address', () => {
@@ -112,18 +110,8 @@ describe('RemoteHostHeader', () => {
       expect(wrapper.text()).toContain('not running')
     })
 
-    it.each([
-      [0, '0 SDRs'],
-      [1, '1 SDR'],
-      [3, '3 SDRs'],
-    ])('counts %i SDR(s) as "%s"', (sdrCount, expected) => {
-      const wrapper = mountHeader({ sdrCount })
-      expect(wrapper.findAll('.remote-host-header-address').at(-1)!.text()).toBe(expected)
-    })
-
-    it('shows no count until the host has answered', () => {
-      const wrapper = mountHeader({ sdrCount: null })
-      expect(wrapper.text()).not.toMatch(/SDRs?\b/)
+    it('names no SDR count in the title line', () => {
+      expect(mountHeader().find('.remote-host-header-toggle').text()).not.toMatch(/\bSDRs?\b/)
     })
 
     it('shows the last error below the title, and none for a healthy host', () => {

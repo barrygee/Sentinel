@@ -14,7 +14,6 @@
           >{{ host.address }}:{{ host.port }}</span
         >
         <span v-else-if="!host.enabled" class="remote-host-header-address">not running</span>
-        <span class="remote-host-header-address">{{ sdrCountText }}</span>
         <!-- Placed at the row's right end (after edit/remove) but inside the
              button, so clicking it still opens and folds the host. -->
         <span
@@ -132,8 +131,6 @@ const props = defineProps<{
   host: SdrManagerHost
   /** Whether the host's SDRs are showing. */
   expanded: boolean
-  /** How many SDRs the host has, or null until it has answered. */
-  sdrCount: number | null
   /** The id of the list of this host's SDRs, which the title opens and folds. */
   controlsId: string
 }>()
@@ -142,11 +139,6 @@ const emit = defineEmits<{
   /** Open or fold the host's SDRs. */
   toggle: []
 }>()
-
-const sdrCountText = computed(() => {
-  if (props.sdrCount === null) return ''
-  return props.sdrCount === 1 ? '1 SDR' : `${props.sdrCount} SDRs`
-})
 
 const settingsStore = useSettingsStore()
 const rootElement = ref<HTMLElement | null>(null)

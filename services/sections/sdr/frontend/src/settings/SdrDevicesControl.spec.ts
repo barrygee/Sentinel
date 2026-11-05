@@ -220,29 +220,12 @@ describe('SdrDevicesControl', () => {
     expect(header!.props()).toMatchObject({
       host: HOST,
       expanded: true,
-      sdrCount: 1,
       controlsId: 'sdr-host-1-sdrs',
     })
     const sdrList = wrapper.find('#sdr-host-1-sdrs')
     expect(sdrList.findComponent(SdrHostDeviceRow).exists()).toBe(true)
     const hosts = subcategory(wrapper, 'Sentinel Hosts')!
     expect(hosts.findComponent({ name: 'FakeHostHeader' }).exists()).toBe(true)
-  })
-
-  it('gives the header no SDR count until the host has answered', async () => {
-    mockListSdrManagerHosts.mockResolvedValue([HOST])
-    mockGetSdrManagerHostDevices.mockReturnValue(new Promise(() => {}))
-    const wrapper = mountControl()
-    await flushPromises()
-    expect(hostHeaders(wrapper)[0]!.props('sdrCount')).toBeNull()
-  })
-
-  it('gives the header no SDR count for a host it cannot reach', async () => {
-    mockListSdrManagerHosts.mockResolvedValue([UNREACHABLE_HOST])
-    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([], UNREACHABLE_SNAPSHOT))
-    const wrapper = mountControl()
-    await flushPromises()
-    expect(hostHeaders(wrapper)[0]!.props('sdrCount')).toBeNull()
   })
 
   describe('the host accordion', () => {
@@ -384,7 +367,6 @@ describe('SdrDevicesControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     expect(wrapper.find('#sdr-host-1-sdrs').text()).toBe('No SDRs plugged in.')
-    expect(hostHeaders(wrapper)[0]!.props('sdrCount')).toBe(0)
   })
 
   it('leaves an unreachable host to say why in its own header, not under it', async () => {

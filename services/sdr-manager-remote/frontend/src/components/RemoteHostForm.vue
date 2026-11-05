@@ -68,14 +68,7 @@
       Choose which of its SDRs become radios with ADD.
     </p>
 
-    <div
-      v-if="probeResult"
-      class="remote-host-probe"
-      :class="{ 'remote-host-probe--fail': !probeResult.reachable }"
-    >
-      <SdrSourceStatusDot :connected="probeResult.reachable" />
-      {{ probeResult.detail }}
-    </div>
+    <div v-if="probeFailure" class="remote-host-probe">{{ probeFailure }}</div>
 
     <div v-if="shownError" class="sdr-devices-form-error" role="alert">{{ shownError }}</div>
 
@@ -84,16 +77,7 @@
     <RemoteHostDetails v-if="host" :host="host" />
 
     <div class="sdr-devices-form-actions">
-      <BaseButton
-        v-if="host"
-        type="button"
-        variant="ghost"
-        class="sdr-devices-btn"
-        :disabled="probing"
-        @click="probeExisting"
-      >
-        TEST CONNECTION
-      </BaseButton>
+      <RemoteHostTestButton v-if="host" :state="testState" @test="probeExisting" />
       <BaseButton type="button" variant="ghost" class="sdr-devices-btn" @click="emit('cancel')">
         CANCEL
       </BaseButton>
@@ -147,24 +131,22 @@
  * It is the host's *console password*, not a token: the SDR Manager API has
  * no token auth for operators, and the client exchanges it for a session cookie.
  */
-import { computed, ref, onMounted, watch } from 'vue'
+import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
-import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostDetails from './RemoteHostDetails.vue'
+import RemoteHostTestButton, { type HostTestState } from './RemoteHostTestButton.vue'
 import RemoteHostAutoAddToggle from './RemoteHostAutoAddToggle.vue'
 import type { RemoteHostDraft } from '../remoteHostEdits'
-import {
-  createHost,
-  testHost,
-  SdrManagerApiError,
-  type SdrManagerHealthProbeResult,
-} from '../api/sdrManagerRemoteApi'
+import { createHost, testHost, SdrManagerApiError } from '../api/sdrManagerRemoteApi'
 
 // SAVE keeps SdrDeviceForm's undimmed disabled look; size and colours come
 // from SettingsPanel.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
+
+/** How long a test's result stays on the button before it can be run again. */
+const TEST_RESULT_HOLD_MS = 4000
 
 const props = defineProps<{
   host: SdrManagerHost | null
@@ -187,8 +169,10 @@ const isLocal = computed(() => props.host?.is_local === true)
 const errorMsg = ref('')
 const shownError = computed(() => errorMsg.value || props.applyError || '')
 const saving = ref(false)
-const probing = ref(false)
-const probeResult = ref<SdrManagerHealthProbeResult | null>(null)
+const testState = ref<HostTestState>('idle')
+/** Why the last test failed; a success needs no words beyond the button's. */
+const probeFailure = ref('')
+let testResetTimer: ReturnType<typeof setTimeout> | undefined
 
 const savedForm: RemoteHostDraft = {
   address: props.host?.address ?? '',
@@ -228,15 +212,22 @@ watch(
 
 async function probeExisting(): Promise<void> {
   if (!props.host) return
-  probing.value = true
+  testState.value = 'connecting'
+  probeFailure.value = ''
   try {
-    probeResult.value = await testHost(props.host.id)
+    const result = await testHost(props.host.id)
+    testState.value = result.reachable ? 'connected' : 'failed'
+    if (!result.reachable) probeFailure.value = result.detail
   } catch {
-    probeResult.value = { reachable: false, detail: 'Could not reach Sentinel to run the probe.' }
-  } finally {
-    probing.value = false
+    testState.value = 'failed'
+    probeFailure.value = 'Could not reach Sentinel to run the probe.'
   }
+  testResetTimer = setTimeout(() => {
+    testState.value = 'idle'
+  }, TEST_RESULT_HOLD_MS)
 }
+
+onBeforeUnmount(() => clearTimeout(testResetTimer))
 
 async function addHost(): Promise<void> {
   const address = form.value.address.trim()
@@ -246,7 +237,7 @@ async function addHost(): Promise<void> {
   }
   saving.value = true
   errorMsg.value = ''
-  probeResult.value = null
+  probeFailure.value = ''
   try {
     const savedHost = await createHost({
       name: form.value.name.trim() || null,
@@ -258,7 +249,8 @@ async function addHost(): Promise<void> {
     // Report reachability of the connection just written, before closing the
     // form — an operator who mistyped the address sees it immediately.
     try {
-      probeResult.value = await testHost(savedHost.id)
+      const result = await testHost(savedHost.id)
+      if (!result.reachable) probeFailure.value = result.detail
     } catch {
       /* the add itself already succeeded; a failed post-add probe is not fatal */
     }
@@ -293,15 +285,10 @@ async function addHost(): Promise<void> {
   color: rgba(16, 19, 29, 0.75);
 }
 .remote-host-probe {
-  display: flex;
-  align-items: center;
   padding: 8px 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);
   letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.75);
-}
-.remote-host-probe--fail {
   /* --danger-strong: AA contrast on the light settings canvas. */
   color: var(--danger-strong);
 }

@@ -38,7 +38,6 @@
             v-if="hostEditor"
             :host="group.host"
             :expanded="isHostExpanded(group.host.id)"
-            :sdr-count="group.snapshot?.status ? group.devices.length : null"
             :controls-id="hostSdrListId(group.host.id)"
             @toggle="toggleHost(group.host.id)"
             @stage="(apply: () => Promise<void>) => onStage(`host-${group.host.id}`, apply)"
