@@ -19,7 +19,7 @@
         ref="addFreqButtonRef"
         class="sdr-add-freq-btn"
         :disabled="readOnly"
-        @click="openAddFreqPanel"
+        @click="openAddFreqPanel()"
       >
         Add Frequency
       </button>
@@ -38,6 +38,7 @@
         <label class="sdr-field-label">LABEL</label>
         <input
           id="sdr-ef-label"
+          ref="addLabelInputRef"
           v-model="efLabel"
           class="sdr-panel-input"
           :class="{ 'sdr-input-error': efErrors.label }"
@@ -694,6 +695,7 @@ const rowStatusMessage = ref('')
 // target when the removed row had no neighbour left to receive focus.
 const freqListRef = ref<HTMLElement | null>(null)
 const addFreqButtonRef = ref<HTMLButtonElement | null>(null)
+const addLabelInputRef = ref<HTMLInputElement | null>(null)
 
 // The row whose ✕ is "armed" — swaps it for a ✓ / ✕ pair until confirmed,
 // mirroring the recordings list's inline delete confirm. A single value, so
@@ -824,6 +826,21 @@ function openAddFreqPanel() {
   efOpen.value = true
   emit('activate')
 }
+
+/**
+ * Opens the add form for `frequencyHz`, which may differ from the tuned
+ * frequency, and puts the cursor on LABEL: that's the field left to fill, and
+ * the button that called this has just been hidden by the tab change, which
+ * would otherwise drop keyboard focus.
+ */
+async function addFrequency(frequencyHz: number) {
+  openAddFreqPanel()
+  efFreq.value = (frequencyHz / 1e6).toFixed(4)
+  await nextTick()
+  addLabelInputRef.value?.focus()
+}
+
+defineExpose({ addFrequency })
 
 function openEditFreqPanel(f: SdrStoredFrequency) {
   editingFreqId.value = f.id
