@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import pytest
 
+from sentinel_radio.routers import radio_control
 from sentinel_radio.services import sdr as sdr_svc
 from sentinel_radio.services.sdr import (
     MAX_TUNE_HZ,
@@ -195,6 +196,57 @@ class TestTheLoopIsBroken:
         queue = broadcaster.subscribe_iq()
         broadcaster._broadcast_iq(b"\x80\x80", connection.sample_rate, connection.center_hz)
         assert queue.get_nowait()[4:8] == (100_000_000).to_bytes(4, "little")
+
+
+class TestConnectToAnUnavailableRadio:
+    """An offline radio is an expected state, so it is reported in a 200: the
+    browser logs any error status as a console error however the page handles it."""
+
+    RADIO = {"id": 1, "name": "Roof dongle", "host": "192.0.2.10", "port": 1234}
+
+    @pytest.fixture()
+    def known_radio(self, monkeypatch):
+        async def get_radios(_db):
+            return [self.RADIO]
+
+        monkeypatch.setattr(radio_control.radio_registry, "get_radios", get_radios)
+
+    def _device_availability(self, monkeypatch, available: bool, reason: str = "") -> None:
+        async def device_availability(_radio):
+            return available, reason
+
+        monkeypatch.setattr(radio_control.radio_registry, "device_availability", device_availability)
+
+    def test_says_so_when_the_device_is_gone(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, False, "The dongle is unplugged.")
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": "unavailable",
+            "radio_id": 1,
+            "detail": "Roof dongle is unavailable. The dongle is unplugged.",
+        }
+
+    def test_falls_back_to_a_general_name(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, False, "Device not found.")
+        monkeypatch.setitem(self.RADIO, "name", "")
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.json()["detail"] == "This radio is unavailable. Device not found."
+
+    def test_says_so_when_the_connection_is_refused(self, client, known_radio, monkeypatch):
+        self._device_availability(monkeypatch, True)
+
+        async def refuse(_host, _port):
+            raise ConnectionError("Cannot connect to rtl_tcp at 192.0.2.10:1234")
+
+        monkeypatch.setattr(radio_control.sdr_svc, "get_or_create_connection", refuse)
+        response = client.post("/api/sdr/connect", json={"radio_id": 1})
+        assert response.status_code == 200
+        assert response.json() == {
+            "status": "unavailable",
+            "radio_id": 1,
+            "detail": "Cannot connect to rtl_tcp at 192.0.2.10:1234",
+        }
 
 
 class TestConnectEndpoint:

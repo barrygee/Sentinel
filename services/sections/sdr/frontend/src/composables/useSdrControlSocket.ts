@@ -220,7 +220,7 @@ export function useSdrControlSocket(options: UseSdrControlSocketOptions) {
         onRadioMissing()
         return
       }
-      // 503 means the backend knows this radio's device is not usable — the
+      // "Unavailable" means the backend knows this radio's device is not usable — the
       // dongle is unplugged, disabled, or was replugged into another socket.
       // Retrying would refuse identically every few seconds for as long as that
       // is true, filling the console and never succeeding, so the loop stops
@@ -228,13 +228,20 @@ export function useSdrControlSocket(options: UseSdrControlSocketOptions) {
       //
       // Unlike a 404 the stored id is *kept*: the radio still exists and the
       // device may come back, so the operator's selection is still meaningful.
-      if (res.status === 503) {
-        const detail = await res
-          .json()
-          .then((body) => (typeof body?.detail === 'string' ? body.detail : ''))
-          .catch(() => '')
+      //
+      // The backend says so in a normal response, because the browser logs any
+      // error status as a console error. A 503 can still come from the gateway
+      // while the radio service itself is down, so both are handled alike.
+      const outcome: { status?: unknown; detail?: unknown } | null = await res
+        .json()
+        .catch(() => null)
+      if (res.status === 503 || outcome?.status === 'unavailable') {
         closeControlSocket()
-        onDeviceUnavailable(detail || 'That radio is currently unavailable.')
+        onDeviceUnavailable(
+          typeof outcome?.detail === 'string' && outcome.detail
+            ? outcome.detail
+            : 'That radio is currently unavailable.',
+        )
         return
       }
     } catch (_) {}

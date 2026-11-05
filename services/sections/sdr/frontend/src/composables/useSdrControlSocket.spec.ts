@@ -435,12 +435,74 @@ describe('useSdrControlSocket — data-confirmed flag and init markers', () => {
   })
 })
 
+describe('a radio the backend reports as unavailable in a normal response', () => {
+  // A 200, because the browser logs every error status as a console error.
+  beforeEach(() => {
+    connectStatus = 200
+    connectBody = {
+      status: 'unavailable',
+      detail: 'Cannot connect to rtl_tcp at 192.0.2.10:1234',
+    }
+  })
+
+  it('reports the reason and opens no socket', async () => {
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).toHaveBeenCalledWith('Cannot connect to rtl_tcp at 192.0.2.10:1234')
+    expect(FakeWebSocket.instances).toHaveLength(0)
+  })
+
+  it.each([
+    ['is missing', undefined],
+    ['is empty', ''],
+    ['is not text', 42],
+  ])('falls back to a general message when the detail %s', async (_name, detail) => {
+    connectBody = { status: 'unavailable', detail }
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).toHaveBeenCalledWith('That radio is currently unavailable.')
+  })
+
+  it('connects as usual on any other status', async () => {
+    connectBody = { status: 'connected' }
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).not.toHaveBeenCalled()
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+
+  it('still connects when a 200 carries no JSON', async () => {
+    fetchMock.mockImplementationOnce(async () => ({
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('Unexpected end of input')
+      },
+    }))
+    const { socket, onDeviceUnavailable } = createHarness()
+
+    await socket.openControlSocket(1)
+    await flushPromises()
+
+    expect(onDeviceUnavailable).not.toHaveBeenCalled()
+    expect(FakeWebSocket.instances).toHaveLength(1)
+  })
+})
+
 describe('a radio whose device is unavailable', () => {
   /**
-   * The refusal that used to retry for ever. `POST /api/sdr/connect` answers
-   * 503 when the backend knows the device is unusable — unplugged, disabled, or
-   * replugged into another socket — and retrying refuses identically every few
-   * seconds, filling the console and never succeeding.
+   * The refusal that used to retry for ever. Retrying refuses identically every
+   * few seconds, filling the console and never succeeding. These cases answer
+   * 503, which is what the gateway sends while the radio service is down; the
+   * radio service itself says so in a 200, covered below.
    */
   beforeEach(() => {
     connectStatus = 503
