@@ -416,8 +416,11 @@ class TestTheSettingsMirrorsOverHttp:
             lambda **options: RealAsyncClient(transport=httpx.MockTransport(refuse), **options),
         )
 
-        with pytest.raises(settings_client.SettingsUnavailable):
-            await sdr_client.get("/api/sdr/data/frequencies")
+        response = await sdr_client.get("/api/sdr/data/frequencies")
+
+        assert response.status_code == 503
+        assert response.headers["Retry-After"] == "5"
+        assert "core is down" not in response.text
 
 
 class TestTheBandPlanOverHttp:

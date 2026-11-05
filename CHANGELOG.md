@@ -630,6 +630,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep backend/data writable for the sdr and space sections
 - Keep polling a host after an error in a poll
 - Report an unreachable radio without an error status
+- Keep aircraft on the map when settings fail
+- Answer 503 when core settings are unreachable
 
 ### Chores
 
@@ -1763,6 +1765,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #579 from barrygee/feat/sdr-host-panel
 - Merge pull request #580 from barrygee/fix/sdr-host-more-gap
 - Merge pull request #581 from barrygee/feat/remove-recordings-folder
+- Merge pull request #582 from barrygee/fix/air-feed-settings-timeout
 
 ### Performance
 
