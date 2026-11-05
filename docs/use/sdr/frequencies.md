@@ -18,6 +18,8 @@ Save frequencies, group them, and let Sentinel scan or sweep for activity.
 1. **FREQUENCY MANAGER › ADD FREQUENCY**: **LABEL**, **FREQ (MHz)**, **MODE**, optional **GROUPS** and **NOTES**.
 2. **SAVE**. Use **Tune to** beside any saved frequency to listen.
 
+To save the frequency you're on, hover over or click into the tuned frequency in **RADIO** and select **+**. It only shows for a frequency that isn't saved yet.
+
 ![The FREQUENCY MANAGER tab: Add Frequency, group filter buttons, and saved frequencies such as Calling channel 145.5000 MHz NFM, each with its group, a favourite star, tune, edit and delete buttons. The waterfall beside it marks the saved frequencies along the top.](../../images/sdr-frequency-manager.png)
 
 Groups: **GROUPS** tab, type a name, **ADD**. Deleting a group keeps its frequencies.
