@@ -272,6 +272,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
 - Remove the recordings folder setting
+- Draw the Hawk and F-35 as themselves
 
 ### Bug Fixes
 
@@ -1766,6 +1767,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #580 from barrygee/fix/sdr-host-more-gap
 - Merge pull request #581 from barrygee/feat/remove-recordings-folder
 - Merge pull request #582 from barrygee/fix/air-feed-settings-timeout
+- Merge pull request #583 from barrygee/feat/hawk-f35-silhouettes
 
 ### Performance
 
@@ -2123,6 +2125,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
+- Rebuild the bundle for the Hawk and F-35 outlines
 
 ### Continuous Integration
 
