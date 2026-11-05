@@ -712,6 +712,12 @@ describe('SdrFrequencyManagerTab — search', () => {
     expect(wrapper.get(SEARCH).attributes('aria-label')).toContain('frequencies')
   })
 
+  it('adds no search landmark or searchbox, as the panel is mounted on every page', () => {
+    const wrapper = mountBoth()
+    expect(wrapper.find('[role="search"]').exists()).toBe(false)
+    expect(wrapper.find('input[type="search"]').exists()).toBe(false)
+  })
+
   it('narrows the rows as the user types and restores them when cleared', async () => {
     const wrapper = mountBoth()
     await wrapper.get(SEARCH).setValue('coast')

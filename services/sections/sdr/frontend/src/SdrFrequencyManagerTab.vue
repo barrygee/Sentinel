@@ -13,11 +13,15 @@
     searchStatusMessage
   }}</span>
   <!-- Outside the body below: its read-only dimming shouldn't reach the search,
-       which keeps working when the list can't be edited. -->
+       which keeps working when the list can't be edited. A plain text input and
+       no landmark, as this panel stays mounted on every page, where it would
+       otherwise be a second search beside that page's own. -->
   <BaseSearchField
     v-model="frequencySearch.query.value"
     class="sdr-frequency-search"
     variant="panel"
+    input-type="text"
+    :landmark="false"
     input-id="sdr-frequency-search-input"
     label="Search frequencies by label, frequency, mode, group or notes"
     placeholder="LABEL · FREQ · MODE · GROUP"
