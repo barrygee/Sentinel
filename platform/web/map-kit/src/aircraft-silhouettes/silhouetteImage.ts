@@ -32,8 +32,11 @@ import {
 /** The three states an aircraft is coloured by, everywhere in the Air section. */
 export type AircraftStateKey = 'civil' | 'military' | 'emergency'
 
-/** A silhouette's colour: a state, or an altitude band (see `altitudeColour.ts`). */
-export type SilhouetteColourKey = AircraftStateKey | `alt${number}`
+/**
+ * A silhouette's colour: a state, an altitude band (see `altitudeColour.ts`), or
+ * `plain`, a civil aircraft while altitude colouring is off.
+ */
+export type SilhouetteColourKey = AircraftStateKey | 'plain' | `alt${number}`
 
 /** Colour per state for arrow mode, whose arrows, trails and labels all share these. */
 export const ARROW_COLOURS: Readonly<Record<AircraftStateKey, string>> = {
@@ -73,6 +76,12 @@ export const SILHOUETTE_PALETTES: Readonly<
   },
 }
 
+/** Body colour of a civil aircraft per palette while altitude colouring is off. */
+export const SILHOUETTE_PLAIN_COLOURS: Readonly<Record<SilhouettePalette, string>> = {
+  dark: '#d9dcdf',
+  light: '#4b5057',
+}
+
 /**
  * Body colour of the selected civil aircraft per palette: the strongest colour
  * the map can take. Military and emergency aircraft keep their state colour
@@ -95,6 +104,18 @@ export const SILHOUETTE_DETAIL_COLOURS: Readonly<Record<SilhouettePalette, strin
 /** Width of that line, in CSS pixels. */
 export const SILHOUETTE_DETAIL_WIDTH_PX = 0.5
 
+/**
+ * How far in from the body's edge that line stops, in CSS pixels. Running to the
+ * edge it darkens the rim, which reads as a soft, blurred outline.
+ */
+export const SILHOUETTE_DETAIL_INSET_PX = 0.75
+
+/**
+ * Device pixels drawn per CSS pixel. Above the 2 of a high-density screen because
+ * the map resamples icons as it rotates them, which blurs an image drawn 1:1.
+ */
+export const SILHOUETTE_PIXEL_RATIO = 3
+
 /** Margin kept around the body inside its image, in CSS pixels. */
 export const SILHOUETTE_OUTLINE_WIDTH_PX = 1
 
@@ -103,7 +124,7 @@ export const SILHOUETTE_OUTLINE_WIDTH_PX = 1
  * thin parts (wing tips, tailplanes) to read at icon size; much more closes
  * the gaps between parts and the aircraft turns into a blob.
  */
-export const SILHOUETTE_BODY_SPREAD_PX = 0.4
+export const SILHOUETTE_BODY_SPREAD_PX = 0.15
 
 /** Image size, in CSS pixels, given to a shape key that names no known drawing. */
 export const SILHOUETTE_FALLBACK_ICON_PX = 32
@@ -120,6 +141,18 @@ export const SILHOUETTE_ZOOMED_IN_SCALE = 1.18
 
 /** Prefix every silhouette image name carries, so a handler can recognise its own. */
 export const SILHOUETTE_IMAGE_PREFIX = 'aircraft-silhouette:'
+
+/** The eight directions the body is shifted in to find its interior. */
+const INSET_DIRECTIONS: ReadonlyArray<readonly [number, number]> = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [Math.SQRT1_2, Math.SQRT1_2],
+  [Math.SQRT1_2, -Math.SQRT1_2],
+  [-Math.SQRT1_2, Math.SQRT1_2],
+  [-Math.SQRT1_2, -Math.SQRT1_2],
+]
 
 /**
  * Name of the map image for one shape in one colour. A feature carries this
@@ -155,6 +188,7 @@ function bandOfColourKey(colourKey: string): number | null {
 function isColourKey(value: string): value is SilhouetteColourKey {
   return (
     value === 'civil' ||
+    value === 'plain' ||
     value === 'military' ||
     value === 'emergency' ||
     bandOfColourKey(value) !== null
@@ -168,10 +202,11 @@ function bodyColourFor(
   palette: SilhouettePalette,
 ): string {
   const band = bandOfColourKey(colourKey)
-  if (selected && (band !== null || colourKey === 'civil')) {
+  if (selected && (band !== null || colourKey === 'civil' || colourKey === 'plain')) {
     return SILHOUETTE_SELECTED_CIVIL_COLOURS[palette]
   }
   if (band !== null) return altitudeBandColour(band, palette)
+  if (colourKey === 'plain') return SILHOUETTE_PLAIN_COLOURS[palette]
   return SILHOUETTE_PALETTES[palette][colourKey as AircraftStateKey]
 }
 
@@ -340,35 +375,59 @@ export function silhouetteRotatesWithTrack(shapeKey: string): boolean {
  * @param pixelRatio - Device pixels per CSS pixel to draw at.
  * @returns The image, or `null` for a name that does not describe a known shape.
  */
-export function createSilhouetteImageData(imageId: string, pixelRatio = 2): ImageData | null {
+export function createSilhouetteImageData(
+  imageId: string,
+  pixelRatio = SILHOUETTE_PIXEL_RATIO,
+): ImageData | null {
   const parsed = parseSilhouetteImageId(imageId)
   if (!parsed) return null
   const drawing = drawingFor(parsed.shapeKey)
   if (!drawing) return null
 
   const canvasSide = Math.max(1, Math.round(silhouetteIconSizePx(parsed.shapeKey) * pixelRatio))
-  const canvas = document.createElement('canvas')
-  canvas.width = canvas.height = canvasSide
-  const context = canvas.getContext('2d')
-  if (!context) return null
+  const createLayer = () => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = canvasSide
+    return { canvas, context: canvas.getContext('2d') }
+  }
+  const { canvas: bodyCanvas, context } = createLayer()
+  const { canvas: detailCanvas, context: detailContext } = createLayer()
+  const { canvas: interiorCanvas, context: interiorContext } = createLayer()
+  if (!context || !detailContext || !interiorContext) return null
 
   const outlineDevicePx = SILHOUETTE_OUTLINE_WIDTH_PX * pixelRatio
   const metresToDevicePx =
     (canvasSide - 2 * outlineDevicePx) / (2 * drawing.silhouette.boundingRadius)
   const outline = new Path2D(drawing.silhouette.pathData)
 
-  context.translate(canvasSide / 2, canvasSide / 2)
-  context.scale(metresToDevicePx, metresToDevicePx)
-  context.lineJoin = 'round'
+  for (const layer of [context, detailContext]) {
+    layer.translate(canvasSide / 2, canvasSide / 2)
+    layer.scale(metresToDevicePx, metresToDevicePx)
+    layer.lineJoin = 'round'
+  }
   const bodyColour = bodyColourFor(parsed.colourKey, parsed.selected, parsed.palette)
   context.lineWidth = (2 * SILHOUETTE_BODY_SPREAD_PX * pixelRatio) / metresToDevicePx
   context.fillStyle = bodyColour
   context.strokeStyle = bodyColour
   context.fill(outline)
   context.stroke(outline)
-  context.lineWidth = (SILHOUETTE_DETAIL_WIDTH_PX * pixelRatio) / metresToDevicePx
-  context.strokeStyle = SILHOUETTE_DETAIL_COLOURS[parsed.palette]
-  context.stroke(outline)
+  detailContext.lineWidth = (SILHOUETTE_DETAIL_WIDTH_PX * pixelRatio) / metresToDevicePx
+  detailContext.strokeStyle = SILHOUETTE_DETAIL_COLOURS[parsed.palette]
+  detailContext.stroke(outline)
 
+  // The body's interior: where it still covers itself shifted inward every way.
+  // Keeping only the detail inside it leaves the outer rim in solid body colour.
+  const insetDevicePx = SILHOUETTE_DETAIL_INSET_PX * pixelRatio
+  interiorContext.drawImage(bodyCanvas, 0, 0)
+  interiorContext.globalCompositeOperation = 'destination-in'
+  for (const [shiftX, shiftY] of INSET_DIRECTIONS) {
+    interiorContext.drawImage(bodyCanvas, shiftX * insetDevicePx, shiftY * insetDevicePx)
+  }
+  detailContext.setTransform(1, 0, 0, 1, 0, 0)
+  detailContext.globalCompositeOperation = 'destination-in'
+  detailContext.drawImage(interiorCanvas, 0, 0)
+
+  context.setTransform(1, 0, 0, 1, 0, 0)
+  context.drawImage(detailCanvas, 0, 0)
   return context.getImageData(0, 0, canvasSide, canvasSide)
 }

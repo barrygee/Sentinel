@@ -39,7 +39,7 @@
             "towers": true,
             "airports": true,
             "militaryBases": true,
-            "altitudeLegend": true
+            "altitudeColouring": true
         },
         "aircraftIconStyle": "arrow",
         "labelDataPoints": {

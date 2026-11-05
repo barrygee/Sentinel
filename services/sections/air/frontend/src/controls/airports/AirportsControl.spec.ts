@@ -6,6 +6,7 @@ import { setActivePinia, createPinia } from 'pinia'
 const fieldRegistry = vi.hoisted(() => ({
   instances: [] as Array<{
     sites: Array<{
+      code?: string
       name: string
       coordinates: [number, number]
       onClick: () => void
@@ -104,6 +105,10 @@ describe('AirportsToggleControl.onInit', () => {
     const [labels] = fieldRegistry.instances
     expect(labels!.kind).toBe('civil')
     expect(labels!.sites).toHaveLength(AIRPORTS_DATA.features.length)
+    expect(labels!.sites[0]).toMatchObject({
+      code: AIRPORTS_DATA.features[0]!.properties.icao,
+      name: AIRPORTS_DATA.features[0]!.properties.name,
+    })
     expect(labels!.setVisible).toHaveBeenCalledWith(true)
     expect(labels!.attach).toHaveBeenCalled()
   })

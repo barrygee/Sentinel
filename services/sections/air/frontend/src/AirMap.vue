@@ -11,7 +11,7 @@
     @style-loaded="onStyleLoaded"
   />
   <AircraftAltitudeLegend
-    v-if="airStore.overlayStates.altitudeLegend"
+    v-if="airStore.overlayStates.altitudeColouring"
     :palette="themeStore.mapTheme === 'light' ? 'light' : 'dark'"
   />
 </template>
@@ -394,6 +394,10 @@ onMounted(() => {
   watch(
     () => airStore.aircraftIconStyle,
     (style) => adsbControl?.setIconStyle(style),
+  )
+  watch(
+    () => airStore.overlayStates.altitudeColouring,
+    (enabled) => adsbControl?.setAltitudeColouring(enabled),
   )
   // Place names are a shared base-map layer, so this one follows the basemap
   // store — and is equally how the Land map's own names button reaches this map.

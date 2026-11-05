@@ -52,6 +52,7 @@ const controlMocks = vi.hoisted(() => {
       setHideTowers = vi.fn()
       // Arrow or silhouette icons, driven from the store.
       setIconStyle = vi.fn()
+      setAltitudeColouring = vi.fn()
       setZones = vi.fn()
       updateCenter = vi.fn()
       setVisible = vi.fn()
@@ -269,7 +270,7 @@ describe('AirMap', () => {
     it('shows the altitude bar until the setting turns it off', async () => {
       const wrapper = mountMap()
       expect(wrapper.findComponent({ name: 'AircraftAltitudeLegend' }).exists()).toBe(true)
-      useAirStore().setOverlay('altitudeLegend', false)
+      useAirStore().setOverlay('altitudeColouring', false)
       await nextTick()
       expect(wrapper.findComponent({ name: 'AircraftAltitudeLegend' }).exists()).toBe(false)
     })
@@ -628,6 +629,26 @@ describe('AirMap', () => {
       await nextTick()
 
       expect(last('adsb').setIconStyle).toHaveBeenCalledWith('silhouette')
+    })
+
+    it('passes the altitude colouring setting to the ADS-B control', async () => {
+      const air = useAirStore()
+      const map = makeFakeMap()
+      mountMap()
+      bringUp(map)
+
+      air.overlayStates.altitudeColouring = false
+      await nextTick()
+
+      expect(last('adsb').setAltitudeColouring).toHaveBeenCalledWith(false)
+    })
+
+    it('ignores an altitude colouring change before the ADS-B control exists', async () => {
+      const air = useAirStore()
+      mountMap()
+      air.overlayStates.altitudeColouring = false
+      await nextTick()
+      expect(controlMocks.instances.adsb).toBeUndefined()
     })
 
     it('ignores an icon style change that lands before the ADS-B control exists', async () => {

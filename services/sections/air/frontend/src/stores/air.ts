@@ -64,8 +64,8 @@ export interface OverlayStates {
   groundVehicles: boolean
   /** Fixed ADS-B ground stations ("towers") — shown by default. */
   towers: boolean
-  /** The altitude colour bar along the bottom of the map — shown by default. */
-  altitudeLegend: boolean
+  /** Colours aircraft and their tracks by altitude and shows the colour bar — on by default. */
+  altitudeColouring: boolean
 }
 
 // Last-known search-result entry for an expanded aircraft, persisted so the
@@ -125,7 +125,7 @@ export const MAP_LAYER_KEYS = [
   'towers',
   'airports',
   'militaryBases',
-  'altitudeLegend',
+  'altitudeColouring',
 ] as const
 export type MapLayerKey = (typeof MAP_LAYER_KEYS)[number]
 /** The persisted shape of `air.mapLayers` in the app config. */
@@ -296,7 +296,7 @@ const DEFAULTS: OverlayStates = {
   awacs: true,
   groundVehicles: true,
   towers: true,
-  altitudeLegend: true,
+  altitudeColouring: true,
 }
 
 function migrateOverlays(parsed: unknown): Partial<OverlayStates> {

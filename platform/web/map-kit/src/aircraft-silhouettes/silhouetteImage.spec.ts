@@ -4,6 +4,7 @@ import {
   parseSilhouetteImageId,
   SILHOUETTE_COLOURS,
   SILHOUETTE_DETAIL_COLOURS,
+  SILHOUETTE_DETAIL_INSET_PX,
   SILHOUETTE_FALLBACK_ICON_PX,
   SILHOUETTE_PALETTES,
   silhouetteForShape,
@@ -202,10 +203,15 @@ describe('createSilhouetteImageData', () => {
     drawCalls = []
     canvasSides = []
     vi.stubGlobal('Path2D', RecordedPath)
+    // The body, detail and interior canvases share one context, so a test sees
+    // every draw in order.
+    let contextReady = false
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(function (
       this: HTMLCanvasElement,
     ) {
       canvasSides.push(this.width, this.height)
+      if (contextReady) return context as unknown as CanvasRenderingContext2D
+      contextReady = true
       context = {
         fillStyle: '',
         strokeStyle: '',
@@ -223,6 +229,8 @@ describe('createSilhouetteImageData', () => {
         stroke: vi.fn(() =>
           drawCalls.push({ call: 'stroke', colour: context.strokeStyle as string }),
         ),
+        drawImage: vi.fn(),
+        setTransform: vi.fn(),
         getImageData: vi.fn(() => imageData),
       }
       return context as unknown as CanvasRenderingContext2D
@@ -276,10 +284,10 @@ describe('createSilhouetteImageData', () => {
     expect(drawCalls[0]!.colour).toBe(altitudeBandColour(10, 'dark'))
   })
 
-  it('draws at twice the icon size by default, for high-density screens', () => {
+  it('draws at three times the icon size by default, so rotating it stays sharp', () => {
     createSilhouetteImageData(silhouetteImageId('type:A320', 'civil'))
-    const side = Math.round(silhouetteIconSizePx('type:A320') * 2)
-    expect(canvasSides).toEqual([side, side])
+    const side = Math.round(silhouetteIconSizePx('type:A320') * 3)
+    expect(canvasSides.slice(0, 2)).toEqual([side, side])
     expect(context.getImageData).toHaveBeenCalledWith(0, 0, side, side)
     expect(context.translate).toHaveBeenCalledWith(side / 2, side / 2)
   })
@@ -299,6 +307,93 @@ describe('createSilhouetteImageData', () => {
   ])('draws nothing for %s', (_description, imageId) => {
     expect(createSilhouetteImageData(imageId)).toBeNull()
     expect(drawCalls).toEqual([])
+  })
+
+  it.each([
+    ['dark', '#d9dcdf'],
+    ['light', '#4b5057'],
+  ] as const)('draws a plain aircraft on the %s map in its plain colour', (palette, colour) => {
+    createSilhouetteImageData(
+      silhouetteImageIdForPalette(silhouetteImageId('type:A320', 'plain'), palette),
+    )
+    expect(drawCalls[0]).toMatchObject({ call: 'fill', colour })
+  })
+
+  it.each([
+    ['dark', SILHOUETTE_SELECTED_CIVIL_COLOURS.dark],
+    ['light', SILHOUETTE_SELECTED_CIVIL_COLOURS.light],
+  ] as const)('draws a selected plain aircraft in the %s selected colour', (palette, colour) => {
+    createSilhouetteImageData(
+      silhouetteImageIdForPalette(
+        `${silhouetteImageId('type:A320', 'plain')}${SILHOUETTE_SELECTED_SUFFIX}`,
+        palette,
+      ),
+    )
+    expect(drawCalls[0]!.colour).toBe(colour)
+  })
+
+  it('reads a plain aircraft’s image name back', () => {
+    const imageId = silhouetteImageIdForPalette(silhouetteImageId('type:A320', 'plain'), 'dark')
+    expect(parseSilhouetteImageId(imageId)?.colourKey).toBe('plain')
+  })
+
+  it('finds the body’s interior by shifting it inset in eight directions', () => {
+    createSilhouetteImageData(silhouetteImageId('type:A320', 'civil'), 2)
+    const drawImage = context.drawImage as unknown as ReturnType<typeof vi.fn>
+    const shifts = drawImage.mock.calls.map(([, shiftX, shiftY]) => [shiftX, shiftY])
+    // The body copied in, eight shifted copies, then the clip and the composite.
+    expect(shifts).toHaveLength(11)
+    const reach = SILHOUETTE_DETAIL_INSET_PX * 2
+    expect(shifts.slice(1, 9).map(([shiftX, shiftY]) => Math.hypot(shiftX, shiftY))).toEqual(
+      Array.from({ length: 8 }, () => expect.closeTo(reach)),
+    )
+    expect(new Set(shifts.slice(1, 9).map(String)).size).toBe(8)
+  })
+
+  it('keeps only the part of the detail line inside the interior', () => {
+    // A context per canvas here, because this is about which canvas does what.
+    const layers: { canvas: HTMLCanvasElement; context: Record<string, unknown> }[] = []
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation(function (
+      this: HTMLCanvasElement,
+    ) {
+      const layerContext = {
+        translate: vi.fn(),
+        scale: vi.fn(),
+        fill: vi.fn(),
+        stroke: vi.fn(),
+        setTransform: vi.fn(),
+        drawImage: vi.fn(),
+        getImageData: vi.fn(() => imageData),
+        globalCompositeOperation: 'source-over',
+      }
+      layers.push({ canvas: this, context: layerContext })
+      return layerContext as unknown as CanvasRenderingContext2D
+    } as unknown as HTMLCanvasElement['getContext'])
+
+    createSilhouetteImageData(silhouetteImageId('type:A320', 'civil'))
+
+    const [body, detail, interior] = layers
+    expect(detail!.context.globalCompositeOperation).toBe('destination-in')
+    expect(detail!.context.drawImage).toHaveBeenCalledWith(interior!.canvas, 0, 0)
+    expect(body!.context.globalCompositeOperation).toBe('source-over')
+    expect(body!.context.drawImage).toHaveBeenCalledWith(detail!.canvas, 0, 0)
+  })
+
+  it.each([
+    ['detail', 2],
+    ['interior', 3],
+  ])('draws nothing when the %s canvas gets no 2D context', (_name, failingCall) => {
+    const realGetContext = vi.mocked(HTMLCanvasElement.prototype.getContext).getMockImplementation()
+    let calls = 0
+    vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation(function (
+      this: HTMLCanvasElement,
+      ...args: unknown[]
+    ) {
+      calls += 1
+      if (calls === failingCall) return null
+      return (realGetContext as unknown as (...params: unknown[]) => unknown).apply(this, args)
+    } as unknown as HTMLCanvasElement['getContext'])
+    expect(createSilhouetteImageData(silhouetteImageId('type:A320', 'civil'))).toBeNull()
   })
 
   it('draws nothing when the browser gives no 2D context', () => {

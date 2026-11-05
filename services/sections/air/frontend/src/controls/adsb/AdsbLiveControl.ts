@@ -42,12 +42,14 @@ import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/res
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { trailLineGradient } from './trailLineGradient'
-import { AIRFIELD_LAYER_IDS } from '../airfield-label/AirfieldMarkers'
+import { AIRFIELD_LAYER_ORDER } from '../airfield-label/AirfieldMarkers'
 import {
   altitudeColourKey,
   ARROW_COLOURS,
   createSilhouetteImageData,
   SILHOUETTE_PALETTES,
+  SILHOUETTE_PIXEL_RATIO,
+  SILHOUETTE_PLAIN_COLOURS,
   parseSilhouetteImageId,
   silhouetteIconSizePx,
   silhouetteSideReachPx,
@@ -136,16 +138,19 @@ function silhouetteProperties(
   military: boolean,
   squawkEmergency: boolean,
   altitudeFeet: number,
+  altitudeColouring: boolean,
 ): Pick<AircraftProperties, 'silhouetteImage' | 'silhouetteRadiusPx' | 'silhouetteRotates'> {
   const shape = resolveAircraftShape(typeDesignator, category)
   if (!shape) return { silhouetteImage: '', silhouetteRadiusPx: 0, silhouetteRotates: 0 }
   const colourKey: SilhouetteColourKey = squawkEmergency
     ? 'emergency'
-    : altitudeFeet > 0
+    : altitudeColouring && altitudeFeet > 0
       ? altitudeColourKey(altitudeFeet)
       : military
         ? 'military'
-        : 'civil'
+        : altitudeColouring
+          ? 'civil'
+          : 'plain'
   return {
     silhouetteImage: silhouetteImageId(shape.shapeKey, colourKey),
     silhouetteRadiusPx: silhouetteIconSizePx(shape.shapeKey) / 2,
@@ -289,6 +294,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _onTagFieldsChanged: ((e: Event) => void) | null = null
   /** Arrow inside the label, or silhouette beside it (Settings › AIR › Aircraft Icons). */
   _iconStyle: AircraftIconStyle = 'arrow'
+  private _altitudeColouring = true
   /**
    * Which basemap the silhouettes are coloured for, read in initLayers — which
    * every map re-runs when the palette changes and reloads the basemap.
@@ -330,6 +336,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       always: { ...airStore.adsbTagFields.always },
     }
     this._iconStyle = airStore.aircraftIconStyle
+    this._altitudeColouring = airStore.overlayStates.altitudeColouring
     // Restore the persisted type/visibility filter here (not via a delayed
     // setTimeout in AirSideMenu) so the very first poll renders under the
     // correct filter — otherwise civil aircraft flash for ~1s on load before
@@ -536,7 +543,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       if (!imageId.startsWith(SILHOUETTE_IMAGE_PREFIX)) return
       if (this.map.hasImage(imageId)) return
       const image = createSilhouetteImageData(imageId)
-      if (image) this.map.addImage(imageId, image, { pixelRatio: 2 })
+      if (image) this.map.addImage(imageId, image, { pixelRatio: SILHOUETTE_PIXEL_RATIO })
     }
     this.map.setMissingStyleImageResolver(this._resolveMissingImage)
 
@@ -766,6 +773,30 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._clearCallsignMarkers()
     this._updateCallsignMarkers()
     if (this._tagHex) this._rebuildTagForHex(this._tagHex)
+  }
+
+  /**
+   * Turn altitude colouring on or off, and repaint what it drives: every
+   * aircraft, the labels (arrows sit in them), any open tag, and the trail.
+   */
+  setAltitudeColouring(enabled: boolean): void {
+    if (enabled === this._altitudeColouring) return
+    this._altitudeColouring = enabled
+    if (!this.map) return
+    for (const feature of this._geojson.features) {
+      const { t, category, military, squawkEmerg, alt_baro } = feature.properties
+      Object.assign(
+        feature.properties,
+        silhouetteProperties(t, category, military, !!squawkEmerg, alt_baro, enabled),
+      )
+    }
+    ;(this.map.getSource('adsb-live') as maplibregl.GeoJSONSource)?.setData(
+      this._geojson as GeoJSON.GeoJSON,
+    )
+    this._clearCallsignMarkers()
+    this._updateCallsignMarkers()
+    if (this._tagHex) this._rebuildTagForHex(this._tagHex)
+    this._rebuildTrails()
   }
 
   // ---- Map layer initialisation ----
@@ -1653,7 +1684,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
    */
   private _arrowColour(props: AircraftProperties, isEmerg: boolean, isMil: boolean): string {
     if (isEmerg) return ARROW_COLOURS.emergency
-    if (props.alt_baro > 0) return altitudeColour(props.alt_baro, 'dark')
+    if (this._altitudeColouring && props.alt_baro > 0) {
+      return altitudeColour(props.alt_baro, 'dark')
+    }
     return isMil ? ARROW_COLOURS.military : ARROW_COLOURS.civil
   }
 
@@ -2209,7 +2242,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           geometry: { type: 'Point', coordinates: [tp.lon, tp.lat] },
           properties: {
             alt: tp.alt,
-            colour: this._trailColour(tp.alt, isEmerg),
+            colour: this._trailColour(tp.alt, isEmerg, isMil),
             opacity: (i + 1) / pointCount,
             emerg: isEmerg,
             military: isMil,
@@ -2223,7 +2256,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const reported = points.map((point) => ({
           lon: point.lon,
           lat: point.lat,
-          colour: this._trailColour(point.alt, isEmerg),
+          colour: this._trailColour(point.alt, isEmerg, isMil),
         }))
         // The line runs on to the aircraft, in the colour of its latest report.
         const [headLon, headLat] = dedupedCoords.at(-1)!
@@ -2263,16 +2296,20 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   /**
-   * A trail's colour at a stored position: the aircraft's altitude colour then,
-   * or red throughout for an emergency, as the aircraft itself is drawn. On the
-   * ground it matches the aircraft's no-altitude colour.
+   * A trail's colour at a stored position, matching the aircraft: its altitude
+   * colour then, or red throughout for an emergency. With no altitude to go on,
+   * or altitude colouring off, it takes the aircraft's flat colour.
    */
-  private _trailColour(altitudeFeet: number, isEmergency: 0 | 1): string {
+  private _trailColour(altitudeFeet: number, isEmergency: 0 | 1, isMilitary: 0 | 1): string {
     if (isEmergency) return ARROW_COLOURS.emergency
-    if (altitudeFeet > 0) return altitudeColour(altitudeFeet, this._silhouettePalette)
-    return this._iconStyle === 'silhouette'
+    if (this._altitudeColouring && altitudeFeet > 0) {
+      return altitudeColour(altitudeFeet, this._silhouettePalette)
+    }
+    if (isMilitary) return ARROW_COLOURS.military
+    if (this._iconStyle !== 'silhouette') return ARROW_COLOURS.civil
+    return this._altitudeColouring
       ? SILHOUETTE_PALETTES[this._silhouettePalette].civil
-      : ARROW_COLOURS.civil
+      : SILHOUETTE_PLAIN_COLOURS[this._silhouettePalette]
   }
 
   /** Trail line vertices: historical reported points, then the aircraft's current interpolated position. */
@@ -2583,6 +2620,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
               military,
               this._emergencySquawks.has(a.squawk || ''),
               this._parseAlt(a.alt_baro ?? null),
+              this._altitudeColouring,
             ),
           } as AircraftProperties,
         })
@@ -2663,7 +2701,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     try {
       if (this.map.getLayer(MAP_DIM_LAYER_ID)) this.map.moveLayer(MAP_DIM_LAYER_ID)
       // Airfields sit above the dimming but beneath every aircraft.
-      for (const layerId of Object.values(AIRFIELD_LAYER_IDS)) {
+      for (const layerId of AIRFIELD_LAYER_ORDER) {
         if (this.map.getLayer(layerId)) this.map.moveLayer(layerId)
       }
       if (this.map.getLayer('adsb-trail-line')) this.map.moveLayer('adsb-trail-line')

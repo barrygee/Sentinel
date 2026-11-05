@@ -363,6 +363,7 @@ export class AirportsToggleControl extends SentinelControlBase {
 
     if (!this._markers) {
       const sites = AIRPORTS_DATA.features.map((feature) => ({
+        code: feature.properties.icao,
         name: feature.properties.name,
         coordinates: feature.geometry.coordinates as LngLat,
         // Clicking an airport opens its accordion in the side-panel SEARCH

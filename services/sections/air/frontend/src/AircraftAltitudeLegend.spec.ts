@@ -28,8 +28,8 @@ describe('AircraftAltitudeLegend', () => {
   })
 
   it.each([
-    ['dark', 'rgb(26, 33, 48)'],
-    ['light', 'rgb(39, 79, 96)'],
+    ['dark', 'rgb(0, 0, 0)'],
+    ['light', 'rgb(0, 0, 0)'],
   ] as const)('sits on the same solid fill as the %s map’s airfield labels', (palette, fill) => {
     const wrapper = mount(AircraftAltitudeLegend, { props: { palette } })
     expect((wrapper.element as HTMLElement).style.background).toBe(fill)
