@@ -38,7 +38,7 @@ from pathlib import Path
 
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from backend.error_handlers import request_validation_error_handler
+from backend.error_handlers import request_validation_error_handler, settings_unavailable_error_handler
 from backend.platform.bus import bus
 from backend.platform.lifecycle import ModuleLifecycle, run_lifecycles
 from backend.platform.nats_transport import NatsTransport
@@ -46,7 +46,7 @@ from backend.platform.remote_files import RemotesStaticFiles
 from backend.platform.sdk.registration import ServiceRegistrar
 from backend.platform.security import install_request_guard
 from backend.platform.service_manifest import ServiceManifest
-from backend.platform.settings_client import wait_for_core
+from backend.platform.settings_client import SettingsUnavailable, wait_for_core
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -209,6 +209,7 @@ def create_service(
         openapi_url=None,
     )
     app.add_exception_handler(RequestValidationError, request_validation_error_handler)
+    app.add_exception_handler(SettingsUnavailable, settings_unavailable_error_handler)
     for router in routers:
         app.include_router(router)
 

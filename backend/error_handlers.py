@@ -27,6 +27,11 @@ logger = logging.getLogger(__name__)
 # those on purpose, as the message the operator should see.
 UNEXPECTED_ERROR_MESSAGE = "Unexpected error"
 
+SETTINGS_UNAVAILABLE_MESSAGE = "Settings are temporarily unavailable"
+
+SETTINGS_RETRY_AFTER_SECONDS = 5
+"""Long enough for a restarting core to answer again, and short enough that a client isn't left waiting."""
+
 
 def handle_service_errors(fn: F) -> F:
     """Decorator: catch RuntimeError → 503, any other Exception → 500.
@@ -79,6 +84,21 @@ def _replace_non_finite_numbers(value: object) -> object:
     if isinstance(value, list | tuple):
         return [_replace_non_finite_numbers(item) for item in value]
     return value
+
+
+async def settings_unavailable_error_handler(request: Request, error: Exception) -> JSONResponse:
+    """503 for a request that needed core's settings while core wasn't answering.
+
+    Core restarting or replying slowly is a passing outage, not a bug in the
+    route, so it is logged in one line rather than as a 500 and a traceback. The
+    error text names core's internal URL, so the client gets a fixed message.
+    """
+    logger.warning("%s %s failed: %s", request.method, request.url.path, error)
+    return JSONResponse(
+        status_code=503,
+        content={"detail": SETTINGS_UNAVAILABLE_MESSAGE},
+        headers={"Retry-After": str(SETTINGS_RETRY_AFTER_SECONDS)},
+    )
 
 
 async def request_validation_error_handler(request: Request, error: RequestValidationError) -> JSONResponse:
