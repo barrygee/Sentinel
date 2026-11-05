@@ -1,8 +1,8 @@
 /**
  * Airport and military base labels, drawn as a map layer beneath the aircraft.
  *
- * Each site is a dot, blue for civil and green for military, until it is hovered
- * or clicked. Its label then opens over the dot: flat and black at aircraft tag
+ * Each site is a dot, black for civil and green for military, until it is hovered
+ * or clicked. Its label then opens over the dot, turning a civil dot blue: flat and black at aircraft tag
  * size, with the ICAO code in a block where the site shows one, then the name.
  * Labels are rendered to map
  * images rather than built as HTML markers, because HTML markers always sit above
@@ -47,10 +47,16 @@ export const AIRFIELD_LAYER_ORDER: readonly string[] = [
   ...Object.values(AIRFIELD_OPEN_LABEL_LAYER_IDS),
 ]
 
-/** The dot and code text, and the code block's fill, per kind. */
-const KIND_COLOURS: Readonly<Record<AirfieldKind, { accent: string; block: string }>> = {
-  civil: { accent: '#00aaff', block: '#002244' },
-  military: { accent: '#c8ff00', block: '#4d6600' },
+/**
+ * Colours per kind: the dot on the map while closed, then the open label's dot
+ * and code text, and its code block's fill. An open label's own dot covers the
+ * closed one, so a dot turns from `closedDot` to `accent` as its label opens.
+ */
+const KIND_COLOURS: Readonly<
+  Record<AirfieldKind, { closedDot: string; accent: string; block: string }>
+> = {
+  civil: { closedDot: '#000000', accent: '#00aaff', block: '#002244' },
+  military: { closedDot: '#c8ff00', accent: '#c8ff00', block: '#4d6600' },
 }
 
 /** Label fill per basemap: black on both, matching the aircraft tags. */
@@ -240,7 +246,7 @@ export class AirfieldMarkers {
         layout: { visibility },
         paint: {
           'circle-radius': DOT_RADIUS_PX,
-          'circle-color': KIND_COLOURS[this._kind].accent,
+          'circle-color': KIND_COLOURS[this._kind].closedDot,
           'circle-stroke-width': DOT_POINTER_RING_PX,
           'circle-stroke-color': 'rgba(0, 0, 0, 0)',
         },
