@@ -35,6 +35,8 @@ export const AIRCRAFT_FAMILY_IDS = [
   'fighterSingleFin',
   'fighterTwinFin',
   'fighterCanardDelta',
+  'hawkTrainer',
+  'f35Lightning',
   'helicopter',
   'helicopterTandem',
   'tiltrotor',
@@ -795,6 +797,78 @@ export const AIRCRAFT_FAMILIES: Readonly<Record<AircraftFamilyId, AircraftFamily
         leadingEdgeSweepDeg: 50,
         rootLeadingEdgeFromNose: 3.6,
       },
+    },
+  },
+
+  hawkTrainer: {
+    id: 'hawkTrainer',
+    label: 'Hawk jet trainer',
+    reference: 'BAE Systems Hawk',
+    referenceLength: 12.4,
+    referenceSpan: 9.4,
+    planform: {
+      fuselage: {
+        length: 12.4,
+        width: 1.5,
+        noseLength: 3.4,
+        tailConeLength: 3.6,
+        tailTipWidth: 0.7,
+        noseShape: 'pointed',
+      },
+      // Far less sweep than a fighter, with a nearly straight trailing edge:
+      // this and the small tail are what separate a Hawk from an F-16 at icon size.
+      wing: {
+        span: 9.4,
+        rootChord: 3.2,
+        tipChord: 1.0,
+        leadingEdgeSweepDeg: 28,
+        rootLeadingEdgeFromNose: 5.4,
+      },
+      tailplane: {
+        span: 4.4,
+        rootChord: 1.7,
+        tipChord: 0.5,
+        leadingEdgeSweepDeg: 35,
+        rootLeadingEdgeFromNose: 10.3,
+      },
+      // The intake shoulders either side of the fuselage, ahead of the wing.
+      engines: [{ lateralOffset: 0.8, fromNose: 4.4, length: 3.0, diameter: 0.8 }],
+    },
+  },
+
+  f35Lightning: {
+    id: 'f35Lightning',
+    label: 'F-35 Lightning II',
+    reference: 'Lockheed Martin F-35A',
+    referenceLength: 15.7,
+    referenceSpan: 10.7,
+    planform: {
+      fuselage: {
+        length: 15.2,
+        width: 1.9,
+        noseLength: 3.8,
+        tailConeLength: 3.2,
+        tailTipWidth: 1.1,
+        noseShape: 'pointed',
+      },
+      // A trapezoid whose trailing edge sweeps forward, unlike the other
+      // fighters: with the wide body it gives the F-35 its diamond outline.
+      wing: {
+        span: 10.7,
+        rootChord: 7.2,
+        tipChord: 1.5,
+        leadingEdgeSweepDeg: 33,
+        rootLeadingEdgeFromNose: 6.5,
+      },
+      tailplane: {
+        span: 7.2,
+        rootChord: 2.8,
+        tipChord: 0.6,
+        leadingEdgeSweepDeg: 26,
+        rootLeadingEdgeFromNose: 12.9,
+      },
+      // Stands in for the wide intake and engine bay behind the narrow forebody.
+      engines: [{ lateralOffset: 1.0, fromNose: 3.8, length: 8.0, diameter: 1.5 }],
     },
   },
 
