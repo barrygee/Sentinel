@@ -1,3 +1,14 @@
+# Applied to every long-running service: a process can never gain privileges
+# through setuid or file capabilities. The entrypoint's setpriv only drops them.
+x-no-new-privileges: &no-new-privileges
+  - no-new-privileges:true
+
+# For images that never need root: everything above, and no capabilities at all.
+x-unprivileged-service: &unprivileged-service
+  security_opt: *no-new-privileges
+  cap_drop:
+    - ALL
+
 # Shared by every section that runs as its own service (section-containers
 # plan P6): the app's image run with a standalone entry point, reachable only
 # on the compose network (browsers reach it through the gateway).
@@ -5,6 +16,7 @@ x-section-service: &section-service
   build:
     context: .
     dockerfile: backend/Dockerfile
+  security_opt: *no-new-privileges
   expose:
     - "8000"
   # Healthy = /health answers (the image's HEALTHCHECK). A section also holds
@@ -39,6 +51,9 @@ x-guard-env: &guard-env
   GUARD_TRUSTED_PROXY_DEPTH: ${GUARD_TRUSTED_PROXY_DEPTH:-1}
   GUARD_INTERNAL_NETWORKS: ${SENTINEL_NETWORK_SUBNET:-172.28.0.0/24}
   GUARD_CLIENT_NETWORKS: ${GUARD_CLIENT_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10}
+  # Where containers get their addresses. It sits inside the client networks,
+  # so without this a container could pose as a browser by sending its headers.
+  GUARD_CONTAINER_NETWORKS: ${SENTINEL_NETWORK_DYNAMIC_RANGE:-172.28.0.128/25}
   # Names browsers may open Sentinel under besides IPs and localhost (DNS-rebinding defence).
   SENTINEL_ALLOWED_HOSTS: ${SENTINEL_ALLOWED_HOSTS:-}
   GUARD_SERVICE_HOSTS: ${GUARD_SERVICE_HOSTS:-}
@@ -92,11 +107,17 @@ x-section-env: &section-env
   SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
 
 # Mounts every section service shares. The app's database is read once on
-# first boot to copy the section's tables out (legacy import, opened read-only
-# by the import); the SPA build holds each section's UI remote.
+# first boot to copy the section's tables out, and it holds the AISStream key,
+# so the mount itself is read-only as well as the import's connection. The
+# backend code is read-only because a section only reads it to live-reload:
+# anything writable here is code that app runs. The SPA build holds each
+# section's UI remote.
 x-section-mounts:
-  - &legacy-db sentinel_db:/legacy
-  - &backend-code ./backend:/app/backend  # live-reload backend code
+  - &legacy-db sentinel_db:/legacy:ro
+  - &backend-code ./backend:/app/backend:ro  # live-reload backend code
+  # Settings › SDR and › Space save their edits to files here, so those two sections
+  # mount it writable over the read-only code. Data only: nothing here is executed.
+  - &editable-data ./backend/data:/app/backend/data
   - &spa-dist ./frontend/spa-dist:/app/frontend/spa-dist:ro
 
 services:
@@ -105,6 +126,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: sentinel-app
+    security_opt: *no-new-privileges
     # Internal only: browsers reach the app through the `gateway` service below,
     # which publishes :8080. Section services join core at http://app:8000
     # directly; decoders go through the gateway (see the decoder entries).
@@ -198,8 +220,15 @@ services:
   # SENTINEL_CORE_HOSTNAMES. Published on 127.0.0.1 only unless
   # SENTINEL_SERVICE_ENTRYPOINT_ADDRESS opens it to the LAN (e.g. 0.0.0.0:8443).
   gateway:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
     container_name: sentinel-gateway
+    security_opt: *no-new-privileges
+    # Not plain `cap_drop: ALL`: the image's caddy binary carries a file
+    # capability, so without this one in the bounding set it won't start at all.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     command: ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
     ports:
       - "8080:8080"
@@ -261,6 +290,7 @@ services:
       - space_data:/app/data
       - *legacy-db
       - *backend-code
+      - *editable-data
       - ./services/sections/space/backend:/app/services/sections/space/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/space}}
@@ -419,6 +449,7 @@ services:
       - sdr_data:/app/data
       - *legacy-db
       - *backend-code
+      - *editable-data
       - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr}}
@@ -536,7 +567,8 @@ services:
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
       - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-local/ (overrides the image's copy)
-      - ./backend:/app/backend
+      # No ./backend mount: this runs as root, so it uses the image's copy.
+      # Rebuild after changing backend/.
       - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}
     environment:
@@ -573,8 +605,9 @@ services:
   # (service-credentials writes guard-state/users.acl). If it stops, the
   # services let requests through and log it (redis_fail_open).
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
     container_name: sentinel-redis
+    <<: *unprivileged-service
     command:
       - redis-server
       - --aclfile
@@ -618,8 +651,13 @@ services:
   # signs in as its own NATS user, allowed only the subjects it uses
   # (backend/platform/nats_permissions.py). service-credentials writes the config.
   nats:
-    image: nats:2.11-alpine
+    image: nats:2.11-alpine@sha256:e4bf19f15fd3218814a4e3c9e0064e1334bd8aa20d5984b9f1a0afd084f8cc00
     container_name: sentinel-nats
+    <<: *unprivileged-service
+    # The image has no USER of its own. The config and key on the credentials
+    # volume belong to the runtime user, and with no JetStream it writes nothing.
+    user: "${SENTINEL_RUNTIME_USER_ID:-1000}:${SENTINEL_RUNTIME_GROUP_ID:-1000}"
+    read_only: true
     # On 127.0.0.1 only unless NATS_PUBLISHED_ADDRESS opens it to the LAN
     # (e.g. 0.0.0.0:4222) for a radio host's hub (P7.5). TLS and a user per
     # service either way, so publishing it exposes nothing unauthenticated.
@@ -630,11 +668,11 @@ services:
         condition: service_completed_successfully
     volumes:
       - {type: volume, source: service_credentials, target: /etc/nats-sentinel, read_only: true, volume: {subpath: server}}
-    # The config also opens the monitoring port (8222, inside the network
-    # only) for the healthcheck.
+    # The config also opens the monitoring port for the healthcheck, on the
+    # container's own loopback: it has no authentication.
     command: ["--config", "/etc/nats-sentinel/nats.conf"]
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "-", "http://localhost:8222/healthz"]
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8222/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3
@@ -659,9 +697,11 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     container_name: sentinel-service-credentials
+    security_opt: *no-new-privileges
     volumes:
       - service_credentials:/run/service-credentials
-      - ./backend:/app/backend
+      # No ./backend mount: this holds the CA key, so it uses the image's copy.
+      # Rebuild after changing backend/scripts/generate_service_credentials.py.
       # Where the native Mac SDR Manager reads its credentials (ADR 0007),
       # filled only when SDR_MANAGER_LOCAL_NATIVE=1. The folder is in the
       # checkout (its .gitignore keeps the files out of git).
@@ -698,6 +738,7 @@ services:
       context: ./decoder
       dockerfile: Dockerfile
     container_name: sentinel-voice-decoder
+    <<: *unprivileged-service
     profiles: ["voice-decoder", "all"]
     depends_on:
       - gateway
@@ -729,6 +770,7 @@ services:
       context: ./decoder/aprs
       dockerfile: Dockerfile
     container_name: sentinel-aprs-decoder
+    <<: *unprivileged-service
     profiles: ["aprs", "all"]
     depends_on:
       - gateway
@@ -765,6 +807,7 @@ services:
       context: ./decoder/ais
       dockerfile: Dockerfile
     container_name: sentinel-ais-decoder
+    <<: *unprivileged-service
     profiles: ["ais", "all"]
     depends_on:
       - gateway
@@ -792,6 +835,7 @@ services:
       context: ./decoder/stub
       dockerfile: Dockerfile
     container_name: sentinel-stub-decoder
+    <<: *unprivileged-service
     profiles: ["decoder-stub"]
     depends_on:
       - gateway
@@ -830,6 +874,7 @@ services:
       context: ./decoder/adsb
       dockerfile: Dockerfile
     container_name: sentinel-adsb-decoder
+    <<: *unprivileged-service
     profiles: ["adsb", "all"]
     depends_on:
       - gateway

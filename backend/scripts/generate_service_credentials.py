@@ -270,7 +270,8 @@ def server_config(passwords: dict[str, str]) -> str:
     config = {
         "server_name": "sentinel",
         "port": CLIENT_PORT,
-        "http_port": MONITORING_PORT,
+        # Loopback only: the monitoring API has no authentication.
+        "http": f"127.0.0.1:{MONITORING_PORT}",
         "tls": {
             "cert_file": f"{SERVER_MOUNT_POINT}/{CERTIFICATE_FILE}",
             "key_file": f"{SERVER_MOUNT_POINT}/{PRIVATE_KEY_FILE}",

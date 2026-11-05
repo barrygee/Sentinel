@@ -13,6 +13,13 @@
           "title": "Description",
           "type": "string"
         },
+        "excluded_networks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Excluded Networks",
+          "type": "array"
+        },
         "fetch_sites": {
           "items": {
             "enum": [
@@ -33,6 +40,11 @@
           "minItems": 1,
           "title": "Networks",
           "type": "array"
+        },
+        "refuse_browser_pages": {
+          "default": false,
+          "title": "Refuse Browser Pages",
+          "type": "boolean"
         },
         "require_allowed_host": {
           "default": false,

@@ -17,6 +17,7 @@ from backend.platform.security.access import (
     compile_path_pattern,
     qualifies,
 )
+from backend.platform.security.policy import GuardPolicy
 from tests.backend.request_guard_helpers import (
     INTERNAL_ADDRESS,
     INTERNET_ADDRESS,
@@ -198,6 +199,96 @@ class TestAllows:
 
         with pytest.raises(ValueError, match="not-an-address"):
             AccessRules(minimal_policy(access_classes=data["access_classes"]), "core")
+
+
+class TestExcludedNetworks:
+    """A container on the Docker network has a private address, so it must not pass as a LAN browser."""
+
+    CONTAINER_ADDRESS = "172.28.0.140"
+
+    @pytest.fixture
+    def rules_excluding_containers(self, monkeypatch: pytest.MonkeyPatch) -> AccessRules:
+        pin_guard_settings(monkeypatch, guard_container_networks="172.28.0.128/25")
+        policy_data = minimal_policy_data()
+        for class_name in ("page", "browser"):
+            policy_data["access_classes"][class_name]["excluded_networks"] = ["$container_networks"]
+        return AccessRules(GuardPolicy.model_validate(policy_data), "core")
+
+    def test_a_container_address_is_neither_page_nor_browser(self, rules_excluding_containers: AccessRules) -> None:
+        classes = rules_excluding_containers.caller_classes(self.CONTAINER_ADDRESS, headers(), "GET")
+        assert classes == {"internal"}
+
+    def test_a_container_keeps_its_service_class(self, rules_excluding_containers: AccessRules) -> None:
+        classes = rules_excluding_containers.caller_classes(
+            self.CONTAINER_ADDRESS, headers(authorization="Bearer x"), "POST"
+        )
+        assert classes == {"internal", "service"}
+
+    def test_a_lan_browser_is_unaffected(self, rules_excluding_containers: AccessRules) -> None:
+        classes = rules_excluding_containers.caller_classes(LAN_BROWSER_ADDRESS, headers(), "GET")
+        assert classes == {"page", "browser"}
+
+    @pytest.mark.parametrize(
+        ("address", "excluded"),
+        [("172.28.0.127", False), ("172.28.0.128", True), ("172.28.0.255", True)],
+    )
+    def test_the_range_edges(self, rules_excluding_containers: AccessRules, address: str, excluded: bool) -> None:
+        page = rules_excluding_containers.classes["page"]
+        assert qualifies(page, address, headers(), "GET") is not excluded
+
+    def test_an_unset_range_excludes_nobody(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        pin_guard_settings(monkeypatch, guard_container_networks="")
+        policy_data = minimal_policy_data()
+        policy_data["access_classes"]["page"]["excluded_networks"] = ["$container_networks"]
+        rules = AccessRules(GuardPolicy.model_validate(policy_data), "core")
+        assert qualifies(rules.classes["page"], self.CONTAINER_ADDRESS, headers(), "GET")
+
+    def test_a_bad_exclusion_fails_when_compiled(self) -> None:
+        policy_data = minimal_policy_data()
+        policy_data["access_classes"]["page"]["excluded_networks"] = ["not-a-network"]
+        with pytest.raises(ValueError, match="not-a-network"):
+            AccessRules(GuardPolicy.model_validate(policy_data), "core")
+
+
+class TestRefuseBrowserPages:
+    """A hostile page in a LAN browser must not pass as another machine's SDR manager."""
+
+    @pytest.fixture
+    def peer(self) -> CompiledAccessClass:
+        policy_data = minimal_policy_data()
+        policy_data["access_classes"]["peer"] = {
+            "description": "another machine's manager",
+            "networks": ["$client_networks"],
+            "refuse_browser_pages": True,
+        }
+        return AccessRules(GuardPolicy.model_validate(policy_data), "core").classes["peer"]
+
+    def test_a_machine_client_sending_neither_header_is_admitted(self, peer: CompiledAccessClass) -> None:
+        assert qualifies(peer, LAN_BROWSER_ADDRESS, headers(), "POST")
+
+    def test_the_users_own_navigation_is_admitted(self, peer: CompiledAccessClass) -> None:
+        assert qualifies(peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "none"}), "GET")
+
+    @pytest.mark.parametrize("fetch_site", ["same-origin", "same-site", "cross-site", "made-up"])
+    def test_any_page_sent_fetch_metadata_is_refused(self, peer: CompiledAccessClass, fetch_site: str) -> None:
+        assert not qualifies(peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": fetch_site}), "GET")
+
+    @pytest.mark.parametrize("method", ["GET", "POST", "WEBSOCKET"])
+    def test_an_origin_is_refused_whatever_the_method(self, peer: CompiledAccessClass, method: str) -> None:
+        assert not qualifies(peer, LAN_BROWSER_ADDRESS, headers(origin="http://evil.example"), method)
+
+    def test_an_origin_beats_a_navigation_fetch_site(self, peer: CompiledAccessClass) -> None:
+        request_headers = headers(origin="http://evil.example", **{"sec-fetch-site": "none"})
+        assert not qualifies(peer, LAN_BROWSER_ADDRESS, request_headers, "POST")
+
+    def test_an_empty_origin_counts_as_absent(self, peer: CompiledAccessClass) -> None:
+        assert qualifies(peer, LAN_BROWSER_ADDRESS, headers(origin=""), "POST")
+
+    def test_it_doesnt_widen_the_networks(self, peer: CompiledAccessClass) -> None:
+        assert not qualifies(peer, INTERNET_ADDRESS, headers(), "POST")
+
+    def test_a_class_without_the_flag_ignores_origin(self, rules: AccessRules) -> None:
+        assert qualifies(rules.classes["page"], LAN_BROWSER_ADDRESS, headers(origin="http://evil.example"), "POST")
 
 
 class TestBrowserRequests:

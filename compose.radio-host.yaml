@@ -23,6 +23,17 @@
 
 name: sentinel-radio-host
 
+# Long-running services can never gain privileges (setuid or file capabilities);
+# images that never need root also drop every capability. Kept in step with
+# docker-compose.yml: compose anchors don't cross files.
+x-no-new-privileges: &no-new-privileges
+  - no-new-privileges:true
+
+x-unprivileged-service: &unprivileged-service
+  security_opt: *no-new-privileges
+  cap_drop:
+    - ALL
+
 x-decoder-credentials-env: &decoder-env
   # The hub, straight over this host's compose network (it serves the decoder
   # endpoints itself), rather than core's gateway across the LAN.
@@ -54,6 +65,7 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    security_opt: *no-new-privileges
     # It dials rtl_tcp and SDR hosts, possibly on this machine itself.
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -90,6 +102,7 @@ services:
       GUARD_TRUSTED_PROXY_DEPTH: ${GUARD_TRUSTED_PROXY_DEPTH:-1}
       GUARD_INTERNAL_NETWORKS: ${SENTINEL_RADIO_HOST_NETWORK_SUBNET:-172.29.0.0/24}
       GUARD_CLIENT_NETWORKS: ${GUARD_CLIENT_NETWORKS:-10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8,::1/128,fc00::/7,fe80::/10}
+      GUARD_CONTAINER_NETWORKS: ${SENTINEL_RADIO_HOST_NETWORK_DYNAMIC_RANGE:-172.29.0.128/25}
       # Names browsers may open Sentinel under besides IPs and localhost (DNS-rebinding defence).
       SENTINEL_ALLOWED_HOSTS: ${SENTINEL_ALLOWED_HOSTS:-}
       # REQUIRED: the core host's address. Core's health probes and the SDR
@@ -109,7 +122,14 @@ services:
   # TLS in front of the hub, with the certificate core's service-credentials
   # issued for SENTINEL_RADIO_HOST_HOSTNAMES. The only port this host publishes.
   radio-host-gateway:
-    image: caddy:2.10-alpine
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    security_opt: *no-new-privileges
+    # Not plain `cap_drop: ALL`: the image's caddy binary carries a file
+    # capability, so without this one in the bounding set it won't start at all.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
     command: ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
     ports:
       - "${SENTINEL_RADIO_HOST_GATEWAY_ADDRESS:-8443}:8443"
@@ -134,6 +154,7 @@ services:
     build:
       context: ./decoder
       dockerfile: Dockerfile
+    <<: *unprivileged-service
     profiles: ["voice-decoder", "all"]
     environment: *decoder-env
     volumes:
@@ -148,6 +169,7 @@ services:
     build:
       context: ./decoder/aprs
       dockerfile: Dockerfile
+    <<: *unprivileged-service
     profiles: ["aprs", "all"]
     environment: *decoder-env
     volumes:
@@ -162,6 +184,7 @@ services:
     build:
       context: ./decoder/ais
       dockerfile: Dockerfile
+    <<: *unprivileged-service
     profiles: ["ais", "all"]
     environment: *decoder-env
     volumes:
@@ -173,6 +196,7 @@ services:
       - radio-host
 
   stub-decoder:
+    <<: *unprivileged-service
     build:
       context: ./decoder/stub
       dockerfile: Dockerfile

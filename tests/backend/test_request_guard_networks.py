@@ -36,6 +36,15 @@ class TestSplitSetting:
         assert split_setting("") == []
 
 
+class TestContainerNetworksToken:
+    def test_reads_the_container_range_setting(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        pin_guard_settings(monkeypatch, guard_container_networks="172.28.0.128/25, 172.29.0.128/25")
+        assert expand_network_tokens(["$container_networks"]) == ["172.28.0.128/25", "172.29.0.128/25"]
+
+    def test_unset_means_no_addresses(self) -> None:
+        assert expand_network_tokens(["$container_networks"]) == []
+
+
 class TestExpandNetworkTokens:
     def test_replaces_each_token_with_its_settings_addresses(self, monkeypatch: pytest.MonkeyPatch) -> None:
         pin_guard_settings(monkeypatch, guard_service_hosts="192.168.1.20, 192.168.1.21")

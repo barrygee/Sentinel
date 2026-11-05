@@ -147,11 +147,13 @@
         "page": {
             "description": "Anyone on the LAN opening Sentinel under an IP address, localhost or a SENTINEL_ALLOWED_HOSTS name: the shell document, its bundle, map assets and section remotes.",
             "networks": ["$client_networks"],
+            "excluded_networks": ["$container_networks"],
             "require_allowed_host": true
         },
         "browser": {
             "description": "The SPA's own API calls: a client on the LAN, under an allowed host like `page`, whose browser says the request came from this site (Sec-Fetch-Site; over plain HTTP, where browsers send none, an Origin naming this host, or no Origin on a GET/HEAD), so another site can't make it change anything.",
             "networks": ["$client_networks"],
+            "excluded_networks": ["$container_networks"],
             "fetch_sites": ["same-origin", "none"],
             "allow_missing_fetch_metadata": false,
             "require_allowed_host": true
@@ -172,7 +174,8 @@
         },
         "peer": {
             "description": "Another machine's SDR Manager calling this machine's SDR Manager API (it signs in with the console password).",
-            "networks": ["$peer_networks"]
+            "networks": ["$peer_networks"],
+            "refuse_browser_pages": true
         },
         "operator": {
             "description": "The operator's own machine: API reference pages and health.",

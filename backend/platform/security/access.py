@@ -78,6 +78,7 @@ class CompiledAccessClass:
     networks: tuple[IpNetwork, ...]
     definition: AccessClass
     allowed_hosts: frozenset[str] = frozenset()
+    excluded_networks: tuple[IpNetwork, ...] = ()
 
 
 class AccessRules:
@@ -102,6 +103,7 @@ class AccessRules:
             name: CompiledAccessClass(
                 name=name,
                 networks=parse_networks(definition.networks),
+                excluded_networks=parse_networks(definition.excluded_networks),
                 definition=definition,
                 allowed_hosts=allowed_hosts if definition.require_allowed_host else frozenset(),
             )
@@ -168,15 +170,22 @@ def qualifies(caller_class: CompiledAccessClass, client_ip: str, headers: Mappin
     HTTP method, or `WEBSOCKET` for a handshake.
     """
     definition = caller_class.definition
-    if not address_in(client_ip, caller_class.networks):
+    if not address_in(client_ip, caller_class.networks) or address_in(client_ip, caller_class.excluded_networks):
         return False
     if any(not headers.get(header) for header in definition.required_headers):
         return False
     if definition.require_allowed_host and not host_is_allowed(headers.get("host", ""), caller_class.allowed_hosts):
         return False
+    if definition.refuse_browser_pages and _sent_by_browser_page(headers):
+        return False
     if definition.fetch_sites:
         return _browser_request(headers, definition.fetch_sites, definition.allow_missing_fetch_metadata, method)
     return True
+
+
+def _sent_by_browser_page(headers: Mapping[str, str]) -> bool:
+    """Whether a web page's script or form sent this, rather than a machine client or a user's own navigation."""
+    return bool(headers.get("origin")) or headers.get("sec-fetch-site", "none") != "none"
 
 
 def _browser_request(headers: Mapping[str, str], fetch_sites: Sequence[str], allow_missing: bool, method: str) -> bool:

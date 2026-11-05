@@ -38,6 +38,7 @@ NETWORK_TOKENS: dict[str, Callable[[], list[str]]] = {
     "$loopback": lambda: list(LOOPBACK_NETWORKS),
     "$client_networks": lambda: split_setting(settings.guard_client_networks),
     "$internal_networks": lambda: split_setting(settings.guard_internal_networks),
+    "$container_networks": lambda: split_setting(settings.guard_container_networks),
     "$service_hosts": lambda: split_setting(settings.guard_service_hosts),
     "$decoder_hosts": lambda: split_setting(settings.guard_decoder_hosts),
     "$peer_networks": _peer_networks,

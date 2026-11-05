@@ -52,7 +52,16 @@ class TestContentSecurityPolicy:
         assert directive(policy, "worker-src") == "worker-src 'self' blob:"
         assert directive(policy, "object-src") == "object-src 'none'"
         assert directive(policy, "base-uri") == "base-uri 'self'"
-        assert [part.split()[0] for part in policy.split("; ")] == ["script-src", "worker-src", "object-src", "base-uri"]
+        assert directive(policy, "form-action") == "form-action 'self'"
+        assert directive(policy, "frame-ancestors") == "frame-ancestors 'self'"
+        assert [part.split()[0] for part in policy.split("; ")] == [
+            "script-src",
+            "worker-src",
+            "object-src",
+            "base-uri",
+            "form-action",
+            "frame-ancestors",
+        ]
 
 
 class TestPolicyForIndex:

@@ -69,6 +69,21 @@ class TestShippedPolicy:
         assert browser.allow_missing_fetch_metadata is False
         assert "cross-site" not in browser.fetch_sites
 
+    @pytest.mark.parametrize("class_name", ["page", "browser"])
+    def test_a_container_cant_pass_as_a_lan_browser(self, class_name: str) -> None:
+        access_class = read_policy(DEFAULT_POLICY_PATH).access_classes[class_name]
+
+        assert "$container_networks" in access_class.excluded_networks
+
+    def test_a_web_page_cant_pass_as_a_peer(self) -> None:
+        assert read_policy(DEFAULT_POLICY_PATH).access_classes["peer"].refuse_browser_pages is True
+
+    def test_the_new_checks_are_opt_in(self) -> None:
+        internal = read_policy(DEFAULT_POLICY_PATH).access_classes["internal"]
+
+        assert internal.excluded_networks == []
+        assert internal.refuse_browser_pages is False
+
     def test_only_requests_that_send_data_are_scanned(self) -> None:
         # Scanning every request cost ~40 ms of CPU each (mostly the browser's
         # own headers), on every poll; reads take no input worth scanning.

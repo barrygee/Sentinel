@@ -7,6 +7,7 @@ single decorator so router code stays focused on the success path.
 
 from __future__ import annotations
 
+import logging
 import math
 from collections.abc import Awaitable, Callable
 from functools import wraps
@@ -19,6 +20,13 @@ from fastapi.responses import JSONResponse
 
 F = TypeVar("F", bound=Callable[..., Awaitable])
 
+logger = logging.getLogger(__name__)
+
+# An unexpected exception's text can name paths, hosts or SQL, so it goes to the
+# log and the client gets this. A RuntimeError stays visible: services raise
+# those on purpose, as the message the operator should see.
+UNEXPECTED_ERROR_MESSAGE = "Unexpected error"
+
 
 def handle_service_errors(fn: F) -> F:
     """Decorator: catch RuntimeError → 503, any other Exception → 500.
@@ -28,7 +36,7 @@ def handle_service_errors(fn: F) -> F:
     hand-written blocks emit it:
 
         503: {"error": str(e)}
-        500: {"error": f"Unexpected error: {e}"}
+        500: {"error": UNEXPECTED_ERROR_MESSAGE}, with the detail logged
     """
 
     @wraps(fn)
@@ -37,14 +45,15 @@ def handle_service_errors(fn: F) -> F:
             return await fn(*args, **kwargs)
         except RuntimeError as e:
             return JSONResponse({"error": str(e)}, status_code=503)
-        except Exception as e:
-            return JSONResponse({"error": f"Unexpected error: {e}"}, status_code=500)
+        except Exception:
+            logger.exception("Unexpected error in %s", fn.__name__)
+            return JSONResponse({"error": UNEXPECTED_ERROR_MESSAGE}, status_code=500)
 
     return wrapper  # type: ignore[return-value]
 
 
 def handle_unexpected_errors(fn: F) -> F:
-    """Decorator: catch any Exception → 500 with `{"error": str(e)}`.
+    """Decorator: catch any Exception → 500 with a generic message, logging the detail.
 
     Used by endpoints that don't distinguish RuntimeError from other failures
     (e.g. simple DB-only queries that wrap everything in `except Exception`).
@@ -54,8 +63,9 @@ def handle_unexpected_errors(fn: F) -> F:
     async def wrapper(*args, **kwargs):
         try:
             return await fn(*args, **kwargs)
-        except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=500)
+        except Exception:
+            logger.exception("Unexpected error in %s", fn.__name__)
+            return JSONResponse({"error": UNEXPECTED_ERROR_MESSAGE}, status_code=500)
 
     return wrapper  # type: ignore[return-value]
 

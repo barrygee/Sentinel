@@ -47,6 +47,8 @@ def content_security_policy(index_html: str) -> str:
             "worker-src 'self' blob:",
             "object-src 'none'",
             "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'self'",
         ]
     )
 

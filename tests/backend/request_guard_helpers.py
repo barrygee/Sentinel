@@ -132,6 +132,7 @@ def pin_guard_settings(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> Non
         "guard_trusted_proxy_depth": 1,
         "guard_trust_forwarded_proto": False,
         "guard_internal_networks": "172.28.0.0/24",
+        "guard_container_networks": "",
         "guard_client_networks": "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.0/8",
         "guard_service_hosts": "",
         "guard_decoder_hosts": "",
