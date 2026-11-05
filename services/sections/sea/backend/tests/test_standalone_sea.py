@@ -188,8 +188,10 @@ class TestTheAisKeyOverHttp:
         # Another service's credential, as core would see a misplaced mount.
         present_credential(monkeypatch, tmp_path, "space")
 
-        with pytest.raises(settings_client.SettingsUnavailable, match="401"):
-            await sea_client.get("/api/sea/ais-key")
+        response = await sea_client.get("/api/sea/ais-key")
+
+        assert response.status_code == 503
+        assert "401" not in response.text
 
 
 class TestTheAisReaderOverHttp:
