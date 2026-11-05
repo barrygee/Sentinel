@@ -418,7 +418,7 @@ describe('air store — map layers config mirroring', () => {
     towers: true,
     airports: true,
     militaryBases: true,
-    altitudeLegend: true,
+    altitudeColouring: true,
   }
 
   it('writes air.mapLayers when a configurable overlay changes', () => {

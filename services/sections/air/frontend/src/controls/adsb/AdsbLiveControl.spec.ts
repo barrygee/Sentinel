@@ -4704,7 +4704,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       const { map } = mounted()
       fireMissing(map, 'some-other-sprite')
       expect(map.map.addImage).not.toHaveBeenCalledWith('some-other-sprite', expect.anything(), {
-        pixelRatio: 2,
+        pixelRatio: 3,
       })
     })
 
@@ -4716,13 +4716,15 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(map.map.addImage).not.toHaveBeenCalled()
     })
 
-    it('rasterises a missing silhouette at twice the pixel density', () => {
+    it('rasterises a missing silhouette at the silhouette pixel density', () => {
       const { map } = mounted()
       const fakeContext = {
         translate: vi.fn(),
         scale: vi.fn(),
         fill: vi.fn(),
         stroke: vi.fn(),
+        drawImage: vi.fn(),
+        setTransform: vi.fn(),
         getImageData: vi.fn(() => ({ width: 2, height: 2 })),
       }
       vi.stubGlobal(
@@ -4739,7 +4741,7 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(map.map.addImage).toHaveBeenCalledWith(
         'aircraft-silhouette:type:A320:civil',
         { width: 2, height: 2 },
-        { pixelRatio: 2 },
+        { pixelRatio: 3 },
       )
       getContext.mockRestore()
     })
@@ -4914,6 +4916,19 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       expect(order.indexOf('airfield-labels-civil')).toBeLessThan(order.indexOf('adsb-icons'))
     })
 
+    it('keeps open airfield labels above every dot and beneath the aircraft', () => {
+      const { control, map } = mountedIn('silhouette')
+      map.layers.add('airfield-labels-military')
+      map.layers.add('airfield-labels-civil-open')
+      map.moveLayer.mockClear()
+      priv(control)._raiseLayers()
+      const order = map.moveLayer.mock.calls.map(([layerId]) => layerId)
+      expect(order.indexOf('airfield-labels-civil-open')).toBeGreaterThan(
+        order.indexOf('airfield-labels-military'),
+      )
+      expect(order.indexOf('airfield-labels-civil-open')).toBeLessThan(order.indexOf('adsb-icons'))
+    })
+
     it('just remembers the style before the control is on a map', () => {
       const control = makeControl()
       control.setIconStyle('silhouette')
@@ -4944,6 +4959,146 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
         silhouetteSideReachPx('type:A320', 270, 'right') * 1.18 + 6,
       )
       expect(tag.options.offset![1]).toBe(0)
+    })
+  })
+
+  describe('altitude colouring', () => {
+    function colouringOff(style: 'arrow' | 'silhouette' = 'silhouette') {
+      airStore.overlayStates.altitudeColouring = false
+      return mountedIn(style)
+    }
+
+    /** A control showing one A320, its silhouette image set as a poll would. */
+    function withAirliner(overrides: Parameters<typeof seedFeature>[1] = {}) {
+      const mountedControl = mountedIn('silhouette')
+      seedFeature(mountedControl.control, overrides)
+      const [feature] = mountedControl.control._geojson.features
+      feature!.properties.silhouetteImage = 'aircraft-silhouette:type:A320:alt30'
+      return { ...mountedControl, feature: feature! }
+    }
+
+    it('names a civil aircraft’s image plain while it is off', async () => {
+      const { control } = colouringOff()
+      const properties = await fetchOne(control, apiEntry({ t: 'A320', category: 'A3' }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:plain')
+    })
+
+    it('keeps a military aircraft’s colour while it is off', async () => {
+      const { control } = colouringOff()
+      const properties = await fetchOne(control, apiEntry({ t: 'EUFI', dbFlags: 1 }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:EUFI:military')
+    })
+
+    it('keeps an emergency’s red while it is off', async () => {
+      const { control } = colouringOff()
+      const properties = await fetchOne(control, apiEntry({ t: 'A320', squawk: '7700' }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:emergency')
+    })
+
+    it('still names a grounded civil aircraft civil while it is on', async () => {
+      const { control } = mountedIn('silhouette')
+      const properties = await fetchOne(control, apiEntry({ t: 'A320', alt_baro: 'ground' }))
+      expect(properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:civil')
+    })
+
+    it('repaints the aircraft on the map when turned off and back on', () => {
+      const { control, map, feature } = withAirliner()
+      control.setAltitudeColouring(false)
+      expect(feature.properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:plain')
+      const published = map.sourceData['adsb-live'] as GeoJSON.FeatureCollection
+      expect(published.features[0]!.properties!.silhouetteImage).toBe(
+        'aircraft-silhouette:type:A320:plain',
+      )
+      control.setAltitudeColouring(true)
+      expect(feature.properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:alt30')
+    })
+
+    it('redraws the labels and trail when switched', () => {
+      const { control } = withAirliner()
+      const clearLabels = vi.spyOn(priv(control), '_clearCallsignMarkers')
+      const updateLabels = vi.spyOn(priv(control), '_updateCallsignMarkers')
+      const rebuildTrails = vi.spyOn(priv(control), '_rebuildTrails')
+      control.setAltitudeColouring(false)
+      expect(clearLabels).toHaveBeenCalledOnce()
+      expect(updateLabels).toHaveBeenCalledOnce()
+      expect(rebuildTrails).toHaveBeenCalledOnce()
+    })
+
+    it('rebuilds an open tag when switched, and leaves it alone with none open', () => {
+      const { control } = withAirliner()
+      const rebuildTag = vi.spyOn(priv(control), '_rebuildTagForHex').mockImplementation(() => {})
+      control.setAltitudeColouring(false)
+      expect(rebuildTag).not.toHaveBeenCalled()
+      control._tagHex = 'abc123'
+      control.setAltitudeColouring(true)
+      expect(rebuildTag).toHaveBeenCalledWith('abc123')
+    })
+
+    it('does nothing when the value has not changed', () => {
+      const { control, feature } = withAirliner()
+      control.setAltitudeColouring(true)
+      expect(feature.properties.silhouetteImage).toBe('aircraft-silhouette:type:A320:alt30')
+    })
+
+    it('just remembers the setting before the control is on a map', () => {
+      const control = makeControl()
+      control.setAltitudeColouring(false)
+      expect(priv(control)._altitudeColouring).toBe(false)
+    })
+
+    it('copes with the aircraft source not being on the map', () => {
+      const { control, map } = withAirliner()
+      ;(map.map.getSource as unknown as ReturnType<typeof vi.fn>).mockReturnValue(undefined)
+      expect(() => control.setAltitudeColouring(false)).not.toThrow()
+    })
+
+    it.each([
+      ['civil', false, '#00aaff'],
+      ['military', true, '#c8ff00'],
+    ])('leaves a %s arrow its flat colour while it is off', (_kind, isMilitary, colour) => {
+      const { control } = colouringOff('arrow')
+      const arrowColour = priv(control)._arrowColour.call(
+        control,
+        { alt_baro: 30000 },
+        false,
+        isMilitary,
+      )
+      expect(arrowColour).toBe(colour)
+    })
+
+    it('colours an arrow by altitude while it is on', () => {
+      const { control } = mountedIn('arrow')
+      const arrowColour = priv(control)._arrowColour.call(
+        control,
+        { alt_baro: 30000 },
+        false,
+        false,
+      )
+      expect(arrowColour).toBe(altitudeColour(30000, 'dark'))
+    })
+
+    it.each([
+      ['a silhouette on the dark map', 'silhouette', 'dark', 0, '#d9dcdf'],
+      ['a silhouette on the light map', 'silhouette', 'light', 0, '#4b5057'],
+      ['an arrow', 'arrow', 'dark', 0, '#00aaff'],
+      ['a military aircraft', 'silhouette', 'dark', 1, '#c8ff00'],
+    ] as const)(
+      'gives %s a flat trail while it is off',
+      (_name, style, palette, military, colour) => {
+        const { control } = colouringOff(style)
+        priv(control)._silhouettePalette = palette
+        expect(priv(control)._trailColour.call(control, 30000, 0, military)).toBe(colour)
+      },
+    )
+
+    it('keeps an emergency trail red while it is off', () => {
+      const { control } = colouringOff()
+      expect(priv(control)._trailColour.call(control, 30000, 1, 0)).toBe('#ff2222')
+    })
+
+    it('gives a grounded military aircraft a lime trail while it is on', () => {
+      const { control } = mountedIn('silhouette')
+      expect(priv(control)._trailColour.call(control, 0, 0, 1)).toBe('#c8ff00')
     })
   })
 
