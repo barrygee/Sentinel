@@ -13,8 +13,10 @@ a log record even through the genuine error-formatting path.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
+from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import httpx
@@ -808,3 +810,51 @@ async def test_the_local_row_is_polled_with_the_service_bearer(session_factory, 
         request.headers["Authorization"] == bearer("sdr-manager-remote")["Authorization"] for request in received
     )
     assert "/api/auth/login" not in [request.url.path for request in received]
+
+
+async def test_a_poll_that_raises_does_not_end_the_loop(monkeypatch, caplog):
+    # Nothing restarts the task, so losing it leaves the host's last snapshot in
+    # place for good and the host reads as reachable with its dongle present.
+    poller = poller_module.HostPoller()
+    poller._refresh_events[7] = asyncio.Event()
+    monkeypatch.setattr(
+        poller_module,
+        "get_settings",
+        lambda: SimpleNamespace(poll_backoff_start_s=0, poll_backoff_max_s=0, poll_interval_s=0),
+    )
+    polled_again = asyncio.Event()
+    outcomes = iter([RuntimeError("settings read timed out")])
+
+    async def poll_once(_host_id):
+        for outcome in outcomes:
+            raise outcome
+        polled_again.set()
+        return True
+
+    monkeypatch.setattr(poller, "_poll_once", poll_once)
+    task = asyncio.create_task(poller._run(7))
+    try:
+        await asyncio.wait_for(polled_again.wait(), timeout=1)
+    finally:
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+    assert "Polling SDR host 7 failed" in caplog.text
+
+
+async def test_stopping_a_host_still_ends_its_loop(monkeypatch):
+    # The guard catches errors, not cancellation, or stop_host() would hang.
+    poller = poller_module.HostPoller()
+    poller._refresh_events[7] = asyncio.Event()
+    started = asyncio.Event()
+
+    async def poll_once(_host_id):
+        started.set()
+        await asyncio.sleep(60)
+
+    monkeypatch.setattr(poller, "_poll_once", poll_once)
+    task = asyncio.create_task(poller._run(7))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, timeout=1)

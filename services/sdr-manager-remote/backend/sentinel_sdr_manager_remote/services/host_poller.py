@@ -133,7 +133,15 @@ class HostPoller:
         backoff = get_settings().poll_backoff_start_s
         event = self._refresh_events[host_id]
         while True:
-            ok = await self._poll_once(host_id)
+            try:
+                ok = await self._poll_once(host_id)
+            except Exception:
+                # Past the status read, a poll also talks to the database and to
+                # core's settings. An error there must cost one poll, not end the
+                # task: nothing restarts it, so the host would keep its last
+                # snapshot and read as reachable for as long as the service runs.
+                logger.exception("Polling SDR host %d failed", host_id)
+                ok = False
             backoff = get_settings().poll_backoff_start_s if ok else min(get_settings().poll_backoff_max_s, backoff * 2)
             wait_s = get_settings().poll_interval_s if ok else backoff
             event.clear()
