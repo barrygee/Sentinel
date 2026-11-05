@@ -820,9 +820,7 @@ async def test_a_poll_that_raises_does_not_end_the_loop(monkeypatch, caplog):
     monkeypatch.setattr(
         poller_module,
         "get_settings",
-        lambda: SimpleNamespace(
-            poll_backoff_start_s=0, poll_backoff_max_s=0, poll_interval_s=0
-        ),
+        lambda: SimpleNamespace(poll_backoff_start_s=0, poll_backoff_max_s=0, poll_interval_s=0),
     )
     polled_again = asyncio.Event()
     outcomes = iter([RuntimeError("settings read timed out")])
@@ -860,4 +858,3 @@ async def test_stopping_a_host_still_ends_its_loop(monkeypatch):
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(task, timeout=1)
-
