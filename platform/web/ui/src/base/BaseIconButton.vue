@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import BaseButton, { type BaseButtonVariant } from '@sentinel/ui/base/BaseButton.vue'
+import BaseButton, {
+  type BaseButtonColor,
+  type BaseButtonSize,
+  type BaseButtonVariant,
+} from '@sentinel/ui/base/BaseButton.vue'
 
 /**
  * `BaseIconButton` — composes `BaseButton` for the icon-plus-hover-tooltip
@@ -28,6 +32,10 @@ import BaseButton, { type BaseButtonVariant } from '@sentinel/ui/base/BaseButton
  */
 interface BaseIconButtonProps {
   variant?: BaseButtonVariant
+  /** See `BaseButtonProps.size` on `BaseButton` (rail: `'compact'` is a 30px-tall rail button). */
+  size?: BaseButtonSize
+  /** See `BaseButtonProps.color` on `BaseButton`. Ghost-only, so a no-op for the default rail variant. */
+  color?: BaseButtonColor
   /** See `BaseButtonProps.bordered` on `BaseButton`. Rail-only. */
   bordered?: boolean
   active?: boolean
@@ -53,6 +61,8 @@ interface BaseIconButtonProps {
 
 withDefaults(defineProps<BaseIconButtonProps>(), {
   variant: 'rail',
+  size: 'default',
+  color: 'default',
   bordered: false,
   active: false,
   disabled: false,
@@ -71,6 +81,8 @@ withDefaults(defineProps<BaseIconButtonProps>(), {
       'ba-icon-btn--pulse': pulse && !active,
     }"
     :variant="variant"
+    :size="size"
+    :color="color"
     :bordered="bordered"
     :active="active"
     :disabled="disabled"

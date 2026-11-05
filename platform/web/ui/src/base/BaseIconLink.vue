@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
+import type { BaseButtonSize } from '@sentinel/ui/base/BaseButton.vue'
 
 /**
  * `BaseIconLink` — the link twin of `BaseIconButton`: the same icon-rail look
@@ -14,6 +15,8 @@ import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 withDefaults(
   defineProps<{
     href: string
+    /** See `BaseButtonProps.size` on `BaseButton`. There is no `color`: a rail link has no ghost look. */
+    size?: BaseButtonSize
     /** Accessible name — required because the link holds only an icon. */
     accessibleName: string
     /** Hover-tooltip text. */
@@ -28,6 +31,7 @@ withDefaults(
     bordered?: boolean
   }>(),
   {
+    size: 'default',
     tooltip: undefined,
     tooltipSide: 'right',
     active: false,
@@ -40,6 +44,7 @@ withDefaults(
 <template>
   <BaseIconButton
     :href="href"
+    :size="size"
     :accessible-name="accessibleName"
     :tooltip="tooltip"
     :tooltip-side="tooltipSide"

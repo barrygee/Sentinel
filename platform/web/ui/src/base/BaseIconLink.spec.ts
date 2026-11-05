@@ -17,6 +17,23 @@ describe('BaseIconLink', () => {
     expect(wrapper.find('button').exists()).toBe(false)
   })
 
+  it('passes size through to the link', () => {
+    const wrapper = mount(BaseIconLink, {
+      props: { href: '/docs/', accessibleName: 'Docs', size: 'compact' },
+    })
+    expect(wrapper.get('a').classes()).toContain('ba-btn--size-compact')
+  })
+
+  it('adds no size class by default', () => {
+    const wrapper = mount(BaseIconLink, { props: { href: '/docs/', accessibleName: 'Docs' } })
+    expect(
+      wrapper
+        .get('a')
+        .classes()
+        .filter((name) => name.includes('--size-')),
+    ).toEqual([])
+  })
+
   it('does not carry button-only attributes onto the link', () => {
     const wrapper = mount(BaseIconLink, {
       props: { href: '/docs/', accessibleName: 'Docs' },

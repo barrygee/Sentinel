@@ -19,6 +19,21 @@ describe('BaseIconButton', () => {
     expect(wrapper.get('button').classes()).toContain('ba-btn--rail')
   })
 
+  it('passes size and color through to the button', () => {
+    const wrapper = mount(BaseIconButton, {
+      props: { accessibleName: 'Zoom in', variant: 'ghost', size: 'compact', color: 'muted' },
+    })
+    const classes = wrapper.get('button').classes()
+    expect(classes).toContain('ba-btn--size-compact')
+    expect(classes).toContain('ba-btn--color-muted')
+  })
+
+  it('adds no size or colour class by default', () => {
+    const wrapper = mount(BaseIconButton, { props: { accessibleName: 'Zoom in' } })
+    const classes = wrapper.get('button').classes()
+    expect(classes.filter((name) => /--(size|color)-/.test(name))).toEqual([])
+  })
+
   it('omits the data-tooltip attribute when no tooltip is supplied', () => {
     const wrapper = mount(BaseIconButton, { props: { accessibleName: 'Zoom in' } })
     expect(wrapper.get('button').attributes('data-tooltip')).toBeUndefined()
