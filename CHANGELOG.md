@@ -267,6 +267,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw crisper, slimmer aircraft silhouettes
 - Show airfields as dots, with labels on hover or click
 - Add an altitude colouring setting
+- Add size and color props to BaseButton
 
 ### Bug Fixes
 
@@ -1748,6 +1749,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #571 from barrygee/feat/altitude-coloured-trails
 - Merge pull request #572 from barrygee/feat/airport-icao-labels
 - Merge pull request #573 from barrygee/fix/security-quick-fixes
+- Merge pull request #574 from barrygee/feat/base-button-size-colour
 
 ### Performance
 
@@ -2095,6 +2097,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel fixes
 - Rebuild the bundle for altitude trails and airfield labels
 - Rebuild the bundle for airfield dots and altitude colouring
+- Rebuild the bundle for the BaseButton props
 
 ### Continuous Integration
 
