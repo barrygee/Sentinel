@@ -619,6 +619,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Put the TRACKING label on the silhouette callsign row
 - Draw microlights as small planes, not flex-wing trikes
 - Make the host accordion arrow work and tidy the host panel
+- Keep containers and web pages out of browser and peer classes
+- Stop returning exception text and tighten the SPA CSP
+- Harden containers and limit request bodies at the gateway
+- Keep backend/data writable for the sdr and space sections
 
 ### Chores
 
@@ -1743,6 +1747,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #570 from barrygee/fix/sdr-host-panel
 - Merge pull request #571 from barrygee/feat/altitude-coloured-trails
 - Merge pull request #572 from barrygee/feat/airport-icao-labels
+- Merge pull request #573 from barrygee/fix/security-quick-fixes
 
 ### Performance
 
