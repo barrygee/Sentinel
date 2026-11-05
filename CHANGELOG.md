@@ -626,6 +626,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop returning exception text and tighten the SPA CSP
 - Harden containers and limit request bodies at the gateway
 - Keep backend/data writable for the sdr and space sections
+- Keep polling a host after an error in a poll
+- Report an unreachable radio without an error status
 
 ### Chores
 
@@ -1754,6 +1756,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #574 from barrygee/feat/base-button-size-colour
 - Merge pull request #575 from barrygee/feat/airport-black-dots
 - Merge pull request #576 from barrygee/feat/sdr-display-settings
+- Merge pull request #577 from barrygee/fix/sdr-host-poller-survives-errors
+- Merge pull request #578 from barrygee/fix/sdr-unavailable-response
 
 ### Performance
 
@@ -2028,6 +2032,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make the turning-tag poll tests deterministic
 - Expect the plain Aircraft Icons row
 - Cover the renamed setting migration
+- Cover the host poll loop surviving an error
+- Cover connecting to an unavailable radio
 
 ### Build System
 
@@ -2105,6 +2111,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the BaseButton props
 - Rebuild the bundle for black airport dots
 - Rebuild the bundle for the display settings
+- Rebuild the bundle for the unavailable radio response
 
 ### Continuous Integration
 
@@ -2180,6 +2187,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop borders from the docs page and rename Develop to Developer docs
 - Make the docs menu group headings regular weight and 11px
 - Reduce the airfield label text to 12.5px
+- Format the host poller tests
+- Format the unavailable radio tests
 
 ### Dependencies
 
