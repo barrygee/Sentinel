@@ -274,6 +274,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the recordings folder setting
 - Draw the Hawk and F-35 as themselves
 - Remove the visibility notes
+- Add the tuned frequency from the readout
 
 ### Bug Fixes
 
@@ -1771,6 +1772,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #583 from barrygee/feat/hawk-f35-silhouettes
 - Merge remote-tracking branch 'origin/main' into chore/remove-sdr-listed-hint
 - Merge pull request #586 from barrygee/chore/remove-sdr-listed-hint
+- Merge remote-tracking branch 'origin/main' into feat/sdr-quick-add-frequency
+- Merge pull request #584 from barrygee/feat/sdr-quick-add-frequency
 
 ### Performance
 
@@ -2130,6 +2133,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the recordings folder removal
 - Rebuild the bundle for the Hawk and F-35 outlines
 - Rebuild the bundle for the visibility notes
+- Rebuild the bundle for the frequency add button
 
 ### Continuous Integration
 
