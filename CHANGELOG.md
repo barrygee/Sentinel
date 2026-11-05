@@ -264,6 +264,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the altitude legend the airfield labels' solid fill
 - Colour aircraft trails by the altitude at each position
 - Drop the ALT title from the altitude bar
+- Draw crisper, slimmer aircraft silhouettes
+- Show airfields as dots, with labels on hover or click
+- Add an altitude colouring setting
 
 ### Bug Fixes
 
@@ -1739,6 +1742,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #569 from barrygee/feat/airfield-label-map-colours
 - Merge pull request #570 from barrygee/fix/sdr-host-panel
 - Merge pull request #571 from barrygee/feat/altitude-coloured-trails
+- Merge pull request #572 from barrygee/feat/airport-icao-labels
 
 ### Performance
 
@@ -2085,6 +2089,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the solid altitude legend
 - Rebuild the bundle for the host panel fixes
 - Rebuild the bundle for altitude trails and airfield labels
+- Rebuild the bundle for airfield dots and altitude colouring
 
 ### Continuous Integration
 
