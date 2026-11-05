@@ -270,6 +270,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add size and color props to BaseButton
 - Keep closed airport dots black until the label opens
 - Rename the display settings and sort the options list
+- Show a connection test's result on its button
 
 ### Bug Fixes
 
@@ -1758,6 +1759,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #576 from barrygee/feat/sdr-display-settings
 - Merge pull request #577 from barrygee/fix/sdr-host-poller-survives-errors
 - Merge pull request #578 from barrygee/fix/sdr-unavailable-response
+- Merge pull request #579 from barrygee/feat/sdr-host-panel
 
 ### Performance
 
@@ -2112,6 +2114,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for black airport dots
 - Rebuild the bundle for the display settings
 - Rebuild the bundle for the unavailable radio response
+- Rebuild the bundle for the host panel
 
 ### Continuous Integration
 
