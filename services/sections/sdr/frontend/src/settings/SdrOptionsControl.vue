@@ -82,16 +82,22 @@ const OPTIONS: SdrOption[] = [
     mirrorToStore: sdrStore.setSnapToKnown,
   },
   {
-    settingKey: 'showBandPlan',
-    label: 'Show Band Plan',
-    readFromStore: () => sdrStore.showBandPlan,
-    mirrorToStore: sdrStore.setShowBandPlan,
+    settingKey: 'displayBandPlan',
+    label: 'Display Band Plan',
+    readFromStore: () => sdrStore.displayBandPlan,
+    mirrorToStore: sdrStore.setDisplayBandPlan,
   },
   {
     settingKey: 'showKnownFreqs',
     label: 'Display Known Frequencies',
     readFromStore: () => sdrStore.showKnownFreqs,
     mirrorToStore: sdrStore.setShowKnownFreqs,
+  },
+  {
+    settingKey: 'displayWaterfallTimestamps',
+    label: 'Display Waterfall Timestamps',
+    readFromStore: () => sdrStore.displayWaterfallTimestamps,
+    mirrorToStore: sdrStore.setDisplayWaterfallTimestamps,
   },
   {
     settingKey: 'muteAudioWhileDecoding',
@@ -107,34 +113,27 @@ const OPTIONS: SdrOption[] = [
     readFromStore: () => sdrStore.recordRawIq,
     mirrorToStore: sdrStore.setRecordRawIq,
   },
-  {
-    settingKey: 'showWaterfallTimestamps',
-    label: 'Show Waterfall Timestamps',
-    readFromStore: () => sdrStore.showWaterfallTimestamps,
-    mirrorToStore: sdrStore.setShowWaterfallTimestamps,
-  },
 ]
 
 const OPTION_COLUMNS: LabelFieldColumn[] = [{ key: 'enabled', label: 'On' }]
 
-// The waterfall timestamp interval sits directly under its own on/off row, so
-// "show the labels" and "how often" read as one setting. Like the resume delay
-// it is a number, not a toggle, so it fills its cell through `row-control`.
+// Like the resume delay, the waterfall timestamp interval is a number, not a
+// toggle, so it fills its cell through `row-control`.
 const TIMESTAMP_INTERVAL_ROW: LabelFieldRow = {
   key: 'waterfallTimestampIntervalSec',
   label: 'Waterfall Timestamp Interval (Seconds)',
   control: 'custom',
 }
 
-// The recording length limit sits under the raw-IQ row: it is what keeps a
-// recording whose browser went away (and its large IQ file) from running on.
+// The recording length limit keeps a recording whose browser went away (and
+// its large IQ file) from running on.
 const RECORDING_MAX_DURATION_ROW: LabelFieldRow = {
   key: 'recordingMaxDurationMinutes',
   label: 'Max Recording Length (Minutes)',
   control: 'custom',
 }
 
-// The resume delay rides along as a final row rather than a card of its own:
+// The resume delay rides along as a row rather than a card of its own:
 // it is another thing the SDR panel does while scanning, and a whole card for
 // one number sat oddly beside the option list it belongs with. It is not a
 // toggle, so it fills its cell through the table's `row-control` slot.
@@ -144,17 +143,15 @@ const RESUME_DELAY_ROW: LabelFieldRow = {
   control: 'custom',
 }
 
+// Sorted by label rather than listed by hand, so a new option lands in its place.
+// The recordings folder is a card of its own below this box
+// (sdr-recordings-folder in settings.ts): a typed path wants room and a hint.
 const OPTION_ROWS: LabelFieldRow[] = [
-  ...OPTIONS.flatMap((option) => {
-    const row: LabelFieldRow = { key: option.settingKey, label: option.label }
-    if (option.settingKey === 'showWaterfallTimestamps') return [row, TIMESTAMP_INTERVAL_ROW]
-    // The recordings folder is a card of its own below this box
-    // (sdr-recordings-folder in settings.ts): a typed path wants room and a hint.
-    if (option.settingKey === 'recordRawIq') return [row, RECORDING_MAX_DURATION_ROW]
-    return [row]
-  }),
+  ...OPTIONS.map((option) => ({ key: option.settingKey, label: option.label })),
+  TIMESTAMP_INTERVAL_ROW,
+  RECORDING_MAX_DURATION_ROW,
   RESUME_DELAY_ROW,
-]
+].sort((firstRow, secondRow) => firstRow.label.localeCompare(secondRow.label))
 
 /**
  * Adopts the backend's stored values for every option on open, so the box

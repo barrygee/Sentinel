@@ -243,7 +243,7 @@ class TestDefaultConfigJson:
             ("air", "mapLayers"),
             ("land", "aprsChannelHz"),
             ("sdr", "snapToKnown"),
-            ("sdr", "showWaterfallTimestamps"),
+            ("sdr", "displayWaterfallTimestamps"),
             ("sdr", "waterfallTimestampIntervalSec"),
             ("sdr", "resumeDelaySec"),
             ("sdr", "recordRawIq"),

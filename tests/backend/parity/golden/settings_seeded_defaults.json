@@ -118,6 +118,8 @@
     "defaultSampleRate": 2048000,
     "defaultSquelch": -60,
     "digitalDecodeDefault": false,
+    "displayBandPlan": true,
+    "displayWaterfallTimestamps": true,
     "enabled": true,
     "frequencies": [],
     "groups": [],
@@ -132,9 +134,7 @@
     "recordingsFolder": "",
     "resumeDelaySec": 0,
     "searchRanges": [],
-    "showBandPlan": true,
     "showKnownFreqs": true,
-    "showWaterfallTimestamps": true,
     "snapToKnown": true,
     "waterfallTimestampIntervalSec": 5
   },

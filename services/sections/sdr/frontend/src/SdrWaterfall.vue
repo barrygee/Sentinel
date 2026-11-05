@@ -305,9 +305,9 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 // mounted (the toggle controls also subscribe, but only while rendered).
 useDocumentEvent('sentinel:config-uploaded', () => {
   void store.hydrateSnapToKnownFromDb()
-  void store.hydrateShowBandPlanFromDb()
+  void store.hydrateDisplayBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
-  void store.hydrateShowWaterfallTimestampsFromDb()
+  void store.hydrateDisplayWaterfallTimestampsFromDb()
   void store.hydrateWaterfallTimestampIntervalFromDb()
 })
 
@@ -1927,7 +1927,7 @@ const WF_ROWS = 400
 // (SDRPlusPlus discussion #1047) — so SDR# is the reference behaviour here.
 //
 // Both the on/off state and the interval come from SDR settings
-// (store.showWaterfallTimestamps / store.waterfallTimestampIntervalSec).
+// (store.displayWaterfallTimestamps / store.waterfallTimestampIntervalSec).
 // Hard ceiling on rendered labels — a defensive bound so a very short interval
 // against a long history can never spray hundreds of nodes into the overlay.
 const WF_TIME_MARKER_LIMIT = 40
@@ -2026,7 +2026,7 @@ const timeMarkerOverlayStyle = computed(() => ({
 const waterfallTimeMarkers = computed<WaterfallTimeMarker[]>(() => {
   // Read the tick so the markers re-derive as rows scroll down.
   void rowClockTick.value
-  if (!store.showWaterfallTimestamps) return []
+  if (!store.displayWaterfallTimestamps) return []
   const rowCount = rowPushTimesMs.length
   const boxHeightPx = wfDataHeightPx.value
   // Two rows is the minimum that defines a row interval; below that (or before
@@ -2074,7 +2074,7 @@ const WF_SECOND_TICK_LIMIT = 100
 const waterfallSecondTicks = computed<WaterfallSecondTick[]>(() => {
   // Read the tick so the ticks re-derive as rows scroll down.
   void rowClockTick.value
-  if (!store.showWaterfallTimestamps) return []
+  if (!store.displayWaterfallTimestamps) return []
   const rowCount = rowPushTimesMs.length
   const boxHeightPx = wfDataHeightPx.value
   if (rowCount < 2 || boxHeightPx <= 0) return []
@@ -2118,7 +2118,7 @@ const waterfallSecondTicks = computed<WaterfallSecondTick[]>(() => {
 // Hovering (or clicking) a signal on the raster reads off when it started
 // and — once it has scrolled clear of the newest row — when it ended, drawn
 // into the same left-edge timestamp column as waterfallTimeMarkers above,
-// gated behind the same store.showWaterfallTimestamps setting.
+// gated behind the same store.displayWaterfallTimestamps setting.
 
 /** Maps a clientX over `el` to the Hz it sits on, mirroring onPlotMouseUp's
  *  own rect/zoom-window math (kept separate rather than shared: onPlotMouseUp
@@ -2170,7 +2170,7 @@ function pointToRowAndBin(
  *  when detection wouldn't mean anything right now (paused/sweeping/no
  *  history yet). */
 function computeSignalMarkerAtPoint(clientX: number, clientY: number): DetectedSignalMarker | null {
-  if (!store.showWaterfallTimestamps || !store.playing || store.displayPaused || sweeping.value)
+  if (!store.displayWaterfallTimestamps || !store.playing || store.displayPaused || sweeping.value)
     return null
   const point = pointToRowAndBin(clientX, clientY)
   if (!point) return null
@@ -2233,7 +2233,7 @@ function onWaterfallMouseMove(e: MouseEvent): void {
   const current = hoverSignalMarker.value
   if (
     current &&
-    store.showWaterfallTimestamps &&
+    store.displayWaterfallTimestamps &&
     isPointWithinMarker(current, point.cursorBin, point.rowIndex)
   ) {
     // Still over the same signal's box. Try to refresh it (e.g. it may have
@@ -2328,7 +2328,7 @@ function signalMarkerTimeLabels(
 const signalMarkerLabels = computed<SignalMarkerLabel[]>(() => {
   // Read the tick so labels re-derive (and drop off) as rows scroll down.
   void rowClockTick.value
-  if (!store.showWaterfallTimestamps) return []
+  if (!store.displayWaterfallTimestamps) return []
   const labels: SignalMarkerLabel[] = []
   for (const pinned of pinnedSignalMarkers.value) {
     labels.push(...signalMarkerTimeLabels(pinned, `signal-pin-${pinned.id}`))
@@ -2771,9 +2771,9 @@ onMounted(() => {
   // the persisted config on first paint (localStorage is the fallback, not
   // the source of truth across machines).
   void store.hydrateSnapToKnownFromDb()
-  void store.hydrateShowBandPlanFromDb()
+  void store.hydrateDisplayBandPlanFromDb()
   void store.hydrateShowKnownFreqsFromDb()
-  void store.hydrateShowWaterfallTimestampsFromDb()
+  void store.hydrateDisplayWaterfallTimestampsFromDb()
   void store.hydrateWaterfallTimestampIntervalFromDb()
   // Defer until the fixed/flex container has resolved its real pixel size.
   // layer2d derives the waterfall geometry once at init from the plot height,
@@ -3265,7 +3265,7 @@ onBeforeUnmount(() => {
       @contextmenu.prevent
     >
       <div
-        v-if="store.showBandPlan && visibleBands.length > 0"
+        v-if="store.displayBandPlan && visibleBands.length > 0"
         class="sdr-wf-band-overlay"
         :style="bandOverlayStyle"
       >

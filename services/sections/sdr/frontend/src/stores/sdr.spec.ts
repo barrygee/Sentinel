@@ -29,7 +29,7 @@ describe('sdr store', () => {
     expect(store.sampleRate).toBe(2_048_000)
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.snapToKnown).toBe(true)
-    expect(store.showBandPlan).toBe(true)
+    expect(store.displayBandPlan).toBe(true)
     expect(store.showKnownFreqs).toBe(true)
     expect(store.resumeDelaySec).toBe(0)
     expect(store.viewZoom).toBe(1)
@@ -44,7 +44,7 @@ describe('sdr store', () => {
       read: (s) => s.autoCenterWaterfallOnTune,
     },
     { name: 'snapToKnown', lsKey: 'sdrSnapToKnown', read: (s) => s.snapToKnown },
-    { name: 'showBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.showBandPlan },
+    { name: 'displayBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.displayBandPlan },
     { name: 'showKnownFreqs', lsKey: 'sdrShowKnownFreqs', read: (s) => s.showKnownFreqs },
     { name: 'viewAutoScale', lsKey: 'sdrViewAutoScale', read: (s) => s.viewAutoScale },
   ]
@@ -60,7 +60,7 @@ describe('sdr store', () => {
     const store = useSdrStore()
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.snapToKnown).toBe(true)
-    expect(store.showBandPlan).toBe(true)
+    expect(store.displayBandPlan).toBe(true)
     expect(store.showKnownFreqs).toBe(true)
     expect(store.viewAutoScale).toBe(true)
     expect(store.resumeDelaySec).toBe(0)
@@ -80,10 +80,10 @@ describe('sdr store', () => {
       read: (s) => s.snapToKnown,
     },
     {
-      name: 'setShowBandPlan',
+      name: 'setDisplayBandPlan',
       lsKey: 'sdrShowBandPlan',
-      apply: (s, on) => s.setShowBandPlan(on),
-      read: (s) => s.showBandPlan,
+      apply: (s, on) => s.setDisplayBandPlan(on),
+      read: (s) => s.displayBandPlan,
     },
     {
       name: 'setShowKnownFreqs',
@@ -160,10 +160,10 @@ describe('sdr store', () => {
       read: (s) => s.snapToKnown,
     },
     {
-      name: 'showBandPlan',
-      dbKey: 'showBandPlan',
-      hydrate: (s) => s.hydrateShowBandPlanFromDb(),
-      read: (s) => s.showBandPlan,
+      name: 'displayBandPlan',
+      dbKey: 'displayBandPlan',
+      hydrate: (s) => s.hydrateDisplayBandPlanFromDb(),
+      read: (s) => s.displayBandPlan,
     },
     {
       name: 'showKnownFreqs',
@@ -354,26 +354,26 @@ describe('sdr store', () => {
   // ── view settings ──────────────────────────────────────────────────────────
   describe('waterfall timestamps', () => {
     it('is on unless it was switched off before', () => {
-      expect(useSdrStore().showWaterfallTimestamps).toBe(true)
+      expect(useSdrStore().displayWaterfallTimestamps).toBe(true)
     })
 
     it('remembers the choice locally, so a reload keeps the labels hidden', () => {
-      useSdrStore().setShowWaterfallTimestamps(false)
+      useSdrStore().setDisplayWaterfallTimestamps(false)
       expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
 
       setActivePinia(createPinia())
-      expect(useSdrStore().showWaterfallTimestamps).toBe(false)
+      expect(useSdrStore().displayWaterfallTimestamps).toBe(false)
     })
 
     it('records the choice when it is switched off', () => {
       const store = useSdrStore()
 
-      store.setShowWaterfallTimestamps(false)
+      store.setDisplayWaterfallTimestamps(false)
 
       // '0', not a cleared key: an absent key is indistinguishable from never
       // having chosen, and would let a stale db value win on the next load.
       expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
-      expect(store.showWaterfallTimestamps).toBe(false)
+      expect(store.displayWaterfallTimestamps).toBe(false)
     })
 
     it('still applies the choice when localStorage refuses the write', () => {
@@ -382,11 +382,11 @@ describe('sdr store', () => {
       })
       const store = useSdrStore()
 
-      store.setShowWaterfallTimestamps(false)
+      store.setDisplayWaterfallTimestamps(false)
 
       // A private-mode browser still honours the choice for this session; it
       // just cannot carry it to the next load.
-      expect(store.showWaterfallTimestamps).toBe(false)
+      expect(store.displayWaterfallTimestamps).toBe(false)
       setItem.mockRestore()
     })
 
@@ -396,70 +396,70 @@ describe('sdr store', () => {
       })
       setActivePinia(createPinia())
 
-      expect(useSdrStore().showWaterfallTimestamps).toBe(true)
+      expect(useSdrStore().displayWaterfallTimestamps).toBe(true)
       getItem.mockRestore()
     })
 
     describe('hydrating from the config database', () => {
       it('adopts a stored choice that differs from the local one', async () => {
-        stubFetch({ showWaterfallTimestamps: false })
+        stubFetch({ displayWaterfallTimestamps: false })
         const store = useSdrStore()
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.displayWaterfallTimestamps).toBe(false)
         expect(localStorage.getItem('sdrShowWaterfallTimestamps')).toBe('0')
       })
 
       it('leaves the choice alone when the database already agrees', async () => {
-        stubFetch({ showWaterfallTimestamps: true })
+        stubFetch({ displayWaterfallTimestamps: true })
         const store = useSdrStore()
         const setItem = vi.spyOn(window.localStorage, 'setItem')
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
         // Nothing changed, so nothing is rewritten.
-        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(store.displayWaterfallTimestamps).toBe(true)
         expect(setItem).not.toHaveBeenCalled()
       })
 
       it('ignores a value that is not a boolean', async () => {
-        stubFetch({ showWaterfallTimestamps: 'yes' })
+        stubFetch({ displayWaterfallTimestamps: 'yes' })
         const store = useSdrStore()
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(store.displayWaterfallTimestamps).toBe(true)
       })
 
       it('ignores a response with no such key', async () => {
         stubFetch({})
         const store = useSdrStore()
-        store.setShowWaterfallTimestamps(false)
+        store.setDisplayWaterfallTimestamps(false)
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
         // No key is not "cleared" — the local choice stands.
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.displayWaterfallTimestamps).toBe(false)
       })
 
       it('keeps the local choice when the request is rejected', async () => {
-        stubFetch({ showWaterfallTimestamps: false }, false)
+        stubFetch({ displayWaterfallTimestamps: false }, false)
         const store = useSdrStore()
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(true)
+        expect(store.displayWaterfallTimestamps).toBe(true)
       })
 
       it('keeps the local choice when the backend is unreachable', async () => {
         vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
         const store = useSdrStore()
-        store.setShowWaterfallTimestamps(false)
+        store.setDisplayWaterfallTimestamps(false)
 
-        await store.hydrateShowWaterfallTimestampsFromDb()
+        await store.hydrateDisplayWaterfallTimestampsFromDb()
 
-        expect(store.showWaterfallTimestamps).toBe(false)
+        expect(store.displayWaterfallTimestamps).toBe(false)
       })
     })
   })

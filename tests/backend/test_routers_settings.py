@@ -371,7 +371,7 @@ class TestConfigUpload:
         monkeypatch.setattr(decode_router, "reconcile_aprs_decode", reconcile)
         client.put("/api/settings/sdr/aprs_radio_id", json={"value": 1})
 
-        self._upload(client, {"sdr": {"aprs_radio_id": 1, "showBandPlan": False}})
+        self._upload(client, {"sdr": {"aprs_radio_id": 1, "displayBandPlan": False}})
         self._upload(client, {"app": {"notificationSound": True}})
 
         reconcile.assert_not_awaited()

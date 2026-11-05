@@ -272,27 +272,27 @@ export const useSdrStore = defineStore('sdr', () => {
   // Waterfall overlay visibility toggles (bandplan strip and known-frequency
   // labels). Same persistence pattern as autoCenterWaterfallOnTune: localStorage for
   // instant restore, DB hydrate on config upload. Default ON.
-  function _readShowBandPlan(): boolean {
+  function _readDisplayBandPlan(): boolean {
     try {
       return localStorage.getItem('sdrShowBandPlan') !== '0'
     } catch {
       return true
     }
   }
-  const showBandPlan = ref<boolean>(_readShowBandPlan())
-  function setShowBandPlan(on: boolean) {
-    showBandPlan.value = on
+  const displayBandPlan = ref<boolean>(_readDisplayBandPlan())
+  function setDisplayBandPlan(on: boolean) {
+    displayBandPlan.value = on
     try {
       localStorage.setItem('sdrShowBandPlan', on ? '1' : '0')
     } catch {}
   }
-  async function hydrateShowBandPlanFromDb(): Promise<void> {
+  async function hydrateDisplayBandPlanFromDb(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sdr')
       if (!res.ok) return
       const data = await res.json()
-      const v = data?.showBandPlan
-      if (typeof v === 'boolean' && v !== showBandPlan.value) setShowBandPlan(v)
+      const v = data?.displayBandPlan
+      if (typeof v === 'boolean' && v !== displayBandPlan.value) setDisplayBandPlan(v)
     } catch {
       /* offline / transient */
     }
@@ -327,28 +327,28 @@ export const useSdrStore = defineStore('sdr', () => {
   // Waterfall time markers — clock labels down the left edge of the raster,
   // the equivalent of SDR#'s "Use Time Markers" waterfall option. Same
   // persistence pattern as (and same default ON as) the other overlay toggles.
-  function _readShowWaterfallTimestamps(): boolean {
+  function _readDisplayWaterfallTimestamps(): boolean {
     try {
       return localStorage.getItem('sdrShowWaterfallTimestamps') !== '0'
     } catch {
       return true
     }
   }
-  const showWaterfallTimestamps = ref<boolean>(_readShowWaterfallTimestamps())
-  function setShowWaterfallTimestamps(on: boolean) {
-    showWaterfallTimestamps.value = on
+  const displayWaterfallTimestamps = ref<boolean>(_readDisplayWaterfallTimestamps())
+  function setDisplayWaterfallTimestamps(on: boolean) {
+    displayWaterfallTimestamps.value = on
     try {
       localStorage.setItem('sdrShowWaterfallTimestamps', on ? '1' : '0')
     } catch {}
   }
-  async function hydrateShowWaterfallTimestampsFromDb(): Promise<void> {
+  async function hydrateDisplayWaterfallTimestampsFromDb(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sdr')
       if (!res.ok) return
       const data = await res.json()
-      const v = data?.showWaterfallTimestamps
-      if (typeof v === 'boolean' && v !== showWaterfallTimestamps.value) {
-        setShowWaterfallTimestamps(v)
+      const v = data?.displayWaterfallTimestamps
+      if (typeof v === 'boolean' && v !== displayWaterfallTimestamps.value) {
+        setDisplayWaterfallTimestamps(v)
       }
     } catch {
       /* offline / transient */
@@ -1339,15 +1339,15 @@ export const useSdrStore = defineStore('sdr', () => {
     snapToKnown,
     setSnapToKnown,
     hydrateSnapToKnownFromDb,
-    showBandPlan,
-    setShowBandPlan,
-    hydrateShowBandPlanFromDb,
+    displayBandPlan,
+    setDisplayBandPlan,
+    hydrateDisplayBandPlanFromDb,
     showKnownFreqs,
     setShowKnownFreqs,
     hydrateShowKnownFreqsFromDb,
-    showWaterfallTimestamps,
-    setShowWaterfallTimestamps,
-    hydrateShowWaterfallTimestampsFromDb,
+    displayWaterfallTimestamps,
+    setDisplayWaterfallTimestamps,
+    hydrateDisplayWaterfallTimestampsFromDb,
     waterfallTimestampIntervalSec,
     setWaterfallTimestampIntervalSec,
     hydrateWaterfallTimestampIntervalFromDb,

@@ -16,12 +16,12 @@ import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 /** Index of an option's switch, matching the control's row order. */
 const ROW = {
   autoCenter: 0,
-  snapToKnown: 1,
-  showBandPlan: 2,
-  showKnownFreqs: 3,
+  displayBandPlan: 1,
+  showKnownFreqs: 2,
+  displayWaterfallTimestamps: 3,
   muteWhileDecoding: 4,
   recordRawIq: 5,
-  showWaterfallTimestamps: 6,
+  snapToKnown: 6,
 } as const
 
 function switches(wrapper: ReturnType<typeof mount>) {
@@ -62,12 +62,12 @@ describe('SdrOptionsControl', () => {
     const names = switches(wrapper).map((toggle) => toggle.attributes('aria-label'))
     expect(names).toEqual([
       'Auto-center Waterfall on Tune',
-      'Snap to Known Frequencies',
-      'Show Band Plan',
+      'Display Band Plan',
       'Display Known Frequencies',
+      'Display Waterfall Timestamps',
       'Mute Audio While Decoding',
       'Record Raw IQ with Recordings (Large Files)',
-      'Show Waterfall Timestamps',
+      'Snap to Known Frequencies',
     ])
     // The old per-toggle prose is gone — only the option names are on screen.
     expect(wrapper.text()).not.toContain('re-centers the display')
@@ -107,6 +107,23 @@ describe('SdrOptionsControl', () => {
     expect(wrapper.find('.lft-wrap').attributes('style')).toContain('--lft-accent: #c8ff00')
   })
 
+  it('lists every row alphabetically', async () => {
+    const wrapper = mount(SdrOptionsControl)
+    await flushPromises()
+    expect(wrapper.findAll('.lft-row-name').map((cell) => cell.text())).toEqual([
+      'Auto-center Waterfall on Tune',
+      'Display Band Plan',
+      'Display Known Frequencies',
+      'Display Waterfall Timestamps',
+      'Max Recording Length (Minutes)',
+      'Mute Audio While Decoding',
+      'Record Raw IQ with Recordings (Large Files)',
+      'Scan / Search Resume Delay (Seconds)',
+      'Snap to Known Frequencies',
+      'Waterfall Timestamp Interval (Seconds)',
+    ])
+  })
+
   it('shows every option on by default except raw IQ recording', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
@@ -123,10 +140,10 @@ describe('SdrOptionsControl', () => {
 
   it('reflects an option the store already has switched off', async () => {
     const sdr = useSdrStore()
-    sdr.setShowBandPlan(false)
+    sdr.setDisplayBandPlan(false)
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    expect(isOn(wrapper, ROW.showBandPlan)).toBe(false)
+    expect(isOn(wrapper, ROW.displayBandPlan)).toBe(false)
     expect(isOn(wrapper, ROW.showKnownFreqs)).toBe(true)
   })
 
@@ -156,17 +173,17 @@ describe('SdrOptionsControl', () => {
   it('stages the write under the option’s own settings key', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    await switches(wrapper)[ROW.showBandPlan]!.trigger('click')
+    await switches(wrapper)[ROW.displayBandPlan]!.trigger('click')
     await runStagedWrite(wrapper)
-    expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'showBandPlan', false)
+    expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'displayBandPlan', false)
   })
 
   it.each([
     [ROW.autoCenter, 'autoCenterWaterfallOnTune'],
     [ROW.snapToKnown, 'snapToKnown'],
-    [ROW.showBandPlan, 'showBandPlan'],
+    [ROW.displayBandPlan, 'displayBandPlan'],
     [ROW.showKnownFreqs, 'showKnownFreqs'],
-    [ROW.showWaterfallTimestamps, 'showWaterfallTimestamps'],
+    [ROW.displayWaterfallTimestamps, 'displayWaterfallTimestamps'],
     [ROW.muteWhileDecoding, 'muteAudioWhileDecoding'],
   ])('persists row %i as the %s setting', async (row, settingKey) => {
     const wrapper = mount(SdrOptionsControl)
@@ -185,22 +202,22 @@ describe('SdrOptionsControl', () => {
     expect(sdr.muteAudioWhileDecoding).toBe(false)
     expect(sdr.autoCenterWaterfallOnTune).toBe(true)
     expect(sdr.snapToKnown).toBe(true)
-    expect(sdr.showBandPlan).toBe(true)
+    expect(sdr.displayBandPlan).toBe(true)
     expect(sdr.showKnownFreqs).toBe(true)
-    expect(sdr.showWaterfallTimestamps).toBe(true)
+    expect(sdr.displayWaterfallTimestamps).toBe(true)
   })
 
   it('stages one write per option when several are toggled', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
     await switches(wrapper)[ROW.autoCenter]!.trigger('click')
-    await switches(wrapper)[ROW.showBandPlan]!.trigger('click')
+    await switches(wrapper)[ROW.displayBandPlan]!.trigger('click')
 
     expect(wrapper.emitted('stage')).toHaveLength(2)
     await runStagedWrite(wrapper, 0)
     await runStagedWrite(wrapper, 1)
     expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'autoCenterWaterfallOnTune', false)
-    expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'showBandPlan', false)
+    expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'displayBandPlan', false)
   })
 
   it('adopts the stored values on mount, in one namespace fetch', async () => {
@@ -219,18 +236,18 @@ describe('SdrOptionsControl', () => {
     expect(isOn(wrapper, ROW.snapToKnown)).toBe(false)
     expect(isOn(wrapper, ROW.muteWhileDecoding)).toBe(false)
     // Keys the backend didn't send keep their local value.
-    expect(sdr.showBandPlan).toBe(true)
+    expect(sdr.displayBandPlan).toBe(true)
   })
 
   it('ignores stored values that are not booleans', async () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({
-      showBandPlan: 'off',
+      displayBandPlan: 'off',
       showKnownFreqs: null,
     } as never)
     mount(SdrOptionsControl)
     await flushPromises()
     const sdr = useSdrStore()
-    expect(sdr.showBandPlan).toBe(true)
+    expect(sdr.displayBandPlan).toBe(true)
     expect(sdr.showKnownFreqs).toBe(true)
   })
 
@@ -291,15 +308,6 @@ describe('SdrOptionsControl', () => {
       // Six toggles: the interval row adds a field, not a seventh switch.
       expect(switches(wrapper)).toHaveLength(7)
       expect(intervalInput(wrapper).element.value).toBe('5')
-    })
-
-    it('sits directly under its own show/hide row, so the pair reads together', async () => {
-      const wrapper = mount(SdrOptionsControl)
-      await flushPromises()
-      const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
-      const showRow = labels.indexOf('Show Waterfall Timestamps')
-      expect(showRow).toBeGreaterThan(-1)
-      expect(labels[showRow + 1]).toBe('Waterfall Timestamp Interval (Seconds)')
     })
 
     it('re-emits the interval control staged write, which persists the new value', async () => {
@@ -415,15 +423,6 @@ describe('SdrOptionsControl', () => {
       expect(lengthInput(wrapper).element.value).toBe('240')
     })
 
-    it('sits directly under the raw IQ row it protects', async () => {
-      const wrapper = mount(SdrOptionsControl)
-      await flushPromises()
-      const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
-      const rawIqRow = labels.indexOf('Record Raw IQ with Recordings (Large Files)')
-      expect(rawIqRow).toBeGreaterThan(-1)
-      expect(labels[rawIqRow + 1]).toBe('Max Recording Length (Minutes)')
-    })
-
     it('re-emits the length control staged write, which persists the new value', async () => {
       const wrapper = mount(SdrOptionsControl)
       await flushPromises()
@@ -451,9 +450,6 @@ describe('SdrOptionsControl', () => {
       const labels = wrapper.findAll('.lft-row-name').map((cell) => cell.text())
       expect(labels).not.toContain('Recordings Folder')
       expect(wrapper.find('input[aria-label^="Recordings folder"]').exists()).toBe(false)
-      // The recording length still closes the recording rows.
-      const lengthRow = labels.indexOf('Max Recording Length (Minutes)')
-      expect(labels[lengthRow + 1]).toBe('Show Waterfall Timestamps')
     })
   })
 

@@ -41,11 +41,11 @@ All in **Settings › SDR › SDR Options**.
 | Setting | What it does |
 |---|---|
 | **Auto-center Waterfall on Tune** | Keeps the tuned frequency in the middle |
-| **Snap to Known Frequencies** | Selecting near one tunes exactly to it |
-| **Show Band Plan** | The coloured band strip |
+| **Display Band Plan** | The coloured band strip |
 | **Display Known Frequencies** | Frequency markers on the waterfall |
+| **Display Waterfall Timestamps** / **Interval (Seconds)** | Time marks down the waterfall |
 | **Mute Audio While Decoding** | Silence while a digital decoder runs |
-| **Show Waterfall Timestamps** / **Interval (Seconds)** | Time marks down the waterfall |
+| **Snap to Known Frequencies** | Selecting near one tunes exactly to it |
 
 **Band Plan (JSON)** (in **Settings › SDR**) edits the band strip for your country.
 
