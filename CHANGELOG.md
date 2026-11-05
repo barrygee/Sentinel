@@ -271,6 +271,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep closed airport dots black until the label opens
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
+- Remove the recordings folder setting
 
 ### Bug Fixes
 
@@ -1761,6 +1762,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #578 from barrygee/fix/sdr-unavailable-response
 - Merge pull request #579 from barrygee/feat/sdr-host-panel
 - Merge pull request #580 from barrygee/fix/sdr-host-more-gap
+- Merge pull request #581 from barrygee/feat/remove-recordings-folder
 
 ### Performance
 
@@ -2117,6 +2119,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the unavailable radio response
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
+- Rebuild the bundle for the recordings folder removal
 
 ### Continuous Integration
 
