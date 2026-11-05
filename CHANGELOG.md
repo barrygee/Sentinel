@@ -273,6 +273,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show a connection test's result on its button
 - Remove the recordings folder setting
 - Draw the Hawk and F-35 as themselves
+- Remove the visibility notes
 
 ### Bug Fixes
 
@@ -1768,6 +1769,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #581 from barrygee/feat/remove-recordings-folder
 - Merge pull request #582 from barrygee/fix/air-feed-settings-timeout
 - Merge pull request #583 from barrygee/feat/hawk-f35-silhouettes
+- Merge remote-tracking branch 'origin/main' into chore/remove-sdr-listed-hint
+- Merge pull request #586 from barrygee/chore/remove-sdr-listed-hint
 
 ### Performance
 
@@ -2126,6 +2129,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
 - Rebuild the bundle for the Hawk and F-35 outlines
+- Rebuild the bundle for the visibility notes
 
 ### Continuous Integration
 
