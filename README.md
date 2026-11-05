@@ -84,9 +84,7 @@ SENTINEL_RECORDINGS_DIRECTORY=~/SentinelRecordings
 docker compose up -d sdr
 ```
 
-To sort recordings into subfolders such as `satellites/noaa`, set
-**Settings › SDR › SDR Options › Recordings Folder**. Changing either setting affects only
-new recordings, and nothing already saved is moved. The details are in
+Changing it affects only new recordings, and nothing already saved is moved. The details are in
 [Record](docs/use/sdr/record.md#where-files-go).
 
 ## Documentation

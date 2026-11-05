@@ -235,6 +235,9 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # Air flight replay (removed 2026-10-03): the opt-in switch that turned on
     # ADS-B history recording. The recorded tables are dropped in create_tables.
     ("air", "replayEnabled"),
+    # SDR recordings folder (removed 2026-11-05): recordings save straight into
+    # the recordings directory.
+    ("sdr", "recordingsFolder"),
 )
 
 # Key-prefix families pruned the same way, for removed features that stored one

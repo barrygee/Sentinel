@@ -144,8 +144,6 @@ const RESUME_DELAY_ROW: LabelFieldRow = {
 }
 
 // Sorted by label rather than listed by hand, so a new option lands in its place.
-// The recordings folder is a card of its own below this box
-// (sdr-recordings-folder in settings.ts): a typed path wants room and a hint.
 const OPTION_ROWS: LabelFieldRow[] = [
   ...OPTIONS.map((option) => ({ key: option.settingKey, label: option.label })),
   TIMESTAMP_INTERVAL_ROW,

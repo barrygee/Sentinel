@@ -31,9 +31,8 @@ Each recording is `<id>.wav` (and `<id>.u8`) in one folder.
   ```
 
   On Linux also set `SENTINEL_RUNTIME_USER_ID` / `_GROUP_ID` to your ids so the files are yours.
-- **Folder**: **Recordings Folder** picks a subfolder inside the root. It must stay inside it. Left empty, the field shows the root itself: your folder, or `sdr_recordings (Docker volume)`.
 
-Changing either affects new recordings only; old ones stay where they are.
+Changing it affects new recordings only; old ones stay where they are.
 
 ## Settings
 
@@ -43,7 +42,6 @@ All in **Settings › SDR › SDR Options**.
 |---|---|
 | **Record Raw IQ with Recordings (Large Files)** | Also save raw IQ. Off by default |
 | **Max Recording Length (Minutes)** | Safety stop. Default 360 |
-| **Recordings Folder** | Subfolder for new recordings |
 
 > [!WARNING]
 > Raw IQ is about 250 MB a minute. Turn it on only when you need it.

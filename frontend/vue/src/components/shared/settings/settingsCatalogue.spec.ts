@@ -44,7 +44,6 @@ import OverheadAlertsControl from '@sentinel/section-air/settings/OverheadAlerts
 import RangeRingOriginControl from './RangeRingOriginControl.vue'
 import RepeaterLabelFieldsControl from '@sentinel/section-land/settings/RepeaterLabelFieldsControl.vue'
 import SdrDevicesControl from '@sentinel/section-sdr/settings/SdrDevicesControl.vue'
-import SdrRecordingsFolderControl from '@sentinel/section-sdr/settings/SdrRecordingsFolderControl.vue'
 import SdrOptionsControl from '@sentinel/section-sdr/settings/SdrOptionsControl.vue'
 import SeaAisKeyControl from '@sentinel/section-sea/settings/SeaAisKeyControl.vue'
 import SeaAisSdrSourceControl from '@sentinel/section-sea/settings/SeaAisSdrSourceControl.vue'
@@ -289,11 +288,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'sdr',
     'sdr-options',
     { component: SdrOptionsControl, emits: ['stage', 'commit'], layout: 'half' },
-  ],
-  [
-    'sdr',
-    'sdr-recordings-folder',
-    { component: SdrRecordingsFolderControl, emits: ['stage', 'commit'], layout: 'half' },
   ],
   [
     'sdr',

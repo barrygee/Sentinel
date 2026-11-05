@@ -312,8 +312,8 @@ class Settings(BaseSettings):
     gateway_upstream_certificate_authority_file: str = ""
 
     # ── SDR recordings ───────────────────────────────────────────────────────
-    # The folder the SDR section saves recordings under (each recording's WAV
-    # and raw IQ, in the subfolder the `sdr.recordingsFolder` setting names).
+    # The folder the SDR section saves recordings in (each recording's WAV and
+    # raw IQ).
     # Compose sets it to /recordings: the `sdr_recordings` volume, or the host
     # folder SENTINEL_RECORDINGS_DIRECTORY names. Empty = recordings/ next to
     # the database.

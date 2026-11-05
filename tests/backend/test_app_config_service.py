@@ -322,6 +322,15 @@ class TestRenamedSettingsInADocument:
         assert await _value(session_factory, "air", "mapZoom") == 6
 
 
+class TestRemovedRecordingsFolder:
+    async def test_an_upload_can_not_bring_it_back(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(
+                session, {"sdr": {"recordingsFolder": "satellites/noaa"}}
+            )
+        assert await _value(session_factory, "sdr", "recordingsFolder") is None
+
+
 class TestRetiredColourMapTheme:
     """COLOUR was renamed LIGHT; an imported "colour" — an older export, or the
     live config file written before the rename — means today's LIGHT map."""
