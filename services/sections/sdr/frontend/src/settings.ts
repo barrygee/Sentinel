@@ -9,7 +9,6 @@ import {
 } from '@sentinel/shell-api/shell/sdrSettingsSection'
 import SdrDevicesControl from './settings/SdrDevicesControl.vue'
 import SdrOptionsControl from './settings/SdrOptionsControl.vue'
-import SdrRecordingsFolderControl from './settings/SdrRecordingsFolderControl.vue'
 
 /**
  * SDR's Settings section (F3): radios, receiver options and the frequency / band-plan files.
@@ -54,23 +53,6 @@ export function registerSdrSettings(): void {
       // the card's own title only said it twice. Kept in the registry (screen
       // readers and search still need a name for the box) but hidden on screen.
       hideLabel: true,
-      groupLabel: 'SDR OPTIONS',
-      position: SDR_SETTINGS_POSITIONS.options,
-    },
-    {
-      // Its own card in SDR OPTIONS, below the options box: a folder name is
-      // typed, so it gets a full row and a hint the box's rows have no room for.
-      section: 'sdr',
-      sectionLabel: 'SDR',
-      id: 'sdr-recordings-folder',
-      label: 'Recordings Folder',
-      desc: 'Folder inside the recordings directory. Empty saves to the directory itself.',
-      searchTerms: 'recordings folder directory path save location subfolder wav iq',
-      control: {
-        component: SdrRecordingsFolderControl,
-        emits: ['stage', 'commit'],
-        layout: 'half',
-      },
       groupLabel: 'SDR OPTIONS',
       position: SDR_SETTINGS_POSITIONS.options,
     },

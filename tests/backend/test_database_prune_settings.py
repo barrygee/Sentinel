@@ -99,6 +99,18 @@ class TestPruneRemovedSettings:
         await db.prune_removed_settings()
         assert await _stored_keys(session_factory) == [("air", "channel_maps")]
 
+    async def test_clears_a_saved_recordings_folder(self, session_factory):
+        # With no setting left to change it, a saved subfolder must not stay in force.
+        await _add_settings(
+            session_factory,
+            [
+                ("sdr", "recordingsFolder", "satellites/noaa"),
+                ("sdr", "displayBandPlan", True),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == [("sdr", "displayBandPlan")]
+
     async def test_no_op_on_a_fresh_database(self, session_factory):
         # A fresh install has no such rows — the early return path.
         await db.prune_removed_settings()
@@ -193,7 +205,9 @@ class TestPruneRemovedLandCameraFeeds:
         await db.prune_removed_settings()
         assert await _stored_keys(session_factory) == [("sea", "feedCredential:utmc")]
 
-    async def test_prefix_is_matched_literally_not_as_a_like_pattern(self, session_factory, monkeypatch):
+    async def test_prefix_is_matched_literally_not_as_a_like_pattern(
+        self, session_factory, monkeypatch
+    ):
         # startswith(autoescape=True) must escape LIKE wildcards: a prefix
         # containing "_" must not match an arbitrary character in its place.
         monkeypatch.setattr(db, "_REMOVED_SETTING_PREFIXES", (("land", "old_cred:"),))
