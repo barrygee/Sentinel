@@ -21,7 +21,8 @@ Run with:  uv run --project backend pytest services/sdr-manager-local/backend/te
 from __future__ import annotations
 
 import asyncio
-from typing import cast
+from collections.abc import Callable
+from typing import Literal, cast
 
 import pytest
 from sdr_manager_local_fake_clock import FakeClock
@@ -38,6 +39,7 @@ from sentinel_sdr_manager_local.schemas.device import DeviceState, DeviceStatus,
 from sentinel_sdr_manager_local.services.control_follower import ControlFollowerService
 from sentinel_sdr_manager_local.services.device_registry import DeviceRegistry, RunnableDevice
 from sentinel_sdr_manager_local.services.event_bus import EventBus
+from sentinel_sdr_manager_local.services.private_access import LOOPBACK_NETWORKS
 from sentinel_sdr_manager_local.services.supervisor import (
     BACKOFF_MAX_S,
     BACKOFF_START_S,
@@ -205,6 +207,7 @@ def runnable_device(
     sample_rate: int | None = None,
     gain_db: float | None = None,
     gain_auto: bool = True,
+    visibility: Literal["public", "private"] = "public",
 ) -> RunnableDevice:
     return RunnableDevice(
         device_id=DEVICE_ID,
@@ -217,6 +220,7 @@ def runnable_device(
         sample_rate=sample_rate,
         gain_db=gain_db,
         gain_auto=gain_auto,
+        visibility=visibility,
     )
 
 
@@ -228,6 +232,7 @@ def build_supervisor(
     follower: FakeControlFollower | None = None,
     library: FakeRtlSdrLibrary | None = None,
     max_devices: int = MAX_DEVICES,
+    private_allowed_networks: Callable[[], str] = lambda: LOOPBACK_NETWORKS,
 ) -> SupervisorService:
     the_clock = clock or FakeClock()
     return SupervisorService(
@@ -244,6 +249,7 @@ def build_supervisor(
         internal_port_base=INTERNAL_PORT_BASE,
         max_devices=max_devices,
         control_follower=cast(ControlFollowerService, follower or FakeControlFollower()),
+        private_allowed_networks=private_allowed_networks,
     )
 
 
@@ -373,6 +379,103 @@ class TestSpawnPair:
             "RELAY_EXIT_ON_WEDGE": "1",
             "RELAY_GAIN_AUTO": "1",
         }
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    async def test_a_public_dongles_relay_has_no_allow_list(self) -> None:
+        spawner = FakeProcessSpawner()
+        supervisor = build_supervisor(spawner=spawner, private_allowed_networks=lambda: "10.0.0.1")
+
+        await supervisor._spawn_pair(DEVICE_ID, runnable_device(visibility="public"))  # noqa: SLF001
+        await settle()
+
+        assert "RELAY_ALLOWED_NETWORKS" not in spawner.spawns[1][1]
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    async def test_a_private_dongles_relay_gets_the_allow_list(self) -> None:
+        spawner = FakeProcessSpawner()
+        supervisor = build_supervisor(spawner=spawner, private_allowed_networks=lambda: "127.0.0.0/8,10.0.0.1")
+
+        await supervisor._spawn_pair(DEVICE_ID, runnable_device(visibility="private"))  # noqa: SLF001
+        await settle()
+
+        assert spawner.spawns[1][1]["RELAY_ALLOWED_NETWORKS"] == "127.0.0.0/8,10.0.0.1"
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("first", "second"),
+        [("public", "private"), ("private", "public")],
+    )
+    async def test_changing_visibility_restarts_the_pair(self, first: str, second: str) -> None:
+        """Restarting is what drops a client connected before it went private."""
+        spawner = FakeProcessSpawner()
+        registry = ScriptedDeviceRegistry(runnable=(runnable_device(visibility=first),))  # type: ignore[arg-type]
+        supervisor = build_supervisor(spawner=spawner, registry=registry)
+        await supervisor.reconcile()
+        await settle()
+        assert len(spawner.spawns) == 2
+
+        registry.runnable = (runnable_device(visibility=second),)  # type: ignore[arg-type]
+        await supervisor.reconcile()
+        await settle()
+
+        assert len(spawner.spawns) == 4
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    async def test_changing_the_list_restarts_a_private_pair_with_the_new_list(self) -> None:
+        """Otherwise a removed Sentinel would stay connected."""
+        allowed = ["127.0.0.0/8,10.0.0.1"]
+        spawner = FakeProcessSpawner()
+        registry = ScriptedDeviceRegistry(runnable=(runnable_device(visibility="private"),))
+        supervisor = build_supervisor(spawner=spawner, registry=registry, private_allowed_networks=lambda: allowed[0])
+        await supervisor.reconcile()
+        await settle()
+
+        allowed[0] = "127.0.0.0/8"
+        await supervisor.reconcile()
+        await settle()
+
+        assert len(spawner.spawns) == 4
+        assert spawner.spawns[3][1]["RELAY_ALLOWED_NETWORKS"] == "127.0.0.0/8"
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    async def test_changing_the_list_leaves_a_public_pair_running(self) -> None:
+        allowed = ["127.0.0.0/8,10.0.0.1"]
+        spawner = FakeProcessSpawner()
+        registry = ScriptedDeviceRegistry(runnable=(runnable_device(visibility="public"),))
+        supervisor = build_supervisor(spawner=spawner, registry=registry, private_allowed_networks=lambda: allowed[0])
+        await supervisor.reconcile()
+        await settle()
+
+        allowed[0] = "127.0.0.0/8"
+        await supervisor.reconcile()
+        await settle()
+
+        assert len(spawner.spawns) == 2
+
+        await cancel_background_tasks(supervisor)
+
+    @pytest.mark.asyncio
+    async def test_an_unchanged_list_restarts_nothing(self) -> None:
+        spawner = FakeProcessSpawner()
+        registry = ScriptedDeviceRegistry(runnable=(runnable_device(visibility="private"),))
+        supervisor = build_supervisor(spawner=spawner, registry=registry)
+        await supervisor.reconcile()
+        await settle()
+
+        await supervisor.reconcile()
+        await settle()
+
+        assert len(spawner.spawns) == 2
 
         await cancel_background_tasks(supervisor)
 

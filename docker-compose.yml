@@ -579,6 +579,8 @@ services:
       SENTINEL_CORE_URL: https://localhost:8443
       # Where the app and the gateway reach it: the host, from their bridge network.
       SERVICE_INTERNAL_URL: http://host.docker.internal:${SDR_MANAGER_LOCAL_HTTP_PORT:-8000}
+      # This Sentinel's radio hub reaches a private dongle from its compose network.
+      SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS: ${SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS:-${SENTINEL_NETWORK_SUBNET:-172.28.0.0/24}}
       # No event bus: it talks to core over HTTPS only (ADR 0007).
       NATS_URL: ""
       SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json

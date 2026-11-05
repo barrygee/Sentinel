@@ -22,8 +22,9 @@ IdentityKind = Literal["serial", "usb"]
 
 DeviceVisibility = Literal["public", "private"]
 """Whether a device is published in the Sentinel-consumed `GET /api/v1/sdrs`
-export ("public") or omitted from it entirely ("private"). New devices start
-private — publishing is a deliberate per-device act, never a default."""
+export ("public") or kept to this machine ("private"): omitted from the export
+and refused to anything else. New devices start private — publishing is a
+deliberate per-device act, never a default."""
 
 # librtlsdr-supported sample rates (Sentry architecture §7.5). Any other value is a
 # 400 validation_error; rates above 2_400_000 are accepted but the service
@@ -185,6 +186,7 @@ class StatusResponse(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     generated_at: int = Field(description="Unix ms this snapshot was assembled")
+    private_access: bool = Field(default=False, description="Whether the caller may use this host's private devices")
     location: SdrManagerLocation = Field(
         default_factory=SdrManagerLocation,
         description="This SDR Manager's fixed position; both coordinates null when unset",
@@ -278,7 +280,7 @@ class DevicePatch(BaseModel):
     enabled: bool | None = None
     visibility: DeviceVisibility | None = Field(
         default=None,
-        description="'public' publishes this device in GET /api/v1/sdrs; 'private' omits it",
+        description="'public' publishes this device in GET /api/v1/sdrs; 'private' keeps it to this machine",
     )
     center_hz: int | None = Field(default=None, ge=24_000_000, le=1_766_000_000)
     sample_rate: int | None = None
