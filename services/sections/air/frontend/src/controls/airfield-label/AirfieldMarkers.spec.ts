@@ -243,6 +243,17 @@ describe('AirfieldMarkers', () => {
     expect(labels.filter).toEqual(['in', ['get', 'siteIndex'], ['literal', []]])
   })
 
+  it('keeps a closed civil dot black, and turns it blue when its label opens', async () => {
+    const { map, asMap } = fakeMap()
+    await new AirfieldMarkers(asMap, SITES, 'civil').attach()
+    const [dots] = map.addLayer.mock.calls.map(([layer]) => layer) as unknown as [
+      { paint: Record<string, unknown> },
+    ]
+    expect(dots.paint['circle-color']).toBe('#000000')
+    // The open label draws its own dot over the closed one.
+    expect(recorder.drawn).toContain('fill #00aaff')
+  })
+
   it('pads the drawn ink evenly, not the text’s advance width', async () => {
     await new AirfieldMarkers(fakeMap().asMap, SITES.slice(1), 'civil').attach()
     // Dot well 26 + the ink's 1px left bearing: the well is the left padding.
