@@ -115,6 +115,9 @@ x-section-env: &section-env
 x-section-mounts:
   - &legacy-db sentinel_db:/legacy:ro
   - &backend-code ./backend:/app/backend:ro  # live-reload backend code
+  # Settings › SDR and › Space save their edits to files here, so those two sections
+  # mount it writable over the read-only code. Data only: nothing here is executed.
+  - &editable-data ./backend/data:/app/backend/data
   - &spa-dist ./frontend/spa-dist:/app/frontend/spa-dist:ro
 
 services:
@@ -287,6 +290,7 @@ services:
       - space_data:/app/data
       - *legacy-db
       - *backend-code
+      - *editable-data
       - ./services/sections/space/backend:/app/services/sections/space/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/space}}
@@ -445,6 +449,7 @@ services:
       - sdr_data:/app/data
       - *legacy-db
       - *backend-code
+      - *editable-data
       - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr}}

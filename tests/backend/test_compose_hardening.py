@@ -106,6 +106,17 @@ class TestMounts:
         (mount,) = mounts_of(MAIN_SERVICES[service_name], "./backend")
         assert mount.endswith(":ro")
 
+    def test_only_the_sections_with_data_editors_can_write_the_data_folder(self) -> None:
+        # Settings › SDR and › Space save to backend/data. Any other section
+        # gaining this would be a write path it has no use for.
+        writers = {name for name in MAIN_SERVICES if mounts_of(MAIN_SERVICES[name], "./backend/data")}
+        assert writers == {"sdr", "space"}
+
+    @pytest.mark.parametrize("service_name", ["sdr", "space"])
+    def test_the_data_mount_stays_inside_the_data_folder(self, service_name: str) -> None:
+        (mount,) = mounts_of(MAIN_SERVICES[service_name], "./backend/data")
+        assert mount == "./backend/data:/app/backend/data"
+
     @pytest.mark.parametrize("service_name", SECTIONS)
     def test_sections_cannot_write_the_legacy_database(self, service_name: str) -> None:
         (mount,) = mounts_of(MAIN_SERVICES[service_name], "sentinel_db")
