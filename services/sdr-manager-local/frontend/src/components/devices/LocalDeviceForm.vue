@@ -71,13 +71,6 @@
       <span :id="fieldIds.visibility" class="sdr-devices-form-label">VISIBILITY</span>
       <LocalVisibilityToggle v-model="draft.visibility" :labelled-by="fieldIds.visibility" />
     </div>
-    <p class="local-device-visibility-note">
-      {{
-        draft.visibility === 'public'
-          ? 'Listed for other Sentinels on the network to use.'
-          : 'Not listed for other Sentinels.'
-      }}
-    </p>
 
     <LocalDeviceDetails :device="device" />
 
@@ -182,19 +175,10 @@ onMounted(() => {
   /* The two pills don't fit beside the label on a phone. */
   flex-wrap: wrap;
 }
-.local-device-visibility-note {
-  margin: -4px 0 4px 124px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  color: var(--ink-secondary);
-}
 @media (max-width: 600px) {
   .local-device-visibility-row {
     /* The two pills don't fit beside the label on a phone. */
     flex-wrap: wrap;
-  }
-  .local-device-visibility-note {
-    margin-left: 0;
   }
 }
 </style>
