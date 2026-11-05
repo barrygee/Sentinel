@@ -1296,6 +1296,10 @@
 }
 
 /* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
+.sdr-frequency-search {
+  flex: 0 0 auto;
+}
+
 .sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
 .sdr-frequency-manager-freqs-body > .sdr-panel-empty {
   flex: 0 0 auto;

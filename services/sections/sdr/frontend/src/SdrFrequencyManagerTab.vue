@@ -9,6 +9,19 @@
   <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{
     rowStatusMessage
   }}</span>
+  <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{
+    searchStatusMessage
+  }}</span>
+  <!-- Outside the body below: its read-only dimming shouldn't reach the search,
+       which keeps working when the list can't be edited. -->
+  <BaseSearchField
+    v-model="frequencySearch.query.value"
+    class="sdr-frequency-search"
+    variant="panel"
+    input-id="sdr-frequency-search-input"
+    label="Search frequencies by label, frequency, mode, group or notes"
+    placeholder="LABEL · FREQ · MODE · GROUP"
+  />
   <div
     class="sdr-frequency-manager-freqs-body"
     :class="{ 'sdr-frequency-manager--readonly': readOnly }"
@@ -607,7 +620,8 @@
  *
  * The GROUPS filter (`SdrFrequencyGroupFilter` + `useFrequencyGroupFilter`)
  * and the row body (`SdrFrequencyRowSummary`) are shared with
- * `SdrFavouritesSection` rather than duplicated. Each row's action cluster
+ * `SdrFavouritesSection` rather than duplicated. The search field at the top
+ * (`useFrequencySearch`) narrows what the group filter leaves. Each row's action cluster
  * leads with `SdrFavouriteStar` (star before play/edit/delete, so the two
  * destructive-adjacent buttons stay where muscle memory expects them) —
  * starring here is what populates the RADIO panel's FAVOURITES accordion.
@@ -629,10 +643,12 @@ import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseSearchField from '@sentinel/ui/base/BaseSearchField.vue'
 import SdrFavouriteStar from './SdrFavouriteStar.vue'
 import SdrFrequencyGroupFilter from './SdrFrequencyGroupFilter.vue'
 import SdrFrequencyRowSummary from './SdrFrequencyRowSummary.vue'
 import { useFrequencyGroupFilter } from './composables/useFrequencyGroupFilter'
+import { useFrequencySearch } from './composables/useFrequencySearch'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { useSdrStore } from './stores/sdr'
@@ -682,9 +698,17 @@ const freqGroupsFor = sdrStore.freqGroupsFor
 // list). See the composable's doc for the "No matches." stranding behaviour
 // this tab's specs pin.
 const groupFilter = useFrequencyGroupFilter(freqGroupsFor)
+const frequencySearch = useFrequencySearch(freqGroupsFor)
 const filteredFreqs = computed<SdrStoredFrequency[]>(() =>
-  groupFilter.filterFrequencies(freqs.value),
+  frequencySearch.searchFrequencies(groupFilter.filterFrequencies(freqs.value)),
 )
+
+// Rows change silently as the user types, so a screen reader needs the count.
+const searchStatusMessage = computed(() => {
+  if (frequencySearch.query.value.trim() === '') return ''
+  const count = filteredFreqs.value.length
+  return `${count} ${count === 1 ? 'frequency' : 'frequencies'} found`
+})
 
 // Announces row-action outcomes (see the template's sr-only status span).
 const rowStatusMessage = ref('')

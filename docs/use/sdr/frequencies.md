@@ -20,6 +20,8 @@ Save frequencies, group them, and let Sentinel scan or sweep for activity.
 
 ![The FREQUENCY MANAGER tab: Add Frequency, group filter buttons, and saved frequencies such as Calling channel 145.5000 MHz NFM, each with its group, a favourite star, tune, edit and delete buttons. The waterfall beside it marks the saved frequencies along the top.](../../images/sdr-frequency-manager.png)
 
+Search: the field at the top of **FREQUENCY MANAGER** finds frequencies by label, MHz, mode, group or notes, within the groups selected below it.
+
 Groups: **GROUPS** tab, type a name, **ADD**. Deleting a group keeps its frequencies.
 
 ![The GROUPS tab: groups such as 2 M SIMPLEX, AIRBAND and REPEATERS, each with rename and delete buttons, and a Group name field with ADD.](../../images/sdr-groups.png)

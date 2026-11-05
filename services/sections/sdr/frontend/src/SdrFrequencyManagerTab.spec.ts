@@ -687,3 +687,99 @@ describe('SdrFrequencyManagerTab — accessibility', () => {
     ).toHaveNoViolations()
   })
 })
+
+describe('SdrFrequencyManagerTab — search', () => {
+  const SEARCH = '#sdr-frequency-search-input'
+  const COAST = { id: 11, label: 'Coast', frequency_hz: 156_800_000, mode: 'NFM', group_ids: [2] }
+  const mountBoth = (options: MountOptions = {}) =>
+    mountTab({
+      groups: [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })],
+      freqs: [makeFreq(), makeFreq(COAST)],
+      ...options,
+    })
+  const rowLabels = (wrapper: VueWrapper) =>
+    freqRows(wrapper).map((row) => row.get('.sdr-freq-row-label').text())
+
+  it('sits above everything else in the tab, as the other sections’ search does', () => {
+    const wrapper = mountBoth()
+    const field = wrapper.get('.sdr-frequency-search').element
+    const body = wrapper.get('.sdr-frequency-manager-freqs-body').element
+    expect(field.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('has a name saying what it searches, not just a placeholder', () => {
+    const wrapper = mountBoth()
+    expect(wrapper.get(SEARCH).attributes('aria-label')).toContain('frequencies')
+  })
+
+  it('narrows the rows as the user types and restores them when cleared', async () => {
+    const wrapper = mountBoth()
+    await wrapper.get(SEARCH).setValue('coast')
+    expect(rowLabels(wrapper)).toEqual(['Coast'])
+    await wrapper.get('.ba-search-field__clear').trigger('click')
+    expect(rowLabels(wrapper)).toEqual(['Tower', 'Coast'])
+  })
+
+  it('searches group names through the store', async () => {
+    const wrapper = mountBoth()
+    await wrapper.get(SEARCH).setValue('marine')
+    expect(rowLabels(wrapper)).toEqual(['Coast'])
+  })
+
+  it('searches only within the selected groups', async () => {
+    const wrapper = mountBoth()
+    const airbandChip = wrapper
+      .findAll('.sdr-scan-group-chip')
+      .find((chip) => chip.text() === 'Airband')
+    await airbandChip?.trigger('click')
+    expect(rowLabels(wrapper)).toEqual(['Tower'])
+    await wrapper.get(SEARCH).setValue('coast')
+    expect(rowLabels(wrapper)).toEqual([])
+  })
+
+  it('shows No matches. when nothing is found', async () => {
+    const wrapper = mountBoth()
+    await wrapper.get(SEARCH).setValue('zzz')
+    expect(rowLabels(wrapper)).toEqual([])
+    expect(wrapper.text()).toContain('No matches.')
+  })
+
+  it('announces how many were found, with the right plural, and nothing when empty', async () => {
+    const wrapper = mountBoth()
+    const status = () => wrapper.findAll('[role="status"]').map((node) => node.text())
+    expect(status().join('')).not.toContain('found')
+    await wrapper.get(SEARCH).setValue('coast')
+    expect(status()).toContain('1 frequency found')
+    await wrapper.get(SEARCH).setValue('nfm am')
+    expect(status()).toContain('0 frequencies found')
+    await wrapper.get(SEARCH).setValue('   ')
+    expect(status().join('')).not.toContain('found')
+  })
+
+  it('still searches when the list is read-only, outside its dimming', async () => {
+    const wrapper = mountBoth({ readOnly: true })
+    expect(wrapper.find('.sdr-frequency-manager--readonly .sdr-frequency-search').exists()).toBe(
+      false,
+    )
+    await wrapper.get(SEARCH).setValue('coast')
+    expect(rowLabels(wrapper)).toEqual(['Coast'])
+  })
+
+  it('disarms a row the search hides, so it does not come back armed', async () => {
+    const wrapper = mountBoth()
+    await wrapper.get('[data-id="10"] .sdr-freq-row-del').trigger('click')
+    expect(wrapper.find('.sdr-freq-row-del--confirm').exists()).toBe(true)
+    await wrapper.get(SEARCH).setValue('coast')
+    await wrapper.get(SEARCH).setValue('')
+    expect(rowLabels(wrapper)).toEqual(['Tower', 'Coast'])
+    expect(wrapper.find('.sdr-freq-row-del--confirm').exists()).toBe(false)
+  })
+
+  it('has no axe violations with a search in progress', async () => {
+    const wrapper = mountBoth()
+    await wrapper.get(SEARCH).setValue('coast')
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+})
