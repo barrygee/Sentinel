@@ -81,6 +81,16 @@ class DisconnectIn(BaseModel):
 # ── Connection control ────────────────────────────────────────────────────────
 
 
+def _radio_unavailable(radio_id: int, detail: str) -> JSONResponse:
+    """Answer a connect for a radio that can't be reached right now.
+
+    A 200 rather than a 503: an offline radio is an expected state, not a failed
+    request, and the browser logs every error status as a console error however
+    the page handles it, so a 503 put one there on each page load.
+    """
+    return JSONResponse({"status": "unavailable", "radio_id": radio_id, "detail": detail})
+
+
 @router.post("/api/sdr/connect")
 async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
     radios = await radio_registry.get_radios(db)
@@ -92,10 +102,7 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
     # which tells the operator nothing about what to do.
     available, reason = await radio_registry.device_availability(radio)
     if not available:
-        raise HTTPException(
-            503,
-            f"{radio.get('name') or 'This radio'} is unavailable. {reason}",
-        )
+        return _radio_unavailable(body.radio_id, f"{radio.get('name') or 'This radio'} is unavailable. {reason}")
     try:
         conn = await sdr_svc.get_or_create_connection(radio["host"], radio["port"])
         try:
@@ -118,7 +125,7 @@ async def connect_radio(body: ConnectIn, db: AsyncSession = Depends(get_db)):
         if body.mode is not None:
             conn.mode = body.mode
     except ConnectionError as exc:
-        raise HTTPException(503, str(exc)) from exc
+        return _radio_unavailable(body.radio_id, str(exc))
     return JSONResponse(
         {
             "status": "connected",
