@@ -122,13 +122,11 @@ describe('registerSdrManagerLocalSettings', () => {
       expect(devices!.control.collapsible).toBeUndefined()
     })
 
-    it('says what the SDRs card is for, there being no radios list above it', async () => {
+    it('leaves the SDRs card without a description', async () => {
       const { registry } = await registered('sdr-manager-local-only')
       const [devices] = registry.getSettingItems()
 
-      expect(devices!.desc).toBe(
-        'The SDRs plugged into this computer. Name each one, set its port and switch it on to share it.',
-      )
+      expect(devices!.desc).toBe('')
     })
   })
 

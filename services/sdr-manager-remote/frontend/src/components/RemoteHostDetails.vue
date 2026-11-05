@@ -295,9 +295,7 @@ watch(
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  /* Extra room above so the disclosure separates from the CONSOLE PASSWORD
-     field rather than reading as one more row of it. */
-  padding: 26px 0 10px;
+  padding: 10px 0;
   background: none;
   border: none;
   border-radius: 0;
