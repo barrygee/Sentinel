@@ -64,6 +64,20 @@
                     "errors": {
                         "routes": [
                             {
+                                "match": [{ "expression": "{http.error.status_code} == 413" }],
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 413,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Request body too large\"}"
+                                    }
+                                ]
+                            },
+                            {
                                 "handle": [
                                     {
                                         "handler": "static_response",
@@ -121,6 +135,20 @@
                     ],
                     "errors": {
                         "routes": [
+                            {
+                                "match": [{ "expression": "{http.error.status_code} == 413" }],
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 413,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Request body too large\"}"
+                                    }
+                                ]
+                            },
                             {
                                 "handle": [
                                     {
