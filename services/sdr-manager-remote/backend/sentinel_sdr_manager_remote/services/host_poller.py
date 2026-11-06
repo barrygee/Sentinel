@@ -42,6 +42,7 @@ class HostSnapshot:
 
     host_id: int
     reachable: bool = False
+    may_use_private: bool = False
     status_payload: dict[str, Any] | None = None  # raw GET /api/status body ({generated_at, sdrs})
     api_version: str | None = None
     last_error: str | None = None
@@ -160,6 +161,7 @@ class HostPoller:
             client = client_for_host(host)
             host_address = host.address
             auto_add_sdrs = bool(host.auto_add_sdrs)
+            is_local = bool(host.is_local)
 
         snapshot = self._snapshots.setdefault(host_id, HostSnapshot(host_id=host_id))
         polled_at = int(time.time() * 1000)
@@ -181,11 +183,16 @@ class HostPoller:
 
         snapshot.reachable = True
         snapshot.status_payload = response.data
+        # The host says, as an older one that doesn't is treated as refusing.
+        may_use_private = is_local or bool((response.data or {}).get("private_access"))
+        snapshot.may_use_private = may_use_private
         snapshot.api_version = response.api_version
         snapshot.last_error = None
         snapshot.last_success_at = polled_at
         await self._update_host_row(host_id, last_seen_at=polled_at, last_error=None)
-        await self._sync_device_radios(host_id, host_address, response.data, auto_add_sdrs=auto_add_sdrs)
+        await self._sync_device_radios(
+            host_id, host_address, response.data, auto_add_sdrs=auto_add_sdrs, may_use_private=may_use_private
+        )
         await self._refresh_export(snapshot, client, polled_at)
         return True
 
@@ -215,7 +222,13 @@ class HostPoller:
             logger.exception("Unexpected error reading the SDR export for host %d", snapshot.host_id)
 
     async def _sync_device_radios(
-        self, host_id: int, host_address: str, payload: dict[str, Any] | None, *, auto_add_sdrs: bool
+        self,
+        host_id: int,
+        host_address: str,
+        payload: dict[str, Any] | None,
+        *,
+        auto_add_sdrs: bool,
+        may_use_private: bool = False,
     ) -> None:
         """Keep `sdr.radios` in step with the SDRs a Sentinel host reports.
 
@@ -257,7 +270,9 @@ class HostPoller:
                 return
             changed = any([_rename_legacy_mirror_fields(radio) for radio in radios])
             for device in devices:
-                changed = _sync_device_radio(radios, host_id, host_address, device, auto_add_sdrs) or changed
+                changed = (
+                    _sync_device_radio(radios, host_id, host_address, device, auto_add_sdrs, may_use_private) or changed
+                )
             if changed:
                 await write_setting(db, "sdr", "radios", radios)
 
@@ -291,7 +306,12 @@ def _rename_legacy_mirror_fields(radio: Any) -> bool:
 
 
 def _sync_device_radio(
-    radios: list[Any], host_id: int, host_address: str, device: dict[str, Any], auto_add_sdrs: bool
+    radios: list[Any],
+    host_id: int,
+    host_address: str,
+    device: dict[str, Any],
+    auto_add_sdrs: bool,
+    may_use_private: bool = False,
 ) -> bool:
     """Re-point the radio for one reported SDR, and add, adopt or remove it with `auto_add_sdrs`.
 
@@ -308,7 +328,8 @@ def _sync_device_radio(
         ),
         None,
     )
-    if auto_add_sdrs and device.get("visibility") == "private":
+    # A private dongle is a radio here only if its host lets this Sentinel use it.
+    if auto_add_sdrs and not may_use_private and device.get("visibility") == "private":
         if mirror is None:
             return False
         logger.info("Radio %s removed: device %s was made private on its host", mirror.get("id"), device_id)

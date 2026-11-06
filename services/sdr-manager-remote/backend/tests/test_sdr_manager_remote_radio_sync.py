@@ -87,9 +87,13 @@ def settings_store(monkeypatch: pytest.MonkeyPatch):
     return install
 
 
-async def sync(*devices: Any, auto_add_sdrs: bool) -> None:
+async def sync(*devices: Any, auto_add_sdrs: bool, may_use_private: bool = False) -> None:
     await poller_module.HostPoller()._sync_device_radios(
-        HOST_ID, HOST_ADDRESS, {"generated_at": 0, "sdrs": list(devices)}, auto_add_sdrs=auto_add_sdrs
+        HOST_ID,
+        HOST_ADDRESS,
+        {"generated_at": 0, "sdrs": list(devices)},
+        auto_add_sdrs=auto_add_sdrs,
+        may_use_private=may_use_private,
     )
 
 
@@ -172,6 +176,20 @@ class TestAddingAutomatically:
 
         assert store.radios == []
         assert store.writes == 0
+
+    async def test_a_private_sdr_this_sentinel_may_use_becomes_a_radio(self, settings_store) -> None:
+        store = settings_store([])
+
+        await sync(device(visibility="private"), auto_add_sdrs=True, may_use_private=True)
+
+        assert [radio["name"] for radio in store.radios] == ["RTL-SDR V4"]
+
+    async def test_a_private_sdr_this_sentinel_may_use_keeps_its_radio(self, settings_store) -> None:
+        store = settings_store([mirror()])
+
+        await sync(device(visibility="private"), auto_add_sdrs=True, may_use_private=True)
+
+        assert store.radios == [mirror()]
 
     async def test_making_an_sdr_private_removes_its_radio(self, settings_store, caplog) -> None:
         manual = {"id": 4, "name": "Shed", "host": "10.0.0.9", "port": 1234}
@@ -332,8 +350,18 @@ class TestFromThePoll:
         yield factory
         await engine.dispose()
 
-    async def poll_host(self, session_factory, monkeypatch, *, auto_add_sdrs: bool | None) -> None:
-        columns = {} if auto_add_sdrs is None else {"auto_add_sdrs": auto_add_sdrs}
+    async def poll_host(
+        self,
+        session_factory,
+        monkeypatch,
+        *,
+        auto_add_sdrs: bool | None,
+        is_local: bool = False,
+        status_fields: dict[str, Any] | None = None,
+        reported_device: dict[str, Any] | None = None,
+    ) -> poller_module.HostPoller:
+        columns: dict[str, Any] = {} if auto_add_sdrs is None else {"auto_add_sdrs": auto_add_sdrs}
+        columns["is_local"] = is_local
         async with session_factory() as session:
             host = RemoteSdrHost(name="Pi", address=HOST_ADDRESS, port=8000, auth_token="tok", created_at=1, **columns)
             session.add(host)
@@ -345,13 +373,17 @@ class TestFromThePoll:
                 pass
 
             async def get_status(self) -> SdrManagerResponse:
-                return SdrManagerResponse(data={"generated_at": 0, "sdrs": [device()]}, api_version="1")
+                body = {"generated_at": 0, "sdrs": [reported_device or device()], **(status_fields or {})}
+                return SdrManagerResponse(data=body, api_version="1")
 
             async def get_sdr_export(self) -> SdrManagerResponse:
                 return SdrManagerResponse(data={}, api_version="1")
 
         monkeypatch.setattr(client_module, "SdrManagerClient", StatusClient)
-        assert await poller_module.HostPoller()._poll_once(host_id) is True
+        poller = poller_module.HostPoller()
+        assert await poller._poll_once(host_id) is True
+        self.polled_host_id = host_id
+        return poller
 
     async def test_a_host_set_to_add_automatically_gets_its_radios(
         self, session_factory, settings_store, monkeypatch
@@ -362,6 +394,66 @@ class TestFromThePoll:
 
         assert [radio["name"] for radio in store.radios] == ["RTL-SDR V4"]
         assert store.radios[0]["host"] == HOST_ADDRESS
+
+    async def test_a_host_that_allows_this_sentinel_gives_it_private_sdrs(
+        self, session_factory, settings_store, monkeypatch
+    ) -> None:
+        store = settings_store([])
+
+        poller = await self.poll_host(
+            session_factory,
+            monkeypatch,
+            auto_add_sdrs=True,
+            status_fields={"private_access": True},
+            reported_device=device(visibility="private"),
+        )
+
+        assert [radio["name"] for radio in store.radios] == ["RTL-SDR V4"]
+        assert poller.get_snapshot(self.polled_host_id).may_use_private is True
+
+    async def test_a_host_that_refuses_this_sentinel_keeps_its_private_sdrs(
+        self, session_factory, settings_store, monkeypatch
+    ) -> None:
+        store = settings_store([])
+
+        poller = await self.poll_host(
+            session_factory,
+            monkeypatch,
+            auto_add_sdrs=True,
+            status_fields={"private_access": False},
+            reported_device=device(visibility="private"),
+        )
+
+        assert store.radios == []
+        assert poller.get_snapshot(self.polled_host_id).may_use_private is False
+
+    async def test_an_older_host_that_says_nothing_counts_as_refusing(
+        self, session_factory, settings_store, monkeypatch
+    ) -> None:
+        store = settings_store([])
+
+        poller = await self.poll_host(
+            session_factory, monkeypatch, auto_add_sdrs=True, reported_device=device(visibility="private")
+        )
+
+        assert store.radios == []
+        assert poller.get_snapshot(self.polled_host_id).may_use_private is False
+
+    async def test_this_machine_may_always_use_its_own_private_sdrs(
+        self, session_factory, settings_store, monkeypatch
+    ) -> None:
+        store = settings_store([])
+
+        poller = await self.poll_host(
+            session_factory,
+            monkeypatch,
+            auto_add_sdrs=True,
+            is_local=True,
+            reported_device=device(visibility="private"),
+        )
+
+        assert [radio["name"] for radio in store.radios] == ["RTL-SDR V4"]
+        assert poller.get_snapshot(self.polled_host_id).may_use_private is True
 
     async def test_a_new_host_adds_manually_unless_told_otherwise(
         self, session_factory, settings_store, monkeypatch

@@ -489,6 +489,13 @@
         "type": "BOOLEAN"
       },
       {
+        "default": "'[]'",
+        "name": "private_allowed_addresses",
+        "nullable": false,
+        "primary_key": false,
+        "type": "VARCHAR"
+      },
+      {
         "default": null,
         "name": "updated_at",
         "nullable": false,

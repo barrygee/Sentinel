@@ -15,6 +15,21 @@ export const NOTES_MAX_LENGTH = 2000
 /** The API's `SERIAL_PATTERN` (`schemas/serial.py`). */
 const SERIAL_PATTERN = /^[A-Za-z0-9_-]{1,32}$/
 
+/** Dotted IPv4, each part 0-255. */
+const IPV4_PATTERN = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/
+
+/** The shape of IPv6: hex groups and colons, optionally ending in dotted IPv4. */
+const IPV6_PATTERN = /^[0-9a-fA-F:.]*:[0-9a-fA-F:.]*$/
+
+/** A single address, not a range. The API makes the final check. */
+export function validateIpAddress(address: string): string | null {
+  if (address.length === 0) return 'Enter an IP address.'
+  if (!IPV4_PATTERN.test(address) && !IPV6_PATTERN.test(address)) {
+    return 'Enter one IP address, such as 192.168.1.20.'
+  }
+  return null
+}
+
 export function validateDeviceName(name: string): string | null {
   const trimmed = name.trim()
   if (trimmed.length === 0) return 'Enter a name.'

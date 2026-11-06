@@ -16,6 +16,7 @@ const HOST = {
   name: 'Roof Pi',
   address: '192.168.1.30',
   is_local: false,
+  may_use_private: false,
   port: 8000,
   enabled: true,
   auth_token_set: true,

@@ -53,10 +53,10 @@ class TestSchema:
 
         assert await _table_names(sdr_manager_local_database) == set(SDR_MANAGER_LOCAL_TABLES)
 
-    def test_has_no_added_columns_yet(self) -> None:
-        # Its tables start at Sentry's final schema; the first column added
-        # after this release belongs here as an ALTER.
-        assert SDR_MANAGER_LOCAL_ADDED_COLUMNS == ()
+    def test_adds_the_private_access_list_to_an_existing_database(self) -> None:
+        # Its tables start at Sentry's final schema; a column added after this
+        # release belongs here as an ALTER, or an existing install never gets it.
+        assert any("private_allowed_addresses" in statement for statement in SDR_MANAGER_LOCAL_ADDED_COLUMNS)
 
 
 class TestSeeding:

@@ -248,6 +248,7 @@ async def _on_hosts_snapshot(payload: EventPayload) -> dict[str, Any]:
     hosts = {
         str(snapshot.host_id): {
             "reachable": snapshot.reachable,
+            "may_use_private": snapshot.may_use_private,
             "sdrs": (snapshot.status_payload or {}).get("sdrs", []) if snapshot.reachable else [],
         }
         for snapshot in host_poller.all_snapshots()

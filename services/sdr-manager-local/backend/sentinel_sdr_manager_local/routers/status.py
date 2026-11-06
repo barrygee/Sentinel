@@ -9,6 +9,7 @@ from sentinel_sdr_manager_local.dependencies import (
     get_clock,
     get_device_registry,
     get_location_source,
+    get_private_access,
     get_settings_dependency,
 )
 from sentinel_sdr_manager_local.interfaces.clock import Clock
@@ -17,6 +18,7 @@ from sentinel_sdr_manager_local.routers.host_resolution import resolve_public_ho
 from sentinel_sdr_manager_local.schemas.device import StatusResponse
 from sentinel_sdr_manager_local.security import require_console_session
 from sentinel_sdr_manager_local.services.device_registry import DeviceRegistry
+from sentinel_sdr_manager_local.services.private_access import PrivateAccessList
 
 router = APIRouter(tags=["status"], dependencies=[Depends(require_console_session)])
 
@@ -33,6 +35,7 @@ async def get_status(
     clock: Clock = Depends(get_clock),
     settings: Settings = Depends(get_settings_dependency),
     location_service: CoreLocationSource = Depends(get_location_source),
+    private_access: PrivateAccessList = Depends(get_private_access),
 ) -> StatusResponse:
     """Return the realtime per-SDR view — identical payload to the SSE `snapshot` event.
 
@@ -47,4 +50,7 @@ async def get_status(
         # the Pi without a second call — see `schemas/location.py`.
         location=await location_service.get_location(),
         sdrs=with_resolved_hosts(device_registry.list_statuses(), host),
+        private_access=private_access.caller_may_use_private(
+            request.headers.get("authorization"), request.client.host if request.client else None
+        ),
     )

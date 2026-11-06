@@ -60,6 +60,11 @@ const CONFIG_MESSAGES: Record<string, string> = {
     'This file was written by a newer SDR Manager and cannot be read by this one.',
 }
 
+const PRIVATE_ACCESS_MESSAGES: Record<string, string> = {
+  console_password_required:
+    'Set a console password first: without one, anyone who can reach this machine could add themselves.',
+}
+
 function messageFrom(messages: Record<string, string>, error: unknown, fallback: string): string {
   if (!(error instanceof SdrManagerApiError)) return fallback
   if (error.status === 0) return 'Could not reach SDR Manager. Check the connection and try again.'
@@ -96,6 +101,11 @@ export function hotspotCommandOutput(error: unknown): string | null {
 /** For a refused configuration export or import. */
 export function configErrorMessage(error: unknown, fallback: string): string {
   return messageFrom(CONFIG_MESSAGES, error, fallback)
+}
+
+/** For a refused change to the private access list. */
+export function privateAccessErrorMessage(error: unknown, fallback: string): string {
+  return messageFrom(PRIVATE_ACCESS_MESSAGES, error, fallback)
 }
 
 /** For a refused sign-in or password change: the API's own message, else `fallback`. */

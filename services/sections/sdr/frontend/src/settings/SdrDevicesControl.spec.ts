@@ -71,6 +71,7 @@ const HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: false,
   is_local: false,
+  may_use_private: false,
   auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 0,
@@ -1116,6 +1117,7 @@ describe('SdrDevicesControl', () => {
       name: null,
       address: 'host.docker.internal',
       is_local: true,
+      may_use_private: true,
     }
 
     it('lists this machine first, as SDR Manager does', async () => {
@@ -1218,6 +1220,7 @@ describe('SdrDevicesControl', () => {
       name: null,
       address: 'host.docker.internal',
       is_local: true,
+      may_use_private: true,
     }
     const LOCAL_DEVICE: SdrManagerDeviceStatus = { ...DEVICE, device_id: 'rtl-local' }
     const LOCAL_RADIO: SdrRadioRecord = {

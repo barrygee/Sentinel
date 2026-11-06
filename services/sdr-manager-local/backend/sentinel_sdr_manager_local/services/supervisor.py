@@ -39,6 +39,7 @@ import contextlib
 import logging
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -50,6 +51,7 @@ from sentinel_sdr_manager_local.schemas.events import NoticeItem
 from sentinel_sdr_manager_local.services.control_follower import ControlFollowerService
 from sentinel_sdr_manager_local.services.device_registry import DeviceRegistry, RunnableDevice
 from sentinel_sdr_manager_local.services.event_bus import EventBus, SseMessage
+from sentinel_sdr_manager_local.services.private_access import LOOPBACK_NETWORKS
 
 _logger = logging.getLogger(__name__)
 
@@ -173,6 +175,7 @@ class _RunningPair:
     spawned_sample_rate: int | None = None
     spawned_gain_db: float | None = None
     spawned_gain_auto: bool = True
+    spawned_allow_list: str | None = LOOPBACK_NETWORKS
     """The tuning this pair was actually started with.
 
     Recorded because tuning is applied as `rtl_tcp` *startup arguments* and by
@@ -232,6 +235,7 @@ class SupervisorService:
         internal_port_base: int,
         max_devices: int,
         control_follower: ControlFollowerService,
+        private_allowed_networks: Callable[[], str] = lambda: LOOPBACK_NETWORKS,
     ) -> None:
         self._process_spawner = process_spawner
         self._rtlsdr_library = rtlsdr_library
@@ -243,6 +247,7 @@ class SupervisorService:
         self._internal_port_base = internal_port_base
         self._max_devices = max_devices
         self._control_follower = control_follower
+        self._private_allowed_networks = private_allowed_networks
         self._pairs: dict[str, _RunningPair] = {}
         self._internal_ports_by_device: dict[str, int] = {}
         self._restart_bookkeeping: dict[str, _RestartBookkeeping] = {}
@@ -309,6 +314,7 @@ class SupervisorService:
                     or running_pair.spawned_sample_rate != desired.sample_rate
                     or running_pair.spawned_gain_db != desired.gain_db
                     or running_pair.spawned_gain_auto != desired.gain_auto
+                    or running_pair.spawned_allow_list != self._relay_allow_list(desired)
                 ):
                     # Sentry architecture §7.5: output_port/ppm_correction changes restart the pair.
                     #
@@ -318,6 +324,10 @@ class SupervisorService:
                     # `PATCH` setting a frequency is stored, reported back as
                     # applied, and silently does nothing to the signal until
                     # something else happens to restart the pair.
+                    #
+                    # The allow-list too: the relay reads it at startup, and
+                    # restarting is what drops a client that was connected when
+                    # the dongle went private or its address was removed.
                     await self._stop_pair(device_id, grace_period_s=5.0, reason="reconfiguring")
                     running_pair = None
                 if (
@@ -326,6 +336,10 @@ class SupervisorService:
                     and self._spawn_retry_ready(device_id)
                 ):
                     await self._spawn_pair(device_id, desired)
+
+    def _relay_allow_list(self, desired: RunnableDevice) -> str | None:
+        """Who `desired`'s relay may serve: None for anyone, as a public dongle does."""
+        return self._private_allowed_networks() if desired.visibility == "private" else None
 
     async def resolve_spawn_index(self, serial: str) -> int:
         """Resolve the librtlsdr `-d <index>` for `serial`, right now, never cached.
@@ -541,9 +555,10 @@ class SupervisorService:
             return
         self._drain_output_in_background(rtl_tcp_process)
 
-        # Exactly these six env vars, and no others (Sentry architecture §12.7) —
-        # everything else about the relay (protocol, defaults, tuning) is
-        # frozen and configured entirely through them.
+        allow_list = self._relay_allow_list(desired)
+        # Only these env vars (Sentry architecture §12.7): everything else about
+        # the relay (protocol, defaults, tuning) is frozen and configured
+        # entirely through them.
         relay_env = {
             "RELAY_UPSTREAM_HOST": "127.0.0.1",
             "RELAY_UPSTREAM_PORT": str(internal_port),
@@ -551,6 +566,7 @@ class SupervisorService:
             "RELAY_LISTEN_PORT": str(desired.output_port),
             "RELAY_CONTROL_PORT": str(desired.control_port),
             "RELAY_EXIT_ON_WEDGE": "1",
+            **({"RELAY_ALLOWED_NETWORKS": allow_list} if allow_list is not None else {}),
             # The relay asserts its tracked tuner state over the dongle every
             # time it (re)connects upstream, which is what lets a re-enumerated
             # device come back on the operator's tuning. Without these it has
@@ -591,6 +607,7 @@ class SupervisorService:
             spawned_sample_rate=desired.sample_rate,
             spawned_gain_db=desired.gain_db,
             spawned_gain_auto=desired.gain_auto,
+            spawned_allow_list=allow_list,
         )
         self._pairs[device_id] = running_pair
         self._watch_tasks[device_id] = asyncio.create_task(
