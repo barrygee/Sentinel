@@ -1566,6 +1566,10 @@
               }
             ]
           },
+          "may_use_private": {
+            "title": "May Use Private",
+            "type": "boolean"
+          },
           "name": {
             "anyOf": [
               {
@@ -1604,6 +1608,7 @@
           "enabled",
           "auth_token_set",
           "is_local",
+          "may_use_private",
           "auto_add_sdrs",
           "created_at",
           "last_seen_at",
@@ -1679,6 +1684,10 @@
             ],
             "title": "Last Seen At"
           },
+          "may_use_private": {
+            "title": "May Use Private",
+            "type": "boolean"
+          },
           "name": {
             "anyOf": [
               {
@@ -1707,6 +1716,7 @@
           "enabled",
           "auth_token_set",
           "is_local",
+          "may_use_private",
           "auto_add_sdrs",
           "created_at",
           "last_seen_at",

@@ -24,6 +24,37 @@ function buildDevice(overrides: Partial<SdrManagerDeviceStatus> = {}): SdrManage
 }
 
 describe('SdrHostDeviceRow', () => {
+  const OUTPUT = { iq_port: 1234, control_port: 1236, host: '10.0.0.1' }
+
+  it.each([
+    [false, true],
+    [true, false],
+  ])('with permission %s, ADD for a private SDR is disabled: %s', (mayUsePrivate, disabled) => {
+    const wrapper = mount(SdrHostDeviceRow, {
+      props: {
+        device: buildDevice({ visibility: 'private', output: OUTPUT }),
+        adding: false,
+        mayUsePrivate,
+      },
+    })
+    expect(wrapper.get('button').attributes('disabled') !== undefined).toBe(disabled)
+  })
+
+  it.each([
+    [false, 'PRIVATE'],
+    [true, 'ADDING…'],
+  ])('with permission %s, an automatic host says %s', (mayUsePrivate, reason) => {
+    const wrapper = mount(SdrHostDeviceRow, {
+      props: {
+        device: buildDevice({ visibility: 'private', output: OUTPUT }),
+        adding: false,
+        autoAdd: true,
+        mayUsePrivate,
+      },
+    })
+    expect(wrapper.find('.sdr-host-device-reason').text()).toBe(reason)
+  })
+
   it('falls back to the device id when the device has no name', () => {
     const wrapper = mount(SdrHostDeviceRow, {
       props: { device: buildDevice({ name: '' }), adding: false },

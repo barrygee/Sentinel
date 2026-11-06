@@ -28,6 +28,7 @@ from sentinel_sdr_manager_local.services.health import HealthService
 from sentinel_sdr_manager_local.services.host_control_settings import HostControlSettingsService
 from sentinel_sdr_manager_local.services.hotspot import HotspotService
 from sentinel_sdr_manager_local.services.port_allocator import PortAllocatorService
+from sentinel_sdr_manager_local.services.private_access import PrivateAccessList
 from sentinel_sdr_manager_local.services.supervisor import SupervisorService
 
 
@@ -89,6 +90,12 @@ def get_host_control_settings(request: Request) -> HostControlSettingsService:
     """Return the process-wide `HostControlSettingsService` (Sentry ADR-0013)."""
     host_control_settings: HostControlSettingsService = request.app.state.container.host_control_settings
     return host_control_settings
+
+
+def get_private_access(request: Request) -> PrivateAccessList:
+    """Return the process-wide `PrivateAccessList`."""
+    private_access: PrivateAccessList = request.app.state.container.private_access
+    return private_access
 
 
 def get_device_reservations(request: Request) -> DeviceReservationService:

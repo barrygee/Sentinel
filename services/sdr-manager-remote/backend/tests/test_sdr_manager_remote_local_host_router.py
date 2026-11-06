@@ -19,6 +19,7 @@ from tests.backend.service_credentials_test_helpers import bearer, present_crede
 
 from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, RemoteSdrHost
 from sentinel_sdr_manager_remote.routers import hosts as hosts_router
+from sentinel_sdr_manager_remote.services.host_poller import HostSnapshot, host_poller
 
 HOSTS = "/api/sdr-manager/remote/hosts"
 
@@ -85,6 +86,23 @@ def test_the_listing_marks_the_local_row_and_only_it(client, local_host_id):
     assert listed[local_host_id]["auth_token_set"] is False
     assert listed[created["id"]]["is_local"] is False
     assert created["is_local"] is False
+
+
+def test_this_machine_may_use_private_sdrs_and_an_unpolled_host_may_not(client, local_host_id):
+    created = client.post(HOSTS, json={"address": "10.0.0.5", "auth_token": "pw"}).json()
+
+    listed = {host["id"]: host for host in client.get(HOSTS).json()}
+
+    assert listed[local_host_id]["may_use_private"] is True
+    assert listed[created["id"]]["may_use_private"] is False
+
+
+def test_a_host_that_allows_this_sentinel_says_so_in_the_listing(client, monkeypatch):
+    created = client.post(HOSTS, json={"address": "10.0.0.5", "auth_token": "pw"}).json()
+    allowed = HostSnapshot(host_id=created["id"], reachable=True, may_use_private=True)
+    monkeypatch.setattr(host_poller, "get_snapshot", lambda host_id: allowed)
+
+    assert client.get(f"{HOSTS}/{created['id']}").json()["may_use_private"] is True
 
 
 def test_a_single_read_carries_is_local(client, local_host_id):

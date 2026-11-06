@@ -44,6 +44,7 @@ IQ-socket commands last-writer-wins, so direct/legacy ``rtl_tcp`` clients still 
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
 import os
@@ -66,6 +67,41 @@ LISTEN_PORT = int(os.environ.get("RELAY_LISTEN_PORT", "1234"))
 # Defaults to two above the IQ port so a single env var is rarely needed; the
 # Sentinel backend derives the same offset (settings.sdr_relay_control_port_offset).
 CONTROL_PORT = int(os.environ.get("RELAY_CONTROL_PORT", str(LISTEN_PORT + 2)))
+
+
+def parse_allowed_networks(raw_networks: str) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """The comma-separated networks in `raw_networks`.
+
+    An invalid entry raises rather than being skipped, so a mistyped list stops
+    the relay instead of quietly leaving a private dongle open.
+    """
+    return tuple(ipaddress.ip_network(entry.strip()) for entry in raw_networks.split(",") if entry.strip())
+
+
+# Who may connect, on both ports. Set for a private dongle, leaving it open only
+# to this machine; empty for a public one, which anyone may use.
+ALLOWED_NETWORKS = parse_allowed_networks(os.environ.get("RELAY_ALLOWED_NETWORKS", ""))
+
+
+def peer_is_allowed(
+    peer_address: str,
+    allowed_networks: tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...],
+) -> bool:
+    """Whether `peer_address` may connect. An address that can't be read is refused.
+
+    Kept in step with `services/private_access.py`: the supervisor runs this file
+    by path, so it can't import from the package.
+    """
+    if not allowed_networks:
+        return True
+    try:
+        address = ipaddress.ip_address(peer_address.split("%", 1)[0])
+    except ValueError:
+        return False
+    # A dual-stack socket reports an IPv4 client as ::ffff:a.b.c.d.
+    address = getattr(address, "ipv4_mapped", None) or address
+    return any(address in network for network in allowed_networks)
+
 
 MAGIC_HEADER_BYTES = 12
 COMMAND_BYTES = 5
@@ -243,6 +279,20 @@ def _enable_tcp_keepalive(writer: asyncio.StreamWriter) -> None:
 # ── Tuning-ownership control channel ──────────────────────────────────────────
 
 
+def refuse_unless_allowed(writer: asyncio.StreamWriter) -> bool:
+    """Close a connection this dongle doesn't serve. Returns whether it was refused.
+
+    Runs before anything is sent, so a refused client never gets the tuner header.
+    """
+    peer_info = writer.get_extra_info("peername")
+    peer_address = peer_info[0] if peer_info else ""
+    if peer_is_allowed(peer_address, ALLOWED_NETWORKS):
+        return False
+    logger.warning("Refused %s: this dongle is private", peer_address or "an unknown peer")
+    writer.close()
+    return True
+
+
 def _build_command(command_byte: int, value: int) -> bytes:
     """Encode one 5-byte rtl_tcp command: [command_byte][big-endian uint32 value]."""
     return bytes([command_byte]) + (value & 0xFFFFFFFF).to_bytes(4, "big")
@@ -371,6 +421,8 @@ async def handle_control_client(
     ops. Ownership held by this connection is released when it drops, and the other
     control clients are notified so a follower can take over a freed token.
     """
+    if refuse_unless_allowed(writer):
+        return
     peer = "?"
     peer_info = writer.get_extra_info("peername")
     if peer_info:
@@ -575,6 +627,8 @@ async def handle_client(
     and concurrently forwards the client's commands upstream. All resources are
     released on disconnect so a vanished client leaves nothing behind.
     """
+    if refuse_unless_allowed(client_writer):
+        return
     peer = "?"
     peer_info = client_writer.get_extra_info("peername")
     if peer_info:

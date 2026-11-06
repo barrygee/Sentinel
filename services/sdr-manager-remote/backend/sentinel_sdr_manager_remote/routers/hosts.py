@@ -210,6 +210,8 @@ class RemoteSdrHostOut(BaseModel):
     # This machine's own sdr-manager-local, linked from core's registry: it
     # signs in with the service bearer, so `auth_token_set` stays false.
     is_local: bool
+    # The host lets this Sentinel use its private SDRs.
+    may_use_private: bool
     auto_add_sdrs: bool
     created_at: int
     last_seen_at: int | None
@@ -430,6 +432,7 @@ def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         enabled=host.enabled,
         auth_token_set=bool(host.auth_token),
         is_local=host.is_local,
+        may_use_private=host.is_local or (snapshot is not None and snapshot.may_use_private),
         auto_add_sdrs=host.auto_add_sdrs,
         created_at=host.created_at,
         last_seen_at=host.last_seen_at,

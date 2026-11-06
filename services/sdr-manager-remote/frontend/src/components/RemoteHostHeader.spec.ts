@@ -27,6 +27,7 @@ const ROOF_PI: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  may_use_private: false,
   auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 100,
@@ -35,7 +36,13 @@ const ROOF_PI: SdrManagerHost = {
   api_version: '1.0.0',
 }
 
-const THIS_MACHINE: SdrManagerHost = { ...ROOF_PI, id: 1, name: null, is_local: true }
+const THIS_MACHINE: SdrManagerHost = {
+  ...ROOF_PI,
+  id: 1,
+  name: null,
+  is_local: true,
+  may_use_private: true,
+}
 
 interface HeaderProps {
   host?: SdrManagerHost

@@ -16,7 +16,7 @@ import logging
 import uuid
 from collections.abc import Sequence
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, status
 
 from sentinel_sdr_manager_local.config import Settings
 from sentinel_sdr_manager_local.dependencies import (
@@ -25,6 +25,7 @@ from sentinel_sdr_manager_local.dependencies import (
     get_device_reservations,
     get_eeprom_service,
     get_port_allocator,
+    get_private_access,
     get_settings_dependency,
 )
 from sentinel_sdr_manager_local.repositories.device_repository import DeviceConflictError
@@ -50,6 +51,7 @@ from sentinel_sdr_manager_local.services.device_reservations import (
 )
 from sentinel_sdr_manager_local.services.eeprom import EepromService
 from sentinel_sdr_manager_local.services.port_allocator import PortAllocatorService
+from sentinel_sdr_manager_local.services.private_access import PrivateAccessList
 
 router = APIRouter(prefix="/devices", tags=["devices"], dependencies=[Depends(require_console_session)])
 
@@ -138,6 +140,22 @@ async def _require_tuning_allowed(
     if reservation is None or reservation.holder == holder:
         return
     raise _reservation_conflict(reservation)
+
+
+def _require_access_if_private(
+    request: Request, device_id: str, device_registry: DeviceRegistry, private_access: PrivateAccessList
+) -> None:
+    """Refuse a claim on a private dongle from anyone but this machine or a listed address."""
+    is_private = any(
+        record.device_id == device_id and record.visibility == "private" for record in device_registry.list_records()
+    )
+    peer_address = request.client.host if request.client else None
+    if not is_private or private_access.caller_may_use_private(request.headers.get("authorization"), peer_address):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=error_detail("device_private", "This device is private: this machine doesn't allow your address."),
+    )
 
 
 _logger = logging.getLogger(__name__)
@@ -558,9 +576,12 @@ async def get_device_reservation(
     summary="Claim this device, or renew a claim already held",
 )
 async def acquire_device_reservation(
+    request: Request,
     request_body: ReservationRequest,
     device_id: str = DEVICE_ID_PATH,
     reservations: DeviceReservationService = Depends(get_device_reservations),
+    device_registry: DeviceRegistry = Depends(get_device_registry),
+    private_access: PrivateAccessList = Depends(get_private_access),
 ) -> DeviceReservation:
     """Take or renew a lease on this device.
 
@@ -569,13 +590,15 @@ async def acquire_device_reservation(
     simply becomes a fresh claim rather than an error it would have to handle.
 
     Refused with `409 device_reserved` when somebody else holds it, naming them,
-    unless the body sets `force`.
+    unless the body sets `force`, and with `403 device_private` for a private
+    device claimed from an address it doesn't allow.
 
     Deliberately **not** idempotent in the HTTP sense, and deliberately a POST:
     each call moves the expiry, which is the entire point — a PUT implying "make
     it so" would suggest re-sending the same body leaves the world unchanged,
     and here it must not.
     """
+    _require_access_if_private(request, device_id, device_registry, private_access)
     kind, key = _identity_of(device_id)
     try:
         return await reservations.acquire(

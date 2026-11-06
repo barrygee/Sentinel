@@ -2,8 +2,7 @@
   <template v-if="radio">
     <span v-if="!confirming" class="sdr-device-radio-added">
       <span class="sdr-device-radio-added-label">ADDED</span>
-      <!-- Added automatically: made private on its host to leave it out, so
-           no cross; the space keeps the pencils in line. -->
+      <!-- Added automatically, so no cross; the space keeps the pencils in line. -->
       <span v-if="autoAdd" class="sdr-device-btn-slot" aria-hidden="true" />
       <button
         v-else
@@ -34,9 +33,15 @@
     </span>
   </template>
   <span v-else-if="device && autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
-    hostDeviceNotRadioReason(device)
+    hostDeviceNotRadioReason(device, true)
   }}</span>
-  <SdrHostDeviceAddButton v-else-if="device" :device="device" :adding="adding" @add="emit('add')" />
+  <SdrHostDeviceAddButton
+    v-else-if="device"
+    :device="device"
+    :adding="adding"
+    may-use-private
+    @add="emit('add')"
+  />
 </template>
 
 <script setup lang="ts">
@@ -47,7 +52,8 @@
  * cross that removes the radio (after REMOVE? YES / NO) — the SDR stays.
  * Nothing until the host's device list has the SDR. When This machine adds
  * its SDRs automatically there is neither ADD nor a cross: ADDED, or why the
- * SDR isn't a radio (private, or not set up).
+ * SDR isn't a radio (not set up). Private doesn't stop it here: that only keeps
+ * an SDR from other machines.
  */
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'

@@ -20,6 +20,7 @@ function host(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost {
     enabled: true,
     auth_token_set: true,
     is_local: false,
+    may_use_private: false,
     auto_add_sdrs: false,
     created_at: 0,
     last_seen_at: null,
@@ -90,12 +91,26 @@ describe('sdr radioSites capability — devices', () => {
           id: 1,
           label: 'Attic Pi',
           devices: [
-            { deviceId: 'serial:AAA', name: 'ADSB', enabled: true, public: true },
-            { deviceId: 'usb:1-1.2', name: 'Spare', enabled: false, public: false },
+            { deviceId: 'serial:AAA', name: 'ADSB', enabled: true, usable: true },
+            { deviceId: 'usb:1-1.2', name: 'Spare', enabled: false, usable: false },
           ],
         },
       ],
     })
+  })
+
+  it('counts a private device as usable only on a host that allows this Sentinel', async () => {
+    vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([
+      host({ id: 1, may_use_private: true }),
+      host({ id: 2, may_use_private: false }),
+    ])
+    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'serial:AAA', name: 'ADSB', visibility: 'private' }),
+    )
+
+    const fleet = await createRadioSitesCapability().listDevices()
+
+    expect(fleet.hosts.map((listed) => listed.devices[0]!.usable)).toEqual([true, false])
   })
 
   it('skips hosts that are switched off, but still counts them', async () => {
