@@ -396,69 +396,6 @@ defineExpose({
 </script>
 
 <style>
-#radio-mini-btn {
-  height: 36px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--rail-ink);
-  opacity: 1;
-  transition:
-    background 0.2s,
-    opacity 0.2s,
-    color 0.2s;
-  flex-shrink: 0;
-  margin: 4px 0;
-  position: relative;
-}
-
-#radio-mini-btn:hover {
-  background: rgba(var(--rail-ink-rgb), 0.08);
-  border-radius: 6px;
-  opacity: 1;
-}
-
-#radio-mini-btn.radio-mini-btn-active {
-  opacity: 1;
-  color: var(--accent);
-  background: rgba(var(--accent-rgb), 0.08);
-  border-radius: 6px;
-}
-
-#radio-mini-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-#radio-mini-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
-#radio-mini-btn.radio-mini-btn-active[data-tooltip]::before {
-  opacity: 0 !important;
-}
-
 /* Footer edge toggles: the left one shows/hides the map sidebar; the right one
    (#side-menu-btn, Air/Space only) shows/hides the map's right controls rail.
    They share styling — both are dim icon buttons that brighten on hover/active. */
@@ -529,36 +466,6 @@ defineExpose({
   #footer-right > #side-menu-btn {
     display: none;
   }
-}
-
-#map-sidebar-btn[data-tooltip]::before {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  background: var(--tooltip-bg);
-  color: var(--tooltip-ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  padding: 0 14px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  z-index: 10001;
-}
-
-#map-sidebar-btn[data-tooltip]:hover::before {
-  opacity: 1;
-}
-#map-sidebar-btn.msb-btn-active[data-tooltip]::before {
-  opacity: 0 !important;
 }
 
 #map-sidebar-rail {
