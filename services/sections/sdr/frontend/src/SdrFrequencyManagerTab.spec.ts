@@ -789,3 +789,40 @@ describe('SdrFrequencyManagerTab — search', () => {
     ).toHaveNoViolations()
   })
 })
+
+describe('SdrFrequencyManagerTab — addFrequency (the tuned readout’s + button)', () => {
+  const addFrequency = (wrapper: VueWrapper, frequencyHz: number) =>
+    (wrapper.vm as unknown as { addFrequency(hz: number): Promise<void> }).addFrequency(frequencyHz)
+  const freqField = (wrapper: VueWrapper) =>
+    (wrapper.get('#sdr-ef-freq').element as HTMLInputElement).value
+
+  it('opens the add form on the frequency it was given, not the tuned one', async () => {
+    const wrapper = mountTab({ live: makeLive({ freqHz: 121_500_000 }) })
+    await addFrequency(wrapper, 123_450_000)
+    expect(freqField(wrapper)).toBe('123.4500')
+  })
+
+  it('still seeds the rest of the form from the live radio', async () => {
+    const wrapper = mountTab({ live: makeLive({ mode: 'NFM' }) })
+    await addFrequency(wrapper, 123_450_000)
+    expect(wrapper.get('#sdr-ef-mode-pills .active').text()).toBe('NFM')
+  })
+
+  it('moves focus to LABEL, the field left to fill', async () => {
+    const wrapper = mountTab()
+    await addFrequency(wrapper, 123_450_000)
+    expect(document.activeElement).toBe(wrapper.get('#sdr-ef-label').element)
+  })
+
+  it('asks the parent to show the tab', async () => {
+    const wrapper = mountTab()
+    await addFrequency(wrapper, 123_450_000)
+    expect(wrapper.emitted('activate')).toHaveLength(1)
+  })
+
+  it('leaves the Add Frequency button seeding from the tuned frequency', async () => {
+    const wrapper = mountTab({ live: makeLive({ freqHz: 121_500_000 }) })
+    await openAddForm(wrapper)
+    expect(freqField(wrapper)).toBe('121.5000')
+  })
+})

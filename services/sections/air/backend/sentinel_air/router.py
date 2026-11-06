@@ -20,6 +20,7 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import get_db
+from backend.platform.settings_client import SettingsUnavailable
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
 from fastapi import APIRouter, Depends
@@ -109,8 +110,9 @@ def _fresh_response(data: dict, cache_state: str, lifetime_ms: int) -> JSONRespo
 
 # Why there was no snapshot to send: `no-source` (off grid with no decoder
 # set), `daily-limit` (the online feed's daily call limit is spent; with a
-# Retry-After until it resets) or `upstream` (the feed failed or the next call
-# slot wasn't due, with nothing cached nearby to stand in).
+# Retry-After until it resets), `upstream` (the feed failed or the next call
+# slot wasn't due, with nothing cached nearby to stand in) or `settings` (core
+# didn't answer, so no source is known, with nothing cached nearby either).
 UNAVAILABLE_REASON_HEADER = "X-Unavailable-Reason"
 
 
@@ -143,6 +145,21 @@ def _cached_response(row: AdsbCache, cache_state: str) -> JSONResponse:
     )
 
 
+async def _serve_without_settings(db: AsyncSession, lat: float, lon: float, radius: int) -> Response:
+    """Answer a poll while core's settings can't be read: a cached snapshot, or 204.
+
+    Never an error status: the map clears every aircraft after three failed
+    polls, so a core restart or a slow reply would empty it even though the
+    cache is fine. Only `adsb_stale_ms` applies, because the online refresh
+    interval that widens it is itself a setting; a 204 for an older row costs
+    nothing, as the map keeps what it has.
+    """
+    nearby_row = await _nearest_recent_row(db, lat, lon, radius, settings.adsb_stale_ms)
+    if nearby_row is not None:
+        return _cached_response(nearby_row, "NO-SETTINGS")
+    return _nothing_to_serve("settings")
+
+
 @router.get("/adsb/point/{lat}/{lon}/{radius}")
 async def get_aircraft_near_point(
     lat: float,
@@ -169,6 +186,8 @@ async def get_aircraft_near_point(
                 recent row (the point tracks the map centre, so pans miss the cache)
       - FALLBACK: the primary failed and the fallback answered with no
                 aircraft, and nothing cached could stand in — served, not cached
+      - NO-SETTINGS: core's settings couldn't be read, so no source is known
+                → serve the nearest row within adsb_stale_ms
       - 204:    nothing to serve (X-Cache: UNAVAILABLE, X-Unavailable-Reason says why)
     """
     # Any poll, cache hit or not, means a map is open: the squawk watcher stays
@@ -179,26 +198,30 @@ async def get_aircraft_near_point(
     # than on wherever the map is panned (the browser always sends the map
     # centre). Online, the map centre is the area being looked at. With no known
     # receiver position, the map centre stands in.
-    if await resolve_effective_mode("air", db) == "offgrid":
-        receiver = await adsb_source.receiver_location(db)
-        if receiver is not None:
-            lat, lon = receiver
+    try:
+        if await resolve_effective_mode("air", db) == "offgrid":
+            receiver = await adsb_source.receiver_location(db)
+            if receiver is not None:
+                lat, lon = receiver
 
-    # Build a deterministic cache key from the query parameters
+        # Build a deterministic cache key from the query parameters
 
-    primary_url, fallback_url = await resolve_domain_urls(
-        "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
-    )
+        primary_url, fallback_url = await resolve_domain_urls(
+            "air", db, online_default=settings.adsb_upstream_base, offgrid_default=settings.adsb_offgrid_url
+        )
 
-    # The online feed has a daily request quota, so it is called once per
-    # operator-set refresh interval (Settings › AIR) and its snapshot has to
-    # stand in for that long — plus the usual stale window, since an online
-    # snapshot is never refreshed sooner.
-    sources = [url for url in (primary_url, fallback_url) if url]
-    if any(adsb_service.is_online_feed(url) for url in sources):
-        online_interval_seconds = await adsb_service.online_refresh_interval_s(db)
-    else:
-        online_interval_seconds = settings.adsb_online_refresh_interval_s
+        # The online feed has a daily request quota, so it is called once per
+        # operator-set refresh interval (Settings › AIR) and its snapshot has to
+        # stand in for that long — plus the usual stale window, since an online
+        # snapshot is never refreshed sooner.
+        sources = [url for url in (primary_url, fallback_url) if url]
+        if any(adsb_service.is_online_feed(url) for url in sources):
+            online_interval_seconds = await adsb_service.online_refresh_interval_s(db)
+        else:
+            online_interval_seconds = settings.adsb_online_refresh_interval_s
+    except SettingsUnavailable as error:
+        logger.warning("ADS-B poll served without settings: %s", error)
+        return await _serve_without_settings(db, lat, lon, radius)
     online_interval_ms = int(online_interval_seconds * 1000)
     primary_is_online = primary_url is not None and adsb_service.is_online_feed(primary_url)
     stale_ms = settings.adsb_stale_ms + (online_interval_ms if primary_is_online else 0)

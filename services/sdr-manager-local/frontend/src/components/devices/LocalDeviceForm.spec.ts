@@ -123,12 +123,12 @@ describe('LocalDeviceForm', () => {
     expect(deviceEdits.edits.drafts.has(DEVICE_ID)).toBe(false)
   })
 
-  it('stages a visibility change and explains what each choice means', async () => {
+  it('stages a visibility change with no note under either choice', async () => {
     const { wrapper, deviceEdits } = mountForm()
-    expect(wrapper.text()).toContain('Listed for other Sentinels on the network to use.')
+    expect(wrapper.text()).not.toContain('Sentinels')
     await wrapper.findAll('[role="radio"]')[1]!.trigger('click')
     expect(deviceEdits.edits.drafts.get(DEVICE_ID)?.visibility).toBe('private')
-    expect(wrapper.text()).toContain('Not listed for other Sentinels.')
+    expect(wrapper.text()).not.toContain('Sentinels')
   })
 
   it('names the visibility radio group by its VISIBILITY label', () => {
