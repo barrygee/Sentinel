@@ -14,11 +14,15 @@ import logging
 from collections.abc import Awaitable, Callable
 
 import pytest
+from fastapi import Request
 
 from backend.error_handlers import (
+    SETTINGS_RETRY_AFTER_SECONDS,
+    SETTINGS_UNAVAILABLE_MESSAGE,
     UNEXPECTED_ERROR_MESSAGE,
     handle_service_errors,
     handle_unexpected_errors,
+    settings_unavailable_error_handler,
 )
 
 SECRET_DETAIL = "cannot open /data/sentinel.db as postgres:hunter2"
@@ -47,7 +51,9 @@ class TestUnexpectedErrors:
         assert b"hunter2" not in response.body
         assert b"sentinel.db" not in response.body
 
-    async def test_the_detail_reaches_the_log_with_its_traceback(self, decorator, caplog) -> None:
+    async def test_the_detail_reaches_the_log_with_its_traceback(
+        self, decorator, caplog
+    ) -> None:
         with caplog.at_level(logging.ERROR, logger="backend.error_handlers"):
             await decorator(raising(ValueError(SECRET_DETAIL)))()
 
@@ -56,7 +62,9 @@ class TestUnexpectedErrors:
         assert record.exc_info is not None
         assert str(record.exc_info[1]) == SECRET_DETAIL
 
-    async def test_a_successful_route_passes_through_silently(self, decorator, caplog) -> None:
+    async def test_a_successful_route_passes_through_silently(
+        self, decorator, caplog
+    ) -> None:
         async def working_route() -> dict:
             return {"ok": True}
 
@@ -78,21 +86,73 @@ class TestUnexpectedErrors:
 class TestServiceErrors:
     async def test_a_runtime_error_stays_visible_as_a_503(self, caplog) -> None:
         with caplog.at_level(logging.ERROR, logger="backend.error_handlers"):
-            response = await handle_service_errors(raising(RuntimeError("radio offline")))()
+            response = await handle_service_errors(
+                raising(RuntimeError("radio offline"))
+            )()
 
         assert response.status_code == 503
         assert json.loads(response.body) == {"error": "radio offline"}
         assert caplog.records == []
 
     async def test_a_runtime_error_subclass_counts_too(self) -> None:
-        response = await handle_service_errors(raising(NotImplementedError("not built")))()
+        response = await handle_service_errors(
+            raising(NotImplementedError("not built"))
+        )()
 
         assert response.status_code == 503
 
 
 class TestUnexpectedErrorsDecorator:
     async def test_it_doesnt_treat_a_runtime_error_as_intended(self) -> None:
-        response = await handle_unexpected_errors(raising(RuntimeError(SECRET_DETAIL)))()
+        response = await handle_unexpected_errors(
+            raising(RuntimeError(SECRET_DETAIL))
+        )()
 
         assert response.status_code == 500
         assert json.loads(response.body) == {"error": UNEXPECTED_ERROR_MESSAGE}
+
+
+class TestSettingsUnavailableErrorHandler:
+    """Core not answering is a passing outage: a 503, one log line, and nothing internal."""
+
+    INTERNAL_DETAIL = "core settings API unreachable: http://app:8000 timed out"
+
+    @staticmethod
+    def _request() -> Request:
+        return Request(
+            {
+                "type": "http",
+                "method": "GET",
+                "path": "/api/sdr/radios",
+                "headers": [],
+                "query_string": b"",
+            }
+        )
+
+    async def test_answers_503_with_a_retry_hint(self):
+        response = await settings_unavailable_error_handler(
+            self._request(), RuntimeError(self.INTERNAL_DETAIL)
+        )
+
+        assert response.status_code == 503
+        assert response.headers["Retry-After"] == str(SETTINGS_RETRY_AFTER_SECONDS)
+        assert json.loads(response.body) == {"detail": SETTINGS_UNAVAILABLE_MESSAGE}
+
+    async def test_keeps_cores_address_out_of_the_response(self):
+        response = await settings_unavailable_error_handler(
+            self._request(), RuntimeError(self.INTERNAL_DETAIL)
+        )
+
+        assert b"app:8000" not in response.body
+
+    async def test_logs_the_route_and_the_cause_without_a_traceback(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="backend.error_handlers"):
+            await settings_unavailable_error_handler(
+                self._request(), RuntimeError(self.INTERNAL_DETAIL)
+            )
+
+        assert len(caplog.records) == 1
+        record = caplog.records[0]
+        assert "GET /api/sdr/radios" in record.getMessage()
+        assert self.INTERNAL_DETAIL in record.getMessage()
+        assert record.exc_info is None

@@ -194,6 +194,9 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                         polygon
       div.active.sdr-tab-pane | display=flex; flex-direction=column
         span.sr-only | display=block; position=absolute; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+        span.sr-only | display=block; position=absolute; white-space=nowrap; overflow-x=hidden; overflow-y=hidden
+        div.ba-search-field.ba-search-field--panel.sdr-frequency-search | display=flex; background-color=rgba(0, 0, 0, 0.32); padding-right=20px; padding-left=24px; align-items=center; gap=12px
+          input#sdr-frequency-search-input.ba-search-field__input | display=block; color=rgb(255, 255, 255); background-color=rgba(0, 0, 0, 0); font-family="Barlow Condensed", Barlow, sans-serif; font-size=14px; letter-spacing=1.4px; text-transform=uppercase; cursor=text
         div.sdr-frequency-manager-freqs-body | display=flex; flex-direction=column
           div.sdr-frequency-manager-add-freq-row | display=flex; padding-top=18px; padding-right=24px; padding-bottom=8px; padding-left=24px; justify-content=flex-start
             button#sdr-radio-add-freq.sdr-add-freq-btn | display=block; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=18px; padding-bottom=0px; padding-left=18px; border-radius=2px; font-size=11px; font-weight=600; letter-spacing=0.88px; text-align=center; cursor=pointer

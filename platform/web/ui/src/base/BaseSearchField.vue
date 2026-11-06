@@ -9,6 +9,10 @@ import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
  * so it is announced as a search landmark (opt out with `landmark=false` for a
  * second field on the same page) with an accessible name on the input.
  *
+ * The `panel` variant is the side-panel look instead: the sunken strip with no
+ * magnifier that `BaseFilterPanel` draws at the top of a map section's pane, for
+ * panes whose search has no results combobox.
+ *
  * It owns only the field's look and v-model; what searching *does* (debounce,
  * shortcuts, result handoff) stays with the caller, which can listen to the
  * native `keydown` that falls through to the input.
@@ -37,6 +41,8 @@ withDefaults(
      * search landmark; a second field (e.g. in a "not found" body) passes false.
      */
     landmark?: boolean
+    /** `strip` is the Settings look; `panel` matches the map side panels. */
+    variant?: 'strip' | 'panel'
   }>(),
   {
     inputId: undefined,
@@ -45,6 +51,7 @@ withDefaults(
     placeholder: undefined,
     clearLabel: undefined,
     landmark: true,
+    variant: 'strip',
   },
 )
 
@@ -70,8 +77,19 @@ defineExpose({
 </script>
 
 <template>
-  <div class="ba-search-field" :role="landmark ? 'search' : undefined">
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+  <div
+    class="ba-search-field"
+    :class="{ 'ba-search-field--panel': variant === 'panel' }"
+    :role="landmark ? 'search' : undefined"
+  >
+    <svg
+      v-if="variant === 'strip'"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      aria-hidden="true"
+    >
       <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.2" />
       <line
         x1="9.5"
@@ -200,5 +218,35 @@ defineExpose({
 
 .ba-search-field__clear:hover {
   color: var(--ink-strong);
+}
+
+/* Keep in step with BaseFilterPanel's .bfp-input-wrap / .bfp-input, so a pane
+   using this field lines up with the other sections' search. */
+.ba-search-field--panel {
+  gap: 12px;
+  height: 40px;
+  min-height: 0;
+  padding: 0 20px 0 24px;
+  background: var(--surface-sunken);
+  box-shadow: none;
+  box-sizing: border-box;
+}
+
+/* The accent caret is this look's focus cue, as in BaseFilterPanel. */
+.ba-search-field--panel:focus-within {
+  outline: none;
+}
+
+.ba-search-field--panel .ba-search-field__input {
+  color: var(--ink-strong);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  caret-color: var(--accent-text);
+}
+
+.ba-search-field--panel .ba-search-field__input::placeholder {
+  letter-spacing: 0.1em;
 }
 </style>

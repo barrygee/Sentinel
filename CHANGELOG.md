@@ -272,6 +272,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
 - Remove the recordings folder setting
+- Draw the Hawk and F-35 as themselves
+- Remove the visibility notes
+- Add the tuned frequency from the readout
+- Add a panel variant to BaseSearchField
+- Search the frequency manager
 
 ### Bug Fixes
 
@@ -630,6 +635,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep backend/data writable for the sdr and space sections
 - Keep polling a host after an error in a poll
 - Report an unreachable radio without an error status
+- Keep aircraft on the map when settings fail
+- Answer 503 when core settings are unreachable
+- Keep the frequency search off other pages
 
 ### Chores
 
@@ -1763,6 +1771,14 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #579 from barrygee/feat/sdr-host-panel
 - Merge pull request #580 from barrygee/fix/sdr-host-more-gap
 - Merge pull request #581 from barrygee/feat/remove-recordings-folder
+- Merge pull request #582 from barrygee/fix/air-feed-settings-timeout
+- Merge pull request #583 from barrygee/feat/hawk-f35-silhouettes
+- Merge remote-tracking branch 'origin/main' into chore/remove-sdr-listed-hint
+- Merge pull request #586 from barrygee/chore/remove-sdr-listed-hint
+- Merge remote-tracking branch 'origin/main' into feat/sdr-quick-add-frequency
+- Merge pull request #584 from barrygee/feat/sdr-quick-add-frequency
+- Merge remote-tracking branch 'origin/main' into feat/sdr-frequency-search
+- Merge pull request #585 from barrygee/feat/sdr-frequency-search
 
 ### Performance
 
@@ -2039,6 +2055,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the renamed setting migration
 - Cover the host poll loop surviving an error
 - Cover connecting to an unavailable radio
+- Record the search field in the cascade snapshots
 
 ### Build System
 
@@ -2120,6 +2137,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
+- Rebuild the bundle for the Hawk and F-35 outlines
+- Rebuild the bundle for the visibility notes
+- Rebuild the bundle for the frequency add button
+- Rebuild the bundle for the frequency search
 
 ### Continuous Integration
 

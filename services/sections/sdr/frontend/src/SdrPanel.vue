@@ -144,6 +144,10 @@
               @wheel.prevent="onFreqWheel"
             />
             <span class="sdr-freq-unit">MHz</span>
+            <SdrAddFrequencyButton
+              v-if="unsavedInputHz !== null"
+              @click="frequencyManagerTabRef?.addFrequency(unsavedInputHz)"
+            />
           </div>
           <div v-if="currentFreqLabel" class="sdr-freq-name">{{ currentFreqLabel }}</div>
           <div class="sdr-freq-actions-row">
@@ -551,6 +555,7 @@
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
       <div class="sdr-tab-pane" :class="{ active: activeSdrTab === 'frequency-manager' }">
         <SdrFrequencyManagerTab
+          ref="frequencyManagerTabRef"
           :live="liveTuneSeed"
           :tuning-disabled="tuningDisabled"
           @play="playFreq"
@@ -608,6 +613,7 @@ import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import SdrGroupsTab from './SdrGroupsTab.vue'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
 import SdrStepPicker from './SdrStepPicker.vue'
+import SdrAddFrequencyButton from './SdrAddFrequencyButton.vue'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
 import SdrFavouritesSection from './SdrFavouritesSection.vue'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
@@ -804,6 +810,20 @@ const knownRadios = computed<SdrRadio[]>(() => _sdrStore().radios)
 const currentMode = ref('AM')
 const freqInputVal = ref('')
 const freqInputRef = ref<HTMLInputElement | null>(null)
+const frequencyManagerTabRef = ref<InstanceType<typeof SdrFrequencyManagerTab> | null>(null)
+
+// The frequency in the input when it can be added: valid and not saved yet.
+// Compared at the 4dp the app displays, so a saved 118.38004 MHz, which reads
+// as 118.3800, isn't offered again.
+const unsavedInputHz = computed<number | null>(() => {
+  if (tuningDisabled.value) return null
+  const inputHz = parseFreqMhz(freqInputVal.value)
+  if (inputHz === null) return null
+  const shownMhz = (inputHz / 1e6).toFixed(4)
+  const isSaved = freqs.value.some((freq) => (freq.frequency_hz / 1e6).toFixed(4) === shownMhz)
+  return isSaved ? null : inputHz
+})
+
 const currentFreqHz = ref(0)
 const gainDb = ref(30)
 const gainAuto = ref(false)

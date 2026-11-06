@@ -8,11 +8,14 @@ import logging
 import httpx
 import pytest
 from backend.config import settings
+from backend.platform import settings_client
+from backend.platform.settings_client import SettingsUnavailable
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
 from tests.backend.air_test_helpers import assert_nothing_to_serve
 
 from sentinel_air import router as air_router
 from sentinel_air.services import adsb as adsb_service
+from sentinel_air.services import adsb_source
 
 # ── /api/air/messages ─────────────────────────────────────────────────────────
 
@@ -1038,3 +1041,127 @@ class TestSnapshotAge:
 
         assert response.headers["X-Cache"] == "FALLBACK"
         assert response.headers[self.LIFETIME] == str(settings.adsb_ttl_ms)
+
+
+class TestAdsbPollWhileSettingsAreUnreadable:
+    """Core restarting or replying slowly must not empty the map.
+
+    The map clears every aircraft after three failed polls, so these polls have
+    to answer with cached aircraft or a 204, never an error status. `client`
+    re-raises server exceptions, so an unhandled failure fails the test outright.
+    """
+
+    RADIUS = 100
+    SNAPSHOT = {"ac": [{"hex": "abc123"}]}
+
+    @classmethod
+    def _point(cls, lat: float = 51.5, lon: float = -0.1) -> str:
+        return f"/api/air/adsb/point/{lat}/{lon}/{cls.RADIUS}"
+
+    def _prime(self, client, monkeypatch) -> None:
+        """Cache `SNAPSHOT` for the default point through a successful fetch."""
+
+        async def succeeding_fetch(*_args, **_kwargs):
+            return self.SNAPSHOT
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", succeeding_fetch)
+        assert client.get(self._point()).headers["X-Cache"] == "MISS"
+
+    @staticmethod
+    def _core_times_out(monkeypatch) -> None:
+        """Send settings reads to core, where they hit a real `httpx.ReadTimeout`."""
+
+        async def read_timeout(_client, method, url, **_options):
+            raise httpx.ReadTimeout("timed out", request=httpx.Request(method, url))
+
+        monkeypatch.setattr(settings_client, "settings_are_remote", lambda: True)
+        monkeypatch.setattr(httpx.AsyncClient, "request", read_timeout)
+
+    @staticmethod
+    def _refuse_upstream_calls(monkeypatch) -> None:
+        async def unexpected_fetch(*_args, **_kwargs):
+            raise AssertionError("no source is known, so the feed must not be called")
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", unexpected_fetch)
+
+    def test_serves_the_cached_snapshot_when_core_times_out(self, client, monkeypatch):
+        self._prime(client, monkeypatch)
+        self._core_times_out(monkeypatch)
+        self._refuse_upstream_calls(monkeypatch)
+
+        response = client.get(self._point())
+
+        assert response.status_code == 200
+        assert response.json() == self.SNAPSHOT
+        assert response.headers["X-Cache"] == "NO-SETTINGS"
+
+    def test_borrows_a_nearby_snapshot_for_a_panned_map(self, client, monkeypatch):
+        self._prime(client, monkeypatch)
+        self._core_times_out(monkeypatch)
+
+        # 0.5 degrees of latitude is 30 nm, inside half the 100 nm radius.
+        response = client.get(self._point(lat=52.0))
+
+        assert response.json() == self.SNAPSHOT
+        assert response.headers["X-Cache"] == "NO-SETTINGS"
+
+    def test_a_snapshot_too_far_away_is_not_borrowed(self, client, monkeypatch):
+        self._prime(client, monkeypatch)
+        self._core_times_out(monkeypatch)
+
+        # 2 degrees of latitude is 120 nm, past half the 100 nm radius.
+        response = client.get(self._point(lat=53.5))
+
+        assert_nothing_to_serve(response, "settings")
+
+    def test_nothing_cached_answers_204_not_an_error(self, client, monkeypatch):
+        self._core_times_out(monkeypatch)
+
+        assert_nothing_to_serve(client.get(self._point()), "settings")
+
+    def test_a_snapshot_past_the_stale_window_is_not_served(self, client, monkeypatch):
+        self._prime(client, monkeypatch)
+        self._core_times_out(monkeypatch)
+        monkeypatch.setattr(settings, "adsb_stale_ms", -1000)
+
+        assert_nothing_to_serve(client.get(self._point()), "settings")
+
+    def test_a_failure_on_the_online_interval_read_is_caught_too(self, client, monkeypatch):
+        """The last settings read of the poll, after the mode and URLs were read."""
+        self._prime(client, monkeypatch)
+
+        async def unavailable(_db):
+            raise SettingsUnavailable("core settings API unreachable")
+
+        monkeypatch.setattr(adsb_service, "online_refresh_interval_s", unavailable)
+        self._refuse_upstream_calls(monkeypatch)
+
+        assert client.get(self._point()).headers["X-Cache"] == "NO-SETTINGS"
+
+    def test_a_failure_on_the_off_grid_receiver_read_is_caught_too(self, client, monkeypatch):
+        client.put("/api/settings/app/connectivityMode", json={"value": "offgrid"})
+
+        async def unavailable(_db):
+            raise SettingsUnavailable("core settings API unreachable")
+
+        monkeypatch.setattr(adsb_source, "receiver_location", unavailable)
+
+        assert_nothing_to_serve(client.get(self._point()), "settings")
+
+    def test_logs_one_warning_naming_the_failure(self, client, monkeypatch, caplog):
+        self._core_times_out(monkeypatch)
+
+        with caplog.at_level(logging.WARNING, logger=air_router.__name__):
+            client.get(self._point())
+
+        warnings = [record.getMessage() for record in caplog.records if record.name == air_router.__name__]
+        assert len(warnings) == 1
+        assert "served without settings" in warnings[0]
+
+    def test_fetches_again_once_core_answers(self, client, monkeypatch):
+        self._prime(client, monkeypatch)
+        with monkeypatch.context() as outage:
+            self._core_times_out(outage)
+            assert client.get(self._point()).headers["X-Cache"] == "NO-SETTINGS"
+
+        assert client.get(self._point()).headers["X-Cache"] == "HIT"

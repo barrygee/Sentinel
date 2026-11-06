@@ -175,13 +175,13 @@ export const AIRCRAFT_TYPE_DIMENSIONS: Readonly<Record<string, AircraftTypeEntry
 
   // Fast jets
   F16: { familyId: 'fighterSingleFin', length: 15.1, span: 10.0 },
-  HAWK: { familyId: 'fighterSingleFin', length: 12.4, span: 9.4 },
+  HAWK: { familyId: 'hawkTrainer', length: 12.4, span: 9.4 },
   TOR: { familyId: 'fighterSingleFin', length: 16.7, span: 13.9 },
   F15: { familyId: 'fighterTwinFin', length: 19.4, span: 13.1 },
   F18H: { familyId: 'fighterTwinFin', length: 17.1, span: 12.3 },
   F18S: { familyId: 'fighterTwinFin', length: 18.3, span: 13.6 },
   F22: { familyId: 'fighterTwinFin', length: 18.9, span: 13.6 },
-  F35: { familyId: 'fighterTwinFin', length: 15.7, span: 10.7 },
+  F35: { familyId: 'f35Lightning', length: 15.7, span: 10.7 },
   EUFI: { familyId: 'fighterCanardDelta', length: 16.0, span: 11.0 },
   RFAL: { familyId: 'fighterCanardDelta', length: 15.3, span: 10.8 },
 
