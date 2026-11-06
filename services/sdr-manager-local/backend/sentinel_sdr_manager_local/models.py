@@ -81,8 +81,9 @@ class SdrDeviceModel(Base):
     """Whether the supervisor should run this device's rtl_tcp+relay pair."""
 
     visibility: Mapped[str] = mapped_column(nullable=False, default="private", server_default="private")
-    """Whether this device is published in `GET /api/v1/sdrs`: "public" lists it
-    for any Sentinel that queries the export, "private" omits it entirely.
+    """Who may use this device: "public" lists it in `GET /api/v1/sdrs` for any
+    Sentinel, "private" omits it and keeps it to this machine, which the relay
+    and the reservation route enforce (`services/private_access.py`).
     Defaults to "private" so a newly configured dongle is never published by an
     operator who simply never visited the toggle — sharing is opt-in, since
     what the export hands out is a reachable IQ endpoint, not just a name."""
@@ -307,6 +308,12 @@ class HostControlSettingsModel(Base):
 
     `False` on a fresh install, which is the same default `SDR_MANAGER_LOCAL_HOTSPOT_CONTROL_ENABLED`
     always had — what changed is who can flip it, not what it starts as.
+    """
+
+    private_allowed_addresses: Mapped[str] = mapped_column(nullable=False, default="[]", server_default="[]")
+    """JSON list of the addresses, besides this machine, that may use private dongles.
+
+    Editing it is refused while no console password is set, by the bar above.
     """
 
     updated_at: Mapped[int] = mapped_column(nullable=False, default=0)

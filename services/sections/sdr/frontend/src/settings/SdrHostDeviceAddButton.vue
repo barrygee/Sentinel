@@ -30,11 +30,15 @@ const props = defineProps<{
   device: SdrManagerDeviceStatus
   /** True while this SDR's ADD request is in flight. */
   adding: boolean
+  /** Its host lets this Sentinel use a private SDR. */
+  mayUsePrivate?: boolean
 }>()
 const emit = defineEmits<{ add: [] }>()
 
 /** Why ADD is unavailable, in the operator's terms. Empty when it is available. */
-const addBlockedReason = computed(() => hostDeviceAddBlockedReason(props.device))
+const addBlockedReason = computed(() =>
+  hostDeviceAddBlockedReason(props.device, props.mayUsePrivate),
+)
 /** Addable exactly when there is no reason not to be — one source of truth. */
 const canAdd = computed(() => addBlockedReason.value === '')
 </script>

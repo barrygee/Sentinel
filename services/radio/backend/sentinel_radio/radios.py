@@ -121,6 +121,8 @@ async def device_availability(radio: dict) -> tuple[bool, str]:
             return False, "The device is disabled on its SDR host."
         if (device.get("output") or {}).get("iq_port") is None:
             return False, "Its SDR host has not assigned this device an output port."
+        if device.get("visibility") == "private" and not host.get("may_use_private"):
+            return False, "It is private on its SDR host, and that host doesn't allow this Sentinel."
         return True, ""
 
     # Known host, live snapshot, no such device: the dongle it mirrors is gone —

@@ -20,6 +20,7 @@ const REMOTE_HOST: SdrManagerHost = {
   enabled: true,
   auth_token_set: true,
   is_local: false,
+  may_use_private: false,
   auto_add_sdrs: false,
   created_at: 0,
   last_seen_at: 100,
@@ -33,6 +34,7 @@ const LOCAL_HOST: SdrManagerHost = {
   name: null,
   address: 'host.docker.internal',
   is_local: true,
+  may_use_private: true,
   auto_add_sdrs: false,
 }
 

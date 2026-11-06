@@ -360,6 +360,7 @@ def _stub_container(recorder: _Recorder) -> Any:
             run=recorder.method("hotplug.run", blocks=True), close=recorder.method("hotplug.close")
         ),
         hotspot_service=SimpleNamespace(close=recorder.method("hotspot.close")),
+        private_access=SimpleNamespace(load=recorder.method("private_access.load")),
         location_source=SimpleNamespace(run=recorder.method("location.run", blocks=True)),
         event_bus=EventBus(FakeClock()),
         clock=_ImmediateClock(),
@@ -374,7 +375,9 @@ class TestStartAndStop:
 
         await start_container(container)
         await _settle()
-        assert recorder.calls[:2] == ["registry.load", "supervisor.reconcile"]
+        # The list loads before any dongle starts, or a private relay would
+        # start without the addresses it should allow.
+        assert recorder.calls[:3] == ["registry.load", "private_access.load", "supervisor.reconcile"]
         assert {"hotplug.run", "location.run"} <= set(recorder.calls)
         assert len(container.background_tasks) == 3
 

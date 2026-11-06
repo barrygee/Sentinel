@@ -220,6 +220,46 @@
   color: rgba(var(--ink-rgb), 0.6);
 }
 
+.sdr-freq-add {
+  position: relative;
+  flex-shrink: 0;
+  /* The row aligns on the digits' baseline, which would sit the glyph low. */
+  align-self: center;
+  /* 24x24 target (WCAG 2.5.8) around the 12px glyph. */
+  width: 24px;
+  height: 24px;
+  margin-left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.6);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    color 0.15s;
+}
+
+/* Focus as well as hover: a tap into the input shows it on touch screens, and
+   tabbing to it shows it for keyboard users. */
+.sdr-freq-row:hover .sdr-freq-add,
+.sdr-freq-row:focus-within .sdr-freq-add {
+  opacity: 1;
+}
+
+.sdr-freq-add:hover {
+  color: var(--accent-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdr-freq-add {
+    transition: none;
+  }
+}
+
 .sdr-freq-name {
   margin-top: 4px;
   margin-bottom: 20px;
@@ -1296,6 +1336,10 @@
 }
 
 /* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
+.sdr-frequency-search {
+  flex: 0 0 auto;
+}
+
 .sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
 .sdr-frequency-manager-freqs-body > .sdr-panel-empty {
   flex: 0 0 auto;

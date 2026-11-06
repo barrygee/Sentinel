@@ -45,7 +45,7 @@ export function createRadioSitesCapability(): RadioSitesCapability {
               deviceId: device.device_id,
               name: device.name || device.device_id,
               enabled: device.enabled,
-              public: device.visibility === 'public',
+              usable: device.visibility === 'public' || host.may_use_private,
             })),
           })
         } catch {

@@ -5932,3 +5932,78 @@ describe('SdrPanel — tuning ownership', () => {
     expect(store.scanSweeping).toBe(true)
   })
 })
+
+describe('SdrPanel — adding the frequency in the readout', () => {
+  const ADD = '.sdr-freq-add'
+  const FREQ_INPUT = '.sdr-freq-input-large'
+  const SAVED_HZ = 118_380_040
+
+  async function mountWithSavedFrequency(): Promise<VueWrapper> {
+    const { wrapper, socket } = await mountConnected()
+    await confirmData(wrapper, socket)
+    useSdrStore().frequencies = [
+      { id: 1, group_id: null, label: 'Tower', frequency_hz: SAVED_HZ, mode: 'AM' },
+    ]
+    await flushPromises()
+    return wrapper
+  }
+
+  it('offers an unsaved frequency', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('123.4500')
+    expect(wrapper.find(ADD).exists()).toBe(true)
+  })
+
+  it('does not offer a saved one, comparing at the 4dp the app shows', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('118.3800')
+    expect(wrapper.find(ADD).exists()).toBe(false)
+  })
+
+  it('offers it again as soon as the digits differ from a saved one', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('118.3801')
+    expect(wrapper.find(ADD).exists()).toBe(true)
+  })
+
+  it.each([
+    ['empty', ''],
+    ['not a number', 'abc'],
+    ['out of range', '99999'],
+  ])('does not offer a value that is %s', async (_reason, value) => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue(value)
+    expect(wrapper.find(ADD).exists()).toBe(false)
+  })
+
+  it('does not offer anything while tuning is disabled', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('123.4500')
+    const store = useSdrStore()
+    store.controlAvailable = true
+    store.isOwner = false
+    store.locked = true
+    await flushPromises()
+    expect(wrapper.find(ADD).exists()).toBe(false)
+  })
+
+  it('disappears once the frequency has been saved', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('123.4500')
+    useSdrStore().frequencies = [
+      { id: 2, group_id: null, label: 'New', frequency_hz: 123_450_000, mode: 'AM' },
+    ]
+    await flushPromises()
+    expect(wrapper.find(ADD).exists()).toBe(false)
+  })
+
+  it('opens the add form on the typed value, in the Frequency Manager tab', async () => {
+    const wrapper = await mountWithSavedFrequency()
+    await wrapper.get(FREQ_INPUT).setValue('123.4500')
+    await wrapper.get(ADD).trigger('click')
+    await flushPromises()
+    const activePane = wrapper.get('.sdr-tab-pane.active')
+    expect((activePane.get('#sdr-ef-freq').element as HTMLInputElement).value).toBe('123.4500')
+    expect(document.activeElement?.id).toBe('sdr-ef-label')
+  })
+})

@@ -22,6 +22,8 @@ export interface SdrManagerHost {
    * changed, and it cannot be deleted.
    */
   is_local: boolean
+  /** The host lets this Sentinel use its private SDRs: this machine, or one it lists. */
+  may_use_private: boolean
   /**
    * Whether every public SDR the host reports becomes a radio by itself
    * (sdr-manager-remote's poller adds it, and removes it when made private),

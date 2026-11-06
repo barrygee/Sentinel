@@ -17,6 +17,7 @@ from sentinel_sdr_manager_local.routers import (
     events,
     health,
     hotspot,
+    private_access,
     sdrs,
     status,
 )
@@ -30,3 +31,4 @@ api_router.include_router(devices.router)
 api_router.include_router(sdrs.router)
 api_router.include_router(hotspot.router)
 api_router.include_router(config.router)
+api_router.include_router(private_access.router)

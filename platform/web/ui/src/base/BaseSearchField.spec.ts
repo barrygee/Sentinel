@@ -107,4 +107,31 @@ describe('BaseSearchField', () => {
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
   })
+
+  it('draws the Settings strip with its magnifier by default', () => {
+    const wrapper = mountField()
+    expect(wrapper.get('.ba-search-field').classes()).not.toContain('ba-search-field--panel')
+    expect(wrapper.find('.ba-search-field > svg').exists()).toBe(true)
+  })
+
+  it('draws the side-panel look, with no magnifier, for the panel variant', () => {
+    const wrapper = mountField({ variant: 'panel' })
+    expect(wrapper.get('.ba-search-field').classes()).toContain('ba-search-field--panel')
+    expect(wrapper.find('.ba-search-field > svg').exists()).toBe(false)
+  })
+
+  it('keeps the name, landmark and clear button in the panel variant', async () => {
+    const wrapper = mountField({ variant: 'panel' }, 'tower')
+    expect(wrapper.get('input').attributes('aria-label')).toBe('Search the docs')
+    expect(wrapper.get('.ba-search-field').attributes('role')).toBe('search')
+    await wrapper.get('.ba-search-field__clear').trigger('click')
+    expect(wrapper.props('modelValue')).toBe('')
+  })
+
+  it('has no axe violations in the panel variant', async () => {
+    const wrapper = mountField({ variant: 'panel' }, 'tower')
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
 })

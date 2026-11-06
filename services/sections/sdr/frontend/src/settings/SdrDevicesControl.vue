@@ -111,6 +111,7 @@
                 :device="entry.device"
                 :adding="addingDeviceKey === group.host.id + ':' + entry.device.device_id"
                 :auto-add="group.host.auto_add_sdrs"
+                :may-use-private="group.host.may_use_private"
                 @add="addDeviceAsRadio(group.host, entry.device)"
               />
             </template>

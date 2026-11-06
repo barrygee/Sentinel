@@ -241,9 +241,9 @@ class TestTheHostsSnapshot:
         assert reply == {
             "ok": True,
             "hosts": {
-                "1": {"reachable": True, "sdrs": [{"device_id": DEVICE_ID}]},
+                "1": {"reachable": True, "may_use_private": False, "sdrs": [{"device_id": DEVICE_ID}]},
                 # An unreachable host's last device list is stale, so none is sent.
-                "2": {"reachable": False, "sdrs": []},
+                "2": {"reachable": False, "may_use_private": False, "sdrs": []},
             },
         }
 
@@ -252,14 +252,21 @@ class TestTheHostsSnapshot:
 
         reply = await bus.request(reservations.HOSTS_SNAPSHOT_SUBJECT, {})
 
-        assert reply == {"ok": True, "hosts": {"5": {"reachable": False, "sdrs": []}}}
+        assert reply == {"ok": True, "hosts": {"5": {"reachable": False, "may_use_private": False, "sdrs": []}}}
 
     async def test_a_reachable_host_without_a_payload_has_no_devices(self, snapshots):
         snapshots[6] = HostSnapshot(host_id=6, reachable=True, status_payload=None)
 
         reply = await bus.request(reservations.HOSTS_SNAPSHOT_SUBJECT, {})
 
-        assert reply == {"ok": True, "hosts": {"6": {"reachable": True, "sdrs": []}}}
+        assert reply == {"ok": True, "hosts": {"6": {"reachable": True, "may_use_private": False, "sdrs": []}}}
+
+    async def test_says_when_a_host_allows_this_sentinel_its_private_devices(self, snapshots):
+        snapshots[7] = HostSnapshot(host_id=7, reachable=True, may_use_private=True)
+
+        reply = await bus.request(reservations.HOSTS_SNAPSHOT_SUBJECT, {})
+
+        assert reply["hosts"]["7"]["may_use_private"] is True
 
     async def test_no_hosts(self, snapshots):
         assert await bus.request(reservations.HOSTS_SNAPSHOT_SUBJECT, {}) == {"ok": True, "hosts": {}}

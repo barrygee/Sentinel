@@ -11,9 +11,15 @@
         }}<span v-if="device.output" class="sdr-device-meta">port {{ device.output.iq_port }}</span>
       </span>
       <span v-if="autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
-        hostDeviceNotRadioReason(device)
+        hostDeviceNotRadioReason(device, mayUsePrivate)
       }}</span>
-      <SdrHostDeviceAddButton v-else :device="device" :adding="adding" @add="emit('add')" />
+      <SdrHostDeviceAddButton
+        v-else
+        :device="device"
+        :adding="adding"
+        :may-use-private="mayUsePrivate"
+        @add="emit('add')"
+      />
     </div>
   </div>
 </template>
@@ -42,6 +48,8 @@ defineProps<{
    * radio (private, or not set up).
    */
   autoAdd?: boolean
+  /** The host lets this Sentinel use its private SDRs. */
+  mayUsePrivate?: boolean
 }>()
 const emit = defineEmits<{ add: [] }>()
 </script>

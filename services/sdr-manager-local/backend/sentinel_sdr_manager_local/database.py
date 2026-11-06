@@ -28,8 +28,10 @@ SDR_MANAGER_LOCAL_TABLES: tuple[str, ...] = (
     "host_control_settings",
 )
 
-# ALTERs for columns added after the first release (a duplicate is ignored). None yet.
-SDR_MANAGER_LOCAL_ADDED_COLUMNS: tuple[str, ...] = ()
+# ALTERs for columns added after the first release (a duplicate is ignored).
+SDR_MANAGER_LOCAL_ADDED_COLUMNS: tuple[str, ...] = (
+    "ALTER TABLE host_control_settings ADD COLUMN private_allowed_addresses TEXT NOT NULL DEFAULT '[]'",
+)
 
 SINGLE_ROW_ID = 1
 
