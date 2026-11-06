@@ -272,6 +272,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
 - Remove the recordings folder setting
+- Enforce private dongles
+- Add the Private Access card
 - Draw the Hawk and F-35 as themselves
 - Remove the visibility notes
 - Add the tuned frequency from the readout
@@ -1779,6 +1781,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #584 from barrygee/feat/sdr-quick-add-frequency
 - Merge remote-tracking branch 'origin/main' into feat/sdr-frequency-search
 - Merge pull request #585 from barrygee/feat/sdr-frequency-search
+- Merge remote-tracking branch 'origin/main' into fix/sdr-private-local-only
+- Merge pull request #587 from barrygee/fix/sdr-private-local-only
 
 ### Performance
 
@@ -2137,6 +2141,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
+- Rebuild the bundle for the Private Access card
 - Rebuild the bundle for the Hawk and F-35 outlines
 - Rebuild the bundle for the visibility notes
 - Rebuild the bundle for the frequency add button
