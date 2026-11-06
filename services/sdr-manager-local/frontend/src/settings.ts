@@ -13,6 +13,7 @@ import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue
 import ConfigTransferControl from './components/config/ConfigTransferControl.vue'
 import LocalDevicesControl from './components/devices/LocalDevicesControl.vue'
 import HotspotControl from './components/hotspot/HotspotControl.vue'
+import PrivateAccessControl from './components/privateAccess/PrivateAccessControl.vue'
 import { useLocalAuthStore } from './stores/localAuthStore'
 
 const THIS_MACHINE_GROUP = 'THIS MACHINE'
@@ -73,6 +74,19 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
         naturalHeight: true,
         // Open while there is no password: setting one is what needs doing.
         collapsible: { openWhen: () => useLocalAuthStore().isUnprotected },
+      },
+    },
+    {
+      ...sharedFields,
+      id: 'sdr-manager-local-private-access',
+      label: 'Private Access',
+      desc: 'The other Sentinels allowed to use this machine’s private dongles.',
+      searchTerms: 'private access whitelist allow list ip address sentinel security sdr manager',
+      control: {
+        component: PrivateAccessControl,
+        layout: 'half',
+        naturalHeight: true,
+        collapsible: {},
       },
     },
     {

@@ -119,7 +119,7 @@ async function loadDevices(): Promise<void> {
   const options: SettingsDropdownOption[] = []
   for (const host of fleet.hosts) {
     for (const device of host.devices) {
-      // Private and disabled devices are not offered as sources. Both are the
+      // Unusable and disabled devices are not offered as sources. Both are the
       // operator saying on the SDR host side that this dongle is not for
       // sharing or not in service, and picking one here would claim and tune
       // hardware they have withdrawn.
@@ -128,7 +128,7 @@ async function loadDevices(): Promise<void> {
       // and labelled as such. Dropping it would silently empty the control
       // and leave the operator with no clue which dongle AIR was pointed at.
       const value = `${host.id}:${device.deviceId}`
-      const isOffered = device.enabled && device.public
+      const isOffered = device.enabled && device.usable
       if (!isOffered && value !== selected.value) continue
       if (!isOffered) withdrawn.value = true
       options.push({

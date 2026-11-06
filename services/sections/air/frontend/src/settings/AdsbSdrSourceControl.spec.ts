@@ -30,7 +30,7 @@ import type {
 let radioSites: ReturnType<typeof provideFakeRadioSites>
 
 function device(overrides: Partial<RadioSiteDevice> & { deviceId: string }): RadioSiteDevice {
-  return { name: overrides.deviceId, enabled: true, public: true, ...overrides }
+  return { name: overrides.deviceId, enabled: true, usable: true, ...overrides }
 }
 
 /** One enabled host (id 1, "Attic Pi" unless given) publishing these devices. */
@@ -117,8 +117,8 @@ describe('AdsbSdrSourceControl', () => {
       // they have withdrawn.
       serveFleet(
         fleet(
-          device({ deviceId: 'serial:PUB', name: 'Public', public: true }),
-          device({ deviceId: 'serial:PRIV', name: 'Private', public: false }),
+          device({ deviceId: 'serial:PUB', name: 'Public', usable: true }),
+          device({ deviceId: 'serial:PRIV', name: 'Private', usable: false }),
         ),
       )
 
@@ -154,7 +154,7 @@ describe('AdsbSdrSourceControl', () => {
         sdr_manager_host_id: 1,
         sdr_manager_device_id: 'serial:GONE',
       })
-      serveFleet(fleet(device({ deviceId: 'serial:GONE', name: 'Withdrawn', public: false })))
+      serveFleet(fleet(device({ deviceId: 'serial:GONE', name: 'Withdrawn', usable: false })))
 
       const wrapper = mount(AdsbSdrSourceControl)
       await flushPromises()
@@ -214,7 +214,7 @@ describe('AdsbSdrSourceControl', () => {
       expect(wrapper.findAll('[role="option"]').map((o) => o.text())).toContain('Attic Pi — ADSB')
 
       devicesSpy.mockResolvedValue(
-        fleet(device({ deviceId: 'serial:AAA', name: 'ADSB', public: false })),
+        fleet(device({ deviceId: 'serial:AAA', name: 'ADSB', usable: false })),
       )
       await vi.advanceTimersByTimeAsync(5000)
       await flushPromises()

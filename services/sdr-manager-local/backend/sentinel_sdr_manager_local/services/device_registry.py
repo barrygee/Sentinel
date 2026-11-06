@@ -112,6 +112,7 @@ class RunnableDevice:
     sample_rate: int | None
     gain_db: float | None
     gain_auto: bool
+    visibility: DeviceVisibility = "private"
 
 
 @dataclass(slots=True)
@@ -252,6 +253,7 @@ class DeviceRegistry:
                     sample_rate=entry.sample_rate,
                     gain_db=entry.gain_db,
                     gain_auto=entry.gain_auto,
+                    visibility=entry.visibility,
                 )
             )
         return tuple(runnable)

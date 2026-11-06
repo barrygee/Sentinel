@@ -38,6 +38,13 @@ class Settings(BaseSettings):
         default=None,
         description=("Host published in GET /api/v1/sdrs; when unset, derived from the request Host header"),
     )
+    private_extra_networks: str = Field(
+        default="",
+        description=(
+            "Comma-separated networks counted as this machine for a private dongle, besides loopback: "
+            "the compose network of a Sentinel in Docker here"
+        ),
+    )
     max_devices: int = Field(default=8, ge=1, le=64, description="Bounds the internal port range and USB bandwidth")
     internal_port_base: int = Field(
         default=14000,

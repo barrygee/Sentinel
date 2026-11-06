@@ -12,6 +12,8 @@ guarantee `.env` is supposed to give.
 
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -85,6 +87,31 @@ class HostControlSettingsService:
         async with self._session_factory() as session:
             row = await self._row(session)
             row.hotspot_control_enabled = enabled
+            row.updated_at = self._clock.now_ms()
+            await session.commit()
+
+    async def private_allowed_addresses(self) -> tuple[str, ...]:
+        """The addresses allowed to use private dongles.
+
+        A stored value that can't be read gives none: this list opens access, so
+        losing it must leave a dongle closed rather than open.
+        """
+        async with self._session_factory() as session:
+            row = await self._row(session)
+            stored = row.private_allowed_addresses
+        try:
+            addresses = json.loads(stored)
+        except (TypeError, ValueError):
+            return ()
+        if not isinstance(addresses, list):
+            return ()
+        return tuple(address for address in addresses if isinstance(address, str))
+
+    async def set_private_allowed_addresses(self, addresses: tuple[str, ...]) -> None:
+        """Store `addresses`, which the caller has already validated."""
+        async with self._session_factory() as session:
+            row = await self._row(session)
+            row.private_allowed_addresses = json.dumps(list(addresses))
             row.updated_at = self._clock.now_ms()
             await session.commit()
 

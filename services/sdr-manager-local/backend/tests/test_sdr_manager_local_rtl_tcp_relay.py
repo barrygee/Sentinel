@@ -13,6 +13,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from sentinel_sdr_manager_local.relay import rtl_tcp_relay as relay
 
 
@@ -347,5 +349,125 @@ def test_owner_release_notifies_other_followers() -> None:
         finally:
             server.close()
             await server.wait_closed()
+
+    asyncio.run(run())
+
+
+# ── Private dongles: who may connect ─────────────────────────────────────────
+
+
+PRIVATE_NETWORKS = relay.parse_allowed_networks("127.0.0.0/8,::1/128,172.28.0.0/24,192.168.1.50")
+
+
+class PeerWriter(FakeWriter):
+    """A writer reporting `peer` as its peer address, as a real socket does."""
+
+    def __init__(self, peer: tuple[str, int] | None) -> None:
+        super().__init__()
+        self.peer = peer
+
+    def get_extra_info(self, _name: str) -> tuple[str, int] | None:  # type: ignore[override]
+        return self.peer
+
+
+def test_parse_allowed_networks_reads_a_comma_separated_list() -> None:
+    assert [str(network) for network in relay.parse_allowed_networks(" 127.0.0.0/8, ::1/128 ,")] == [
+        "127.0.0.0/8",
+        "::1/128",
+    ]
+
+
+def test_parse_allowed_networks_of_nothing_is_empty() -> None:
+    assert relay.parse_allowed_networks("") == ()
+
+
+def test_parse_allowed_networks_stops_on_a_bad_entry_rather_than_opening_up() -> None:
+    with pytest.raises(ValueError):
+        relay.parse_allowed_networks("127.0.0.0/8,not-a-network")
+
+
+@pytest.mark.parametrize(
+    ("peer_address", "expected"),
+    [
+        ("127.0.0.1", True),
+        ("::1", True),
+        ("::ffff:127.0.0.1", True),
+        ("172.28.0.2", True),
+        ("192.168.1.50", True),
+        ("::ffff:192.168.1.50", True),
+        ("192.168.1.51", False),
+        ("172.28.1.2", False),
+        ("2001:db8::1", False),
+        ("", False),
+        ("not-an-address", False),
+    ],
+)
+def test_peer_is_allowed_on_a_private_dongle(peer_address: str, expected: bool) -> None:
+    assert relay.peer_is_allowed(peer_address, PRIVATE_NETWORKS) is expected
+
+
+def test_a_public_dongle_allows_anyone_even_an_unreadable_peer() -> None:
+    assert relay.peer_is_allowed("192.168.1.51", ()) is True
+    assert relay.peer_is_allowed("", ()) is True
+
+
+def test_refuse_closes_a_peer_it_does_not_serve(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(relay, "ALLOWED_NETWORKS", PRIVATE_NETWORKS)
+    writer = PeerWriter(("192.168.1.51", 5000))
+
+    with caplog.at_level("WARNING", logger="rtl_tcp_relay"):
+        assert relay.refuse_unless_allowed(writer) is True  # type: ignore[arg-type]
+
+    assert writer.closed is True
+    assert "Refused 192.168.1.51" in caplog.text
+
+
+def test_refuse_leaves_an_allowed_peer_connected(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(relay, "ALLOWED_NETWORKS", PRIVATE_NETWORKS)
+    writer = PeerWriter(("192.168.1.50", 5000))
+
+    assert relay.refuse_unless_allowed(writer) is False  # type: ignore[arg-type]
+    assert writer.closed is False
+
+
+def test_refuse_closes_a_peer_it_cannot_identify(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(relay, "ALLOWED_NETWORKS", PRIVATE_NETWORKS)
+    writer = PeerWriter(None)
+
+    assert relay.refuse_unless_allowed(writer) is True  # type: ignore[arg-type]
+    assert writer.closed is True
+
+
+def test_a_refused_iq_client_gets_no_header_or_stream(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(relay, "ALLOWED_NETWORKS", PRIVATE_NETWORKS)
+
+    async def run() -> None:
+        state = relay.RelayState()
+        state.magic_header = b"RTL0" + bytes(8)
+        state.header_ready.set()
+        writer = PeerWriter(("192.168.1.51", 5000))
+        await relay.handle_client(state, asyncio.StreamReader(), writer)  # type: ignore[arg-type]
+        assert bytes(writer.buf) == b""
+        assert writer.closed is True
+        assert not state.client_queues
+
+    asyncio.run(run())
+
+
+def test_a_refused_control_client_gets_no_state_and_cannot_claim(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(relay, "ALLOWED_NETWORKS", PRIVATE_NETWORKS)
+
+    async def run() -> None:
+        state = relay.RelayState()
+        reader = asyncio.StreamReader()
+        reader.feed_data(b'{"op": "claim"}\n')
+        reader.feed_eof()
+        writer = PeerWriter(("192.168.1.51", 5000))
+        await relay.handle_control_client(state, reader, writer)  # type: ignore[arg-type]
+        assert bytes(writer.buf) == b""
+        assert writer.closed is True
+        assert state.current_owner is None
 
     asyncio.run(run())

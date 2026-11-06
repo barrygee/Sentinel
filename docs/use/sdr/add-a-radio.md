@@ -25,7 +25,7 @@ The SDR section turns cheap RTL-SDR dongles into a wide-band receiver you contro
 
 ![Settings › SDR: DEVICES with SENTINEL HOSTS, a host's dongles and + ADD A NEW SENTINEL HOST, then NON-SENTINEL SDR DEVICES. Docs sits under the section buttons in the left rail.](../../images/settings-sdr.png)
 
-**ADD** is greyed out for a dongle that is private, switched off or has no port on its host: change it in [SDR Manager](../sdr-manager.md#device-settings).
+**ADD** is greyed out for a dongle that is switched off or has no port on its host, or is private and its host doesn't allow this Sentinel: change it in [SDR Manager](../sdr-manager.md#device-settings).
 
 ## The radio panel
 

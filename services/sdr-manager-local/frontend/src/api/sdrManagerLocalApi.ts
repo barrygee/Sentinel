@@ -28,6 +28,7 @@ import type {
   LocalHotspotConfigRequest,
   LocalHotspotControlResponse,
   LocalHotspotState,
+  LocalPrivateAccess,
   LocalSerialFlashAccepted,
   LocalStatusResponse,
   LocalWirelessInterface,
@@ -175,6 +176,14 @@ export function setHotspotControl(enabled: boolean): Promise<LocalHotspotControl
  * than linking at `/config/download`: a link opened signed out would land the
  * operator on a bare 401 page.
  */
+export function getPrivateAccess(): Promise<LocalPrivateAccess> {
+  return request<LocalPrivateAccess>('/private-access')
+}
+
+export function setPrivateAccess(addresses: string[]): Promise<LocalPrivateAccess> {
+  return request<LocalPrivateAccess>('/private-access', jsonInit('PUT', { addresses }))
+}
+
 export function getConfig(): Promise<LocalConfigFile> {
   return request<LocalConfigFile>('/config')
 }

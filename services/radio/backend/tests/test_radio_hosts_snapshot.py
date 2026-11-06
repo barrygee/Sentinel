@@ -179,6 +179,26 @@ class TestJudgingTheReply:
 
         assert await radios.device_availability(MIRRORED_RADIO) == (False, "Its SDR host is not reachable.")
 
+    async def test_a_private_device_on_a_host_that_refuses_this_sentinel(self, install_bus):
+        install_bus(reply=hosts_reply({**LIVE_DEVICE, "visibility": "private"}))
+
+        available, reason = await radios.device_availability(MIRRORED_RADIO)
+
+        assert available is False
+        assert "private" in reason
+
+    async def test_a_private_device_on_a_host_that_allows_this_sentinel(self, install_bus):
+        reply = hosts_reply({**LIVE_DEVICE, "visibility": "private"})
+        reply["hosts"][str(HOST_ID)]["may_use_private"] = True
+        install_bus(reply=reply)
+
+        assert await radios.device_availability(MIRRORED_RADIO) == (True, "")
+
+    async def test_a_public_device_needs_no_permission(self, install_bus):
+        install_bus(reply=hosts_reply({**LIVE_DEVICE, "visibility": "public"}))
+
+        assert await radios.device_availability(MIRRORED_RADIO) == (True, "")
+
     async def test_a_live_device_among_malformed_entries_is_found(self, install_bus):
         install_bus(reply=hosts_reply("garbage", None, {"device_id": "usb:1-1.4"}, LIVE_DEVICE))
 

@@ -71,6 +71,7 @@ from sentinel_sdr_manager_local.services.host_control_settings import HostContro
 from sentinel_sdr_manager_local.services.hotplug import HotplugService
 from sentinel_sdr_manager_local.services.hotspot import HotspotService
 from sentinel_sdr_manager_local.services.port_allocator import PortAllocatorService
+from sentinel_sdr_manager_local.services.private_access import PrivateAccessList
 from sentinel_sdr_manager_local.services.supervisor import SupervisorService
 from sentinel_sdr_manager_local.services.usb_discovery import UsbDiscoveryService
 
@@ -264,6 +265,7 @@ class AppContainer:
     hotspot_service: HotspotService
     console_auth_service: ConsoleAuthService
     host_control_settings: HostControlSettingsService
+    private_access: PrivateAccessList
     location_source: CoreLocationSource
     device_reservations: DeviceReservationService
     background_tasks: list[asyncio.Task[None]]
@@ -301,6 +303,14 @@ def build_container(settings: Settings) -> AppContainer:
     # Built before `SupervisorService`, which takes it directly, so live
     # per-dongle tuning reaches a running pair and `DeviceStatus.tuner` is populated.
     control_follower = ControlFollowerService(device_registry, clock)
+    # `.env` can still force hotspot control on and, when it does, wins over the
+    # stored value permanently (Sentry ADR-0013).
+    host_control_settings = HostControlSettingsService(
+        session_factory,
+        clock,
+        forced_hotspot_control_enabled=settings.hotspot_control_enabled,
+    )
+    private_access = PrivateAccessList(host_control_settings, settings.private_extra_networks)
     supervisor = SupervisorService(
         process_spawner=process_spawner,
         rtlsdr_library=rtlsdr_library,
@@ -312,6 +322,7 @@ def build_container(settings: Settings) -> AppContainer:
         internal_port_base=settings.internal_port_base,
         max_devices=settings.max_devices,
         control_follower=control_follower,
+        private_allowed_networks=private_access.relay_networks,
     )
     eeprom_service = EepromService(
         process_spawner=process_spawner,
@@ -344,13 +355,6 @@ def build_container(settings: Settings) -> AppContainer:
     # recreation, like every other stored fact.
     device_reservations = DeviceReservationService(session_factory, clock)
 
-    # `.env` can still force hotspot control on and, when it does, wins over the
-    # stored value permanently (Sentry ADR-0013).
-    host_control_settings = HostControlSettingsService(
-        session_factory,
-        clock,
-        forced_hotspot_control_enabled=settings.hotspot_control_enabled,
-    )
     # Both controllers are built up front; which one answers is decided per call.
     # With control switched off nothing reaches nmcli or D-Bus (Sentry ADR-0007),
     # which is why this is a delegating wrapper rather than a flag inside the
@@ -389,6 +393,7 @@ def build_container(settings: Settings) -> AppContainer:
         hotspot_service=hotspot_service,
         console_auth_service=console_auth_service,
         host_control_settings=host_control_settings,
+        private_access=private_access,
         location_source=location_source,
         device_reservations=device_reservations,
         background_tasks=[],
@@ -480,6 +485,7 @@ async def _reconcile_worker(container: AppContainer, reconcile_requested: asynci
 async def start_container(container: AppContainer) -> None:
     """Load state, bring the supervised pairs in line, and start the background loops."""
     await container.device_registry.load()
+    await container.private_access.load()
     await container.supervisor.reconcile()
     container.background_tasks.append(asyncio.create_task(_run_hotplug_forever(container)))
     container.background_tasks.append(asyncio.create_task(_run_supervisor_reconcile_loop(container)))

@@ -119,6 +119,22 @@ describe('sdrManagerLocalApi', () => {
     })
   })
 
+  describe('private access', () => {
+    it('reads the list', async () => {
+      await api.getPrivateAccess()
+      expect(lastRequest().url).toBe(`${BASE}/private-access`)
+    })
+
+    it('replaces the list with PUT', async () => {
+      await api.setPrivateAccess(['10.0.0.1'])
+      expect(lastRequest()).toEqual({
+        url: `${BASE}/private-access`,
+        method: 'PUT',
+        body: { addresses: ['10.0.0.1'] },
+      })
+    })
+  })
+
   describe('hotspot', () => {
     it('reads the hotspot and its clients', async () => {
       await api.getHotspot()
