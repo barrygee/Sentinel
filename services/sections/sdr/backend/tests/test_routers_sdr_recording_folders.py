@@ -1,13 +1,11 @@
 """Recordings are saved in, and found in, the folder each one remembers (sentinel_sdr.router).
 
 Through the real endpoints, with the recordings root in tmp_path:
-  * start fixes the recording's folder from `sdr.recordingsFolder`, and stop
-    writes its WAV there;
-  * changing the setting afterwards never moves or loses an earlier recording:
-    download and delete still find its file;
-  * a recording from before the setting existed is still found beside the
-    database;
-  * an unsafe setting saves to the root instead.
+  * start fixes the recording's folder as the root, and stop writes its WAV there;
+  * the old `sdr.recordingsFolder` setting has no effect;
+  * moving the root never loses an earlier recording: download and delete still
+    find its file, including one saved in a subfolder while that setting existed;
+  * a recording with no folder is still found beside the database.
 """
 
 from __future__ import annotations
@@ -31,10 +29,6 @@ def recordings_root(monkeypatch, tmp_path):
     return root
 
 
-def set_folder(client, folder: str) -> None:
-    assert client.put("/api/settings/sdr/recordingsFolder", json={"value": folder}).status_code == 200
-
-
 def record(client) -> int:
     recording_id = client.post("/api/sdr/recordings/start", json={"frequency_hz": 137_100_000}).json()["id"]
     stopped = client.post(
@@ -51,30 +45,22 @@ async def stored_directory(test_engine, recording_id: int) -> str:
         return (await db.get(SdrRecording, recording_id)).directory
 
 
-class TestSavedInTheRecordingsFolder:
+class TestSavedInTheRecordingsRoot:
     async def test_start_fixes_the_folder_and_stop_writes_the_wav_there(self, client, recordings_root, test_engine):
-        set_folder(client, "satellites/noaa")
-
         recording_id = record(client)
 
-        folder = recordings_root.resolve() / "satellites" / "noaa"
-        assert (folder / f"{recording_id}.wav").read_bytes() == WAV
-        assert await stored_directory(test_engine, recording_id) == str(folder)
+        assert (recordings_root / f"{recording_id}.wav").read_bytes() == WAV
+        assert await stored_directory(test_engine, recording_id) == str(recordings_root)
 
-    def test_an_empty_folder_saves_to_the_root(self, client, recordings_root):
-        recording_id = record(client)
-
-        assert (recordings_root.resolve() / f"{recording_id}.wav").read_bytes() == WAV
-
-    def test_an_unsafe_folder_saves_to_the_root(self, client, recordings_root, tmp_path):
-        set_folder(client, "../escape")
+    def test_a_leftover_folder_setting_is_ignored(self, client, recordings_root):
+        client.put("/api/settings/sdr/recordingsFolder", json={"value": "satellites/noaa"})
 
         recording_id = record(client)
 
         assert (recordings_root / f"{recording_id}.wav").read_bytes() == WAV
-        assert not (tmp_path / "escape").exists()
+        assert not (recordings_root / "satellites").exists()
 
-    def test_stop_reports_the_iq_the_hub_staged_into_the_recordings_folder(self, client, recordings_root, monkeypatch):
+    def test_stop_reports_the_iq_the_hub_staged_into_the_root(self, client, recordings_root, monkeypatch):
         async def hub_accepts(subject, payload, timeout=5.0):
             return {"ok": True}
 
@@ -82,11 +68,10 @@ class TestSavedInTheRecordingsFolder:
         monkeypatch.setattr(sdr_section_router, "bus", type("HubBus", (), {"request": staticmethod(hub_accepts)}))
         monkeypatch.setattr(sdr_section_router, "schedule_collect", lambda recording_id: None)
         assert client.put("/api/settings/sdr/recordRawIq", json={"value": True}).status_code == 200
-        set_folder(client, "noaa")
         recording_id = client.post(
             "/api/sdr/recordings/start", json={"frequency_hz": 137_100_000, "radio_id": 1}
         ).json()["id"]
-        (recordings_root.resolve() / "noaa" / f"{recording_id}.u8").write_bytes(b"\x00" * 7)
+        (recordings_root / f"{recording_id}.u8").write_bytes(b"\x00" * 7)
 
         stopped = client.post(
             "/api/sdr/recordings/stop",
@@ -98,24 +83,27 @@ class TestSavedInTheRecordingsFolder:
         assert stopped["iq_file_pending"] is False
         assert client.get(f"/api/sdr/recordings/{recording_id}/iq").content == b"\x00" * 7
         assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
-        assert not (recordings_root.resolve() / "noaa" / f"{recording_id}.u8").exists()
+        assert not (recordings_root / f"{recording_id}.u8").exists()
 
 
 class TestEarlierRecordingsStayWhereTheyWere:
-    def test_changing_the_folder_still_downloads_and_deletes_an_earlier_recording(self, client, recordings_root):
-        set_folder(client, "first")
-        earlier = record(client)
-        set_folder(client, "second")
-        later = record(client)
+    async def test_one_saved_in_a_subfolder_still_downloads_and_deletes(
+        self, client, recordings_root, test_engine, tmp_path
+    ):
+        recording_id = record(client)
+        # As a recording saved while the folder setting existed.
+        subfolder = tmp_path / "old-root" / "noaa"
+        subfolder.mkdir(parents=True)
+        (subfolder / f"{recording_id}.wav").write_bytes(b"older audio")
+        async with sessionmaker(bind=test_engine, class_=AsyncSession)() as db:
+            (await db.get(SdrRecording, recording_id)).directory = str(subfolder)
+            await db.commit()
 
-        assert client.get(f"/api/sdr/recordings/{earlier}/file").content == WAV
-        assert (recordings_root.resolve() / "second" / f"{later}.wav").exists()
+        assert client.get(f"/api/sdr/recordings/{recording_id}/file").content == b"older audio"
+        assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
+        assert not (subfolder / f"{recording_id}.wav").exists()
 
-        assert client.delete(f"/api/sdr/recordings/{earlier}").status_code == 204
-        assert not (recordings_root.resolve() / "first" / f"{earlier}.wav").exists()
-        assert (recordings_root.resolve() / "second" / f"{later}.wav").exists()
-
-    async def test_a_recording_from_before_the_setting_is_found_beside_the_database(
+    async def test_a_recording_with_no_folder_is_found_beside_the_database(
         self, client, recordings_root, test_engine, tmp_path
     ):
         recording_id = record(client)
@@ -130,30 +118,3 @@ class TestEarlierRecordingsStayWhereTheyWere:
         assert client.get(f"/api/sdr/recordings/{recording_id}/file").content == b"legacy audio"
         assert client.delete(f"/api/sdr/recordings/{recording_id}").status_code == 204
         assert not (legacy / f"{recording_id}.wav").exists()
-
-
-class TestRecordingsLocationEndpoint:
-    """`GET /api/sdr/recordings/location` — the default the Recordings Folder field shows."""
-
-    def test_reports_the_folder_compose_was_given(self, client, monkeypatch):
-        monkeypatch.setattr(settings, "recordings_host_directory", "~/SentinelRecordings")
-        response = client.get("/api/sdr/recordings/location")
-        assert response.status_code == 200
-        assert response.json() == {"directory": "~/SentinelRecordings", "kind": "host"}
-
-    def test_reports_the_default_docker_volume(self, client, monkeypatch):
-        monkeypatch.setattr(settings, "recordings_host_directory", "sdr_recordings")
-        assert client.get("/api/sdr/recordings/location").json() == {
-            "directory": "sdr_recordings",
-            "kind": "volume",
-        }
-
-    def test_reports_the_root_outside_compose(self, client, monkeypatch, recordings_root):
-        monkeypatch.setattr(settings, "recordings_host_directory", "")
-        assert client.get("/api/sdr/recordings/location").json() == {
-            "directory": str(recordings_root),
-            "kind": "local",
-        }
-
-    def test_only_answers_reads(self, client):
-        assert client.post("/api/sdr/recordings/location").status_code == 405

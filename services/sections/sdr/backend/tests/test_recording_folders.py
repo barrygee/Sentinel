@@ -2,37 +2,23 @@
 
 Pinned here:
   * the root is `RECORDINGS_DIRECTORY`, or recordings/ beside the database;
-  * the `sdr.recordingsFolder` setting is only ever a subfolder of the root —
-    absolute paths, `.`/`..`, backslashes, control characters, over-long or
-    over-deep values and symlinks out of the root are refused;
-  * a new recording's folder falls back to the root, with a warning, whenever
-    the setting is refused, unreadable or can't be created;
+  * a new recording's folder is the root, created if needed;
   * each recording's files are found in the folder it remembers, and a row
-    from before the setting existed in the old recordings/ folder;
-  * where recordings are saved is reported as the operator set it: a host
-    path, a Docker volume name, or (outside compose) the root itself.
+    from before recordings remembered one in the old recordings/ folder.
 """
 
 from __future__ import annotations
 
-import logging
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 import pytest
 from backend.config import settings
 
 from sentinel_sdr.models import SdrRecording
-from sentinel_sdr.services import recording_folders
 from sentinel_sdr.services.recording_folders import (
-    MAX_FOLDER_DEPTH,
-    MAX_FOLDER_LENGTH,
-    RecordingsFolderError,
     folder_for_new_recording,
     iq_path,
-    parse_recordings_folder,
     recording_folder,
-    recordings_folder_path,
-    recordings_location,
     recordings_root,
     wav_path,
 )
@@ -43,28 +29,14 @@ def data_directory(monkeypatch, tmp_path):
     """The SDR database lives in tmp_path/data; no recordings root is configured."""
     monkeypatch.setattr(settings, "db_path", str(tmp_path / "data" / "sdr.db"))
     monkeypatch.setattr(settings, "recordings_directory", "")
-    monkeypatch.setattr(settings, "recordings_host_directory", "")
 
 
 @pytest.fixture()
 def configured_root(monkeypatch, tmp_path) -> Path:
     """A recordings root of its own, as compose's /recordings."""
     root = tmp_path / "recordings-root"
-    root.mkdir()
     monkeypatch.setattr(settings, "recordings_directory", str(root))
     return root
-
-
-def stored_folder(monkeypatch, value=None, *, error: Exception | None = None) -> None:
-    """Make the settings client answer `value` (or raise `error`) for sdr.recordingsFolder."""
-
-    async def read_setting(db, namespace, key, default=None):
-        assert (namespace, key) == ("sdr", "recordingsFolder")
-        if error is not None:
-            raise error
-        return default if value is None else value
-
-    monkeypatch.setattr(recording_folders.settings_client, "read_setting", read_setting)
 
 
 def recording(recording_id: int, directory: str = "") -> SdrRecording:
@@ -79,164 +51,21 @@ class TestRecordingsRoot:
         assert recordings_root() == configured_root
 
 
-class TestRecordingsLocation:
-    @pytest.mark.parametrize(
-        "host_directory",
-        ["/Volumes/Radio/Recordings", "~/SentinelRecordings", "./recordings", "../shared/recordings"],
-    )
-    def test_reports_a_host_folder_as_set(self, monkeypatch, host_directory):
-        # Compose treats a value starting with /, ~ or . as a folder on the host.
-        monkeypatch.setattr(settings, "recordings_host_directory", host_directory)
-        assert recordings_location() == {"directory": host_directory, "kind": "host"}
-
-    @pytest.mark.parametrize("volume_name", ["sdr_recordings", "radio-archive"])
-    def test_reports_anything_else_as_a_docker_volume(self, monkeypatch, volume_name):
-        monkeypatch.setattr(settings, "recordings_host_directory", volume_name)
-        assert recordings_location() == {"directory": volume_name, "kind": "volume"}
-
-    def test_ignores_surrounding_space(self, monkeypatch):
-        monkeypatch.setattr(settings, "recordings_host_directory", "  sdr_recordings \n")
-        assert recordings_location() == {"directory": "sdr_recordings", "kind": "volume"}
-
-    @pytest.mark.parametrize("unset", ["", "   "])
-    def test_outside_compose_is_the_root_itself(self, monkeypatch, configured_root, unset):
-        monkeypatch.setattr(settings, "recordings_host_directory", unset)
-        assert recordings_location() == {"directory": str(configured_root), "kind": "local"}
-
-    def test_outside_compose_with_no_root_configured_is_recordings_beside_the_database(self, tmp_path):
-        assert recordings_location() == {
-            "directory": str(tmp_path / "data" / "recordings"),
-            "kind": "local",
-        }
-
-
-class TestParseRecordingsFolder:
-    @pytest.mark.parametrize(
-        ("value", "expected"),
-        [
-            ("", PurePosixPath()),
-            ("   ", PurePosixPath()),
-            ("noaa", PurePosixPath("noaa")),
-            ("satellites/noaa", PurePosixPath("satellites/noaa")),
-            # Doubled and trailing slashes and surrounding spaces are harmless.
-            ("  satellites//noaa/ ", PurePosixPath("satellites/noaa")),
-            ("my recordings/2026-10", PurePosixPath("my recordings/2026-10")),
-            ("v1.2", PurePosixPath("v1.2")),
-            ("...", PurePosixPath("...")),
-        ],
-    )
-    def test_accepts_a_relative_subfolder(self, value, expected):
-        assert parse_recordings_folder(value) == expected
-
-    @pytest.mark.parametrize(
-        ("value", "reason"),
-        [
-            (None, "must be text"),
-            (7, "must be text"),
-            (["noaa"], "must be text"),
-            ("/etc", "relative"),
-            ("/", "relative"),
-            ("C:/recordings", "relative"),
-            ("c:", "relative"),
-            ("..", "'.' or '..'"),
-            ("../escape", "'.' or '..'"),
-            ("noaa/../../escape", "'.' or '..'"),
-            ("noaa/ .. /x", "'.' or '..'"),
-            (".", "'.' or '..'"),
-            ("./noaa", "'.' or '..'"),
-            ("noaa\\escape", "backslash"),
-            ("noaa\x00", "control character"),
-            ("noaa\nnext", "control character"),
-        ],
-    )
-    def test_refuses_anything_that_is_not_a_safe_subfolder(self, value, reason):
-        with pytest.raises(RecordingsFolderError, match=reason):
-            parse_recordings_folder(value)
-
-    def test_accepts_the_longest_and_deepest_allowed(self):
-        assert len(parse_recordings_folder("a" * MAX_FOLDER_LENGTH).parts) == 1
-        assert len(parse_recordings_folder("/".join(["a"] * MAX_FOLDER_DEPTH)).parts) == MAX_FOLDER_DEPTH
-
-    def test_refuses_one_character_too_long(self):
-        with pytest.raises(RecordingsFolderError, match="longer than"):
-            parse_recordings_folder("a" * (MAX_FOLDER_LENGTH + 1))
-
-    def test_refuses_one_level_too_deep(self):
-        with pytest.raises(RecordingsFolderError, match="deeper than"):
-            parse_recordings_folder("/".join(["a"] * (MAX_FOLDER_DEPTH + 1)))
-
-
-class TestRecordingsFolderPath:
-    def test_is_the_subfolder_under_the_root(self, configured_root):
-        assert recordings_folder_path("satellites/noaa") == configured_root.resolve() / "satellites" / "noaa"
-
-    def test_empty_is_the_root(self, configured_root):
-        assert recordings_folder_path("") == configured_root.resolve()
-
-    def test_refuses_a_symlink_that_leads_out_of_the_root(self, configured_root, tmp_path):
-        outside = tmp_path / "outside"
-        outside.mkdir()
-        (configured_root / "elsewhere").symlink_to(outside)
-
-        with pytest.raises(RecordingsFolderError, match="outside the recordings root"):
-            recordings_folder_path("elsewhere/noaa")
-
-    def test_refuses_an_unsafe_value_before_resolving_it(self, configured_root):
-        with pytest.raises(RecordingsFolderError):
-            recordings_folder_path("../escape")
-
-
 class TestFolderForNewRecording:
-    async def test_creates_and_returns_the_configured_subfolder(self, configured_root, monkeypatch):
-        stored_folder(monkeypatch, "satellites/noaa")
+    def test_creates_and_returns_the_configured_root(self, configured_root):
+        assert folder_for_new_recording() == configured_root
+        assert configured_root.is_dir()
 
-        folder = await folder_for_new_recording(None)
+    def test_creates_the_default_root_when_nothing_is_configured(self, tmp_path):
+        folder = folder_for_new_recording()
 
-        assert folder == configured_root.resolve() / "satellites" / "noaa"
+        assert folder == tmp_path / "data" / "recordings"
         assert folder.is_dir()
 
-    async def test_unset_is_the_root(self, configured_root, monkeypatch):
-        stored_folder(monkeypatch, None)
+    def test_a_root_that_already_exists_is_fine(self, configured_root):
+        configured_root.mkdir()
 
-        assert await folder_for_new_recording(None) == configured_root.resolve()
-
-    async def test_creates_the_default_root_when_nothing_is_configured(self, monkeypatch, tmp_path):
-        stored_folder(monkeypatch, "")
-
-        folder = await folder_for_new_recording(None)
-
-        assert folder == (tmp_path / "data" / "recordings").resolve()
-        assert folder.is_dir()
-
-    async def test_an_unsafe_setting_falls_back_to_the_root_with_a_warning(self, configured_root, monkeypatch, caplog):
-        stored_folder(monkeypatch, "../../app/data")
-
-        with caplog.at_level(logging.WARNING, logger=recording_folders.__name__):
-            folder = await folder_for_new_recording(None)
-
-        assert folder == configured_root
-        assert "Ignoring sdr.recordingsFolder (the recordings folder may not contain '.' or '..')" in caplog.text
-        assert not (configured_root.parent / "app").exists()
-
-    async def test_an_unreadable_setting_falls_back_to_the_root(self, configured_root, monkeypatch, caplog):
-        stored_folder(monkeypatch, error=ConnectionError("core is down"))
-
-        with caplog.at_level(logging.WARNING, logger=recording_folders.__name__):
-            folder = await folder_for_new_recording(None)
-
-        assert folder == configured_root
-        assert "Could not read sdr.recordingsFolder (core is down)" in caplog.text
-
-    async def test_a_folder_that_cannot_be_created_falls_back_to_the_root(self, configured_root, monkeypatch, caplog):
-        # A file where the folder should go: mkdir fails.
-        (configured_root / "taken").write_bytes(b"not a folder")
-        stored_folder(monkeypatch, "taken/noaa")
-
-        with caplog.at_level(logging.WARNING, logger=recording_folders.__name__):
-            folder = await folder_for_new_recording(None)
-
-        assert folder == configured_root
-        assert "Could not create the recordings folder" in caplog.text
+        assert folder_for_new_recording() == configured_root
 
 
 class TestARecordingsFiles:
@@ -247,7 +76,7 @@ class TestARecordingsFiles:
         assert wav_path(recording(4, str(saved_in))) == saved_in / "4.wav"
         assert iq_path(recording(4, str(saved_in))) == saved_in / "4.u8"
 
-    def test_of_a_recording_from_before_the_setting_are_beside_the_database(self, tmp_path, configured_root):
+    def test_of_a_recording_with_no_folder_are_beside_the_database(self, tmp_path, configured_root):
         # Even with a root configured now: it was saved before there was one.
         legacy = tmp_path / "data" / "recordings"
 

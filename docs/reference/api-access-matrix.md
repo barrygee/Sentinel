@@ -156,7 +156,6 @@ Profile `section`.
 | POST | `/api/sdr/data/frequencies` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
 | GET | `/api/sdr/data/bandplan` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/data/bandplan` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
-| GET | `/api/sdr/recordings/location` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | GET | `/api/sdr/recordings` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/recordings/start` | `browser` | `radio_control` | SDR: starting a recording. |
 | POST | `/api/sdr/recordings/stop` | `browser` | `recording_upload` | SDR: stopping a recording, which uploads its WAV. |

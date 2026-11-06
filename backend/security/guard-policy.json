@@ -676,7 +676,6 @@
                 "/api/sdr/data/frequencies",
                 "/api/sdr/data/bandplan",
                 "/api/sdr/recordings",
-                "/api/sdr/recordings/location",
                 "/api/sdr/recordings/{rec_id}/file",
                 "/api/sdr/recordings/{rec_id}/iq"
             ],
