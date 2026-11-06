@@ -280,14 +280,17 @@ class TestRenamedSettings:
             [
                 ("sdr", "showBandPlan", json.dumps(False)),
                 ("sdr", "showWaterfallTimestamps", json.dumps(False)),
+                ("sdr", "showKnownFreqs", json.dumps(False)),
             ],
         )
         await db._migrate_renamed_settings()
         stored = await _stored(session_factory)
         assert stored[("sdr", "displayBandPlan")][0] == "false"
         assert stored[("sdr", "displayWaterfallTimestamps")][0] == "false"
+        assert stored[("sdr", "displayKnownFrequencies")][0] == "false"
         assert ("sdr", "showBandPlan") not in stored
         assert ("sdr", "showWaterfallTimestamps") not in stored
+        assert ("sdr", "showKnownFreqs") not in stored
 
     async def test_a_value_already_under_the_new_key_wins(self, session_factory):
         await _add(
