@@ -272,13 +272,13 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
 - Remove the recordings folder setting
-- Enforce private dongles
-- Add the Private Access card
 - Draw the Hawk and F-35 as themselves
 - Remove the visibility notes
 - Add the tuned frequency from the readout
 - Add a panel variant to BaseSearchField
 - Search the frequency manager
+- Enforce private dongles
+- Add the Private Access card
 
 ### Bug Fixes
 
@@ -1796,7 +1796,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into chore/quick-component-cleanup
 - Merge remote-tracking branch 'origin/main' into chore/quick-component-cleanup
 - Merge pull request #591 from barrygee/chore/quick-component-cleanup
+- Merge remote-tracking branch 'origin/main' into refactor/map-side-rail
 - Merge pull request #593 from barrygee/fix/land-repeater-labels-sooner
+- Merge remote-tracking branch 'origin/main' into refactor/map-side-rail
+- Merge pull request #592 from barrygee/refactor/map-side-rail
 
 ### Performance
 
@@ -1902,6 +1905,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR Manager settings section
 - Rename remaining sentry identifiers
 - Make Aircraft Icons a plain two-option setting
+- Share one side rail across the map sections
 - Rename showKnownFreqs to displayKnownFrequencies
 
 ### Documentation
@@ -2075,6 +2079,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the host poll loop surviving an error
 - Cover connecting to an unavailable radio
 - Record the search field in the cascade snapshots
+- Expect the plural range rings label
 
 ### Build System
 
@@ -2156,11 +2161,12 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
-- Rebuild the bundle for the Private Access card
 - Rebuild the bundle for the Hawk and F-35 outlines
 - Rebuild the bundle for the visibility notes
 - Rebuild the bundle for the frequency add button
 - Rebuild the bundle for the frequency search
+- Rebuild the bundle for the shared map rail
+- Rebuild the bundle for the Private Access card
 - Rebuild the bundle for the known frequencies rename
 - Rebuild the bundle for the recordings subfolder removal
 - Rebuild the bundle for the dead CSS removal
