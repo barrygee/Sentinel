@@ -224,16 +224,11 @@ export const useSdrStore = defineStore('sdr', () => {
   // without this the running SDR UI would ignore the edit until reload. Keeps
   // the JSON editor, the WATERFALL toggle and the live behaviour in sync.
   async function hydrateAutoCenterFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.autoCenterWaterfallOnTune
-      if (typeof v === 'boolean' && v !== autoCenterWaterfallOnTune.value) {
-        setAutoCenterWaterfallOnTune(v)
-      }
-    } catch {
-      /* offline / transient — keep current value */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.autoCenterWaterfallOnTune
+    if (typeof storedValue === 'boolean' && storedValue !== autoCenterWaterfallOnTune.value) {
+      setAutoCenterWaterfallOnTune(storedValue)
     }
   }
 
@@ -256,16 +251,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateSnapToKnownFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.snapToKnown
-      if (typeof v === 'boolean' && v !== snapToKnown.value) {
-        setSnapToKnown(v)
-      }
-    } catch {
-      /* offline / transient — keep current value */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.snapToKnown
+    if (typeof storedValue === 'boolean' && storedValue !== snapToKnown.value) {
+      setSnapToKnown(storedValue)
     }
   }
 
@@ -287,15 +277,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateDisplayBandPlanFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.displayBandPlan
-      if (typeof v === 'boolean' && v !== displayBandPlan.value) setDisplayBandPlan(v)
-    } catch {
-      /* offline / transient */
-    }
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.displayBandPlan
+    if (typeof storedValue === 'boolean' && storedValue !== displayBandPlan.value)
+      setDisplayBandPlan(storedValue)
   }
 
   function _readDisplayKnownFrequencies(): boolean {
@@ -313,16 +299,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateDisplayKnownFrequenciesFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.displayKnownFrequencies
-      if (typeof v === 'boolean' && v !== displayKnownFrequencies.value)
-        setDisplayKnownFrequencies(v)
-    } catch {
-      /* offline / transient */
-    }
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.displayKnownFrequencies
+    if (typeof storedValue === 'boolean' && storedValue !== displayKnownFrequencies.value)
+      setDisplayKnownFrequencies(storedValue)
   }
 
   // Waterfall time markers — clock labels down the left edge of the raster,
@@ -343,16 +324,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateDisplayWaterfallTimestampsFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.displayWaterfallTimestamps
-      if (typeof v === 'boolean' && v !== displayWaterfallTimestamps.value) {
-        setDisplayWaterfallTimestamps(v)
-      }
-    } catch {
-      /* offline / transient */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.displayWaterfallTimestamps
+    if (typeof storedValue === 'boolean' && storedValue !== displayWaterfallTimestamps.value) {
+      setDisplayWaterfallTimestamps(storedValue)
     }
   }
 
@@ -379,16 +355,15 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateResumeDelaySecFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.resumeDelaySec
-      if (typeof v === 'number' && v >= 0 && v !== resumeDelaySec.value) {
-        setResumeDelaySec(v)
-      }
-    } catch {
-      /* offline / transient */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.resumeDelaySec
+    if (
+      typeof storedValue === 'number' &&
+      storedValue >= 0 &&
+      storedValue !== resumeDelaySec.value
+    ) {
+      setResumeDelaySec(storedValue)
     }
   }
 
@@ -420,20 +395,15 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateWaterfallTimestampIntervalFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.waterfallTimestampIntervalSec
-      if (
-        typeof v === 'number' &&
-        v >= WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC &&
-        v !== waterfallTimestampIntervalSec.value
-      ) {
-        setWaterfallTimestampIntervalSec(v)
-      }
-    } catch {
-      /* offline / transient */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.waterfallTimestampIntervalSec
+    if (
+      typeof storedValue === 'number' &&
+      storedValue >= WATERFALL_TIMESTAMP_INTERVAL_MIN_SEC &&
+      storedValue !== waterfallTimestampIntervalSec.value
+    ) {
+      setWaterfallTimestampIntervalSec(storedValue)
     }
   }
 
@@ -450,20 +420,15 @@ export const useSdrStore = defineStore('sdr', () => {
         : RECORDING_MAX_DURATION_DEFAULT_MINUTES
   }
   async function hydrateRecordingMaxDurationFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const minutes = data?.recordingMaxDurationMinutes
-      if (
-        typeof minutes === 'number' &&
-        minutes >= 1 &&
-        minutes !== recordingMaxDurationMinutes.value
-      ) {
-        setRecordingMaxDurationMinutes(minutes)
-      }
-    } catch {
-      /* offline / transient */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const minutes = data.recordingMaxDurationMinutes
+    if (
+      typeof minutes === 'number' &&
+      minutes >= 1 &&
+      minutes !== recordingMaxDurationMinutes.value
+    ) {
+      setRecordingMaxDurationMinutes(minutes)
     }
   }
 
@@ -546,15 +511,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateDigitalEnabledFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.digitalDecodeDefault
-      if (typeof v === 'boolean' && v !== digitalEnabled.value) setDigitalEnabled(v)
-    } catch {
-      /* offline / transient — keep current value */
-    }
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const storedValue = data.digitalDecodeDefault
+    if (typeof storedValue === 'boolean' && storedValue !== digitalEnabled.value)
+      setDigitalEnabled(storedValue)
   }
 
   // ── APRS decode (Direwolf sidecar) ─────────────────────────────────────────
@@ -609,17 +570,12 @@ export const useSdrStore = defineStore('sdr', () => {
    * the DB — not localStorage — is the truth about which radio is decoding.
    */
   async function hydrateAprsFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const persistedRadioId = data?.aprs_radio_id
-      const nextRadioId = typeof persistedRadioId === 'number' ? persistedRadioId : null
-      if (nextRadioId !== aprsRadioId.value) setAprsRadioId(nextRadioId)
-      if ((nextRadioId !== null) !== aprsEnabled.value) setAprsEnabled(nextRadioId !== null)
-    } catch {
-      /* offline / transient — keep the cached value */
-    }
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const persistedRadioId = data.aprs_radio_id
+    const nextRadioId = typeof persistedRadioId === 'number' ? persistedRadioId : null
+    if (nextRadioId !== aprsRadioId.value) setAprsRadioId(nextRadioId)
+    if ((nextRadioId !== null) !== aprsEnabled.value) setAprsEnabled(nextRadioId !== null)
   }
 
   // SEA's off-grid AIS receiver. Mirrors the APRS block above, with one
@@ -651,16 +607,11 @@ export const useSdrStore = defineStore('sdr', () => {
    * the DB — not localStorage — is the truth about which radio is decoding.
    */
   async function hydrateAisFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const persistedRadioId = data?.ais_radio_id
-      const nextRadioId = typeof persistedRadioId === 'number' ? persistedRadioId : null
-      if (nextRadioId !== aisRadioId.value) setAisRadioId(nextRadioId)
-    } catch {
-      /* offline / transient — keep the cached value */
-    }
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const persistedRadioId = data.ais_radio_id
+    const nextRadioId = typeof persistedRadioId === 'number' ? persistedRadioId : null
+    if (nextRadioId !== aisRadioId.value) setAisRadioId(nextRadioId)
   }
 
   /**
@@ -782,16 +733,11 @@ export const useSdrStore = defineStore('sdr', () => {
     } catch {}
   }
   async function hydrateMuteAudioWhileDecodingFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const persisted = data?.muteAudioWhileDecoding
-      if (typeof persisted === 'boolean' && persisted !== muteAudioWhileDecoding.value) {
-        setMuteAudioWhileDecoding(persisted)
-      }
-    } catch {
-      /* offline / transient — keep the cached value */
+    const data = await getNamespace('sdr')
+    if (!data) return
+    const persisted = data.muteAudioWhileDecoding
+    if (typeof persisted === 'boolean' && persisted !== muteAudioWhileDecoding.value) {
+      setMuteAudioWhileDecoding(persisted)
     }
   }
 

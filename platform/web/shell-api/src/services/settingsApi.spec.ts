@@ -37,6 +37,105 @@ describe('settingsApi.getNamespace', () => {
   })
 })
 
+describe('settingsApi.getNamespace sharing', () => {
+  /** A fetch stub whose responses are released by hand, oldest request first. */
+  function holdFetch(): { respond: (body: Record<string, unknown>) => void } {
+    const pendingResponses: ((response: unknown) => void)[] = []
+    global.fetch = vi.fn((_url: string | URL | Request, options?: RequestInit) =>
+      options?.method
+        ? Promise.resolve({ ok: true })
+        : new Promise((resolve) => pendingResponses.push(resolve)),
+    ) as unknown as typeof fetch
+    return {
+      respond: (body) =>
+        pendingResponses.shift()?.({ ok: true, json: () => Promise.resolve(body) }),
+    }
+  }
+
+  /** How many GETs reached the network. */
+  function readCount(): number {
+    return vi.mocked(global.fetch).mock.calls.filter(([, options]) => !options?.method).length
+  }
+
+  it('sends one request for callers overlapping on a namespace', async () => {
+    const { respond } = holdFetch()
+    const firstRead = getNamespace('sdr')
+    const secondRead = getNamespace('sdr')
+    respond({ gain: 42 })
+    await expect(firstRead).resolves.toEqual({ gain: 42 })
+    await expect(secondRead).resolves.toEqual({ gain: 42 })
+    expect(readCount()).toBe(1)
+  })
+
+  it('gives each caller its own copy to change', async () => {
+    const { respond } = holdFetch()
+    const firstRead = getNamespace('sdr')
+    const secondRead = getNamespace('sdr')
+    respond({ nested: { gain: 42 } })
+    const firstSettings = (await firstRead) as { nested: { gain: number } }
+    firstSettings.nested.gain = 0
+    await expect(secondRead).resolves.toEqual({ nested: { gain: 42 } })
+  })
+
+  it('keeps different namespaces on separate requests', async () => {
+    const { respond } = holdFetch()
+    const sdrRead = getNamespace('sdr')
+    const airRead = getNamespace('air')
+    expect(readCount()).toBe(2)
+    respond({ namespace: 'sdr' })
+    respond({ namespace: 'air' })
+    await expect(sdrRead).resolves.toEqual({ namespace: 'sdr' })
+    await expect(airRead).resolves.toEqual({ namespace: 'air' })
+  })
+
+  it('reads afresh once the previous read has finished', async () => {
+    const { respond } = holdFetch()
+    const firstRead = getNamespace('sdr')
+    respond({ gain: 1 })
+    await firstRead
+    const secondRead = getNamespace('sdr')
+    respond({ gain: 2 })
+    await expect(secondRead).resolves.toEqual({ gain: 2 })
+    expect(readCount()).toBe(2)
+  })
+
+  it('retries after a failed read rather than keeping its null', async () => {
+    global.fetch = vi.fn(() => Promise.reject(new Error('offline'))) as unknown as typeof fetch
+    await expect(getNamespace('sdr')).resolves.toBeNull()
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve({ gain: 3 }) }))
+    await expect(getNamespace('sdr')).resolves.toEqual({ gain: 3 })
+  })
+
+  it.each([
+    ['put', () => put('sdr', 'gain', 2)],
+    ['del', () => del('sdr', 'gain')],
+  ])('does not hand a read from before a %s to a later caller', async (_name, write) => {
+    const { respond } = holdFetch()
+    const readBeforeWrite = getNamespace('sdr')
+    await write()
+    const readAfterWrite = getNamespace('sdr')
+    expect(readCount()).toBe(2)
+    respond({ gain: 1 })
+    respond({ gain: 2 })
+    await expect(readBeforeWrite).resolves.toEqual({ gain: 1 })
+    await expect(readAfterWrite).resolves.toEqual({ gain: 2 })
+  })
+
+  it('keeps a newer read shared when an older one finishes after a write', async () => {
+    const { respond } = holdFetch()
+    const readBeforeWrite = getNamespace('sdr')
+    await put('sdr', 'gain', 2)
+    const newerRead = getNamespace('sdr')
+    respond({ gain: 1 })
+    await readBeforeWrite
+    const overlappingRead = getNamespace('sdr')
+    expect(readCount()).toBe(2)
+    respond({ gain: 2 })
+    await expect(newerRead).resolves.toEqual({ gain: 2 })
+    await expect(overlappingRead).resolves.toEqual({ gain: 2 })
+  })
+})
+
 describe('settingsApi.put', () => {
   it('PUTs the JSON-wrapped value to the namespace/key endpoint', async () => {
     mockFetch(() => ({ ok: true }))

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
@@ -13,19 +13,16 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
-/** Stub the global fetch the app store's hydrateNotificationSoundFromDb uses. */
-function stubFetch(payload: unknown, ok = true): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+/** Set what the app store's hydrateNotificationSoundFromDb reads. */
+function stubStoredSettings(storedSettings: Record<string, unknown>): void {
+  vi.mocked(settingsApi.getNamespace).mockResolvedValue(storedSettings)
 }
 
 describe('NotificationSoundControl', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    stubFetch({}) // hydrate is a no-op: store keeps its default (off)
+    stubStoredSettings({}) // hydrate is a no-op: store keeps its default (off)
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   it('renders the switch reflecting the store default (off)', async () => {
@@ -73,7 +70,7 @@ describe('NotificationSoundControl', () => {
     })
 
     it('reads enabled when the saved setting has it on', async () => {
-      stubFetch({ notificationSound: true })
+      stubStoredSettings({ notificationSound: true })
       const wrapper = mount(NotificationSoundControl)
       await flushPromises()
       expect(caption(wrapper)).toBe('Enabled')
@@ -87,7 +84,7 @@ describe('NotificationSoundControl', () => {
   })
 
   it('hydrates the toggle from the DB on mount', async () => {
-    stubFetch({ notificationSound: true })
+    stubStoredSettings({ notificationSound: true })
     const wrapper = mount(NotificationSoundControl)
     await flushPromises()
     expect(useAppStore().notificationSound).toBe(true)
@@ -98,7 +95,7 @@ describe('NotificationSoundControl', () => {
     const wrapper = mount(NotificationSoundControl)
     await flushPromises()
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('false')
-    stubFetch({ notificationSound: true })
+    stubStoredSettings({ notificationSound: true })
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     await flushPromises()
     expect(wrapper.find('[role="switch"]').attributes('aria-checked')).toBe('true')

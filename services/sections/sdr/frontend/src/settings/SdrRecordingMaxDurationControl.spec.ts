@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
@@ -13,9 +13,9 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
-/** Stub the global fetch the sdr store's hydrateRecordingMaxDurationFromDb uses. */
-function stubFetch(payload: unknown, ok = true): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+/** Set what the sdr store's hydrateRecordingMaxDurationFromDb reads. */
+function stubStoredSettings(storedSettings: Record<string, unknown>): void {
+  vi.mocked(settingsApi.getNamespace).mockResolvedValue(storedSettings)
 }
 
 describe('SdrRecordingMaxDurationControl', () => {
@@ -24,11 +24,8 @@ describe('SdrRecordingMaxDurationControl', () => {
     // `restoreMocks` only resets spies created via vi.spyOn — the settingsApi
     // factory mocks keep their call history between tests, so clear it here.
     vi.clearAllMocks()
-    stubFetch({}) // hydrate no-op: store keeps the default 360
+    stubStoredSettings({}) // hydrate no-op: store keeps the default 360
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   it('renders the store default (360 minutes) as a valid value', async () => {
@@ -91,7 +88,7 @@ describe('SdrRecordingMaxDurationControl', () => {
   })
 
   it('hydrates the value from the DB on mount', async () => {
-    stubFetch({ recordingMaxDurationMinutes: 12 })
+    stubStoredSettings({ recordingMaxDurationMinutes: 12 })
     const wrapper = mount(SdrRecordingMaxDurationControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('12')
@@ -101,7 +98,7 @@ describe('SdrRecordingMaxDurationControl', () => {
   it('re-syncs when a new config is uploaded', async () => {
     const wrapper = mount(SdrRecordingMaxDurationControl)
     await flushPromises()
-    stubFetch({ recordingMaxDurationMinutes: 7 })
+    stubStoredSettings({ recordingMaxDurationMinutes: 7 })
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('7')

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
@@ -13,9 +13,9 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
-/** Stub the fetch the theme store's hydrateMapThemeFromDb uses. */
-function stubFetch(payload: unknown, ok = true): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+/** Set what the theme store's hydrateMapThemeFromDb reads. */
+function stubStoredSettings(storedSettings: Record<string, unknown>): void {
+  vi.mocked(settingsApi.getNamespace).mockResolvedValue(storedSettings)
 }
 
 /** The segment with this label, as the operator would click it. */
@@ -40,11 +40,8 @@ describe('MapThemeControl', () => {
     delete document.documentElement.dataset.theme
     delete document.documentElement.dataset.mapTheme
     setActivePinia(createPinia())
-    stubFetch({}) // hydrate is a no-op: the store keeps its default (dark)
+    stubStoredSettings({}) // hydrate is a no-op: the store keeps its default (dark)
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   it('starts on DARK, reflecting the default', async () => {
@@ -93,7 +90,7 @@ describe('MapThemeControl', () => {
   })
 
   it('switches back to dark and stages that too', async () => {
-    stubFetch({ mapTheme: 'light' })
+    stubStoredSettings({ mapTheme: 'light' })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     await segment(wrapper, 'DARK').trigger('click')
@@ -112,7 +109,7 @@ describe('MapThemeControl', () => {
   })
 
   it('hydrates the selection from the DB on mount', async () => {
-    stubFetch({ mapTheme: 'light' })
+    stubStoredSettings({ mapTheme: 'light' })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(useThemeStore().mapTheme).toBe('light')
@@ -120,14 +117,14 @@ describe('MapThemeControl', () => {
   })
 
   it('shows a retired "colour" from the DB as LIGHT', async () => {
-    stubFetch({ mapTheme: 'colour' })
+    stubStoredSettings({ mapTheme: 'colour' })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(checkedLabel(wrapper)).toBe('LIGHT')
   })
 
   it('hydrates from the older boolean when that is all the config has', async () => {
-    stubFetch({ lightMapTheme: true })
+    stubStoredSettings({ lightMapTheme: true })
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(checkedLabel(wrapper)).toBe('LIGHT')
@@ -137,7 +134,7 @@ describe('MapThemeControl', () => {
     const wrapper = mount(MapThemeControl)
     await flushPromises()
     expect(checkedLabel(wrapper)).toBe('DARK')
-    stubFetch({ mapTheme: 'light' })
+    stubStoredSettings({ mapTheme: 'light' })
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     await flushPromises()
     expect(checkedLabel(wrapper)).toBe('LIGHT')

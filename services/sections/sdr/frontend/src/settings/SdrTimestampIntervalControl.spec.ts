@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
@@ -13,9 +13,9 @@ vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
 }))
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
-/** Stub the fetch the store's hydrateWaterfallTimestampIntervalFromDb uses. */
-function stubFetch(payload: unknown, ok = true): void {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => payload }))
+/** Set what the sdr store's hydrateWaterfallTimestampIntervalFromDb reads. */
+function stubStoredSettings(storedSettings: Record<string, unknown>): void {
+  vi.mocked(settingsApi.getNamespace).mockResolvedValue(storedSettings)
 }
 
 const input = (wrapper: ReturnType<typeof mount>) =>
@@ -27,11 +27,8 @@ describe('SdrTimestampIntervalControl', () => {
     localStorage.clear()
     // The settingsApi factory mocks keep their call history between tests.
     vi.clearAllMocks()
-    stubFetch({}) // hydrate no-op: the store keeps its default
+    stubStoredSettings({}) // hydrate no-op: the store keeps its default
     vi.mocked(settingsApi.put).mockResolvedValue(undefined)
-  })
-  afterEach(() => {
-    vi.unstubAllGlobals()
   })
 
   it('renders the store default (5 s) as a valid value', async () => {
@@ -119,7 +116,7 @@ describe('SdrTimestampIntervalControl', () => {
   })
 
   it('hydrates the interval from the DB on mount', async () => {
-    stubFetch({ waterfallTimestampIntervalSec: 60 })
+    stubStoredSettings({ waterfallTimestampIntervalSec: 60 })
     const wrapper = mount(SdrTimestampIntervalControl)
     await flushPromises()
     expect(input(wrapper).value).toBe('60')
@@ -130,7 +127,7 @@ describe('SdrTimestampIntervalControl', () => {
     const wrapper = mount(SdrTimestampIntervalControl)
     await flushPromises()
 
-    stubFetch({ waterfallTimestampIntervalSec: 15 })
+    stubStoredSettings({ waterfallTimestampIntervalSec: 15 })
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     await flushPromises()
 

@@ -13,7 +13,10 @@ export function notifySettingsChanged(): void {
   document.dispatchEvent(new CustomEvent(SETTINGS_CHANGED_EVENT))
 }
 
-export async function getNamespace(ns: string): Promise<Record<string, unknown> | null> {
+/** Namespace reads still on the wire, so callers asking at once share one request. */
+const namespaceReadsInFlight = new Map<string, Promise<Record<string, unknown> | null>>()
+
+async function fetchNamespace(ns: string): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${BASE}/${ns}`)
     if (!res.ok) return null
@@ -23,6 +26,27 @@ export async function getNamespace(ns: string): Promise<Record<string, unknown> 
   }
 }
 
+/**
+ * Read one settings namespace, or null when it can't be read.
+ *
+ * Startup hydrates many stores in the same tick, each wanting the same
+ * namespace, so callers overlapping an unfinished read share its request. A
+ * read is never reused once it has finished, so nothing here goes stale. Each
+ * caller gets its own copy, as some keep or change what they are given.
+ */
+export async function getNamespace(ns: string): Promise<Record<string, unknown> | null> {
+  let namespaceRead = namespaceReadsInFlight.get(ns)
+  if (!namespaceRead) {
+    const startedRead = fetchNamespace(ns).finally(() => {
+      if (namespaceReadsInFlight.get(ns) === startedRead) namespaceReadsInFlight.delete(ns)
+    })
+    namespaceReadsInFlight.set(ns, startedRead)
+    namespaceRead = startedRead
+  }
+  const settings = await namespaceRead
+  return settings && structuredClone(settings)
+}
+
 export async function put(ns: string, key: string, value: unknown): Promise<void> {
   try {
     await fetch(`${BASE}/${ns}/${key}`, {
@@ -30,6 +54,8 @@ export async function put(ns: string, key: string, value: unknown): Promise<void
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ value }),
     })
+    // A read started before this write may not see it, so later readers start afresh.
+    namespaceReadsInFlight.delete(ns)
     notifySettingsChanged()
   } catch {}
 }
@@ -37,6 +63,7 @@ export async function put(ns: string, key: string, value: unknown): Promise<void
 export async function del(ns: string, key: string): Promise<void> {
   try {
     await fetch(`${BASE}/${ns}/${key}`, { method: 'DELETE' })
+    namespaceReadsInFlight.delete(ns)
     notifySettingsChanged()
   } catch {}
 }
