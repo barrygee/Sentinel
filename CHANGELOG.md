@@ -641,6 +641,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Answer 503 when core settings are unreachable
 - Keep the frequency search off other pages
 - Answer 413 for an oversized body
+- Separate grouped repeaters from zoom 10
 
 ### Chores
 
@@ -1795,6 +1796,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into chore/quick-component-cleanup
 - Merge remote-tracking branch 'origin/main' into chore/quick-component-cleanup
 - Merge pull request #591 from barrygee/chore/quick-component-cleanup
+- Merge pull request #593 from barrygee/fix/land-repeater-labels-sooner
 
 ### Performance
 
@@ -2162,6 +2164,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the known frequencies rename
 - Rebuild the bundle for the recordings subfolder removal
 - Rebuild the bundle for the dead CSS removal
+- Rebuild the bundle for the repeater zoom change
 
 ### Continuous Integration
 
