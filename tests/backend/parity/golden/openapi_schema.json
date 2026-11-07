@@ -5647,32 +5647,6 @@
         ]
       }
     },
-    "/api/sdr/recordings/location": {
-      "get": {
-        "description": "Where new recordings are saved (Settings › SDR › Recordings Folder shows it as the default).",
-        "operationId": "get_recordings_location_api_sdr_recordings_location_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "title": "Response Get Recordings Location Api Sdr Recordings Location Get",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Get Recordings Location",
-        "tags": [
-          "sdr"
-        ]
-      }
-    },
     "/api/sdr/recordings/start": {
       "post": {
         "description": "Create a pending recording row and (optionally) start server-side IQ capture.",
