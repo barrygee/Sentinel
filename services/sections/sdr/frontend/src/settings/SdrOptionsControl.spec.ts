@@ -17,7 +17,7 @@ import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 const ROW = {
   autoCenter: 0,
   displayBandPlan: 1,
-  showKnownFreqs: 2,
+  displayKnownFrequencies: 2,
   displayWaterfallTimestamps: 3,
   muteWhileDecoding: 4,
   recordRawIq: 5,
@@ -144,7 +144,7 @@ describe('SdrOptionsControl', () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
     expect(isOn(wrapper, ROW.displayBandPlan)).toBe(false)
-    expect(isOn(wrapper, ROW.showKnownFreqs)).toBe(true)
+    expect(isOn(wrapper, ROW.displayKnownFrequencies)).toBe(true)
   })
 
   it('switching an option off mirrors into the store immediately', async () => {
@@ -161,13 +161,13 @@ describe('SdrOptionsControl', () => {
 
   it('switching an option back on mirrors into the store', async () => {
     const sdr = useSdrStore()
-    sdr.setShowKnownFreqs(false)
+    sdr.setDisplayKnownFrequencies(false)
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    await switches(wrapper)[ROW.showKnownFreqs]!.trigger('click')
+    await switches(wrapper)[ROW.displayKnownFrequencies]!.trigger('click')
 
-    expect(sdr.showKnownFreqs).toBe(true)
-    expect(isOn(wrapper, ROW.showKnownFreqs)).toBe(true)
+    expect(sdr.displayKnownFrequencies).toBe(true)
+    expect(isOn(wrapper, ROW.displayKnownFrequencies)).toBe(true)
   })
 
   it('stages the write under the option’s own settings key', async () => {
@@ -182,7 +182,7 @@ describe('SdrOptionsControl', () => {
     [ROW.autoCenter, 'autoCenterWaterfallOnTune'],
     [ROW.snapToKnown, 'snapToKnown'],
     [ROW.displayBandPlan, 'displayBandPlan'],
-    [ROW.showKnownFreqs, 'showKnownFreqs'],
+    [ROW.displayKnownFrequencies, 'displayKnownFrequencies'],
     [ROW.displayWaterfallTimestamps, 'displayWaterfallTimestamps'],
     [ROW.muteWhileDecoding, 'muteAudioWhileDecoding'],
   ])('persists row %i as the %s setting', async (row, settingKey) => {
@@ -203,7 +203,7 @@ describe('SdrOptionsControl', () => {
     expect(sdr.autoCenterWaterfallOnTune).toBe(true)
     expect(sdr.snapToKnown).toBe(true)
     expect(sdr.displayBandPlan).toBe(true)
-    expect(sdr.showKnownFreqs).toBe(true)
+    expect(sdr.displayKnownFrequencies).toBe(true)
     expect(sdr.displayWaterfallTimestamps).toBe(true)
   })
 
@@ -242,13 +242,13 @@ describe('SdrOptionsControl', () => {
   it('ignores stored values that are not booleans', async () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({
       displayBandPlan: 'off',
-      showKnownFreqs: null,
+      displayKnownFrequencies: null,
     } as never)
     mount(SdrOptionsControl)
     await flushPromises()
     const sdr = useSdrStore()
     expect(sdr.displayBandPlan).toBe(true)
-    expect(sdr.showKnownFreqs).toBe(true)
+    expect(sdr.displayKnownFrequencies).toBe(true)
   })
 
   it('keeps local state when the namespace request returns nothing', async () => {
@@ -261,14 +261,16 @@ describe('SdrOptionsControl', () => {
   it('re-syncs when the config JSON editor uploads a new config', async () => {
     const wrapper = mount(SdrOptionsControl)
     await flushPromises()
-    expect(isOn(wrapper, ROW.showKnownFreqs)).toBe(true)
+    expect(isOn(wrapper, ROW.displayKnownFrequencies)).toBe(true)
 
-    vi.mocked(settingsApi.getNamespace).mockResolvedValue({ showKnownFreqs: false } as never)
+    vi.mocked(settingsApi.getNamespace).mockResolvedValue({
+      displayKnownFrequencies: false,
+    } as never)
     document.dispatchEvent(new Event('sentinel:config-uploaded'))
     await flushPromises()
 
-    expect(useSdrStore().showKnownFreqs).toBe(false)
-    expect(isOn(wrapper, ROW.showKnownFreqs)).toBe(false)
+    expect(useSdrStore().displayKnownFrequencies).toBe(false)
+    expect(isOn(wrapper, ROW.displayKnownFrequencies)).toBe(false)
   })
 
   it('stops re-syncing once unmounted', async () => {

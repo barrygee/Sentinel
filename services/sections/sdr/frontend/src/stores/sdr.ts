@@ -298,27 +298,28 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
-  function _readShowKnownFreqs(): boolean {
+  function _readDisplayKnownFrequencies(): boolean {
     try {
       return localStorage.getItem('sdrShowKnownFreqs') !== '0'
     } catch {
       return true
     }
   }
-  const showKnownFreqs = ref<boolean>(_readShowKnownFreqs())
-  function setShowKnownFreqs(on: boolean) {
-    showKnownFreqs.value = on
+  const displayKnownFrequencies = ref<boolean>(_readDisplayKnownFrequencies())
+  function setDisplayKnownFrequencies(on: boolean) {
+    displayKnownFrequencies.value = on
     try {
       localStorage.setItem('sdrShowKnownFreqs', on ? '1' : '0')
     } catch {}
   }
-  async function hydrateShowKnownFreqsFromDb(): Promise<void> {
+  async function hydrateDisplayKnownFrequenciesFromDb(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sdr')
       if (!res.ok) return
       const data = await res.json()
-      const v = data?.showKnownFreqs
-      if (typeof v === 'boolean' && v !== showKnownFreqs.value) setShowKnownFreqs(v)
+      const v = data?.displayKnownFrequencies
+      if (typeof v === 'boolean' && v !== displayKnownFrequencies.value)
+        setDisplayKnownFrequencies(v)
     } catch {
       /* offline / transient */
     }
@@ -1342,9 +1343,9 @@ export const useSdrStore = defineStore('sdr', () => {
     displayBandPlan,
     setDisplayBandPlan,
     hydrateDisplayBandPlanFromDb,
-    showKnownFreqs,
-    setShowKnownFreqs,
-    hydrateShowKnownFreqsFromDb,
+    displayKnownFrequencies,
+    setDisplayKnownFrequencies,
+    hydrateDisplayKnownFrequenciesFromDb,
     displayWaterfallTimestamps,
     setDisplayWaterfallTimestamps,
     hydrateDisplayWaterfallTimestampsFromDb,

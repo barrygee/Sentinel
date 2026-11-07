@@ -906,7 +906,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
       { id: 2, group_id: null, label: 'FarAway', frequency_hz: 500_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const markers = wrapper.findAll('.sdr-wf-known-marker')
@@ -929,7 +929,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_100_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const overlay = wrapper.find('.sdr-wf-known-overlay')
@@ -951,7 +951,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const dot = wrapper.find('.sdr-wf-known-marker-dot')
@@ -973,7 +973,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
 
@@ -1002,7 +1002,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-wf-known-marker-dot').trigger('click')
@@ -1023,7 +1023,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { id: 2, group_id: null, label: 'NEAR-B', frequency_hz: 100_020_000, mode: 'NFM' }, // ~20 px ⇒ merges
       { id: 3, group_id: null, label: 'APART', frequency_hz: 100_050_000, mode: 'NFM' }, // ~30 px further ⇒ separate
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const markers = wrapper.findAll('.sdr-wf-known-marker')
@@ -1044,7 +1044,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { id: 2, group_id: null, label: 'RAF-B', frequency_hz: 100_008_000, mode: 'AM' }, // ~8 px ⇒ merges
       { id: 3, group_id: null, label: 'LONE', frequency_hz: 100_600_000, mode: 'AM' }, // ~600 px ⇒ separate
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const markers = wrapper.findAll('.sdr-wf-known-marker')
@@ -1070,7 +1070,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { id: 1, group_id: null, label: 'TUNED-HERE', frequency_hz: 100_000_000, mode: 'AM' },
       { id: 2, group_id: null, label: 'ELSEWHERE', frequency_hz: 100_400_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     store.currentFreqHz = 100_000_500 // within KNOWN_TUNED_MATCH_HZ of marker 1
     await wrapper.vm.$nextTick()
@@ -1094,7 +1094,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const dot = wrapper.find('.sdr-wf-known-marker-dot')
@@ -1116,7 +1116,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
 
@@ -1129,7 +1129,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 7, group_id: null, label: 'TWR', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const dot = wrapper.find('.sdr-wf-known-marker-dot')
@@ -1149,7 +1149,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
       { id: 1, group_id: null, label: 'LEFT', frequency_hz: 100_000_000, mode: 'AM' },
       { id: 2, group_id: null, label: 'RIGHT', frequency_hz: 100_600_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const markers = wrapper.findAll('.sdr-wf-known-marker')
@@ -1169,7 +1169,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-wf-known-marker-dot').trigger('pointerenter', { pointerType: 'mouse' })
@@ -1185,7 +1185,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'TUNED-HERE', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     store.currentFreqHz = 100_000_000
     await wrapper.vm.$nextTick()
@@ -1210,7 +1210,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_300, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const style = wrapper.find('.sdr-wf-known-marker').attributes('style') ?? ''
@@ -1224,7 +1224,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     const tuneSpy = vi.spyOn(store, 'requestTune')
@@ -1250,7 +1250,7 @@ describe('SdrWaterfall — band plan & known-frequency overlays', () => {
     store.frequencies = [
       { id: 1, group_id: null, label: 'ATIS', frequency_hz: 100_000_000, mode: 'AM' },
     ]
-    store.setShowKnownFreqs(true)
+    store.setDisplayKnownFrequencies(true)
     await playWithFrame(store)
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-wf-known-marker-dot').trigger('click')
@@ -1329,7 +1329,7 @@ describe('SdrWaterfall — document & sidebar events', () => {
   it('re-hydrates overlay flags when a config upload event fires', async () => {
     const { store } = mountWaterfall()
     const bandSpy = vi.spyOn(store, 'hydrateDisplayBandPlanFromDb')
-    const knownSpy = vi.spyOn(store, 'hydrateShowKnownFreqsFromDb')
+    const knownSpy = vi.spyOn(store, 'hydrateDisplayKnownFrequenciesFromDb')
     const snapSpy = vi.spyOn(store, 'hydrateSnapToKnownFromDb')
     document.dispatchEvent(new CustomEvent('sentinel:config-uploaded'))
     expect(bandSpy).toHaveBeenCalled()

@@ -306,7 +306,7 @@ useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
 useDocumentEvent('sentinel:config-uploaded', () => {
   void store.hydrateSnapToKnownFromDb()
   void store.hydrateDisplayBandPlanFromDb()
-  void store.hydrateShowKnownFreqsFromDb()
+  void store.hydrateDisplayKnownFrequenciesFromDb()
   void store.hydrateDisplayWaterfallTimestampsFromDb()
   void store.hydrateWaterfallTimestampIntervalFromDb()
 })
@@ -728,7 +728,7 @@ useDocumentEvent('mousedown', (e: Event) => {
   if (openKnownKey.value === null || isKnownMarkerEvent(e)) return
   openKnownKey.value = null
 })
-watch([zoom, spanStartHz, spanEndHz, () => store.showKnownFreqs], () => {
+watch([zoom, spanStartHz, spanEndHz, () => store.displayKnownFrequencies], () => {
   openKnownKey.value = null
   hoveredKnownKey.value = null
 })
@@ -2772,7 +2772,7 @@ onMounted(() => {
   // the source of truth across machines).
   void store.hydrateSnapToKnownFromDb()
   void store.hydrateDisplayBandPlanFromDb()
-  void store.hydrateShowKnownFreqsFromDb()
+  void store.hydrateDisplayKnownFrequenciesFromDb()
   void store.hydrateDisplayWaterfallTimestampsFromDb()
   void store.hydrateWaterfallTimestampIntervalFromDb()
   // Defer until the fixed/flex container has resolved its real pixel size.
@@ -3296,7 +3296,7 @@ onBeforeUnmount(() => {
         >
       </div>
       <div
-        v-if="store.showKnownFreqs && visibleKnownFreqs.length > 0"
+        v-if="store.displayKnownFrequencies && visibleKnownFreqs.length > 0"
         class="sdr-wf-known-overlay"
         :style="knownFreqOverlayStyle"
       >
