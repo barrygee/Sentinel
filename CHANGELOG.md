@@ -707,6 +707,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the renamed setting labels
 - Commit the Air backend package's uv.lock
 - Trace greenlets so backend coverage counts route bodies
+- Remove the unused recordings subfolder code
 
 ### Reverts
 
@@ -1787,6 +1788,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #588 from barrygee/fix/gateway-oversized-upload-413
 - Merge remote-tracking branch 'origin/main' into refactor/display-known-frequencies
 - Merge pull request #589 from barrygee/refactor/display-known-frequencies
+- Merge remote-tracking branch 'origin/main' into chore/remove-recordings-subfolder
+- Merge remote-tracking branch 'origin/main' into chore/remove-recordings-subfolder
+- Merge pull request #590 from barrygee/chore/remove-recordings-subfolder
 
 ### Performance
 
@@ -2152,6 +2156,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the frequency add button
 - Rebuild the bundle for the frequency search
 - Rebuild the bundle for the known frequencies rename
+- Rebuild the bundle for the recordings subfolder removal
 
 ### Continuous Integration
 
