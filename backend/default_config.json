@@ -162,7 +162,7 @@
         "autoCenterWaterfallOnTune": true,
         "snapToKnown": true,
         "displayBandPlan": true,
-        "showKnownFreqs": true,
+        "displayKnownFrequencies": true,
         "digitalDecodeDefault": false,
         "muteAudioWhileDecoding": true,
         "displayWaterfallTimestamps": true,

@@ -483,8 +483,8 @@ class TestRawIqOverHttp:
         )
 
         assert hub_requests == []
-        # One read for the recordings folder, one for whether to record raw IQ.
-        assert core.reads() == ["/api/settings/sdr", "/api/settings/sdr"]
+        # One read, for whether to record raw IQ.
+        assert core.reads() == ["/api/settings/sdr"]
 
 
 class TestTheSeedersOverHttp:
@@ -578,7 +578,6 @@ SDR_PATHS = {
     "/api/sdr/data/frequencies",
     "/api/sdr/data/bandplan",
     "/api/sdr/recordings",
-    "/api/sdr/recordings/location",
     "/api/sdr/recordings/start",
     "/api/sdr/recordings/stop",
     "/api/sdr/recordings/{rec_id}",

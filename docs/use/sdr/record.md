@@ -9,7 +9,6 @@ Record what you hear as WAV, and optionally the raw signal (IQ) to re-tune later
 - **RECORDINGS** tab: play, **Download WAV**, **DOWNLOAD IQ**, add a note, filter by **NOTES · MODE**, delete.
 - **Satellite passes** record themselves from Space ([how](../space.md#catch-and-record-a-pass)).
 - **Safety stop**: a recording left running past **Max Recording Length** is stopped and marked failed.
-- **Folders**: sort new recordings into a subfolder, such as `satellites/noaa`.
 
 ![The RECORDINGS tab: recordings such as Club net 145.3375 MHz NFM with date, duration, size and notes, each with play, DOWNLOAD and, where raw IQ was saved, DOWNLOAD IQ.](../../images/sdr-recordings.png)
 

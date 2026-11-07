@@ -548,14 +548,6 @@
     ]
   },
   {
-    "path": "/api/sdr/recordings/location",
-    "type": "Route",
-    "name": "get_recordings_location",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
     "path": "/api/sdr/recordings",
     "type": "Route",
     "name": "list_recordings",

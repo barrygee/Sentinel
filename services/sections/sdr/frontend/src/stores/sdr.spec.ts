@@ -30,7 +30,7 @@ describe('sdr store', () => {
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.snapToKnown).toBe(true)
     expect(store.displayBandPlan).toBe(true)
-    expect(store.showKnownFreqs).toBe(true)
+    expect(store.displayKnownFrequencies).toBe(true)
     expect(store.resumeDelaySec).toBe(0)
     expect(store.viewZoom).toBe(1)
     expect(store.viewAutoScale).toBe(true)
@@ -45,7 +45,11 @@ describe('sdr store', () => {
     },
     { name: 'snapToKnown', lsKey: 'sdrSnapToKnown', read: (s) => s.snapToKnown },
     { name: 'displayBandPlan', lsKey: 'sdrShowBandPlan', read: (s) => s.displayBandPlan },
-    { name: 'showKnownFreqs', lsKey: 'sdrShowKnownFreqs', read: (s) => s.showKnownFreqs },
+    {
+      name: 'displayKnownFrequencies',
+      lsKey: 'sdrShowKnownFreqs',
+      read: (s) => s.displayKnownFrequencies,
+    },
     { name: 'viewAutoScale', lsKey: 'sdrViewAutoScale', read: (s) => s.viewAutoScale },
   ]
   it.each(boolReads)('reads $name as false when stored as "0"', ({ lsKey, read }) => {
@@ -61,7 +65,7 @@ describe('sdr store', () => {
     expect(store.autoCenterWaterfallOnTune).toBe(true)
     expect(store.snapToKnown).toBe(true)
     expect(store.displayBandPlan).toBe(true)
-    expect(store.showKnownFreqs).toBe(true)
+    expect(store.displayKnownFrequencies).toBe(true)
     expect(store.viewAutoScale).toBe(true)
     expect(store.resumeDelaySec).toBe(0)
   })
@@ -86,10 +90,10 @@ describe('sdr store', () => {
       read: (s) => s.displayBandPlan,
     },
     {
-      name: 'setShowKnownFreqs',
+      name: 'setDisplayKnownFrequencies',
       lsKey: 'sdrShowKnownFreqs',
-      apply: (s, on) => s.setShowKnownFreqs(on),
-      read: (s) => s.showKnownFreqs,
+      apply: (s, on) => s.setDisplayKnownFrequencies(on),
+      read: (s) => s.displayKnownFrequencies,
     },
   ]
   it.each(boolSetters)('$name updates the ref and persists', ({ lsKey, apply, read }) => {
@@ -166,10 +170,10 @@ describe('sdr store', () => {
       read: (s) => s.displayBandPlan,
     },
     {
-      name: 'showKnownFreqs',
-      dbKey: 'showKnownFreqs',
-      hydrate: (s) => s.hydrateShowKnownFreqsFromDb(),
-      read: (s) => s.showKnownFreqs,
+      name: 'displayKnownFrequencies',
+      dbKey: 'displayKnownFrequencies',
+      hydrate: (s) => s.hydrateDisplayKnownFrequenciesFromDb(),
+      read: (s) => s.displayKnownFrequencies,
     },
   ]
   it.each(hydrateBool)(
@@ -303,51 +307,6 @@ describe('sdr store', () => {
       vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
       await expect(store.hydrateRecordingMaxDurationFromDb()).resolves.toBeUndefined()
       expect(store.recordingMaxDurationMinutes).toBe(360)
-    })
-  })
-
-  describe('recordingsFolder', () => {
-    it('defaults to the recordings root (empty)', () => {
-      expect(useSdrStore().recordingsFolder).toBe('')
-    })
-    it('trims surrounding spaces on set', () => {
-      const store = useSdrStore()
-      store.setRecordingsFolder('  satellites/noaa ')
-      expect(store.recordingsFolder).toBe('satellites/noaa')
-    })
-    it('keeps nothing in localStorage: only the backend acts on it', () => {
-      const setItem = vi.spyOn(window.localStorage, 'setItem')
-      useSdrStore().setRecordingsFolder('noaa')
-      expect(setItem).not.toHaveBeenCalled()
-    })
-    it('hydrates the folder from the DB, including back to the root', async () => {
-      const store = useSdrStore()
-      stubFetch({ recordingsFolder: 'noaa' })
-      await store.hydrateRecordingsFolderFromDb()
-      expect(store.recordingsFolder).toBe('noaa')
-      stubFetch({ recordingsFolder: '' })
-      await store.hydrateRecordingsFolderFromDb()
-      expect(store.recordingsFolder).toBe('')
-    })
-    it.each([
-      ['not text', 7],
-      ['null', null],
-      ['missing', undefined],
-    ])('ignores a DB value that is %s', async (_case, folder) => {
-      const store = useSdrStore()
-      store.setRecordingsFolder('kept')
-      stubFetch({ recordingsFolder: folder })
-      await store.hydrateRecordingsFolderFromDb()
-      expect(store.recordingsFolder).toBe('kept')
-    })
-    it('ignores a non-ok response and a failed request', async () => {
-      const store = useSdrStore()
-      stubFetch({ recordingsFolder: 'noaa' }, false)
-      await store.hydrateRecordingsFolderFromDb()
-      expect(store.recordingsFolder).toBe('')
-      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-      await expect(store.hydrateRecordingsFolderFromDb()).resolves.toBeUndefined()
-      expect(store.recordingsFolder).toBe('')
     })
   })
 

@@ -300,6 +300,12 @@ class TestRenamedSettingsInADocument:
         assert await _value(session_factory, "sdr", "displayBandPlan") is False
         assert await _value(session_factory, "sdr", "showBandPlan") is None
 
+    async def test_an_old_known_frequencies_key_lands_on_the_new_one(self, session_factory):
+        async with session_factory() as session:
+            await apply_config(session, {"sdr": {"showKnownFreqs": False}})
+        assert await _value(session_factory, "sdr", "displayKnownFrequencies") is False
+        assert await _value(session_factory, "sdr", "showKnownFreqs") is None
+
     async def test_the_new_key_wins_when_a_document_has_both(self, session_factory):
         async with session_factory() as session:
             await apply_config(
