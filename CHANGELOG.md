@@ -640,6 +640,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep aircraft on the map when settings fail
 - Answer 503 when core settings are unreachable
 - Keep the frequency search off other pages
+- Answer 413 for an oversized body
 
 ### Chores
 
@@ -1783,6 +1784,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #585 from barrygee/feat/sdr-frequency-search
 - Merge remote-tracking branch 'origin/main' into fix/sdr-private-local-only
 - Merge pull request #587 from barrygee/fix/sdr-private-local-only
+- Merge pull request #588 from barrygee/fix/gateway-oversized-upload-413
+- Merge remote-tracking branch 'origin/main' into refactor/display-known-frequencies
+- Merge pull request #589 from barrygee/refactor/display-known-frequencies
 
 ### Performance
 
@@ -1888,6 +1892,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR Manager settings section
 - Rename remaining sentry identifiers
 - Make Aircraft Icons a plain two-option setting
+- Rename showKnownFreqs to displayKnownFrequencies
 
 ### Documentation
 
@@ -2146,6 +2151,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the visibility notes
 - Rebuild the bundle for the frequency add button
 - Rebuild the bundle for the frequency search
+- Rebuild the bundle for the known frequencies rename
 
 ### Continuous Integration
 
