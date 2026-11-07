@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { getNamespace } from '@sentinel/shell-api/services/settingsApi'
 import { usePersistedRef } from '@sentinel/shell-api/stores/_persist'
 
 /**
@@ -144,14 +145,9 @@ export const useThemeStore = defineStore('theme', () => {
 
   /** Re-read the basemap palette, preferring `app.mapTheme` over the flag. */
   async function hydrateMapThemeFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/app')
-      if (!res.ok) return
-      const data = await res.json()
-      hydrateMapTheme(data?.mapTheme, data?.lightMapTheme)
-    } catch {
-      /* offline / transient — localStorage already holds a usable value */
-    }
+    const data = await getNamespace('app')
+    if (!data) return
+    hydrateMapTheme(data.mapTheme, data.lightMapTheme)
   }
 
   return {

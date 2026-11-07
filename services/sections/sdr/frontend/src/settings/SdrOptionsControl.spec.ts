@@ -220,7 +220,7 @@ describe('SdrOptionsControl', () => {
     expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'displayBandPlan', false)
   })
 
-  it('adopts the stored values on mount, in one namespace fetch', async () => {
+  it('adopts the stored values on mount from the sdr namespace', async () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({
       snapToKnown: false,
       muteAudioWhileDecoding: false,
@@ -229,8 +229,9 @@ describe('SdrOptionsControl', () => {
     await flushPromises()
     const sdr = useSdrStore()
 
-    expect(settingsApi.getNamespace).toHaveBeenCalledTimes(1)
-    expect(settingsApi.getNamespace).toHaveBeenCalledWith('sdr')
+    // The nested number rows read it too; overlapping reads share one request.
+    const readNamespaces = vi.mocked(settingsApi.getNamespace).mock.calls.map(([ns]) => ns)
+    expect(new Set(readNamespaces)).toEqual(new Set(['sdr']))
     expect(sdr.snapToKnown).toBe(false)
     expect(sdr.muteAudioWhileDecoding).toBe(false)
     expect(isOn(wrapper, ROW.snapToKnown)).toBe(false)
@@ -294,14 +295,7 @@ describe('SdrOptionsControl', () => {
 
     beforeEach(() => {
       // The nested control hydrates its value straight from the settings API.
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ resumeDelaySec: 5 }) }),
-      )
-    })
-
-    afterEach(() => {
-      vi.unstubAllGlobals()
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue({ resumeDelaySec: 5 })
     })
 
     it('renders the interval as a number field, not a toggle', async () => {
@@ -359,14 +353,7 @@ describe('SdrOptionsControl', () => {
 
     beforeEach(() => {
       // The nested control hydrates its value straight from the settings API.
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ resumeDelaySec: 5 }) }),
-      )
-    })
-
-    afterEach(() => {
-      vi.unstubAllGlobals()
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue({ resumeDelaySec: 5 })
     })
 
     it('renders the delay as a number field, not an eighth toggle', async () => {
@@ -405,17 +392,7 @@ describe('SdrOptionsControl', () => {
     }
 
     beforeEach(() => {
-      vi.stubGlobal(
-        'fetch',
-        vi.fn().mockResolvedValue({
-          ok: true,
-          json: async () => ({ recordingMaxDurationMinutes: 240 }),
-        }),
-      )
-    })
-
-    afterEach(() => {
-      vi.unstubAllGlobals()
+      vi.mocked(settingsApi.getNamespace).mockResolvedValue({ recordingMaxDurationMinutes: 240 })
     })
 
     it('renders the stored length as a number field, not another toggle', async () => {

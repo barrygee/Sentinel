@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { getNamespace } from '@sentinel/shell-api/services/settingsApi'
 import type { SourceMode } from '@sentinel/shell-api/utils/sourceMode'
 
 /** The app-wide data-source mode (Settings › Connectivity Mode). */
@@ -38,14 +39,11 @@ export const useAppStore = defineStore('app', () => {
     } catch {}
   }
   async function hydrateNotificationSoundFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/app')
-      if (!res.ok) return
-      const data = await res.json()
-      const v = data?.notificationSound
-      if (typeof v === 'boolean' && v !== notificationSound.value) setNotificationSound(v)
-    } catch {
-      /* offline / transient */
+    const data = await getNamespace('app')
+    if (!data) return
+    const storedValue = data.notificationSound
+    if (typeof storedValue === 'boolean' && storedValue !== notificationSound.value) {
+      setNotificationSound(storedValue)
     }
   }
 
