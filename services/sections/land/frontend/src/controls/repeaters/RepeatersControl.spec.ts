@@ -120,8 +120,9 @@ function makeFakeMap() {
   return {
     getContainer: () => container,
     _container: container,
-    /** Default is above LABEL_REVEAL_ZOOM (9), so labels draw. */
-    zoom: 10,
+    /** Default is LABEL_REVEAL_ZOOM (9), below STACK_REVEAL_ZOOM (10), so labels
+     *  draw and sites sharing a cell still count. */
+    zoom: 9,
     /** Roughly the UK, so every fixture station is in view by default. */
     bounds: { west: -10, south: 49, east: 5, north: 61 },
     getZoom(): number {
@@ -419,7 +420,7 @@ describe('RepeatersControl', () => {
     map.zoom = 8
     map._emit('moveend')
     expect(clusterMarkers()).toHaveLength(1)
-    map.zoom = 11
+    map.zoom = 9
     map._emit('moveend')
     expect(clusterMarkers()).toHaveLength(0)
     expect(labelMarkers()).toHaveLength(1)
@@ -435,7 +436,7 @@ describe('RepeatersControl', () => {
     clusterMarkers()[0]?.element.dispatchEvent(clickEvent)
     expect(map.easeTo).toHaveBeenCalledWith({
       center: [0.25, 52],
-      zoom: 12, // current zoom + the click step
+      zoom: 11, // current zoom + the click step
       duration: 300,
     })
   })
@@ -488,7 +489,7 @@ describe('RepeatersControl', () => {
     it('keeps sharing a cell as a count below the stacking zoom', () => {
       stackedFixture()
       const { map } = addControl()
-      map.zoom = 11
+      map.zoom = 9
       map._emit('moveend')
       expect(clusterMarkers()).toHaveLength(1)
       expect(labelMarkers()).toHaveLength(0)
@@ -497,7 +498,7 @@ describe('RepeatersControl', () => {
     it('draws every site in the cell as its own label from the stacking zoom', () => {
       stackedFixture()
       const { map } = addControl()
-      map.zoom = 12
+      map.zoom = 10
       map._emit('moveend')
       expect(clusterMarkers()).toHaveLength(0)
       expect(labelMarkers()).toHaveLength(3)
@@ -506,7 +507,7 @@ describe('RepeatersControl', () => {
     it('pushes a label that would overprint the one above down by one pitch', () => {
       stackedFixture()
       const { map } = addControl()
-      map.zoom = 12
+      map.zoom = 10
       map._emit('moveend')
       // Same row → alphabetical: GB3A sits on the mast, GB7A one pitch (26 + 4)
       // below it, and GB3C — 20 px down of its own accord — is pushed to the
@@ -524,7 +525,7 @@ describe('RepeatersControl', () => {
         station({ callsign: 'GB3C', longitude: 0.1, latitude: 51.5 }),
       ]
       const { map } = addControl()
-      map.zoom = 12
+      map.zoom = 10
       map._emit('moveend')
       // 50 px below the first label — clear of its 30 px pitch, so no push.
       expect(labelFor('GB3C')?.offset).toEqual([-13, 0])
@@ -533,7 +534,7 @@ describe('RepeatersControl', () => {
     it('re-seats a reused pill when its place in the stack changes', async () => {
       stackedFixture()
       const { map } = addControl()
-      map.zoom = 12
+      map.zoom = 10
       map._emit('moveend')
       const before = labelFor('GB3C')
       expect(before?.offset).toEqual([-13, 40])
@@ -618,19 +619,19 @@ describe('RepeatersControl', () => {
     const { map } = addControl()
     locate('GB3A')
     // Neighbour 50 px away, 300 px of clearance needed → +log2(6) ≈ 2.6 zooms,
-    // but the stacking zoom (12) is as deep as a reveal ever needs to go.
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
+    // but the stacking zoom (10) is as deep as a reveal ever needs to go.
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 10, duration: 600 })
   })
 
   it('flies only as deep as the nearest neighbour needs, short of the stacking zoom', () => {
     repeatersStore.stations = [
       station({ callsign: 'GB3A', longitude: 0 }),
-      station({ callsign: 'GB3B', longitude: 1.5 }),
+      station({ callsign: 'GB3B', longitude: 3 }),
     ]
     const { map } = addControl()
     locate('GB3A')
-    // Neighbour 150 px away, 300 px of clearance needed → +log2(2) = 1 zoom.
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 11, duration: 600 })
+    // Neighbour 300 px away already meets the 300 px of clearance needed.
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 9, duration: 600 })
   })
 
   it('never zooms out below the current level to reveal a station', () => {
@@ -639,16 +640,17 @@ describe('RepeatersControl', () => {
       station({ callsign: 'GB3B', longitude: 10 }),
     ]
     const { map } = addControl()
+    // Already past the reveal cap, and its neighbour is 1000 px clear.
+    map.zoom = 11
     locate('GB3A')
-    // Its neighbour is already 1000 px clear, so the map stays where it is.
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 10, duration: 600 })
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 11, duration: 600 })
   })
 
   it('goes to the stacking zoom for a station with no plotted neighbour', () => {
     repeatersStore.stations = [station({ callsign: 'GB3A' })]
     const { map } = addControl()
     locate('GB3A')
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 10, duration: 600 })
   })
 
   it('goes to the stacking zoom for stations sharing a mast, where they are drawn apart', () => {
@@ -658,7 +660,7 @@ describe('RepeatersControl', () => {
     ]
     const { map } = addControl()
     locate('GB7A')
-    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 12, duration: 600 })
+    expect(map.flyTo).toHaveBeenCalledWith({ center: [0, 52], zoom: 10, duration: 600 })
   })
 
   it('ignores a locate request for a callsign the directory does not hold', () => {
