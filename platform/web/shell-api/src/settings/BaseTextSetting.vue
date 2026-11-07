@@ -24,7 +24,7 @@ interface BaseTextSettingProps {
   validate?: (text: string) => string | null
   /** Settings-API namespace this value is persisted under (e.g. `'sdr'`). */
   namespace: string
-  /** Settings-API key within `namespace` (e.g. `'recordingsFolder'`). */
+  /** Settings-API key within `namespace` (e.g. `'onlineUrl'`). */
   settingKey: string
   /** Re-hydrates the backing store from the DB; see `useStagedSetting`. */
   hydrateFromDb: () => Promise<void>

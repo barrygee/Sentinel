@@ -156,7 +156,6 @@ Profile `section`.
 | POST | `/api/sdr/data/frequencies` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
 | GET | `/api/sdr/data/bandplan` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/data/bandplan` | `browser` | `data_file_upload` | SDR: the frequency and band-plan data files. |
-| GET | `/api/sdr/recordings/location` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | GET | `/api/sdr/recordings` | `browser` | `default` | SDR: groups, frequencies, search ranges, band plan, recordings, where they are saved, and their files. |
 | POST | `/api/sdr/recordings/start` | `browser` | `radio_control` | SDR: starting a recording. |
 | POST | `/api/sdr/recordings/stop` | `browser` | `recording_upload` | SDR: stopping a recording, which uploads its WAV. |
@@ -290,6 +289,8 @@ Profile `sdr_manager_local`.
 | GET | `/api/sdr-manager/local/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
 | GET | `/api/sdr-manager/local/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
 | POST | `/api/sdr-manager/local/config` | `browser`, `peer`, `internal` | `data_file_upload` | SDR Manager (this machine): importing a config. |
+| GET | `/api/sdr-manager/local/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| PUT | `/api/sdr-manager/local/private-access` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | GET | `/api/openapi.json` | `operator` | `default` | API reference pages and schema: the operator's machine only. |
 | GET | `/api/health` | `browser`, `peer`, `internal`, `operator` | `health` | SDR Manager (this machine): health, at both mounts (the gateway's and other machines'). |
 | GET | `/api/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
@@ -320,3 +321,5 @@ Profile `sdr_manager_local`.
 | GET | `/api/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
 | GET | `/api/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
 | POST | `/api/config` | `browser`, `peer`, `internal` | `data_file_upload` | SDR Manager (this machine): importing a config. |
+| GET | `/api/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| PUT | `/api/private-access` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |

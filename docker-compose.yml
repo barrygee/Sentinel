@@ -436,12 +436,10 @@ services:
   # and stopped on the radio hub over NATS; when one stops this service copies
   # the file from the hub over HTTP into the recording's folder (P7.3).
   #
-  # New recordings (each one's WAV and raw IQ) are saved under /recordings, in
-  # the subfolder Settings › SDR › Recordings Folder names. /recordings is the
+  # New recordings (each one's WAV and raw IQ) are saved in /recordings: the
   # `sdr_recordings` volume, or the host folder SENTINEL_RECORDINGS_DIRECTORY
   # names in .env (e.g. ~/SentinelRecordings), so the files can be opened on
-  # this machine. Recordings saved before that setting existed stay in
-  # recordings/ on sdr_data and keep working.
+  # this machine. Older recordings stay where they were saved and keep working.
   sdr:
     <<: *section-service
     container_name: sentinel-sdr
@@ -459,8 +457,6 @@ services:
       DB_PATH: /app/data/sdr.db
       SERVICE_INTERNAL_URL: http://sdr:8000
       RECORDINGS_DIRECTORY: /recordings
-      # Shown in Settings as where recordings are saved; the service still uses /recordings.
-      RECORDINGS_HOST_DIRECTORY: ${SENTINEL_RECORDINGS_DIRECTORY:-sdr_recordings}
       # Handed to the runtime user on start, with the database volume.
       SENTINEL_WRITABLE_DIRECTORIES: /app/data /recordings
     command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
@@ -579,6 +575,8 @@ services:
       SENTINEL_CORE_URL: https://localhost:8443
       # Where the app and the gateway reach it: the host, from their bridge network.
       SERVICE_INTERNAL_URL: http://host.docker.internal:${SDR_MANAGER_LOCAL_HTTP_PORT:-8000}
+      # This Sentinel's radio hub reaches a private dongle from its compose network.
+      SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS: ${SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS:-${SENTINEL_NETWORK_SUBNET:-172.28.0.0/24}}
       # No event bus: it talks to core over HTTPS only (ADR 0007).
       NATS_URL: ""
       SERVICE_HTTP_CREDENTIALS_FILE: /run/service-credentials/http-credentials.json

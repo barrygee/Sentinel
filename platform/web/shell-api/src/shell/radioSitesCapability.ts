@@ -39,8 +39,8 @@ export interface RadioSiteDevice {
   deviceId: string
   name: string
   enabled: boolean
-  /** The host's operator marked it public (shareable). */
-  public: boolean
+  /** This Sentinel may use it: it's public, or its host allows this Sentinel. */
+  usable: boolean
 }
 
 /** The devices of every enabled host that answered. */

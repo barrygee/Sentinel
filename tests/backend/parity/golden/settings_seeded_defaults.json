@@ -119,6 +119,7 @@
     "defaultSquelch": -60,
     "digitalDecodeDefault": false,
     "displayBandPlan": true,
+    "displayKnownFrequencies": true,
     "displayWaterfallTimestamps": true,
     "enabled": true,
     "frequencies": [],
@@ -133,7 +134,6 @@
     "recordingMaxDurationMinutes": 360,
     "resumeDelaySec": 0,
     "searchRanges": [],
-    "showKnownFreqs": true,
     "snapToKnown": true,
     "waterfallTimestampIntervalSec": 5
   },

@@ -55,17 +55,26 @@ class TestBrowserServer:
             "request_body",
             "request_body",
         ]
-        assert all(route["handle"][0]["handler"] != "request_body" for route in self.routes()[2:])
+        assert all(
+            route["handle"][0]["handler"] != "request_body"
+            for route in self.routes()[2:]
+        )
 
     @pytest.mark.parametrize(
         "request_path",
         ["/api/settings/air", "/api/anything", "/", "/api/sdr/recordings"],
     )
-    def test_an_ordinary_path_gets_exactly_the_general_limit(self, request_path: str) -> None:
+    def test_an_ordinary_path_gets_exactly_the_general_limit(
+        self, request_path: str
+    ) -> None:
         assert limit_for_path(self.routes(), request_path) == [GENERAL_LIMIT_BYTES]
 
     def test_the_recording_upload_gets_exactly_one_larger_limit(self) -> None:
-        guard_limit = read_policy(DEFAULT_POLICY_PATH).route_groups["recording_upload"].max_request_bytes
+        guard_limit = (
+            read_policy(DEFAULT_POLICY_PATH)
+            .route_groups["recording_upload"]
+            .max_request_bytes
+        )
 
         assert limit_for_path(self.routes(), RECORDING_PATH) == [guard_limit]
 
@@ -78,13 +87,55 @@ class TestBrowserServer:
     [("caddy.json", "service_entrypoint"), ("radio-host-caddy.json", "radio_host")],
 )
 class TestServiceServers:
-    def test_the_first_route_limits_every_path(self, config_name: str, server_name: str) -> None:
+    def test_the_first_route_limits_every_path(
+        self, config_name: str, server_name: str
+    ) -> None:
         first_route = server_routes(config_name, server_name)[0]
 
         assert "match" not in first_route
         assert limit_of(first_route) == GENERAL_LIMIT_BYTES
 
     def test_no_later_route_raises_it(self, config_name: str, server_name: str) -> None:
-        later_handlers = [route["handle"][0]["handler"] for route in server_routes(config_name, server_name)[1:]]
+        later_handlers = [
+            route["handle"][0]["handler"]
+            for route in server_routes(config_name, server_name)[1:]
+        ]
 
         assert "request_body" not in later_handlers
+
+
+@pytest.mark.parametrize(
+    ("config_name", "server_name"),
+    [
+        ("caddy.json", "sentinel"),
+        ("caddy.json", "service_entrypoint"),
+        ("radio-host-caddy.json", "radio_host"),
+    ],
+)
+class TestAnOversizedBodyIsReportedAsOne:
+    """Every gateway error used to reach the catch-all, so a body over the limit read as a 503."""
+
+    def error_routes(self, config_name: str, server_name: str) -> list[dict]:
+        config = json.loads((GATEWAY_DIRECTORY / config_name).read_text())
+        return config["apps"]["http"]["servers"][server_name]["errors"]["routes"]
+
+    def test_the_first_error_route_answers_413_for_a_413(
+        self, config_name: str, server_name: str
+    ) -> None:
+        first_route = self.error_routes(config_name, server_name)[0]
+
+        assert first_route["match"] == [
+            {"expression": "{http.error.status_code} == 413"}
+        ]
+        assert first_route["handle"][0]["status_code"] == 413
+        assert json.loads(first_route["handle"][0]["body"]) == {
+            "detail": "Request body too large"
+        }
+
+    def test_every_other_error_still_answers_503(
+        self, config_name: str, server_name: str
+    ) -> None:
+        last_route = self.error_routes(config_name, server_name)[-1]
+
+        assert "match" not in last_route
+        assert last_route["handle"][0]["status_code"] == 503

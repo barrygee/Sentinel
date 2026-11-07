@@ -272,6 +272,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename the display settings and sort the options list
 - Show a connection test's result on its button
 - Remove the recordings folder setting
+- Enforce private dongles
+- Add the Private Access card
 - Draw the Hawk and F-35 as themselves
 - Remove the visibility notes
 - Add the tuned frequency from the readout
@@ -638,6 +640,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep aircraft on the map when settings fail
 - Answer 503 when core settings are unreachable
 - Keep the frequency search off other pages
+- Answer 413 for an oversized body
 
 ### Chores
 
@@ -704,6 +707,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the renamed setting labels
 - Commit the Air backend package's uv.lock
 - Trace greenlets so backend coverage counts route bodies
+- Remove the unused recordings subfolder code
 
 ### Reverts
 
@@ -1779,6 +1783,14 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #584 from barrygee/feat/sdr-quick-add-frequency
 - Merge remote-tracking branch 'origin/main' into feat/sdr-frequency-search
 - Merge pull request #585 from barrygee/feat/sdr-frequency-search
+- Merge remote-tracking branch 'origin/main' into fix/sdr-private-local-only
+- Merge pull request #587 from barrygee/fix/sdr-private-local-only
+- Merge pull request #588 from barrygee/fix/gateway-oversized-upload-413
+- Merge remote-tracking branch 'origin/main' into refactor/display-known-frequencies
+- Merge pull request #589 from barrygee/refactor/display-known-frequencies
+- Merge remote-tracking branch 'origin/main' into chore/remove-recordings-subfolder
+- Merge remote-tracking branch 'origin/main' into chore/remove-recordings-subfolder
+- Merge pull request #590 from barrygee/chore/remove-recordings-subfolder
 
 ### Performance
 
@@ -1884,6 +1896,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR Manager settings section
 - Rename remaining sentry identifiers
 - Make Aircraft Icons a plain two-option setting
+- Rename showKnownFreqs to displayKnownFrequencies
 
 ### Documentation
 
@@ -2137,10 +2150,13 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the host panel
 - Rebuild the bundle for the host form spacing
 - Rebuild the bundle for the recordings folder removal
+- Rebuild the bundle for the Private Access card
 - Rebuild the bundle for the Hawk and F-35 outlines
 - Rebuild the bundle for the visibility notes
 - Rebuild the bundle for the frequency add button
 - Rebuild the bundle for the frequency search
+- Rebuild the bundle for the known frequencies rename
+- Rebuild the bundle for the recordings subfolder removal
 
 ### Continuous Integration
 

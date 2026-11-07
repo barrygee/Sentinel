@@ -298,27 +298,28 @@ export const useSdrStore = defineStore('sdr', () => {
     }
   }
 
-  function _readShowKnownFreqs(): boolean {
+  function _readDisplayKnownFrequencies(): boolean {
     try {
       return localStorage.getItem('sdrShowKnownFreqs') !== '0'
     } catch {
       return true
     }
   }
-  const showKnownFreqs = ref<boolean>(_readShowKnownFreqs())
-  function setShowKnownFreqs(on: boolean) {
-    showKnownFreqs.value = on
+  const displayKnownFrequencies = ref<boolean>(_readDisplayKnownFrequencies())
+  function setDisplayKnownFrequencies(on: boolean) {
+    displayKnownFrequencies.value = on
     try {
       localStorage.setItem('sdrShowKnownFreqs', on ? '1' : '0')
     } catch {}
   }
-  async function hydrateShowKnownFreqsFromDb(): Promise<void> {
+  async function hydrateDisplayKnownFrequenciesFromDb(): Promise<void> {
     try {
       const res = await fetch('/api/settings/sdr')
       if (!res.ok) return
       const data = await res.json()
-      const v = data?.showKnownFreqs
-      if (typeof v === 'boolean' && v !== showKnownFreqs.value) setShowKnownFreqs(v)
+      const v = data?.displayKnownFrequencies
+      if (typeof v === 'boolean' && v !== displayKnownFrequencies.value)
+        setDisplayKnownFrequencies(v)
     } catch {
       /* offline / transient */
     }
@@ -460,28 +461,6 @@ export const useSdrStore = defineStore('sdr', () => {
         minutes !== recordingMaxDurationMinutes.value
       ) {
         setRecordingMaxDurationMinutes(minutes)
-      }
-    } catch {
-      /* offline / transient */
-    }
-  }
-
-  // Subfolder of the recordings root that new recordings (WAV + raw IQ) are
-  // saved in; '' = the root itself. Only the backend acts on it, so like the
-  // length limit it has no localStorage cache — the Settings control hydrates
-  // it from the DB.
-  const recordingsFolder = ref<string>('')
-  function setRecordingsFolder(folder: string) {
-    recordingsFolder.value = folder.trim()
-  }
-  async function hydrateRecordingsFolderFromDb(): Promise<void> {
-    try {
-      const res = await fetch('/api/settings/sdr')
-      if (!res.ok) return
-      const data = await res.json()
-      const folder = data?.recordingsFolder
-      if (typeof folder === 'string' && folder !== recordingsFolder.value) {
-        setRecordingsFolder(folder)
       }
     } catch {
       /* offline / transient */
@@ -1342,9 +1321,9 @@ export const useSdrStore = defineStore('sdr', () => {
     displayBandPlan,
     setDisplayBandPlan,
     hydrateDisplayBandPlanFromDb,
-    showKnownFreqs,
-    setShowKnownFreqs,
-    hydrateShowKnownFreqsFromDb,
+    displayKnownFrequencies,
+    setDisplayKnownFrequencies,
+    hydrateDisplayKnownFrequenciesFromDb,
     displayWaterfallTimestamps,
     setDisplayWaterfallTimestamps,
     hydrateDisplayWaterfallTimestampsFromDb,
@@ -1357,9 +1336,6 @@ export const useSdrStore = defineStore('sdr', () => {
     recordingMaxDurationMinutes,
     setRecordingMaxDurationMinutes,
     hydrateRecordingMaxDurationFromDb,
-    recordingsFolder,
-    setRecordingsFolder,
-    hydrateRecordingsFolderFromDb,
     viewZoom,
     viewZmin,
     viewZmax,

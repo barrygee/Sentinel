@@ -88,10 +88,10 @@ const OPTIONS: SdrOption[] = [
     mirrorToStore: sdrStore.setDisplayBandPlan,
   },
   {
-    settingKey: 'showKnownFreqs',
+    settingKey: 'displayKnownFrequencies',
     label: 'Display Known Frequencies',
-    readFromStore: () => sdrStore.showKnownFreqs,
-    mirrorToStore: sdrStore.setShowKnownFreqs,
+    readFromStore: () => sdrStore.displayKnownFrequencies,
+    mirrorToStore: sdrStore.setDisplayKnownFrequencies,
   },
   {
     settingKey: 'displayWaterfallTimestamps',

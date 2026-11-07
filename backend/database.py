@@ -254,6 +254,7 @@ _REMOVED_SETTING_PREFIXES: tuple[tuple[str, str], ...] = (
 # keeps the operator's value. Add an entry here for any setting renamed.
 RENAMED_SETTINGS: tuple[tuple[str, str, str], ...] = (
     ("sdr", "showBandPlan", "displayBandPlan"),
+    ("sdr", "showKnownFreqs", "displayKnownFrequencies"),
     ("sdr", "showWaterfallTimestamps", "displayWaterfallTimestamps"),
 )
 

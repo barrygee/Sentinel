@@ -9,10 +9,10 @@ instances, keeping the rest off the list entirely.
 
 **This route requires no authentication** (Sentry ADR-0010). Sentinel is a read-only
 consumer and holds no credential, so the `visibility` flag is the whole access
-control here — which makes it heavier than it was. "Private" used to mean "not
-exported to Sentinel"; it now means "not readable by anyone who can reach this
-Pi". Everything published here — name, host, port, description, notes, antenna —
-is readable by any client on the network.
+control here. A private device's stream is refused to other machines as well as
+left off this list (`services/private_access.py`). Everything published here —
+name, host, port, description, notes, antenna — is readable by any client on the
+network.
 
 That now includes `source.location`, this machine's position (Sentinel's Location setting).
 It rides here so a Sentinel gets *where* the SDR Manager is and *what* it has plugged

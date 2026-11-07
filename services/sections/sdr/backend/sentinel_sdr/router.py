@@ -49,7 +49,6 @@ from sentinel_sdr.models import (
 from sentinel_sdr.services.recording_folders import (
     folder_for_new_recording,
     iq_path,
-    recordings_location,
     wav_path,
 )
 from sentinel_sdr.services.sdr_data import write_sdr_frequencies_file
@@ -565,12 +564,6 @@ async def set_sdr_data_bandplan(body: dict, db: AsyncSession = Depends(get_db)):
     return JSONResponse({"status": "ok"})
 
 
-@router.get("/api/sdr/recordings/location")
-async def get_recordings_location() -> dict[str, str]:
-    """Where new recordings are saved (Settings › SDR › Recordings Folder shows it as the default)."""
-    return recordings_location()
-
-
 @router.get("/api/sdr/recordings")
 async def list_recordings(db: AsyncSession = Depends(get_db)):
     rows = (
@@ -607,8 +600,8 @@ async def start_recording(body: RecordingStartIn, db: AsyncSession = Depends(get
         iq_file_size_bytes=0,
         status="recording",
         created_at=now_ms(),
-        # Fixed now, so changing the recordings folder later never strands it.
-        directory=str(await folder_for_new_recording(db)),
+        # Fixed now, so moving the recordings root later never strands it.
+        directory=str(folder_for_new_recording()),
     )
     db.add(rec)
     await db.commit()

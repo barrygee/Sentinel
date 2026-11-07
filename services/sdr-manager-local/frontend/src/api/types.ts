@@ -241,3 +241,8 @@ export interface LocalConfigImportResult {
   console_password_detail: string
   generated_at: number
 }
+
+/** `GET`/`PUT /private-access`: who, besides this machine, may use private dongles. */
+export interface LocalPrivateAccess {
+  addresses: string[]
+}

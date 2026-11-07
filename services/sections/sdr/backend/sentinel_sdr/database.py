@@ -107,7 +107,7 @@ async def _backfill_added_columns(conn) -> None:
 
 def sdr_recordings_dir() -> Path:
     """`recordings/` next to the database: the default recordings root, and where every recording saved
-    before the recordings-folder settings lives (`services/recording_folders.py`)."""
+    before recordings remembered their folder lives (`services/recording_folders.py`)."""
     return Path(settings.db_path).parent / "recordings"
 
 

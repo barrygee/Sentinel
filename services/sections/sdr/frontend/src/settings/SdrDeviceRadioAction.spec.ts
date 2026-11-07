@@ -55,7 +55,7 @@ describe('SdrDeviceRadioAction', () => {
   it('offers ADD for an SDR that is not a radio yet, and asks to add it', async () => {
     const wrapper = mountAction()
     const add = wrapper.findComponent(SdrHostDeviceAddButton)
-    expect(add.props()).toEqual({ device: DEVICE, adding: false })
+    expect(add.props()).toEqual({ device: DEVICE, adding: false, mayUsePrivate: true })
     await wrapper.find('button').trigger('click')
     expect(wrapper.emitted('add')).toHaveLength(1)
     expect(wrapper.text()).not.toContain('ADDED')
@@ -105,7 +105,8 @@ describe('SdrDeviceRadioAction', () => {
     })
 
     it.each([
-      ['PRIVATE', { visibility: 'private' as const }],
+      // Private doesn't keep an SDR from its own machine.
+      ['ADDING…', { visibility: 'private' as const }],
       ['NOT SET UP', { output: null }],
     ])('has no ADD for an SDR that is not a radio, and says %s', (reason, overrides) => {
       const wrapper = mountAction({ device: { ...DEVICE, ...overrides }, autoAdd: true })
