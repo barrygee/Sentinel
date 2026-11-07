@@ -65,9 +65,10 @@ const CLUSTER_CLICK_ZOOM_STEP = 2
  *  grouping cell. Grid grouping is purely screen-space, and 500-odd directory
  *  entries share a mast (or a locator-rounded position) with another, so a
  *  count over those would never split however far the map zoomed. From here
- *  labels that would overprint are stacked vertically instead — a cell is
- *  ~3 km at this zoom, so a stack is one hilltop, not a whole town. */
-const STACK_REVEAL_ZOOM = 12
+ *  labels that would overprint are stacked vertically instead. A cell is ~7 km
+ *  at this zoom, so most stacks hold four sites or fewer, though the densest
+ *  reach a dozen. One level further out they would reach 19, about 570 px. */
+const STACK_REVEAL_ZOOM = 10
 
 /** Vertical pitch between stacked labels — the pill plus a hairline gap. */
 const STACK_PITCH_PX = MAP_LABEL_SIZE_PX + 4
@@ -171,7 +172,8 @@ export class RepeatersControl extends SentinelControlBase {
    * level at which that neighbour clears the grouping cell (with a cell of
    * margin, since grid cells group by boundary rather than by distance) is
    * computed directly — capped at `REVEAL_MAX_ZOOM`, where sites sharing a
-   * mast are stacked rather than counted, so it never needs to go deeper.
+   * mast are stacked rather than counted, so it never needs to go deeper. A
+   * map already past that cap stays where it is rather than pulling back out.
    */
   private _revealStation(callsign: string): void {
     const station = this._repeatersStore.stationByCallsign(callsign)
@@ -190,9 +192,9 @@ export class RepeatersControl extends SentinelControlBase {
       nearestPx > 0 && Number.isFinite(nearestPx)
         ? currentZoom + Math.log2(clearancePx / nearestPx)
         : REVEAL_MAX_ZOOM
-    const zoom = Math.min(
-      REVEAL_MAX_ZOOM,
-      Math.max(currentZoom, LABEL_REVEAL_ZOOM, Math.ceil(zoomToClear)),
+    const zoom = Math.max(
+      currentZoom,
+      Math.min(REVEAL_MAX_ZOOM, Math.max(LABEL_REVEAL_ZOOM, Math.ceil(zoomToClear))),
     )
     this.map.flyTo({ center, zoom, duration: 600 })
   }
