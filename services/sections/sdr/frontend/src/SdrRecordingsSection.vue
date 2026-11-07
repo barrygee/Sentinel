@@ -1071,7 +1071,7 @@ defineExpose({ reload })
   min-height: 24px;
 }
 
-/* Flat dark tooltip — matches .sdr-rail-btn / #radio-mini-btn. Drops below the
+/* Flat dark tooltip — matches .sdr-rail-btn. Drops below the
    button (the actions sit at the top of each recording row). The pill itself
    comes from BaseIconAction (tooltipSide="bottom"); these custom properties
    restyle its default black pill to this family's flat-navy look. */
