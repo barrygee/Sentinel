@@ -71,7 +71,7 @@ describe('SpaceSideMenu rail', () => {
     // No expand/collapse toggle on the rail.
     expect(wrapper.find('#space-side-menu-toggle').exists()).toBe(false)
     // Top-level rail buttons.
-    for (const label of ['Zoom in', 'Zoom out', 'Go to my location', 'MAP LAYERS']) {
+    for (const label of ['ZOOM IN', 'ZOOM OUT', 'GO TO MY LOCATION', 'MAP LAYERS']) {
       const button = wrapper.find(`button[data-tooltip="${label}"]`)
       expect(button.exists()).toBe(true)
       expect(button.attributes('aria-label')).toBeTruthy()
@@ -115,8 +115,8 @@ describe('SpaceSideMenu zoom buttons', () => {
   it('zooms the map in and out via the live map instance', async () => {
     const controls = makeControls()
     const wrapper = mountMenu(makeMapProxy(controls))
-    await wrapper.find('button[title="Zoom in"]').trigger('click')
-    await wrapper.find('button[title="Zoom out"]').trigger('click')
+    await wrapper.find('button[aria-label="Zoom in"]').trigger('click')
+    await wrapper.find('button[aria-label="Zoom out"]').trigger('click')
     expect(controls.map.zoomIn).toHaveBeenCalledTimes(1)
     expect(controls.map.zoomOut).toHaveBeenCalledTimes(1)
   })
@@ -124,32 +124,34 @@ describe('SpaceSideMenu zoom buttons', () => {
   it('is a no-op when the map instance is not yet available', async () => {
     const controls = makeControls()
     const wrapper = mountMenu(makeMapProxy(controls, false))
-    await wrapper.find('button[title="Zoom in"]').trigger('click')
+    await wrapper.find('button[aria-label="Zoom in"]').trigger('click')
     expect(controls.map.zoomIn).not.toHaveBeenCalled()
   })
 
   it('is a no-op when there is no map ref at all', async () => {
     const wrapper = mountMenu({ current: null })
-    await expect(wrapper.find('button[title="Zoom in"]').trigger('click')).resolves.toBeUndefined()
+    await expect(
+      wrapper.find('button[aria-label="Zoom in"]').trigger('click'),
+    ).resolves.toBeUndefined()
   })
 })
 
 describe('SpaceSideMenu location button', () => {
   it('is inactive without a fix and active with one', async () => {
     const wrapper = mountMenu(makeMapProxy(makeControls()))
-    const button = wrapper.find('button[title="Go to my location"]')
+    const button = wrapper.find('button[aria-label="Go to my location"]')
     expect(button.classes()).not.toContain('active')
 
     shared.locationRef!.value = { lon: 1, lat: 2 }
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('button[title="Go to my location"]').classes()).toContain('active')
+    expect(wrapper.find('button[aria-label="Go to my location"]').classes()).toContain('active')
   })
 
   it('dispatches space-go-to-location when clicked', async () => {
     const handler = vi.fn()
     document.addEventListener('space-go-to-location', handler)
     const wrapper = mountMenu(makeMapProxy(makeControls()))
-    await wrapper.find('button[title="Go to my location"]').trigger('click')
+    await wrapper.find('button[aria-label="Go to my location"]').trigger('click')
     expect(handler).toHaveBeenCalledTimes(1)
     document.removeEventListener('space-go-to-location', handler)
   })
