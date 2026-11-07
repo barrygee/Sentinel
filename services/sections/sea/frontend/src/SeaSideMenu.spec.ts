@@ -58,9 +58,9 @@ describe('SeaSideMenu', () => {
 
   it('offers the range ring and terrain under MAP LAYERS, wired and reflecting state', async () => {
     const { wrapper, props } = mountMenu({ rangeRingsActive: true, locationActive: true })
-    await wrapper.find('[aria-label="Range ring"]').trigger('click')
+    await wrapper.find('[aria-label="Range rings"]').trigger('click')
     expect(props.toggleRangeRings).toHaveBeenCalledOnce()
-    expect(wrapper.find('[aria-label="Range ring"]').classes()).toContain('active')
+    expect(wrapper.find('[aria-label="Range rings"]').classes()).toContain('active')
     expect(wrapper.find('[aria-label="Go to my location"]').classes()).toContain('active')
     // Vessel labels, ferry routes and ports are set in Settings > SEA > Map
     // Layers; live vessels and place names are always on at sea.
@@ -100,7 +100,7 @@ describe('SeaSideMenu', () => {
 
   it('shows the range ring as inactive when off', () => {
     const { wrapper } = mountMenu({ rangeRingsActive: false })
-    expect(wrapper.find('[aria-label="Range ring"]').classes()).not.toContain('active')
+    expect(wrapper.find('[aria-label="Range rings"]').classes()).not.toContain('active')
   })
 
   it('expands and collapses the layers accordion', async () => {

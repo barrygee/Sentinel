@@ -117,7 +117,7 @@ describe('AirSideMenu', () => {
         'ZOOM IN',
         'ZOOM OUT',
         'GO TO MY LOCATION',
-        'RANGE RING',
+        'RANGE RINGS',
         'A2A REFUELING',
         'AWACS',
         'MAP LAYERS',
@@ -171,7 +171,7 @@ describe('AirSideMenu', () => {
     })
 
     it('toggles the ring, refuelling and AWACS from the rail', async () => {
-      await wrapper.find(tip('RANGE RING')).trigger('click')
+      await wrapper.find(tip('RANGE RINGS')).trigger('click')
       await wrapper.find(tip('A2A REFUELING')).trigger('click')
       await wrapper.find(tip('AWACS')).trigger('click')
       expect(controls.rangeRings.handleClickPublic).toHaveBeenCalled()
@@ -275,7 +275,7 @@ describe('AirSideMenu', () => {
         'ZOOM IN',
         'ZOOM OUT',
         'GO TO MY LOCATION',
-        'RANGE RING',
+        'RANGE RINGS',
         'A2A REFUELING',
         'AWACS',
         'MAP LAYERS',
