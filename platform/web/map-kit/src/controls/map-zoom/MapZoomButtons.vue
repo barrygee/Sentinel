@@ -48,7 +48,7 @@ const emit = defineEmits<{ 'zoom-in': []; 'zoom-out': [] }>()
 }
 
 /* Each button carries the rail ground itself so the gap shows the map. Glyph
-   sizing is the rail's own +/− (`#side-menu .sm-btn.sm-glyph`). */
+   sizing is the rail's own +/− (`.map-side-rail .sm-btn.sm-glyph`). */
 .map-zoom-buttons-btn {
   --ba-rail-height: 30px;
   --ba-rail-bg: var(--map-bar-bg);

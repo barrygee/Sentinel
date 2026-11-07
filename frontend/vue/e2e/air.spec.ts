@@ -37,7 +37,7 @@ test.describe('Air domain', () => {
     await expect(layersButton).toHaveAttribute('aria-expanded', 'true')
     // A grouped overlay toggle is now revealed. The panel keeps only the few
     // worth flipping mid-task — the rest moved to Settings > Map Layers.
-    await expect(page.getByRole('button', { name: /^range ring$/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^range rings$/i })).toBeVisible()
 
     await layersButton.click()
     await expect(layersButton).toHaveAttribute('aria-expanded', 'false')
@@ -191,7 +191,7 @@ test.describe('Air domain', () => {
     await waitForShellHydration(page)
 
     await page.locator('#sm-layers-btn').click()
-    const rangeRingButton = page.locator('button[data-tooltip="RANGE RING"]')
+    const rangeRingButton = page.locator('button[data-tooltip="RANGE RINGS"]')
     await expect(rangeRingButton).toBeVisible()
 
     const zoomInTooltipDisplay = await page
