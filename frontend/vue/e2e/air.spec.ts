@@ -191,7 +191,7 @@ test.describe('Air domain', () => {
     await waitForShellHydration(page)
 
     await page.locator('#sm-layers-btn').click()
-    const rangeRingButton = page.locator('button[data-tooltip="RANGE RING"]')
+    const rangeRingButton = page.locator('button[data-tooltip="RANGE RINGS"]')
     await expect(rangeRingButton).toBeVisible()
 
     const zoomInTooltipDisplay = await page

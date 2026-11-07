@@ -269,7 +269,7 @@ test.describe('Space domain', () => {
     await expect(groundTrackButton).toBeVisible()
 
     const zoomInTooltipDisplay = await page
-      .locator('button[data-tooltip="Zoom in"]')
+      .locator('button[data-tooltip="ZOOM IN"]')
       .evaluate((button) => getComputedStyle(button, '::before').display)
     const groundTrackTooltipDisplay = await groundTrackButton.evaluate(
       (button) => getComputedStyle(button, '::before').display,
