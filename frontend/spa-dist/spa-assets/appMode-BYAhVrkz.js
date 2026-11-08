@@ -1,1 +1,0 @@
-var e=[`full`,`sdr-manager-local-only`];export{e as APP_MODES};
