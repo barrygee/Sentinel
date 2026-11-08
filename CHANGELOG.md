@@ -642,6 +642,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the frequency search off other pages
 - Answer 413 for an oversized body
 - Separate grouped repeaters from zoom 10
+- Keep map-kit modules out of merged chunks
 
 ### Chores
 
@@ -1802,11 +1803,13 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #592 from barrygee/refactor/map-side-rail
 - Merge remote-tracking branch 'origin/main' into perf/share-settings-reads
 - Merge pull request #594 from barrygee/perf/share-settings-reads
+- Merge pull request #595 from barrygee/perf/fewer-js-files
 
 ### Performance
 
 - Cache and compress the bundle and drop the hidden map
 - Share overlapping namespace reads
+- Merge shared package modules into two chunks
 
 ### Refactoring
 
@@ -2175,6 +2178,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the repeater zoom change
 - Rebuild the bundle for the shared map rail
 - Rebuild the bundle for the shared settings reads
+- Rebuild bundle with merged shared chunks
+- Rebuild bundle with map-kit modules unmerged
 
 ### Continuous Integration
 
