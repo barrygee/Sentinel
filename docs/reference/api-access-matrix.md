@@ -27,7 +27,7 @@ Profile `core`.
 | GET | `/api/settings` | `browser`, `internal` | `default` | Settings: the SPA, and every section through the settings client (no credential). |
 | GET | `/api/settings/config/preview` | `browser` | `default` | Config file preview and the live file's status (polled every 2 s). |
 | POST | `/api/settings/config/upload` | `browser` | `config_upload` | Config file upload (Settings › Upload). |
-| GET | `/api/settings/config/file-status` | `browser` | `default` | Config file preview and the live file's status (polled every 2 s). |
+| GET | `/api/settings/config/file-status` | `browser` | `default` | Config file preview and the live file's status (polled every 5 s by visible tabs only). |
 | GET | `/api/settings/{namespace}` | `browser`, `internal` | `default` | Settings: the SPA, and every section through the settings client (no credential). |
 | PUT | `/api/settings/{namespace}/{key}` | `browser`, `internal` | `settings_write` | Writing a setting: the SPA, and sections through the settings client. |
 | DELETE | `/api/settings/{namespace}/{key}` | `browser`, `internal` | `body_free_action` | Resetting a setting to its default (no body). |
