@@ -7,7 +7,7 @@
 # `npm run X -w <folder>` only matches workspaces directly below <folder>, so
 # it cannot reach services/sections/*/frontend; globbing here means a new
 # package is picked up without editing this list. Packages without the script
-# are skipped (web-config has no tests).
+# are skipped.
 #
 # Usage: npm run web-packages -- <script>     e.g. npm run web-packages -- lint
 set -euo pipefail

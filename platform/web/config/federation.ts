@@ -222,6 +222,86 @@ const SHARE_TABLE_ID_MARKER = 'virtual:mf-localSharedImportMap'
 const MAP_SHARE_ENTRY =
   /("(?:@sentinel\/map-kit\/[^"]+|maplibre-gl)":\s*\{[^{}]*?materialize:\s*)true\b/g
 
+/** Marks the federation plugin's share wrapper module for MapLibre. */
+const MAPLIBRE_WRAPPER_ID_MARKER = '__loadShare__maplibre_mf_2_gl__loadShare__'
+
+/**
+ * The chunk that holds the code of every `@sentinel/ui` and
+ * `@sentinel/shell-api` module. Left alone, each module is a file of its own,
+ * about 250 JS and 47 CSS requests on every page, most of them under 4 KB. Each
+ * module keeps its own share wrapper, so sections still reach one instance of
+ * it; only the code behind the wrappers is merged. `lazy/` modules stay out so
+ * the code editor keeps loading on demand.
+ *
+ * Map-kit is left as one file per module. SDR Manager-only mode loads a few of
+ * its map-free helpers (`utils/locationUtils`), and a merged map-kit chunk would
+ * bring MapLibre in with them.
+ */
+const SHARED_CORE_CHUNK = 'shared-core'
+
+/** The packages whose code {@link SHARED_CORE_CHUNK} holds. */
+const SHARED_CORE_SOURCE_PATHS = [
+  SHARED_PACKAGES['@sentinel/ui'],
+  SHARED_PACKAGES['@sentinel/shell-api'],
+] as const
+
+/**
+ * Map-kit's own code, its share wrappers, or MapLibre or its share wrapper:
+ * what a map-free boot must not load.
+ */
+function isMapModule(moduleId: string): boolean {
+  return (
+    moduleId.includes(`${SHARED_PACKAGES['@sentinel/map-kit']}/src/`) ||
+    moduleId.includes(MAP_KIT_WRAPPER_ID_MARKER) ||
+    moduleId.includes('/node_modules/maplibre-gl/') ||
+    moduleId.includes(MAPLIBRE_WRAPPER_ID_MARKER)
+  )
+}
+
+/** The parts of a built chunk {@link assertSharedCoreHasNoMap} reads. */
+export interface BuiltChunk {
+  type: 'chunk' | 'asset'
+  name?: string
+  fileName: string
+  moduleIds?: readonly string[]
+  imports?: readonly string[]
+}
+
+/**
+ * Fails the shell's build if the {@link SHARED_CORE_CHUNK} chunk holds map
+ * code, or statically imports a chunk that does at any depth. Every mode loads
+ * that chunk at startup, so map code reached from it would load in SDR
+ * Manager-only mode too (ADR 0007). Dynamic imports are allowed: they load only
+ * when called.
+ *
+ * @param bundle The build's output, keyed by file name.
+ * @throws If the chunk is missing, or names the first map module it reaches.
+ */
+export function assertSharedCoreHasNoMap(bundle: Record<string, BuiltChunk>): void {
+  const chunks = Object.values(bundle).filter((output) => output.type === 'chunk')
+  const sharedCore = chunks.find((chunk) => chunk.name === SHARED_CORE_CHUNK)
+  if (sharedCore === undefined) {
+    throw new Error(`lazyMapSharesPlugin: the build has no ${SHARED_CORE_CHUNK} chunk`)
+  }
+  const visited = new Set<string>()
+  const pending = [sharedCore.fileName]
+  while (pending.length > 0) {
+    const fileName = pending.pop() as string
+    if (visited.has(fileName)) continue
+    visited.add(fileName)
+    const chunk = bundle[fileName]
+    if (chunk === undefined) continue
+    const mapModule = chunk.moduleIds?.find(isMapModule)
+    if (mapModule !== undefined) {
+      throw new Error(
+        `lazyMapSharesPlugin: ${SHARED_CORE_CHUNK} reaches map code (${mapModule} in ` +
+          `${fileName}), so SDR Manager-only mode would load the map`,
+      )
+    }
+    pending.push(...(chunk.imports ?? []))
+  }
+}
+
 /** The federation plugin's own chunk group: the one whose `name` is a function, at its priority. */
 const FEDERATION_GROUP_PRIORITY = 1_000_000
 
@@ -254,6 +334,10 @@ interface ChunkGroup {
  *   imports get a chunk of their own, claimed first: otherwise they could land
  *   in a map-kit wrapper's chunk, which every other wrapper would then import.
  *
+ * It also merges ui and shell-api code into {@link SHARED_CORE_CHUNK}, and
+ * fails the build if that chunk reaches map code
+ * ({@link assertSharedCoreHasNoMap}).
+ *
  * It must come after {@link shellFederationPlugin}. A build in which either
  * piece of the plugin's output can't be found fails, rather than quietly
  * loading the map in every mode again (e.g. after a plugin upgrade).
@@ -284,6 +368,14 @@ export function lazyMapSharesPlugin(): Plugin {
         if (!chunkName || !moduleId.includes(MAP_KIT_WRAPPER_ID_MARKER)) return chunkName
         return /([^/\\]+__loadShare__[^/\\]+)/.exec(moduleId)?.[1] ?? chunkName
       }
+      groups.push({
+        name: SHARED_CORE_CHUNK,
+        test: (moduleId) =>
+          SHARED_CORE_SOURCE_PATHS.some((sourcePath) => moduleId.includes(`${sourcePath}/src/`)) &&
+          !moduleId.includes('/lazy/'),
+        // Below every other group, so a module another group claims stays there.
+        priority: Math.min(...groups.map((group) => group.priority ?? 0)) - 1,
+      })
       groups.unshift({
         name: 'mf-share-helpers',
         test: (moduleId) => moduleId.includes(SHARE_HELPERS_ID_MARKER),
@@ -306,6 +398,9 @@ export function lazyMapSharesPlugin(): Plugin {
       if (!error && !shareTableSeen) {
         throw new Error("lazyMapSharesPlugin: the federation plugin's share table never loaded")
       }
+    },
+    generateBundle(_options, bundle) {
+      assertSharedCoreHasNoMap(bundle as Record<string, BuiltChunk>)
     },
   }
 }
