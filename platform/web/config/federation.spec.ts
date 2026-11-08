@@ -7,6 +7,10 @@ const SHELL_API_MODULE = '/repo/platform/web/shell-api/src/services/settingsApi.
 const MAP_KIT_MODULE = '/repo/platform/web/map-kit/src/utils/mapStyle.ts'
 const MAPLIBRE_MODULE = '/repo/node_modules/maplibre-gl/dist/maplibre-gl.js'
 const VUE_MODULE = '/repo/node_modules/vue/dist/vue.runtime.esm-bundler.js'
+const MAPLIBRE_WRAPPER =
+  '\0virtual:mf___mfe_internal__sentinel_shell__mf_owner__1__loadShare__maplibre_mf_2_gl__loadShare__.js'
+const MAP_KIT_WRAPPER =
+  '\0virtual:mf___mfe_internal__sentinel_shell__mf_owner__1__loadShare___mf_0_sentinel_mf_1_map_mf_2_kit_mf_1_utils_mf_1_locationUtils__loadShare__.js'
 
 /** A built JS chunk with the given name, modules and static imports. */
 function chunk(
@@ -31,7 +35,7 @@ describe('assertSharedCoreHasNoMap', () => {
       }),
       chunk('vue.js', { name: 'vue', moduleIds: [VUE_MODULE] }),
       // Map code nothing imports statically, as a dynamic import would leave it.
-      chunk('shared-map.js', { name: 'shared-map', moduleIds: [MAP_KIT_MODULE, MAPLIBRE_MODULE] }),
+      chunk('MapLibreMap.js', { moduleIds: [MAP_KIT_MODULE, MAPLIBRE_MODULE] }),
     )
 
     expect(() => assertSharedCoreHasNoMap(bundle)).not.toThrow()
@@ -65,6 +69,18 @@ describe('assertSharedCoreHasNoMap', () => {
     )
 
     expect(() => assertSharedCoreHasNoMap(bundle)).toThrow(MAPLIBRE_MODULE)
+  })
+
+  it.each([
+    ['MapLibre', MAPLIBRE_WRAPPER],
+    ['a map-kit module', MAP_KIT_WRAPPER],
+  ])('fails when shared-core imports the share wrapper of %s', (_label, wrapperId) => {
+    const bundle = bundleOf(
+      chunk('shared-core.js', { name: 'shared-core', imports: ['wrapper.js'] }),
+      chunk('wrapper.js', { moduleIds: [wrapperId] }),
+    )
+
+    expect(() => assertSharedCoreHasNoMap(bundle)).toThrow(`(${wrapperId} in wrapper.js)`)
   })
 
   it('fails when a chunk shared-core imports two levels down holds map code', () => {
@@ -137,35 +153,29 @@ describe('lazyMapSharesPlugin chunk groups', () => {
     )
   })
 
-  it('puts ui and shell-api code in shared-core, and map-kit only in shared-map', () => {
-    const groups = configureGroups([federationGroup()])
-    const sharedCore = groupNamed(groups, 'shared-core')
-    const sharedMap = groupNamed(groups, 'shared-map')
+  it('puts ui and shell-api code in shared-core', () => {
+    const sharedCore = groupNamed(configureGroups([federationGroup()]), 'shared-core')
 
     expect(sharedCore.test?.(UI_MODULE)).toBe(true)
     expect(sharedCore.test?.(SHELL_API_MODULE)).toBe(true)
-    expect(sharedCore.test?.(MAP_KIT_MODULE)).toBe(false)
-    expect(sharedMap.test?.(MAP_KIT_MODULE)).toBe(true)
-    expect(sharedMap.test?.(UI_MODULE)).toBe(false)
   })
 
-  it('leaves out lazy modules, files outside src/ and other packages', () => {
+  it('leaves out map-kit, lazy modules, files outside src/ and other packages', () => {
     const groups = configureGroups([federationGroup()])
     const sharedCore = groupNamed(groups, 'shared-core')
-    const sharedMap = groupNamed(groups, 'shared-map')
 
+    // Map-kit stays one file per module: SDR Manager-only mode loads some of them.
+    expect(sharedCore.test?.(MAP_KIT_MODULE)).toBe(false)
+    expect(groups.filter((group) => group.test?.(MAP_KIT_MODULE))).toEqual([])
     expect(sharedCore.test?.('/repo/platform/web/ui/src/lazy/CodeEditor.vue')).toBe(false)
-    expect(sharedMap.test?.('/repo/platform/web/map-kit/src/lazy/Heavy.ts')).toBe(false)
     expect(sharedCore.test?.('/repo/platform/web/ui/package.json')).toBe(false)
     expect(sharedCore.test?.(VUE_MODULE)).toBe(false)
-    expect(sharedMap.test?.(MAPLIBRE_MODULE)).toBe(false)
   })
 
-  it('ranks both groups below every existing group, shared-core first', () => {
+  it('ranks shared-core below every existing group', () => {
     const groups = configureGroups([federationGroup(), { name: 'vendor', priority: -3 }, {}])
 
     expect(groupNamed(groups, 'shared-core').priority).toBe(-4)
-    expect(groupNamed(groups, 'shared-map').priority).toBe(-5)
   })
 
   it('runs the shared-core guard on the finished bundle', () => {

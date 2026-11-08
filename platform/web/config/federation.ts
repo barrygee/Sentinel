@@ -222,30 +222,39 @@ const SHARE_TABLE_ID_MARKER = 'virtual:mf-localSharedImportMap'
 const MAP_SHARE_ENTRY =
   /("(?:@sentinel\/map-kit\/[^"]+|maplibre-gl)":\s*\{[^{}]*?materialize:\s*)true\b/g
 
+/** Marks the federation plugin's share wrapper module for MapLibre. */
+const MAPLIBRE_WRAPPER_ID_MARKER = '__loadShare__maplibre_mf_2_gl__loadShare__'
+
 /**
- * Chunks that hold the shared packages' module bodies. Left alone, each module
- * is a file of its own, about 250 JS and 47 CSS requests on every page, most of
- * them under 4 KB. Each module keeps its own share wrapper, so sections still
- * reach one instance of it; only the code behind the wrappers is merged. Map-kit
- * has its own chunk so SDR Manager-only mode never downloads it, and `lazy/`
- * modules stay out so the code editor keeps loading on demand.
+ * The chunk that holds the code of every `@sentinel/ui` and
+ * `@sentinel/shell-api` module. Left alone, each module is a file of its own,
+ * about 250 JS and 47 CSS requests on every page, most of them under 4 KB. Each
+ * module keeps its own share wrapper, so sections still reach one instance of
+ * it; only the code behind the wrappers is merged. `lazy/` modules stay out so
+ * the code editor keeps loading on demand.
+ *
+ * Map-kit is left as one file per module. SDR Manager-only mode loads a few of
+ * its map-free helpers (`utils/locationUtils`), and a merged map-kit chunk would
+ * bring MapLibre in with them.
  */
-const SHARED_MODULE_CHUNKS = [
-  {
-    name: 'shared-core',
-    sourcePaths: [SHARED_PACKAGES['@sentinel/ui'], SHARED_PACKAGES['@sentinel/shell-api']],
-  },
-  { name: 'shared-map', sourcePaths: [SHARED_PACKAGES['@sentinel/map-kit']] },
+const SHARED_CORE_CHUNK = 'shared-core'
+
+/** The packages whose code {@link SHARED_CORE_CHUNK} holds. */
+const SHARED_CORE_SOURCE_PATHS = [
+  SHARED_PACKAGES['@sentinel/ui'],
+  SHARED_PACKAGES['@sentinel/shell-api'],
 ] as const
 
-/** The chunk SDR Manager-only mode boots from, which must never reach the map. */
-const SHARED_CORE_CHUNK = SHARED_MODULE_CHUNKS[0].name
-
-/** A module of map-kit's own code or of MapLibre: what a map-free boot must not load. */
+/**
+ * Map-kit's own code, its share wrappers, or MapLibre or its share wrapper:
+ * what a map-free boot must not load.
+ */
 function isMapModule(moduleId: string): boolean {
   return (
     moduleId.includes(`${SHARED_PACKAGES['@sentinel/map-kit']}/src/`) ||
-    moduleId.includes('/node_modules/maplibre-gl/')
+    moduleId.includes(MAP_KIT_WRAPPER_ID_MARKER) ||
+    moduleId.includes('/node_modules/maplibre-gl/') ||
+    moduleId.includes(MAPLIBRE_WRAPPER_ID_MARKER)
   )
 }
 
@@ -325,8 +334,8 @@ interface ChunkGroup {
  *   imports get a chunk of their own, claimed first: otherwise they could land
  *   in a map-kit wrapper's chunk, which every other wrapper would then import.
  *
- * It also merges the shared packages' code into {@link SHARED_MODULE_CHUNKS}, and
- * fails the build if the map-free one reaches map code
+ * It also merges ui and shell-api code into {@link SHARED_CORE_CHUNK}, and
+ * fails the build if that chunk reaches map code
  * ({@link assertSharedCoreHasNoMap}).
  *
  * It must come after {@link shellFederationPlugin}. A build in which either
@@ -359,15 +368,13 @@ export function lazyMapSharesPlugin(): Plugin {
         if (!chunkName || !moduleId.includes(MAP_KIT_WRAPPER_ID_MARKER)) return chunkName
         return /([^/\\]+__loadShare__[^/\\]+)/.exec(moduleId)?.[1] ?? chunkName
       }
-      const lowestPriority = Math.min(...groups.map((group) => group.priority ?? 0))
-      SHARED_MODULE_CHUNKS.forEach(({ name, sourcePaths }, index) => {
-        groups.push({
-          name,
-          test: (moduleId) =>
-            sourcePaths.some((sourcePath) => moduleId.includes(`${sourcePath}/src/`)) &&
-            !moduleId.includes('/lazy/'),
-          priority: lowestPriority - 1 - index,
-        })
+      groups.push({
+        name: SHARED_CORE_CHUNK,
+        test: (moduleId) =>
+          SHARED_CORE_SOURCE_PATHS.some((sourcePath) => moduleId.includes(`${sourcePath}/src/`)) &&
+          !moduleId.includes('/lazy/'),
+        // Below every other group, so a module another group claims stays there.
+        priority: Math.min(...groups.map((group) => group.priority ?? 0)) - 1,
       })
       groups.unshift({
         name: 'mf-share-helpers',
