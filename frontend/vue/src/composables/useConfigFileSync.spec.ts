@@ -138,3 +138,116 @@ describe('useConfigFileSync', () => {
     wrapper.unmount()
   })
 })
+
+/** Make the document report `visibility` and tell listeners, as the browser does on a tab switch. */
+function setTabVisibility(visibility: DocumentVisibilityState): void {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => visibility })
+  document.dispatchEvent(new Event('visibilitychange'))
+}
+
+describe('useConfigFileSync tab visibility', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.mocked(getConfigFileStatus).mockReset()
+    vi.mocked(getConfigFileStatus).mockResolvedValue(status(0))
+  })
+
+  afterEach(() => {
+    // Drop the own-property override so jsdom's real getter shows through again.
+    Reflect.deleteProperty(document, 'visibilityState')
+    vi.useRealTimers()
+  })
+
+  it('polls a visible tab every 5 seconds, not faster', async () => {
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(4999)
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(2)
+    expect(CONFIG_FILE_POLL_INTERVAL_MS).toBe(5000)
+    wrapper.unmount()
+  })
+
+  it('never polls a tab that opens hidden', async () => {
+    setTabVisibility('hidden')
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 3)
+    expect(getConfigFileStatus).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('stops polling once the tab is hidden', async () => {
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    setTabVisibility('hidden')
+    const callsWhenHidden = vi.mocked(getConfigFileStatus).mock.calls.length
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 3)
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(callsWhenHidden)
+    wrapper.unmount()
+  })
+
+  it('checks at once when a hidden tab is shown, then resumes the 5 s poll', async () => {
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    setTabVisibility('hidden')
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 2)
+    const callsBeforeShown = vi.mocked(getConfigFileStatus).mock.calls.length
+    setTabVisibility('visible')
+    // The check is immediate: no timer has advanced since the tab was shown.
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(callsBeforeShown + 1)
+    await nextPoll()
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(callsBeforeShown + 2)
+    wrapper.unmount()
+  })
+
+  it('applies an edit made while the tab was hidden as soon as it is shown', async () => {
+    const onEdit = vi.fn()
+    const wrapper = mountSync(onEdit)
+    await flushPromises()
+    setTabVisibility('hidden')
+    vi.mocked(getConfigFileStatus).mockResolvedValue(status(6000))
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 2)
+    expect(onEdit).not.toHaveBeenCalled()
+    setTabVisibility('visible')
+    await flushPromises()
+    expect(onEdit).toHaveBeenCalledOnce()
+    wrapper.unmount()
+  })
+
+  it('does not start a second poll when told the tab is visible again', async () => {
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    setTabVisibility('visible')
+    // No extra immediate check, and still one request per interval, not two.
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(1)
+    await nextPoll()
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('treats a repeated hidden event as a no-op and still resumes when shown', async () => {
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    setTabVisibility('hidden')
+    setTabVisibility('hidden')
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 2)
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(1)
+    setTabVisibility('visible')
+    expect(getConfigFileStatus).toHaveBeenCalledTimes(2)
+    wrapper.unmount()
+  })
+
+  it('stops following tab visibility after unmount', async () => {
+    setTabVisibility('hidden')
+    const wrapper = mountSync(vi.fn())
+    await flushPromises()
+    wrapper.unmount()
+    // A listener left behind would restart polling here.
+    setTabVisibility('visible')
+    await vi.advanceTimersByTimeAsync(CONFIG_FILE_POLL_INTERVAL_MS * 2)
+    expect(getConfigFileStatus).not.toHaveBeenCalled()
+  })
+})

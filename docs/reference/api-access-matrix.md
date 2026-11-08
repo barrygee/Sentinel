@@ -25,9 +25,9 @@ Profile `core`.
 | DELETE | `/api/air/messages/{msg_id}` | `browser` | `body_free_action` | Notifications: list, raise from the SPA, dismiss. |
 | DELETE | `/api/air/messages` | `browser` | `body_free_action` | Notifications: list, raise from the SPA, dismiss. |
 | GET | `/api/settings` | `browser`, `internal` | `default` | Settings: the SPA, and every section through the settings client (no credential). |
-| GET | `/api/settings/config/preview` | `browser` | `default` | Config file preview and the live file's status (polled every 2 s). |
+| GET | `/api/settings/config/preview` | `browser` | `default` | Config file preview and the live file's status (which visible tabs poll every 5 s). |
 | POST | `/api/settings/config/upload` | `browser` | `config_upload` | Config file upload (Settings › Upload). |
-| GET | `/api/settings/config/file-status` | `browser` | `default` | Config file preview and the live file's status (polled every 2 s). |
+| GET | `/api/settings/config/file-status` | `browser` | `default` | Config file preview and the live file's status (which visible tabs poll every 5 s). |
 | GET | `/api/settings/{namespace}` | `browser`, `internal` | `default` | Settings: the SPA, and every section through the settings client (no credential). |
 | PUT | `/api/settings/{namespace}/{key}` | `browser`, `internal` | `settings_write` | Writing a setting: the SPA, and sections through the settings client. |
 | DELETE | `/api/settings/{namespace}/{key}` | `browser`, `internal` | `body_free_action` | Resetting a setting to its default (no body). |

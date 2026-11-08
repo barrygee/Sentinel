@@ -394,7 +394,7 @@
             "group": "config_upload"
         },
         {
-            "note": "Config file preview and the live file's status (polled every 2 s).",
+            "note": "Config file preview and the live file's status (which visible tabs poll every 5 s).",
             "paths": ["/api/settings/config/preview", "/api/settings/config/file-status"],
             "methods": ["GET"],
             "access": ["browser"]
