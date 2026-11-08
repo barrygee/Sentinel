@@ -1804,12 +1804,14 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into perf/share-settings-reads
 - Merge pull request #594 from barrygee/perf/share-settings-reads
 - Merge pull request #595 from barrygee/perf/fewer-js-files
+- Merge pull request #596 from barrygee/perf/file-status-poll
 
 ### Performance
 
 - Cache and compress the bundle and drop the hidden map
 - Share overlapping namespace reads
 - Merge shared package modules into two chunks
+- Poll the config file status only from visible tabs
 
 ### Refactoring
 
@@ -1977,6 +1979,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - SDR Manager guides and .env recipes
 - Regenerate the API access matrix (status route listed first)
 - Folded cards and the badge-free header
+- Describe the config status poll in the policy, not the matrix
 
 ### Tests
 
@@ -2180,6 +2183,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the shared settings reads
 - Rebuild bundle with merged shared chunks
 - Rebuild bundle with map-kit modules unmerged
+- Rebuild the bundle for the visible-tab config file poll
 
 ### Continuous Integration
 
