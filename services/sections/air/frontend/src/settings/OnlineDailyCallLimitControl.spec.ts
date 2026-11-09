@@ -98,7 +98,7 @@ describe('OnlineDailyCallLimitControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.emitted('stage')).toHaveLength(1)
   })
 

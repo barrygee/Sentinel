@@ -32,7 +32,7 @@ describe('SdrRecordingMaxDurationControl', () => {
     const wrapper = mount(SdrRecordingMaxDurationControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('360')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('accepts a valid value, mirrors it into the store, and stages the write', async () => {
@@ -58,7 +58,7 @@ describe('SdrRecordingMaxDurationControl', () => {
     const wrapper = mount(SdrRecordingMaxDurationControl)
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(useSdrStore().recordingMaxDurationMinutes).toBe(360)
   })
@@ -75,7 +75,7 @@ describe('SdrRecordingMaxDurationControl', () => {
     const wrapper = mount(SdrRecordingMaxDurationControl)
     await flushPromises()
     await wrapper.find('input').setValue('')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(settingsApi.put).not.toHaveBeenCalled()
   })

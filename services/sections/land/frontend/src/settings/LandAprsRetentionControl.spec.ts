@@ -25,7 +25,7 @@ describe('LandAprsRetentionControl', () => {
     const wrapper = mount(LandAprsRetentionControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('5')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('accepts a value, mirrors it into the store, and stages the write', async () => {
@@ -44,7 +44,7 @@ describe('LandAprsRetentionControl', () => {
     const wrapper = mount(LandAprsRetentionControl)
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 

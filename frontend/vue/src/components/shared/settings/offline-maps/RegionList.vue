@@ -99,7 +99,7 @@ watch(
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
+  color: rgba(var(--ink-rgb), 0.6); /* matches the Settings field captions (AA) */
 }
 
 /* Focusable only programmatically (WCAG-legitimate: it is the fallback focus

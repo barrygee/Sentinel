@@ -338,11 +338,10 @@
 }
 
 /* ── Location & data-source labelled inputs ───────────────────────── */
-/* The location fields deliberately mirror the SDR host's SDR host Location panel:
-   label above a full-width underlined input, with its range hint (or its
-   validation error) beneath, LAT stacked over LON. The card itself spans two
-   grid columns (see SettingRow's HALF_TYPES) — the fields stay stacked and
-   full-width across it rather than pairing up, keeping the SDR host's reading order. */
+/* The location fields mirror the SDR host's Location panel: label above an
+   underlined input, with its range hint (or its validation error) beneath. The
+   field itself is BaseTextField's `settings` density; what stays here is the
+   card around it, and the hint and error lines other cards reuse. */
 .settings-location-wrap {
   display: flex;
   flex-direction: column;
@@ -378,63 +377,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 24px;
   max-width: 464px;
-}
-
-.settings-location-field {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.settings-location-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  /* 60% ink rather than --ink-secondary's 55%: at 9px the lighter grey measures
-     4.0:1 on this panel, below the 4.5:1 AA minimum; 60% gives 4.7:1. */
-  color: rgba(var(--ink-rgb), 0.6);
-  text-transform: uppercase;
-  user-select: none;
-}
-
-.settings-location-input {
-  /* A coordinate is ~10 characters; a full-card-width rule reads as an empty
-     text field rather than a number, so the underline stops where the value
-     plausibly ends. */
-  width: 100%;
-  max-width: 220px;
-  background: none;
-  border: none;
-  border-radius: 0;
-  padding: 6px 0 8px;
-  color: var(--ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-value);
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line);
-  transition: box-shadow 0.15s;
-  outline: none;
-  caret-color: var(--ink-strong);
-  min-width: 0;
-}
-
-.settings-location-input:focus {
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-
-/* Rejected value keeps its red underline even once focus has moved on, so the
-   error text below it is anchored to a field that still looks wrong. */
-.settings-location-input--invalid,
-.settings-location-input--invalid:focus {
-  box-shadow: inset 0 -2px 0 var(--danger);
-}
-
-.settings-location-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.38);
-  letter-spacing: 0.1em;
+  /* The fields are BaseTextFields. A coordinate is ~10 characters; a
+     full-column rule reads as an empty text field rather than a number, so the
+     underline stops where the value plausibly ends. */
+  --ba-text-field-max-width: 220px;
 }
 
 .settings-location-hint {

@@ -5,20 +5,17 @@
     <p v-if="errorText" class="settings-location-notice" role="alert">{{ errorText }}</p>
 
     <div class="settings-location-fields sea-key-fields">
-      <div class="settings-location-field">
-        <label class="settings-location-label" :for="keyInputId">API KEY</label>
-        <input
-          :id="keyInputId"
-          v-model="keyDraft"
-          type="password"
-          class="settings-location-input sea-key-input"
-          :disabled="keyLocked"
-          spellcheck="false"
-          autocomplete="off"
-          @input="onInput"
-          @keydown.enter="emit('commit')"
-        />
-      </div>
+      <BaseTextField
+        v-model="keyDraft"
+        density="settings"
+        label="API KEY"
+        input-type="password"
+        :disabled="keyLocked"
+        spellcheck="false"
+        autocomplete="off"
+        @input="onInput"
+        @keydown.enter="emit('commit')"
+      />
     </div>
 
     <!-- One action: GET a key while none is saved, FORGET it once one is. A
@@ -51,8 +48,9 @@
  * server's `.env`), plus a short fingerprint so one key can be told from
  * another.
  */
-import { ref, computed, onMounted, useId } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import * as seaApi from '../services/seaApi'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 
@@ -60,8 +58,6 @@ const emit = defineEmits<{
   stage: [fn: () => Promise<unknown> | void]
   commit: []
 }>()
-
-const keyInputId = useId()
 
 const keyDraft = ref('')
 const errorText = ref<string | null>(null)
@@ -146,10 +142,8 @@ function stageForget(): void {
   grid-template-columns: minmax(0, 1fr);
   /* The same measure as the data-source URL field above it. */
   max-width: var(--settings-control-measure);
-}
-/* A key is ~40 characters, not a coordinate: the whole measure, not the
-   location card's 220px rule. */
-.sea-key-input {
-  max-width: 100%;
+  /* A key is ~40 characters, not a coordinate: the whole measure, not the
+     location card's 220px rule. */
+  --ba-text-field-max-width: 100%;
 }
 </style>

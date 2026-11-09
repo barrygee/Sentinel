@@ -108,9 +108,98 @@ describe('BaseFormField', () => {
     expect(mountField().classes()).toContain('ba-form-field--panel')
   })
 
+  it('applies the settings density when asked', () => {
+    const wrapper = mountField({ density: 'settings' })
+    expect(wrapper.classes()).toContain('ba-form-field--settings')
+    expect(wrapper.classes()).not.toContain('ba-form-field--panel')
+  })
+
+  it('shows the hint under the control and names it as the description', () => {
+    const wrapper = mountField({ controlId: 'lat', hint: 'Decimal degrees.' })
+    const hintLine = wrapper.get('.ba-form-field__hint')
+    expect(hintLine.text()).toBe('Decimal degrees.')
+    expect(hintLine.attributes('id')).toBe('lat-hint')
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('lat-hint')
+    expect(wrapper.get('input').element.nextElementSibling).toBe(hintLine.element)
+  })
+
+  it('treats an undefined hint as no hint', () => {
+    const wrapper = mountField({ hint: undefined })
+    expect(wrapper.find('.ba-form-field__hint').exists()).toBe(false)
+    expect(wrapper.get('input').attributes('aria-describedby')).toBeUndefined()
+  })
+
+  it('swaps the hint for the error while there is one, and back once it clears', async () => {
+    const wrapper = mountField({
+      controlId: 'lat',
+      hint: 'Decimal degrees.',
+      error: 'Out of range',
+    })
+    expect(wrapper.find('.ba-form-field__hint').exists()).toBe(false)
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('lat-error')
+    await wrapper.setProps({ error: '' })
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
+    expect(wrapper.get('.ba-form-field__hint').text()).toBe('Decimal degrees.')
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('lat-hint')
+  })
+
+  it('marks the control invalid without a message when invalid is set', () => {
+    const wrapper = mountField({ invalid: true, hint: 'Decimal degrees.', controlId: 'lat' })
+    expect(wrapper.get('input').attributes('aria-invalid')).toBe('true')
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
+    // With no message to point at, the hint still explains the field.
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('lat-hint')
+  })
+
+  it('renders no caption when the label is left out', () => {
+    const wrapper = mount(BaseFormField, {
+      slots: {
+        default: (slotProps: FieldSlotProps) =>
+          h('input', { id: slotProps.controlId, 'aria-label': 'Radius' }),
+      },
+    })
+    expect(wrapper.find('label').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__label').exists()).toBe(false)
+  })
+
+  it('renders no group caption when the label is left out', () => {
+    const wrapper = mountField({ label: '', labelKind: 'group' })
+    expect(wrapper.find('.ba-form-field__label').exists()).toBe(false)
+  })
+
+  it('keeps an alert error line mounted and empty while valid, then fills it', async () => {
+    const wrapper = mountField({ controlId: 'path', errorAlert: true })
+    const errorLine = wrapper.get('.ba-form-field__error')
+    expect(errorLine.attributes('role')).toBe('alert')
+    expect(errorLine.text()).toBe('')
+    expect(wrapper.get('input').attributes('aria-describedby')).toBeUndefined()
+    expect(wrapper.get('input').attributes('aria-invalid')).toBeUndefined()
+
+    await wrapper.setProps({ error: 'Not a folder' })
+    // The same element, so the live region existed before its text changed.
+    expect(wrapper.get('.ba-form-field__error').element).toBe(errorLine.element)
+    expect(errorLine.text()).toBe('Not a folder')
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('path-error')
+  })
+
+  it('gives an ordinary error line no alert role', () => {
+    expect(
+      mountField({ error: 'Required' }).get('.ba-form-field__error').attributes('role'),
+    ).toBeUndefined()
+  })
+
   it('has no accessibility violations, valid or invalid', async () => {
     expect(await axe(mountField().element)).toHaveNoViolations()
     expect(await axe(mountField({ error: 'Required' }).element)).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations in the settings density, with a hint or an alert error', async () => {
+    expect(
+      await axe(mountField({ density: 'settings', hint: 'Decimal degrees.' }).element),
+    ).toHaveNoViolations()
+    expect(
+      await axe(mountField({ density: 'settings', errorAlert: true, error: 'Bad' }).element),
+    ).toHaveNoViolations()
   })
 
   it('has no accessibility violations as a group caption', async () => {

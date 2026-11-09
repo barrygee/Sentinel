@@ -84,7 +84,7 @@ function onInput(event: Event): void {
   font-size: var(--settings-text-caption);
   font-weight: 600;
   letter-spacing: 0.16em;
-  color: rgba(var(--ink-rgb), 0.6); /* matches .settings-location-label (AA) */
+  color: rgba(var(--ink-rgb), 0.6); /* matches the Settings field captions (AA) */
 }
 
 .oma-depth-picker :deep(.sdr-slider-val) {

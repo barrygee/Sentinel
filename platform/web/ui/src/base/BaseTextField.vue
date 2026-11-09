@@ -22,21 +22,35 @@ const model = defineModel<FieldValue>({ required: true })
 
 withDefaults(
   defineProps<{
-    /** The visible caption above the input. */
-    label: string
+    /** The visible caption above the input. Omit it only when the input has an `aria-label`. */
+    label?: string
     /** The validation message to show under the input; empty or omitted for none. */
     error?: string | undefined
+    /** Guidance under the input while there is no error; see `BaseFormField`. */
+    hint?: string | undefined
+    /** Marks the input invalid without a message; see `BaseFormField`. */
+    invalid?: boolean
+    /** Announces the error line as it changes; see `BaseFormField`. */
+    errorAlert?: boolean
     /** The input's id, for callers whose specs or CSS address it. Generated when omitted. */
     inputId?: string | undefined
     /** The native input type. Ignored when `multiline`. */
     inputType?: 'text' | 'number' | 'url' | 'password' | 'search'
     /** Renders a textarea instead of an input. */
     multiline?: boolean
-    /** The visual treatment; see `BaseFormField`. */
-    density?: 'panel'
+    /**
+     * The visual treatment; see `BaseFormField`. The `settings` input sizes
+     * itself from `--ba-text-field-width`, `--ba-text-field-max-width` and
+     * `--ba-text-field-align`, set on the field or an ancestor.
+     */
+    density?: 'panel' | 'settings'
   }>(),
   {
     error: '',
+    hint: '',
+    invalid: false,
+    label: '',
+    errorAlert: false,
     inputId: undefined,
     inputType: 'text',
     multiline: false,
@@ -62,10 +76,13 @@ defineExpose({
 
 <template>
   <BaseFormField
-    v-slot="{ controlId, describedBy, invalid }"
+    v-slot="{ controlId, describedBy, invalid: showsInvalid }"
     v-bind="wrapperAttrs"
     :label="label"
     :error="error"
+    :hint="hint"
+    :invalid="invalid"
+    :error-alert="errorAlert"
     :control-id="inputId"
     :density="density"
   >
@@ -76,8 +93,11 @@ defineExpose({
       v-model="model"
       v-bind="inputAttrs"
       class="ba-text-field__input ba-text-field__input--multiline"
-      :class="[`ba-text-field__input--${density}`, { 'ba-text-field__input--invalid': invalid }]"
-      :aria-invalid="invalid || undefined"
+      :class="[
+        `ba-text-field__input--${density}`,
+        { 'ba-text-field__input--invalid': showsInvalid },
+      ]"
+      :aria-invalid="showsInvalid || undefined"
       :aria-describedby="describedBy"
     ></textarea>
     <input
@@ -88,8 +108,11 @@ defineExpose({
       v-bind="inputAttrs"
       :type="inputType"
       class="ba-text-field__input"
-      :class="[`ba-text-field__input--${density}`, { 'ba-text-field__input--invalid': invalid }]"
-      :aria-invalid="invalid || undefined"
+      :class="[
+        `ba-text-field__input--${density}`,
+        { 'ba-text-field__input--invalid': showsInvalid },
+      ]"
+      :aria-invalid="showsInvalid || undefined"
       :aria-describedby="describedBy"
     />
   </BaseFormField>
@@ -143,6 +166,41 @@ defineExpose({
   box-shadow:
     inset 0 0 0 1px var(--sev-error),
     0 0 0 1px rgba(var(--sev-error-rgb), 0.35);
+}
+
+/* settings: the Settings panel's field — no fill, the value written on a
+   hairline rule that thickens to the accent on focus and turns red when the
+   value is rejected, staying red after focus moves on so the error under it is
+   anchored to a field that still looks wrong. */
+.ba-text-field__input--settings {
+  width: var(--ba-text-field-width, 100%);
+  max-width: var(--ba-text-field-max-width, none);
+  min-width: 0;
+  padding: 6px 0 8px;
+  border-radius: 0;
+  background: none;
+  box-shadow: inset 0 -1px 0 var(--settings-field-line, var(--rule));
+  color: var(--ink);
+  caret-color: var(--ink-strong);
+  font-size: var(--settings-text-value);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-align: var(--ba-text-field-align, left);
+  transition: box-shadow 0.15s;
+}
+.ba-text-field__input--settings:focus {
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+.ba-text-field__input--settings.ba-text-field__input--invalid {
+  box-shadow: inset 0 -2px 0 var(--danger);
+}
+.ba-text-field__input--settings::placeholder {
+  color: rgba(var(--ink-rgb), 0.38);
+  letter-spacing: 0.1em;
+}
+.ba-text-field__input--settings:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 @media (prefers-reduced-motion: reduce) {

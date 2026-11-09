@@ -41,9 +41,9 @@ function expectNoStatusLine(wrapper: ReturnType<typeof mountControl>): void {
   expect(wrapper.text()).not.toContain('Last set')
 }
 const errorTexts = (wrapper: ReturnType<typeof mountControl>) =>
-  wrapper.findAll('.settings-location-error').map((node) => node.text())
+  wrapper.findAll('.ba-form-field__error').map((node) => node.text())
 const hintTexts = (wrapper: ReturnType<typeof mountControl>) =>
-  wrapper.findAll('.settings-location-hint').map((node) => node.text())
+  wrapper.findAll('.ba-form-field__hint').map((node) => node.text())
 /**
  * The staged save this control last emitted for APPLY CHANGES.
  *
@@ -638,7 +638,7 @@ describe('LocationControl', () => {
       expect(labels[0]!.attributes('for')).toBe(fields.lat.attributes('id'))
       expect(labels[1]!.attributes('for')).toBe(fields.lon.attributes('id'))
       expect(fields.lat.attributes('aria-describedby')).toBe(
-        wrapper.findAll('.settings-location-hint')[0]!.attributes('id'),
+        wrapper.findAll('.ba-form-field__hint')[0]!.attributes('id'),
       )
     })
 
@@ -649,7 +649,7 @@ describe('LocationControl', () => {
       await fields.lat.setValue('200')
       await fields.lat.trigger('blur')
       expect(fields.lat.attributes('aria-describedby')).toBe(
-        wrapper.find('.settings-location-error').attributes('id'),
+        wrapper.find('.ba-form-field__error').attributes('id'),
       )
     })
   })

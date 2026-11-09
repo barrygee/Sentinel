@@ -229,7 +229,7 @@ function onRadiusBlur(locationId: string): void {
 }
 
 /* Sized to a two- or three-digit distance, and underlined like every other
-   typed value in this panel (SettingsPanel.css `.settings-location-input`). */
+   typed value in this panel (BaseTextField's `settings` density). */
 .overhead-alerts-radius-input {
   width: 56px;
   background: none;

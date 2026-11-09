@@ -4,21 +4,18 @@
     <p v-if="errorText" class="settings-location-notice" role="alert">{{ errorText }}</p>
 
     <div class="settings-location-fields sea-coverage-fields">
-      <div v-for="edge in EDGES" :key="edge.key" class="settings-location-field">
-        <label class="settings-location-label" :for="inputIds[edge.key]">{{ edge.label }}</label>
-        <input
-          :id="inputIds[edge.key]"
-          v-model="drafts[edge.key]"
-          type="text"
-          inputmode="decimal"
-          class="settings-location-input"
-          :class="{ 'settings-location-input--invalid': errorText !== null }"
-          :aria-invalid="errorText !== null"
-          :placeholder="edge.placeholder"
-          spellcheck="false"
-          @input="onInput"
-        />
-      </div>
+      <BaseTextField
+        v-for="edge in EDGES"
+        :key="edge.key"
+        v-model="drafts[edge.key]"
+        density="settings"
+        :label="edge.label"
+        :invalid="errorText !== null"
+        inputmode="decimal"
+        :placeholder="edge.placeholder"
+        spellcheck="false"
+        @input="onInput"
+      />
     </div>
 
     <div class="settings-location-actions sea-coverage-actions">
@@ -41,8 +38,9 @@
  * one watchdog tick of the write. Only a single box is edited here — the
  * setting itself allows several, for a config uploaded by hand.
  */
-import { ref, computed, onMounted, reactive, useId } from 'vue'
+import { ref, computed, onMounted, reactive } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useSeaStore } from '../stores/sea'
 
@@ -58,12 +56,6 @@ const EDGES: { key: EdgeKey; label: string; placeholder: string }[] = [
 ]
 const WORLD: Record<EdgeKey, string> = { south: '-90', west: '-180', north: '90', east: '180' }
 
-const inputIds: Record<EdgeKey, string> = {
-  south: useId(),
-  west: useId(),
-  north: useId(),
-  east: useId(),
-}
 const drafts = reactive<Record<EdgeKey, string>>({ ...WORLD })
 const errorText = ref<string | null>(null)
 const viewportBbox = computed(() => seaStore.viewportBbox)

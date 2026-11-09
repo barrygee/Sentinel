@@ -7,51 +7,35 @@
     <p v-if="pairError" class="settings-location-notice" role="alert">{{ pairError }}</p>
 
     <div class="settings-location-fields">
-      <div class="settings-location-field">
-        <label class="settings-location-label" :for="latitudeInputId">LATITUDE</label>
-        <input
-          :id="latitudeInputId"
-          v-model="latitudeDraft"
-          type="text"
-          inputmode="decimal"
-          class="settings-location-input"
-          :class="{ 'settings-location-input--invalid': latitudeError !== null }"
-          :aria-invalid="latitudeError !== null"
-          :aria-describedby="latitudeError !== null ? latitudeErrorId : latitudeHintId"
-          placeholder="0.000"
-          spellcheck="false"
-          @input="onLatitudeInput"
-          @blur="onLatitudeBlur"
-          @keydown.enter="save"
-        />
-        <p v-if="latitudeError !== null" :id="latitudeErrorId" class="settings-location-error">
-          {{ latitudeError }}
-        </p>
-        <p v-else :id="latitudeHintId" class="settings-location-hint">{{ LATITUDE_HINT }}</p>
-      </div>
+      <BaseTextField
+        v-model="latitudeDraft"
+        density="settings"
+        label="LATITUDE"
+        :input-id="latitudeInputId"
+        :error="latitudeError ?? ''"
+        :hint="LATITUDE_HINT"
+        inputmode="decimal"
+        placeholder="0.000"
+        spellcheck="false"
+        @input="onLatitudeInput"
+        @blur="onLatitudeBlur"
+        @keydown.enter="save"
+      />
 
-      <div class="settings-location-field">
-        <label class="settings-location-label" :for="longitudeInputId">LONGITUDE</label>
-        <input
-          :id="longitudeInputId"
-          v-model="longitudeDraft"
-          type="text"
-          inputmode="decimal"
-          class="settings-location-input"
-          :class="{ 'settings-location-input--invalid': longitudeError !== null }"
-          :aria-invalid="longitudeError !== null"
-          :aria-describedby="longitudeError !== null ? longitudeErrorId : longitudeHintId"
-          placeholder="0.000"
-          spellcheck="false"
-          @input="onLongitudeInput"
-          @blur="onLongitudeBlur"
-          @keydown.enter="save"
-        />
-        <p v-if="longitudeError !== null" :id="longitudeErrorId" class="settings-location-error">
-          {{ longitudeError }}
-        </p>
-        <p v-else :id="longitudeHintId" class="settings-location-hint">{{ LONGITUDE_HINT }}</p>
-      </div>
+      <BaseTextField
+        v-model="longitudeDraft"
+        density="settings"
+        label="LONGITUDE"
+        :input-id="longitudeInputId"
+        :error="longitudeError ?? ''"
+        :hint="LONGITUDE_HINT"
+        inputmode="decimal"
+        placeholder="0.000"
+        spellcheck="false"
+        @input="onLongitudeInput"
+        @blur="onLongitudeBlur"
+        @keydown.enter="save"
+      />
     </div>
   </div>
 </template>
@@ -65,6 +49,7 @@
  * field applies at once); saving is what moves the marker on the maps.
  */
 import { ref, computed, onMounted, onUnmounted, useId } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
 import {
@@ -81,12 +66,9 @@ const LONGITUDE_HINT = 'Decimal degrees, -180 to 180.'
 
 const STORAGE_KEY = 'sentinel_user_location'
 
+// Held here because save() moves focus back to a rejected field by id.
 const latitudeInputId = useId()
 const longitudeInputId = useId()
-const latitudeHintId = useId()
-const longitudeHintId = useId()
-const latitudeErrorId = useId()
-const longitudeErrorId = useId()
 
 // Empty string means "field cleared", which is meaningful here — clearing both
 // is how you remove the fixed position and hand the map back to browser

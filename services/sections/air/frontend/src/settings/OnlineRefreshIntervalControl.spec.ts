@@ -61,7 +61,7 @@ describe('OnlineRefreshIntervalControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     await wrapper.find('input').setValue('5')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.emitted('stage')).toHaveLength(1)
   })
 
@@ -69,7 +69,7 @@ describe('OnlineRefreshIntervalControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     await wrapper.find('input').setValue('4')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(useAirStore().onlineRefreshIntervalSec).toBe(60)
   })

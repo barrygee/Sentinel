@@ -120,6 +120,43 @@ describe('BaseTextField', () => {
     expect(input.classes()).toContain('ba-text-field__input--panel')
   })
 
+  it('applies the settings density to the field and the input', () => {
+    const wrapper = mountField({ density: 'settings' })
+    expect(wrapper.classes()).toContain('ba-form-field--settings')
+    expect(wrapper.get('input').classes()).toContain('ba-text-field__input--settings')
+    expect(wrapper.get('input').classes()).not.toContain('ba-text-field__input--panel')
+  })
+
+  it('passes a hint through and describes the input with it', () => {
+    const wrapper = mountField({ inputId: 'lat', hint: 'Decimal degrees.' })
+    expect(wrapper.get('.ba-form-field__hint').text()).toBe('Decimal degrees.')
+    expect(wrapper.get('input').attributes('aria-describedby')).toBe('lat-hint')
+  })
+
+  it('marks the input invalid without a message when invalid is set', () => {
+    const wrapper = mountField({ invalid: true })
+    const input = wrapper.get('input')
+    expect(input.attributes('aria-invalid')).toBe('true')
+    expect(input.classes()).toContain('ba-text-field__input--invalid')
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
+  })
+
+  it('passes errorAlert through, keeping the alert line mounted', () => {
+    const wrapper = mountField({ errorAlert: true })
+    expect(wrapper.get('.ba-form-field__error').attributes('role')).toBe('alert')
+  })
+
+  it('renders no caption without a label, leaving the input named by its aria-label', async () => {
+    const wrapper = mount(BaseTextField, {
+      props: { modelValue: '5', density: 'settings' },
+      attrs: { 'aria-label': 'Radius in nautical miles' },
+      attachTo: document.body,
+    })
+    expect(wrapper.find('label').exists()).toBe(false)
+    expect(wrapper.get('input').attributes('aria-label')).toBe('Radius in nautical miles')
+    expect(await axe(wrapper.element)).toHaveNoViolations()
+  })
+
   it('exposes focus(), which moves focus into the input', () => {
     const wrapper = mountField()
     ;(wrapper.vm as unknown as { focus: () => void }).focus()

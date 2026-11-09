@@ -67,9 +67,9 @@ describe('BaseTextSetting', () => {
     expect((input.element as HTMLInputElement).value).toBe('noaa')
     expect(input.attributes('type')).toBe('text')
     expect(input.attributes('aria-label')).toBe('Example text setting')
-    expect(input.attributes('aria-invalid')).toBe('false')
+    expect(input.attributes('aria-invalid')).toBeUndefined()
     expect(input.attributes('aria-describedby')).toBeUndefined()
-    expect(input.classes()).not.toContain('text-setting-input--invalid')
+    expect(input.attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.get('[role="alert"]').text()).toBe('')
   })
 
@@ -141,7 +141,7 @@ describe('BaseTextSetting', () => {
     await wrapper.get('input').setValue('with spaces ../ anything')
 
     expect(wrapper.emitted('stage')).toHaveLength(1)
-    expect(wrapper.get('input').attributes('aria-invalid')).toBe('false')
+    expect(wrapper.get('input').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('marks an invalid edit, announces why, and stages nothing', async () => {
@@ -153,7 +153,7 @@ describe('BaseTextSetting', () => {
 
     const input = wrapper.get('input')
     const message = wrapper.get('[role="alert"]')
-    expect(input.classes()).toContain('text-setting-input--invalid')
+    expect(input.attributes('aria-invalid')).toBe('true')
     expect(input.attributes('aria-invalid')).toBe('true')
     expect(message.text()).toBe('No spaces allowed')
     // The message is the input's description, so a screen reader reads it with the field.
