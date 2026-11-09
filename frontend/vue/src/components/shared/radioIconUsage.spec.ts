@@ -8,18 +8,27 @@ describe('RadioIcon usage', () => {
   it('is the only copy of the glyph left in the app', () => {
     // The point of the component: the SDR mark previously existed as four
     // hand-copied SVGs (settings rail, now SectionIcon; SDR RADIO tab, and two Space auto-tune
-    // buttons that had already drifted). A new inline copy would re-open that
-    // drift, so no call site may re-declare the body rect's geometry.
-    const sources = [
+    // buttons that had already drifted, now one SatelliteActionRow). A new inline
+    // copy would re-open that drift, so no call site may re-declare the body
+    // rect's geometry.
+    const iconCallSites = [
       'src/components/shared/SectionIcon.vue',
       '../../services/sections/sdr/frontend/src/SdrPanel.vue',
+      '../../services/sections/space/frontend/src/SatelliteActionRow.vue',
+    ]
+    // These used to draw the glyph themselves and now get it through
+    // SatelliteActionRow, so they must not grow an inline copy back.
+    const formerCallSites = [
       '../../services/sections/space/frontend/src/SpacePasses.vue',
       '../../services/sections/space/frontend/src/SpaceFilter.vue',
     ]
 
-    for (const source of sources) {
+    for (const source of iconCallSites) {
       const markup = readFileSync(resolve(process.cwd(), source), 'utf8')
       expect(markup, `${source} should use <RadioIcon>`).toContain('<RadioIcon')
+    }
+    for (const source of [...iconCallSites, ...formerCallSites]) {
+      const markup = readFileSync(resolve(process.cwd(), source), 'utf8')
       expect(markup, `${source} re-declares the radio glyph inline`).not.toMatch(
         /<rect[^>]*x="3"[^>]*y="9"|d="M5 7h14v12H5z"/,
       )
