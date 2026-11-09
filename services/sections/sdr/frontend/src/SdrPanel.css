@@ -937,46 +937,6 @@
   padding: 20px 28px 28px;
 }
 
-.sdr-editfreq-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.sdr-editfreq-field .sdr-field-label {
-  margin-bottom: 10px;
-  color: var(--ink-strong);
-}
-
-.sdr-editfreq-body .sdr-panel-input {
-  height: 36px;
-  background: rgba(var(--ink-rgb), 0.06);
-  border: none;
-  color: var(--ink-strong);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  padding: 0 12px;
-}
-
-.sdr-editfreq-body .sdr-panel-input:focus {
-  border: none;
-}
-
-.sdr-editfreq-body .sdr-panel-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.4);
-}
-
-.sdr-editfreq-body .sdr-panel-textarea {
-  height: auto;
-  min-height: 96px;
-  padding: 10px 12px;
-  resize: none;
-  overflow-y: auto;
-  font-family: inherit;
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-
 /* Per-frequency tuning settings (RF gain / bandwidth / squelch / volume /
    sample rate / waterfall view) in the add & edit frequency forms. Two-column
    grid of labelled compact inputs. */
@@ -987,35 +947,10 @@
   gap: 20px 12px;
 }
 
-.sdr-ef-setting {
-  display: flex;
-  flex-direction: column;
-  /* Label spacing comes from .sdr-field-label's margin-bottom (10px), matching
-     the FREQ/LABEL fields above — no extra gap here. */
-  gap: 0;
-  min-width: 0;
-}
-
-.sdr-editfreq-body .sdr-ef-setting-input {
-  width: 100%;
-}
-
 /* SAMPLE RATE custom dropdown: match the 36px height of the sibling inputs (the
    base device-dropdown is 34px). */
-.sdr-ef-setting .sdr-ef-setting-dropdown {
+.sdr-ef-settings-grid .sdr-ef-setting-dropdown {
   height: 36px;
-}
-
-/* Number inputs: no spinner arrows (Chrome/Safari + Firefox). */
-.sdr-editfreq-body .sdr-ef-setting-input[type='number']::-webkit-outer-spin-button,
-.sdr-editfreq-body .sdr-ef-setting-input[type='number']::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.sdr-editfreq-body .sdr-ef-setting-input[type='number'] {
-  -moz-appearance: textfield;
-  appearance: textfield;
 }
 
 /* "RADIO SETTINGS" accordion header inside the add/edit form. Self-contained
@@ -1112,7 +1047,6 @@
   }
 }
 
-.sdr-editfreq-body .sdr-panel-input.sdr-input-error,
 .sdr-editfreq-body .sdr-mode-pills.sdr-input-error {
   box-shadow:
     inset 0 0 0 1px var(--sev-error),
@@ -1205,10 +1139,6 @@
 .sdr-editfreq-body .sdr-ef-gpill.active:hover {
   background: rgba(var(--accent-rgb), 0.12);
   color: var(--accent-text);
-}
-
-.sdr-editfreq-field .sdr-mode-pills {
-  flex-wrap: nowrap;
 }
 
 .sdr-fmod-groups {
@@ -2054,20 +1984,13 @@
 }
 
 .sdr-editfreq-body .sdr-range-row {
+  display: flex;
   flex-direction: row;
   gap: 10px;
 }
 
 .sdr-editfreq-body .sdr-range-row .sdr-range-col {
-  display: flex;
-  flex-direction: column;
   flex: 1 1 0;
-  min-width: 0;
-}
-
-.sdr-editfreq-body .sdr-range-row .sdr-range-col .sdr-panel-input {
-  width: 100%;
-  box-sizing: border-box;
 }
 
 /* Hide the native number-input spinner arrows in the Search Range editor. */

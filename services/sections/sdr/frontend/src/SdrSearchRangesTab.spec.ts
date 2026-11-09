@@ -92,7 +92,7 @@ describe('SdrSearchRangesTab — add', () => {
     const wrapper = mountTab([makeRange(), makeRange({ id: 2, label: 'Marine' })])
     const editor = await openAddForm(wrapper)
     expect(wrapper.find('.sdr-frequency-manager-add-freq-row').isVisible()).toBe(false)
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     await inputs[0].setValue('  UHF CB  ') // label
     await inputs[1].setValue('476.4') // low MHz
     await inputs[2].setValue('477.4') // high MHz
@@ -148,7 +148,7 @@ describe('SdrSearchRangesTab — add', () => {
   it('reports each validation error without calling the API', async () => {
     const wrapper = mountTab([])
     const editor = await openAddForm(wrapper)
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     const save = () => editor.find('.sdr-editfreq-save-btn').trigger('click')
 
     await save()
@@ -177,7 +177,7 @@ describe('SdrSearchRangesTab — add', () => {
     createMock.mockResolvedValue(null)
     const wrapper = mountTab([])
     const editor = await openAddForm(wrapper)
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     await inputs[0].setValue('R')
     await inputs[1].setValue('10')
     await inputs[2].setValue('20')
@@ -218,7 +218,7 @@ describe('SdrSearchRangesTab — edit', () => {
     const wrapper = mountTab([makeRange({ id: 7, sort_order: 3, notes: 'busy' })])
     await wrapper.find('.sdr-freq-row-edit').trigger('click')
     const editor = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     expect((inputs[0].element as HTMLInputElement).value).toBe('Air Band')
     expect((inputs[1].element as HTMLInputElement).value).toBe('118')
     expect((inputs[2].element as HTMLInputElement).value).toBe('137')
