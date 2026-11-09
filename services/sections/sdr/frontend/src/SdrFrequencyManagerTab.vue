@@ -30,7 +30,10 @@
     class="sdr-frequency-manager-freqs-body"
     :class="{ 'sdr-frequency-manager--readonly': readOnly }"
   >
-    <div v-show="!(efOpen && editingFreqId === null)" class="sdr-frequency-manager-add-freq-row">
+    <div
+      v-show="!(frequencyEditorOpen && editingFreqId === null)"
+      class="sdr-frequency-manager-add-freq-row"
+    >
       <button
         id="sdr-radio-add-freq"
         ref="addFreqButtonRef"
@@ -44,232 +47,23 @@
 
     <!-- Add frequency panel (only when adding, not editing) -->
     <div
-      v-if="efOpen && editingFreqId === null"
+      v-if="frequencyEditorOpen && editingFreqId === null"
       id="sdr-editfreq-body"
       class="sdr-editfreq-body sdr-addfreq-body expanded"
     >
       <div class="sdr-addfreq-title-row">
         <span class="sdr-scanner-section-label">ADD FREQUENCY</span>
       </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">LABEL</label>
-        <input
-          id="sdr-ef-label"
-          ref="addLabelInputRef"
-          v-model="efLabel"
-          class="sdr-panel-input"
-          :class="{ 'sdr-input-error': efErrors.label }"
-          type="text"
-          aria-label="Frequency label"
-          placeholder="Label…"
-          maxlength="60"
-          style="width: 100%"
-        />
-        <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">FREQ (MHz)</label>
-        <input
-          id="sdr-ef-freq"
-          v-model="efFreq"
-          class="sdr-panel-input"
-          :class="{ 'sdr-input-error': efErrors.freq }"
-          type="text"
-          aria-label="Frequency in MHz"
-          placeholder="118.3800"
-          autocomplete="off"
-          style="width: 100%"
-        />
-        <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">MODE</label>
-        <div
-          id="sdr-ef-mode-pills"
-          class="sdr-mode-pills"
-          :class="{ 'sdr-input-error': efErrors.mode }"
-          role="radiogroup"
-          aria-label="Demodulation mode"
-        >
-          <BasePillToggle
-            v-for="(mode, modeIndex) in MODES"
-            :key="mode"
-            class="sdr-mode-pill"
-            role="radio"
-            :aria-checked="efMode === mode"
-            :tabindex="efModeKeyboard.radioTabindex(modeIndex)"
-            :active="efMode === mode"
-            active-class="active"
-            @click="efMode = mode"
-            @keydown="efModeKeyboard.onRadioKeydown($event, modeIndex)"
-          >
-            {{ mode }}
-          </BasePillToggle>
-        </div>
-        <!-- No mode-error slot here: the Add panel seeds efMode from the
-             current (always-valid) mode, so it can never fail mode
-             validation. The inline per-row edit (which can open a stored
-             frequency with a legacy/invalid mode) keeps its slot. -->
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">GROUPS</label>
-        <div id="sdr-ef-groups" class="sdr-fmod-groups">
-          <BasePillToggle
-            class="sdr-mode-pill sdr-ef-gpill"
-            :active="efGroupIds.length === 0"
-            active-class="active"
-            :aria-pressed="efGroupIds.length === 0"
-            @click="efGroupIds = []"
-          >
-            Default
-          </BasePillToggle>
-          <BasePillToggle
-            v-for="group in groups"
-            :key="group.id"
-            class="sdr-mode-pill sdr-ef-gpill"
-            :active="efGroupIds.includes(group.id)"
-            active-class="active"
-            :aria-pressed="efGroupIds.includes(group.id)"
-            @click="toggleEfGroup(group.id)"
-          >
-            {{ group.name }}
-          </BasePillToggle>
-        </div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">NOTES</label>
-        <textarea
-          id="sdr-ef-notes"
-          v-model="efNotes"
-          class="sdr-panel-input sdr-panel-textarea"
-          :class="{ 'sdr-input-error': efErrors.notes }"
-          aria-label="Frequency notes"
-          placeholder="Notes…"
-          rows="4"
-          style="width: 100%"
-        ></textarea>
-        <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <BaseAccordionSection
-          v-model:expanded="efSettingsExpanded"
-          title="RADIO SETTINGS"
-          body-id="sdr-ef-settings-section"
-          variant="form"
-          body-class="sdr-ef-settings-grid"
-        >
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">RF GAIN (dB)</span>
-            <input
-              v-model="efGainDb"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              step="0.1"
-              :disabled="efGainAuto"
-              aria-label="RF gain in dB"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">AUTO (AGC)</span>
-            <div class="sdr-ef-toggle-wrap">
-              <button
-                type="button"
-                class="sdr-ef-toggle"
-                :class="{ 'is-on': efGainAuto }"
-                role="switch"
-                :aria-checked="efGainAuto"
-                aria-label="Auto gain (AGC)"
-                @click="efGainAuto = !efGainAuto"
-              >
-                <span class="sdr-ef-toggle-thumb"></span>
-              </button>
-            </div>
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">BANDWIDTH (kHz)</span>
-            <input
-              v-model="efBwKhz"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              step="0.1"
-              min="0"
-              aria-label="Demod bandwidth in kHz"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">SQUELCH (dBFS)</span>
-            <input
-              v-model="efSquelch"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              aria-label="Squelch threshold in dBFS"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">VOLUME (%)</span>
-            <input
-              v-model="efVolume"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              min="0"
-              max="100"
-              aria-label="Volume percent"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">SAMPLE RATE</span>
-            <SdrSampleRatePicker v-model="efSampleRate" />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">ZOOM</span>
-            <input
-              v-model="efZoom"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              step="0.1"
-              min="1"
-              aria-label="Waterfall zoom"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">WF MIN (dB)</span>
-            <input
-              v-model="efZmin"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              aria-label="Waterfall minimum dB"
-            />
-          </div>
-          <div class="sdr-ef-setting">
-            <span class="sdr-field-label">WF MAX (dB)</span>
-            <input
-              v-model="efZmax"
-              class="sdr-panel-input sdr-ef-setting-input"
-              type="number"
-              aria-label="Waterfall maximum dB"
-            />
-          </div>
-        </BaseAccordionSection>
-      </div>
-      <div class="sdr-editfreq-actions">
-        <div class="sdr-editfreq-actions-right">
-          <BaseButton
-            id="sdr-ef-cancel"
-            variant="ghost"
-            class="sdr-panel-btn"
-            @click="cancelEditFreq"
-            >CANCEL</BaseButton
-          >
-          <BaseButton
-            id="sdr-ef-save"
-            variant="ghost"
-            class="sdr-panel-btn sdr-editfreq-save-btn"
-            @click="saveFreq"
-          >
-            SAVE
-          </BaseButton>
-        </div>
-      </div>
+      <SdrFrequencyForm
+        ref="addFormRef"
+        v-model="frequencyEditor"
+        v-model:settings-expanded="frequencySettingsExpanded"
+        id-prefix="sdr-ef"
+        :groups="groups"
+        :errors="frequencyEditorErrors"
+        @save="saveFreq"
+        @cancel="cancelEditFreq"
+      />
     </div>
 
     <!-- Group-filter chips, tucked into their own GROUPS accordion. -->
@@ -391,215 +185,18 @@
 
         <!-- Inline edit form (accordion body) -->
         <div
-          v-if="efOpen && editingFreqId === frequency.id"
+          v-if="frequencyEditorOpen && editingFreqId === frequency.id"
           class="sdr-editfreq-body expanded"
           @click.stop
         >
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">LABEL</label>
-            <input
-              v-model="efLabel"
-              class="sdr-panel-input"
-              :class="{ 'sdr-input-error': efErrors.label }"
-              type="text"
-              aria-label="Frequency label"
-              placeholder="Label…"
-              maxlength="60"
-              style="width: 100%"
-            />
-            <div v-if="efErrors.label" class="sdr-field-error">{{ efErrors.label }}</div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">FREQ (MHz)</label>
-            <input
-              v-model="efFreq"
-              class="sdr-panel-input"
-              :class="{ 'sdr-input-error': efErrors.freq }"
-              type="text"
-              aria-label="Frequency in MHz"
-              placeholder="118.3800"
-              autocomplete="off"
-              style="width: 100%"
-            />
-            <div v-if="efErrors.freq" class="sdr-field-error">{{ efErrors.freq }}</div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">MODE</label>
-            <div
-              class="sdr-mode-pills"
-              :class="{ 'sdr-input-error': efErrors.mode }"
-              role="radiogroup"
-              aria-label="Demodulation mode"
-            >
-              <BasePillToggle
-                v-for="(mode, modeIndex) in MODES"
-                :key="mode"
-                class="sdr-mode-pill"
-                role="radio"
-                :aria-checked="efMode === mode"
-                :tabindex="efModeKeyboard.radioTabindex(modeIndex)"
-                :active="efMode === mode"
-                active-class="active"
-                @click="efMode = mode"
-                @keydown="efModeKeyboard.onRadioKeydown($event, modeIndex)"
-              >
-                {{ mode }}
-              </BasePillToggle>
-            </div>
-            <div v-if="efErrors.mode" class="sdr-field-error">{{ efErrors.mode }}</div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">GROUPS</label>
-            <div class="sdr-fmod-groups">
-              <BasePillToggle
-                class="sdr-mode-pill sdr-ef-gpill"
-                :active="efGroupIds.length === 0"
-                active-class="active"
-                :aria-pressed="efGroupIds.length === 0"
-                @click="efGroupIds = []"
-              >
-                Default
-              </BasePillToggle>
-              <BasePillToggle
-                v-for="group in groups"
-                :key="group.id"
-                class="sdr-mode-pill sdr-ef-gpill"
-                :active="efGroupIds.includes(group.id)"
-                active-class="active"
-                :aria-pressed="efGroupIds.includes(group.id)"
-                @click="toggleEfGroup(group.id)"
-              >
-                {{ group.name }}
-              </BasePillToggle>
-            </div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">NOTES</label>
-            <textarea
-              v-model="efNotes"
-              class="sdr-panel-input sdr-panel-textarea"
-              :class="{ 'sdr-input-error': efErrors.notes }"
-              aria-label="Frequency notes"
-              placeholder="Notes…"
-              rows="4"
-              style="width: 100%"
-            ></textarea>
-            <div v-if="efErrors.notes" class="sdr-field-error">{{ efErrors.notes }}</div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <BaseAccordionSection
-              v-model:expanded="efSettingsExpanded"
-              title="RADIO SETTINGS"
-              body-id="sdr-ef-settings-section"
-              variant="form"
-              body-class="sdr-ef-settings-grid"
-            >
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">RF GAIN (dB)</span>
-                <input
-                  v-model="efGainDb"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  step="0.1"
-                  :disabled="efGainAuto"
-                  aria-label="RF gain in dB"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">AUTO (AGC)</span>
-                <div class="sdr-ef-toggle-wrap">
-                  <button
-                    type="button"
-                    class="sdr-ef-toggle"
-                    :class="{ 'is-on': efGainAuto }"
-                    role="switch"
-                    :aria-checked="efGainAuto"
-                    aria-label="Auto gain (AGC)"
-                    @click="efGainAuto = !efGainAuto"
-                  >
-                    <span class="sdr-ef-toggle-thumb"></span>
-                  </button>
-                </div>
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">BANDWIDTH (kHz)</span>
-                <input
-                  v-model="efBwKhz"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  aria-label="Demod bandwidth in kHz"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">SQUELCH (dBFS)</span>
-                <input
-                  v-model="efSquelch"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  aria-label="Squelch threshold in dBFS"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">VOLUME (%)</span>
-                <input
-                  v-model="efVolume"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  min="0"
-                  max="100"
-                  aria-label="Volume percent"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">SAMPLE RATE</span>
-                <SdrSampleRatePicker v-model="efSampleRate" />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">ZOOM</span>
-                <input
-                  v-model="efZoom"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  step="0.1"
-                  min="1"
-                  aria-label="Waterfall zoom"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">WF MIN (dB)</span>
-                <input
-                  v-model="efZmin"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  aria-label="Waterfall minimum dB"
-                />
-              </div>
-              <div class="sdr-ef-setting">
-                <span class="sdr-field-label">WF MAX (dB)</span>
-                <input
-                  v-model="efZmax"
-                  class="sdr-panel-input sdr-ef-setting-input"
-                  type="number"
-                  aria-label="Waterfall maximum dB"
-                />
-              </div>
-            </BaseAccordionSection>
-          </div>
-          <div class="sdr-editfreq-actions">
-            <div class="sdr-editfreq-actions-right">
-              <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelEditFreq"
-                >CANCEL</BaseButton
-              >
-              <BaseButton
-                variant="ghost"
-                class="sdr-panel-btn sdr-editfreq-save-btn"
-                @click="saveFreq"
-                >SAVE</BaseButton
-              >
-            </div>
-          </div>
+          <SdrFrequencyForm
+            v-model="frequencyEditor"
+            v-model:settings-expanded="frequencySettingsExpanded"
+            :groups="groups"
+            :errors="frequencyEditorErrors"
+            @save="saveFreq"
+            @cancel="cancelEditFreq"
+          />
         </div>
       </div>
     </div>
@@ -631,6 +228,9 @@
  * destructive-adjacent buttons stay where muscle memory expects them) —
  * starring here is what populates the RADIO panel's FAVOURITES accordion.
  *
+ * The Add panel and the inline row editor render the same `SdrFrequencyForm`;
+ * this tab owns its state (`frequencyEditor`), validation and saving.
+ *
  * The tuning engine stays in the parent panel: the row play button emits
  * `play` (parent runs playFreq → applyStoredFreqSettings → tune), and the
  * add/edit forms seed their RADIO SETTINGS from the `live` prop (the parent's
@@ -644,18 +244,15 @@
  * the other extracted panel sections.
  */
 import { ref, computed, watch, nextTick } from 'vue'
-import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
-import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
-import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import BaseSearchField from '@sentinel/ui/base/BaseSearchField.vue'
 import SdrFavouriteStar from './SdrFavouriteStar.vue'
+import SdrFrequencyForm from './SdrFrequencyForm.vue'
 import SdrFrequencyGroupFilter from './SdrFrequencyGroupFilter.vue'
 import SdrFrequencyRowSummary from './SdrFrequencyRowSummary.vue'
 import { useFrequencyGroupFilter } from './composables/useFrequencyGroupFilter'
 import { useFrequencySearch } from './composables/useFrequencySearch'
-import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
-import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
+import type { FrequencyEditorErrors, FrequencyEditorState } from './sdrFrequencyEditor'
 import { useSdrStore } from './stores/sdr'
 import type { SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
 import { parseFreqMhz, MODES } from './sdrPanelUtils'
@@ -723,7 +320,6 @@ const rowStatusMessage = ref('')
 // target when the removed row had no neighbour left to receive focus.
 const freqListRef = ref<HTMLElement | null>(null)
 const addFreqButtonRef = ref<HTMLButtonElement | null>(null)
-const addLabelInputRef = ref<HTMLInputElement | null>(null)
 
 // The row whose ✕ is "armed" — swaps it for a ✓ / ✕ pair until confirmed,
 // mirroring the recordings list's inline delete confirm. A single value, so
@@ -791,67 +387,89 @@ async function toggleFavourite(freq: SdrStoredFrequency) {
   }
 }
 
-// ── Edit frequency panel ──────────────────────────────────────────────────────
-const efOpen = ref(false)
+// ── Add / edit frequency form ─────────────────────────────────────────────────
+const frequencyEditorOpen = ref(false)
 const editingFreqId = ref<number | null>(null)
-const efLabel = ref('')
-const efFreq = ref('')
-const efMode = ref('AM')
-const efGroupIds = ref<number[]>([])
-const efNotes = ref('')
-// Per-frequency tuning settings for the add/edit form. Numeric fields are
-// strings (parsed on save) to mirror the freq input; efGainAuto toggles AGC
-// (stored as gain = -1), and efSampleRate is a concrete option value.
-const efGainDb = ref('30')
-const efGainAuto = ref(false)
-const efBwKhz = ref('10')
-const efSquelch = ref('-60')
-const efVolume = ref('80')
-const efSampleRate = ref<number>(2048000)
-const efSettingsExpanded = ref(false)
-const efZoom = ref('1')
-const efZmin = ref('0')
-const efZmax = ref('0')
-const efErrors = ref<{ label?: string; freq?: string; mode?: string; notes?: string }>({})
+const addFormRef = ref<InstanceType<typeof SdrFrequencyForm> | null>(null)
+// Replaced whole each time a form opens; the defaults only fill the first render.
+const frequencyEditor = ref<FrequencyEditorState>({
+  label: '',
+  frequencyMhz: '',
+  mode: 'AM',
+  groupIds: [],
+  notes: '',
+  gainDb: '30',
+  gainAuto: false,
+  bandwidthKhz: '10',
+  squelchDbfs: '-60',
+  volumePercent: '80',
+  sampleRateHz: 2048000,
+  zoom: '1',
+  waterfallMinDb: '0',
+  waterfallMaxDb: '0',
+})
+// Kept here, not in the form, so RADIO SETTINGS stays as the user left it
+// across openings of the form.
+const frequencySettingsExpanded = ref(false)
+const frequencyEditorErrors = ref<FrequencyEditorErrors>({})
 
-watch(efLabel, () => {
-  if (efErrors.value.label) efErrors.value = { ...efErrors.value, label: undefined }
-})
-watch(efFreq, () => {
-  if (efErrors.value.freq) efErrors.value = { ...efErrors.value, freq: undefined }
-})
-watch(efMode, () => {
-  // efMode is only ever set from the mode pills (always a valid MODES entry), so
-  // clearing an existing error is the only observable effect of this watcher.
-  if (efErrors.value.mode) efErrors.value = { ...efErrors.value, mode: undefined }
-})
-watch(efNotes, () => {
-  if (efErrors.value.notes) efErrors.value = { ...efErrors.value, notes: undefined }
-})
+// Editing a field clears its error, so the message never outlives the problem.
+watch(
+  () => frequencyEditor.value.label,
+  () => {
+    if (frequencyEditorErrors.value.label)
+      frequencyEditorErrors.value = { ...frequencyEditorErrors.value, label: undefined }
+  },
+)
+watch(
+  () => frequencyEditor.value.frequencyMhz,
+  () => {
+    if (frequencyEditorErrors.value.freq)
+      frequencyEditorErrors.value = { ...frequencyEditorErrors.value, freq: undefined }
+  },
+)
+watch(
+  () => frequencyEditor.value.mode,
+  () => {
+    // The mode is only ever set from the mode pills (always a valid MODES entry),
+    // so clearing an existing error is the only observable effect of this watcher.
+    if (frequencyEditorErrors.value.mode)
+      frequencyEditorErrors.value = { ...frequencyEditorErrors.value, mode: undefined }
+  },
+)
+watch(
+  () => frequencyEditor.value.notes,
+  () => {
+    if (frequencyEditorErrors.value.notes)
+      frequencyEditorErrors.value = { ...frequencyEditorErrors.value, notes: undefined }
+  },
+)
 
 const NOTES_ALLOWED = /^[A-Za-z0-9\s.,!?\-_():;/@]*$/
 
 function openAddFreqPanel() {
   editingFreqId.value = null
-  efLabel.value = ''
-  efFreq.value = props.live.freqHz ? (props.live.freqHz / 1e6).toFixed(4) : ''
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  efMode.value = props.live.mode || 'AM'
-  /* v8 ignore stop */
-  efGroupIds.value = []
-  efNotes.value = ''
   // New frequencies default their tuning settings to the live radio settings.
-  efGainAuto.value = props.live.gainAuto
-  efGainDb.value = String(props.live.gainDb)
-  efBwKhz.value = String(props.live.bwHz / 1000)
-  efSquelch.value = String(props.live.squelch)
-  efVolume.value = String(props.live.volume)
-  efSampleRate.value = props.live.sampleRateHz
-  efZoom.value = String(sdrStore.viewZoom)
-  efZmin.value = String(sdrStore.viewZmin)
-  efZmax.value = String(sdrStore.viewZmax)
-  efErrors.value = {}
-  efOpen.value = true
+  frequencyEditor.value = {
+    label: '',
+    frequencyMhz: props.live.freqHz ? (props.live.freqHz / 1e6).toFixed(4) : '',
+    /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
+    mode: props.live.mode || 'AM',
+    /* v8 ignore stop */
+    groupIds: [],
+    notes: '',
+    gainAuto: props.live.gainAuto,
+    gainDb: String(props.live.gainDb),
+    bandwidthKhz: String(props.live.bwHz / 1000),
+    squelchDbfs: String(props.live.squelch),
+    volumePercent: String(props.live.volume),
+    sampleRateHz: props.live.sampleRateHz,
+    zoom: String(sdrStore.viewZoom),
+    waterfallMinDb: String(sdrStore.viewZmin),
+    waterfallMaxDb: String(sdrStore.viewZmax),
+  }
+  frequencyEditorErrors.value = {}
+  frequencyEditorOpen.value = true
   emit('activate')
 }
 
@@ -863,97 +481,84 @@ function openAddFreqPanel() {
  */
 async function addFrequency(frequencyHz: number) {
   openAddFreqPanel()
-  efFreq.value = (frequencyHz / 1e6).toFixed(4)
+  frequencyEditor.value.frequencyMhz = (frequencyHz / 1e6).toFixed(4)
   await nextTick()
-  addLabelInputRef.value?.focus()
+  addFormRef.value?.focusLabel()
 }
 
 defineExpose({ addFrequency })
 
-function openEditFreqPanel(f: SdrStoredFrequency) {
-  editingFreqId.value = f.id
-  efLabel.value = f.label
-  efFreq.value = (f.frequency_hz / 1e6).toFixed(4)
-  efMode.value = f.mode
-  efGroupIds.value = (f.group_ids || []).filter((id) => id !== 0)
-  efNotes.value = f.notes ?? ''
+function openEditFreqPanel(frequency: SdrStoredFrequency) {
+  editingFreqId.value = frequency.id
   // Seed the settings from the stored values, falling back to the live settings
   // for anything a legacy row (predating these fields) didn't carry.
-  efGainAuto.value = (f.gain ?? props.live.gainDb) < 0
-  efGainDb.value = String(f.gain ?? props.live.gainDb)
-  efBwKhz.value = String((f.bandwidth ?? props.live.bwHz) / 1000)
-  efSquelch.value = String(f.squelch ?? props.live.squelch)
-  efVolume.value = String(f.volume ?? props.live.volume)
-  efSampleRate.value = f.sample_rate ?? props.live.sampleRateHz
-  efZoom.value = String(f.zoom ?? sdrStore.viewZoom)
-  efZmin.value = String(f.zmin ?? sdrStore.viewZmin)
-  efZmax.value = String(f.zmax ?? sdrStore.viewZmax)
-  efErrors.value = {}
-  efOpen.value = true
+  frequencyEditor.value = {
+    label: frequency.label,
+    frequencyMhz: (frequency.frequency_hz / 1e6).toFixed(4),
+    mode: frequency.mode,
+    groupIds: (frequency.group_ids || []).filter((groupId) => groupId !== 0),
+    notes: frequency.notes ?? '',
+    gainAuto: (frequency.gain ?? props.live.gainDb) < 0,
+    gainDb: String(frequency.gain ?? props.live.gainDb),
+    bandwidthKhz: String((frequency.bandwidth ?? props.live.bwHz) / 1000),
+    squelchDbfs: String(frequency.squelch ?? props.live.squelch),
+    volumePercent: String(frequency.volume ?? props.live.volume),
+    sampleRateHz: frequency.sample_rate ?? props.live.sampleRateHz,
+    zoom: String(frequency.zoom ?? sdrStore.viewZoom),
+    waterfallMinDb: String(frequency.zmin ?? sdrStore.viewZmin),
+    waterfallMaxDb: String(frequency.zmax ?? sdrStore.viewZmax),
+  }
+  frequencyEditorErrors.value = {}
+  frequencyEditorOpen.value = true
   emit('activate')
 }
 
-function toggleEditFreqPanel(f: SdrStoredFrequency) {
-  if (efOpen.value && editingFreqId.value === f.id) {
+function toggleEditFreqPanel(frequency: SdrStoredFrequency) {
+  if (frequencyEditorOpen.value && editingFreqId.value === frequency.id) {
     cancelEditFreq()
   } else {
-    openEditFreqPanel(f)
+    openEditFreqPanel(frequency)
   }
 }
 
 function cancelEditFreq() {
   editingFreqId.value = null
-  efOpen.value = false
-  efErrors.value = {}
+  frequencyEditorOpen.value = false
+  frequencyEditorErrors.value = {}
 }
 
 function validateFreqForm(): boolean {
-  const errs: { label?: string; freq?: string; mode?: string; notes?: string } = {}
-  const label = efLabel.value.trim()
-  if (!label) errs.label = 'Label is required'
-  else if (label.length > 60) errs.label = 'Label must be 60 characters or fewer'
-  const hz = parseFreqMhz(efFreq.value)
-  if (!hz) errs.freq = 'Enter a valid frequency in MHz'
+  const editor = frequencyEditor.value
+  const errors: FrequencyEditorErrors = {}
+  const label = editor.label.trim()
+  if (!label) errors.label = 'Label is required'
+  else if (label.length > 60) errors.label = 'Label must be 60 characters or fewer'
+  if (!parseFreqMhz(editor.frequencyMhz)) errors.freq = 'Enter a valid frequency in MHz'
   // Reachable when editing a stored frequency whose mode isn't one of MODES.
-  if (!efMode.value || !(MODES as readonly string[]).includes(efMode.value))
-    errs.mode = 'Select a mode'
-  if (efNotes.value && !NOTES_ALLOWED.test(efNotes.value))
-    errs.notes = 'Notes contain disallowed characters'
-  efErrors.value = errs
-  return Object.keys(errs).length === 0
+  if (!editor.mode || !(MODES as readonly string[]).includes(editor.mode))
+    errors.mode = 'Select a mode'
+  if (editor.notes && !NOTES_ALLOWED.test(editor.notes))
+    errors.notes = 'Notes contain disallowed characters'
+  frequencyEditorErrors.value = errors
+  return Object.keys(errors).length === 0
 }
-
-function toggleEfGroup(id: number) {
-  const idx = efGroupIds.value.indexOf(id)
-  if (idx === -1) efGroupIds.value = [...efGroupIds.value, id]
-  else efGroupIds.value = efGroupIds.value.filter((i) => i !== id)
-}
-
-// Radio-group keyboard model for the MODE pills. One instance serves both the
-// inline-edit and Add forms — they render the same MODES over the same efMode.
-const efModeKeyboard = useRadioGroupKeyboard({
-  optionCount: () => MODES.length,
-  selectedIndex: () => (MODES as readonly string[]).indexOf(efMode.value),
-  select: (modeIndex) => {
-    efMode.value = MODES[modeIndex]!
-  },
-})
 
 // Parse the per-frequency tuning settings from the add/edit form into the API
 // shape. Each value falls back to a sensible default if the field was cleared
 // or non-numeric, so a malformed entry never blocks the save.
 function freqSettingsPayload() {
-  const gain = efGainAuto.value ? -1 : numOr(efGainDb.value, 30)
-  const volume = Math.min(100, Math.max(0, Math.round(numOr(efVolume.value, 80))))
+  const editor = frequencyEditor.value
+  const gain = editor.gainAuto ? -1 : numOr(editor.gainDb, 30)
+  const volume = Math.min(100, Math.max(0, Math.round(numOr(editor.volumePercent, 80))))
   return {
-    squelch: numOr(efSquelch.value, -60),
+    squelch: numOr(editor.squelchDbfs, -60),
     gain,
-    bandwidth: Math.round(numOr(efBwKhz.value, 10) * 1000),
-    sample_rate: efSampleRate.value,
+    bandwidth: Math.round(numOr(editor.bandwidthKhz, 10) * 1000),
+    sample_rate: editor.sampleRateHz,
     volume,
-    zoom: numOr(efZoom.value, 1),
-    zmin: numOr(efZmin.value, 0),
-    zmax: numOr(efZmax.value, 0),
+    zoom: numOr(editor.zoom, 1),
+    zmin: numOr(editor.waterfallMinDb, 0),
+    zmax: numOr(editor.waterfallMaxDb, 0),
   }
 }
 
@@ -964,23 +569,24 @@ function numOr(raw: string, fallback: number): number {
 
 async function saveFreq() {
   if (!validateFreqForm()) return
-  const label = efLabel.value.trim()
-  const hz = parseFreqMhz(efFreq.value)
-  // validateFreqForm() above already guarantees a non-empty label and valid hz.
+  const editor = frequencyEditor.value
+  const label = editor.label.trim()
+  const frequencyHz = parseFreqMhz(editor.frequencyMhz)
+  // validateFreqForm() above already guarantees a non-empty label and valid frequency.
   /* v8 ignore start */
-  if (!label || !hz) return
+  if (!label || !frequencyHz) return
   /* v8 ignore stop */
   try {
     if (editingFreqId.value !== null) {
-      const existing = freqs.value.find((x) => x.id === editingFreqId.value)
+      const existing = freqs.value.find((frequency) => frequency.id === editingFreqId.value)
       await fetch(`/api/sdr/frequencies/${editingFreqId.value}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           label,
-          frequency_hz: hz,
-          mode: efMode.value,
-          group_ids: efGroupIds.value,
+          frequency_hz: frequencyHz,
+          mode: editor.mode,
+          group_ids: editor.groupIds,
           ...freqSettingsPayload(),
           /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
           scannable: existing?.scannable ?? true,
@@ -990,7 +596,7 @@ async function saveFreq() {
           // the star's current value must be resent here or saving the edit
           // form would silently unfavourite the row.
           favourite: existing?.favourite ?? false,
-          notes: efNotes.value,
+          notes: editor.notes,
         }),
       })
     } else {
@@ -999,20 +605,22 @@ async function saveFreq() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           label,
-          frequency_hz: hz,
-          mode: efMode.value,
+          frequency_hz: frequencyHz,
+          mode: editor.mode,
           ...freqSettingsPayload(),
           scannable: true,
           favourite: false,
-          group_ids: efGroupIds.value,
-          notes: efNotes.value,
+          group_ids: editor.groupIds,
+          notes: editor.notes,
         }),
       })
     }
     editingFreqId.value = null
-    efOpen.value = false
+    frequencyEditorOpen.value = false
     emit('changed')
-  } catch (_) {}
+  } catch {
+    // A failed request leaves the form open with what the user typed, to retry.
+  }
 }
 
 /**
@@ -1031,7 +639,7 @@ async function confirmRemoveFreq(freq: SdrStoredFrequency) {
     await fetch(`/api/sdr/frequencies/${freq.id}`, { method: 'DELETE' })
     if (editingFreqId.value === freq.id) {
       editingFreqId.value = null
-      efOpen.value = false
+      frequencyEditorOpen.value = false
     }
     rowStatusMessage.value = `${freq.label} removed`
     emit('changed')

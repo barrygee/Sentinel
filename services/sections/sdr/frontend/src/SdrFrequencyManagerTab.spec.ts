@@ -3,6 +3,8 @@ import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from '@vue/t
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
+import SdrFrequencyForm from './SdrFrequencyForm.vue'
+import type { FrequencyEditorState } from './sdrFrequencyEditor'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
@@ -824,5 +826,77 @@ describe('SdrFrequencyManagerTab — addFrequency (the tuned readout’s + butto
     const wrapper = mountTab({ live: makeLive({ freqHz: 121_500_000 }) })
     await openAddForm(wrapper)
     expect(freqField(wrapper)).toBe('121.5000')
+  })
+})
+
+describe('SdrFrequencyManagerTab — form model', () => {
+  // The form edits fields in place, but v-model must also accept a whole new
+  // state object from it; these pin that two-way binding on both forms.
+  const replacementState: FrequencyEditorState = {
+    label: 'Approach',
+    frequencyMhz: '119.1',
+    mode: 'AM',
+    groupIds: [],
+    notes: '',
+    gainDb: '20',
+    gainAuto: false,
+    bandwidthKhz: '8',
+    squelchDbfs: '-50',
+    volumePercent: '60',
+    sampleRateHz: 1024000,
+    zoom: '1',
+    waterfallMinDb: '-90',
+    waterfallMaxDb: '-30',
+  }
+
+  function savedBody(url: string, method: string) {
+    const call = fetchCalls.find((entry) => entry.url === url && entry.opts?.method === method)
+    return call ? JSON.parse(String(call.opts?.body)) : undefined
+  }
+
+  it('saves a state object the add form replaces wholesale', async () => {
+    const wrapper = mountTab()
+    await openAddForm(wrapper)
+    wrapper.findComponent(SdrFrequencyForm).vm.$emit('update:modelValue', replacementState)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('#sdr-ef-save').trigger('click')
+    await flushPromises()
+    expect(savedBody('/api/sdr/frequencies', 'POST')).toEqual(
+      expect.objectContaining({
+        label: 'Approach',
+        frequency_hz: 119_100_000,
+        mode: 'AM',
+        gain: 20,
+        sample_rate: 1024000,
+      }),
+    )
+  })
+
+  it('keeps RADIO SETTINGS open across closing and reopening the inline editor', async () => {
+    const wrapper = mountTab()
+    const settingsBody = () => wrapper.find('.sdr-freq-editing #sdr-ef-settings-section')
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    expect(settingsBody().isVisible()).toBe(false)
+    await wrapper.find('.sdr-freq-editing .sdr-ef-settings-toggle').trigger('click')
+    expect(settingsBody().isVisible()).toBe(true)
+    await wrapper
+      .findAll('.sdr-freq-editing .sdr-editfreq-actions button')
+      .find((button) => button.text() === 'CANCEL')!
+      .trigger('click')
+    expect(wrapper.find('.sdr-freq-editing').exists()).toBe(false)
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    expect(settingsBody().isVisible()).toBe(true)
+  })
+
+  it('saves a state object the inline editor replaces wholesale', async () => {
+    const wrapper = mountTab()
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    wrapper.findComponent(SdrFrequencyForm).vm.$emit('update:modelValue', replacementState)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-editfreq-save-btn').trigger('click')
+    await flushPromises()
+    expect(savedBody('/api/sdr/frequencies/10', 'PUT')).toEqual(
+      expect.objectContaining({ label: 'Approach', frequency_hz: 119_100_000, gain: 20 }),
+    )
   })
 })
