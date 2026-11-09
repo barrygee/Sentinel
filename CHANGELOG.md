@@ -1805,6 +1805,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #594 from barrygee/perf/share-settings-reads
 - Merge pull request #595 from barrygee/perf/fewer-js-files
 - Merge pull request #596 from barrygee/perf/file-status-poll
+- Merge pull request #597 from barrygee/refactor/sdr-forms
 
 ### Performance
 
@@ -1915,6 +1916,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Make Aircraft Icons a plain two-option setting
 - Rename showKnownFreqs to displayKnownFrequencies
 - Share one side rail across the map sections
+- Share one form between the add and edit panels
 
 ### Documentation
 
@@ -2184,6 +2186,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle with merged shared chunks
 - Rebuild bundle with map-kit modules unmerged
 - Rebuild the bundle for the visible-tab config file poll
+- Rebuild the SDR remote for the shared forms
 
 ### Continuous Integration
 
