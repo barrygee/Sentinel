@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import { useStagedSetting } from '@sentinel/shell-api/settings/useStagedSetting'
 
 /**
@@ -140,14 +141,14 @@ function onInput(event: Event): void {
 
 <template>
   <div class="number-setting-wrap">
-    <input
+    <BaseTextField
       v-model="inputText"
-      type="text"
-      inputmode="numeric"
-      class="number-setting-input"
-      :class="{ 'number-setting-input--invalid': !isValid }"
-      :maxlength="maxLength"
+      density="settings"
+      class="number-setting-field"
       :aria-label="accessibleName"
+      :invalid="!isValid"
+      inputmode="numeric"
+      :maxlength="maxLength"
       :disabled="disabled"
       spellcheck="false"
       autocomplete="off"
@@ -164,6 +165,11 @@ function onInput(event: Event): void {
   align-items: center;
   gap: 10px;
 }
+/* A short number: a narrow centred value rather than a full-width rule. */
+.number-setting-field {
+  --ba-text-field-width: 60px;
+  --ba-text-field-align: center;
+}
 .number-setting-unit {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
@@ -171,35 +177,5 @@ function onInput(event: Event): void {
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--ink-secondary);
-}
-.number-setting-input {
-  width: 60px;
-  height: 28px;
-  padding: 0;
-  /* The settings panel's field treatment: no fill, a hairline rule under the
-     value that thickens to the accent on focus — see the field block in
-     SettingsPanel.css, which every other settings input follows. */
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line, var(--rule));
-  color: var(--ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-value);
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-align: center;
-  outline: none;
-  transition: box-shadow 0.15s;
-}
-.number-setting-input:focus {
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-.number-setting-input:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-.number-setting-input--invalid {
-  box-shadow: inset 0 -2px 0 var(--danger);
 }
 </style>

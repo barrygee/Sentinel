@@ -53,7 +53,7 @@ describe('BaseNumberSetting', () => {
     })
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('10')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.text()).toContain('NM')
   })
 
@@ -266,7 +266,7 @@ describe('BaseNumberSetting', () => {
     })
     await flushPromises()
     await wrapper.find('input').setValue('1.2.3')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 
@@ -285,7 +285,7 @@ describe('BaseNumberSetting', () => {
     })
     await flushPromises()
     await wrapper.find('input').setValue('')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 
@@ -333,7 +333,7 @@ describe('BaseNumberSetting', () => {
     })
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(store.getValue()).toBe(0)
   })
 
@@ -354,7 +354,7 @@ describe('BaseNumberSetting', () => {
     })
     await flushPromises()
     await wrapper.find('input').setValue('0')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 

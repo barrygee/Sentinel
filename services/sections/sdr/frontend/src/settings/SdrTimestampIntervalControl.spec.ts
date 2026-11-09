@@ -35,7 +35,7 @@ describe('SdrTimestampIntervalControl', () => {
     const wrapper = mount(SdrTimestampIntervalControl)
     await flushPromises()
     expect(input(wrapper).value).toBe('5')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
   })
 
   it('names the field for screen readers, since it has no visible label', async () => {
@@ -83,7 +83,7 @@ describe('SdrTimestampIntervalControl', () => {
 
     await wrapper.find('input').setValue('0')
 
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
     // The store keeps the last good interval rather than taking the 0.
     expect(useSdrStore().waterfallTimestampIntervalSec).toBe(5)
@@ -95,7 +95,7 @@ describe('SdrTimestampIntervalControl', () => {
 
     await wrapper.find('input').setValue('1')
 
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(useSdrStore().waterfallTimestampIntervalSec).toBe(1)
   })
 
@@ -103,7 +103,7 @@ describe('SdrTimestampIntervalControl', () => {
     const wrapper = mount(SdrTimestampIntervalControl)
     await flushPromises()
     await wrapper.find('input').setValue('')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
     expect(settingsApi.put).not.toHaveBeenCalled()
   })

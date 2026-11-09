@@ -26,20 +26,17 @@
       <!-- The area's details only mean anything once one is being chosen:
            hidden until DRAW AREA or USE CURRENT VIEW is pressed. -->
       <template v-if="showsAreaFields">
-        <div class="settings-location-field">
-          <label class="settings-location-label" for="oma-label-input">LABEL</label>
-          <input
-            id="oma-label-input"
-            type="text"
-            class="settings-location-input oma-label-input"
-            maxlength="60"
-            placeholder="e.g. Lake District"
-            spellcheck="false"
-            autocomplete="off"
-            :value="store.draft.label"
-            @input="store.setDraftLabel(($event.target as HTMLInputElement).value)"
-          />
-        </div>
+        <BaseTextField
+          :model-value="store.draft.label"
+          density="settings"
+          label="LABEL"
+          input-id="oma-label-input"
+          maxlength="60"
+          placeholder="e.g. Lake District"
+          spellcheck="false"
+          autocomplete="off"
+          @update:model-value="store.setDraftLabel"
+        />
 
         <BboxFields :bounds="draftBounds" @update:bounds="onBoundsFieldsUpdate" />
 
@@ -119,6 +116,7 @@ import {
 } from '@sentinel/shell-api/stores/offlineMaps'
 import { OFFLINE_DISK_MARGIN_RATIO } from '@sentinel/shell-api/utils/offlineMapEstimate'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import OfflineAreaMap, { type OfflineRegionOutline } from './OfflineAreaMap.vue'
 import AreaSelector from './AreaSelector.vue'
 import BboxFields from './BboxFields.vue'
@@ -276,10 +274,6 @@ onMounted(() => {
   max-width: 464px;
 }
 
-.oma-label-input {
-  max-width: none;
-}
-
 /* Every piece of text in the group uses the size of a section description
    (`.settings-item-desc`). Buttons keep the shared settings button style, and
    some text keeps its own smaller size: the field captions (NORTH … LABEL,
@@ -289,7 +283,7 @@ onMounted(() => {
 .oma-shell
   :deep(
     :is(p, label, span, dt, dd, h3, li, input):not(
-      .settings-location-label,
+      .ba-form-field__label,
       .sdr-field-label,
       .lft-row-name,
       .oma-region-list-heading,
@@ -297,7 +291,10 @@ onMounted(() => {
       .oma-progress-status
     )
   ),
-.oma-shell :deep(.oma-region-select) {
+.oma-shell :deep(.oma-region-select),
+/* `div.` keeps this ahead of the field's own error size, which has the same
+   class-only weight; the list above outranks its targets the same way. */
+.oma-shell :deep(div.ba-form-field__error) {
   font-size: var(--settings-text-body);
   line-height: 1.55;
 }

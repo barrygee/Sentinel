@@ -25,7 +25,7 @@ describe('LandAprsChannelControl', () => {
     const wrapper = mount(LandAprsChannelControl)
     await flushPromises()
     expect((wrapper.find('input').element as HTMLInputElement).value).toBe('144.8')
-    expect(wrapper.find('input').classes()).not.toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.text()).toContain('MHZ')
   })
 
@@ -46,7 +46,7 @@ describe('LandAprsChannelControl', () => {
     const wrapper = mount(LandAprsChannelControl)
     await flushPromises()
     await wrapper.find('input').setValue('12')
-    expect(wrapper.find('input').classes()).toContain('number-setting-input--invalid')
+    expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
     expect(wrapper.emitted('stage')).toBeUndefined()
   })
 

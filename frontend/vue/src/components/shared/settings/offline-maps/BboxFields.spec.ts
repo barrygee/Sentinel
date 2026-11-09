@@ -151,9 +151,9 @@ describe('BboxFields', () => {
 
   it('shows no errors and no aria-invalid for the pristine default box before any interaction', () => {
     const wrapper = mountFields(PRISTINE)
-    expect(wrapper.find('.oma-bbox-error').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
     for (const input of wrapper.findAll('input')) {
-      expect(input.attributes('aria-invalid')).toBe('false')
+      expect(input.attributes('aria-invalid')).toBeUndefined()
       expect(input.attributes('aria-describedby')).toBeUndefined()
     }
   })
@@ -163,7 +163,7 @@ describe('BboxFields', () => {
     const north = inputFor(wrapper, 'NORTH')
     await north.trigger('focus')
     await north.setValue('0')
-    const errorParagraph = wrapper.find('.oma-bbox-error')
+    const errorParagraph = wrapper.find('.ba-form-field__error')
     expect(errorParagraph.exists()).toBe(true)
     expect(north.attributes('aria-invalid')).toBe('true')
     expect(north.attributes('aria-describedby')).toBe(errorParagraph.attributes('id'))
@@ -171,7 +171,7 @@ describe('BboxFields', () => {
 
   it('validates even before interaction once a real (non-degenerate) area exists', () => {
     const wrapper = mountFields({ west: -1, south: 90, east: 1, north: 95 })
-    expect(wrapper.find('.oma-bbox-error').exists()).toBe(true)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(true)
   })
 
   it('has no accessibility violations, valid or with errors showing', async () => {

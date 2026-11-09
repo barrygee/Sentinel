@@ -1,41 +1,23 @@
 <template>
   <div class="settings-location-fields oma-bbox-fields">
-    <div v-for="field in fields" :key="field.key" class="settings-location-field oma-bbox-field">
-      <label class="settings-location-label" :for="`${idPrefix}-${field.key}`">{{
-        field.label
-      }}</label>
-      <input
-        :id="`${idPrefix}-${field.key}`"
-        type="text"
-        inputmode="decimal"
-        class="settings-location-input"
-        :class="{
-          'settings-location-input--invalid': shouldValidate && fieldErrors[field.key] !== null,
-        }"
-        :value="fieldText[field.key]"
-        :aria-invalid="shouldValidate && fieldErrors[field.key] !== null"
-        :aria-describedby="
-          shouldValidate && fieldErrors[field.key] !== null
-            ? `${idPrefix}-${field.key}-error`
-            : undefined
-        "
-        spellcheck="false"
-        autocomplete="off"
-        placeholder="0.000"
-        @input="onInput(field.key, ($event.target as HTMLInputElement).value)"
-        @focus="focusedField = field.key"
-        @blur="onBlur(field.key)"
-        @keydown.enter="($event.target as HTMLInputElement).blur()"
-      />
-      <p
-        v-if="shouldValidate && fieldErrors[field.key] !== null"
-        :id="`${idPrefix}-${field.key}-error`"
-        class="settings-location-error oma-bbox-error"
-        aria-live="polite"
-      >
-        {{ fieldErrors[field.key] }}
-      </p>
-    </div>
+    <BaseTextField
+      v-for="field in fields"
+      :key="field.key"
+      :model-value="fieldText[field.key]"
+      density="settings"
+      class="oma-bbox-field"
+      :label="field.label"
+      :input-id="`${idPrefix}-${field.key}`"
+      :error="shouldValidate ? (fieldErrors[field.key] ?? '') : ''"
+      inputmode="decimal"
+      spellcheck="false"
+      autocomplete="off"
+      placeholder="0.000"
+      @update:model-value="onInput(field.key, $event)"
+      @focus="focusedField = field.key"
+      @blur="onBlur(field.key)"
+      @keydown.enter="($event.target as HTMLInputElement).blur()"
+    />
   </div>
 </template>
 
@@ -71,6 +53,7 @@
  * exists some other way (drawn, or "use current view").
  */
 import { computed, reactive, ref, useId, watch } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 import { computeBboxFieldErrors } from './bboxValidation'
 
