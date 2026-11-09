@@ -14,21 +14,17 @@
       FLASH SERIAL
     </BaseButton>
     <div v-else class="sdr-serial-flash-confirm">
-      <label class="sdr-devices-form-label" :for="serialInputId">NEW SERIAL</label>
-      <input
-        :id="serialInputId"
+      <!-- The warning is the field's hint, so a screen reader reads it with the input. -->
+      <BaseTextField
         v-model="serial"
-        type="text"
-        class="sdr-devices-form-input"
-        :aria-describedby="warningId"
+        density="settings"
+        label="NEW SERIAL"
+        :input-id="serialInputId"
+        hint="This writes permanently to the dongle's EEPROM. An interrupted write can corrupt the device. Do not unplug the dongle or close this page while flashing."
         placeholder="e.g. AIS-01"
         autocomplete="off"
         spellcheck="false"
       />
-      <p :id="warningId" class="sdr-serial-flash-warning">
-        This writes permanently to the dongle's EEPROM. An interrupted write can corrupt the device.
-        Do not unplug the dongle or close this page while flashing.
-      </p>
       <div v-if="errorMsg" class="sdr-devices-form-error">{{ errorMsg }}</div>
       <div class="sdr-devices-form-actions">
         <BaseButton
@@ -67,6 +63,7 @@
  */
 import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
 
 const GHOST_BUTTON_STYLE =
@@ -82,7 +79,6 @@ const flashing = ref(false)
 const errorMsg = ref('')
 const idSafeDeviceId = props.deviceId.replace(/[^a-zA-Z0-9]/g, '-')
 const serialInputId = `sdr-serial-flash-${idSafeDeviceId}`
-const warningId = `sdr-serial-flash-warning-${idSafeDeviceId}`
 
 function cancel(): void {
   confirming.value = false
@@ -123,12 +119,5 @@ async function confirmFlash(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-.sdr-serial-flash-warning {
-  margin: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  line-height: 1.5;
-  color: rgba(16, 19, 29, 0.6);
 }
 </style>
