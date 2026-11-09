@@ -1,43 +1,33 @@
 <template>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">LABEL</label>
-    <input
-      :id="elementId('label')"
-      ref="labelInputRef"
-      v-model="frequencyEditor.label"
-      class="sdr-panel-input"
-      :class="{ 'sdr-input-error': errors.label }"
-      type="text"
-      aria-label="Frequency label"
-      placeholder="Label…"
-      maxlength="60"
-      style="width: 100%"
-    />
-    <div v-if="errors.label" class="sdr-field-error">{{ errors.label }}</div>
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">FREQ (MHz)</label>
-    <input
-      :id="elementId('freq')"
-      v-model="frequencyEditor.frequencyMhz"
-      class="sdr-panel-input"
-      :class="{ 'sdr-input-error': errors.freq }"
-      type="text"
-      aria-label="Frequency in MHz"
-      placeholder="118.3800"
-      autocomplete="off"
-      style="width: 100%"
-    />
-    <div v-if="errors.freq" class="sdr-field-error">{{ errors.freq }}</div>
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">MODE</label>
+  <BaseTextField
+    ref="labelFieldRef"
+    v-model="frequencyEditor.label"
+    label="LABEL"
+    :input-id="elementId('label')"
+    :error="errors.label"
+    aria-label="Frequency label"
+    placeholder="Label…"
+    maxlength="60"
+  />
+  <BaseTextField
+    v-model="frequencyEditor.frequencyMhz"
+    label="FREQ (MHz)"
+    :input-id="elementId('freq')"
+    :error="errors.freq"
+    aria-label="Frequency in MHz"
+    placeholder="118.3800"
+    autocomplete="off"
+  />
+  <!-- Only an edit can show a MODE error: it may open a stored frequency with a
+       legacy mode, while the Add form starts from the live, valid mode. -->
+  <BaseFormField v-slot="{ describedBy }" label="MODE" label-kind="group" :error="errors.mode">
     <div
       :id="elementId('mode-pills')"
       class="sdr-mode-pills"
       :class="{ 'sdr-input-error': errors.mode }"
       role="radiogroup"
       aria-label="Demodulation mode"
+      :aria-describedby="describedBy"
     >
       <BasePillToggle
         v-for="(mode, modeIndex) in MODES"
@@ -54,12 +44,8 @@
         {{ mode }}
       </BasePillToggle>
     </div>
-    <!-- Only an edit can show this: it may open a stored frequency with a
-         legacy mode, while the Add form starts from the live, valid mode. -->
-    <div v-if="errors.mode" class="sdr-field-error">{{ errors.mode }}</div>
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">GROUPS</label>
+  </BaseFormField>
+  <BaseFormField label="GROUPS" label-kind="group">
     <div :id="elementId('groups')" class="sdr-fmod-groups">
       <BasePillToggle
         class="sdr-mode-pill sdr-ef-gpill"
@@ -82,22 +68,18 @@
         {{ group.name }}
       </BasePillToggle>
     </div>
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">NOTES</label>
-    <textarea
-      :id="elementId('notes')"
-      v-model="frequencyEditor.notes"
-      class="sdr-panel-input sdr-panel-textarea"
-      :class="{ 'sdr-input-error': errors.notes }"
-      aria-label="Frequency notes"
-      placeholder="Notes…"
-      rows="4"
-      style="width: 100%"
-    ></textarea>
-    <div v-if="errors.notes" class="sdr-field-error">{{ errors.notes }}</div>
-  </div>
-  <div class="sdr-editfreq-field">
+  </BaseFormField>
+  <BaseTextField
+    v-model="frequencyEditor.notes"
+    label="NOTES"
+    multiline
+    :input-id="elementId('notes')"
+    :error="errors.notes"
+    aria-label="Frequency notes"
+    placeholder="Notes…"
+    rows="4"
+  />
+  <div>
     <BaseAccordionSection
       v-model:expanded="settingsExpanded"
       title="RADIO SETTINGS"
@@ -105,19 +87,15 @@
       variant="form"
       body-class="sdr-ef-settings-grid"
     >
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">RF GAIN (dB)</span>
-        <input
-          v-model="frequencyEditor.gainDb"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          step="0.1"
-          :disabled="frequencyEditor.gainAuto"
-          aria-label="RF gain in dB"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">AUTO (AGC)</span>
+      <BaseTextField
+        v-model="frequencyEditor.gainDb"
+        label="RF GAIN (dB)"
+        input-type="number"
+        step="0.1"
+        :disabled="frequencyEditor.gainAuto"
+        aria-label="RF gain in dB"
+      />
+      <BaseFormField label="AUTO (AGC)" label-kind="group">
         <div class="sdr-ef-toggle-wrap">
           <button
             type="button"
@@ -131,71 +109,52 @@
             <span class="sdr-ef-toggle-thumb"></span>
           </button>
         </div>
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">BANDWIDTH (kHz)</span>
-        <input
-          v-model="frequencyEditor.bandwidthKhz"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          step="0.1"
-          min="0"
-          aria-label="Demod bandwidth in kHz"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">SQUELCH (dBFS)</span>
-        <input
-          v-model="frequencyEditor.squelchDbfs"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          aria-label="Squelch threshold in dBFS"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">VOLUME (%)</span>
-        <input
-          v-model="frequencyEditor.volumePercent"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          min="0"
-          max="100"
-          aria-label="Volume percent"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">SAMPLE RATE</span>
+      </BaseFormField>
+      <BaseTextField
+        v-model="frequencyEditor.bandwidthKhz"
+        label="BANDWIDTH (kHz)"
+        input-type="number"
+        step="0.1"
+        min="0"
+        aria-label="Demod bandwidth in kHz"
+      />
+      <BaseTextField
+        v-model="frequencyEditor.squelchDbfs"
+        label="SQUELCH (dBFS)"
+        input-type="number"
+        aria-label="Squelch threshold in dBFS"
+      />
+      <BaseTextField
+        v-model="frequencyEditor.volumePercent"
+        label="VOLUME (%)"
+        input-type="number"
+        min="0"
+        max="100"
+        aria-label="Volume percent"
+      />
+      <BaseFormField label="SAMPLE RATE" label-kind="group">
         <SdrSampleRatePicker v-model="frequencyEditor.sampleRateHz" />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">ZOOM</span>
-        <input
-          v-model="frequencyEditor.zoom"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          step="0.1"
-          min="1"
-          aria-label="Waterfall zoom"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">WF MIN (dB)</span>
-        <input
-          v-model="frequencyEditor.waterfallMinDb"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          aria-label="Waterfall minimum dB"
-        />
-      </div>
-      <div class="sdr-ef-setting">
-        <span class="sdr-field-label">WF MAX (dB)</span>
-        <input
-          v-model="frequencyEditor.waterfallMaxDb"
-          class="sdr-panel-input sdr-ef-setting-input"
-          type="number"
-          aria-label="Waterfall maximum dB"
-        />
-      </div>
+      </BaseFormField>
+      <BaseTextField
+        v-model="frequencyEditor.zoom"
+        label="ZOOM"
+        input-type="number"
+        step="0.1"
+        min="1"
+        aria-label="Waterfall zoom"
+      />
+      <BaseTextField
+        v-model="frequencyEditor.waterfallMinDb"
+        label="WF MIN (dB)"
+        input-type="number"
+        aria-label="Waterfall minimum dB"
+      />
+      <BaseTextField
+        v-model="frequencyEditor.waterfallMaxDb"
+        label="WF MAX (dB)"
+        input-type="number"
+        aria-label="Waterfall maximum dB"
+      />
     </BaseAccordionSection>
   </div>
   <div class="sdr-editfreq-actions">
@@ -232,12 +191,14 @@
  * is mounted afresh each time it opens.
  *
  * It has several root elements on purpose, so the fields stay direct children
- * of the host's `.sdr-editfreq-body` and SdrPanel.css matches them as before.
+ * of the host's `.sdr-editfreq-body`, whose column gap spaces them.
  */
 import { ref } from 'vue'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { MODES } from './sdrPanelUtils'
@@ -250,9 +211,11 @@ const props = defineProps<{
   /** Validation messages from the host's last save attempt. */
   errors: FrequencyEditorErrors
   /**
-   * Prefix for the controls' ids (`<prefix>-label`, `-freq`, `-save`, …); no
-   * ids without it. Only the Add panel sets it (`sdr-ef`), keeping the ids its
-   * specs address it by; the inline row editor has never had ids.
+   * Prefix for the controls' ids (`<prefix>-label`, `-freq`, `-save`, …). Only
+   * the Add panel sets it (`sdr-ef`), keeping the ids its specs address it by.
+   * Without it the buttons and pill groups get no ids and the text fields get
+   * generated ones (their labels point at them), so the Add panel and an
+   * inline row editor open together never share an id.
    */
   idPrefix?: string
 }>()
@@ -267,7 +230,7 @@ const emit = defineEmits<{
 const frequencyEditor = defineModel<FrequencyEditorState>({ required: true })
 const settingsExpanded = defineModel<boolean>('settingsExpanded', { required: true })
 
-const labelInputRef = ref<HTMLInputElement | null>(null)
+const labelFieldRef = ref<{ focus: () => void } | null>(null)
 
 /** The id for one of the form's controls, or none when the host gave no prefix. */
 function elementId(controlName: string): string | undefined {
@@ -293,7 +256,7 @@ const modeKeyboard = useRadioGroupKeyboard({
 
 /** Puts the cursor in LABEL, the field a new frequency still needs. */
 function focusLabel() {
-  labelInputRef.value?.focus()
+  labelFieldRef.value?.focus()
 }
 
 defineExpose({ focusLabel })

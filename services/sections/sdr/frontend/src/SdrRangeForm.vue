@@ -1,60 +1,44 @@
 <template>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">LABEL</label>
-    <input
-      v-model="rangeEditor.label"
-      class="sdr-panel-input"
-      type="text"
-      aria-label="Range label"
-      placeholder="e.g. Air Band"
-      maxlength="60"
-      style="width: 100%"
+  <BaseTextField
+    v-model="rangeEditor.label"
+    label="LABEL"
+    aria-label="Range label"
+    placeholder="e.g. Air Band"
+    maxlength="60"
+  />
+  <div class="sdr-range-row">
+    <BaseTextField
+      v-model="rangeEditor.low_mhz"
+      class="sdr-range-col"
+      label="LOW (MHz)"
+      input-type="number"
+      aria-label="Range low frequency in MHz"
+      step="0.0001"
+    />
+    <BaseTextField
+      v-model="rangeEditor.high_mhz"
+      class="sdr-range-col"
+      label="HIGH (MHz)"
+      input-type="number"
+      aria-label="Range high frequency in MHz"
+      step="0.0001"
     />
   </div>
-  <div class="sdr-editfreq-field sdr-range-row">
-    <div class="sdr-range-col">
-      <label class="sdr-field-label">LOW (MHz)</label>
-      <input
-        v-model="rangeEditor.low_mhz"
-        class="sdr-panel-input"
-        type="number"
-        aria-label="Range low frequency in MHz"
-        step="0.0001"
-        style="width: 100%"
-      />
-    </div>
-    <div class="sdr-range-col">
-      <label class="sdr-field-label">HIGH (MHz)</label>
-      <input
-        v-model="rangeEditor.high_mhz"
-        class="sdr-panel-input"
-        type="number"
-        aria-label="Range high frequency in MHz"
-        step="0.0001"
-        style="width: 100%"
-      />
-    </div>
-  </div>
-  <div class="sdr-editfreq-field sdr-range-row">
-    <div class="sdr-range-col">
-      <label class="sdr-field-label">STEP</label>
+  <div class="sdr-range-row">
+    <BaseFormField class="sdr-range-col" label="STEP" label-kind="group">
       <SdrStepPicker v-model="rangeEditor.step_khz" />
-    </div>
-    <div class="sdr-range-col">
-      <label class="sdr-field-label">DWELL (ms)</label>
-      <input
-        v-model="rangeEditor.dwell_ms"
-        class="sdr-panel-input"
-        type="number"
-        step="10"
-        min="50"
-        aria-label="Dwell time in milliseconds"
-        style="width: 100%"
-      />
-    </div>
+    </BaseFormField>
+    <BaseTextField
+      v-model="rangeEditor.dwell_ms"
+      class="sdr-range-col"
+      label="DWELL (ms)"
+      input-type="number"
+      step="10"
+      min="50"
+      aria-label="Dwell time in milliseconds"
+    />
   </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">MODE</label>
+  <BaseFormField label="MODE" label-kind="group">
     <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
       <BasePillToggle
         v-for="(mode, modeIndex) in SEARCH_MODES"
@@ -71,28 +55,21 @@
         {{ mode }}
       </BasePillToggle>
     </div>
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">THRESHOLD (dBFS)</label>
-    <input
-      v-model="rangeEditor.threshold_dbfs"
-      class="sdr-panel-input"
-      type="number"
-      step="1"
-      aria-label="Threshold in dBFS"
-      style="width: 100%"
-    />
-  </div>
-  <div class="sdr-editfreq-field">
-    <label class="sdr-field-label">NOTES</label>
-    <textarea
-      v-model="rangeEditor.notes"
-      class="sdr-panel-input sdr-panel-textarea"
-      rows="3"
-      aria-label="Range notes"
-      style="width: 100%"
-    ></textarea>
-  </div>
+  </BaseFormField>
+  <BaseTextField
+    v-model="rangeEditor.threshold_dbfs"
+    label="THRESHOLD (dBFS)"
+    input-type="number"
+    step="1"
+    aria-label="Threshold in dBFS"
+  />
+  <BaseTextField
+    v-model="rangeEditor.notes"
+    label="NOTES"
+    multiline
+    rows="3"
+    aria-label="Range notes"
+  />
   <div v-if="error" class="sdr-field-error">{{ error }}</div>
   <div class="sdr-editfreq-actions">
     <div class="sdr-editfreq-actions-right">
@@ -114,10 +91,12 @@
  * knows whether a new range or which existing one is being edited.
  *
  * It has several root elements on purpose, so the fields stay direct children
- * of the host's `.sdr-editfreq-body` and SdrPanel.css matches them as before.
+ * of the host's `.sdr-editfreq-body`, whose column gap spaces them.
  */
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import SdrStepPicker from './SdrStepPicker.vue'
 import { SEARCH_MODES, type RangeEditorState } from './sdrRangeEditor'

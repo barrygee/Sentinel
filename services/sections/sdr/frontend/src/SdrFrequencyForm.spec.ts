@@ -98,16 +98,28 @@ describe('SdrFrequencyForm — ids', () => {
     }
   })
 
-  it('renders no control ids without a prefix', () => {
+  it('renders no prefixed ids without a prefix, only generated ones the labels need', () => {
     const { wrapper } = mountForm()
     expect(wrapper.find('[id^="undefined"]').exists()).toBe(false)
-    expect(inputByLabel(wrapper, 'Frequency label').attributes('id')).toBeUndefined()
+    for (const controlName of [
+      'label',
+      'freq',
+      'mode-pills',
+      'groups',
+      'notes',
+      'cancel',
+      'save',
+    ]) {
+      expect(wrapper.find(`#sdr-ef-${controlName}`).exists(), controlName).toBe(false)
+    }
+    expect(inputByLabel(wrapper, 'Frequency label').attributes('id')).toMatch(/^ba-form-field-/)
     expect(wrapper.find('.sdr-editfreq-save-btn').attributes('id')).toBeUndefined()
   })
 
   it('treats an empty prefix as no prefix', () => {
     const { wrapper } = mountForm({ idPrefix: '' })
-    expect(inputByLabel(wrapper, 'Frequency label').attributes('id')).toBeUndefined()
+    expect(wrapper.find('[id^="-"]').exists()).toBe(false)
+    expect(inputByLabel(wrapper, 'Frequency label').attributes('id')).toMatch(/^ba-form-field-/)
   })
 })
 
@@ -136,11 +148,17 @@ describe('SdrFrequencyForm — fields', () => {
   })
 })
 
+/** The controls marked invalid: text fields by BaseTextField, the MODE pills by the form. */
+function markedInvalid(wrapper: ReturnType<typeof mountForm>['wrapper']) {
+  return wrapper.findAll('.ba-text-field__input--invalid, .sdr-mode-pills.sdr-input-error')
+}
+
 describe('SdrFrequencyForm — errors', () => {
   it('renders no error messages or error styles when every field is valid', () => {
     const { wrapper } = mountForm()
-    expect(wrapper.findAll('.sdr-field-error')).toHaveLength(0)
-    expect(wrapper.findAll('.sdr-input-error')).toHaveLength(0)
+    expect(wrapper.findAll('.ba-form-field__error')).toHaveLength(0)
+    expect(markedInvalid(wrapper)).toHaveLength(0)
+    expect(wrapper.find('[aria-invalid="true"]').exists()).toBe(false)
   })
 
   it('shows each field’s message under it and marks the field', () => {
@@ -153,17 +171,18 @@ describe('SdrFrequencyForm — errors', () => {
         notes: 'Bad characters',
       },
     })
-    expect(wrapper.findAll('.sdr-field-error').map((message) => message.text())).toEqual([
+    expect(wrapper.findAll('.ba-form-field__error').map((message) => message.text())).toEqual([
       'Label required',
       'Bad frequency',
       'Unknown mode',
       'Bad characters',
     ])
-    for (const controlName of ['label', 'freq', 'mode-pills', 'notes']) {
-      expect(wrapper.find(`#sdr-ef-${controlName}`).classes(), controlName).toContain(
-        'sdr-input-error',
-      )
-    }
+    expect(markedInvalid(wrapper).map((marked) => marked.attributes('id'))).toEqual([
+      'sdr-ef-label',
+      'sdr-ef-freq',
+      'sdr-ef-mode-pills',
+      'sdr-ef-notes',
+    ])
   })
 
   it.each([
@@ -173,13 +192,14 @@ describe('SdrFrequencyForm — errors', () => {
     ['notes', 'notes'],
   ] as const)('shows a %s message alone, under its own field only', (field, controlName) => {
     const { wrapper } = mountForm({ idPrefix: 'sdr-ef', errors: { [field]: 'Invalid' } })
-    const messages = wrapper.findAll('.sdr-field-error')
+    const messages = wrapper.findAll('.ba-form-field__error')
     expect(messages).toHaveLength(1)
-    // The message sits in the same field wrapper as the control it is about.
-    expect(messages[0]!.element.parentElement).toBe(
-      wrapper.find(`#sdr-ef-${controlName}`).element.closest('.sdr-editfreq-field'),
-    )
-    expect(wrapper.findAll('.sdr-input-error').map((marked) => marked.attributes('id'))).toEqual([
+    const control = wrapper.get(`#sdr-ef-${controlName}`)
+    // The message sits in the same field wrapper as the control it is about,
+    // and the control names it as its description.
+    expect(messages[0]!.element.parentElement).toBe(control.element.closest('.ba-form-field'))
+    expect(control.attributes('aria-describedby')).toBe(messages[0]!.attributes('id'))
+    expect(markedInvalid(wrapper).map((marked) => marked.attributes('id'))).toEqual([
       `sdr-ef-${controlName}`,
     ])
   })

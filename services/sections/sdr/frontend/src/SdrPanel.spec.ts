@@ -1000,7 +1000,7 @@ describe('SdrPanel — frequency manager tab', () => {
     await wrapper.find('#sdr-ef-freq').setValue('not-a-freq')
     await wrapper.find('#sdr-ef-save').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-field-error').exists()).toBe(true)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(true)
     expect(
       fetchCalls.some((c) => c.url === '/api/sdr/frequencies' && c.opts?.method === 'POST'),
     ).toBe(false)
@@ -1024,7 +1024,7 @@ describe('SdrPanel — frequency manager tab', () => {
     await wrapper.find('#sdr-ef-notes').setValue('bad < > chars')
     await wrapper.find('#sdr-ef-save').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-field-error').text()).toMatch(/disallowed/)
+    expect(wrapper.find('.ba-form-field__error').text()).toMatch(/disallowed/)
   })
 
   it('toggles groups in the add panel', async () => {
@@ -1046,7 +1046,7 @@ describe('SdrPanel — frequency manager tab', () => {
     await wrapper.vm.$nextTick()
     const inline = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
     expect(inline.exists()).toBe(true)
-    await inline.find('input.sdr-panel-input').setValue('ATIS Renamed')
+    await inline.find('input.ba-text-field__input').setValue('ATIS Renamed')
     await inline.find('.sdr-editfreq-save-btn').trigger('click')
     await flushPromises()
     const put = fetchCalls.find(
@@ -1204,7 +1204,7 @@ describe('SdrPanel — search ranges tab', () => {
     expect(rangesPane(wrapper).find('.sdr-field-error').exists()).toBe(true)
     expect(searchApi.createSearchRange).not.toHaveBeenCalled()
     // Fill valid values.
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     await inputs[0].setValue('Marine VHF') // label
     await inputs[1].setValue('156') // low mhz
     await inputs[2].setValue('162') // high mhz
@@ -1218,7 +1218,7 @@ describe('SdrPanel — search ranges tab', () => {
     await wrapper.findAll('#sdr-search-range-list .sdr-freq-row-edit')[0].trigger('click')
     await wrapper.vm.$nextTick()
     const editor = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
-    await editor.find('input.sdr-panel-input').setValue('Air Band Edited')
+    await editor.find('input.ba-text-field__input').setValue('Air Band Edited')
     await editor.find('.sdr-editfreq-save-btn').trigger('click')
     await flushPromises()
     expect(searchApi.updateSearchRange).toHaveBeenCalledWith(
@@ -2373,7 +2373,7 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
       .trigger('click')
     await wrapper.vm.$nextTick()
     const editor = pane.find('.sdr-editfreq-body')
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     // low >= high
     await inputs[0].setValue('Test')
     await inputs[1].setValue('160')
@@ -2414,7 +2414,7 @@ describe('SdrPanel — validation & edge branches', () => {
   it('reports each range-editor validation error', async () => {
     const { wrapper } = await mountConnected()
     const editor = await openRangeEditor(wrapper)
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     const save = () => editor.find('.sdr-editfreq-save-btn').trigger('click')
     const errText = () => wrapper.findAll('.sdr-tab-pane')[2].find('.sdr-field-error').text()
 
@@ -2443,7 +2443,7 @@ describe('SdrPanel — validation & edge branches', () => {
     await wrapper.find('#sdr-ef-freq').setValue('100.000')
     await wrapper.find('#sdr-ef-save').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-field-error').text()).toMatch(/60 characters/)
+    expect(wrapper.find('.ba-form-field__error').text()).toMatch(/60 characters/)
   })
 
   it('multi-selects and de-selects scan groups', async () => {
@@ -2792,10 +2792,10 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
     await wrapper.find('#sdr-ef-notes').setValue('bad<>')
     await wrapper.find('#sdr-ef-save').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-field-error').exists()).toBe(true)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(true)
     await wrapper.find('#sdr-ef-notes').setValue('ok notes')
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-field-error').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
   })
 
   it('clears the demod offset when a hardware tune is sent', async () => {
@@ -2915,7 +2915,7 @@ describe('SdrPanel — branch coverage B (modes, ranges, groups, recording)', ()
     await wrapper.find('#sdr-ef-label').setValue('Only label')
     await wrapper.find('#sdr-ef-save').trigger('click') // freq empty → error
     await flushPromises()
-    expect(wrapper.find('.sdr-field-error').text()).toMatch(/valid frequency/)
+    expect(wrapper.find('.ba-form-field__error').text()).toMatch(/valid frequency/)
   })
 
   it('deletes the frequency being edited and closes the panel', async () => {
@@ -3280,7 +3280,7 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
       .trigger('click')
     await wrapper.vm.$nextTick()
     const editor = pane.find('.sdr-editfreq-body')
-    const inputs = editor.findAll('input.sdr-panel-input')
+    const inputs = editor.findAll('input.ba-text-field__input')
     await inputs[0].setValue('R')
     await inputs[1].setValue('100')
     await inputs[2].setValue('110')
@@ -4547,13 +4547,13 @@ describe('SdrPanel — inline editors & template branches', () => {
       .findAll('.sdr-ef-gpill')
       .find((b) => b.text() === 'Marine')!
       .trigger('click')
-    await panel.find('.sdr-editfreq-field textarea').setValue('inline notes')
+    await panel.find('.ba-form-field textarea').setValue('inline notes')
     // Clear the label + bad freq, then save → inline error divs render.
-    await panel.findAll('input.sdr-panel-input')[0].setValue('')
-    await panel.findAll('input.sdr-panel-input')[1].setValue('nope')
+    await panel.findAll('input.ba-text-field__input')[0].setValue('')
+    await panel.findAll('input.ba-text-field__input')[1].setValue('nope')
     await panel.find('.sdr-editfreq-save-btn').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-freq-editing .sdr-field-error').exists()).toBe(true)
+    expect(wrapper.find('.sdr-freq-editing .ba-form-field__error').exists()).toBe(true)
     // Reset to the Default group via its pill.
     await panel
       .findAll('.sdr-ef-gpill')
@@ -4676,7 +4676,7 @@ describe('SdrPanel — last template branches', () => {
     const panel = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
     await panel.find('.sdr-editfreq-save-btn').trigger('click') // validateFreqForm → mode error
     await flushPromises()
-    expect(wrapper.find('.sdr-freq-editing .sdr-field-error').text()).toMatch(/Select a mode/)
+    expect(wrapper.find('.sdr-freq-editing .ba-form-field__error').text()).toMatch(/Select a mode/)
   })
 
   it('flags disallowed notes inline', async () => {
@@ -4688,7 +4688,7 @@ describe('SdrPanel — last template branches', () => {
     await panel.find('textarea').setValue('bad < > notes')
     await panel.find('.sdr-editfreq-save-btn').trigger('click')
     await flushPromises()
-    expect(wrapper.find('.sdr-freq-editing .sdr-field-error').text()).toMatch(/disallowed/)
+    expect(wrapper.find('.sdr-freq-editing .ba-form-field__error').text()).toMatch(/disallowed/)
   })
 
   it('opens a range editor via the spacebar', async () => {
