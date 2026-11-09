@@ -80,13 +80,13 @@
             <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
             <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
           </BaseDataGrid>
-          <SatRadioInfoSection :radio="pass" class-prefix="spp-acc" />
-          <div class="spp-acc-section spp-acc-section--track">
-            <div class="spp-acc-track-row">
+          <SatRadioInfoSection :radio="pass" />
+          <div class="sat-acc-section sat-acc-section--track">
+            <div class="sat-acc-track-row">
               <BaseIconAction
-                class="spp-acc-track-btn"
+                class="sat-acc-track-btn"
                 :active="followedNoradId === pass.norad_id"
-                active-class="spp-acc-track-btn--active"
+                active-class="sat-acc-track-btn--active"
                 :accessible-name="
                   followedNoradId === pass.norad_id ? 'Untrack satellite' : 'Track satellite'
                 "
@@ -98,10 +98,10 @@
                 <LocationPinIcon />
               </BaseIconAction>
               <BaseIconAction
-                class="spp-acc-notif-btn"
-                :class="{ 'spp-acc-notif-btn--last': !pass.downlink_hz }"
+                class="sat-acc-notif-btn"
+                :class="{ 'sat-acc-notif-btn--last': !pass.downlink_hz }"
                 :active="notifNoradId === pass.norad_id"
-                active-class="spp-acc-notif-btn--active"
+                active-class="sat-acc-notif-btn--active"
                 :accessible-name="
                   notifNoradId === pass.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
                 "
@@ -114,9 +114,9 @@
               </BaseIconAction>
               <BaseIconAction
                 v-if="pass.downlink_hz"
-                class="spp-acc-autotune-btn"
+                class="sat-acc-autotune-btn"
                 :active="isArmed(pass.norad_id)"
-                active-class="spp-acc-autotune-btn--active"
+                active-class="sat-acc-autotune-btn--active"
                 :accessible-name="autoTuneLabel()"
                 :tooltip="autoTuneLabel()"
                 @click.stop="toggleAutoTune(pass)"
@@ -125,9 +125,9 @@
               </BaseIconAction>
               <BaseIconAction
                 v-if="pass.downlink_hz"
-                class="spp-acc-record-btn"
+                class="sat-acc-record-btn"
                 :active="isRecordArmed(pass.norad_id)"
-                active-class="spp-acc-record-btn--active"
+                active-class="sat-acc-record-btn--active"
                 :disabled="!isArmed(pass.norad_id)"
                 accessible-name="Record pass"
                 tooltip="Record pass"
@@ -147,7 +147,7 @@
             </div>
             <div
               v-if="isArmed(pass.norad_id) && conflictText(pass.norad_id)"
-              class="spp-acc-autotune-warn"
+              class="sat-acc-autotune-warn"
             >
               <svg
                 width="12"
@@ -178,10 +178,10 @@
               <span>{{ conflictText(pass.norad_id) }}</span>
             </div>
           </div>
-          <div class="spp-acc-section spp-acc-section--polar">
-            <div class="spp-acc-section-title spp-acc-polar-title">
+          <div class="sat-acc-section sat-acc-section--polar">
+            <div class="sat-acc-section-title sat-acc-polar-title">
               <span>{{ polarTitle }}</span>
-              <span v-if="polarPass" class="spp-acc-polar-maxel"
+              <span v-if="polarPass" class="sat-acc-polar-maxel"
                 >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
               >
             </div>
@@ -190,42 +190,42 @@
               :track="polarPass.sky_track"
               :live="polarLive"
             />
-            <div v-else class="spp-acc-polar-empty">
+            <div v-else class="sat-acc-polar-empty">
               {{ accLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
             </div>
           </div>
-          <div class="spp-acc-section spp-acc-section--passes">
-            <div class="spp-acc-section-title spp-acc-passes-title">
+          <div class="sat-acc-section sat-acc-section--passes">
+            <div class="sat-acc-section-title sat-acc-passes-title">
               <span>UPCOMING PASSES</span>
-              <span class="spp-acc-status" :class="{ 'spp-acc-status-loading': accLoading }">{{
+              <span class="sat-acc-status" :class="{ 'sat-acc-status-loading': accLoading }">{{
                 accStatus
               }}</span>
             </div>
-            <div class="spp-acc-pass-list">
+            <div class="sat-acc-pass-list">
               <div
                 v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')"
-                class="spp-acc-no-passes"
+                class="sat-acc-no-passes"
               >
                 No passes in the next 24 hours.
               </div>
-              <div v-for="(ap, i) in accPasses" :key="i" class="spp-acc-pass-card">
-                <div class="spp-acc-pass-times">
-                  <div class="spp-acc-pass-aos-row">
-                    <span class="spp-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
-                    <span class="spp-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
+              <div v-for="(ap, i) in accPasses" :key="i" class="sat-acc-pass-card">
+                <div class="sat-acc-pass-times">
+                  <div class="sat-acc-pass-aos-row">
+                    <span class="sat-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
+                    <span class="sat-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
                   </div>
-                  <div class="spp-acc-pass-los">
+                  <div class="sat-acc-pass-los">
                     LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}
                   </div>
                 </div>
-                <div class="spp-acc-pass-meta">
+                <div class="sat-acc-pass-meta">
                   <div
-                    class="spp-acc-pass-countdown"
-                    :class="{ 'spp-in-progress': accPassIsNow(ap, now) }"
+                    class="sat-acc-pass-countdown"
+                    :class="{ 'sat-acc-pass-countdown--live': accPassIsNow(ap, now) }"
                   >
                     {{ accPassIsNow(ap, now) ? 'NOW' : formatPassCountdown(ap.aos_unix_ms - now) }}
                   </div>
-                  <div class="spp-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
+                  <div class="sat-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
                 </div>
               </div>
             </div>
@@ -280,6 +280,7 @@ import {
   type AccPass,
   type SkyPoint,
 } from './spacePassesUtils'
+import './SatelliteAccordion.css'
 import './SpacePasses.css'
 
 const props = defineProps<{

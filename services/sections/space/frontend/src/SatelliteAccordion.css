@@ -1,0 +1,420 @@
+/*
+ * The expanded-satellite accordion — RADIO, TRACK / alert / auto-tune / record
+ * buttons, POLAR PLOT and UPCOMING PASSES — shared by the satellite list
+ * (SpaceFilter) and the PASSES pane (SpacePasses), which used to carry a copy
+ * each under their own class prefix.
+ *
+ * Left/right inset: --ba-grid-section-padding-x, the variable BaseDataGrid
+ * already reads, so the accordion's own sections and its data grids always
+ * line up. Unset it is 24px (the satellite list); SpacePasses sets 28px on its
+ * accordion body.
+ */
+
+.sat-acc-section {
+  padding: 14px var(--ba-grid-section-padding-x, 24px) 12px var(--ba-grid-section-padding-x, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sat-acc-section-title {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--accent-text);
+  text-transform: uppercase;
+}
+
+/* The label/value grid itself (POSITION DATA / ORBITAL DATA / RADIO) now
+   lives in BaseDataGrid/BaseDataCell. sat-acc-cell-label stays: the RADIO
+   section's PACKET/NOTES caption lines still use it directly. */
+.sat-acc-cell-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(var(--ink-rgb), 0.35);
+  text-transform: uppercase;
+}
+
+.sat-acc-section--track {
+  padding-top: 16px;
+  padding-bottom: 24px;
+}
+
+.sat-acc-track-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.sat-acc-track-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-sunken);
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.sat-acc-track-btn:hover {
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
+}
+
+.sat-acc-track-btn.sat-acc-track-btn--active {
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.sat-acc-track-btn.sat-acc-track-btn--active:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.sat-acc-notif-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  background: var(--surface-sunken);
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.sat-acc-notif-btn:hover {
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
+}
+
+.sat-acc-notif-btn.sat-acc-notif-btn--active {
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.sat-acc-notif-btn.sat-acc-notif-btn--active:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.sat-acc-autotune-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  background: var(--surface-sunken);
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.sat-acc-autotune-btn:hover {
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
+}
+
+.sat-acc-autotune-btn.sat-acc-autotune-btn--active {
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.sat-acc-autotune-btn.sat-acc-autotune-btn--active:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+/* Record-on-pass button — sits beside auto-tune and is only enabled once
+   auto-tune is armed (recording needs a live tune to capture). */
+.sat-acc-record-btn {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  background: var(--surface-sunken);
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.sat-acc-record-btn:hover:not(:disabled) {
+  color: var(--sev-critical);
+  background: var(--surface-sunken-hover);
+}
+
+.sat-acc-record-btn.sat-acc-record-btn--active {
+  color: var(--sev-critical);
+  background: rgba(var(--sev-critical-rgb), 0.12);
+}
+
+.sat-acc-record-btn.sat-acc-record-btn--active:hover {
+  background: rgba(var(--sev-critical-rgb), 0.18);
+}
+
+.sat-acc-record-btn:disabled {
+  cursor: not-allowed;
+  color: rgba(var(--ink-rgb), 0.18);
+}
+
+/* Inline lock-in conflict warning: another armed sat overlaps this one, so only
+   one of the two passes will actually be tuned. */
+.sat-acc-autotune-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: rgba(var(--sev-caution-rgb), 0.08);
+  border-left: 2px solid var(--sev-caution-text);
+  color: var(--sev-caution-text);
+  font-size: 10px;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sat-acc-autotune-warn svg {
+  flex: 0 0 auto;
+}
+
+/* The notif / auto-tune icon buttons' hover tooltip (black pill above the
+   button, left-anchored) comes from BaseIconAction's default
+   tooltipSide="top" look. */
+
+.sat-acc-section--polar {
+  padding-top: 14px;
+  padding-bottom: 6px;
+  gap: 8px;
+}
+
+.sat-acc-polar-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sat-acc-polar-maxel {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(var(--ink-rgb), 0.32);
+  text-transform: uppercase;
+}
+
+.sat-acc-polar-empty {
+  padding: 18px 0;
+  text-align: left;
+  font-family: var(--font-primary);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: rgba(var(--ink-rgb), 0.28);
+  text-transform: uppercase;
+}
+
+.sat-acc-section--passes {
+  padding-top: 6px;
+  padding-bottom: 4px;
+  gap: 6px;
+}
+
+.sat-acc-passes-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sat-acc-status {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(var(--ink-rgb), 0.28);
+  text-transform: uppercase;
+}
+
+.sat-acc-status.sat-acc-status-loading {
+  color: var(--accent-text);
+}
+
+.sat-acc-no-passes {
+  padding: 4px var(--ba-grid-section-padding-x, 24px) 8px var(--ba-grid-section-padding-x, 24px);
+  font-family: var(--font-primary);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  color: rgba(var(--ink-rgb), 0.28);
+  text-transform: uppercase;
+}
+
+.sat-acc-pass-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0 calc(-1 * var(--ba-grid-section-padding-x, 24px));
+}
+
+.sat-acc-pass-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px var(--ba-grid-section-padding-x, 24px);
+}
+
+.sat-acc-pass-card:last-child {
+  padding-bottom: 16px;
+}
+
+.sat-acc-pass-num {
+  display: none;
+}
+
+.sat-acc-pass-times {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sat-acc-pass-aos-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.sat-acc-pass-date {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(var(--ink-rgb), 0.28);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.sat-acc-pass-time {
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-strong);
+}
+
+.sat-acc-pass-los {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  color: rgba(var(--ink-rgb), 0.28);
+  text-transform: uppercase;
+}
+
+.sat-acc-pass-meta {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sat-acc-pass-countdown {
+  font-family: var(--font-primary);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent-text);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.sat-acc-pass-countdown.sat-acc-pass-countdown--live {
+  color: var(--sev-live);
+}
+
+.sat-acc-pass-maxel {
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.07em;
+  color: rgba(var(--ink-rgb), 0.32);
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+/* ---- RADIO section ---- */
+/* The grid itself and its "· MODE" suffix span now live in BaseDataGrid
+   (rendered with `bare` so it shares this file's own sat-acc-section flex/gap
+   for the PACKET/NOTES lines below) and BaseDataCell's :slotted(.ba-data-cell-mode). */
+.sat-acc-radio-line {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sat-acc-radio-text {
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.78);
+}
+.sat-acc-radio-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sat-acc-radio-list li {
+  position: relative;
+  padding-left: 14px;
+  font-family: var(--font-primary);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba(var(--ink-rgb), 0.82);
+}
+.sat-acc-radio-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent-text);
+  opacity: 0.65;
+}
