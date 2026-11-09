@@ -1806,6 +1806,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #595 from barrygee/perf/fewer-js-files
 - Merge pull request #596 from barrygee/perf/file-status-poll
 - Merge pull request #597 from barrygee/refactor/sdr-forms
+- Merge pull request #598 from barrygee/refactor/space-satellite-styles
 
 ### Performance
 
@@ -1917,6 +1918,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rename showKnownFreqs to displayKnownFrequencies
 - Share one side rail across the map sections
 - Share one form between the add and edit panels
+- Share one satellite accordion stylesheet
 
 ### Documentation
 
@@ -2187,6 +2189,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle with map-kit modules unmerged
 - Rebuild the bundle for the visible-tab config file poll
 - Rebuild the SDR remote for the shared forms
+- Rebuild Space remote for the shared accordion stylesheet
 
 ### Continuous Integration
 
