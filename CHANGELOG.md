@@ -282,6 +282,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add BaseFormField and BaseTextField
 - Show the altitude legend in the footer bar
 - Add a settings density to BaseFormField and BaseTextField
+- Add an inline layout to BaseFormField and BaseTextField
 
 ### Bug Fixes
 
@@ -1816,6 +1817,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #600 from barrygee/refactor/base-text-field
 - Merge pull request #601 from barrygee/fix/footer-legend-label-search
 - Merge pull request #602 from barrygee/refactor/settings-text-field
+- Merge pull request #603 from barrygee/refactor/sdr-device-form-field
 
 ### Performance
 
@@ -1931,6 +1933,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share the satellite actions between Filter and Passes
 - Build the frequency and range forms from BaseTextField
 - Move the Settings inputs onto BaseTextField
+- Move the device form and serial flash onto BaseTextField
+- Move the host form onto BaseTextField
 
 ### Documentation
 
@@ -2207,6 +2211,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the shared text fields
 - Rebuild for the footer legend, airfield labels and search hint
 - Rebuild for the settings field density
+- Rebuild for the inline device and host form fields
 
 ### Continuous Integration
 
