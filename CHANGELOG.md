@@ -281,6 +281,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Search the frequency manager
 - Add BaseFormField and BaseTextField
 - Show the altitude legend in the footer bar
+- Add a settings density to BaseFormField and BaseTextField
 
 ### Bug Fixes
 
@@ -1814,6 +1815,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #599 from barrygee/refactor/use-satellite-actions
 - Merge pull request #600 from barrygee/refactor/base-text-field
 - Merge pull request #601 from barrygee/fix/footer-legend-label-search
+- Merge pull request #602 from barrygee/refactor/settings-text-field
 
 ### Performance
 
@@ -1928,6 +1930,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share one satellite accordion stylesheet
 - Share the satellite actions between Filter and Passes
 - Build the frequency and range forms from BaseTextField
+- Move the Settings inputs onto BaseTextField
 
 ### Documentation
 
@@ -2203,6 +2206,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the Space remote for the shared satellite actions
 - Rebuild for the shared text fields
 - Rebuild for the footer legend, airfield labels and search hint
+- Rebuild for the settings field density
 
 ### Continuous Integration
 
