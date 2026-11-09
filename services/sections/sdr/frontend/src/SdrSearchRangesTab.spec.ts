@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
+import SdrRangeForm from './SdrRangeForm.vue'
+import { blankRangeEditor, rangeEditorFromRange } from './sdrRangeEditor'
 import type { SdrSearchRange } from './services/sdrSearchApi'
 
 enableAutoUnmount(afterEach)
@@ -319,5 +321,45 @@ describe('SdrSearchRangesTab — accessibility', () => {
         rules: { region: { enabled: false } },
       }),
     ).toHaveNoViolations()
+  })
+})
+
+describe('SdrSearchRangesTab — form model', () => {
+  // The form edits fields in place, but v-model must also accept a whole new
+  // state object from it; these pin that two-way binding on both forms.
+  it('saves a state object the add form replaces wholesale', async () => {
+    const wrapper = mountTab([])
+    await openAddForm(wrapper)
+    wrapper.findComponent(SdrRangeForm).vm.$emit('update:modelValue', {
+      ...blankRangeEditor(),
+      label: 'Marine',
+      low_mhz: '156',
+      high_mhz: '162',
+      mode: 'WFM',
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-editfreq-save-btn').trigger('click')
+    await flushPromises()
+    expect(createMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: 'Marine',
+        low_hz: 156_000_000,
+        high_hz: 162_000_000,
+        mode: 'WFM',
+      }),
+    )
+  })
+
+  it('saves a state object the inline editor replaces wholesale', async () => {
+    const wrapper = mountTab([makeRange({ id: 7 })])
+    await wrapper.find('.sdr-freq-row-edit').trigger('click')
+    wrapper.findComponent(SdrRangeForm).vm.$emit('update:modelValue', {
+      ...rangeEditorFromRange(makeRange({ id: 7 })),
+      label: 'Air Band EU',
+    })
+    await wrapper.vm.$nextTick()
+    await wrapper.find('.sdr-editfreq-save-btn').trigger('click')
+    await flushPromises()
+    expect(updateMock).toHaveBeenCalledWith(7, expect.objectContaining({ label: 'Air Band EU' }))
   })
 })

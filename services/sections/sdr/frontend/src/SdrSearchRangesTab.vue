@@ -2,37 +2,40 @@
   <div class="sdr-search-ranges-body">
     <div id="sdr-search-range-list">
       <div
-        v-for="r in ranges"
-        :key="r.id"
+        v-for="range in ranges"
+        :key="range.id"
         class="sdr-freq-row-item"
-        :class="{ 'sdr-freq-editing': editingRangeId === r.id }"
+        :class="{ 'sdr-freq-editing': editingRangeId === range.id }"
       >
         <div class="sdr-freq-row-top">
           <div
             class="sdr-freq-row-body sdr-search-range-row-body"
             role="button"
             tabindex="0"
-            :title="rangeEditorOpen && editingRangeId === r.id ? 'Close editor' : 'Edit range'"
-            @click.stop="toggleEditRange(r)"
-            @keydown.enter.stop.prevent="toggleEditRange(r)"
-            @keydown.space.stop.prevent="toggleEditRange(r)"
+            :title="rangeEditorOpen && editingRangeId === range.id ? 'Close editor' : 'Edit range'"
+            @click.stop="toggleEditRange(range)"
+            @keydown.enter.stop.prevent="toggleEditRange(range)"
+            @keydown.space.stop.prevent="toggleEditRange(range)"
           >
             <div class="sdr-freq-row-main">
-              <span class="sdr-freq-row-label">{{ r.label }}</span>
+              <span class="sdr-freq-row-label">{{ range.label }}</span>
             </div>
             <div class="sdr-freq-row-sub">
               <span class="sdr-freq-row-hz"
-                >{{ (r.low_hz / 1e6).toFixed(3) }}–{{ (r.high_hz / 1e6).toFixed(3) }} MHz</span
+                >{{ (range.low_hz / 1e6).toFixed(3) }}–{{
+                  (range.high_hz / 1e6).toFixed(3)
+                }}
+                MHz</span
               >
             </div>
           </div>
           <span class="sdr-freq-row-play-spacer" aria-hidden="true"></span>
           <BaseIconAction
-            v-if="!(rangeEditorOpen && editingRangeId === r.id)"
+            v-if="!(rangeEditorOpen && editingRangeId === range.id)"
             class="sdr-freq-row-edit"
             accessible-name="Edit range"
             title="Edit"
-            @click.stop="toggleEditRange(r)"
+            @click.stop="toggleEditRange(range)"
           >
             <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
@@ -45,7 +48,7 @@
             class="sdr-freq-row-del"
             accessible-name="Delete range"
             title="Delete"
-            @click.stop="deleteRange(r.id)"
+            @click.stop="deleteRange(range.id)"
           >
             &#x2715;
           </BaseIconAction>
@@ -53,119 +56,16 @@
 
         <!-- Inline edit form (accordion body) -->
         <div
-          v-if="rangeEditorOpen && editingRangeId === r.id"
+          v-if="rangeEditorOpen && editingRangeId === range.id"
           class="sdr-editfreq-body expanded"
           @click.stop
         >
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">LABEL</label>
-            <input
-              v-model="rangeEditor.label"
-              class="sdr-panel-input"
-              type="text"
-              aria-label="Range label"
-              placeholder="e.g. Air Band"
-              maxlength="60"
-              style="width: 100%"
-            />
-          </div>
-          <div class="sdr-editfreq-field sdr-range-row">
-            <div class="sdr-range-col">
-              <label class="sdr-field-label">LOW (MHz)</label>
-              <input
-                v-model="rangeEditor.low_mhz"
-                class="sdr-panel-input"
-                type="number"
-                aria-label="Range low frequency in MHz"
-                step="0.0001"
-                style="width: 100%"
-              />
-            </div>
-            <div class="sdr-range-col">
-              <label class="sdr-field-label">HIGH (MHz)</label>
-              <input
-                v-model="rangeEditor.high_mhz"
-                class="sdr-panel-input"
-                type="number"
-                aria-label="Range high frequency in MHz"
-                step="0.0001"
-                style="width: 100%"
-              />
-            </div>
-          </div>
-          <div class="sdr-editfreq-field sdr-range-row">
-            <div class="sdr-range-col">
-              <label class="sdr-field-label">STEP</label>
-              <SdrStepPicker v-model="rangeEditor.step_khz" />
-            </div>
-            <div class="sdr-range-col">
-              <label class="sdr-field-label">DWELL (ms)</label>
-              <input
-                v-model="rangeEditor.dwell_ms"
-                class="sdr-panel-input"
-                type="number"
-                step="10"
-                min="50"
-                aria-label="Dwell time in milliseconds"
-                style="width: 100%"
-              />
-            </div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">MODE</label>
-            <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
-              <BasePillToggle
-                v-for="(mode, modeIndex) in SEARCH_MODES"
-                :key="mode"
-                class="sdr-mode-pill"
-                role="radio"
-                :aria-checked="rangeEditor.mode === mode"
-                :tabindex="rangeModeKeyboard.radioTabindex(modeIndex)"
-                :active="rangeEditor.mode === mode"
-                active-class="active"
-                @click="rangeEditor.mode = mode"
-                @keydown="rangeModeKeyboard.onRadioKeydown($event, modeIndex)"
-              >
-                {{ mode }}
-              </BasePillToggle>
-            </div>
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">THRESHOLD (dBFS)</label>
-            <input
-              v-model="rangeEditor.threshold_dbfs"
-              class="sdr-panel-input"
-              type="number"
-              step="1"
-              aria-label="Threshold in dBFS"
-              style="width: 100%"
-            />
-          </div>
-          <div class="sdr-editfreq-field">
-            <label class="sdr-field-label">NOTES</label>
-            <textarea
-              v-model="rangeEditor.notes"
-              class="sdr-panel-input sdr-panel-textarea"
-              rows="3"
-              aria-label="Range notes"
-              style="width: 100%"
-            ></textarea>
-          </div>
-          <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
-          <div class="sdr-editfreq-actions">
-            <div class="sdr-editfreq-actions-right">
-              <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelRangeEditor"
-                >CANCEL</BaseButton
-              >
-              <BaseButton
-                variant="ghost"
-                class="sdr-panel-btn sdr-editfreq-save-btn"
-                @click="saveRangeEditor"
-              >
-                SAVE
-              </BaseButton>
-            </div>
-          </div>
+          <SdrRangeForm
+            v-model="rangeEditor"
+            :error="rangeEditorError"
+            @save="saveRangeEditor"
+            @cancel="cancelRangeEditor"
+          />
         </div>
       </div>
     </div>
@@ -187,114 +87,12 @@
       <div class="sdr-addfreq-title-row">
         <span class="sdr-scanner-section-label">ADD RANGE</span>
       </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">LABEL</label>
-        <input
-          v-model="rangeEditor.label"
-          class="sdr-panel-input"
-          type="text"
-          aria-label="Range label"
-          placeholder="e.g. Air Band"
-          maxlength="60"
-          style="width: 100%"
-        />
-      </div>
-      <div class="sdr-editfreq-field sdr-range-row">
-        <div class="sdr-range-col">
-          <label class="sdr-field-label">LOW (MHz)</label>
-          <input
-            v-model="rangeEditor.low_mhz"
-            class="sdr-panel-input"
-            type="number"
-            aria-label="Range low frequency in MHz"
-            step="0.0001"
-            style="width: 100%"
-          />
-        </div>
-        <div class="sdr-range-col">
-          <label class="sdr-field-label">HIGH (MHz)</label>
-          <input
-            v-model="rangeEditor.high_mhz"
-            class="sdr-panel-input"
-            type="number"
-            aria-label="Range high frequency in MHz"
-            step="0.0001"
-            style="width: 100%"
-          />
-        </div>
-      </div>
-      <div class="sdr-editfreq-field sdr-range-row">
-        <div class="sdr-range-col">
-          <label class="sdr-field-label">STEP</label>
-          <SdrStepPicker v-model="rangeEditor.step_khz" />
-        </div>
-        <div class="sdr-range-col">
-          <label class="sdr-field-label">DWELL (ms)</label>
-          <input
-            v-model="rangeEditor.dwell_ms"
-            class="sdr-panel-input"
-            type="number"
-            step="10"
-            min="50"
-            aria-label="Dwell time in milliseconds"
-            style="width: 100%"
-          />
-        </div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">MODE</label>
-        <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
-          <BasePillToggle
-            v-for="(mode, modeIndex) in SEARCH_MODES"
-            :key="mode"
-            class="sdr-mode-pill"
-            role="radio"
-            :aria-checked="rangeEditor.mode === mode"
-            :tabindex="rangeModeKeyboard.radioTabindex(modeIndex)"
-            :active="rangeEditor.mode === mode"
-            active-class="active"
-            @click="rangeEditor.mode = mode"
-            @keydown="rangeModeKeyboard.onRadioKeydown($event, modeIndex)"
-          >
-            {{ mode }}
-          </BasePillToggle>
-        </div>
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">THRESHOLD (dBFS)</label>
-        <input
-          v-model="rangeEditor.threshold_dbfs"
-          class="sdr-panel-input"
-          type="number"
-          step="1"
-          aria-label="Threshold in dBFS"
-          style="width: 100%"
-        />
-      </div>
-      <div class="sdr-editfreq-field">
-        <label class="sdr-field-label">NOTES</label>
-        <textarea
-          v-model="rangeEditor.notes"
-          class="sdr-panel-input sdr-panel-textarea"
-          rows="3"
-          aria-label="Range notes"
-          style="width: 100%"
-        ></textarea>
-      </div>
-      <div v-if="rangeEditorError" class="sdr-field-error">{{ rangeEditorError }}</div>
-      <div class="sdr-editfreq-actions">
-        <div class="sdr-editfreq-actions-right">
-          <BaseButton variant="ghost" class="sdr-panel-btn" @click="cancelRangeEditor"
-            >CANCEL</BaseButton
-          >
-          <BaseButton
-            variant="ghost"
-            class="sdr-panel-btn sdr-editfreq-save-btn"
-            @click="saveRangeEditor"
-            >SAVE</BaseButton
-          >
-        </div>
-      </div>
+      <SdrRangeForm
+        v-model="rangeEditor"
+        :error="rangeEditorError"
+        @save="saveRangeEditor"
+        @cancel="cancelRangeEditor"
+      />
     </div>
   </div>
 </template>
@@ -313,15 +111,16 @@
  * - `changed` after every successful save/delete, so the parent reloads its
  *   range list (which also reconciles the selected-range id).
  *
+ * The Add panel and the inline row editor render the same `SdrRangeForm`;
+ * this tab owns its state, validation and saving.
+ *
  * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
  * the other extracted panel sections.
  */
 import { ref } from 'vue'
-import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
-import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
-import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
-import SdrStepPicker from './SdrStepPicker.vue'
+import SdrRangeForm from './SdrRangeForm.vue'
+import { blankRangeEditor, rangeEditorFromRange, type RangeEditorState } from './sdrRangeEditor'
 import type { SdrSearchRange } from './services/sdrSearchApi'
 import {
   createSearchRange as apiCreateSearchRange,
@@ -341,49 +140,10 @@ const emit = defineEmits<{
   (event: 'changed'): void
 }>()
 
-const SEARCH_MODES = ['AM', 'NFM', 'WFM', 'USB', 'LSB', 'CW']
-
-interface RangeEditorState {
-  id: number | null
-  label: string
-  low_mhz: string
-  high_mhz: string
-  step_khz: string
-  mode: string
-  threshold_dbfs: string
-  dwell_ms: string
-  notes: string
-}
-
-function blankRangeEditor(): RangeEditorState {
-  return {
-    id: null,
-    label: '',
-    low_mhz: '',
-    high_mhz: '',
-    step_khz: '12.5',
-    mode: 'NFM',
-    threshold_dbfs: '-70',
-    dwell_ms: '200',
-    notes: '',
-  }
-}
-
 const rangeEditorOpen = ref(false)
 const editingRangeId = ref<number | null>(null)
 const rangeEditor = ref<RangeEditorState>(blankRangeEditor())
 const rangeEditorError = ref<string>('')
-
-// Radio-group keyboard model for the MODE pills. One instance serves both the
-// inline-edit and Add forms — they render the same SEARCH_MODES over the same
-// rangeEditor state.
-const rangeModeKeyboard = useRadioGroupKeyboard({
-  optionCount: () => SEARCH_MODES.length,
-  selectedIndex: () => SEARCH_MODES.indexOf(rangeEditor.value.mode),
-  select: (modeIndex) => {
-    rangeEditor.value.mode = SEARCH_MODES[modeIndex]!
-  },
-})
 
 function openAddRange() {
   editingRangeId.value = null
@@ -392,27 +152,17 @@ function openAddRange() {
   rangeEditorOpen.value = true
 }
 
-function toggleEditRange(r: SdrSearchRange) {
-  if (rangeEditorOpen.value && editingRangeId.value === r.id) {
+function toggleEditRange(range: SdrSearchRange) {
+  if (rangeEditorOpen.value && editingRangeId.value === range.id) {
     cancelRangeEditor()
   } else {
-    openEditRange(r)
+    openEditRange(range)
   }
 }
 
-function openEditRange(r: SdrSearchRange) {
-  editingRangeId.value = r.id
-  rangeEditor.value = {
-    id: r.id,
-    label: r.label,
-    low_mhz: (r.low_hz / 1e6).toString(),
-    high_mhz: (r.high_hz / 1e6).toString(),
-    step_khz: (r.step_hz / 1000).toString(),
-    mode: r.mode,
-    threshold_dbfs: r.threshold_dbfs.toString(),
-    dwell_ms: r.dwell_ms.toString(),
-    notes: r.notes,
-  }
+function openEditRange(range: SdrSearchRange) {
+  editingRangeId.value = range.id
+  rangeEditor.value = rangeEditorFromRange(range)
   rangeEditorError.value = ''
   rangeEditorOpen.value = true
 }
@@ -424,13 +174,13 @@ function cancelRangeEditor() {
 }
 
 async function saveRangeEditor() {
-  const e = rangeEditor.value
-  const lowHz = Math.round(parseFloat(e.low_mhz) * 1e6)
-  const highHz = Math.round(parseFloat(e.high_mhz) * 1e6)
-  const stepHz = Math.round(parseFloat(e.step_khz) * 1000)
-  const thr = parseFloat(e.threshold_dbfs)
-  const dwell = parseInt(e.dwell_ms, 10)
-  if (!e.label.trim()) {
+  const editor = rangeEditor.value
+  const lowHz = Math.round(parseFloat(editor.low_mhz) * 1e6)
+  const highHz = Math.round(parseFloat(editor.high_mhz) * 1e6)
+  const stepHz = Math.round(parseFloat(editor.step_khz) * 1000)
+  const thresholdDbfs = parseFloat(editor.threshold_dbfs)
+  const dwellMs = parseInt(editor.dwell_ms, 10)
+  if (!editor.label.trim()) {
     rangeEditorError.value = 'Label required'
     return
   }
@@ -450,38 +200,38 @@ async function saveRangeEditor() {
     return
   }
   /* v8 ignore stop */
-  if (!isFinite(thr)) {
+  if (!isFinite(thresholdDbfs)) {
     rangeEditorError.value = 'Threshold must be a number'
     return
   }
-  if (!isFinite(dwell) || dwell <= 0) {
+  if (!isFinite(dwellMs) || dwellMs <= 0) {
     rangeEditorError.value = 'Dwell must be positive'
     return
   }
 
   const body = {
-    label: e.label.trim(),
+    label: editor.label.trim(),
     low_hz: lowHz,
     high_hz: highHz,
     step_hz: stepHz,
-    mode: e.mode,
-    threshold_dbfs: thr,
-    dwell_ms: dwell,
+    mode: editor.mode,
+    threshold_dbfs: thresholdDbfs,
+    dwell_ms: dwellMs,
     band_name: '',
     enabled: true,
-    notes: e.notes,
+    notes: editor.notes,
     sort_order:
       editingRangeId.value == null
         ? props.ranges.length
         : /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-          (props.ranges.find((r) => r.id === editingRangeId.value)?.sort_order ?? 0),
+          (props.ranges.find((range) => range.id === editingRangeId.value)?.sort_order ?? 0),
     /* v8 ignore stop */
   }
-  const ok =
+  const saved =
     editingRangeId.value == null
       ? !!(await apiCreateSearchRange(body))
       : !!(await apiUpdateSearchRange(editingRangeId.value, body))
-  if (!ok) {
+  if (!saved) {
     rangeEditorError.value = 'Save failed'
     return
   }
