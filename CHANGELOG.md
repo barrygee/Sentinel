@@ -1807,6 +1807,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #596 from barrygee/perf/file-status-poll
 - Merge pull request #597 from barrygee/refactor/sdr-forms
 - Merge pull request #598 from barrygee/refactor/space-satellite-styles
+- Merge pull request #599 from barrygee/refactor/use-satellite-actions
 
 ### Performance
 
@@ -1919,6 +1920,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share one side rail across the map sections
 - Share one form between the add and edit panels
 - Share one satellite accordion stylesheet
+- Share the satellite actions between Filter and Passes
 
 ### Documentation
 
@@ -2093,6 +2095,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover connecting to an unavailable radio
 - Record the search field in the cascade snapshots
 - Expect the plural range rings label
+- Point the RadioIcon guard at SatelliteActionRow
 
 ### Build System
 
@@ -2190,6 +2193,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the visible-tab config file poll
 - Rebuild the SDR remote for the shared forms
 - Rebuild Space remote for the shared accordion stylesheet
+- Rebuild the Space remote for the shared satellite actions
 
 ### Continuous Integration
 
