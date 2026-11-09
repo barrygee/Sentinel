@@ -279,6 +279,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the tuned frequency from the readout
 - Add a panel variant to BaseSearchField
 - Search the frequency manager
+- Add BaseFormField and BaseTextField
 
 ### Bug Fixes
 
@@ -1808,6 +1809,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #597 from barrygee/refactor/sdr-forms
 - Merge pull request #598 from barrygee/refactor/space-satellite-styles
 - Merge pull request #599 from barrygee/refactor/use-satellite-actions
+- Merge pull request #600 from barrygee/refactor/base-text-field
 
 ### Performance
 
@@ -1921,6 +1923,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share one form between the add and edit panels
 - Share one satellite accordion stylesheet
 - Share the satellite actions between Filter and Passes
+- Build the frequency and range forms from BaseTextField
 
 ### Documentation
 
@@ -2194,6 +2197,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SDR remote for the shared forms
 - Rebuild Space remote for the shared accordion stylesheet
 - Rebuild the Space remote for the shared satellite actions
+- Rebuild for the shared text fields
 
 ### Continuous Integration
 
