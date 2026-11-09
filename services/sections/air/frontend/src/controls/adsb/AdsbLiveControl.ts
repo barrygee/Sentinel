@@ -103,7 +103,7 @@ interface AircraftProperties {
   silhouetteRotates: 0 | 1
 }
 
-/** The layer that dims the dark map beneath the silhouettes (see `_applyMapDimming`). */
+/** The layer that dims the dark map beneath airfields and aircraft (see `_applyMapDimming`). */
 const MAP_DIM_LAYER_ID = 'adsb-map-dim'
 
 /** Black at this opacity matches the stylesheet's `brightness(0.65)`. */
@@ -726,14 +726,16 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   /**
-   * Keep silhouettes at full brightness on the dark map. `MapLibreMap.vue` dims
-   * the whole canvas with a CSS filter, which would cap a white aircraft at mid
-   * grey; here the same dimming comes from a layer just under the aircraft
-   * instead, so everything else on the map looks as it did. Arrow mode and the
-   * light map keep the stylesheet's behaviour.
+   * Keep aircraft and airfield labels at full brightness on the dark map.
+   * `MapLibreMap.vue` dims the whole canvas with a CSS filter, which would cap
+   * a white silhouette at mid grey and dull an open airfield label; here the
+   * same dimming comes from a layer just under the airfields and aircraft
+   * instead, so the basemap looks as it did. Both icon styles get it, so an
+   * airfield label looks the same in either. The light map keeps the
+   * stylesheet's behaviour (no dimming at all).
    */
   private _applyMapDimming(): void {
-    const dimBelowAircraft = this._iconStyle === 'silhouette' && this._silhouettePalette === 'dark'
+    const dimBelowAircraft = this._silhouettePalette === 'dark'
     this.map.getCanvas().style.filter = dimBelowAircraft ? 'none' : ''
     if (this.map.getLayer(MAP_DIM_LAYER_ID))
       this.map.setLayoutProperty(
@@ -767,7 +769,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setLayoutProperty('adsb-icons', 'icon-size', this._iconSizeExpression())
       this.map.setLayoutProperty('adsb-icons', 'icon-rotate', this._iconRotateExpression())
     }
-    this._applyMapDimming()
     this._applyTypeFilter()
     this._hideHoverTagNow()
     this._clearCallsignMarkers()

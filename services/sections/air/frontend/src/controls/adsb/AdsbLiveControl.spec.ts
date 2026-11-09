@@ -4877,21 +4877,39 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       )
     })
 
-    it('drops the canvas filter in silhouette mode, dimming with a layer instead', () => {
-      const { control, map } = mountedIn('arrow')
-      control.setIconStyle('silhouette')
-      expect(map.map.getCanvas().style.filter).toBe('none')
-      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-map-dim', 'visibility', 'visible')
+    it.each(['arrow', 'silhouette'] as const)(
+      'drops the canvas filter in %s mode, dimming with a layer instead',
+      (style) => {
+        const { map } = mountedIn(style)
+        expect(map.map.getCanvas().style.filter).toBe('none')
+        expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-map-dim', 'visibility', 'visible')
+      },
+    )
+
+    it('keeps the layer dimming when the icon style changes', () => {
+      const { control, map } = mountedIn('silhouette')
       control.setIconStyle('arrow')
-      expect(map.map.getCanvas().style.filter).toBe('')
-      expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-map-dim', 'visibility', 'none')
+      expect(map.map.getCanvas().style.filter).toBe('none')
+      expect(map.setLayoutProperty).not.toHaveBeenCalledWith('adsb-map-dim', 'visibility', 'none')
+    })
+
+    it('hands the light map back to the stylesheet, with no dim layer', () => {
+      document.documentElement.dataset.mapTheme = 'light'
+      try {
+        const { map } = mountedIn('arrow')
+        expect(map.map.getCanvas().style.filter).toBe('')
+        expect(map.setLayoutProperty).toHaveBeenCalledWith('adsb-map-dim', 'visibility', 'none')
+      } finally {
+        delete document.documentElement.dataset.mapTheme
+      }
     })
 
     it('still sets the filter when the dim layer is not on the map', () => {
       const { control, map } = mountedIn('arrow')
       map.layers.delete('adsb-map-dim')
       map.setLayoutProperty.mockClear()
-      control.setIconStyle('silhouette')
+      map.map.getCanvas().style.filter = ''
+      priv(control)._applyMapDimming()
       expect(map.map.getCanvas().style.filter).toBe('none')
       expect(map.setLayoutProperty).not.toHaveBeenCalledWith(
         'adsb-map-dim',
