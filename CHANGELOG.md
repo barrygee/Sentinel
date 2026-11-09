@@ -280,6 +280,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add a panel variant to BaseSearchField
 - Search the frequency manager
 - Add BaseFormField and BaseTextField
+- Show the altitude legend in the footer bar
 
 ### Bug Fixes
 
@@ -644,6 +645,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Answer 413 for an oversized body
 - Separate grouped repeaters from zoom 10
 - Keep map-kit modules out of merged chunks
+- Keep airfield labels bright in arrow mode
+- Match the panel search hint to the other sections
 
 ### Chores
 
@@ -1810,6 +1813,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #598 from barrygee/refactor/space-satellite-styles
 - Merge pull request #599 from barrygee/refactor/use-satellite-actions
 - Merge pull request #600 from barrygee/refactor/base-text-field
+- Merge pull request #601 from barrygee/fix/footer-legend-label-search
 
 ### Performance
 
@@ -2198,6 +2202,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild Space remote for the shared accordion stylesheet
 - Rebuild the Space remote for the shared satellite actions
 - Rebuild for the shared text fields
+- Rebuild for the footer legend, airfield labels and search hint
 
 ### Continuous Integration
 
