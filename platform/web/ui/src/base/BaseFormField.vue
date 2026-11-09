@@ -19,6 +19,11 @@ import { computed, useId } from 'vue'
  * `density` picks the look: `panel` is the SDR side panel's add/edit forms,
  * `settings` the Settings panel's hairline fields.
  *
+ * `layout` places the caption: `stacked` (the default) above the control,
+ * `inline` in a column beside it, with the error and hint lined up under the
+ * control. The column is `--ba-form-field-label-width` wide (110px), and
+ * `--ba-form-field-align` (center) aligns the caption with a taller control.
+ *
  * A control whose caption is drawn elsewhere on its card leaves `label` out:
  * no caption is rendered, and the caller names the control itself with an
  * `aria-label`.
@@ -45,6 +50,8 @@ const props = withDefaults(
     labelKind?: 'control' | 'group'
     /** The visual treatment. */
     density?: 'panel' | 'settings'
+    /** Where the caption sits: above the control, or in a column beside it. */
+    layout?: 'stacked' | 'inline'
   }>(),
   {
     error: '',
@@ -55,6 +62,7 @@ const props = withDefaults(
     controlId: undefined,
     labelKind: 'control',
     density: 'panel',
+    layout: 'stacked',
   },
 )
 
@@ -74,7 +82,7 @@ const rendersErrorLine = computed(() => hasError.value || props.errorAlert)
 </script>
 
 <template>
-  <div class="ba-form-field" :class="`ba-form-field--${density}`">
+  <div class="ba-form-field" :class="[`ba-form-field--${density}`, `ba-form-field--${layout}`]">
     <label
       v-if="label !== '' && labelKind === 'control'"
       :id="labelId"
@@ -159,5 +167,21 @@ const rendersErrorLine = computed(() => hasError.value || props.errorAlert)
 .ba-form-field--settings .ba-form-field__hint {
   font-weight: 400;
   color: rgba(var(--ink-rgb), 0.6); /* 4.5:1 AA on the panel at 11-12px */
+}
+
+/* inline: the caption in a fixed column, the control beside it, and the error
+   or hint in the control's column on the rows below. Slotted controls belong
+   to the caller's scope, hence :deep() to place them. */
+.ba-form-field--inline {
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: var(--ba-form-field-align, center);
+}
+.ba-form-field--inline > :deep(*) {
+  grid-column: 2;
+}
+.ba-form-field--inline .ba-form-field__label {
+  grid-column: 1;
 }
 </style>

@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="FieldValue extends string | number">
+<script setup lang="ts" generic="FieldValue extends string | number | null">
 import { computed, ref, useAttrs } from 'vue'
 import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 
@@ -14,7 +14,8 @@ import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
  *
  * The model keeps the native `v-model` behaviour: a `number` input hands back
  * a number once the text parses, the raw text otherwise — which is why the
- * value type is generic rather than fixed.
+ * value type is generic rather than fixed. `null` is allowed so a number the
+ * caller has not got yet shows as an empty field.
  */
 defineOptions({ inheritAttrs: false })
 
@@ -44,6 +45,8 @@ withDefaults(
      * `--ba-text-field-align`, set on the field or an ancestor.
      */
     density?: 'panel' | 'settings'
+    /** Where the caption sits; see `BaseFormField`. */
+    layout?: 'stacked' | 'inline'
   }>(),
   {
     error: '',
@@ -55,6 +58,7 @@ withDefaults(
     inputType: 'text',
     multiline: false,
     density: 'panel',
+    layout: 'stacked',
   },
 )
 
@@ -85,6 +89,7 @@ defineExpose({
     :error-alert="errorAlert"
     :control-id="inputId"
     :density="density"
+    :layout="layout"
   >
     <textarea
       v-if="multiline"
@@ -197,6 +202,12 @@ defineExpose({
 .ba-text-field__input--settings::placeholder {
   color: rgba(var(--ink-rgb), 0.38);
   letter-spacing: 0.1em;
+}
+.ba-text-field__input--settings.ba-text-field__input--multiline {
+  min-height: 56px;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.4;
 }
 .ba-text-field__input--settings:disabled {
   cursor: not-allowed;
