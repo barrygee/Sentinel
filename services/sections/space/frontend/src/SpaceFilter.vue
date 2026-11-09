@@ -26,102 +26,18 @@
         <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
       </BaseDataGrid>
       <SatRadioInfoSection :radio="expandedSat!" />
-      <div class="sat-acc-section sat-acc-section--track">
-        <div class="sat-acc-track-row">
-          <BaseIconAction
-            class="sat-acc-track-btn"
-            :active="followedNoradId === expandedSat!.norad_id"
-            active-class="sat-acc-track-btn--active"
-            :accessible-name="
-              followedNoradId === expandedSat!.norad_id ? 'Untrack satellite' : 'Track satellite'
-            "
-            :tooltip="
-              followedNoradId === expandedSat!.norad_id ? 'Untrack satellite' : 'Track satellite'
-            "
-            @click.stop="trackSat(expandedSat!)"
-          >
-            <LocationPinIcon />
-          </BaseIconAction>
-          <BaseIconAction
-            class="sat-acc-notif-btn"
-            :active="notifNoradId === expandedSat!.norad_id"
-            active-class="sat-acc-notif-btn--active"
-            :accessible-name="
-              notifNoradId === expandedSat!.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
-            "
-            :tooltip="
-              notifNoradId === expandedSat!.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
-            "
-            @click.stop="togglePassNotif(expandedSat!)"
-          >
-            <BellIcon :size="14" />
-          </BaseIconAction>
-          <BaseIconAction
-            v-if="expandedSat!.downlink_hz"
-            class="sat-acc-autotune-btn"
-            :active="isArmed(expandedSat!.norad_id)"
-            active-class="sat-acc-autotune-btn--active"
-            :accessible-name="autoTuneLabel(expandedSat!)"
-            :tooltip="autoTuneLabel(expandedSat!)"
-            @click.stop="toggleAutoTune(expandedSat!)"
-          >
-            <RadioIcon :size="16" />
-          </BaseIconAction>
-          <BaseIconAction
-            v-if="expandedSat!.downlink_hz"
-            class="sat-acc-record-btn"
-            :active="isRecordArmed(expandedSat!.norad_id)"
-            active-class="sat-acc-record-btn--active"
-            :disabled="!isArmed(expandedSat!.norad_id)"
-            accessible-name="Record pass"
-            tooltip="Record pass"
-            @click.stop="toggleRecord(expandedSat!)"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
-            >
-              <circle cx="12" cy="12" r="6" fill="currentColor" />
-            </svg>
-          </BaseIconAction>
-        </div>
-        <div
-          v-if="isArmed(expandedSat!.norad_id) && autoTuneConflictText"
-          class="sat-acc-autotune-warn"
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 3 2 20h20L12 3Z"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linejoin="round"
-              fill="none"
-            />
-            <line
-              x1="12"
-              y1="9"
-              x2="12"
-              y2="14"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-            />
-            <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="currentColor" />
-          </svg>
-          <span>{{ autoTuneConflictText }}</span>
-        </div>
-      </div>
+      <SatelliteActionRow
+        :following="followedNoradId === expandedSat!.norad_id"
+        :notifying="notifNoradId === expandedSat!.norad_id"
+        :has-downlink="!!expandedSat!.downlink_hz"
+        :auto-tune-armed="isArmed(expandedSat!.norad_id)"
+        :record-armed="isRecordArmed(expandedSat!.norad_id)"
+        :conflict-text="autoTuneConflictText"
+        @track="trackSat(expandedSat!)"
+        @toggle-pass-notif="togglePassNotif(expandedSat!)"
+        @toggle-auto-tune="toggleAutoTune(expandedSat!)"
+        @toggle-record="toggleRecord(expandedSat!)"
+      />
       <div class="sat-acc-section sat-acc-section--polar">
         <div class="sat-acc-section-title sat-acc-polar-title">
           <span>{{ polarTitle }}</span>
@@ -196,24 +112,14 @@
  * arming an expanded row offers.
  */
 import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
-import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { storeToRefs } from 'pinia'
 import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
-import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSpaceStore } from './stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import {
-  isPassNotifEnabled,
-  isAutoTuneEnabled,
-  setAutoTuneEnabled,
-  isRecordOnPassEnabled,
-  setRecordOnPassEnabled,
-  getAllPassNotifs,
-} from './controls/satellite/passNotifStore'
-import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
+import { isAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
-import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
+import { useSatelliteActions } from './composables/useSatelliteActions'
+import SatelliteActionRow from './SatelliteActionRow.vue'
 import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
@@ -288,14 +194,22 @@ const accordionLoading = ref(false)
 const accordionStatus = ref('COMPUTING PASSES…')
 const accordionPasses = ref<SatPass[]>([])
 const liveTelemetry = ref<Record<string, string>>({})
-const followedNoradId = ref<string | null>(props.satelliteControl?.followedNoradId ?? null)
-const notifNoradId = ref<string | null>(
-  props.satelliteControl?.passNotificationsEnabled ? props.satelliteControl.activeNoradId : null,
-)
-// Auto-tune armed state is read straight from the store (multiple sats can be
-// armed). `armedTick` nudges reactivity when arming changes.
-const armedTick = ref(0)
-const notificationsStore = useNotificationsStore()
+const {
+  followedNoradId,
+  notifNoradId,
+  armedTick,
+  isArmed,
+  isRecordArmed,
+  syncPassNotifState,
+  trackSat,
+  togglePassNotif,
+  toggleAutoTune,
+  toggleRecord,
+} = useSatelliteActions({
+  getSatelliteControl: () => props.satelliteControl,
+  // Arming changes which other satellites' passes the conflict check needs.
+  onAutoTuneToggled: (noradId) => void refreshArmedPasses(noradId),
+})
 
 // Passes of OTHER armed sats, fetched lazily so we can detect lock-in conflicts
 // for the expanded sat (SpaceFilter only loads one sat's passes at a time). Only
@@ -307,16 +221,6 @@ interface ArmedPass {
   los_unix_ms: number
 }
 const armedPasses = ref<ArmedPass[]>([])
-
-function isArmed(noradId: string): boolean {
-  void armedTick.value
-  return isAutoTuneEnabled(noradId)
-}
-
-function isRecordArmed(noradId: string): boolean {
-  void armedTick.value
-  return isRecordOnPassEnabled(noradId)
-}
 
 const now = ref(Date.now())
 
@@ -346,14 +250,6 @@ const polarLive = computed<SkyPoint | null>(() => {
   return liveAzEl.value
 })
 
-function readPassNotifState(noradId: string): boolean {
-  return isPassNotifEnabled(noradId)
-}
-
-function autoTuneLabel(_sat: SatEntry): string {
-  return 'Auto-tune SDR'
-}
-
 // Lock-in conflict for the expanded accordion: which OTHER armed sat has a pass
 // overlapping this sat's loaded passes. SpaceFilter passes lack norad_id and only
 // the expanded sat is loaded, so we test raw time-overlap of `accordionPasses`
@@ -361,11 +257,7 @@ function autoTuneLabel(_sat: SatEntry): string {
 const autoTuneConflict = computed<{ name: string; aosMs: number } | null>(() => {
   void armedTick.value
   const exp = expandedNoradId.value
-  /* v8 ignore start -- defensive: this computed is only read via autoTuneConflictText,
-     which the template only evaluates inside an expanded card whose auto-tune is armed —
-     so `exp` is always set and armed here, and this early-out never fires. */
   if (!exp || !isAutoTuneEnabled(exp)) return null
-  /* v8 ignore stop */
   const now = Date.now()
   const mine = accordionPasses.value.filter((p) => p.los_unix_ms > now)
   let best: { name: string; aosMs: number } | null = null
@@ -435,84 +327,6 @@ async function refreshArmedPasses(excludeNoradId: string): Promise<void> {
     armedPasses.value = results.flat()
   } catch {
     armedPasses.value = []
-  }
-}
-
-// Persistent "armed" alert-card wording. One card per satellite represents the
-// auto-tune arming; record folds into its detail rather than adding a 2nd card.
-const ARMED_DETAIL_AUTOTUNE = 'Auto-tune on pass enabled'
-const ARMED_DETAIL_RECORD = 'Auto-tune and record on pass enabled'
-function isArmedCardDetail(detail: string): boolean {
-  return detail === ARMED_DETAIL_AUTOTUNE || detail === ARMED_DETAIL_RECORD
-}
-
-function toggleAutoTune(sat: SatEntry): void {
-  /* v8 ignore start -- defensive: the auto-tune button is `v-if="expandedSat!.downlink_hz"`, so this
-     handler only ever runs for a satellite that has a downlink frequency. */
-  if (!sat.downlink_hz) return
-  /* v8 ignore stop */
-  const noradId = sat.norad_id
-  const name = sat.name || noradId
-  const enabled = !isAutoTuneEnabled(noradId)
-  setAutoTuneEnabled(noradId, enabled, {
-    name,
-    // `downlink_hz` is narrowed to a number by the early-return guard above.
-    downlinkHz: sat.downlink_hz,
-    downlinkMode: sat.downlink_mode ?? undefined,
-  })
-  armedTick.value++
-  void refreshArmedPasses(noradId)
-  document.dispatchEvent(
-    new CustomEvent('satellite-auto-tune-changed', { detail: { noradId, enabled } }),
-  )
-  if (enabled) {
-    notificationsStore.add({
-      type: 'autotune',
-      title: name,
-      detail: ARMED_DETAIL_AUTOTUNE,
-      noradId,
-      satName: name,
-    })
-  } else {
-    // Remove the persistent armed card so the alerts list stays in sync. Record
-    // folds its state into this one card's detail (see toggleRecord), so match
-    // either wording. The live pass/tune trace alerts share the noradId but have
-    // a different detail, so they're left untouched.
-    notificationsStore.items
-      .filter((i) => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail))
-      .forEach((i) => notificationsStore.dismiss(i.id))
-  }
-}
-
-function toggleRecord(sat: SatEntry): void {
-  /* v8 ignore start -- defensive: the record button is `v-if="expandedSat!.downlink_hz"` and
-     `:disabled="!isArmed(...)"`, so this handler only runs for a downlink-bearing satellite
-     whose auto-tune is already armed; jsdom also suppresses clicks on the disabled state. */
-  if (!sat.downlink_hz) return
-  const noradId = sat.norad_id
-  // Record needs a live tune — only togglable while auto-tune is armed.
-  if (!isAutoTuneEnabled(noradId)) return
-  /* v8 ignore stop */
-  const name = sat.name || noradId
-  const enabled = !isRecordOnPassEnabled(noradId)
-  setRecordOnPassEnabled(noradId, enabled, { name })
-  armedTick.value++
-  // Notify the alerts service so enabling record mid-pass starts recording the
-  // overhead pass now, rather than only taking effect on the next pass.
-  document.dispatchEvent(
-    new CustomEvent('satellite-record-on-pass-changed', { detail: { noradId, enabled } }),
-  )
-  // Don't add a second card for record — fold its state into the existing
-  // auto-tune armed card by retitling its detail. If for some reason that card
-  // is gone (e.g. dismissed), add a fresh one with the combined wording.
-  const detail = enabled ? ARMED_DETAIL_RECORD : ARMED_DETAIL_AUTOTUNE
-  const existing = notificationsStore.items.find(
-    (i) => i.type === 'autotune' && i.noradId === noradId && isArmedCardDetail(i.detail),
-  )
-  if (existing) {
-    notificationsStore.update({ id: existing.id, detail })
-  } else {
-    notificationsStore.add({ type: 'autotune', title: name, detail, noradId, satName: name })
   }
 }
 
@@ -717,7 +531,7 @@ function openAccordion(sat: SatEntry, restoring = false): void {
   if (ctrl && (!restoring || ctrl.activeNoradId === sat.norad_id)) {
     ctrl.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
   }
-  notifNoradId.value = readPassNotifState(sat.norad_id) ? sat.norad_id : null
+  syncPassNotifState(sat.norad_id)
   void fetchAccordionPasses(sat.norad_id)
   if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
   else armedPasses.value = []
@@ -802,23 +616,6 @@ function startItemTick(): void {
   itemTickInterval = setInterval(() => {
     accordionPasses.value = [...accordionPasses.value]
   }, 1000)
-}
-
-function togglePassNotif(sat: SatEntry): void {
-  const ctrl = props.satelliteControl
-  if (!ctrl) return
-  if (ctrl.activeNoradId !== sat.norad_id) {
-    ctrl.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
-  }
-  ctrl.togglePassNotifications()
-}
-
-function trackSat(sat: SatEntry): void {
-  if (followedNoradId.value === sat.norad_id) {
-    props.satelliteControl?.stopFollowing()
-  } else {
-    props.satelliteControl?.switchSatellite(sat.norad_id, sat.name || sat.norad_id, true)
-  }
 }
 
 // Live telemetry forwarding into expanded accordion
@@ -916,22 +713,9 @@ onUnmounted(() => {
 
 useDocumentEvent('sat-position-update', onSatPositionUpdate)
 useDocumentEvent('settings-panel-closed', onSettingsPanelClosed)
-useDocumentEvent('satellite-follow-changed', (e: Event) => {
-  const { noradId, following } = (e as CustomEvent<{ noradId: string; following: boolean }>).detail
-  followedNoradId.value = following ? noradId : null
-})
-useDocumentEvent('satellite-pass-notif-changed', (e: Event) => {
-  const { noradId, enabled } = (e as CustomEvent<{ noradId: string; enabled: boolean }>).detail
-  notifNoradId.value = enabled
-    ? noradId
-    : notifNoradId.value === noradId
-      ? null
-      : notifNoradId.value
-})
 useDocumentEvent('satellite-auto-tune-changed', () => {
-  // Re-read armed state from the store (another component may have toggled) and
-  // refresh the conflict data for whatever sat is expanded.
-  armedTick.value++
+  // Arming changed somewhere (useSatelliteActions re-reads it); refresh the
+  // conflict data for whatever sat is expanded.
   const exp = expandedNoradId.value
   if (exp && isAutoTuneEnabled(exp)) void refreshArmedPasses(exp)
   else armedPasses.value = []
