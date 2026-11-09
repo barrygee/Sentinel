@@ -114,6 +114,37 @@ describe('BaseFormField', () => {
     expect(wrapper.classes()).not.toContain('ba-form-field--panel')
   })
 
+  it('stacks the caption above the control by default', () => {
+    const wrapper = mountField()
+    expect(wrapper.classes()).toContain('ba-form-field--stacked')
+    expect(wrapper.classes()).not.toContain('ba-form-field--inline')
+  })
+
+  it('applies the inline layout when asked, alongside the density', () => {
+    const wrapper = mountField({ layout: 'inline', density: 'settings' })
+    expect(wrapper.classes()).toContain('ba-form-field--inline')
+    expect(wrapper.classes()).toContain('ba-form-field--settings')
+    expect(wrapper.classes()).not.toContain('ba-form-field--stacked')
+  })
+
+  it('keeps caption, control, then error in that order inline, which the grid places by', () => {
+    // The inline grid puts the first child in the caption column and flows the
+    // rest into the control column, so this order is what lines them up.
+    const wrapper = mountField({ layout: 'inline', error: 'Required' })
+    const childClasses = [...wrapper.element.children].map(
+      (child) => child.className || child.tagName.toLowerCase(),
+    )
+    expect(childClasses).toEqual(['ba-form-field__label', 'input', 'ba-form-field__error'])
+  })
+
+  it('keeps caption, control, then hint in that order inline', () => {
+    const wrapper = mountField({ layout: 'inline', hint: 'Up to 8 characters.' })
+    const childClasses = [...wrapper.element.children].map(
+      (child) => child.className || child.tagName.toLowerCase(),
+    )
+    expect(childClasses).toEqual(['ba-form-field__label', 'input', 'ba-form-field__hint'])
+  })
+
   it('shows the hint under the control and names it as the description', () => {
     const wrapper = mountField({ controlId: 'lat', hint: 'Decimal degrees.' })
     const hintLine = wrapper.get('.ba-form-field__hint')
@@ -199,6 +230,15 @@ describe('BaseFormField', () => {
     ).toHaveNoViolations()
     expect(
       await axe(mountField({ density: 'settings', errorAlert: true, error: 'Bad' }).element),
+    ).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations inline, with an error or a hint', async () => {
+    expect(
+      await axe(mountField({ layout: 'inline', density: 'settings', error: 'Required' }).element),
+    ).toHaveNoViolations()
+    expect(
+      await axe(mountField({ layout: 'inline', density: 'settings', hint: 'Optional.' }).element),
     ).toHaveNoViolations()
   })
 

@@ -8,14 +8,15 @@ enableAutoUnmount(afterEach)
 /** Mounts the field with a working v-model round trip (the parent owns the value). */
 function mountField(
   props: Record<string, unknown> = {},
-  modelValue: string | number = '',
+  modelValue: string | number | null = '',
   attrs: Record<string, unknown> = {},
 ) {
   const wrapper = mount(BaseTextField, {
     props: {
       label: 'Label',
       modelValue,
-      'onUpdate:modelValue': (value: string | number) => wrapper.setProps({ modelValue: value }),
+      'onUpdate:modelValue': (value: string | number | null) =>
+        wrapper.setProps({ modelValue: value }),
       ...props,
     },
     attrs,
@@ -125,6 +126,29 @@ describe('BaseTextField', () => {
     expect(wrapper.classes()).toContain('ba-form-field--settings')
     expect(wrapper.get('input').classes()).toContain('ba-text-field__input--settings')
     expect(wrapper.get('input').classes()).not.toContain('ba-text-field__input--panel')
+  })
+
+  it('stacks the caption by default and passes the inline layout through', () => {
+    expect(mountField().classes()).toContain('ba-form-field--stacked')
+    const inline = mountField({ layout: 'inline', density: 'settings' })
+    expect(inline.classes()).toContain('ba-form-field--inline')
+    expect(inline.classes()).not.toContain('ba-form-field--stacked')
+    // The input itself is still the control the caption points at.
+    expect(inline.get('label').attributes('for')).toBe(inline.get('input').attributes('id'))
+  })
+
+  it('marks a settings multiline field with both classes its textarea rule keys on', () => {
+    const textarea = mountField({ density: 'settings', multiline: true }).get('textarea')
+    expect(textarea.classes()).toContain('ba-text-field__input--settings')
+    expect(textarea.classes()).toContain('ba-text-field__input--multiline')
+  })
+
+  it('shows a null model as an empty field, and hands back what is typed', async () => {
+    const wrapper = mountField({ inputType: 'number' }, null)
+    const input = wrapper.get('input')
+    expect((input.element as HTMLInputElement).value).toBe('')
+    await input.setValue('1234')
+    expect(wrapper.props('modelValue')).toBe(1234)
   })
 
   it('passes a hint through and describes the input with it', () => {

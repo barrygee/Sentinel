@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import SdrDeviceForm from './SdrDeviceForm.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
@@ -117,6 +117,18 @@ function recordsPayloadWith(...records: SdrManagerDeviceRecord[]) {
   return { ...emptyRecordsPayload(), devices: records }
 }
 
+/** Each visible `<label>` caption mapped to the aria-label of the control its `for` points at. */
+function captionTargets(wrapper: VueWrapper): Record<string, string | undefined> {
+  return Object.fromEntries(
+    wrapper
+      .findAll('label.ba-form-field__label')
+      .map((label) => [
+        label.text(),
+        wrapper.find(`#${label.attributes('for')}`).attributes('aria-label'),
+      ]),
+  )
+}
+
 describe('SdrDeviceForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -163,7 +175,7 @@ describe('SdrDeviceForm', () => {
     it('renders only name/host/port inputs — no SDR-Manager-only fields', async () => {
       const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
       await flushPromises()
-      expect(wrapper.findAll('.sdr-devices-form-input')).toHaveLength(3)
+      expect(wrapper.findAll('.ba-text-field__input')).toHaveLength(3)
       expect(wrapper.find('.sdr-devices-agc-input').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('OUTPUT PORT')
       expect(wrapper.text()).not.toContain('TUNING')
@@ -172,7 +184,7 @@ describe('SdrDeviceForm', () => {
     it('prefills the form from an existing radio', async () => {
       const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
       await flushPromises()
-      const inputs = wrapper.findAll('.sdr-devices-form-input')
+      const inputs = wrapper.findAll('.ba-text-field__input')
       expect((inputs[0]!.element as HTMLInputElement).value).toBe('Roof')
       expect((inputs[1]!.element as HTMLInputElement).value).toBe('192.168.1.50')
       expect(wrapper.findAll('.sdr-devices-enabled-btn')[1]!.classes()).toContain('is-active')
@@ -199,7 +211,7 @@ describe('SdrDeviceForm', () => {
       mockCreateRadio.mockResolvedValue({ ...EXISTING, id: 99 })
       const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
       await flushPromises()
-      const inputs = wrapper.findAll('.sdr-devices-form-input')
+      const inputs = wrapper.findAll('.ba-text-field__input')
       await inputs[0]!.setValue('New SDR')
       await inputs[1]!.setValue('10.0.0.1')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
@@ -227,7 +239,7 @@ describe('SdrDeviceForm', () => {
       mockCreateRadio.mockResolvedValue({ ...EXISTING, id: 99 })
       const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
       await flushPromises()
-      const inputs = wrapper.findAll('.sdr-devices-form-input')
+      const inputs = wrapper.findAll('.ba-text-field__input')
       await inputs[0]!.setValue('Full SDR')
       await inputs[1]!.setValue('10.0.0.2')
       await inputs[2]!.setValue(5678)
@@ -279,10 +291,28 @@ describe('SdrDeviceForm', () => {
       expect(enabledBtn!.classes()).toContain('is-active')
     })
 
+    it('ties each visible caption to its input, so clicking it focuses the field', async () => {
+      const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
+      await flushPromises()
+      expect(captionTargets(wrapper)).toEqual({
+        NAME: 'Device name',
+        'IP ADDRESS': 'IP address',
+        PORT: 'Port',
+      })
+    })
+
+    it('captions the STATUS pills as a group, not as a label for a missing control', async () => {
+      const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
+      await flushPromises()
+      const caption = wrapper.get('span.ba-form-field__label')
+      expect(caption.text()).toBe('STATUS')
+      expect(wrapper.findAll('label').map((label) => label.text())).not.toContain('STATUS')
+    })
+
     it('focuses the name field shortly after mount', async () => {
       vi.useFakeTimers()
       const wrapper = mount(SdrDeviceForm, { props: { radio: null }, attachTo: document.body })
-      const nameInput = wrapper.findAll('.sdr-devices-form-input')[0]!.element as HTMLInputElement
+      const nameInput = wrapper.findAll('.ba-text-field__input')[0]!.element as HTMLInputElement
       vi.runAllTimers()
       expect(document.activeElement).toBe(nameInput)
       wrapper.unmount()
@@ -331,6 +361,26 @@ describe('SdrDeviceForm', () => {
           `${tuningFieldName} must no longer be rendered`,
         ).toBe(false)
       }
+    })
+
+    it('ties each caption to its input, NOTES to a top-aligned textarea, and captions the pill groups', async () => {
+      const wrapper = mount(SdrDeviceForm, {
+        props: { radio: EXISTING_SDR_MANAGER, sdrManagerDeviceStatus: SDR_MANAGER_STATUS },
+      })
+      await flushPromises()
+      expect(captionTargets(wrapper)).toEqual({
+        NAME: 'Device name',
+        'OUTPUT PORT': 'Output IQ port',
+        NOTES: 'Notes',
+        ANTENNA: 'Antenna',
+      })
+      const notesField = wrapper.get('textarea[aria-label="Notes"]')
+      expect(notesField.element.closest('.ba-form-field')!.getAttribute('style')).toContain(
+        '--ba-form-field-align: start',
+      )
+      expect(wrapper.findAll('span.ba-form-field__label').map((caption) => caption.text())).toEqual(
+        ['VISIBILITY', 'STATUS'],
+      )
     })
 
     it('prefills output port, visibility, notes, and antenna from the radio', async () => {
@@ -424,7 +474,7 @@ describe('SdrDeviceForm', () => {
         props: { radio: EXISTING_SDR_MANAGER, sdrManagerDeviceStatus: SDR_MANAGER_STATUS },
       })
       await flushPromises()
-      await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('Renamed RTL')
+      await wrapper.findAll('.ba-text-field__input')[0]!.setValue('Renamed RTL')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
       expect(mockPatchHostDevice.mock.calls[0]![2]).toMatchObject({
@@ -593,7 +643,7 @@ describe('SdrDeviceForm', () => {
       await flushPromises()
       // The form still renders and functions normally despite the failed load.
       expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
-      expect(wrapper.findAll('.sdr-devices-form-input')[0]!.element).toBeTruthy()
+      expect(wrapper.findAll('.ba-text-field__input')[0]!.element).toBeTruthy()
     })
 
     it('fills in tuning defaults for any field SDR host omits from an otherwise-found record', async () => {
@@ -631,7 +681,7 @@ describe('SdrDeviceForm', () => {
         props: { radio: EXISTING_SDR_MANAGER, sdrManagerDeviceStatus: SDR_MANAGER_STATUS },
       })
       await flushPromises()
-      await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('')
+      await wrapper.findAll('.ba-text-field__input')[0]!.setValue('')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
       await flushPromises()
       expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Name is required.')
@@ -888,7 +938,7 @@ describe('SdrDeviceForm', () => {
       mockCreateRadio.mockResolvedValue(EXISTING)
       const wrapper = mount(SdrDeviceForm, { props: { radio: null } })
       await flushPromises()
-      const inputs = wrapper.findAll('.sdr-devices-form-input')
+      const inputs = wrapper.findAll('.ba-text-field__input')
       await inputs[0]!.setValue('Roof')
       await inputs[1]!.setValue('192.168.1.50')
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')

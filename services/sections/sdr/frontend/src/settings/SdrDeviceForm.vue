@@ -1,60 +1,49 @@
 <template>
   <div class="sdr-devices-accordion">
-    <div class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">NAME</span>
-      <input
-        ref="nameRef"
-        v-model="form.name"
-        type="text"
-        class="sdr-devices-form-input"
-        aria-label="Device name"
-        placeholder="e.g. Roof RTL-SDR"
+    <BaseTextField
+      ref="nameRef"
+      v-model="form.name"
+      v-bind="FIELD"
+      label="NAME"
+      aria-label="Device name"
+      placeholder="e.g. Roof RTL-SDR"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <template v-if="!isSdrManagerBacked">
+      <BaseTextField
+        v-model="form.host"
+        v-bind="FIELD"
+        label="IP ADDRESS"
+        aria-label="IP address"
+        placeholder="192.168.1.x"
         autocomplete="off"
         spellcheck="false"
       />
-    </div>
-
-    <template v-if="!isSdrManagerBacked">
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">IP ADDRESS</span>
-        <input
-          v-model="form.host"
-          type="text"
-          class="sdr-devices-form-input"
-          aria-label="IP address"
-          placeholder="192.168.1.x"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">PORT</span>
-        <input
-          v-model.number="form.port"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="Port"
-          placeholder="1234"
-          min="1"
-          max="65535"
-        />
-      </div>
+      <BaseTextField
+        v-model.number="form.port"
+        v-bind="FIELD"
+        label="PORT"
+        input-type="number"
+        aria-label="Port"
+        placeholder="1234"
+        min="1"
+        max="65535"
+      />
     </template>
 
     <template v-else>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">OUTPUT PORT</span>
-        <input
-          v-model.number="form.outputPort"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="Output IQ port"
-          min="1"
-          max="65535"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">VISIBILITY</span>
+      <BaseTextField
+        v-model.number="form.outputPort"
+        v-bind="FIELD"
+        label="OUTPUT PORT"
+        input-type="number"
+        aria-label="Output IQ port"
+        min="1"
+        max="65535"
+      />
+      <BaseFormField v-bind="FIELD" label="VISIBILITY" label-kind="group">
         <div class="sdr-devices-enabled-group" role="radiogroup" aria-label="Device visibility">
           <BasePillToggle
             class="sdr-devices-enabled-btn"
@@ -81,32 +70,28 @@
             PRIVATE
           </BasePillToggle>
         </div>
-      </div>
-      <div class="sdr-devices-form-row sdr-devices-form-row--wide">
-        <span class="sdr-devices-form-label">NOTES</span>
-        <textarea
-          v-model="form.notes"
-          class="sdr-devices-form-input sdr-devices-form-textarea"
-          aria-label="Notes"
-          rows="2"
-        ></textarea>
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">ANTENNA</span>
-        <input
-          v-model="form.antenna"
-          type="text"
-          class="sdr-devices-form-input"
-          aria-label="Antenna"
-          placeholder="e.g. Discone"
-          autocomplete="off"
-          spellcheck="false"
-        />
-      </div>
+      </BaseFormField>
+      <BaseTextField
+        v-model="form.notes"
+        v-bind="FIELD"
+        label="NOTES"
+        multiline
+        aria-label="Notes"
+        rows="2"
+        style="--ba-form-field-align: start"
+      />
+      <BaseTextField
+        v-model="form.antenna"
+        v-bind="FIELD"
+        label="ANTENNA"
+        aria-label="Antenna"
+        placeholder="e.g. Discone"
+        autocomplete="off"
+        spellcheck="false"
+      />
     </template>
 
-    <div class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">STATUS</span>
+    <BaseFormField v-bind="FIELD" label="STATUS" label-kind="group">
       <div class="sdr-devices-enabled-group" role="radiogroup" aria-label="Device status">
         <BasePillToggle
           class="sdr-devices-enabled-btn"
@@ -133,7 +118,7 @@
           DISABLED
         </BasePillToggle>
       </div>
-    </div>
+    </BaseFormField>
 
     <SdrSerialFlashControl
       v-if="needsIdentification"
@@ -187,6 +172,8 @@
  */
 import { ref, computed, onMounted } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import SdrSerialFlashControl from './SdrSerialFlashControl.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
@@ -208,6 +195,9 @@ import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManager
 // colours come from SettingsPanel.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
+
+/** Every field of this form: the Settings hairline look, caption in a column beside the value. */
+const FIELD = { density: 'settings', layout: 'inline' } as const
 
 const props = defineProps<{
   /** The radio being edited, or null when adding a new manual radio. */
@@ -244,7 +234,7 @@ const needsIdentification = computed(() => {
   return { hostId: radio.sdr_manager_host_id, deviceId: radio.sdr_manager_device_id }
 })
 
-const nameRef = ref<HTMLInputElement | null>(null)
+const nameRef = ref<{ focus: () => void } | null>(null)
 const errorMsg = ref('')
 const saving = ref(false)
 
@@ -428,15 +418,3 @@ async function save(): Promise<void> {
   else await saveManualRadio()
 }
 </script>
-
-<style scoped>
-.sdr-devices-form-row--wide {
-  align-items: flex-start;
-}
-.sdr-devices-form-textarea {
-  height: auto;
-  min-height: 56px;
-  padding: 8px 10px;
-  resize: vertical;
-}
-</style>

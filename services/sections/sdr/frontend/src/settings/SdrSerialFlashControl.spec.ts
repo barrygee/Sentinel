@@ -209,8 +209,18 @@ describe('SdrSerialFlashControl', () => {
     await wrapper.find('button').trigger('click')
     const input = wrapper.find('input')
     expect(input.attributes('id')).toBe('sdr-serial-flash-usb-1-2')
-    expect(input.attributes('aria-describedby')).toBe('sdr-serial-flash-warning-usb-1-2')
+    expect(input.attributes('aria-describedby')).toBe('sdr-serial-flash-usb-1-2-hint')
     expect(wrapper.find(`#${input.attributes('aria-describedby')}`).exists()).toBe(true)
+  })
+
+  it("reads the permanent-write warning as the serial input's description", async () => {
+    const wrapper = mount(SdrSerialFlashControl, { props: { hostId: 1, deviceId: 'usb:1/2' } })
+    await wrapper.find('button').trigger('click')
+    const input = wrapper.get('input')
+    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('NEW SERIAL')
+    const description = wrapper.get(`#${input.attributes('aria-describedby')}`).text()
+    expect(description).toContain('writes permanently to the dongle')
+    expect(description).toContain('Do not unplug the dongle')
   })
 
   it('has no accessibility violations before or after confirming', async () => {
