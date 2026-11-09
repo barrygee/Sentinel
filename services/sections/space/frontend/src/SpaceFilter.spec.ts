@@ -753,7 +753,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
     accResult = { ok: false, status: 500, body: {} }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-status').text()).toBe('COULD NOT LOAD PASSES')
+    expect(wrapper.find('.sat-acc-status').text()).toBe('COULD NOT LOAD PASSES')
   })
 
   it('shows NETWORK ERROR when the accordion fetch rejects', async () => {
@@ -764,7 +764,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
       return defaultRouter(url)
     }
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-status').text()).toBe('NETWORK ERROR')
+    expect(wrapper.find('.sat-acc-status').text()).toBe('NETWORK ERROR')
   })
 
   it('silently ignores an AbortError from the accordion fetch', async () => {
@@ -778,7 +778,7 @@ describe('SpaceFilter — accordion expand/collapse', () => {
       return defaultRouter(url)
     }
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-status').text()).toBe('COMPUTING PASSES…')
+    expect(wrapper.find('.sat-acc-status').text()).toBe('COMPUTING PASSES…')
   })
 
   it('shows the set-location prompt in the accordion when location is unavailable', async () => {
@@ -786,15 +786,15 @@ describe('SpaceFilter — accordion expand/collapse', () => {
     const wrapper = await mountReady({ getUserLocation: () => location })
     location = null
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-status').text()).toBe('SET LOCATION TO CALCULATE PASSES')
+    expect(wrapper.find('.sat-acc-status').text()).toBe('SET LOCATION TO CALCULATE PASSES')
   })
 
   it('defaults the accordion list to empty when the response omits passes', async () => {
     accResult.body = { computed_at: new Date().toISOString() }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-status').text()).toContain('NEXT 24H')
-    expect(wrapper.find('.sfr-acc-no-passes').exists()).toBe(true)
+    expect(wrapper.find('.sat-acc-status').text()).toContain('NEXT 24H')
+    expect(wrapper.find('.sat-acc-no-passes').exists()).toBe(true)
   })
 
   it('aborts an in-flight accordion fetch when another item is opened', async () => {
@@ -959,7 +959,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const control = makeFakeControl()
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-track-btn').trigger('click')
+    await wrapper.find('.sat-acc-track-btn').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('25544', 'ISS (ZARYA)', true)
   })
 
@@ -967,9 +967,9 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const control = makeFakeControl({ followedNoradId: '25544' })
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    const trackBtn = wrapper.find('.sfr-acc-track-btn')
+    const trackBtn = wrapper.find('.sat-acc-track-btn')
     expect(trackBtn.attributes('aria-label')).toBe('Untrack satellite')
-    expect(trackBtn.classes()).toContain('sfr-acc-track-btn--active')
+    expect(trackBtn.classes()).toContain('sat-acc-track-btn--active')
     await trackBtn.trigger('click')
     expect(control.stopFollowing).toHaveBeenCalled()
   })
@@ -983,21 +983,21 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-track-btn').attributes('aria-label')).toBe('Untrack satellite')
+    expect(wrapper.find('.sat-acc-track-btn').attributes('aria-label')).toBe('Untrack satellite')
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
         detail: { noradId: '25544', following: false },
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-track-btn').attributes('aria-label')).toBe('Track satellite')
+    expect(wrapper.find('.sat-acc-track-btn').attributes('aria-label')).toBe('Track satellite')
   })
 
   it('toggles pass notifications, switching satellite first when not active', async () => {
     const control = makeFakeControl({ activeNoradId: '00000' })
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-notif-btn').trigger('click')
+    await wrapper.find('.sat-acc-notif-btn').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('25544', 'ISS (ZARYA)')
     expect(control.togglePassNotifications).toHaveBeenCalled()
   })
@@ -1007,7 +1007,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
     control.switchSatellite.mockClear()
-    await wrapper.find('.sfr-acc-notif-btn').trigger('click')
+    await wrapper.find('.sat-acc-notif-btn').trigger('click')
     expect(control.switchSatellite).not.toHaveBeenCalled()
     expect(control.togglePassNotifications).toHaveBeenCalled()
   })
@@ -1015,7 +1015,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
   it('does nothing on notif toggle when no control is present', async () => {
     const wrapper = await mountReady({ control: null })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-notif-btn').trigger('click')
+    await wrapper.find('.sat-acc-notif-btn').trigger('click')
     expect(wrapper.exists()).toBe(true)
   })
 
@@ -1028,14 +1028,14 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-notif-btn').classes()).toContain('sfr-acc-notif-btn--active')
+    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
     document.dispatchEvent(
       new CustomEvent('satellite-pass-notif-changed', {
         detail: { noradId: '25544', enabled: false },
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-notif-btn').classes()).not.toContain('sfr-acc-notif-btn--active')
+    expect(wrapper.find('.sat-acc-notif-btn').classes()).not.toContain('sat-acc-notif-btn--active')
   })
 
   it('leaves notif state untouched when a disable event names a different sat', async () => {
@@ -1053,14 +1053,14 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-notif-btn').classes()).toContain('sfr-acc-notif-btn--active')
+    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
   })
 
   it('opens with notifications pre-armed when the store reports them enabled', async () => {
     vi.mocked(isPassNotifEnabled).mockReturnValue(true)
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-notif-btn').classes()).toContain('sfr-acc-notif-btn--active')
+    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
   })
 
   it('seeds notif state from the control when pass notifications are already on at mount', async () => {
@@ -1078,10 +1078,10 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     expect(control.previewSatellite).toHaveBeenCalledWith('40069', '40069')
     await expandFirstItem(wrapper)
     expect(control.switchSatellite).toHaveBeenCalledWith('40069', '40069') // openAccordion
-    await wrapper.find('.sfr-acc-track-btn').trigger('click')
+    await wrapper.find('.sat-acc-track-btn').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('40069', '40069', true) // trackSat
     control.switchSatellite.mockClear()
-    await wrapper.find('.sfr-acc-notif-btn').trigger('click')
+    await wrapper.find('.sat-acc-notif-btn').trigger('click')
     expect(control.switchSatellite).toHaveBeenCalledWith('40069', '40069') // togglePassNotif
   })
 })
@@ -1112,7 +1112,7 @@ describe('SpaceFilter — radio section', () => {
     radioSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    const text = wrapper.find('.sfr-acc-section--radio').text()
+    const text = wrapper.find('.sat-acc-section--radio').text()
     expect(text).toContain('1.200 GHz')
     expect(text).toContain('145.000 MHz')
     expect(text).toContain('5.000 kHz')
@@ -1127,21 +1127,21 @@ describe('SpaceFilter — radio section', () => {
     radioSat({ uplink_hz: 500, downlink_hz: undefined, beacon_hz: undefined })
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-section--radio').text()).toContain('500 Hz')
+    expect(wrapper.find('.sat-acc-section--radio').text()).toContain('500 Hz')
   })
 
   it('splits packet info and radio notes into list items', async () => {
     radioSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    const items = wrapper.findAll('.sfr-acc-radio-list li').map((li) => li.text())
+    const items = wrapper.findAll('.sat-acc-radio-list li').map((li) => li.text())
     expect(items).toEqual(expect.arrayContaining(['9600 baud', 'FSK', 'note one', 'note two']))
   })
 
   it('omits the radio section when the satellite has no radio info', async () => {
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-section--radio').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-section--radio').exists()).toBe(false)
   })
 })
 
@@ -1157,7 +1157,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     downlinkSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-autotune-btn').trigger('click')
+    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
     expect(setAutoTuneEnabled).toHaveBeenCalledWith(
       '25544',
       true,
@@ -1175,7 +1175,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-autotune-btn').trigger('click')
+    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
     const call = vi.mocked(setAutoTuneEnabled).mock.calls[0]
     expect(call[2]).toMatchObject({ name: '40069', downlinkHz: 437_000_000 })
     expect(call[2]?.downlinkMode).toBeUndefined()
@@ -1194,7 +1194,7 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    await wrapper.find('.sfr-acc-autotune-btn').trigger('click')
+    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
     expect(setAutoTuneEnabled).toHaveBeenCalledWith('25544', false, expect.anything())
     expect(store.items.some((item) => item.type === 'autotune' && item.noradId === '25544')).toBe(
       false,
@@ -1205,7 +1205,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     downlinkSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-record-btn').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('.sat-acc-record-btn').attributes('disabled')).toBeDefined()
   })
 
   it('arms record while auto-tune is on, folding into the existing alert card', async () => {
@@ -1221,7 +1221,7 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    await wrapper.find('.sfr-acc-record-btn').trigger('click')
+    await wrapper.find('.sat-acc-record-btn').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('25544', true, { name: 'ISS (ZARYA)' })
     expect(store.items.find((item) => item.id === existingId)!.detail).toBe(
       'Auto-tune and record on pass enabled',
@@ -1235,7 +1235,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     await expandFirstItem(wrapper)
     const store = useNotificationsStore()
     expect(store.items).toHaveLength(0)
-    await wrapper.find('.sfr-acc-record-btn').trigger('click')
+    await wrapper.find('.sat-acc-record-btn').trigger('click')
     const card = store.items.find((item) => item.type === 'autotune' && item.noradId === '25544')!
     expect(card.detail).toBe('Auto-tune and record on pass enabled')
   })
@@ -1247,7 +1247,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     vi.mocked(isAutoTuneEnabled).mockReturnValue(true)
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sfr-acc-record-btn').trigger('click')
+    await wrapper.find('.sat-acc-record-btn').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('40069', true, { name: '40069' })
   })
 
@@ -1265,8 +1265,8 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    expect(wrapper.find('.sfr-acc-record-btn').classes()).toContain('sfr-acc-record-btn--active')
-    await wrapper.find('.sfr-acc-record-btn').trigger('click')
+    expect(wrapper.find('.sat-acc-record-btn').classes()).toContain('sat-acc-record-btn--active')
+    await wrapper.find('.sat-acc-record-btn').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('25544', false, expect.anything())
     expect(store.items.find((item) => item.id === id)!.detail).toBe('Auto-tune on pass enabled')
   })
@@ -1274,8 +1274,8 @@ describe('SpaceFilter — auto-tune & record', () => {
   it('does not render auto-tune/record buttons for a sat without a downlink', async () => {
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-autotune-btn').exists()).toBe(false)
-    expect(wrapper.find('.sfr-acc-record-btn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-btn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-record-btn').exists()).toBe(false)
   })
 })
 
@@ -1317,7 +1317,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await expandFirstItem(wrapper)
     await flushPromises()
     await wrapper.vm.$nextTick()
-    const warn = wrapper.find('.sfr-acc-autotune-warn')
+    const warn = wrapper.find('.sat-acc-autotune-warn')
     expect(warn.exists()).toBe(true)
     expect(warn.text()).toContain('Overlaps METEOR')
   })
@@ -1367,7 +1367,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
     // Only METEOR genuinely overlaps → it is the surfaced conflict.
-    expect(wrapper.find('.sfr-acc-autotune-warn').text()).toContain('Overlaps METEOR')
+    expect(wrapper.find('.sat-acc-autotune-warn').text()).toContain('Overlaps METEOR')
   })
 
   it('refreshes conflict data on a satellite-auto-tune-changed event', async () => {
@@ -1382,7 +1382,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     )
     await flushPromises()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(true)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(true)
   })
 
   it('drops conflict data when the expanded sat is disarmed via the event', async () => {
@@ -1390,7 +1390,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
     await flushPromises()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(true)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(true)
     // Now report the expanded sat as no longer armed; the event clears armedPasses.
     vi.mocked(isAutoTuneEnabled).mockImplementation((id: string) => id !== '25544')
     document.dispatchEvent(
@@ -1400,7 +1400,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     )
     await flushPromises()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(false)
   })
 
   it('clears armed-pass data when arming a sat with no other armed sats', async () => {
@@ -1414,7 +1414,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await flushPromises()
     await wrapper.vm.$nextTick()
     // Only one armed sat → no conflict warning.
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(false)
   })
 
   it('clears armed-pass data when arming with no location', async () => {
@@ -1433,7 +1433,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await expandFirstItem(wrapper)
     await flushPromises()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(false)
   })
 
   it('recovers from a failing armed-passes fetch without a conflict warning', async () => {
@@ -1457,7 +1457,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await expandFirstItem(wrapper)
     await flushPromises()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(false)
   })
 
   it('ignores a non-OK armed-passes response (treated as no passes)', async () => {
@@ -1478,7 +1478,7 @@ describe('SpaceFilter — auto-tune lock-in conflict', () => {
     await expandFirstItem(wrapper)
     await flushPromises()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-autotune-warn').exists()).toBe(false)
+    expect(wrapper.find('.sat-acc-autotune-warn').exists()).toBe(false)
   })
 })
 
@@ -1503,8 +1503,8 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
     expect(wrapper.findComponent({ name: 'SatPolarPlot' }).exists()).toBe(true)
-    expect(wrapper.find('.sfr-acc-polar-title').text()).toContain('NEXT PASS')
-    expect(wrapper.find('.sfr-acc-polar-maxel').text()).toBe('MAX 62°')
+    expect(wrapper.find('.sat-acc-polar-title').text()).toContain('NEXT PASS')
+    expect(wrapper.find('.sat-acc-polar-maxel').text()).toBe('MAX 62°')
   })
 
   it('labels a currently-in-progress pass as CURRENT PASS and shows the live marker', async () => {
@@ -1523,7 +1523,7 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-polar-title').text()).toContain('CURRENT PASS')
+    expect(wrapper.find('.sat-acc-polar-title').text()).toContain('CURRENT PASS')
     document.dispatchEvent(
       new CustomEvent('sat-position-update', {
         detail: {
@@ -1543,7 +1543,7 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     accResult.body = { passes: [], computed_at: new Date().toISOString() }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-polar-empty').text()).toBe('NO UPCOMING PASS TO PLOT')
+    expect(wrapper.find('.sat-acc-polar-empty').text()).toBe('NO UPCOMING PASS TO PLOT')
   })
 
   it('shows the NO UPCOMING placeholder when all passes are in the past', async () => {
@@ -1553,8 +1553,8 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sfr-acc-polar-title').text()).toContain('NEXT PASS')
-    expect(wrapper.find('.sfr-acc-polar-empty').text()).toBe('NO UPCOMING PASS TO PLOT')
+    expect(wrapper.find('.sat-acc-polar-title').text()).toContain('NEXT PASS')
+    expect(wrapper.find('.sat-acc-polar-empty').text()).toBe('NO UPCOMING PASS TO PLOT')
   })
 
   it('renders upcoming-pass cards with date/time/countdown/max-el', async () => {
@@ -1564,10 +1564,10 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    const passCard = wrapper.find('.sfr-acc-pass-card')
+    const passCard = wrapper.find('.sat-acc-pass-card')
     expect(passCard.exists()).toBe(true)
-    expect(passCard.find('.sfr-acc-pass-countdown').text()).toContain('IN ')
-    expect(passCard.find('.sfr-acc-pass-maxel').text()).toBe('MAX 33.3°')
+    expect(passCard.find('.sat-acc-pass-countdown').text()).toContain('IN ')
+    expect(passCard.find('.sat-acc-pass-maxel').text()).toBe('MAX 33.3°')
   })
 
   it('labels an in-progress upcoming pass as NOW', async () => {
@@ -1577,9 +1577,9 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    const countdown = wrapper.find('.sfr-acc-pass-countdown')
+    const countdown = wrapper.find('.sat-acc-pass-countdown')
     expect(countdown.text()).toBe('NOW')
-    expect(countdown.classes()).toContain('sfr-in-progress')
+    expect(countdown.classes()).toContain('sat-acc-pass-countdown--live')
   })
 
   it('ticks the accordion + countdown intervals each second while expanded', async () => {
@@ -1594,7 +1594,7 @@ describe('SpaceFilter — polar plot & upcoming-passes section', () => {
     await wrapper.vm.$nextTick()
     await vi.advanceTimersByTimeAsync(1000) // fires countdownTick (with passes) + itemTickInterval
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sfr-acc-pass-card').exists()).toBe(true)
+    expect(wrapper.find('.sat-acc-pass-card').exists()).toBe(true)
     wrapper.unmount()
     vi.useRealTimers()
   })

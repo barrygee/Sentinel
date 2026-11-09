@@ -25,13 +25,13 @@
         <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
         <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
       </BaseDataGrid>
-      <SatRadioInfoSection :radio="expandedSat!" class-prefix="sfr-acc" />
-      <div class="sfr-acc-section sfr-acc-section--track">
-        <div class="sfr-acc-track-row">
+      <SatRadioInfoSection :radio="expandedSat!" />
+      <div class="sat-acc-section sat-acc-section--track">
+        <div class="sat-acc-track-row">
           <BaseIconAction
-            class="sfr-acc-track-btn"
+            class="sat-acc-track-btn"
             :active="followedNoradId === expandedSat!.norad_id"
-            active-class="sfr-acc-track-btn--active"
+            active-class="sat-acc-track-btn--active"
             :accessible-name="
               followedNoradId === expandedSat!.norad_id ? 'Untrack satellite' : 'Track satellite'
             "
@@ -43,9 +43,9 @@
             <LocationPinIcon />
           </BaseIconAction>
           <BaseIconAction
-            class="sfr-acc-notif-btn"
+            class="sat-acc-notif-btn"
             :active="notifNoradId === expandedSat!.norad_id"
-            active-class="sfr-acc-notif-btn--active"
+            active-class="sat-acc-notif-btn--active"
             :accessible-name="
               notifNoradId === expandedSat!.norad_id ? 'Disable pass alerts' : 'Enable pass alerts'
             "
@@ -58,9 +58,9 @@
           </BaseIconAction>
           <BaseIconAction
             v-if="expandedSat!.downlink_hz"
-            class="sfr-acc-autotune-btn"
+            class="sat-acc-autotune-btn"
             :active="isArmed(expandedSat!.norad_id)"
-            active-class="sfr-acc-autotune-btn--active"
+            active-class="sat-acc-autotune-btn--active"
             :accessible-name="autoTuneLabel(expandedSat!)"
             :tooltip="autoTuneLabel(expandedSat!)"
             @click.stop="toggleAutoTune(expandedSat!)"
@@ -69,9 +69,9 @@
           </BaseIconAction>
           <BaseIconAction
             v-if="expandedSat!.downlink_hz"
-            class="sfr-acc-record-btn"
+            class="sat-acc-record-btn"
             :active="isRecordArmed(expandedSat!.norad_id)"
-            active-class="sfr-acc-record-btn--active"
+            active-class="sat-acc-record-btn--active"
             :disabled="!isArmed(expandedSat!.norad_id)"
             accessible-name="Record pass"
             tooltip="Record pass"
@@ -91,7 +91,7 @@
         </div>
         <div
           v-if="isArmed(expandedSat!.norad_id) && autoTuneConflictText"
-          class="sfr-acc-autotune-warn"
+          class="sat-acc-autotune-warn"
         >
           <svg
             width="12"
@@ -122,10 +122,10 @@
           <span>{{ autoTuneConflictText }}</span>
         </div>
       </div>
-      <div class="sfr-acc-section sfr-acc-section--polar">
-        <div class="sfr-acc-section-title sfr-acc-polar-title">
+      <div class="sat-acc-section sat-acc-section--polar">
+        <div class="sat-acc-section-title sat-acc-polar-title">
           <span>{{ polarTitle }}</span>
-          <span v-if="polarPass" class="sfr-acc-polar-maxel"
+          <span v-if="polarPass" class="sat-acc-polar-maxel"
             >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
           >
         </div>
@@ -134,45 +134,48 @@
           :track="polarPass.sky_track"
           :live="polarLive"
         />
-        <div v-else class="sfr-acc-polar-empty">
+        <div v-else class="sat-acc-polar-empty">
           {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
         </div>
       </div>
-      <div class="sfr-acc-section sfr-acc-section--passes">
-        <div class="sfr-acc-section-title sfr-acc-passes-title">
+      <div class="sat-acc-section sat-acc-section--passes">
+        <div class="sat-acc-section-title sat-acc-passes-title">
           <span>UPCOMING PASSES</span>
-          <span class="sfr-acc-status" :class="{ 'sfr-acc-status-loading': accordionLoading }">{{
+          <span class="sat-acc-status" :class="{ 'sat-acc-status-loading': accordionLoading }">{{
             accordionStatus
           }}</span>
         </div>
-        <div class="sfr-acc-pass-list">
+        <div class="sat-acc-pass-list">
           <template v-if="accordionPasses.length === 0 && !accordionLoading">
-            <div v-if="accordionStatus.startsWith('NEXT')" class="sfr-acc-no-passes">
+            <div v-if="accordionStatus.startsWith('NEXT')" class="sat-acc-no-passes">
               No passes in the next 24 hours.
             </div>
           </template>
           <div
             v-for="(pass, i) in accordionPasses"
             :key="i"
-            class="sfr-acc-pass-card"
+            class="sat-acc-pass-card"
             :data-aos-ms="pass.aos_unix_ms"
             :data-los-ms="pass.los_unix_ms"
           >
-            <div class="sfr-acc-pass-times">
-              <div class="sfr-acc-pass-aos-row">
-                <span class="sfr-acc-pass-date">{{ formatPassDate(pass.aos_utc) }}</span>
-                <span class="sfr-acc-pass-time">{{ formatPassTime(pass.aos_utc) }}</span>
+            <div class="sat-acc-pass-times">
+              <div class="sat-acc-pass-aos-row">
+                <span class="sat-acc-pass-date">{{ formatPassDate(pass.aos_utc) }}</span>
+                <span class="sat-acc-pass-time">{{ formatPassTime(pass.aos_utc) }}</span>
               </div>
-              <div class="sfr-acc-pass-los">
+              <div class="sat-acc-pass-los">
                 LOS {{ formatPassTime(pass.los_utc) }} ·
                 {{ formatPassDuration(pass.duration_s) }}
               </div>
             </div>
-            <div class="sfr-acc-pass-meta">
-              <div class="sfr-acc-pass-countdown" :class="{ 'sfr-in-progress': isNow(pass) }">
+            <div class="sat-acc-pass-meta">
+              <div
+                class="sat-acc-pass-countdown"
+                :class="{ 'sat-acc-pass-countdown--live': isNow(pass) }"
+              >
                 {{ isNow(pass) ? 'NOW' : passCountdownText(pass) }}
               </div>
-              <div class="sfr-acc-pass-maxel">MAX {{ pass.max_elevation_deg.toFixed(1) }}°</div>
+              <div class="sat-acc-pass-maxel">MAX {{ pass.max_elevation_deg.toFixed(1) }}°</div>
             </div>
           </div>
         </div>
@@ -215,6 +218,7 @@ import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
+import './SatelliteAccordion.css'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
@@ -938,8 +942,8 @@ defineExpose({ focus: () => panelRef.value?.focus() })
 
 <style>
 /* The shared shell (BaseFilterPanel) supplies the input row, results region and
-   row chrome. What stays here is this pane's own deviations from it, plus the
-   expanded-row accordion, which is entirely this pane's content. */
+   row chrome. What stays here is this pane's own deviations from it; the
+   expanded-row accordion's styles are in SatelliteAccordion.css. */
 
 /* Keyboard focus keeps the softened accent outline this pane has always used. */
 #space-filter-results .bfp-result-item {
@@ -956,416 +960,5 @@ defineExpose({ focus: () => panelRef.value?.focus() })
   letter-spacing: 0.12em;
   color: rgba(var(--ink-rgb), 0.25);
   text-align: center;
-}
-
-.sfr-acc-section {
-  padding: 14px 24px 12px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.sfr-acc-section-title {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--accent-text);
-  text-transform: uppercase;
-}
-
-/* The label/value grid itself (POSITION DATA / ORBITAL DATA / RADIO) now
-   lives in BaseDataGrid/BaseDataCell — the single source of truth TrackingPanel
-   and SpacePasses also consume, instead of silently reaching into this file's
-   former sfr-acc-grid/sfr-acc-cell/sfr-acc-cell-value classes. sfr-acc-cell-label
-   stays: the RADIO section's PACKET/NOTES caption lines still use it directly. */
-.sfr-acc-cell-label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(var(--ink-rgb), 0.35);
-  text-transform: uppercase;
-}
-
-.sfr-acc-section--track {
-  padding-top: 16px;
-  padding-bottom: 24px;
-}
-
-.sfr-acc-track-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.sfr-acc-track-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sfr-acc-track-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sfr-acc-track-btn.sfr-acc-track-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sfr-acc-track-btn.sfr-acc-track-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sfr-acc-notif-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sfr-acc-notif-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sfr-acc-notif-btn.sfr-acc-notif-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sfr-acc-notif-btn.sfr-acc-notif-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sfr-acc-autotune-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sfr-acc-autotune-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sfr-acc-autotune-btn.sfr-acc-autotune-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-/* Record-on-pass button — sits beside auto-tune and is only enabled once
-   auto-tune is armed (recording needs a live tune to capture). */
-.sfr-acc-record-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sfr-acc-record-btn:hover:not(:disabled) {
-  color: var(--sev-critical);
-  background: var(--surface-sunken-hover);
-}
-
-.sfr-acc-record-btn.sfr-acc-record-btn--active {
-  color: var(--sev-critical);
-  background: rgba(var(--sev-critical-rgb), 0.12);
-}
-
-.sfr-acc-record-btn.sfr-acc-record-btn--active:hover {
-  background: rgba(var(--sev-critical-rgb), 0.18);
-}
-
-.sfr-acc-record-btn:disabled {
-  cursor: not-allowed;
-  color: rgba(var(--ink-rgb), 0.18);
-}
-
-/* Inline lock-in conflict warning: another armed sat overlaps this one, so only
-   one of the two passes will actually be tuned. */
-.sfr-acc-autotune-warn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 5px 8px;
-  background: rgba(var(--sev-caution-rgb), 0.08);
-  border-left: 2px solid var(--sev-caution-text);
-  color: var(--sev-caution-text);
-  font-size: 10px;
-  line-height: 1.3;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.sfr-acc-autotune-warn svg {
-  flex: 0 0 auto;
-}
-
-/* The notif / auto-tune icon buttons' hover tooltip (black pill above the
-   button, left-anchored) comes from BaseIconAction's default
-   tooltipSide="top" look. */
-
-.sfr-acc-section--polar {
-  padding-top: 14px;
-  padding-bottom: 6px;
-  gap: 8px;
-}
-
-.sfr-acc-polar-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sfr-acc-polar-maxel {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(var(--ink-rgb), 0.32);
-  text-transform: uppercase;
-}
-
-.sfr-acc-polar-empty {
-  padding: 18px 0;
-  text-align: left;
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sfr-acc-section--passes {
-  padding-top: 6px;
-  padding-bottom: 4px;
-  gap: 6px;
-}
-
-.sfr-acc-passes-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sfr-acc-status {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sfr-acc-status.sfr-acc-status-loading {
-  color: var(--accent-text);
-}
-
-.sfr-acc-no-passes {
-  padding: 4px 24px 8px 24px;
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sfr-acc-pass-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0 -24px;
-}
-
-.sfr-acc-pass-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 24px;
-}
-
-.sfr-acc-pass-card:last-child {
-  padding-bottom: 16px;
-}
-
-.sfr-acc-pass-num {
-  display: none;
-}
-
-.sfr-acc-pass-times {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sfr-acc-pass-aos-row {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-}
-
-.sfr-acc-pass-date {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-
-.sfr-acc-pass-time {
-  font-family: var(--font-primary);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--ink-strong);
-}
-
-.sfr-acc-pass-los {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sfr-acc-pass-meta {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.sfr-acc-pass-countdown {
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent-text);
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.sfr-acc-pass-countdown.sfr-in-progress {
-  color: var(--sev-live);
-}
-
-.sfr-acc-pass-maxel {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  color: rgba(var(--ink-rgb), 0.32);
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-/* ---- RADIO section ---- */
-/* The grid itself and its "· MODE" suffix span now live in BaseDataGrid
-   (rendered with `bare` so it shares this file's own sfr-acc-section flex/gap
-   for the PACKET/NOTES lines below) and BaseDataCell's :slotted(.ba-data-cell-mode). */
-.sfr-acc-radio-line {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.sfr-acc-radio-text {
-  font-family: var(--font-primary);
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.5;
-  color: rgba(var(--ink-rgb), 0.78);
-}
-.sfr-acc-radio-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.sfr-acc-radio-list li {
-  position: relative;
-  padding-left: 14px;
-  font-family: var(--font-primary);
-  font-size: 13px;
-  font-weight: 400;
-  line-height: 1.45;
-  color: rgba(var(--ink-rgb), 0.82);
-}
-.sfr-acc-radio-list li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 8px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent-text);
-  opacity: 0.65;
 }
 </style>

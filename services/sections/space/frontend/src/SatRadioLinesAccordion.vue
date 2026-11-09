@@ -1,9 +1,9 @@
 <template>
-  <div :class="`${classPrefix}-radio-line`">
+  <div class="sat-acc-radio-line">
     <button
       type="button"
-      class="srla-toggle"
-      :class="[`${classPrefix}-cell-label`, { 'srla-toggle--expanded': expanded }]"
+      class="srla-toggle sat-acc-cell-label"
+      :class="{ 'srla-toggle--expanded': expanded }"
       :aria-expanded="expanded"
       :aria-controls="bodyId"
       @click="expanded = !expanded"
@@ -11,7 +11,7 @@
       <span class="srla-title">{{ title }}</span>
       <span class="srla-chevron"><ChevronIcon /></span>
     </button>
-    <ul v-show="expanded" :id="bodyId" :class="`${classPrefix}-radio-list`">
+    <ul v-show="expanded" :id="bodyId" class="sat-acc-radio-list">
       <li v-for="(line, index) in lines" :key="index">{{ line }}</li>
     </ul>
   </div>
@@ -24,19 +24,17 @@
  * several long lines, so they start collapsed to keep the frequency cells and
  * the action buttons below them in view; the caption doubles as the toggle.
  *
- * `classPrefix` keeps the caller's existing caption/list CSS family
- * (`sfr-acc` / `spp-acc`) so the open list looks exactly as it did before.
+ * Its caption and list take the shared accordion look from SatelliteAccordion.css.
  */
 import { ref, useId } from 'vue'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
+import './SatelliteAccordion.css'
 
 defineProps<{
   /** The caption text, e.g. `NOTES`. */
   title: string
   /** The already-split note lines to list when expanded. */
   lines: string[]
-  /** The caller's CSS family prefix for the line/label/list classes. */
-  classPrefix: 'sfr-acc' | 'spp-acc'
 }>()
 
 const expanded = ref(false)

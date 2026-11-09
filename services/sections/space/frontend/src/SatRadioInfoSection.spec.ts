@@ -4,8 +4,8 @@ import { axe } from 'jest-axe'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
 import type { SatRadioInfo } from './satRadioInfo'
 
-function mountSection(radio: SatRadioInfo, classPrefix: 'sfr-acc' | 'spp-acc' = 'sfr-acc') {
-  return mount(SatRadioInfoSection, { props: { radio, classPrefix } })
+function mountSection(radio: SatRadioInfo) {
+  return mount(SatRadioInfoSection, { props: { radio } })
 }
 
 describe('SatRadioInfoSection', () => {
@@ -14,22 +14,19 @@ describe('SatRadioInfoSection', () => {
     expect(wrapper.find('div').exists()).toBe(false)
   })
 
-  it('renders the section under the caller class prefix with all cells populated', () => {
-    const wrapper = mountSection(
-      {
-        uplink_hz: 145_990_000,
-        uplink_mode: 'FM',
-        downlink_hz: 437_800_000,
-        downlink_mode: 'FM',
-        ctcss_hz: 67,
-        transponder_type: 'FM repeater',
-        beacon_hz: 145_825_000,
-        radio_status: 'ACTIVE',
-      },
-      'spp-acc',
-    )
-    const section = wrapper.get('.spp-acc-section')
-    expect(section.classes()).toContain('spp-acc-section--radio')
+  it('renders the shared radio section with all cells populated', () => {
+    const wrapper = mountSection({
+      uplink_hz: 145_990_000,
+      uplink_mode: 'FM',
+      downlink_hz: 437_800_000,
+      downlink_mode: 'FM',
+      ctcss_hz: 67,
+      transponder_type: 'FM repeater',
+      beacon_hz: 145_825_000,
+      radio_status: 'ACTIVE',
+    })
+    const section = wrapper.get('.sat-acc-section')
+    expect(section.classes()).toContain('sat-acc-section--radio')
     const text = section.text()
     expect(text).toContain('145.990 MHz')
     expect(text).toContain('437.800 MHz')
@@ -54,11 +51,11 @@ describe('SatRadioInfoSection', () => {
       packet_info: 'APRS 1200bd; digipeater',
       radio_notes: 'Weekends only',
     })
-    const lines = wrapper.findAll('.sfr-acc-radio-line')
+    const lines = wrapper.findAll('.sat-acc-radio-line')
     expect(lines).toHaveLength(2)
-    expect(lines[0].get('.sfr-acc-cell-label').text()).toBe('PACKET / DIGITAL')
+    expect(lines[0].get('.sat-acc-cell-label').text()).toBe('PACKET / DIGITAL')
     expect(lines[0].findAll('li').map((item) => item.text())).toEqual(['APRS 1200bd', 'digipeater'])
-    expect(lines[1].get('.sfr-acc-cell-label').text()).toBe('NOTES')
+    expect(lines[1].get('.sat-acc-cell-label').text()).toBe('NOTES')
     expect(lines[1].get('li').text()).toBe('Weekends only')
     // Each list sits behind its own disclosure, closed until asked for.
     for (const line of lines) {

@@ -4,9 +4,9 @@ import { defineComponent, h } from 'vue'
 import { axe } from 'jest-axe'
 import SatRadioLinesAccordion from './SatRadioLinesAccordion.vue'
 
-function mountAccordion(classPrefix: 'sfr-acc' | 'spp-acc' = 'sfr-acc') {
+function mountAccordion() {
   return mount(SatRadioLinesAccordion, {
-    props: { title: 'NOTES', lines: ['Weekends only', 'SSTV 145.800'], classPrefix },
+    props: { title: 'NOTES', lines: ['Weekends only', 'SSTV 145.800'] },
     attachTo: document.body,
   })
 }
@@ -41,11 +41,11 @@ describe('SatRadioLinesAccordion', () => {
     wrapper.unmount()
   })
 
-  it('keeps the caller CSS family for the line, caption and list', () => {
-    const wrapper = mountAccordion('spp-acc')
-    expect(wrapper.classes()).toContain('spp-acc-radio-line')
-    expect(wrapper.get('button').classes()).toContain('spp-acc-cell-label')
-    expect(wrapper.get('ul').classes()).toContain('spp-acc-radio-list')
+  it('takes the shared accordion classes for the line, caption and list', () => {
+    const wrapper = mountAccordion()
+    expect(wrapper.classes()).toContain('sat-acc-radio-line')
+    expect(wrapper.get('button').classes()).toContain('sat-acc-cell-label')
+    expect(wrapper.get('ul').classes()).toContain('sat-acc-radio-list')
     wrapper.unmount()
   })
 
@@ -54,8 +54,8 @@ describe('SatRadioLinesAccordion', () => {
     const wrapper = mount(
       defineComponent({
         setup: () => () => [
-          h(SatRadioLinesAccordion, { title: 'A', lines: ['a'], classPrefix: 'sfr-acc' }),
-          h(SatRadioLinesAccordion, { title: 'B', lines: ['b'], classPrefix: 'sfr-acc' }),
+          h(SatRadioLinesAccordion, { title: 'A', lines: ['a'] }),
+          h(SatRadioLinesAccordion, { title: 'B', lines: ['b'] }),
         ],
       }),
     )

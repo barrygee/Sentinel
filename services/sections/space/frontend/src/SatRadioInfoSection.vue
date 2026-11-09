@@ -1,8 +1,5 @@
 <template>
-  <div
-    v-if="hasRadioInfo(radio)"
-    :class="[`${classPrefix}-section`, `${classPrefix}-section--radio`]"
-  >
+  <div v-if="hasRadioInfo(radio)" class="sat-acc-section sat-acc-section--radio">
     <BaseDataGrid title="RADIO" collapse-on-narrow bare style="--ba-cell-align: flex-start">
       <BaseDataCell v-if="radio.uplink_hz" label="UPLINK">
         {{ formatHz(radio.uplink_hz)
@@ -35,13 +32,11 @@
       v-if="radio.packet_info"
       title="PACKET / DIGITAL"
       :lines="splitNotes(radio.packet_info)"
-      :class-prefix="classPrefix"
     />
     <SatRadioLinesAccordion
       v-if="radio.radio_notes"
       title="NOTES"
       :lines="splitNotes(radio.radio_notes)"
-      :class-prefix="classPrefix"
     />
   </div>
 </template>
@@ -56,22 +51,18 @@
  * prefix. Renders nothing at all when the satellite carries no radio info
  * (the `hasRadioInfo` guard the callers previously wrapped it in).
  *
- * `classPrefix` selects the caller's existing CSS family (`sfr-acc` for
- * SpaceFilter, `spp-acc` for SpacePasses) — both families are global CSS
- * (SpaceFilter's unscoped style block / SpacePasses.css), so the rendered
- * markup stays byte-identical under either parent. The `.ba-data-cell-mode`
- * spans are slot content into BaseDataCell, whose `:slotted()` rule applies
- * regardless of which parent provides them.
+ * Its section and caption classes come from SatelliteAccordion.css, shared with
+ * the rest of the accordion. The `.ba-data-cell-mode` spans are slot content
+ * into BaseDataCell, whose `:slotted()` rule applies regardless of the parent.
  */
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import SatRadioLinesAccordion from './SatRadioLinesAccordion.vue'
+import './SatelliteAccordion.css'
 import { formatHz, formatStatus, hasRadioInfo, splitNotes, type SatRadioInfo } from './satRadioInfo'
 
 defineProps<{
   /** The satellite's radio fields (SatEntry and SatPass both fit structurally). */
   radio: SatRadioInfo
-  /** The caller's CSS family prefix for the section/line/list classes. */
-  classPrefix: 'sfr-acc' | 'spp-acc'
 }>()
 </script>
