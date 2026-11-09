@@ -7,63 +7,60 @@
       Linked automatically to this machine's SDR Manager. Only the label and how its SDRs are added
       can be changed here.
     </p>
-    <div v-else class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">IP ADDRESS</span>
-      <input
-        ref="addressRef"
-        v-model="form.address"
-        type="text"
-        class="sdr-devices-form-input"
-        aria-label="SDR host IP address or hostname"
-        placeholder="192.168.1.x"
-        autocomplete="off"
-        spellcheck="false"
-      />
-    </div>
-    <div class="sdr-devices-form-row">
-      <span class="sdr-devices-form-label">LABEL</span>
-      <input
-        ref="labelRef"
-        v-model="form.name"
-        type="text"
-        class="sdr-devices-form-input"
-        aria-label="SDR host label"
-        :placeholder="isLocal ? 'This machine' : 'e.g. Roof Pi'"
-        autocomplete="off"
-        spellcheck="false"
-      />
-    </div>
+    <BaseTextField
+      v-else
+      ref="addressRef"
+      v-model="form.address"
+      v-bind="FIELD"
+      label="IP ADDRESS"
+      aria-label="SDR host IP address or hostname"
+      placeholder="192.168.1.x"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <BaseTextField
+      ref="labelRef"
+      v-model="form.name"
+      v-bind="FIELD"
+      label="LABEL"
+      aria-label="SDR host label"
+      :placeholder="isLocal ? 'This machine' : 'e.g. Roof Pi'"
+      autocomplete="off"
+      spellcheck="false"
+    />
     <template v-if="!isLocal">
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">PORT</span>
-        <input
-          v-model.number="form.port"
-          type="number"
-          class="sdr-devices-form-input"
-          aria-label="SDR Manager API port"
-          placeholder="8000"
-          min="1"
-          max="65535"
-        />
-      </div>
-      <div class="sdr-devices-form-row">
-        <span class="sdr-devices-form-label">CONSOLE PASSWORD</span>
-        <input
-          v-model="form.authToken"
-          type="password"
-          class="sdr-devices-form-input"
-          aria-label="SDR host console password"
-          :placeholder="passwordPlaceholder"
-          autocomplete="new-password"
-          spellcheck="false"
-        />
-      </div>
+      <BaseTextField
+        v-model.number="form.port"
+        v-bind="FIELD"
+        label="PORT"
+        input-type="number"
+        aria-label="SDR Manager API port"
+        placeholder="8000"
+        min="1"
+        max="65535"
+      />
+      <BaseTextField
+        v-model="form.authToken"
+        v-bind="FIELD"
+        label="CONSOLE PASSWORD"
+        input-type="password"
+        aria-label="SDR host console password"
+        :placeholder="passwordPlaceholder"
+        autocomplete="new-password"
+        spellcheck="false"
+      />
     </template>
 
-    <div class="sdr-devices-form-row remote-host-auto-add-row">
-      <span :id="autoAddLabelId" class="sdr-devices-form-label">ADD SDRS</span>
-      <RemoteHostAutoAddToggle v-model="form.autoAddSdrs" :labelled-by="autoAddLabelId" />
-    </div>
+    <BaseFormField
+      v-slot="{ labelId }"
+      v-bind="FIELD"
+      class="remote-host-auto-add-row"
+      :control-id="autoAddFieldId"
+      label="ADD SDRS"
+      label-kind="group"
+    >
+      <RemoteHostAutoAddToggle v-model="form.autoAddSdrs" :labelled-by="labelId" />
+    </BaseFormField>
     <p v-if="!form.autoAddSdrs" class="remote-host-auto-add-note">
       Choose which of its SDRs become radios with ADD.
     </p>
@@ -133,12 +130,17 @@
  */
 import { computed, ref, onBeforeUnmount, onMounted, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostDetails from './RemoteHostDetails.vue'
 import RemoteHostTestButton, { type HostTestState } from './RemoteHostTestButton.vue'
 import RemoteHostAutoAddToggle from './RemoteHostAutoAddToggle.vue'
 import type { RemoteHostDraft } from '../remoteHostEdits'
 import { createHost, testHost, SdrManagerApiError } from '../api/sdrManagerRemoteApi'
+
+/** Every field of this form: the Settings hairline look, caption in a column beside the value. */
+const FIELD = { density: 'settings', layout: 'inline' } as const
 
 // SAVE keeps SdrDeviceForm's undimmed disabled look; size and colours come
 // from SettingsPanel.css's `.sdr-devices-form-actions` rule.
@@ -163,8 +165,8 @@ const emit = defineEmits<{
   draft: [draft: RemoteHostDraft | null]
 }>()
 
-const addressRef = ref<HTMLInputElement | null>(null)
-const labelRef = ref<HTMLInputElement | null>(null)
+const addressRef = ref<{ focus: () => void } | null>(null)
+const labelRef = ref<{ focus: () => void } | null>(null)
 const isLocal = computed(() => props.host?.is_local === true)
 const errorMsg = ref('')
 const shownError = computed(() => errorMsg.value || props.applyError || '')
@@ -182,7 +184,8 @@ const savedForm: RemoteHostDraft = {
   // Off unless the operator turns it on: which SDRs are radios is theirs to choose.
   autoAddSdrs: props.host?.auto_add_sdrs ?? false,
 }
-const autoAddLabelId = `remote-host-${props.host?.id ?? 'new'}-auto-add`
+// Unique per form, so two open forms never share the ADD SDRS caption's id.
+const autoAddFieldId = `remote-host-${props.host?.id ?? 'new'}-auto-add`
 const form = ref<RemoteHostDraft>({ ...(props.stagedDraft ?? savedForm) })
 
 const passwordPlaceholder = computed(() => {
@@ -272,9 +275,14 @@ async function addHost(): Promise<void> {
   letter-spacing: 0.02em;
   color: rgba(16, 19, 29, 0.75);
 }
-.remote-host-auto-add-row {
-  /* The two pills don't fit beside the label on a phone. */
-  flex-wrap: wrap;
+/* The two pills don't fit beside the caption on a phone, so there the row
+   wraps them onto a line of their own. */
+@media (max-width: 600px) {
+  .remote-host-auto-add-row {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 14px;
+  }
 }
 .remote-host-auto-add-note {
   margin: 0;

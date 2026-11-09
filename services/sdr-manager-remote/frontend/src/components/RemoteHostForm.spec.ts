@@ -44,6 +44,18 @@ function makeSavedHost(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost 
   return { ...EXISTING_HOST, ...overrides }
 }
 
+/** Each visible `<label>` caption mapped to the aria-label of the control its `for` points at. */
+function captionTargets(wrapper: VueWrapper): Record<string, string | undefined> {
+  return Object.fromEntries(
+    wrapper
+      .findAll('label.ba-form-field__label')
+      .map((label) => [
+        label.text(),
+        wrapper.find(`#${label.attributes('for')}`).attributes('aria-label'),
+      ]),
+  )
+}
+
 describe('RemoteHostForm', () => {
   beforeEach(() => {
     // The form's MORE disclosure reads appStore.isOnline to decide
@@ -57,7 +69,7 @@ describe('RemoteHostForm', () => {
 
   it('defaults a new form to port 8000 and an empty address/label', async () => {
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    const inputs = wrapper.findAll('.ba-text-field__input')
     expect((inputs[0]!.element as HTMLInputElement).value).toBe('')
     expect((inputs[1]!.element as HTMLInputElement).value).toBe('')
     expect((inputs[2]!.element as HTMLInputElement).value).toBe('8000')
@@ -65,7 +77,7 @@ describe('RemoteHostForm', () => {
 
   it('prefills the form from an existing host', async () => {
     const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    const inputs = wrapper.findAll('.ba-text-field__input')
     expect((inputs[0]!.element as HTMLInputElement).value).toBe('192.168.1.50')
     expect((inputs[1]!.element as HTMLInputElement).value).toBe('Roof Pi')
     expect((inputs[2]!.element as HTMLInputElement).value).toBe('8000')
@@ -73,7 +85,7 @@ describe('RemoteHostForm', () => {
 
   it('shows the "password set" placeholder for a host with a stored password', async () => {
     const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    const tokenInput = wrapper.findAll('.sdr-devices-form-input')[3]!
+    const tokenInput = wrapper.findAll('.ba-text-field__input')[3]!
     expect(tokenInput.attributes('placeholder')).toBe('Password set — leave blank to keep it')
   })
 
@@ -84,7 +96,7 @@ describe('RemoteHostForm', () => {
   ])('asks for the password again once input %i moves the host', async (index, value) => {
     // The backend drops the stored password when the address or port changes.
     const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
-    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    const inputs = wrapper.findAll('.ba-text-field__input')
     await inputs[index]!.setValue(value)
     const expected =
       value === ''
@@ -97,7 +109,7 @@ describe('RemoteHostForm', () => {
     const wrapper = mount(RemoteHostForm, {
       props: { host: { ...EXISTING_HOST, auth_token_set: false } },
     })
-    const tokenInput = wrapper.findAll('.sdr-devices-form-input')[3]!
+    const tokenInput = wrapper.findAll('.ba-text-field__input')[3]!
     expect(tokenInput.attributes('placeholder')).toBe("The password set on that host's console")
   })
 
@@ -119,7 +131,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    const inputs = wrapper.findAll('.ba-text-field__input')
     await inputs[0]!.setValue('10.0.0.9')
     await inputs[1]!.setValue('Attic')
     await inputs[3]!.setValue('secret-token')
@@ -142,7 +154,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
@@ -163,7 +175,7 @@ describe('RemoteHostForm', () => {
       )
       // The group is named by its label, unique to the new-host form.
       const labelId = wrapper.find('[role="radiogroup"]').attributes('aria-labelledby')
-      expect(labelId).toBe('remote-host-new-auto-add')
+      expect(labelId).toBe('remote-host-new-auto-add-label')
       expect(wrapper.find(`#${labelId}`).text()).toBe('ADD SDRS')
     })
 
@@ -171,7 +183,7 @@ describe('RemoteHostForm', () => {
       mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
       mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
       const wrapper = mount(RemoteHostForm, { props: { host: null } })
-      await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+      await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
       await autoAddRadios(wrapper)[1]!.trigger('click')
       expect(wrapper.find('.remote-host-auto-add-note').exists()).toBe(false)
       await wrapper.find('.sdr-devices-btn--primary').trigger('click')
@@ -187,7 +199,7 @@ describe('RemoteHostForm', () => {
       })
       expect(autoAddRadios(wrapper)[1]!.attributes('aria-checked')).toBe('true')
       expect(wrapper.find('[role="radiogroup"]').attributes('aria-labelledby')).toBe(
-        'remote-host-5-auto-add',
+        'remote-host-5-auto-add-label',
       )
     })
 
@@ -209,7 +221,7 @@ describe('RemoteHostForm', () => {
 
   describe('editing an existing host (staged for APPLY CHANGES)', () => {
     function fields(wrapper: ReturnType<typeof mount>) {
-      return wrapper.findAll('.sdr-devices-form-input')
+      return wrapper.findAll('.ba-text-field__input')
     }
     function lastDraft(wrapper: ReturnType<typeof mount>): unknown {
       const drafts = wrapper.emitted('draft')!
@@ -344,7 +356,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    const inputs = wrapper.findAll('.sdr-devices-form-input')
+    const inputs = wrapper.findAll('.ba-text-field__input')
     await inputs[0]!.setValue('10.0.0.9')
     await inputs[2]!.setValue(0)
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
@@ -359,7 +371,7 @@ describe('RemoteHostForm', () => {
       }),
     )
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
@@ -371,7 +383,7 @@ describe('RemoteHostForm', () => {
   it('falls back to a generic save-failed message for a non-SdrManagerApiError failure', async () => {
     mockCreateSdrManagerHost.mockRejectedValue(new Error('boom'))
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Save failed.')
@@ -388,7 +400,7 @@ describe('RemoteHostForm', () => {
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     const addButton = () => wrapper.find('.sdr-devices-btn--primary')
     expect(addButton().text()).toBe('ADD')
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await addButton().trigger('click')
     expect((addButton().element as HTMLButtonElement).disabled).toBe(true)
     finishCreate(makeSavedHost())
@@ -398,7 +410,7 @@ describe('RemoteHostForm', () => {
 
   it('does not emit drafts while a new host is being typed', async () => {
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     expect(wrapper.emitted('draft')).toBeUndefined()
   })
 
@@ -406,7 +418,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('  10.0.0.9  ')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('  10.0.0.9  ')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
@@ -419,7 +431,7 @@ describe('RemoteHostForm', () => {
       new SdrManagerApiError(409, 'duplicate', 'Host already exists.'),
     )
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Host already exists.')
@@ -434,7 +446,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockRejectedValue(new Error('probe unreachable'))
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.emitted('save')).toHaveLength(1)
@@ -559,7 +571,7 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: false, detail: 'Connection refused' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    await wrapper.findAll('.sdr-devices-form-input')[0]!.setValue('10.0.0.9')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
     await wrapper.find('.sdr-devices-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.remote-host-probe').text()).toBe('Connection refused')
@@ -581,13 +593,23 @@ describe('RemoteHostForm', () => {
     expect(wrapper.emitted('cancel')).toHaveLength(1)
   })
 
+  it('ties each visible caption to its input', () => {
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    expect(captionTargets(wrapper)).toEqual({
+      'IP ADDRESS': 'SDR host IP address or hostname',
+      LABEL: 'SDR host label',
+      PORT: 'SDR Manager API port',
+      'CONSOLE PASSWORD': 'SDR host console password',
+    })
+  })
+
   it('focuses the address field shortly after mount', async () => {
     vi.useFakeTimers()
     const wrapper = mount(RemoteHostForm, {
       props: { host: null },
       attachTo: document.body,
     })
-    const addressInput = wrapper.findAll('.sdr-devices-form-input')[0]!.element as HTMLInputElement
+    const addressInput = wrapper.findAll('.ba-text-field__input')[0]!.element as HTMLInputElement
     vi.runAllTimers()
     expect(document.activeElement).toBe(addressInput)
     wrapper.unmount()
@@ -615,7 +637,7 @@ describe('RemoteHostForm', () => {
 
     it('shows only the label and ADD SDRS, with a note that the row is linked automatically', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      const labels = wrapper.findAll('.sdr-devices-form-label').map((label) => label.text())
+      const labels = wrapper.findAll('.ba-form-field__label').map((label) => label.text())
       expect(labels).toEqual(['LABEL', 'ADD SDRS'])
       expect(wrapper.find('input[aria-label="SDR host IP address or hostname"]').exists()).toBe(
         false,
