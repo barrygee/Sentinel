@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { nextTick } from 'vue'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import AircraftAltitudeLegend from './AircraftAltitudeLegend.vue'
@@ -27,12 +28,26 @@ describe('AircraftAltitudeLegend', () => {
     expect(bar('dark')).not.toBe(bar('light'))
   })
 
-  it.each([
-    ['dark', 'rgb(0, 0, 0)'],
-    ['light', 'rgb(0, 0, 0)'],
-  ] as const)('sits on the same solid fill as the %s map’s airfield labels', (palette, fill) => {
-    const wrapper = mount(AircraftAltitudeLegend, { props: { palette } })
-    expect((wrapper.element as HTMLElement).style.background).toBe(fill)
+  it('hands the footer groups’ measured widths to its stylesheet', async () => {
+    const addCluster = (id: string, left: number, right: number) => {
+      const cluster = document.createElement('div')
+      cluster.id = id
+      cluster.getBoundingClientRect = () => ({ left, right }) as DOMRect
+      document.body.appendChild(cluster)
+    }
+    addCluster('footer-left', 0, 44)
+    addCluster('footer-right', window.innerWidth - 150, window.innerWidth)
+    try {
+      const wrapper = mount(AircraftAltitudeLegend, { props: { palette: 'dark' } })
+      // Measured once mounted, so the style catches up on the next render.
+      await nextTick()
+      const style = (wrapper.element as HTMLElement).style
+      expect(style.getPropertyValue('--altitude-legend-footer-left')).toBe('44px')
+      expect(style.getPropertyValue('--altitude-legend-footer-right')).toBe('150px')
+      wrapper.unmount()
+    } finally {
+      document.body.innerHTML = ''
+    }
   })
 
   it('spaces the gradient to match the evenly spaced labels', () => {
