@@ -246,7 +246,11 @@ defineExpose({
   caret-color: var(--accent-text);
 }
 
+/* The same hint as BaseFilterPanel's .bfp-input::placeholder (smaller and
+   dimmer than typed text), so this field reads like the other sections' search. */
 .ba-search-field--panel .ba-search-field__input::placeholder {
-  letter-spacing: 0.1em;
+  color: rgba(var(--ink-rgb), 0.2);
+  font-size: 11px;
+  letter-spacing: 0.14em;
 }
 </style>
