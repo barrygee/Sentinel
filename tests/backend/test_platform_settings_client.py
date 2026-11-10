@@ -9,7 +9,10 @@ level-triggered reconciler can't tell a background writer from the UI.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
+import logging
 from collections.abc import AsyncIterator, Iterator
 from types import SimpleNamespace
 from typing import Any
@@ -24,8 +27,12 @@ from backend.db_helpers import get_setting
 from backend.platform import settings_client as settings_client_module
 from backend.platform.bus import bus
 from backend.platform.settings_client import (
+    SETTINGS_CACHE_TTL_S,
+    SETTINGS_STALE_IF_ERROR_S,
     SettingsUnavailable,
+    close_core_client,
     delete_secret,
+    forget_cached_settings,
     read_namespace,
     read_secret,
     read_setting,
@@ -386,6 +393,376 @@ class TestSecretsRemotely:
 
         with pytest.raises(SettingsUnavailable, match="unreachable"):
             await write_secret(None, "sea", "aisstreamApiKey", "abcdef0123456789")
+
+
+class FakeClock:
+    """Stands in for the settings client's `time` module, so the cache's age is set, not waited for.
+
+    Only the client's own module is patched: asyncio's loop reads the real
+    `time.monotonic`, which must keep moving.
+    """
+
+    def __init__(self) -> None:
+        self.now = 1000.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+    def advance(self, seconds: float) -> None:
+        self.now += seconds
+
+
+class HeldCore(FakeCore):
+    """A fake core whose GETs wait until `release` is set, so reads can overlap a write or each other."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.release = asyncio.Event()
+
+    async def answer(self, request: httpx.Request) -> httpx.Response:  # type: ignore[override]
+        if request.method == "GET":
+            await self.release.wait()
+        return super().answer(request)
+
+
+def gets(core: FakeCore) -> list[str]:
+    """The URLs of every GET core received, in order."""
+    return [str(request.url) for request in core.requests if request.method == "GET"]
+
+
+AIR_URL = f"{CORE_URL}/api/settings/air"
+
+
+class TestRemoteReadCache:
+    """Remote reads are reused for SETTINGS_CACHE_TTL_S, shared while in flight,
+    dropped on this service's own writes, and stand in while core is down."""
+
+    @pytest.fixture
+    def clock(self, monkeypatch) -> FakeClock:
+        fake_clock = FakeClock()
+        monkeypatch.setattr(settings_client_module, "time", fake_clock)
+        return fake_clock
+
+    @pytest.fixture
+    def held_core(self, monkeypatch) -> HeldCore:
+        core = HeldCore()
+        real_client = httpx.AsyncClient
+        monkeypatch.setattr(settings, "sentinel_core_url", CORE_URL + "/")
+        monkeypatch.setattr(
+            settings_client_module.httpx,
+            "AsyncClient",
+            lambda **options: real_client(transport=httpx.MockTransport(core.answer), **options),
+        )
+        return core
+
+    async def test_a_read_inside_the_ttl_is_served_from_the_cache(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+
+        assert await read_namespace(None, "air") == {"refresh": 30}
+        fake_core.namespaces["air"] = {"refresh": 60}
+        clock.advance(SETTINGS_CACHE_TTL_S - 0.1)
+
+        assert await read_namespace(None, "air") == {"refresh": 30}
+        assert gets(fake_core) == [AIR_URL]
+
+    async def test_a_read_at_the_ttl_goes_back_to_core(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+        fake_core.namespaces["air"] = {"refresh": 60}
+        clock.advance(SETTINGS_CACHE_TTL_S)
+
+        assert await read_namespace(None, "air") == {"refresh": 60}
+        assert gets(fake_core) == [AIR_URL, AIR_URL]
+
+    async def test_each_namespace_is_cached_on_its_own(self, fake_core, clock):
+        fake_core.namespaces = {"air": {"a": 1}, "app": {"b": 2}}
+
+        assert await read_namespace(None, "air") == {"a": 1}
+        assert await read_namespace(None, "app") == {"b": 2}
+        assert await read_setting(None, "air", "a") == 1
+        assert gets(fake_core) == [AIR_URL, f"{CORE_URL}/api/settings/app"]
+
+    async def test_a_caller_mutating_its_answer_does_not_change_the_next(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"sources": ["adsb.lol"]}
+
+        first = await read_namespace(None, "air")
+        first["sources"].append("tampered")
+        first["added"] = True
+
+        assert await read_namespace(None, "air") == {"sources": ["adsb.lol"]}
+
+    async def test_reads_share_one_client(self, fake_core, clock):
+        await read_namespace(None, "air")
+        client = settings_client_module._shared_client
+
+        clock.advance(SETTINGS_CACHE_TTL_S)
+        await read_namespace(None, "air")
+
+        assert client is not None
+        assert settings_client_module._shared_client is client
+
+    async def test_concurrent_reads_share_one_request(self, held_core, clock):
+        held_core.namespaces["air"] = {"refresh": 30}
+
+        readers = [asyncio.create_task(read_namespace(None, "air")) for _ in range(3)]
+        await asyncio.sleep(0)
+        held_core.release.set()
+
+        assert await asyncio.gather(*readers) == [{"refresh": 30}] * 3
+        assert gets(held_core) == [AIR_URL]
+
+    async def test_one_reader_giving_up_does_not_cancel_the_shared_read(self, held_core, clock):
+        held_core.namespaces["air"] = {"refresh": 30}
+        quitter = asyncio.create_task(read_namespace(None, "air"))
+        stayer = asyncio.create_task(read_namespace(None, "air"))
+        await asyncio.sleep(0.01)
+
+        quitter.cancel()
+        held_core.release.set()
+
+        assert await stayer == {"refresh": 30}
+        with pytest.raises(asyncio.CancelledError):
+            await quitter
+        # And the answer was still cached for the next caller.
+        assert await read_namespace(None, "air") == {"refresh": 30}
+        assert gets(held_core) == [AIR_URL]
+
+    async def test_a_failed_read_is_not_cached(self, fake_core, clock):
+        fake_core.unreachable = True
+        with pytest.raises(SettingsUnavailable):
+            await read_namespace(None, "air")
+
+        fake_core.unreachable = False
+        fake_core.namespaces["air"] = {"refresh": 30}
+
+        assert await read_namespace(None, "air") == {"refresh": 30}
+        assert settings_client_module._reads_in_flight == {}
+
+    async def test_a_read_nobody_waits_for_any_more_still_settles(self, held_core, clock):
+        held_core.unreachable = True
+        quitter = asyncio.create_task(read_namespace(None, "air"))
+        await asyncio.sleep(0.01)
+        (shared_read,) = settings_client_module._reads_in_flight.values()
+
+        quitter.cancel()
+        held_core.release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await quitter
+        with contextlib.suppress(SettingsUnavailable):
+            await shared_read
+        await asyncio.sleep(0)  # done callbacks run on the next loop tick
+
+        assert settings_client_module._reads_in_flight == {}
+        assert settings_client_module._cached_reads == {}
+
+    async def test_a_cancelled_read_stores_nothing(self):
+        read: asyncio.Future[bytes] = asyncio.get_running_loop().create_future()
+        settings_client_module._reads_in_flight[AIR_URL] = read
+        read.cancel()
+
+        settings_client_module._settle_read(AIR_URL, read)
+
+        assert settings_client_module._cached_reads == {}
+        assert settings_client_module._reads_in_flight == {AIR_URL: read}
+
+    async def test_its_own_write_drops_the_cached_namespace(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+
+        await write_setting(None, "air", "refresh", 60)
+        fake_core.namespaces["air"] = {"refresh": 60}
+
+        assert await read_namespace(None, "air") == {"refresh": 60}
+        assert gets(fake_core) == [AIR_URL, AIR_URL]
+
+    async def test_a_write_leaves_other_namespaces_cached(self, fake_core, clock):
+        fake_core.namespaces["app"] = {"mode": "online"}
+        await read_namespace(None, "app")
+
+        await write_setting(None, "air", "refresh", 60)
+        await read_namespace(None, "app")
+
+        assert gets(fake_core) == [f"{CORE_URL}/api/settings/app"]
+
+    async def test_a_failed_write_still_drops_the_cached_namespace(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+        fake_core.status = 503
+
+        with pytest.raises(SettingsUnavailable):
+            await write_setting(None, "air", "refresh", 60)
+
+        fake_core.status = 200
+        fake_core.namespaces["air"] = {"refresh": 60}
+        assert await read_namespace(None, "air") == {"refresh": 60}
+
+    async def test_a_read_in_flight_during_a_write_is_not_cached(self, held_core, clock):
+        held_core.namespaces["air"] = {"refresh": 30}
+        reader = asyncio.create_task(read_namespace(None, "air"))
+        await asyncio.sleep(0.01)
+
+        await write_setting(None, "air", "refresh", 60)
+        held_core.release.set()
+        # The read that started before the write still answers its own caller...
+        assert await reader == {"refresh": 30}
+
+        # ...but the next read asks core again rather than reusing that answer.
+        held_core.namespaces["air"] = {"refresh": 60}
+        assert await read_namespace(None, "air") == {"refresh": 60}
+        assert gets(held_core) == [AIR_URL, AIR_URL]
+
+    async def test_the_last_good_answer_stands_in_while_core_is_down(self, fake_core, clock, caplog):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+        clock.advance(SETTINGS_STALE_IF_ERROR_S - 1)
+        fake_core.unreachable = True
+
+        with caplog.at_level(logging.WARNING, logger=settings_client_module.logger.name):
+            assert await read_namespace(None, "air") == {"refresh": 30}
+            assert await read_namespace(None, "air") == {"refresh": 30}
+
+        stale_warnings = [record for record in caplog.records if "serving cached settings" in record.message]
+        assert len(stale_warnings) == 1
+        assert gets(fake_core) == [AIR_URL, AIR_URL, AIR_URL]
+
+    async def test_a_new_outage_after_recovery_is_logged_again(self, fake_core, clock, caplog):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+
+        with caplog.at_level(logging.WARNING, logger=settings_client_module.logger.name):
+            for _outage in range(2):
+                clock.advance(SETTINGS_CACHE_TTL_S)
+                fake_core.unreachable = True
+                await read_namespace(None, "air")
+                clock.advance(SETTINGS_CACHE_TTL_S)
+                fake_core.unreachable = False
+                await read_namespace(None, "air")
+
+        stale_warnings = [record for record in caplog.records if "serving cached settings" in record.message]
+        assert len(stale_warnings) == 2
+
+    async def test_an_answer_too_old_to_stand_in_raises(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+        clock.advance(SETTINGS_STALE_IF_ERROR_S)
+        fake_core.unreachable = True
+
+        with pytest.raises(SettingsUnavailable, match="unreachable"):
+            await read_namespace(None, "air")
+
+    async def test_a_refusal_also_falls_back_to_the_last_good_answer(self, fake_core, clock):
+        fake_core.namespaces["air"] = {"refresh": 30}
+        await read_namespace(None, "air")
+        clock.advance(SETTINGS_CACHE_TTL_S)
+        fake_core.status = 503
+
+        assert await read_namespace(None, "air") == {"refresh": 30}
+
+
+class TestRemoteSecretCache:
+    @pytest.fixture(autouse=True)
+    def credential(self, monkeypatch, tmp_path):
+        present_credential(monkeypatch, tmp_path, "sea")
+
+    @pytest.fixture(autouse=True)
+    def clock(self, monkeypatch) -> FakeClock:
+        fake_clock = FakeClock()
+        monkeypatch.setattr(settings_client_module, "time", fake_clock)
+        return fake_clock
+
+    async def test_a_secret_read_inside_the_ttl_is_served_from_the_cache(self, fake_core):
+        fake_core.secrets["sea/aisstreamApiKey"] = "first-key-0123456"
+
+        assert await read_secret(None, "sea", "aisstreamApiKey") == "first-key-0123456"
+        fake_core.secrets["sea/aisstreamApiKey"] = "second-key-012345"
+
+        assert await read_secret(None, "sea", "aisstreamApiKey") == "first-key-0123456"
+        assert gets(fake_core) == [SECRET_URL]
+
+    async def test_a_non_object_answer_reads_as_empty(self, fake_core, monkeypatch):
+        def answer_a_list(request: httpx.Request) -> httpx.Response:
+            fake_core.requests.append(request)
+            return httpx.Response(200, json=["not", "an", "object"])
+
+        monkeypatch.setattr(fake_core, "answer", answer_a_list)
+
+        assert await read_secret(None, "sea", "aisstreamApiKey") == ""
+
+    @pytest.mark.parametrize(
+        "change",
+        [
+            lambda: write_secret(None, "sea", "aisstreamApiKey", "second-key-012345"),
+            lambda: delete_secret(None, "sea", "aisstreamApiKey"),
+        ],
+        ids=["write", "delete"],
+    )
+    async def test_its_own_change_drops_the_cached_secret(self, fake_core, change):
+        fake_core.secrets["sea/aisstreamApiKey"] = "first-key-0123456"
+        await read_secret(None, "sea", "aisstreamApiKey")
+
+        await change()
+        await read_secret(None, "sea", "aisstreamApiKey")
+
+        assert gets(fake_core) == [SECRET_URL, SECRET_URL]
+
+    @pytest.mark.parametrize(
+        "change",
+        [
+            lambda: write_secret(None, "sea", "aisstreamApiKey", "second-key-012345"),
+            lambda: delete_secret(None, "sea", "aisstreamApiKey"),
+        ],
+        ids=["write", "delete"],
+    )
+    async def test_a_failed_change_still_drops_the_cached_secret(self, fake_core, change):
+        fake_core.secrets["sea/aisstreamApiKey"] = "first-key-0123456"
+        await read_secret(None, "sea", "aisstreamApiKey")
+        fake_core.status = 503
+
+        with pytest.raises(SettingsUnavailable):
+            await change()
+
+        fake_core.status = 200
+        await read_secret(None, "sea", "aisstreamApiKey")
+        assert gets(fake_core) == [SECRET_URL, SECRET_URL]
+
+
+class TestCoreClientLifetime:
+    async def test_close_closes_the_shared_client_and_forgets_it(self, fake_core):
+        await read_namespace(None, "air")
+        client = settings_client_module._shared_client
+        assert client is not None
+
+        await close_core_client()
+
+        assert client.is_closed
+        assert settings_client_module._shared_client is None
+
+    async def test_close_without_a_client_does_nothing(self):
+        assert settings_client_module._shared_client is None
+
+        await close_core_client()
+
+        assert settings_client_module._shared_client is None
+
+    async def test_a_read_after_close_opens_a_new_client(self, fake_core):
+        await read_namespace(None, "air")
+        await close_core_client()
+
+        await read_setting(None, "app", "mode")
+
+        assert settings_client_module._shared_client is not None
+        assert not settings_client_module._shared_client.is_closed
+
+    async def test_forget_drops_the_client_and_every_cached_read(self, fake_core):
+        await read_namespace(None, "air")
+        settings_client_module._stale_reads_logged.add(AIR_URL)
+
+        forget_cached_settings()
+
+        assert settings_client_module._shared_client is None
+        assert settings_client_module._cached_reads == {}
+        assert settings_client_module._reads_in_flight == {}
+        assert settings_client_module._stale_reads_logged == set()
 
 
 class TestWaitForCore:

@@ -91,6 +91,18 @@ def no_remembered_sdr_manager_sessions():
 
 
 @pytest.fixture(autouse=True)
+def no_cached_core_settings():
+    """The settings client caches core's answers and keeps one HTTP client per
+    process, so one test's fake core (and event loop) would otherwise answer
+    the next test's reads."""
+    from backend.platform.settings_client import forget_cached_settings
+
+    forget_cached_settings()
+    yield
+    forget_cached_settings()
+
+
+@pytest.fixture(autouse=True)
 def no_cached_sdr_host_snapshot():
     """The hub caches sdr-manager-remote's host snapshot for a few seconds, so
     one test's hosts would otherwise answer the next test's radio listing."""
