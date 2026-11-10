@@ -72,6 +72,10 @@ describe('ConsolePasswordControl', () => {
       await submit(wrapper)
       expect(wrapper.get(`${NEW_PASSWORD}-error`).text()).toBe('Use at least 10 characters.')
       expect(wrapper.get(NEW_PASSWORD).attributes('aria-invalid')).toBe('true')
+      // The error replaces the hint as the field's description.
+      expect(wrapper.get(NEW_PASSWORD).attributes('aria-describedby')).toBe(
+        `${NEW_PASSWORD.slice(1)}-error`,
+      )
       expect(api.setConsolePassword).not.toHaveBeenCalled()
       expect(document.activeElement).toBe(wrapper.get(NEW_PASSWORD).element)
       wrapper.unmount()

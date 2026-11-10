@@ -7,17 +7,14 @@
         machine without Wi-Fi, there is none).
       </p>
       <template v-else-if="state">
-        <div class="sdr-devices-form-row">
-          <span id="sdr-manager-local-hotspot-control" class="sdr-devices-form-label">
-            ALLOW CHANGES
-          </span>
+        <BaseFormField label="ALLOW CHANGES" label-kind="group" density="settings" layout="inline">
           <BaseToggleSwitch
             :model-value="state.control_enabled"
             accessible-name="Let SDR Manager change this machine’s Wi-Fi"
             :disabled="busy"
             @update:model-value="hotspot.setControl"
           />
-        </div>
+        </BaseFormField>
         <p v-if="!state.control_enabled" class="sdr-devices-empty">
           SDR Manager may not change this machine’s Wi-Fi. Turn this on to set up a hotspot.
         </p>
@@ -114,6 +111,7 @@
  */
 import { onMounted, ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 import { useLocalHotspot } from '../../composables/useLocalHotspot'

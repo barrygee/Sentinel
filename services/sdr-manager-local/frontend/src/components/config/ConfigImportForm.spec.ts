@@ -139,7 +139,7 @@ describe('ConfigImportForm', () => {
   ])('refuses JSON that is %s rather than a configuration object', async (_kind, text) => {
     const wrapper = mountForm()
     await pickFile(wrapper, text, 'odd.json')
-    expect(wrapper.get('.sdr-devices-form-error').text()).toBe(
+    expect(wrapper.get('.ba-form-field__error').text()).toBe(
       'odd.json doesn’t look like an SDR Manager configuration file.',
     )
     expect(wrapper.find('.config-import-summary').exists()).toBe(false)
@@ -151,22 +151,32 @@ describe('ConfigImportForm', () => {
     expect(input.attributes('aria-describedby')).toBeUndefined()
   })
 
+  it('flags the file field and describes it with the error while there is one', async () => {
+    const wrapper = mountForm()
+    await pickFile(wrapper, 'bad', 'odd.json')
+    const input = wrapper.get(FILE_SELECTOR)
+    expect(input.attributes('aria-invalid')).toBe('true')
+    expect(input.attributes('aria-describedby')).toBe('sdr-manager-local-config-file-error')
+    expect(wrapper.get('#sdr-manager-local-config-file-error').text()).toContain('odd.json')
+    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('FILE')
+  })
+
   it('drops a previous file and its error when the choice is emptied', async () => {
     const wrapper = mountForm()
     await pickFile(wrapper, TWO_DEVICES_AND_HOTSPOT)
     await pickFile(wrapper, null)
     expect(wrapper.find('.config-import-summary').exists()).toBe(false)
     await pickFile(wrapper, 'bad')
-    expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(true)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(true)
     await pickFile(wrapper, null)
-    expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
   })
 
   it('replaces an error with the summary when a good file follows a bad one', async () => {
     const wrapper = mountForm()
     await pickFile(wrapper, 'bad')
     await pickFile(wrapper, TWO_DEVICES_AND_HOTSPOT)
-    expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
     expect(wrapper.find('.config-import-summary').exists()).toBe(true)
   })
 
@@ -191,7 +201,7 @@ describe('ConfigImportForm', () => {
     await pickFile(wrapper, 'bad')
     ;(wrapper.vm as unknown as { clear: () => void }).clear()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
+    expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
     const clear = (wrapper.vm as unknown as { clear: () => void }).clear
     wrapper.unmount()
     expect(() => clear()).not.toThrow()

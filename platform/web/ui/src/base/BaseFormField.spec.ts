@@ -145,6 +145,22 @@ describe('BaseFormField', () => {
     expect(childClasses).toEqual(['ba-form-field__label', 'input', 'ba-form-field__hint'])
   })
 
+  it('lets an inline control wrap under its caption when wrapControl is set', () => {
+    const wrapper = mountField({ layout: 'inline', wrapControl: true })
+    expect(wrapper.classes()).toContain('ba-form-field--wrap-control')
+    expect(wrapper.classes()).toContain('ba-form-field--inline')
+  })
+
+  it('keeps the grid, with no wrap, for an inline field without wrapControl', () => {
+    expect(mountField({ layout: 'inline' }).classes()).not.toContain('ba-form-field--wrap-control')
+  })
+
+  it('ignores wrapControl on a stacked field, which has nothing beside the caption to wrap', () => {
+    const wrapper = mountField({ wrapControl: true })
+    expect(wrapper.classes()).toContain('ba-form-field--stacked')
+    expect(wrapper.classes()).not.toContain('ba-form-field--wrap-control')
+  })
+
   it('shows the hint under the control and names it as the description', () => {
     const wrapper = mountField({ controlId: 'lat', hint: 'Decimal degrees.' })
     const hintLine = wrapper.get('.ba-form-field__hint')
@@ -239,6 +255,15 @@ describe('BaseFormField', () => {
     ).toHaveNoViolations()
     expect(
       await axe(mountField({ layout: 'inline', density: 'settings', hint: 'Optional.' }).element),
+    ).toHaveNoViolations()
+  })
+
+  it('has no accessibility violations as a wrapping inline row with an error', async () => {
+    expect(
+      await axe(
+        mountField({ layout: 'inline', wrapControl: true, density: 'settings', error: 'Bad' })
+          .element,
+      ),
     ).toHaveNoViolations()
   })
 

@@ -286,7 +286,7 @@ watch(
 </script>
 
 <style scoped>
-/* The disclosure header IS a form label (.sdr-devices-form-label's exact
+/* The disclosure header IS a form caption (BaseFormField's settings caption:
    family, size, spacing and grey), so the closed accordion reads as one more
    row of the form it sits in rather than as a panel section of its own. */
 .remote-host-details-toggle {
@@ -299,7 +299,7 @@ watch(
   background: none;
   border: none;
   border-radius: 0;
-  color: var(--ink-secondary);
+  color: rgba(var(--ink-rgb), 0.6);
   cursor: pointer;
   text-align: left;
 }
@@ -319,15 +319,15 @@ watch(
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
   font-weight: 600;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 /* BaseDataGrid/BaseDataCell default to the dark map panels they were extracted
    from — white values on a near-transparent label, at the panels' own type
    scale. Both are re-pointed here at the settings panel's light surface and at
-   the type of the edit form around them (.sdr-devices-form-label /
-   .sdr-devices-form-input), with roomier vertical rhythm than the map panels'
+   the type of the edit form around them (BaseFormField / BaseTextField's
+   settings density), with roomier vertical rhythm than the map panels'
    dense telemetry needs. */
 .remote-host-details-body {
   --ba-grid-section-padding-x: 0px;
@@ -338,7 +338,7 @@ watch(
   --ba-grid-column-gap: 24px;
   --ba-cell-gap: 7px;
   /* Section titles take the shared heading size; field labels take
-     .sdr-devices-form-label's. Both sit darker than those panel greys (0.35 /
+     the form captions' size. Both sit darker than those panel greys (0.35 /
      0.5): at this size they are the only carrier of the field's meaning, so
      they hold AA contrast rather than the decorative weight larger headings
      can afford. */

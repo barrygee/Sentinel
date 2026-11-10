@@ -1357,56 +1357,6 @@
   padding-top: 12px;
 }
 
-.sdr-devices-form-row {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.sdr-devices-form-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-secondary);
-  width: 110px;
-  flex-shrink: 0;
-}
-
-.sdr-devices-form-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: inset 0 -1px 0 var(--settings-field-line);
-  padding: 6px 0;
-  color: var(--ink);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-value);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  outline: none;
-  caret-color: var(--ink-strong);
-  transition: box-shadow 0.15s;
-  min-width: 0;
-  -moz-appearance: textfield;
-}
-
-.sdr-devices-form-input:focus {
-  box-shadow: inset 0 -2px 0 var(--color-accent);
-}
-
-.sdr-devices-form-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.38);
-}
-
-.sdr-devices-form-input::-webkit-outer-spin-button,
-.sdr-devices-form-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
 .sdr-devices-form-error {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);

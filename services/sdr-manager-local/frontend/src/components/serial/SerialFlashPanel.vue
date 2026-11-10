@@ -8,28 +8,21 @@
       <p v-if="!idle" class="sdr-devices-form-error" role="alert">
         {{ label }} is {{ device.state }}. Switch it off and wait until it stops before flashing.
       </p>
-      <LocalFormField
-        v-slot="{ describedBy, invalid }"
+      <BaseTextField
+        ref="serialInput"
+        v-model="serial"
         label="NEW SERIAL"
-        :field-id="serialFieldId"
+        :input-id="serialFieldId"
         hint="1-32 letters, numbers, hyphens or underscores."
-        :error="serialError"
-      >
-        <input
-          :id="serialFieldId"
-          ref="serialInput"
-          v-model="serial"
-          type="text"
-          class="sdr-devices-form-input"
-          placeholder="e.g. ROOF-01"
-          maxlength="32"
-          autocomplete="off"
-          spellcheck="false"
-          :disabled="!idle || phase === 'submitting'"
-          :aria-describedby="describedBy"
-          :aria-invalid="invalid"
-        />
-      </LocalFormField>
+        :error="serialError ?? ''"
+        density="settings"
+        layout="inline"
+        placeholder="e.g. ROOF-01"
+        maxlength="32"
+        autocomplete="off"
+        spellcheck="false"
+        :disabled="!idle || phase === 'submitting'"
+      />
       <label class="serial-flash-acknowledge">
         <input v-model="acknowledged" type="checkbox" :disabled="!idle" />
         I understand this writes to the dongle permanently and cannot be undone.
@@ -96,12 +89,12 @@
  * which dongle is which while choosing.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LocalDeviceStatus } from '../../api/types'
 import { deviceLabel, isDeviceIdle, useLocalSdrStore } from '../../stores/localSdrStore'
 import { serialFlashErrorMessage, serialFlashFailureMessage } from '../../utils/errorMessages'
 import { validateSerial } from '../../utils/validation'
-import LocalFormField from '../shared/LocalFormField.vue'
 import SerialFlashConfirmDialog from './SerialFlashConfirmDialog.vue'
 
 type FlashPhase = 'form' | 'submitting' | 'awaiting-outcome' | 'succeeded' | 'failed'
@@ -122,7 +115,7 @@ const requestError = ref<string | null>(null)
 const outcomeMessage = ref('')
 const requiresReplug = ref(false)
 const heading = ref<HTMLElement | null>(null)
-const serialInput = ref<HTMLInputElement | null>(null)
+const serialInput = ref<{ focus: () => void } | null>(null)
 let requestStartedAt = 0
 
 const label = computed(() => deviceLabel(props.device))

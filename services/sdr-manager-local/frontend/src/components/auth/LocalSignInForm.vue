@@ -3,24 +3,18 @@
     <p class="local-sign-in-note">
       This machine’s SDR Manager has a console password. Sign in to manage its SDRs.
     </p>
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="passwordInput"
+      v-model="password"
       label="PASSWORD"
-      field-id="sdr-manager-local-sign-in-password"
-      :error="auth.errorMessage"
-    >
-      <input
-        id="sdr-manager-local-sign-in-password"
-        ref="passwordInput"
-        v-model="password"
-        type="password"
-        class="sdr-devices-form-input"
-        autocomplete="current-password"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-        required
-      />
-    </LocalFormField>
+      input-id="sdr-manager-local-sign-in-password"
+      :error="auth.errorMessage ?? ''"
+      density="settings"
+      layout="inline"
+      input-type="password"
+      autocomplete="current-password"
+      required
+    />
     <div class="sdr-devices-form-actions">
       <BaseButton
         type="submit"
@@ -40,13 +34,13 @@
  * A wrong password keeps focus in the field with the API's reason under it.
  */
 import { nextTick, ref } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
-import LocalFormField from '../shared/LocalFormField.vue'
 
 const auth = useLocalAuthStore()
 const password = ref('')
-const passwordInput = ref<HTMLInputElement | null>(null)
+const passwordInput = ref<{ focus: () => void } | null>(null)
 
 async function submit(): Promise<void> {
   const signedIn = await auth.signIn(password.value)

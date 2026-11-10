@@ -81,6 +81,9 @@ describe('PrivateAccessControl', () => {
     expect(api.setPrivateAccess).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('Enter one IP address')
     expect(wrapper.get(INPUT).attributes('aria-invalid')).toBe('true')
+    // The complaint is the field's description, so a screen reader reads it with the field.
+    const describedBy = wrapper.get(INPUT).attributes('aria-describedby')
+    expect(wrapper.get(`#${describedBy}`).text()).toContain('Enter one IP address')
     expect(document.activeElement).toBe(wrapper.get(INPUT).element)
   })
 

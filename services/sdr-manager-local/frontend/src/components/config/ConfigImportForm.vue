@@ -1,26 +1,31 @@
 <template>
   <form class="config-import" @submit.prevent="emitImport">
-    <div class="sdr-devices-form-row">
-      <label class="sdr-devices-form-label" :for="FILE_FIELD_ID">FILE</label>
+    <BaseFormField
+      v-slot="{ controlId, describedBy, invalid }"
+      label="FILE"
+      :control-id="FILE_FIELD_ID"
+      :error="fileError ?? ''"
+      density="settings"
+      layout="inline"
+    >
       <input
-        :id="FILE_FIELD_ID"
+        :id="controlId"
         ref="fileInput"
         type="file"
         accept="application/json,.json"
         class="config-import-file"
-        :aria-describedby="fileError ? FILE_ERROR_ID : undefined"
-        :aria-invalid="fileError !== null"
+        :aria-describedby="describedBy"
+        :aria-invalid="invalid"
         @change="pickFile"
       />
-    </div>
-    <p v-if="fileError" :id="FILE_ERROR_ID" class="sdr-devices-form-error">{{ fileError }}</p>
+    </BaseFormField>
     <template v-if="staged">
       <p class="config-import-summary">
         {{ staged.fileName }}: {{ deviceCount }} {{ deviceCount === 1 ? 'device' : 'devices'
         }}{{ hasHotspot ? ' and hotspot settings' : '' }}.
       </p>
       <fieldset class="config-import-choices">
-        <legend class="sdr-devices-form-label">APPLY</legend>
+        <legend class="config-import-legend">APPLY</legend>
         <label class="config-import-check">
           <input v-model="applyDevices" type="checkbox" :disabled="deviceCount === 0" />
           Device settings
@@ -57,6 +62,7 @@
  * default, because applying them can change which network this machine offers.
  */
 import { computed, ref } from 'vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LocalConfigFile, LocalConfigImportRequest } from '../../api/types'
 
@@ -64,7 +70,6 @@ defineProps<{ busy: boolean }>()
 const emit = defineEmits<{ import: [body: LocalConfigImportRequest] }>()
 
 const FILE_FIELD_ID = 'sdr-manager-local-config-file'
-const FILE_ERROR_ID = 'sdr-manager-local-config-file-error'
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const staged = ref<{ fileName: string; config: LocalConfigFile } | null>(null)
@@ -115,12 +120,25 @@ defineExpose({ clear })
 </script>
 
 <style scoped>
+/* The fieldset's caption reads like the field captions above it (see
+   BaseFormField's settings density). */
+.config-import-legend {
+  padding: 0;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.6);
+}
 .config-import {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .config-import-file {
+  /* Its natural width, not stretched across the field column. */
+  justify-self: start;
   min-height: 24px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-small);

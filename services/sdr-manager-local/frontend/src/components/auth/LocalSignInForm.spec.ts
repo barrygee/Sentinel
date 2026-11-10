@@ -42,6 +42,13 @@ describe('LocalSignInForm', () => {
     expect((wrapper.get(PASSWORD_SELECTOR).element as HTMLInputElement).value).toBe('')
   })
 
+  it('labels the password field and describes it with nothing while there is no error', () => {
+    const wrapper = mount(LocalSignInForm)
+    const input = wrapper.get(PASSWORD_SELECTOR)
+    expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('PASSWORD')
+    expect(input.attributes('aria-describedby')).toBeUndefined()
+  })
+
   it('shows the API reason, clears the password and refocuses the field on a wrong password', async () => {
     vi.mocked(api.signIn).mockRejectedValue(
       new SdrManagerApiError(401, 'invalid_credentials', 'Wrong password.'),
@@ -50,9 +57,10 @@ describe('LocalSignInForm', () => {
     await wrapper.get(PASSWORD_SELECTOR).setValue('nope')
     await wrapper.get('form').trigger('submit')
     await flushPromises()
-    expect(wrapper.get('.sdr-devices-form-error').text()).toBe('Wrong password.')
+    expect(wrapper.get('.ba-form-field__error').text()).toBe('Wrong password.')
     const field = wrapper.get(PASSWORD_SELECTOR)
     expect(field.attributes('aria-invalid')).toBe('true')
+    expect(field.attributes('aria-describedby')).toBe(`${PASSWORD_SELECTOR.slice(1)}-error`)
     expect((field.element as HTMLInputElement).value).toBe('')
     expect(document.activeElement).toBe(field.element)
     wrapper.unmount()

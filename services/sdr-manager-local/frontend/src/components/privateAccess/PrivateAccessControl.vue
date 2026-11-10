@@ -17,27 +17,20 @@
           @remove="removeAddress(address)"
         />
       </ul>
-      <LocalFormField
-        v-slot="{ describedBy, invalid }"
+      <BaseTextField
+        ref="addressInput"
+        v-model="newAddress"
         label="IP ADDRESS"
-        :field-id="ADDRESS_FIELD_ID"
-        :error="addressError"
-      >
-        <input
-          :id="ADDRESS_FIELD_ID"
-          ref="addressInput"
-          v-model="newAddress"
-          type="text"
-          class="sdr-devices-form-input"
-          inputmode="text"
-          autocomplete="off"
-          spellcheck="false"
-          placeholder="192.168.1.20"
-          :disabled="!auth.passwordSet"
-          :aria-describedby="describedBy"
-          :aria-invalid="invalid"
-        />
-      </LocalFormField>
+        :input-id="ADDRESS_FIELD_ID"
+        :error="addressError ?? ''"
+        density="settings"
+        layout="inline"
+        inputmode="text"
+        autocomplete="off"
+        spellcheck="false"
+        placeholder="192.168.1.20"
+        :disabled="!auth.passwordSet"
+      />
       <p v-if="access.errorMessage.value" class="sdr-devices-form-error" role="alert">
         {{ access.errorMessage.value }}
       </p>
@@ -62,19 +55,19 @@
  * the private dongles' streams, which is what drops a Sentinel just removed.
  */
 import { ref, useTemplateRef, watch } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { usePrivateAccess } from '../../composables/usePrivateAccess'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { validateIpAddress } from '../../utils/validation'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
-import LocalFormField from '../shared/LocalFormField.vue'
 import PrivateAccessRow from './PrivateAccessRow.vue'
 
 const ADDRESS_FIELD_ID = 'sdr-manager-local-private-address'
 
 const auth = useLocalAuthStore()
 const access = usePrivateAccess()
-const addressInput = useTemplateRef<HTMLInputElement>('addressInput')
+const addressInput = useTemplateRef<{ focus: () => void }>('addressInput')
 const newAddress = ref('')
 const addressError = ref<string | null>(null)
 

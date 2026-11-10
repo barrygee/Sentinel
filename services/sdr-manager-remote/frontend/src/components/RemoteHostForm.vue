@@ -54,7 +54,7 @@
     <BaseFormField
       v-slot="{ labelId }"
       v-bind="FIELD"
-      class="remote-host-auto-add-row"
+      wrap-control
       :control-id="autoAddFieldId"
       label="ADD SDRS"
       label-kind="group"
@@ -274,15 +274,6 @@ async function addHost(): Promise<void> {
   font-size: var(--settings-text-small);
   letter-spacing: 0.02em;
   color: rgba(16, 19, 29, 0.75);
-}
-/* The two pills don't fit beside the caption on a phone, so there the row
-   wraps them onto a line of their own. */
-@media (max-width: 600px) {
-  .remote-host-auto-add-row {
-    display: flex;
-    flex-wrap: wrap;
-    column-gap: 14px;
-  }
 }
 .remote-host-auto-add-note {
   margin: 0;
