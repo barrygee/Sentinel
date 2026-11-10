@@ -11,59 +11,41 @@
           that manage this machine sign in with it too.
         </template>
       </p>
-      <LocalFormField
+      <BaseTextField
         v-if="auth.passwordSet"
-        v-slot="{ describedBy, invalid }"
+        ref="currentInput"
+        v-model="currentPassword"
         label="CURRENT"
-        :field-id="CURRENT_FIELD_ID"
-        :error="errors.current"
-      >
-        <input
-          :id="CURRENT_FIELD_ID"
-          ref="currentInput"
-          v-model="currentPassword"
-          type="password"
-          class="sdr-devices-form-input"
-          autocomplete="current-password"
-          :aria-describedby="describedBy"
-          :aria-invalid="invalid"
-        />
-      </LocalFormField>
-      <LocalFormField
-        v-slot="{ describedBy, invalid }"
+        :input-id="CURRENT_FIELD_ID"
+        :error="errors.current ?? ''"
+        density="settings"
+        layout="inline"
+        input-type="password"
+        autocomplete="current-password"
+      />
+      <BaseTextField
+        ref="newInput"
+        v-model="newPassword"
         label="NEW PASSWORD"
-        :field-id="NEW_PASSWORD_FIELD_ID"
+        :input-id="NEW_PASSWORD_FIELD_ID"
         :hint="`At least ${auth.minimumPasswordLength} characters.`"
-        :error="errors.new"
-      >
-        <input
-          :id="NEW_PASSWORD_FIELD_ID"
-          ref="newInput"
-          v-model="newPassword"
-          type="password"
-          class="sdr-devices-form-input"
-          autocomplete="new-password"
-          :aria-describedby="describedBy"
-          :aria-invalid="invalid"
-        />
-      </LocalFormField>
-      <LocalFormField
-        v-slot="{ describedBy, invalid }"
+        :error="errors.new ?? ''"
+        density="settings"
+        layout="inline"
+        input-type="password"
+        autocomplete="new-password"
+      />
+      <BaseTextField
+        ref="repeatInput"
+        v-model="repeatPassword"
         label="REPEAT IT"
-        :field-id="REPEAT_FIELD_ID"
-        :error="errors.repeat"
-      >
-        <input
-          :id="REPEAT_FIELD_ID"
-          ref="repeatInput"
-          v-model="repeatPassword"
-          type="password"
-          class="sdr-devices-form-input"
-          autocomplete="new-password"
-          :aria-describedby="describedBy"
-          :aria-invalid="invalid"
-        />
-      </LocalFormField>
+        :input-id="REPEAT_FIELD_ID"
+        :error="errors.repeat ?? ''"
+        density="settings"
+        layout="inline"
+        input-type="password"
+        autocomplete="new-password"
+      />
       <p v-if="auth.errorMessage" class="sdr-devices-form-error" role="alert">
         {{ auth.errorMessage }}
       </p>
@@ -100,10 +82,10 @@
  * fields are cleared the moment it is sent; nothing keeps it.
  */
 import { computed, nextTick, reactive, ref } from 'vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
-import LocalFormField from '../shared/LocalFormField.vue'
 import LocalAuthGate from './LocalAuthGate.vue'
 import { NEW_PASSWORD_FIELD_ID } from './consolePasswordField'
 
@@ -120,9 +102,9 @@ const errors = reactive<{ current: string | null; new: string | null; repeat: st
   new: null,
   repeat: null,
 })
-const currentInput = ref<HTMLInputElement | null>(null)
-const newInput = ref<HTMLInputElement | null>(null)
-const repeatInput = ref<HTMLInputElement | null>(null)
+const currentInput = ref<{ focus: () => void } | null>(null)
+const newInput = ref<{ focus: () => void } | null>(null)
+const repeatInput = ref<{ focus: () => void } | null>(null)
 
 const lastChanged = computed(() => new Date(auth.updatedAt).toLocaleString())
 

@@ -137,6 +137,36 @@ describe('LocalDeviceForm', () => {
     expect(wrapper.get(`#${group.attributes('aria-labelledby')}`).text()).toBe('VISIBILITY')
   })
 
+  it('lets the VISIBILITY pills wrap under their caption on a narrow screen', () => {
+    const { wrapper } = mountForm()
+    const row = wrapper.get('[role="radiogroup"]').element.closest('.ba-form-field')!
+    expect(row.classList.contains('ba-form-field--wrap-control')).toBe(true)
+  })
+
+  it('points each caption at its field, and describes OUTPUT PORT with its hint', () => {
+    const { wrapper } = mountForm()
+    const targets = Object.fromEntries(
+      wrapper
+        .findAll('label.ba-form-field__label')
+        .map((label) => [label.text(), wrapper.get(`#${label.attributes('for')}`).element.tagName]),
+    )
+    expect(targets).toEqual({
+      NAME: 'INPUT',
+      'OUTPUT PORT': 'INPUT',
+      ANTENNA: 'INPUT',
+      NOTES: 'TEXTAREA',
+    })
+    const port = wrapper.get(
+      `#${wrapper
+        .findAll('label')
+        .find((label) => label.text() === 'OUTPUT PORT')!
+        .attributes('for')}`,
+    )
+    expect(wrapper.get(`#${port.attributes('aria-describedby')}`).text()).toMatch(
+      /^Its control port is /,
+    )
+  })
+
   it('keeps the row’s stream switch when a field is edited afterwards', async () => {
     const { wrapper, deviceEdits, device } = mountForm()
     deviceEdits.updateDraft(device, { ...deviceEdits.draftFor(device), enabled: true })
@@ -173,8 +203,8 @@ describe('LocalDeviceForm', () => {
     it('shows no messages and flags no field by default', () => {
       const { wrapper } = mountForm()
       expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
-      expect(wrapper.get(NAME).attributes('aria-invalid')).toBe('false')
-      expect(wrapper.get(PORT).attributes('aria-invalid')).toBe('false')
+      expect(wrapper.get(NAME).attributes('aria-invalid')).toBeUndefined()
+      expect(wrapper.get(PORT).attributes('aria-invalid')).toBeUndefined()
     })
 
     it('shows each message beside the field it names and flags that field', () => {

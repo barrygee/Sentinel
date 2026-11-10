@@ -90,6 +90,25 @@ describe('HotspotSettingsForm', () => {
     wrapper.unmount()
   })
 
+  it('points each caption at its own control: text inputs and the four pickers', () => {
+    const wrapper = mountForm()
+    const targets = Object.fromEntries(
+      wrapper
+        .findAll('label.ba-form-field__label')
+        .map((label) => [label.text(), wrapper.get(`#${label.attributes('for')}`).element.tagName]),
+    )
+    expect(targets).toEqual({
+      'NETWORK NAME': 'INPUT',
+      PASSWORD: 'INPUT',
+      SECURITY: 'SELECT',
+      BAND: 'SELECT',
+      CHANNEL: 'SELECT',
+      INTERFACE: 'SELECT',
+      ADDRESS: 'INPUT',
+    })
+    wrapper.unmount()
+  })
+
   it('tells the operator a blank password keeps the stored one only when one is stored', () => {
     const stored = mountForm({ passphrase_set: true })
     expect(stored.get(`${PASSPHRASE}-hint`).text()).toBe(

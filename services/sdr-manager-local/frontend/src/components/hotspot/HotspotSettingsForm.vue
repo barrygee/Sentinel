@@ -1,100 +1,99 @@
 <template>
   <form class="sdr-devices-accordion" novalidate @submit.prevent="save">
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="ssidInput"
+      v-model="draft.ssid"
       label="NETWORK NAME"
-      :field-id="ids.ssid"
-      :error="errors.ssid"
-    >
-      <input
-        :id="ids.ssid"
-        ref="ssidInput"
-        v-model="draft.ssid"
-        type="text"
-        class="sdr-devices-form-input"
-        autocomplete="off"
-        spellcheck="false"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-      />
-    </LocalFormField>
+      :input-id="ids.ssid"
+      :error="errors.ssid ?? ''"
+      density="settings"
+      layout="inline"
+      autocomplete="off"
+      spellcheck="false"
+    />
 
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="passphraseInput"
+      v-model="draft.passphrase"
       label="PASSWORD"
-      :field-id="ids.passphrase"
+      :input-id="ids.passphrase"
       :hint="state.passphrase_set ? 'Leave blank to keep the current password.' : ''"
-      :error="errors.passphrase"
-    >
-      <input
-        :id="ids.passphrase"
-        ref="passphraseInput"
-        v-model="draft.passphrase"
-        type="password"
-        class="sdr-devices-form-input"
-        autocomplete="new-password"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-      />
-    </LocalFormField>
+      :error="errors.passphrase ?? ''"
+      density="settings"
+      layout="inline"
+      input-type="password"
+      autocomplete="new-password"
+    />
 
-    <LocalFormField label="SECURITY" :field-id="ids.security">
-      <select :id="ids.security" v-model="draft.security" class="sdr-devices-form-input">
+    <BaseFormField
+      v-slot="{ controlId }"
+      label="SECURITY"
+      :control-id="ids.security"
+      density="settings"
+      layout="inline"
+    >
+      <select :id="controlId" v-model="draft.security" class="hotspot-select">
         <option value="wpa2">WPA2</option>
         <option value="wpa3">WPA3 (experimental on Raspberry Pi)</option>
       </select>
-    </LocalFormField>
+    </BaseFormField>
 
-    <LocalFormField label="BAND" :field-id="ids.band">
-      <select
-        :id="ids.band"
-        v-model="draft.band"
-        class="sdr-devices-form-input"
-        @change="onBandChange"
-      >
+    <BaseFormField
+      v-slot="{ controlId }"
+      label="BAND"
+      :control-id="ids.band"
+      density="settings"
+      layout="inline"
+    >
+      <select :id="controlId" v-model="draft.band" class="hotspot-select" @change="onBandChange">
         <option value="bg">2.4 GHz</option>
         <option value="a">5 GHz</option>
       </select>
-    </LocalFormField>
+    </BaseFormField>
 
-    <LocalFormField label="CHANNEL" :field-id="ids.channel">
-      <select :id="ids.channel" v-model.number="draft.channel" class="sdr-devices-form-input">
+    <BaseFormField
+      v-slot="{ controlId }"
+      label="CHANNEL"
+      :control-id="ids.channel"
+      density="settings"
+      layout="inline"
+    >
+      <select :id="controlId" v-model.number="draft.channel" class="hotspot-select">
         <option :value="0">Automatic</option>
         <option v-for="channel in channelsForBand(draft.band)" :key="channel" :value="channel">
           Channel {{ channel }}
         </option>
       </select>
-    </LocalFormField>
+    </BaseFormField>
 
-    <LocalFormField label="INTERFACE" :field-id="ids.interface">
-      <select :id="ids.interface" v-model="draft.interface" class="sdr-devices-form-input">
+    <BaseFormField
+      v-slot="{ controlId }"
+      label="INTERFACE"
+      :control-id="ids.interface"
+      density="settings"
+      layout="inline"
+    >
+      <select :id="controlId" v-model="draft.interface" class="hotspot-select">
         <option :value="null">Automatic</option>
         <option v-for="wireless in apCapableInterfaces" :key="wireless.name" :value="wireless.name">
           {{ wireless.name }}{{ wireless.station_ssid ? ` (on ${wireless.station_ssid})` : '' }}
         </option>
       </select>
-    </LocalFormField>
+    </BaseFormField>
 
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="gatewayInput"
+      v-model="draft.gatewayCidr"
       label="ADDRESS"
-      :field-id="ids.gateway"
+      :input-id="ids.gateway"
       hint="This machine’s address inside the hotspot. Leave blank for 10.42.0.1/24."
-      :error="errors.gateway"
-    >
-      <input
-        :id="ids.gateway"
-        ref="gatewayInput"
-        v-model="draft.gatewayCidr"
-        type="text"
-        class="sdr-devices-form-input"
-        placeholder="10.42.0.1/24"
-        autocomplete="off"
-        spellcheck="false"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-      />
-    </LocalFormField>
+      :error="errors.gateway ?? ''"
+      density="settings"
+      layout="inline"
+      placeholder="10.42.0.1/24"
+      autocomplete="off"
+      spellcheck="false"
+    />
 
     <label class="hotspot-check">
       <input v-model="draft.hidden" type="checkbox" />
@@ -133,6 +132,8 @@
  * sent only when typed: blank keeps the stored one.
  */
 import { computed, nextTick, reactive, ref } from 'vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type {
   LocalHotspotConfigRequest,
@@ -145,7 +146,6 @@ import {
   validatePassphrase,
   validateSsid,
 } from '../../utils/validation'
-import LocalFormField from '../shared/LocalFormField.vue'
 
 const props = defineProps<{
   state: LocalHotspotState
@@ -183,9 +183,9 @@ const errors = reactive<{ ssid: string | null; passphrase: string | null; gatewa
     gateway: null,
   },
 )
-const ssidInput = ref<HTMLInputElement | null>(null)
-const passphraseInput = ref<HTMLInputElement | null>(null)
-const gatewayInput = ref<HTMLInputElement | null>(null)
+const ssidInput = ref<{ focus: () => void } | null>(null)
+const passphraseInput = ref<{ focus: () => void } | null>(null)
+const gatewayInput = ref<{ focus: () => void } | null>(null)
 
 /** Interfaces that can host a network; `supports_ap` null means unknown, so it is offered. */
 const apCapableInterfaces = computed(() =>
@@ -242,6 +242,32 @@ async function save(): Promise<void> {
 </script>
 
 <style scoped>
+/* The native pickers wear the settings field's hairline look (see
+   BaseTextField's settings density), so they sit level with the text fields. */
+.hotspot-select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 0 8px;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--settings-field-line);
+  color: var(--ink);
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: var(--settings-text-value);
+  letter-spacing: 0.04em;
+  outline: none;
+  transition: box-shadow 0.15s;
+}
+.hotspot-select:focus {
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-select {
+    transition: none;
+  }
+}
+
 .hotspot-check {
   display: flex;
   gap: 8px;

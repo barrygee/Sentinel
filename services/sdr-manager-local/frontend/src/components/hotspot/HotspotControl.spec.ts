@@ -95,6 +95,16 @@ describe('HotspotControl', () => {
       expect(wrapper.findComponent(HotspotSettingsForm).exists()).toBe(false)
     })
 
+    it('captions the switch as a group, since the switch names itself', async () => {
+      const wrapper = await mountControl({ control_enabled: false })
+      const caption = wrapper.get('span.ba-form-field__label')
+      expect(caption.text()).toBe('ALLOW CHANGES')
+      expect(wrapper.findAll('label').map((label) => label.text())).not.toContain('ALLOW CHANGES')
+      expect(
+        caption.element.closest('.ba-form-field')!.contains(wrapper.get('[role="switch"]').element),
+      ).toBe(true)
+    })
+
     it('turns control on at once and re-reads the hotspot', async () => {
       vi.mocked(api.setHotspotControl).mockResolvedValue({
         control_enabled: true,

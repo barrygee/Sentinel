@@ -2,75 +2,69 @@
   <form class="sdr-devices-accordion" novalidate @submit.prevent>
     <LocalDeviceNotices :device="device" />
 
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="nameInput"
+      v-model="draft.name"
       label="NAME"
-      :field-id="fieldIds.name"
-      :error="errors.name"
-    >
-      <input
-        :id="fieldIds.name"
-        ref="nameInput"
-        v-model="draft.name"
-        type="text"
-        class="sdr-devices-form-input"
-        placeholder="e.g. Roof RTL-SDR"
-        :maxlength="DEVICE_NAME_MAX_LENGTH"
-        autocomplete="off"
-        spellcheck="false"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-      />
-    </LocalFormField>
+      :input-id="fieldIds.name"
+      :error="errors.name ?? ''"
+      density="settings"
+      layout="inline"
+      placeholder="e.g. Roof RTL-SDR"
+      :maxlength="DEVICE_NAME_MAX_LENGTH"
+      autocomplete="off"
+      spellcheck="false"
+    />
 
-    <LocalFormField
-      v-slot="{ describedBy, invalid }"
+    <BaseTextField
+      ref="portInput"
+      v-model.number="draft.port"
       label="OUTPUT PORT"
-      :field-id="fieldIds.port"
+      :input-id="fieldIds.port"
       :hint="`Its control port is ${controlPortHint}.`"
-      :error="errors.port"
+      :error="errors.port ?? ''"
+      density="settings"
+      layout="inline"
+      input-type="number"
+      inputmode="numeric"
+      :min="store.constraints?.port_min"
+      :max="store.constraints?.port_max"
+    />
+
+    <BaseTextField
+      v-model="draft.antenna"
+      label="ANTENNA"
+      :input-id="fieldIds.antenna"
+      density="settings"
+      layout="inline"
+      placeholder="e.g. Discone"
+      :maxlength="ANTENNA_MAX_LENGTH"
+      autocomplete="off"
+      spellcheck="false"
+    />
+
+    <BaseTextField
+      v-model="draft.notes"
+      label="NOTES"
+      :input-id="fieldIds.notes"
+      density="settings"
+      layout="inline"
+      multiline
+      :maxlength="NOTES_MAX_LENGTH"
+      rows="2"
+    />
+
+    <BaseFormField
+      v-slot="{ labelId }"
+      wrap-control
+      label="VISIBILITY"
+      label-kind="group"
+      :control-id="fieldIds.visibility"
+      density="settings"
+      layout="inline"
     >
-      <input
-        :id="fieldIds.port"
-        ref="portInput"
-        v-model.number="draft.port"
-        type="number"
-        inputmode="numeric"
-        class="sdr-devices-form-input"
-        :min="store.constraints?.port_min"
-        :max="store.constraints?.port_max"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-      />
-    </LocalFormField>
-
-    <LocalFormField label="ANTENNA" :field-id="fieldIds.antenna">
-      <input
-        :id="fieldIds.antenna"
-        v-model="draft.antenna"
-        type="text"
-        class="sdr-devices-form-input"
-        placeholder="e.g. Discone"
-        :maxlength="ANTENNA_MAX_LENGTH"
-        autocomplete="off"
-        spellcheck="false"
-      />
-    </LocalFormField>
-
-    <LocalFormField label="NOTES" :field-id="fieldIds.notes">
-      <textarea
-        :id="fieldIds.notes"
-        v-model="draft.notes"
-        class="sdr-devices-form-input local-device-notes"
-        :maxlength="NOTES_MAX_LENGTH"
-        rows="2"
-      ></textarea>
-    </LocalFormField>
-
-    <div class="sdr-devices-form-row local-device-visibility-row">
-      <span :id="fieldIds.visibility" class="sdr-devices-form-label">VISIBILITY</span>
-      <LocalVisibilityToggle v-model="draft.visibility" :labelled-by="fieldIds.visibility" />
-    </div>
+      <LocalVisibilityToggle v-model="draft.visibility" :labelled-by="labelId" />
+    </BaseFormField>
 
     <LocalDeviceDetails :device="device" />
 
@@ -102,6 +96,8 @@
  * error.
  */
 import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
+import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LocalDeviceStatus } from '../../api/types'
 import {
@@ -114,7 +110,6 @@ import {
   DEVICE_NAME_MAX_LENGTH,
   NOTES_MAX_LENGTH,
 } from '../../utils/validation'
-import LocalFormField from '../shared/LocalFormField.vue'
 import LocalDeviceDetails from './LocalDeviceDetails.vue'
 import LocalDeviceNotices from './LocalDeviceNotices.vue'
 import LocalVisibilityToggle from './LocalVisibilityToggle.vue'
@@ -136,8 +131,8 @@ const fieldIds = {
 const draft = reactive({ ...deviceEdits.draftFor(props.device) })
 const NO_ERRORS: LocalDeviceFormErrors = { name: null, port: null, form: null }
 const errors = computed(() => deviceEdits.errors[props.device.device_id] ?? NO_ERRORS)
-const nameInput = ref<HTMLInputElement | null>(null)
-const portInput = ref<HTMLInputElement | null>(null)
+const nameInput = ref<{ focus: () => void } | null>(null)
+const portInput = ref<{ focus: () => void } | null>(null)
 
 const controlPortHint = computed(() =>
   typeof draft.port === 'number' && Number.isInteger(draft.port) ? draft.port + 2 : 'the port + 2',
@@ -165,20 +160,3 @@ onMounted(() => {
   if (errors.value.name || errors.value.port) void focusFirstError()
 })
 </script>
-
-<style scoped>
-.local-device-notes {
-  resize: vertical;
-  min-height: 44px;
-}
-.local-device-visibility-row {
-  /* The two pills don't fit beside the label on a phone. */
-  flex-wrap: wrap;
-}
-@media (max-width: 600px) {
-  .local-device-visibility-row {
-    /* The two pills don't fit beside the label on a phone. */
-    flex-wrap: wrap;
-  }
-}
-</style>
