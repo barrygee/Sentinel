@@ -34,17 +34,15 @@ function mountSection(options: MountOptions = {}): VueWrapper {
 }
 
 describe('BaseAccordionSection — section variant (default)', () => {
-  it('renders the panel-section header row with its label title and wrapped chevron', () => {
+  it('renders the panel-section header row with its title and wrapped chevron', () => {
     const wrapper = mountSection()
     const header = wrapper.find('button')
     expect(header.attributes('type')).toBe('button')
-    expect(header.classes()).toContain('sdr-scanner-header-row')
-    expect(header.classes()).toContain('sdr-frequency-manager-accordion-toggle')
-    const title = header.find('label.sdr-field-label.sdr-frequency-manager-scanner-title')
+    expect(header.classes()).toContain('base-accordion-toggle')
+    expect(header.classes()).toContain('base-accordion-toggle--section')
+    const title = header.find('span.base-accordion-title')
     expect(title.text()).toBe('SCANNER')
-    expect(header.find('.sdr-frequency-manager-accordion-chevron .chevron-icon').exists()).toBe(
-      true,
-    )
+    expect(header.find('.base-accordion-chevron .chevron-icon').exists()).toBe(true)
     // The section chevron rotates via the header's -expanded class, not the
     // icon's own open prop.
     expect(header.find('.chevron-icon').classes()).not.toContain('chevron-icon--open')
@@ -54,7 +52,7 @@ describe('BaseAccordionSection — section variant (default)', () => {
     const wrapper = mountSection({ props: { expanded: true } })
     const header = wrapper.find('button')
     const body = wrapper.find('#test-section-body')
-    expect(header.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
+    expect(header.classes()).toContain('base-accordion-toggle--expanded')
     expect(header.attributes('aria-expanded')).toBe('true')
     expect(header.attributes('aria-controls')).toBe('test-section-body')
     expect(body.isVisible()).toBe(true)
@@ -62,7 +60,7 @@ describe('BaseAccordionSection — section variant (default)', () => {
     // The body div carries no class unless bodyClass is given.
     expect(body.attributes('class')).toBeUndefined()
     await wrapper.setProps({ expanded: false })
-    expect(header.classes()).not.toContain('sdr-frequency-manager-accordion-toggle-expanded')
+    expect(header.classes()).not.toContain('base-accordion-toggle--expanded')
     expect(header.attributes('aria-expanded')).toBe('false')
     // v-show keeps the collapsed body in the DOM, just hidden.
     expect(wrapper.find('#test-section-body').exists()).toBe(true)
@@ -83,12 +81,14 @@ describe('BaseAccordionSection — section variant (default)', () => {
       slots: { 'header-extra': '<div class="test-state-row">SCANNING</div>' },
     })
     const headerChildren = Array.from(wrapper.find('button').element.children)
-    const titleIndex = headerChildren.findIndex((child) => child.tagName === 'LABEL')
+    const titleIndex = headerChildren.findIndex((child) =>
+      child.classList.contains('base-accordion-title'),
+    )
     const extraIndex = headerChildren.findIndex((child) =>
       child.classList.contains('test-state-row'),
     )
     const chevronIndex = headerChildren.findIndex((child) =>
-      child.classList.contains('sdr-frequency-manager-accordion-chevron'),
+      child.classList.contains('base-accordion-chevron'),
     )
     expect(titleIndex).toBeLessThan(extraIndex)
     expect(extraIndex).toBeLessThan(chevronIndex)
@@ -117,10 +117,10 @@ describe('BaseAccordionSection — form variant', () => {
   it('renders the form toggle with its span title, bare chevron and body class', () => {
     const wrapper = mountFormSection(false)
     const header = wrapper.find('button')
-    expect(header.classes()).toEqual(['sdr-ef-settings-toggle'])
-    expect(header.find('span.sdr-ef-settings-toggle-title').text()).toBe('RADIO SETTINGS')
+    expect(header.classes()).toEqual(['base-accordion-toggle', 'base-accordion-toggle--form'])
+    expect(header.find('span.base-accordion-title').text()).toBe('RADIO SETTINGS')
     // The form chevron is a direct child (no wrapper span) driven by `open`.
-    expect(header.find('.sdr-frequency-manager-accordion-chevron').exists()).toBe(false)
+    expect(header.find('.base-accordion-chevron').exists()).toBe(false)
     expect(header.find('.chevron-icon').classes()).not.toContain('chevron-icon--open')
     expect(header.attributes('aria-expanded')).toBe('false')
     expect(header.attributes('aria-controls')).toBe('test-form-body')
@@ -133,7 +133,7 @@ describe('BaseAccordionSection — form variant', () => {
     const wrapper = mountFormSection(true)
     const header = wrapper.find('button')
     expect(header.find('.chevron-icon').classes()).toContain('chevron-icon--open')
-    expect(header.classes()).toEqual(['sdr-ef-settings-toggle'])
+    expect(header.classes()).toEqual(['base-accordion-toggle', 'base-accordion-toggle--form'])
     expect(wrapper.find('#test-form-body').isVisible()).toBe(true)
   })
 
@@ -141,6 +141,64 @@ describe('BaseAccordionSection — form variant', () => {
     const wrapper = mountFormSection(false)
     await wrapper.find('button').trigger('click')
     expect(wrapper.emitted('update:expanded')).toEqual([[true]])
+  })
+})
+
+describe('BaseAccordionSection — owns its own look', () => {
+  // Every class the component renders itself, so a section-specific class
+  // (the old sdr-* names) can't creep back into the shared component.
+  function ownClassNames(wrapper: VueWrapper): string[] {
+    const header = wrapper.find('button').element
+    const elements = [header, ...Array.from(header.querySelectorAll('*'))]
+    return elements.flatMap((element) => Array.from(element.classList))
+  }
+
+  it.each([
+    ['section', true],
+    ['section', false],
+    ['form', true],
+    ['form', false],
+  ] as const)(
+    'renders only base-accordion and chevron-icon classes (%s, expanded=%s)',
+    (variant, expanded) => {
+      const wrapper = mountSection({ props: { variant, expanded } })
+      const classNames = ownClassNames(wrapper)
+      expect(classNames.length).toBeGreaterThan(0)
+      for (const className of classNames) {
+        expect(className).toMatch(/^(base-accordion-|chevron-icon)/)
+      }
+    },
+  )
+
+  it.each(['section', 'form'] as const)(
+    'puts no <label> inside the %s header button (interactive content is invalid there)',
+    (variant) => {
+      const wrapper = mountSection({ props: { variant } })
+      const header = wrapper.find('button')
+      expect(header.find('label').exists()).toBe(false)
+      expect(header.find('span.base-accordion-title').text()).toBe('SCANNER')
+    },
+  )
+
+  it('gives the header its title as the accessible name, even with header-extra content', () => {
+    const wrapper = mountSection({ slots: { 'header-extra': '<span>SCANNING</span>' } })
+    const header = wrapper.find('button')
+    // The title is the header's first text, so screen readers lead with it.
+    expect(header.text().startsWith('SCANNER')).toBe(true)
+    expect(header.text()).toContain('SCANNING')
+  })
+
+  it('drops the section-only classes when the variant changes to form at runtime', async () => {
+    const wrapper = mountSection({ props: { expanded: true } })
+    const header = wrapper.find('button')
+    expect(header.classes()).toEqual([
+      'base-accordion-toggle',
+      'base-accordion-toggle--section',
+      'base-accordion-toggle--expanded',
+    ])
+    await wrapper.setProps({ variant: 'form' })
+    expect(header.classes()).toEqual(['base-accordion-toggle', 'base-accordion-toggle--form'])
+    expect(header.find('.base-accordion-chevron').exists()).toBe(false)
   })
 })
 
