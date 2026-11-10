@@ -660,6 +660,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the ADD SDRS caption left-aligned on phones
 - Keep an aircraft's hover tag where its label sits
 - Hold on a signal while its squelch is open, and steady the scan overlay
+- Polish the RADIO pane's add button, row hover, input focus and search chip
 
 ### Chores
 
@@ -1840,6 +1841,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #611 from barrygee/feat/dim-locked-label-checkboxes
 - Merge pull request #612 from barrygee/refactor/base-chip-inline-confirm
 - Merge pull request #613 from barrygee/refactor/tle-dropdown-settings-dropdown
+- Merge pull request #614 from barrygee/fix/sdr-panel-polish
 
 ### Performance
 
@@ -2253,6 +2255,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the dimmed locked checkboxes
 - Rebuild bundle for BaseChip and BaseInlineConfirm
 - Rebuild bundle for the TLE category pickers
+- Rebuild bundle for the RADIO pane polish
 
 ### Continuous Integration
 
