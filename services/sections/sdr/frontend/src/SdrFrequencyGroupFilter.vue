@@ -6,28 +6,24 @@
   <div v-show="groups.length > 0" class="sdr-frequency-manager-groups-filter">
     <BaseAccordionSection v-model:expanded="expandedModel" title="GROUPS" :body-id="bodyId">
       <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">
-        <BasePillToggle
-          class="sdr-scan-group-chip"
+        <BaseChip
           :active="allSelected"
-          active-class="sdr-scan-group-chip-active"
           :aria-pressed="allSelected"
           :disabled="disabled"
           @click="emit('toggle-all')"
         >
           All
-        </BasePillToggle>
-        <BasePillToggle
+        </BaseChip>
+        <BaseChip
           v-for="group in groups"
           :key="group.id"
-          class="sdr-scan-group-chip"
           :active="!allSelected && selectedGroupIds.includes(group.id)"
-          active-class="sdr-scan-group-chip-active"
           :aria-pressed="!allSelected && selectedGroupIds.includes(group.id)"
           :disabled="disabled"
           @click="emit('toggle-group', group.id)"
         >
           {{ group.name }}
-        </BasePillToggle>
+        </BaseChip>
       </div>
     </BaseAccordionSection>
   </div>
@@ -54,7 +50,7 @@
  */
 import type { SdrFrequencyGroup } from './stores/sdr'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
-import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 
 defineProps<{
   /** Groups offered as filter chips (typically the store's `groupsWithFreqs`). */

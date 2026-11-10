@@ -442,7 +442,7 @@ describe('SpacePasses — category filter chips', () => {
   it('renders an ALL chip plus one chip per present category', async () => {
     twoCategoryPasses()
     const wrapper = await mountReady()
-    const chips = wrapper.findAll('.spp-cat-filter-chip')
+    const chips = wrapper.findAll('.base-chip')
     const labels = chips.map((chip) => chip.text())
     expect(labels[0]).toBe('ALL')
     expect(labels).toContain('SPACE STATION')
@@ -461,27 +461,23 @@ describe('SpacePasses — category filter chips', () => {
     twoCategoryPasses()
     const wrapper = await mountReady()
     // Initially ALL is active (no filters set).
-    const allChip = wrapper.findAll('.spp-cat-filter-chip')[0]
-    expect(allChip.classes()).toContain('spp-cat-filter-chip-active')
+    const allChip = wrapper.findAll('.base-chip')[0]
+    expect(allChip.classes()).toContain('base-chip--active')
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(4)
 
     // Toggle WEATHER on → only the weather pass shows.
-    const weatherChip = wrapper
-      .findAll('.spp-cat-filter-chip')
-      .find((chip) => chip.text() === 'WEATHER')!
+    const weatherChip = wrapper.findAll('.base-chip').find((chip) => chip.text() === 'WEATHER')!
     await weatherChip.trigger('click')
-    expect(weatherChip.classes()).toContain('spp-cat-filter-chip-active')
-    expect(allChip.classes()).not.toContain('spp-cat-filter-chip-active')
+    expect(weatherChip.classes()).toContain('base-chip--active')
+    expect(allChip.classes()).not.toContain('base-chip--active')
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(1)
   })
 
   it('reports each category chip state via aria-pressed (multi-select, not a radio group)', async () => {
     twoCategoryPasses()
     const wrapper = await mountReady()
-    const allChip = wrapper.findAll('.spp-cat-filter-chip')[0]!
-    const weatherChip = wrapper
-      .findAll('.spp-cat-filter-chip')
-      .find((chip) => chip.text() === 'WEATHER')!
+    const allChip = wrapper.findAll('.base-chip')[0]!
+    const weatherChip = wrapper.findAll('.base-chip').find((chip) => chip.text() === 'WEATHER')!
     expect(allChip.attributes('aria-pressed')).toBe('true')
     expect(allChip.attributes('role')).toBeUndefined()
     expect(weatherChip.attributes('aria-pressed')).toBe('false')
@@ -495,7 +491,7 @@ describe('SpacePasses — category filter chips', () => {
     twoCategoryPasses()
     const wrapper = await mountReady()
     const weatherChip = () =>
-      wrapper.findAll('.spp-cat-filter-chip').find((chip) => chip.text() === 'WEATHER')!
+      wrapper.findAll('.base-chip').find((chip) => chip.text() === 'WEATHER')!
     await weatherChip().trigger('click')
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(1)
     await weatherChip().trigger('click') // delete branch
@@ -505,12 +501,10 @@ describe('SpacePasses — category filter chips', () => {
   it('clicking ALL clears every active filter', async () => {
     twoCategoryPasses()
     const wrapper = await mountReady()
-    const weatherChip = wrapper
-      .findAll('.spp-cat-filter-chip')
-      .find((chip) => chip.text() === 'WEATHER')!
+    const weatherChip = wrapper.findAll('.base-chip').find((chip) => chip.text() === 'WEATHER')!
     await weatherChip.trigger('click')
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(1)
-    await wrapper.findAll('.spp-cat-filter-chip')[0].trigger('click') // ALL
+    await wrapper.findAll('.base-chip')[0].trigger('click') // ALL
     expect(wrapper.findAll('.spp-pass-card')).toHaveLength(4)
   })
 })

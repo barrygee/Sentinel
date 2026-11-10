@@ -48,9 +48,9 @@ describe('LandFilterChipRow', () => {
     ])
     const chips = wrapper.findAll('button')
     expect(chips[0]!.attributes('aria-pressed')).toBe('true')
-    expect(chips[0]!.classes()).toContain('lfc-chip-active')
+    expect(chips[0]!.classes()).toContain('base-chip--active')
     expect(chips[1]!.attributes('aria-pressed')).toBe('false')
-    expect(chips[1]!.classes()).not.toContain('lfc-chip-active')
+    expect(chips[1]!.classes()).not.toContain('base-chip--active')
   })
 
   it('emits toggle with the option key, not its label or index', async () => {

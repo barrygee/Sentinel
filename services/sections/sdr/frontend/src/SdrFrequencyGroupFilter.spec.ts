@@ -38,13 +38,13 @@ describe('SdrFrequencyGroupFilter — rendering', () => {
     const wrapper = mountFilter({
       groups: [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })],
     })
-    const chips = wrapper.findAll('.sdr-scan-group-chip')
+    const chips = wrapper.findAll('.base-chip')
     expect(chips.map((chip) => chip.text())).toEqual(['All', 'Airband', 'Marine'])
   })
 
   it('marks the All chip active when allSelected is true', () => {
     const wrapper = mountFilter({ allSelected: true })
-    expect(wrapper.findAll('.sdr-scan-group-chip')[0].attributes('aria-pressed')).toBe('true')
+    expect(wrapper.findAll('.base-chip')[0].attributes('aria-pressed')).toBe('true')
   })
 
   it('marks only the selected group chip active when allSelected is false', () => {
@@ -53,7 +53,7 @@ describe('SdrFrequencyGroupFilter — rendering', () => {
       allSelected: false,
       selectedGroupIds: [2],
     })
-    const chips = wrapper.findAll('.sdr-scan-group-chip')
+    const chips = wrapper.findAll('.base-chip')
     expect(chips.map((chip) => chip.attributes('aria-pressed'))).toEqual(['false', 'false', 'true'])
   })
 
@@ -69,14 +69,14 @@ describe('SdrFrequencyGroupFilter — rendering', () => {
       groups: [makeGroup()],
       disabled: true,
     })
-    for (const chip of wrapper.findAll('.sdr-scan-group-chip')) {
+    for (const chip of wrapper.findAll('.base-chip')) {
       expect(chip.attributes('disabled')).toBeDefined()
     }
   })
 
   it('leaves chips enabled when disabled is not passed', () => {
     const wrapper = mountFilter()
-    expect(wrapper.find('.sdr-scan-group-chip').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('.base-chip').attributes('disabled')).toBeUndefined()
   })
 
   it('hides the whole filter (v-show) when there are no groups to offer', () => {
@@ -95,7 +95,7 @@ describe('SdrFrequencyGroupFilter — rendering', () => {
 describe('SdrFrequencyGroupFilter — interaction', () => {
   it('emits toggle-all when the All chip is clicked', async () => {
     const wrapper = mountFilter()
-    await wrapper.findAll('.sdr-scan-group-chip')[0].trigger('click')
+    await wrapper.findAll('.base-chip')[0].trigger('click')
     expect(wrapper.emitted('toggle-all')).toHaveLength(1)
   })
 
@@ -103,7 +103,7 @@ describe('SdrFrequencyGroupFilter — interaction', () => {
     const wrapper = mountFilter({
       groups: [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })],
     })
-    await wrapper.findAll('.sdr-scan-group-chip')[2].trigger('click')
+    await wrapper.findAll('.base-chip')[2].trigger('click')
     expect(wrapper.emitted('toggle-group')?.[0]).toEqual([2])
   })
 

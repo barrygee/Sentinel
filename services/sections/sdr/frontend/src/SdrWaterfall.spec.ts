@@ -716,10 +716,10 @@ describe('SdrWaterfall — search & scan overlays', () => {
     await wrapper.vm.$nextTick()
     const overlay = wrapper.find('.sdr-wf-search-overlay')
     expect(overlay.find('.sdr-wf-search-overlay-headline').text()).toBe('Searching')
-    const chips = overlay.findAll('.sdr-scan-group-chip')
+    const chips = overlay.findAll('.base-chip')
     expect(chips).toHaveLength(1)
     expect(chips[0].text()).toBe('Airband')
-    expect(chips[0].classes()).toContain('sdr-scan-group-chip-active')
+    expect(chips[0].classes()).toContain('base-chip--active')
     expect(overlay.text()).not.toContain('paused')
   })
 
@@ -763,7 +763,7 @@ describe('SdrWaterfall — search & scan overlays', () => {
     store.scanGroupNames = ['Marine', 'Airband']
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.sdr-wf-scan-overlay-groups').exists()).toBe(true)
-    expect(wrapper.findAll('.sdr-scan-group-chip')).toHaveLength(2)
+    expect(wrapper.findAll('.base-chip')).toHaveLength(2)
     expect(wrapper.find('.sdr-wf-search-overlay-headline').text()).toBe('Scanning')
     expect(wrapper.find('.sdr-wf-search-overlay').text()).not.toContain('paused')
   })

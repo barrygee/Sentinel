@@ -171,7 +171,7 @@ describe('SdrFrequencyManagerTab — group filter', () => {
 
   it('filters rows by group chip and returns to All', async () => {
     const wrapper = mountTab(twoGroupsTwoFreqs)
-    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .base-chip')
     expect(chips.map((chip) => chip.text())).toEqual(['All', 'Airband', 'Marine'])
     await chips[1].trigger('click')
     expect(freqRows(wrapper)).toHaveLength(1)
@@ -193,7 +193,7 @@ describe('SdrFrequencyManagerTab — group filter', () => {
 
   it('reports each filter chip state via aria-pressed (multi-select, not a radio group)', async () => {
     const wrapper = mountTab(twoGroupsTwoFreqs)
-    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .base-chip')
     expect(chips.map((chip) => chip.attributes('aria-pressed'))).toEqual(['true', 'false', 'false'])
     await chips[1].trigger('click')
     expect(chips.map((chip) => chip.attributes('aria-pressed'))).toEqual(['false', 'true', 'false'])
@@ -208,7 +208,7 @@ describe('SdrFrequencyManagerTab — group filter', () => {
     // Airband then delete… instead, select Airband and empty it by pointing
     // the only freq at group 2 via the store.
     const store = useSdrStore()
-    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .base-chip')
     await chips[1].trigger('click')
     store.frequencies = [makeFreq({ group_ids: [2] })]
     await wrapper.vm.$nextTick()
@@ -651,7 +651,7 @@ describe('SdrFrequencyManagerTab — delete', () => {
     // Filtering to Marine hides Tower from the visible list entirely, which
     // should disarm it (the watcher guard) rather than leaving it armed
     // underneath the filter.
-    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .base-chip')
     await chips.find((chip) => chip.text() === 'Marine')!.trigger('click')
     // Returning to All should now show Tower with a plain ✕, not the armed
     // confirm pair — proving the row was disarmed while hidden rather than
@@ -669,7 +669,7 @@ describe('SdrFrequencyManagerTab — delete', () => {
     // Arm the Tower row, then filter to Airband (which Tower still belongs
     // to) — the watcher should find Tower still visible and leave it armed.
     await wrapper.findAll('.sdr-freq-row-del')[0].trigger('click')
-    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .sdr-scan-group-chip')
+    const chips = wrapper.findAll('.sdr-frequency-manager-groups-filter .base-chip')
     await chips.find((chip) => chip.text() === 'Airband')!.trigger('click')
     expect(wrapper.find('.sdr-freq-row-del--confirm').exists()).toBe(true)
   })
@@ -738,9 +738,7 @@ describe('SdrFrequencyManagerTab — search', () => {
 
   it('searches only within the selected groups', async () => {
     const wrapper = mountBoth()
-    const airbandChip = wrapper
-      .findAll('.sdr-scan-group-chip')
-      .find((chip) => chip.text() === 'Airband')
+    const airbandChip = wrapper.findAll('.base-chip').find((chip) => chip.text() === 'Airband')
     await airbandChip?.trigger('click')
     expect(rowLabels(wrapper)).toEqual(['Tower'])
     await wrapper.get(SEARCH).setValue('coast')

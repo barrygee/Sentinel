@@ -3,26 +3,22 @@
     {{ statusText }}
   </div>
   <div v-if="!message && categoryFilters.length > 1" class="spp-cat-filter-row">
-    <BasePillToggle
-      class="spp-cat-filter-chip"
+    <BaseChip
       :active="activeFilters.size === 0"
-      active-class="spp-cat-filter-chip-active"
       :aria-pressed="activeFilters.size === 0"
       @click="selectAllCategories"
     >
       ALL
-    </BasePillToggle>
-    <BasePillToggle
+    </BaseChip>
+    <BaseChip
       v-for="cat in categoryFilters"
       :key="cat"
-      class="spp-cat-filter-chip"
       :active="activeFilters.has(cat)"
-      active-class="spp-cat-filter-chip-active"
       :aria-pressed="activeFilters.has(cat)"
       @click="toggleCategoryFilter(cat)"
     >
       {{ categoryLabel(cat) }}
-    </BasePillToggle>
+    </BaseChip>
   </div>
   <div id="spp-list">
     <div v-if="message" class="spp-message">
@@ -154,7 +150,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { useSpaceStore } from './stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { isAutoTuneEnabled } from './controls/satellite/passNotifStore'
