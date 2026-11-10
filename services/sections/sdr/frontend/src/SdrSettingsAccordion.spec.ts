@@ -11,7 +11,7 @@ afterEach(() => {
   vi.useRealTimers()
   // The teleported menu can linger between mounts — clear it so document
   // queries always resolve to the current instance.
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 interface MountProps {
@@ -49,13 +49,15 @@ function slider(wrapper: VueWrapper, ariaLabel: string) {
 }
 
 function menuElement(): HTMLElement | null {
-  return document.querySelector('.sdr-device-menu')
+  return document.querySelector('.base-select-menu-popup')
 }
 
 describe('SdrSettingsAccordion — rendering', () => {
   it('shows the current values in each slider header', () => {
     const wrapper = mountAccordion({ volume: 120, squelch: -80, bwHz: 12_500 })
-    const values = wrapper.findAll('.sdr-slider-val').map((value) => value.text())
+    const values = wrapper
+      .findAll('.base-slider-row-value, .sdr-slider-val')
+      .map((value) => value.text())
     expect(values[0]).toBe('120%')
     expect(values[1]).toBe('-80 dBFS')
     expect(values[2]).toBe('13 kHz') // formatBwHz rounds kHz values
@@ -65,19 +67,40 @@ describe('SdrSettingsAccordion — rendering', () => {
 
   it('renders AUTO for the gain value and disables the gain slider when AGC is on', () => {
     const wrapper = mountAccordion({ gainAuto: true })
-    expect(wrapper.findAll('.sdr-slider-val')[3].text()).toBe('AUTO')
+    expect(wrapper.findAll('.base-slider-row-value, .sdr-slider-val')[3].text()).toBe('AUTO')
     expect(slider(wrapper, 'RF gain in dB').attributes('disabled')).toBeDefined()
     expect((wrapper.find('.sdr-checkbox').element as HTMLInputElement).checked).toBe(true)
   })
 
   it('dims values and disables controls per the disabled flags', () => {
     const wrapper = mountAccordion({ controlsDisabled: true, tuningDisabled: true })
-    expect(wrapper.findAll('.sdr-slider-val--dimmed')).toHaveLength(5)
+    expect(wrapper.findAll('.base-slider-row-value--dimmed, .sdr-slider-val--dimmed')).toHaveLength(
+      5,
+    )
     expect(slider(wrapper, 'Volume').attributes('disabled')).toBeDefined()
     expect(slider(wrapper, 'Squelch in dBFS').attributes('disabled')).toBeDefined()
     expect(slider(wrapper, 'Bandwidth').attributes('disabled')).toBeDefined()
     expect(wrapper.find('.sdr-checkbox').attributes('disabled')).toBeDefined()
-    expect(wrapper.find('.sdr-device-dropdown').classes()).toContain('sdr-device-dropdown--loading')
+    expect(wrapper.find('.base-select-menu').classes()).toContain('base-select-menu--loading')
+  })
+
+  it('gives each slider row the panel row class, and keeps SAMPLE RATE a plain panel row', () => {
+    const wrapper = mountAccordion()
+    const sliderRows = wrapper.findAll('.base-slider-row')
+    expect(sliderRows.map((row) => row.get('label').text())).toEqual([
+      'VOLUME',
+      'SQUELCH',
+      'BANDWIDTH',
+      'RF GAIN',
+    ])
+    for (const row of sliderRows) {
+      expect(row.classes()).toContain('sdr-radio-section')
+    }
+    const sampleRateRow = wrapper
+      .findAll('.sdr-radio-section')
+      .find((row) => row.find('.sdr-slider-header').exists())!
+    expect(sampleRateRow.get('label').text()).toBe('SAMPLE RATE')
+    expect(sampleRateRow.classes()).not.toContain('base-slider-row')
   })
 
   it('collapses and expands the accordion body', async () => {
@@ -125,11 +148,12 @@ describe('SdrSettingsAccordion — event forwarding', () => {
 describe('SdrSettingsAccordion — sample-rate dropdown', () => {
   it('opens on click, marks the current rate selected, picks a rate and emits it', async () => {
     const wrapper = mountAccordion({ sampleRateHz: 2_048_000 })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(menuElement()).not.toBeNull()
-    const items = Array.from(document.querySelectorAll('.sdr-device-menu-item'))
+    const items = Array.from(document.querySelectorAll('.base-select-menu-option'))
     expect(
-      items.find((item) => item.classList.contains('sdr-device-menu-item--selected'))?.textContent,
+      items.find((item) => item.classList.contains('base-select-menu-option--selected'))
+        ?.textContent,
     ).toContain('2.05 MHz')
     ;(items.find((item) => item.textContent?.includes('1.02 MHz')) as HTMLElement).click()
     await wrapper.vm.$nextTick()
@@ -139,13 +163,13 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
 
   it('ignores clicks while controls are disabled', async () => {
     const wrapper = mountAccordion({ controlsDisabled: true })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(menuElement()).toBeNull()
   })
 
   it('toggles closed on a second click and supports Enter/space/Escape', async () => {
     const wrapper = mountAccordion()
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('click')
     await dropdown.trigger('click')
     expect(menuElement()).toBeNull()
@@ -161,11 +185,11 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
 
   it('closes on an outside click and on window resize', async () => {
     const wrapper = mountAccordion()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     document.body.click()
     await wrapper.vm.$nextTick()
     expect(menuElement()).toBeNull()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     window.dispatchEvent(new Event('resize'))
     await wrapper.vm.$nextTick()
     expect(menuElement()).toBeNull()
@@ -175,7 +199,7 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
     vi.useFakeTimers()
     vi.setSystemTime(80_000)
     const wrapper = mountAccordion()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
     expect(menuElement()).not.toBeNull()
@@ -187,7 +211,7 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
 
   it('positions the menu from the trigger rect at open time', async () => {
     const wrapper = mountAccordion()
-    const trigger = wrapper.find('.sdr-device-dropdown').element as HTMLElement
+    const trigger = wrapper.find('.base-select-menu').element as HTMLElement
     vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
       left: 20,
       bottom: 50,
@@ -199,7 +223,7 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
       y: 30,
       toJSON: () => ({}),
     } as DOMRect)
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const menu = menuElement()!
     expect(menu.style.left).toBe('20px')
     expect(menu.style.top).toBe('50px')
@@ -210,7 +234,7 @@ describe('SdrSettingsAccordion — sample-rate dropdown', () => {
 describe('SdrSettingsAccordion — accessibility', () => {
   it('has no axe violations expanded with the menu open', async () => {
     const wrapper = mountAccordion()
-    await wrapper.find('.sdr-device-dropdown').trigger('keydown', { key: 'Enter' })
+    await wrapper.find('.base-select-menu').trigger('keydown', { key: 'Enter' })
     expect(
       await axe(document.body.innerHTML, {
         rules: { region: { enabled: false } },

@@ -9,16 +9,14 @@
     @trigger-keydown="onTriggerKey"
   >
     <template #selected>
-      <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
-        selectedLabel
-      }}</span>
+      <span class="base-select-menu-text base-select-menu-text--chosen">{{ selectedLabel }}</span>
     </template>
     <template #options>
       <div
         v-for="stepOption in STEP_OPTIONS_KHZ"
         :key="stepOption"
-        class="sdr-device-menu-item"
-        :class="{ 'sdr-device-menu-item--selected': parseFloat(stepKhz) === stepOption }"
+        class="base-select-menu-option"
+        :class="{ 'base-select-menu-option--selected': parseFloat(stepKhz) === stepOption }"
         @click="pickStep(stepOption)"
       >
         {{ formatStepKhz(stepOption) }}

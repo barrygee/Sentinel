@@ -67,19 +67,16 @@ function onInput(event: Event): void {
   gap: 6px;
 }
 
-/* BaseSliderRow is styled for the dark SDR panel: inset 20px, with faint
-   9px text. Here it spans the form column like the fields above it, its
-   DEPTH label matches the NORTH … LABEL field captions, and its readout
-   matches the rest of the group (12.5px, the size of a section description). */
-.oma-depth-picker :deep(.sdr-radio-section) {
-  padding: 0;
-}
-
-.oma-depth-picker :deep(.sdr-slider-header) {
+/* BaseSliderRow's own look is the dark SDR panel's (9px caption, 10px bold
+   readout). Here its DEPTH label matches the NORTH … LABEL field captions,
+   and its readout matches the rest of the group (12.5px, the size of a
+   section description). The row has no padding, so it spans the form column
+   like the fields above it. */
+.oma-depth-picker :deep(.base-slider-row-header) {
   margin-bottom: 10px;
 }
 
-.oma-depth-picker :deep(.sdr-field-label) {
+.oma-depth-picker :deep(.base-slider-row-label) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
   font-weight: 600;
@@ -87,7 +84,7 @@ function onInput(event: Event): void {
   color: rgba(var(--ink-rgb), 0.6); /* matches the Settings field captions (AA) */
 }
 
-.oma-depth-picker :deep(.sdr-slider-val) {
+.oma-depth-picker :deep(.base-slider-row-value) {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-body);
   font-weight: 500;
@@ -96,7 +93,7 @@ function onInput(event: Event): void {
   color: var(--ink);
 }
 
-.oma-depth-picker :deep(.sdr-panel-slider) {
+.oma-depth-picker :deep(.base-slider-row-input) {
   background: rgba(var(--ink-rgb), 0.15);
 }
 </style>

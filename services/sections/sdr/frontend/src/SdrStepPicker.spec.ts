@@ -28,12 +28,12 @@ function menuElement(): HTMLElement | null {
 describe('SdrStepPicker — trigger', () => {
   it('renders the current step as a kHz label', () => {
     const wrapper = mountPicker({ modelValue: '8.33' })
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).toBe('8.33 kHz')
+    expect(wrapper.find('.base-select-menu-text').text()).toBe('8.33 kHz')
   })
 
   it('applies the loading style when disabled', () => {
     const wrapper = mountPicker({ disabled: true })
-    expect(wrapper.find('.sdr-step-dropdown').classes()).toContain('sdr-device-dropdown--loading')
+    expect(wrapper.find('.sdr-step-dropdown').classes()).toContain('base-select-menu--loading')
   })
 })
 
@@ -42,8 +42,8 @@ describe('SdrStepPicker — menu open/close', () => {
     const wrapper = mountPicker({ modelValue: '25' })
     await wrapper.find('.sdr-step-dropdown').trigger('click')
     expect(menuElement()).not.toBeNull()
-    expect(wrapper.find('.sdr-step-dropdown').classes()).toContain('sdr-device-dropdown--open')
-    const selected = document.querySelector('.sdr-device-menu-item--selected')
+    expect(wrapper.find('.sdr-step-dropdown').classes()).toContain('base-select-menu--open')
+    const selected = document.querySelector('.base-select-menu-option--selected')
     expect(selected?.textContent?.trim()).toBe('25 kHz')
     await wrapper.find('.sdr-step-dropdown').trigger('click')
     expect(menuElement()).toBeNull()
@@ -109,7 +109,7 @@ describe('SdrStepPicker — picking', () => {
   it('emits the picked step as a string and closes the menu', async () => {
     const wrapper = mountPicker({ modelValue: '12.5' })
     await wrapper.find('.sdr-step-dropdown').trigger('click')
-    const items = Array.from(document.querySelectorAll('.sdr-step-menu .sdr-device-menu-item'))
+    const items = Array.from(document.querySelectorAll('.sdr-step-menu .base-select-menu-option'))
     const target = items.find((item) => item.textContent?.trim() === '8.33 kHz') as HTMLElement
     target.click()
     await wrapper.vm.$nextTick()

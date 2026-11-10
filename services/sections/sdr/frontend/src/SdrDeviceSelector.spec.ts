@@ -18,7 +18,7 @@ afterEach(() => {
   vi.useRealTimers()
   // The teleported menu can linger between mounts — clear it so document
   // queries always resolve to the current instance.
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 function makeRadio(overrides: Partial<SdrRadio> = {}): SdrRadio {
@@ -61,29 +61,29 @@ function mountSelector(options: MountOptions = {}): VueWrapper {
 }
 
 function menuItems(): HTMLElement[] {
-  return Array.from(document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'))
+  return Array.from(document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'))
 }
 
 describe('SdrDeviceSelector — trigger', () => {
   it('shows the label, connection dot state and combobox ARIA', () => {
     const wrapper = mountSelector({ connected: true })
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     expect(dropdown.attributes('role')).toBe('combobox')
     expect(dropdown.attributes('aria-expanded')).toBe('false')
     expect(dropdown.attributes('aria-activedescendant')).toBeUndefined()
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).toBe('Rooftop')
+    expect(wrapper.find('.base-select-menu-text').text()).toBe('Rooftop')
     expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-on')
-    expect(wrapper.find('.sdr-device-dropdown-text').classes()).toContain(
-      'sdr-device-dropdown-text--chosen',
+    expect(wrapper.find('.base-select-menu-text').classes()).toContain(
+      'base-select-menu-text--chosen',
     )
   })
 
   it('shows the disconnected dot, loading style and unchosen text', () => {
     const wrapper = mountSelector({ loading: true, connected: false, selectedRadioId: null })
     expect(wrapper.find('.sdr-conn-dot').classes()).toContain('sdr-dot-off')
-    expect(wrapper.find('.sdr-device-dropdown').classes()).toContain('sdr-device-dropdown--loading')
-    expect(wrapper.find('.sdr-device-dropdown-text').classes()).not.toContain(
-      'sdr-device-dropdown-text--chosen',
+    expect(wrapper.find('.base-select-menu').classes()).toContain('base-select-menu--loading')
+    expect(wrapper.find('.base-select-menu-text').classes()).not.toContain(
+      'base-select-menu-text--chosen',
     )
   })
 
@@ -91,9 +91,7 @@ describe('SdrDeviceSelector — trigger', () => {
     const wrapper = mountSelector({ readOnly: true })
     expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
     expect(wrapper.find('[role="status"]').text()).toContain('Another Sentinel')
-    expect(wrapper.find('.sdr-device-dropdown-text').classes()).toContain(
-      'sdr-device-dropdown-text--readonly',
-    )
+    expect(wrapper.find('.base-select-menu-text').classes()).toContain('sdr-device-text--readonly')
   })
 })
 
@@ -106,22 +104,22 @@ describe('SdrDeviceSelector — menu', () => {
         makeRadio({ id: 3, name: 'Disabled', enabled: false }),
       ],
     })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const items = menuItems()
     expect(items).toHaveLength(3) // placeholder + 2 enabled
     expect(items[0].textContent).toContain('select radio')
     expect(items[1].textContent).toContain('Rooftop')
     expect(items[1].textContent).toContain('10.0.0.5')
-    expect(wrapper.find('.sdr-device-dropdown').attributes('aria-expanded')).toBe('true')
-    expect(wrapper.find('.sdr-device-dropdown').attributes('aria-activedescendant')).toBe(
+    expect(wrapper.find('.base-select-menu').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.base-select-menu').attributes('aria-activedescendant')).toBe(
       'sdr-device-opt-0',
     )
   })
 
   it('shows the "no radios configured" note when nothing is enabled', async () => {
     const wrapper = mountSelector({ radios: [makeRadio({ enabled: false })] })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
-    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain(
+    await wrapper.find('.base-select-menu').trigger('click')
+    expect(document.querySelector('.base-select-menu-popup')?.textContent).toContain(
       'no radios configured',
     )
   })
@@ -132,46 +130,46 @@ describe('SdrDeviceSelector — menu', () => {
       selectedRadioId: 1,
       radios: [makeRadio(), makeRadio({ id: 2, name: 'Attic' })],
     })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const items = menuItems()
-    expect(items[1].classList.contains('sdr-device-menu-item--readonly')).toBe(true)
-    expect(items[2].classList.contains('sdr-device-menu-item--readonly')).toBe(false)
-    expect(items[1].querySelector('.sdr-device-menu-item-lock')).not.toBeNull()
+    expect(items[1].classList.contains('sdr-device-option--readonly')).toBe(true)
+    expect(items[2].classList.contains('sdr-device-option--readonly')).toBe(false)
+    expect(items[1].querySelector('.sdr-device-option-lock')).not.toBeNull()
   })
 
   it('toggles closed on a second click and closes on an outside click', async () => {
     const wrapper = mountSelector()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
+    await wrapper.find('.base-select-menu').trigger('click')
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
+    await wrapper.find('.base-select-menu').trigger('click')
     document.body.click()
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('survives the settle scroll, then closes on a later scroll and on resize', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(50_000)
     const wrapper = mountSelector()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     vi.setSystemTime(50_000 + MENU_OPEN_SETTLE_MS + 1)
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
+    await wrapper.find('.base-select-menu').trigger('click')
     window.dispatchEvent(new Event('resize'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('positions the menu from the trigger rect at open time', async () => {
     const wrapper = mountSelector()
-    const trigger = wrapper.find('.sdr-device-dropdown').element as HTMLElement
+    const trigger = wrapper.find('.base-select-menu').element as HTMLElement
     vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
       left: 12,
       bottom: 44,
@@ -183,8 +181,8 @@ describe('SdrDeviceSelector — menu', () => {
       y: 24,
       toJSON: () => ({}),
     } as DOMRect)
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
-    const menu = document.querySelector('.sdr-device-menu') as HTMLElement
+    await wrapper.find('.base-select-menu').trigger('click')
+    const menu = document.querySelector('.base-select-menu-popup') as HTMLElement
     expect(menu.style.left).toBe('12px')
     expect(menu.style.top).toBe('44px')
     expect(menu.style.width).toBe('180px')
@@ -194,11 +192,11 @@ describe('SdrDeviceSelector — menu', () => {
 describe('SdrDeviceSelector — selection', () => {
   it('emits select with the clicked radio and null for the placeholder', async () => {
     const wrapper = mountSelector({ radios: [makeRadio()] })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     menuItems()[1].click()
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
+    await wrapper.find('.base-select-menu').trigger('click')
     menuItems()[0].click()
     await wrapper.vm.$nextTick()
     const emitted = wrapper.emitted('select')!
@@ -210,18 +208,18 @@ describe('SdrDeviceSelector — selection', () => {
 describe('SdrDeviceSelector — keyboard', () => {
   it('opens with Enter/Space/Arrows and ignores other keys while closed', async () => {
     const wrapper = mountSelector()
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('keydown', { key: 'x' })
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     await dropdown.trigger('keydown', { key: 'ArrowDown' })
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
   })
 
   it('moves the highlight with arrows/Home/End (wrapping) and updates aria-activedescendant', async () => {
     const wrapper = mountSelector({
       radios: [makeRadio(), makeRadio({ id: 2, name: 'Attic' })],
     })
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('keydown', { key: 'Enter' })
     await dropdown.trigger('keydown', { key: 'ArrowDown' })
     expect(dropdown.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
@@ -244,15 +242,15 @@ describe('SdrDeviceSelector — keyboard', () => {
 
   it('highlights rows on mousemove', async () => {
     const wrapper = mountSelector()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     menuItems()[1].dispatchEvent(new MouseEvent('mousemove'))
     await wrapper.vm.$nextTick()
-    expect(menuItems()[1].classList.contains('sdr-device-menu-item--active')).toBe(true)
+    expect(menuItems()[1].classList.contains('base-select-menu-option--active')).toBe(true)
   })
 
   it('selects the highlighted radio with Enter and the placeholder at index 0', async () => {
     const wrapper = mountSelector({ radios: [makeRadio()] })
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('keydown', { key: 'Enter' })
     await dropdown.trigger('keydown', { key: 'ArrowDown' })
     await dropdown.trigger('keydown', { key: 'Enter' })
@@ -264,13 +262,13 @@ describe('SdrDeviceSelector — keyboard', () => {
 
   it('closes with Escape and Tab', async () => {
     const wrapper = mountSelector()
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('keydown', { key: 'Enter' })
     await dropdown.trigger('keydown', { key: 'Escape' })
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     await dropdown.trigger('keydown', { key: 'Enter' })
     await dropdown.trigger('keydown', { key: 'Tab' })
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 })
 
@@ -280,7 +278,7 @@ describe('SdrDeviceSelector — accessibility', () => {
       readOnly: true,
       radios: [makeRadio(), makeRadio({ id: 2, name: 'Attic' })],
     })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(
       await axe(document.body.innerHTML, {
         rules: { region: { enabled: false } },
@@ -303,7 +301,7 @@ describe('SdrDeviceSelector — radios reserved by a domain', () => {
 
   it('says which domain reserved the radio, in place of its host', async () => {
     const wrapper = mountWithReservedAprsRadio()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const reservedRow = menuItems()[2]!
 
     expect(reservedRow.textContent).toContain('RESERVED · APRS RECEIVER')
@@ -312,30 +310,30 @@ describe('SdrDeviceSelector — radios reserved by a domain', () => {
 
   it('padlocks the reserved row and marks it unavailable to assistive tech', async () => {
     const wrapper = mountWithReservedAprsRadio()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const items = menuItems()
 
-    expect(items[2]!.classList).toContain('sdr-device-menu-item--reserved')
+    expect(items[2]!.classList).toContain('base-select-menu-option--unavailable')
     expect(items[2]!.getAttribute('aria-disabled')).toBe('true')
-    expect(items[2]!.querySelector('.sdr-device-menu-item-lock')).not.toBeNull()
+    expect(items[2]!.querySelector('.sdr-device-option-lock')).not.toBeNull()
     // The free radio beside it is untouched.
     expect(items[1]!.getAttribute('aria-disabled')).toBe('false')
-    expect(items[1]!.querySelector('.sdr-device-menu-item-lock')).toBeNull()
+    expect(items[1]!.querySelector('.sdr-device-option-lock')).toBeNull()
   })
 
   it('ignores a click on a reserved row, leaving the menu open to pick another', async () => {
     const wrapper = mountWithReservedAprsRadio()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     menuItems()[2]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('select')).toBeUndefined()
-    expect(wrapper.find('.sdr-device-dropdown').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.base-select-menu').attributes('aria-expanded')).toBe('true')
   })
 
   it('ignores the keyboard selecting a reserved row', async () => {
     const wrapper = mountWithReservedAprsRadio()
-    const dropdown = wrapper.find('.sdr-device-dropdown')
+    const dropdown = wrapper.find('.base-select-menu')
     await dropdown.trigger('click')
     // 0 = placeholder, 1 = free radio, 2 = the reserved one.
     await dropdown.trigger('keydown', { key: 'ArrowDown' })
@@ -347,7 +345,7 @@ describe('SdrDeviceSelector — radios reserved by a domain', () => {
 
   it('still lets a free radio be picked while another is reserved', async () => {
     const wrapper = mountWithReservedAprsRadio()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     menuItems()[1]!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await wrapper.vm.$nextTick()
 

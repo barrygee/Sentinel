@@ -93,9 +93,10 @@
   color: var(--ink-strong);
 }
 
-/* The device-dropdown family (the .sdr-device-* trigger shell, teleported
-   menu and item rules) lives with BaseSelectMenu.vue, the primitive whose
-   template and picker slots render it (B10 CSS co-location). The
+/* The dropdown family (the .base-select-menu* trigger shell, teleported
+   menu and option rules) lives with BaseSelectMenu.vue, the primitive whose
+   template and picker slots render it; the padlock lives with
+   SdrDeviceSelector.vue (B10 CSS co-location). The
    .sdr-search-adhoc-col contextual override further down stays with its
    context — higher specificity, order-immune. */
 
@@ -312,11 +313,9 @@
   height: 28px;
 }
 
-/* The slider-row header family (.sdr-slider-header/-val) lives with
-   SdrSettingsAccordion.vue — the one component containing both renderers
-   (BaseSliderRow rows + the hand-rolled SAMPLE RATE header) — and the range
-   input chrome (.sdr-panel-slider) with its sole renderer, BaseSliderRow.vue
-   (B10 CSS co-location). */
+/* The SAMPLE RATE header (.sdr-slider-header/-val) lives with
+   SdrSettingsAccordion.vue, and the slider rows (.base-slider-row*) style
+   themselves in BaseSliderRow.vue (B10 CSS co-location). */
 
 /* The AGC checkbox family (.sdr-agc-row / .sdr-checkbox-*) lives with its sole
    renderer, SdrSettingsAccordion.vue (B10 CSS co-location). */
@@ -528,7 +527,7 @@
   -moz-appearance: textfield;
 }
 
-.sdr-search-adhoc-col .sdr-device-dropdown {
+.sdr-search-adhoc-col .base-select-menu {
   width: 100%;
   height: 38px;
 }

@@ -11,7 +11,7 @@ afterEach(() => {
   vi.useRealTimers()
   // The teleported menu can linger between mounts — clear it so document
   // queries always resolve to the current instance.
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 interface BaseSelectMenuTestProps {
@@ -45,34 +45,62 @@ function mountMenu(options: MountOptions = {}): VueWrapper {
 }
 
 function menuElement(): HTMLElement | null {
-  return document.querySelector('.sdr-device-menu')
+  return document.querySelector('.base-select-menu-popup')
 }
 
 describe('BaseSelectMenu — trigger rendering', () => {
   it('renders the dropdown shell with the selected slot before the arrow and no popup ARIA by default', () => {
     const wrapper = mountMenu()
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     expect(trigger.attributes('tabindex')).toBe('0')
     expect(trigger.attributes('role')).toBeUndefined()
     expect(trigger.attributes('aria-haspopup')).toBeUndefined()
     expect(trigger.attributes('aria-expanded')).toBeUndefined()
-    expect(trigger.classes()).not.toContain('sdr-device-dropdown--loading')
-    const selectedWrapper = trigger.find('.sdr-device-dropdown-selected')
+    expect(trigger.classes()).not.toContain('base-select-menu--loading')
+    const selectedWrapper = trigger.find('.base-select-menu-selected')
     expect(selectedWrapper.find('.test-selected-label').text()).toBe('CHOSEN')
     // The arrow glyph is the wrapper's last child, after the slot content.
     expect(
-      selectedWrapper.element.lastElementChild?.classList.contains('sdr-device-dropdown-arrow'),
+      selectedWrapper.element.lastElementChild?.classList.contains('base-select-menu-arrow'),
     ).toBe(true)
   })
 
   it('applies the loading style when loading', () => {
     const wrapper = mountMenu({ props: { loading: true } })
-    expect(wrapper.find('.sdr-device-dropdown').classes()).toContain('sdr-device-dropdown--loading')
+    expect(wrapper.find('.base-select-menu').classes()).toContain('base-select-menu--loading')
+  })
+
+  it('renders only generic base-select-menu classes on its own shell, open or closed', async () => {
+    // A shared primitive must not carry a feature's class names: every class
+    // the base itself renders (slot content aside) is in its own family.
+    const wrapper = mountMenu({ props: { loading: true } })
+    const trigger = wrapper.find('.base-select-menu')
+    await trigger.trigger('click')
+    const shellElements = [
+      trigger.element,
+      ...trigger.element.querySelectorAll(':scope *:not(.test-selected-label)'),
+      menuElement()!,
+    ]
+    const shellClasses = shellElements.flatMap((element) => [...element.classList])
+    expect(shellClasses).toEqual(
+      expect.arrayContaining([
+        'base-select-menu',
+        'base-select-menu--open',
+        'base-select-menu--loading',
+        'base-select-menu-selected',
+        'base-select-menu-arrow',
+        'base-select-menu-popup',
+        'base-select-menu-popup--open',
+      ]),
+    )
+    for (const className of shellClasses) {
+      expect(className).toMatch(/^base-select-menu(-|$)/)
+    }
   })
 
   it('renders popup ARIA with a live aria-expanded when triggerRole is set', async () => {
     const wrapper = mountMenu({ props: { triggerRole: 'combobox' } })
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     expect(trigger.attributes('role')).toBe('combobox')
     expect(trigger.attributes('aria-haspopup')).toBe('listbox')
     expect(trigger.attributes('aria-expanded')).toBe('false')
@@ -84,7 +112,7 @@ describe('BaseSelectMenu — trigger rendering', () => {
     const wrapper = mountMenu({
       attrs: { class: 'test-extra-class', 'aria-label': 'Test picker' },
     })
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     expect(trigger.classes()).toContain('test-extra-class')
     expect(trigger.attributes('aria-label')).toBe('Test picker')
   })
@@ -93,10 +121,10 @@ describe('BaseSelectMenu — trigger rendering', () => {
 describe('BaseSelectMenu — open/close', () => {
   it('toggles the menu on trigger clicks, emitting open and close', async () => {
     const wrapper = mountMenu()
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     await trigger.trigger('click')
     expect(menuElement()).not.toBeNull()
-    expect(trigger.classes()).toContain('sdr-device-dropdown--open')
+    expect(trigger.classes()).toContain('base-select-menu--open')
     expect(wrapper.emitted('open')).toHaveLength(1)
     await trigger.trigger('click')
     expect(menuElement()).toBeNull()
@@ -105,14 +133,14 @@ describe('BaseSelectMenu — open/close', () => {
 
   it('ignores trigger clicks when disabled', async () => {
     const wrapper = mountMenu({ props: { disabled: true } })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(menuElement()).toBeNull()
     expect(wrapper.emitted('open')).toBeUndefined()
   })
 
   it('closes on an outside document click and emits close', async () => {
     const wrapper = mountMenu()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(menuElement()).not.toBeNull()
     document.body.click()
     await wrapper.vm.$nextTick()
@@ -124,7 +152,7 @@ describe('BaseSelectMenu — open/close', () => {
     vi.useFakeTimers()
     vi.setSystemTime(300_000)
     const wrapper = mountMenu()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     // Settle scroll (the browser scrolling the focused trigger into view).
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
@@ -138,7 +166,7 @@ describe('BaseSelectMenu — open/close', () => {
 
   it('closes on window resize', async () => {
     const wrapper = mountMenu()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     window.dispatchEvent(new Event('resize'))
     await wrapper.vm.$nextTick()
     expect(menuElement()).toBeNull()
@@ -146,7 +174,7 @@ describe('BaseSelectMenu — open/close', () => {
 
   it('positions the menu from the trigger rect at open time', async () => {
     const wrapper = mountMenu()
-    const trigger = wrapper.find('.sdr-device-dropdown').element as HTMLElement
+    const trigger = wrapper.find('.base-select-menu').element as HTMLElement
     vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
       left: 15,
       bottom: 48,
@@ -158,7 +186,7 @@ describe('BaseSelectMenu — open/close', () => {
       y: 28,
       toJSON: () => ({}),
     } as DOMRect)
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const menu = menuElement()!
     expect(menu.style.left).toBe('15px')
     expect(menu.style.top).toBe('48px')
@@ -169,7 +197,7 @@ describe('BaseSelectMenu — open/close', () => {
 describe('BaseSelectMenu — default keyboard model', () => {
   it('opens with Enter and space (preventing their default), and closes with Escape', async () => {
     const wrapper = mountMenu()
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     await trigger.trigger('keydown', { key: 'Enter' })
     expect(menuElement()).not.toBeNull()
     await trigger.trigger('keydown', { key: 'Escape' })
@@ -180,13 +208,13 @@ describe('BaseSelectMenu — default keyboard model', () => {
 
   it('ignores unrelated keys', async () => {
     const wrapper = mountMenu()
-    await wrapper.find('.sdr-device-dropdown').trigger('keydown', { key: 'a' })
+    await wrapper.find('.base-select-menu').trigger('keydown', { key: 'a' })
     expect(menuElement()).toBeNull()
   })
 
   it('gates the Enter/space toggle on disabled but still closes with Escape', async () => {
     const wrapper = mountMenu({ props: { disabled: true } })
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     await trigger.trigger('keydown', { key: 'Enter' })
     expect(menuElement()).toBeNull()
     // Open via the exposed control (callers own quirkier gates that way),
@@ -202,7 +230,7 @@ describe('BaseSelectMenu — default keyboard model', () => {
 describe('BaseSelectMenu — custom keyboard model', () => {
   it('re-emits trigger keydowns without running the default handling', async () => {
     const wrapper = mountMenu({ props: { customKeyboard: true } })
-    const trigger = wrapper.find('.sdr-device-dropdown')
+    const trigger = wrapper.find('.base-select-menu')
     await trigger.trigger('keydown', { key: 'Enter' })
     // Default Enter handling is suppressed…
     expect(menuElement()).toBeNull()
@@ -221,17 +249,17 @@ describe('BaseSelectMenu — menu rendering', () => {
         menuAttrs: { role: 'listbox', 'aria-label': 'Test options' },
       },
     })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const menu = menuElement()!
     expect(menu.classList.contains('test-menu-class')).toBe(true)
-    expect(menu.classList.contains('sdr-device-menu--open')).toBe(true)
+    expect(menu.classList.contains('base-select-menu-popup--open')).toBe(true)
     expect(menu.getAttribute('role')).toBe('listbox')
     expect(menu.getAttribute('aria-label')).toBe('Test options')
   })
 
   it('keeps the menu open on inside clicks but closes via the options slot close()', async () => {
     const wrapper = mountMenu()
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     const menu = menuElement()!
     // A click on the menu surface itself must not bubble to the document
     // dismiss handler.
@@ -287,7 +315,7 @@ describe('BaseSelectMenu — accessibility', () => {
       },
       attachTo: document.body,
     })
-    await wrapper.find('.sdr-device-dropdown').trigger('click')
+    await wrapper.find('.base-select-menu').trigger('click')
     expect(
       await axe(document.body.innerHTML, {
         rules: { region: { enabled: false } },

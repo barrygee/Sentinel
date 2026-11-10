@@ -284,7 +284,7 @@ onMounted(() => {
   :deep(
     :is(p, label, span, dt, dd, h3, li, input):not(
       .ba-form-field__label,
-      .sdr-field-label,
+      .base-slider-row-label,
       .lft-row-name,
       .oma-region-list-heading,
       .sdr-device-confirm-label,

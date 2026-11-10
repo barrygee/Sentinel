@@ -1,10 +1,10 @@
 <template>
   <div
     ref="triggerRef"
-    class="sdr-device-dropdown"
+    class="base-select-menu"
     :class="{
-      'sdr-device-dropdown--open': menuOpen,
-      'sdr-device-dropdown--loading': loading,
+      'base-select-menu--open': menuOpen,
+      'base-select-menu--loading': loading,
     }"
     tabindex="0"
     :role="triggerRole"
@@ -14,16 +14,16 @@
     @click.stop="onTriggerClick"
     @keydown="onTriggerKeydown"
   >
-    <div class="sdr-device-dropdown-selected">
+    <div class="base-select-menu-selected">
       <slot name="selected" />
-      <span class="sdr-device-dropdown-arrow"></span>
+      <span class="base-select-menu-arrow"></span>
     </div>
   </div>
   <Teleport to="body">
     <div
       v-if="menuOpen"
       ref="menuRef"
-      class="sdr-device-menu sdr-device-menu--open"
+      class="base-select-menu-popup base-select-menu-popup--open"
       :class="menuClass"
       :style="menuStyle"
       v-bind="menuAttrs"
@@ -36,21 +36,20 @@
 
 <script setup lang="ts">
 /**
- * `BaseSelectMenu` — the flat-dark custom dropdown primitive underlying the
- * SDR pickers (`SdrStepPicker`, `SdrSampleRatePicker`, `SdrDeviceSelector`,
- * `SdrSettingsAccordion`'s SAMPLE RATE):
- * a `tabindex` trigger plus a body-teleported, fixed-position menu anchored
- * from the trigger's rect at open time. Extracted from (not a rewrite of)
- * the trigger/Teleport template those pickers each carried on top of
- * `useTeleportedMenu`, which still owns the state + dismiss behaviour
+ * `BaseSelectMenu` — the flat-dark custom dropdown primitive: a `tabindex`
+ * trigger plus a body-teleported, fixed-position menu anchored
+ * from the trigger's rect at open time. Its first users are the SDR pickers
+ * (`SdrStepPicker`, `SdrSampleRatePicker`, `SdrDeviceSelector`,
+ * `SdrSettingsAccordion`'s SAMPLE RATE), whose shared trigger/Teleport
+ * template it was extracted from. `useTeleportedMenu` still owns the state + dismiss behaviour
  * (outside click, settle-window scroll, resize).
  *
- * The base renders the trigger shell (`sdr-device-dropdown` + `--open`/
+ * The base renders the trigger shell (`base-select-menu` + `--open`/
  * `--loading`), the selected-content wrapper + arrow, and the teleported
- * menu shell (`sdr-device-menu`); callers keep their option models and row
+ * menu shell (`base-select-menu-popup`); callers keep their option models and row
  * templates:
  * - `#selected` — the trigger's content, rendered before the arrow glyph
- *   (text span, connection dot, padlock, …).
+ *   (usually a `base-select-menu-text` span; callers may add icons).
  * - `#options` — the menu rows; receives `{ close }` so a row click can
  *   dismiss the menu.
  *
@@ -62,14 +61,19 @@
  * via `customKeyboard` and drive the exposed `menuOpen`/`openMenu`/
  * `toggleMenu`/`closeMenu` from their own `@trigger-keydown` handler.
  *
- * The `sdr-device-*` family (trigger shell, teleported menu, item rows) is
- * styled by the unscoped block below, moved here in one piece in the B10
- * co-location sweep — the item rules are rendered by the pickers' `#options`
- * slots, but splitting the family across files would risk its internal
- * cascade order (`--active` before `--selected`). The per-picker menu-class
- * hooks (e.g. `.sdr-step-menu`) carry no CSS rules today, and
- * the contextual overrides in feature sheets (`.sdr-search-adhoc-col …`,
- * `.sdr-ef-setting …`) are higher-specificity and order-immune.
+ * Class names callers use in their slots, all styled by the unscoped block
+ * below:
+ * - `base-select-menu-text` (+ `--chosen` once a value is picked) for the
+ *   trigger's label.
+ * - `base-select-menu-option` for each row, with `--active` (keyboard
+ *   highlight), `--selected` (the current value) and `--unavailable`
+ *   (listed for context but not pickable); `base-select-menu-option-label`
+ *   and `base-select-menu-option-detail` for a two-line row;
+ *   `base-select-menu-placeholder` for an empty or "none" row.
+ * Feature-specific hooks (padlocks, read-only states, per-picker menu
+ * classes) stay with the caller. Contextual overrides in feature sheets
+ * (e.g. `.sdr-search-adhoc-col .base-select-menu`) are higher-specificity,
+ * so file load order never decides them.
  */
 import { ref, watch } from 'vue'
 import { useTeleportedMenu } from '@sentinel/ui/composables/useTeleportedMenu'
@@ -100,7 +104,7 @@ const props = defineProps<{
    * exposed menu controls.
    */
   customKeyboard?: boolean
-  /** Extra class(es) for the teleported menu element (e.g. `sdr-step-menu`). */
+  /** Extra class(es) for the teleported menu element (a caller's own hook). */
   menuClass?: string
   /** Extra attributes for the teleported menu element (e.g. `role="listbox"` + its label). */
   menuAttrs?: Record<string, string>
@@ -172,18 +176,15 @@ defineExpose({
 })
 </script>
 
-<!-- Unscoped on purpose (B10 CSS co-location): the device-dropdown family
-     moved here verbatim from SdrPanel.css in one piece, preserving its
-     internal order (item base -> :hover/--active -> --selected; the
-     --selected rule was always the later, winning rule and remains last).
-     `scoped` would add [data-v] attribute selectors and RAISE specificity
-     over the original global rules — and the item classes are rendered by
-     the pickers' slots, outside this component's scope id anyway. Loaded
-     before the feature sheets' contextual overrides is fine: those are
-     higher-specificity (id- or descendant-prefixed), so order between
-     files never decides a winner. -->
+<!-- Unscoped on purpose: the option classes are rendered by callers' slots,
+     outside this component's scope id, and `scoped` would raise every
+     selector's specificity above the feature sheets' contextual overrides.
+     Order inside the block matters: option base -> :hover/--active ->
+     --unavailable -> --selected, so the later state wins a same-specificity
+     tie. Feature-sheet overrides are descendant-prefixed, so their load
+     order relative to this file never decides a winner. -->
 <style>
-.sdr-device-dropdown {
+.base-select-menu {
   position: relative;
   width: 100%;
   height: 34px;
@@ -196,12 +197,12 @@ defineExpose({
   box-sizing: border-box;
 }
 
-.sdr-device-dropdown:focus,
-.sdr-device-dropdown--open {
+.base-select-menu:focus,
+.base-select-menu--open {
   background: rgba(var(--ink-rgb), 0.07);
 }
 
-.sdr-device-dropdown-selected {
+.base-select-menu-selected {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -210,11 +211,7 @@ defineExpose({
   gap: 8px;
 }
 
-.sdr-device-dropdown-selected .sdr-conn-dot {
-  flex-shrink: 0;
-}
-
-.sdr-device-dropdown-text {
+.base-select-menu-text {
   font-family: var(--font-primary, 'Barlow', sans-serif);
   font-size: 10px;
   font-weight: 400;
@@ -228,21 +225,11 @@ defineExpose({
   white-space: nowrap;
 }
 
-.sdr-device-dropdown-text--chosen {
+.base-select-menu-text--chosen {
   color: rgba(var(--ink-rgb), 0.75);
 }
 
-/* Another Sentinel controls the shared tuner: the red padlock (below) signals
-   this, while the device name keeps its normal white so the radio stays easy to
-   read. The read-only state is still announced via the sr-only status. */
-
-.sdr-device-lock {
-  flex-shrink: 0;
-  display: block;
-  color: var(--sev-error);
-}
-
-.sdr-device-dropdown-arrow {
+.base-select-menu-arrow {
   flex-shrink: 0;
   width: 8px;
   height: 5px;
@@ -257,17 +244,17 @@ defineExpose({
   transition: transform 0.15s;
 }
 
-.sdr-device-dropdown--open .sdr-device-dropdown-arrow {
+.base-select-menu--open .base-select-menu-arrow {
   transform: rotate(180deg);
 }
 
-.sdr-device-dropdown--loading {
+.base-select-menu--loading {
   opacity: 0.45;
   pointer-events: none;
   cursor: default;
 }
 
-.sdr-device-menu {
+.base-select-menu-popup {
   display: none;
   position: fixed;
   z-index: 99999;
@@ -280,26 +267,26 @@ defineExpose({
   scrollbar-color: var(--rule) transparent;
 }
 
-.sdr-device-menu::-webkit-scrollbar {
+.base-select-menu-popup::-webkit-scrollbar {
   width: 8px;
 }
-.sdr-device-menu::-webkit-scrollbar-track {
+.base-select-menu-popup::-webkit-scrollbar-track {
   background: transparent;
 }
-.sdr-device-menu::-webkit-scrollbar-thumb {
+.base-select-menu-popup::-webkit-scrollbar-thumb {
   background: var(--rule);
   border-radius: 4px;
   border: 2px solid var(--surface-raised);
 }
-.sdr-device-menu::-webkit-scrollbar-thumb:hover {
+.base-select-menu-popup::-webkit-scrollbar-thumb:hover {
   background: rgba(var(--ink-rgb), 0.32);
 }
 
-.sdr-device-menu.sdr-device-menu--open {
+.base-select-menu-popup.base-select-menu-popup--open {
   display: block;
 }
 
-.sdr-device-menu-item {
+.base-select-menu-option {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -318,25 +305,21 @@ defineExpose({
     color 0.1s;
 }
 
-.sdr-device-menu-item:hover,
-.sdr-device-menu-item--active {
+.base-select-menu-option:hover,
+.base-select-menu-option--active {
   background: rgba(var(--ink-rgb), 0.07);
   color: var(--ink-strong);
 }
 
-.sdr-device-menu-item-label {
+.base-select-menu-option-label {
   min-width: 0;
 }
 
-/* Read-only row: this radio is controlled by another Sentinel. The red padlock
-   (.sdr-device-menu-item-lock) carries that signal; the radio name and host keep
-   their normal colours so the row stays readable. */
-
-.sdr-device-menu-placeholder {
+.base-select-menu-placeholder {
   color: rgba(var(--ink-rgb), 0.25);
 }
 
-.sdr-device-menu-item-host {
+.base-select-menu-option-detail {
   display: block;
   font-size: 9px;
   font-weight: 400;
@@ -346,26 +329,25 @@ defineExpose({
   margin-top: 2px;
 }
 
-.sdr-device-menu-item:hover .sdr-device-menu-item-host {
+.base-select-menu-option:hover .base-select-menu-option-detail {
   color: var(--ink-secondary);
 }
 
-/* Reserved row: the radio is a domain receiver (AIR's ADS-B source, LAND's APRS
-   decoder), so it is listed for context but cannot be picked here. Dimmed with
-   a default cursor so it does not read as clickable; the keyboard highlight is
+/* Unavailable row: listed for context but cannot be picked here (e.g. a radio
+   reserved as another section's receiver). Dimmed with a default cursor so it does not read as clickable; the keyboard highlight is
    deliberately left intact so arrowing past it still shows where you are. */
-.sdr-device-menu-item--reserved {
+.base-select-menu-option--unavailable {
   cursor: default;
   color: rgba(var(--ink-rgb), 0.4);
 }
 
-.sdr-device-menu-item--reserved .sdr-device-menu-item-host,
-.sdr-device-menu-item--reserved:hover .sdr-device-menu-item-host {
+.base-select-menu-option--unavailable .base-select-menu-option-detail,
+.base-select-menu-option--unavailable:hover .base-select-menu-option-detail {
   color: var(--accent-text);
 }
 
-/* Highlight the currently chosen sample rate in the menu. */
-.sdr-device-menu-item--selected {
+/* The current value. Kept after --active so a highlighted current value stays accent. */
+.base-select-menu-option--selected {
   color: var(--accent-text);
 }
 </style>

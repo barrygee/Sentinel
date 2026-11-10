@@ -235,7 +235,9 @@ afterEach(() => {
   // Teleported rails/menus can linger between mounts — clear them so document
   // queries always resolve to the current instance.
   document
-    .querySelectorAll('#sdr-sidebar-rail, .sdr-device-menu, .sdr-step-menu, .sdr-sample-rate-menu')
+    .querySelectorAll(
+      '#sdr-sidebar-rail, .base-select-menu-popup, .sdr-step-menu, .sdr-sample-rate-menu',
+    )
     .forEach((node) => node.remove())
 })
 
@@ -450,7 +452,7 @@ describe('SdrPanel — control socket lifecycle', () => {
     fetchState.connectStatus = 404
     const wrapper = await mountReady()
     await flushPromises()
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).toContain('select radio')
+    expect(wrapper.find('.base-select-menu-text').text()).toContain('select radio')
   })
 
   it('shows why a radio is unavailable when connect returns 503', async () => {
@@ -488,7 +490,7 @@ describe('SdrPanel — control socket lifecycle', () => {
     const wrapper = await mountReady()
     await flushPromises()
 
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).not.toContain('select radio')
+    expect(wrapper.find('.base-select-menu-text').text()).not.toContain('select radio')
   })
 })
 
@@ -841,7 +843,7 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
     const { wrapper, socket } = await mountConnected()
     // The settings accordion is open by default; sliders are volume/squelch/
     // bandwidth/gain in order.
-    const sliders = wrapper.findAll('.sdr-panel-slider')
+    const sliders = wrapper.findAll('.base-slider-row-input')
     await sliders[0].setValue('150') // volume → setVolume(1.5)
     expect(audioMock.setVolume).toHaveBeenCalledWith(1.5)
     await sliders[1].setValue('-40') // squelch (debounced)
@@ -1551,19 +1553,19 @@ describe('SdrPanel — device dropdown menu', () => {
     return mountReady()
   }
   function deviceDropdown(wrapper: VueWrapper) {
-    return wrapper.find('.sdr-radio-section--device .sdr-device-dropdown')
+    return wrapper.find('.sdr-radio-section--device .base-select-menu')
   }
 
   it('opens the menu, probes radios, and selects one', async () => {
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.base-select-menu-popup .base-select-menu-option')
     expect(items.length).toBeGreaterThan(1)
     // Click the first real radio (index 1; index 0 is the placeholder).
     ;(items[1] as HTMLElement).click()
     await flushPromises()
-    expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).not.toContain(
+    expect(deviceDropdown(wrapper).find('.base-select-menu-text').text()).not.toContain(
       'select radio',
     )
     expect(sockets.length).toBeGreaterThan(0)
@@ -1577,7 +1579,7 @@ describe('SdrPanel — device dropdown menu', () => {
     fetchCalls.length = 0
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.base-select-menu-popup .base-select-menu-option')
     // placeholder + both enabled radios.
     expect(items.length).toBe(3)
     expect(fetchCalls.some((call) => call.url.startsWith('/api/sdr/status/'))).toBe(false)
@@ -1589,7 +1591,7 @@ describe('SdrPanel — device dropdown menu', () => {
     const wrapper = await mountReady()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.base-select-menu-popup .base-select-menu-option')
     // placeholder + only the enabled radio.
     expect(items.length).toBe(2)
   })
@@ -1599,7 +1601,7 @@ describe('SdrPanel — device dropdown menu', () => {
     const wrapper = await mountReady()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')?.textContent).toContain(
+    expect(document.querySelector('.base-select-menu-popup')?.textContent).toContain(
       'no radios configured',
     )
   })
@@ -1607,7 +1609,7 @@ describe('SdrPanel — device dropdown menu', () => {
   async function selectMenuRadio(wrapper: VueWrapper, optionIndex: number): Promise<void> {
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.base-select-menu-popup .base-select-menu-option')
     ;(items[optionIndex] as HTMLElement).click()
     await flushPromises()
   }
@@ -1641,7 +1643,7 @@ describe('SdrPanel — device dropdown menu', () => {
       await selectMenuRadio(wrapper, 2)
       lastSocket().open()
       await flushPromises()
-      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).toBe('rtl1')
+      expect(deviceDropdown(wrapper).find('.base-select-menu-text').text()).toBe('rtl1')
       return wrapper
     }
 
@@ -1657,7 +1659,7 @@ describe('SdrPanel — device dropdown menu', () => {
       await flushPromises()
 
       expect(useSdrStore().radioReservation(2)).toBe('ADS-B')
-      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).not.toBe('rtl1')
+      expect(deviceDropdown(wrapper).find('.base-select-menu-text').text()).not.toBe('rtl1')
     })
 
     it('re-reads the receiver after a config upload too', async () => {
@@ -1680,7 +1682,7 @@ describe('SdrPanel — device dropdown menu', () => {
 
       expect(useSdrStore().radioReservation(2)).toBeNull()
       expect(useSdrStore().radioReservation(1)).toBe('ADS-B')
-      expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).toBe('rtl1')
+      expect(deviceDropdown(wrapper).find('.base-select-menu-text').text()).toBe('rtl1')
     })
   })
 
@@ -1812,12 +1814,10 @@ describe('SdrPanel — device dropdown menu', () => {
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    const placeholder = document.querySelector('.sdr-device-menu-placeholder') as HTMLElement
+    const placeholder = document.querySelector('.base-select-menu-placeholder') as HTMLElement
     placeholder.click()
     await flushPromises()
-    expect(deviceDropdown(wrapper).find('.sdr-device-dropdown-text').text()).toContain(
-      'select radio',
-    )
+    expect(deviceDropdown(wrapper).find('.base-select-menu-text').text()).toContain('select radio')
   })
 
   it('toggles the menu with keyboard and closes on Escape', async () => {
@@ -1825,20 +1825,20 @@ describe('SdrPanel — device dropdown menu', () => {
     const dd = deviceDropdown(wrapper)
     await dd.trigger('keydown', { key: 'Enter' })
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await dd.trigger('keydown', { key: 'Escape' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('closes open menus on an outside document click', async () => {
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('click')
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     document.dispatchEvent(new MouseEvent('click'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('exposes the trigger as a combobox controlling a listbox of options', async () => {
@@ -1863,12 +1863,12 @@ describe('SdrPanel — device dropdown menu', () => {
     const wrapper = await mountTwoRadios()
     await deviceDropdown(wrapper).trigger('keydown', { key: 'ArrowDown' })
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
 
     const wrapper2 = await mountTwoRadios()
     await deviceDropdown(wrapper2).trigger('keydown', { key: 'ArrowUp' })
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
   })
 
   it('ignores other keys when closed and when open', async () => {
@@ -1876,14 +1876,14 @@ describe('SdrPanel — device dropdown menu', () => {
     const dd = deviceDropdown(wrapper)
     // Closed: a non-activating key does nothing.
     await dd.trigger('keydown', { key: 'a' })
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     // Open: an unhandled key leaves the menu open and the highlight unchanged.
     await dd.trigger('click')
     await flushPromises()
     await dd.trigger('keydown', { key: 'ArrowDown' })
     expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
     await dd.trigger('keydown', { key: 'x' })
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     expect(dd.attributes('aria-activedescendant')).toBe('sdr-device-opt-1')
   })
 
@@ -1915,7 +1915,7 @@ describe('SdrPanel — device dropdown menu', () => {
     await dd.trigger('keydown', { key: 'ArrowDown' }) // highlight first radio
     await dd.trigger('keydown', { key: 'Enter' })
     await flushPromises()
-    expect(dd.find('.sdr-device-dropdown-text').text()).not.toContain('select radio')
+    expect(dd.find('.base-select-menu-text').text()).not.toContain('select radio')
     expect(sockets.length).toBeGreaterThan(0)
   })
 
@@ -1933,7 +1933,7 @@ describe('SdrPanel — device dropdown menu', () => {
     await flushPromises()
     await dd.trigger('keydown', { key: ' ' })
     await flushPromises()
-    expect(dd.find('.sdr-device-dropdown-text').text()).toContain('select radio')
+    expect(dd.find('.base-select-menu-text').text()).toContain('select radio')
   })
 
   it('closes the menu on Tab', async () => {
@@ -1941,10 +1941,10 @@ describe('SdrPanel — device dropdown menu', () => {
     const dd = deviceDropdown(wrapper)
     await dd.trigger('click')
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await dd.trigger('keydown', { key: 'Tab' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('syncs the highlight to the option under the pointer', async () => {
@@ -1967,17 +1967,19 @@ describe('SdrPanel — device dropdown menu', () => {
 describe('SdrPanel — sample-rate dropdown & AGC', () => {
   it('picks a sample rate from the dropdown menu', async () => {
     const { wrapper, socket } = await mountConnected()
-    const drops = wrapper.findAll('.sdr-device-dropdown')
+    const drops = wrapper.findAll('.base-select-menu')
     // The sample-rate dropdown is the one inside the settings (not --device).
     const srDrop = drops.find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click')
     await wrapper.vm.$nextTick()
     const items = Array.from(
-      document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+      document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'),
     ) as HTMLElement[]
     socket.sent.length = 0
     // Pick an option that isn't the currently-selected one (else pickSampleRate no-ops).
-    const unselected = items.find((el) => !el.classList.contains('sdr-device-menu-item--selected'))!
+    const unselected = items.find(
+      (el) => !el.classList.contains('base-select-menu-option--selected'),
+    )!
     unselected.click()
     await wrapper.vm.$nextTick()
     expect(socket.sent.map((s) => JSON.parse(s).cmd)).toContain('sample_rate')
@@ -1986,11 +1988,11 @@ describe('SdrPanel — sample-rate dropdown & AGC', () => {
   it('opens the sample-rate menu via keyboard', async () => {
     const { wrapper } = await mountConnected()
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('keydown', { key: 'Enter' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await srDrop.trigger('keydown', { key: 'Escape' })
   })
 
@@ -2020,7 +2022,7 @@ describe('SdrPanel — step dropdown', () => {
     const { wrapper } = await mountSearchExpanded()
     await wrapper.find('.sdr-step-dropdown').trigger('click')
     await wrapper.vm.$nextTick()
-    const items = document.querySelectorAll('.sdr-step-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.sdr-step-menu .base-select-menu-option')
     expect(items.length).toBeGreaterThan(0)
     ;(items[0] as HTMLElement).click() // pickStep
     await wrapper.vm.$nextTick()
@@ -2049,41 +2051,41 @@ describe('SdrPanel — open menus dismiss on scroll/resize', () => {
   it('ignores the open-settle scroll (menu stays open within the settle window)', async () => {
     const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
     const { wrapper } = await mountConnected()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
 
     // Scroll 100ms after open — inside the 250ms settle window, so it's ignored.
     nowStub.mockReturnValue(1_100)
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     nowStub.mockRestore()
   })
 
   it('closes an open menu on a genuine scroll past the settle window', async () => {
     const nowStub = vi.spyOn(Date, 'now').mockReturnValue(1_000)
     const { wrapper } = await mountConnected()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
 
     // Scroll 300ms after open — past the 250ms window, so the menu is dismissed.
     nowStub.mockReturnValue(1_300)
     document.dispatchEvent(new Event('scroll'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     nowStub.mockRestore()
   })
 
   it('closes an open menu on window resize', async () => {
     const { wrapper } = await mountConnected()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     window.dispatchEvent(new Event('resize'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 })
 
@@ -2818,7 +2820,7 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
   it('coalesces rapid gain and squelch slider changes (clearTimeout path)', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     const { wrapper, socket } = await mountConnected()
-    const sliders = wrapper.findAll('.sdr-panel-slider')
+    const sliders = wrapper.findAll('.base-slider-row-input')
     await sliders[1].setValue('-40') // squelch
     await sliders[1].setValue('-50') // squelch again → clears the first timer
     await sliders[3].setValue('20') // gain
@@ -2847,7 +2849,7 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
     await wrapper.vm.$nextTick()
     // Open sample-rate menu.
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click')
     await wrapper.find('.sdr-step-dropdown').trigger('click') // open step menu
@@ -2859,13 +2861,13 @@ describe('SdrPanel — branch coverage A (init, filters, settings, menus)', () =
   it('no-ops pickSampleRate for an invalid or unchanged value', async () => {
     const { wrapper, socket } = await mountConnected()
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click')
     await wrapper.vm.$nextTick()
     socket.sent.length = 0
     const selected = document.querySelector(
-      '.sdr-device-menu .sdr-device-menu-item--selected',
+      '.base-select-menu-popup .base-select-menu-option--selected',
     ) as HTMLElement
     selected.click() // same value → no sample_rate cmd
     await wrapper.vm.$nextTick()
@@ -3001,10 +3003,14 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1' })]
     const wrapper = await mountReady()
     // Select + connect radio 1.
-    const dd = wrapper.find('.sdr-radio-section--device .sdr-device-dropdown')
+    const dd = wrapper.find('.sdr-radio-section--device .base-select-menu')
     await dd.trigger('click')
     await flushPromises()
-    ;(document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')[1] as HTMLElement).click()
+    ;(
+      document.querySelectorAll(
+        '.base-select-menu-popup .base-select-menu-option',
+      )[1] as HTMLElement
+    ).click()
     await flushPromises()
     lastSocket().open()
     await flushPromises()
@@ -3016,18 +3022,22 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     // Clear the selection → closeControlSocket cancels the reconnect + closes.
     await dd.trigger('click')
     await flushPromises()
-    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    ;(document.querySelector('.base-select-menu-placeholder') as HTMLElement).click()
     await flushPromises()
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).toContain('select radio')
+    expect(wrapper.find('.base-select-menu-text').text()).toContain('select radio')
   })
 
   it('switches to a different radio while playing (stops the old stream)', async () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2, name: 'rtl1', host: '10.0.0.2' })]
     const wrapper = await mountReady()
-    const dd = wrapper.find('.sdr-radio-section--device .sdr-device-dropdown')
+    const dd = wrapper.find('.sdr-radio-section--device .base-select-menu')
     await dd.trigger('click')
     await flushPromises()
-    ;(document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')[1] as HTMLElement).click()
+    ;(
+      document.querySelectorAll(
+        '.base-select-menu-popup .base-select-menu-option',
+      )[1] as HTMLElement
+    ).click()
     await flushPromises()
     lastSocket().open()
     await flushPromises()
@@ -3039,7 +3049,7 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     // Select the other radio while playing → stops the old stream.
     await dd.trigger('click')
     await flushPromises()
-    const items = document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.base-select-menu-popup .base-select-menu-option')
     ;(items[2] as HTMLElement).click() // the second radio
     await flushPromises()
     expect(audioMock.stop).toHaveBeenCalled()
@@ -3088,15 +3098,15 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
   it('clamps bandwidth down when picking a lower sample rate', async () => {
     const { wrapper } = await mountConnected()
     // Raise bandwidth high first.
-    const sliders = wrapper.findAll('.sdr-panel-slider')
+    const sliders = wrapper.findAll('.base-slider-row-input')
     await sliders[2].setValue('2000000')
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click')
     await wrapper.vm.$nextTick()
     const items = Array.from(
-      document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+      document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'),
     ) as HTMLElement[]
     audioMock.setBandwidthHz.mockClear()
     // Pick the smallest (first) option, which is below the 200 kHz bandwidth.
@@ -3627,11 +3637,11 @@ describe('SdrPanel — branch coverage G (more guards)', () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2 })] // no auto-select → disabled
     const wrapper = await mountReady()
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click') // toggleSampleRateMenu → controlsDisabled → no menu
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('keeps the dot off when the reachability probe is not OK', async () => {
@@ -3863,14 +3873,14 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
   it('closes the sample-rate menu on Escape', async () => {
     const { wrapper } = await mountConnected()
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click') // open
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await srDrop.trigger('keydown', { key: 'Escape' }) // close
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('reloads ranges and clears a stale selection when the searched range disappears', async () => {
@@ -3982,11 +3992,11 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     const before = sockets.length
     // Deselect via the device menu placeholder → clearRadioSelection →
     // closeControlSocket clears the pending reconnect timer.
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await flushPromises()
-    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    ;(document.querySelector('.base-select-menu-placeholder') as HTMLElement).click()
     await flushPromises()
-    expect(wrapper.find('.sdr-device-dropdown-text').text()).toContain('select radio')
+    expect(wrapper.find('.base-select-menu-text').text()).toContain('select radio')
     // Run time past the backoff the close scheduled: a cancelled timer opens
     // nothing, a live one would reconnect here. Without advancing, the assertion
     // below would also hold for a timer that simply hadn't fired yet.
@@ -4025,25 +4035,25 @@ describe('SdrPanel — branch coverage J (correctly-targeted guards)', () => {
   it('toggles the device menu closed on a second click', async () => {
     fetchState.radios = [makeRadio(), makeRadio({ id: 2 })]
     const wrapper = await mountReady()
-    const dd = wrapper.find('.sdr-radio-section--device .sdr-device-dropdown')
+    const dd = wrapper.find('.sdr-radio-section--device .base-select-menu')
     await dd.trigger('click') // open
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await dd.trigger('click') // toggleDeviceMenu → close
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('toggles the sample-rate menu closed on a second click', async () => {
     const { wrapper } = await mountConnected()
     const srDrop = wrapper
-      .findAll('.sdr-device-dropdown')
+      .findAll('.base-select-menu')
       .find((d) => !d.element.closest('.sdr-radio-section--device'))!
     await srDrop.trigger('click') // open
     await wrapper.vm.$nextTick()
     await srDrop.trigger('click') // close
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('toggles the step menu closed on a second click', async () => {
@@ -4068,7 +4078,7 @@ describe('SdrPanel — branch coverage J (correctly-targeted guards)', () => {
     await wrapper.vm.$nextTick()
     await pane.find('.sdr-step-dropdown').trigger('click') // range step menu
     await wrapper.vm.$nextTick()
-    const items = document.querySelectorAll('.sdr-step-menu .sdr-device-menu-item')
+    const items = document.querySelectorAll('.sdr-step-menu .base-select-menu-option')
     ;(items[0] as HTMLElement).click() // pickStep('range') → rangeEditor.step_khz
     await wrapper.vm.$nextTick()
     expect(document.querySelector('.sdr-step-menu')).toBeNull()
@@ -4508,7 +4518,7 @@ describe('SdrPanel — remaining reachable branch arms', () => {
       .trigger('click')
     await wrapper.vm.$nextTick()
     // The range step dropdown shows a formatted kHz label (stepMenuTarget 'range').
-    expect(pane.find('.sdr-step-dropdown .sdr-device-dropdown-text').text()).toMatch(/kHz/)
+    expect(pane.find('.sdr-step-dropdown .base-select-menu-text').text()).toMatch(/kHz/)
   })
 
   it('scans a frequency that has no group_ids array', async () => {
@@ -5093,7 +5103,7 @@ describe('SdrPanel — recording squelch-open start', () => {
   it('records starting with squelch already open (no initial pause)', async () => {
     const { wrapper } = await mountConnected()
     // Open the squelch fully so the recording starts un-paused (recPauseStart null).
-    const sliders = wrapper.findAll('.sdr-panel-slider')
+    const sliders = wrapper.findAll('.base-slider-row-input')
     await sliders[1].setValue('-120') // squelch
     await wrapper.find('.sdr-freq-input-large').setValue('100.000')
     await wrapper.find('.sdr-tune-btn:not(.sdr-stop-btn):not(.sdr-rec-btn)').trigger('click')
@@ -5160,7 +5170,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     expect(inputByLabel(body, 'RF gain in dB').value).toBe('30')
     expect(inputByLabel(body, 'Squelch threshold in dBFS').value).toBe('-30')
     expect(inputByLabel(body, 'Volume percent').value).toBe('80')
-    expect(body.find('.sdr-ef-setting-dropdown .sdr-device-dropdown-text').text()).toBe('2.05 MHz')
+    expect(body.find('.sdr-ef-setting-dropdown .base-select-menu-text').text()).toBe('2.05 MHz')
   })
 
   it('opens the sample-rate dropdown, picks a rate, and supports keyboard + outside-click close', async () => {
@@ -5171,35 +5181,37 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await dropdown.trigger('click')
     await wrapper.vm.$nextTick()
     const items = Array.from(
-      document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+      document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'),
     ) as HTMLElement[]
     expect(items.length).toBeGreaterThan(0)
-    const unselected = items.find((el) => !el.classList.contains('sdr-device-menu-item--selected'))!
+    const unselected = items.find(
+      (el) => !el.classList.contains('base-select-menu-option--selected'),
+    )!
     const chosenText = unselected.textContent!.trim()
     unselected.click()
     await wrapper.vm.$nextTick()
-    expect(body.find('.sdr-ef-setting-dropdown .sdr-device-dropdown-text').text()).toBe(chosenText)
+    expect(body.find('.sdr-ef-setting-dropdown .base-select-menu-text').text()).toBe(chosenText)
     // Keyboard: Enter opens, Escape closes.
     await dropdown.trigger('keydown', { key: 'Enter' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     await dropdown.trigger('keydown', { key: 'Escape' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     // Space opens, an outside document click closes (the picker's own
     // document-click listener).
     await dropdown.trigger('keydown', { key: ' ' })
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).not.toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).not.toBeNull()
     document.dispatchEvent(new MouseEvent('click'))
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
     // Clicking an open dropdown toggles it closed.
     await dropdown.trigger('click')
     await wrapper.vm.$nextTick()
     await dropdown.trigger('click')
     await wrapper.vm.$nextTick()
-    expect(document.querySelector('.sdr-device-menu')).toBeNull()
+    expect(document.querySelector('.base-select-menu-popup')).toBeNull()
   })
 
   it('toggles AUTO (AGC) in the add form and disables the RF gain input', async () => {
@@ -5231,7 +5243,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await wrapper.vm.$nextTick()
     const item = (
       Array.from(
-        document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+        document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'),
       ) as HTMLElement[]
     ).find((el) => el.textContent!.includes('1.54'))!
     item.click()
@@ -5317,9 +5329,9 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await wrapper.vm.$nextTick()
     const item = (
       Array.from(
-        document.querySelectorAll('.sdr-device-menu .sdr-device-menu-item'),
+        document.querySelectorAll('.base-select-menu-popup .base-select-menu-option'),
       ) as HTMLElement[]
-    ).find((el) => !el.classList.contains('sdr-device-menu-item--selected'))!
+    ).find((el) => !el.classList.contains('base-select-menu-option--selected'))!
     item.click()
     await wrapper.vm.$nextTick()
     await editBody.find('.sdr-editfreq-save-btn').trigger('click')
@@ -5440,7 +5452,7 @@ describe('SdrPanel — tuning ownership', () => {
     expect(store.readOnly).toBe(true)
     // Device name turns red, a padlock shows by the dropdown arrow, and an sr-only
     // live region announces the state.
-    expect(wrapper.find('.sdr-device-dropdown-text--readonly').exists()).toBe(true)
+    expect(wrapper.find('.sdr-device-text--readonly').exists()).toBe(true)
     expect(wrapper.find('.sdr-device-lock').exists()).toBe(true)
     const status = wrapper.find('.sr-only[role="status"]')
     expect(status.exists()).toBe(true)
@@ -5477,7 +5489,7 @@ describe('SdrPanel — tuning ownership', () => {
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(false)
     expect(wrapper.find('.sdr-device-lock').exists()).toBe(false)
-    expect(wrapper.find('.sdr-device-dropdown-text--readonly').exists()).toBe(false)
+    expect(wrapper.find('.sdr-device-text--readonly').exists()).toBe(false)
     expect(freqInput(wrapper).disabled).toBe(false)
   })
 
@@ -5590,7 +5602,7 @@ describe('SdrPanel — tuning ownership', () => {
     await wrapper.vm.$nextTick()
     const modePill = wrapper.find('.sdr-mode-pills .sdr-mode-pill')
     expect((modePill.element as HTMLButtonElement).disabled).toBe(true)
-    const sliders = wrapper.findAll('.sdr-panel-slider')
+    const sliders = wrapper.findAll('.base-slider-row-input')
     // Order: volume, squelch, bandwidth, rf gain. Bandwidth mirrors → disabled;
     // volume/squelch stay per-listener → enabled.
     expect((sliders[2].element as HTMLInputElement).disabled).toBe(true) // bandwidth
@@ -5699,9 +5711,9 @@ describe('SdrPanel — tuning ownership', () => {
     socket.sent.length = 0
     // Deselecting routes through clearRadioSelection, which releases before closing.
     // The device menu teleports to <body>, so reach the placeholder via document.
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await flushPromises()
-    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    ;(document.querySelector('.base-select-menu-placeholder') as HTMLElement).click()
     await flushPromises()
     expect(sentCmds(socket).some((msg) => msg.cmd === 'release')).toBe(true)
   })
@@ -5789,20 +5801,20 @@ describe('SdrPanel — tuning ownership', () => {
     socket.message(followerFrame())
     await wrapper.vm.$nextTick()
     // Open the device menu (teleported to <body>) and find the marked row.
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await flushPromises()
-    const row = document.querySelector('.sdr-device-menu-item--readonly')
+    const row = document.querySelector('.sdr-device-option--readonly')
     expect(row).not.toBeNull()
-    expect(row!.querySelector('.sdr-device-menu-item-lock')).not.toBeNull()
+    expect(row!.querySelector('.sdr-device-option-lock')).not.toBeNull()
   })
 
   it('does not mark any dropdown row read-only when this instance owns tuning', async () => {
     const { wrapper, socket } = await mountConnected()
     socket.message(followerFrame({ is_owner: true }))
     await wrapper.vm.$nextTick()
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await flushPromises()
-    expect(document.querySelector('.sdr-device-menu-item--readonly')).toBeNull()
+    expect(document.querySelector('.sdr-device-option--readonly')).toBeNull()
   })
 
   it('ignores frequency-input scroll while read-only (cannot wheel-tune the shared dongle)', async () => {
@@ -5840,9 +5852,9 @@ describe('SdrPanel — tuning ownership', () => {
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(true)
     // Deselect via the menu placeholder (routes through clearRadioSelection).
-    await wrapper.find('.sdr-radio-section--device .sdr-device-dropdown').trigger('click')
+    await wrapper.find('.sdr-radio-section--device .base-select-menu').trigger('click')
     await flushPromises()
-    ;(document.querySelector('.sdr-device-menu-placeholder') as HTMLElement).click()
+    ;(document.querySelector('.base-select-menu-placeholder') as HTMLElement).click()
     await flushPromises()
     // Ownership reset → no longer read-only, padlock gone, and the dot goes dark.
     expect(store.readOnly).toBe(false)
