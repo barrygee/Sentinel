@@ -1206,7 +1206,9 @@ test.describe('docs screenshots', () => {
       if (title === 'SEARCH') {
         await page.getByRole('spinbutton', { name: /search range low frequency/i }).fill('144.500')
         await page.getByRole('spinbutton', { name: /search range high frequency/i }).fill('146.000')
-        await page.locator('button[aria-expanded]:has(> label:text-is("SAVED RANGES"))').click()
+        await page
+          .locator('button[aria-expanded]:has(> .base-accordion-title:text-is("SAVED RANGES"))')
+          .click()
         await page.waitForTimeout(500)
       }
       await shoot(page, name)

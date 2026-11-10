@@ -175,6 +175,49 @@ test.describe('SDR domain', () => {
     await expect(page.locator('input[type="range"][aria-label="RF gain in dB"]')).toBeVisible()
   })
 
+  test('RADIO section bars span their padded sections and keep the title on the content edge', async ({
+    page,
+  }) => {
+    // SDR sets --ba-accordion-bleed/-inset on .sdr-tab-pane; without them the
+    // bars would sit 20px inside each section on both sides.
+    await page.goto('/sdr/')
+    await waitForShellHydration(page)
+    await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
+    await expect(page.locator('#msb-pane-radio')).toBeVisible()
+
+    const bars = page.locator(
+      '.sdr-tab-pane--radio > .sdr-radio-section > button.base-accordion-toggle--section',
+    )
+    await expect(bars.first()).toBeVisible()
+    const measure = () =>
+      bars.evaluateAll((elements) =>
+        elements.map((bar) => {
+          const barBox = bar.getBoundingClientRect()
+          const sectionBox = bar.parentElement!.getBoundingClientRect()
+          const titleBox = bar.querySelector('.base-accordion-title')!.getBoundingClientRect()
+          return {
+            title: bar.textContent?.trim() ?? '',
+            leftOffset: Math.round(barBox.left - sectionBox.left),
+            rightOffset: Math.round(sectionBox.right - barBox.right),
+            titleInset: Math.round(titleBox.left - sectionBox.left),
+          }
+        }),
+      )
+    // CONTROLS, FAVOURITES, SCANNER and SEARCH sit directly in the pane.
+    expect((await measure()).length).toBeGreaterThanOrEqual(4)
+    // Polled, so a panel still animating in can't make a one-off reading.
+    await expect
+      .poll(async () =>
+        (await measure()).every(
+          (measurement) =>
+            measurement.leftOffset === 0 &&
+            measurement.rightOffset === 0 &&
+            measurement.titleInset === 20,
+        ),
+      )
+      .toBe(true)
+  })
+
   test('Frequency Manager tab shows frequencies from stub', async ({ page }) => {
     await page.route('/api/sdr/frequencies', (route) => {
       void route.fulfill({

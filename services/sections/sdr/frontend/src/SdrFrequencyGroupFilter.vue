@@ -2,7 +2,7 @@
   <!-- Hidden (not removed) once nothing has a group, exactly as the
        pre-extraction Frequency Manager did — v-if here would also collapse
        the accordion's own header row, retargeting every positional
-       `.sdr-scanner-header-row` lookup after it (SCANNER/SEARCH/…). -->
+       `.base-accordion-toggle--section` lookup after it (SCANNER/SEARCH/…). -->
   <div v-show="groups.length > 0" class="sdr-frequency-manager-groups-filter">
     <BaseAccordionSection v-model:expanded="expandedModel" title="GROUPS" :body-id="bodyId">
       <div class="sdr-scan-groups-row sdr-frequency-manager-groups-filter-row">

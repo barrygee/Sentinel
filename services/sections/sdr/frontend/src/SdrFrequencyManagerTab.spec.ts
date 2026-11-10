@@ -342,7 +342,7 @@ describe('SdrFrequencyManagerTab — add', () => {
     await wrapper.find('#sdr-ef-freq').setValue('119.1')
     // Pick a group, expand settings, tweak volume beyond the clamp.
     await editor.findAll('#sdr-ef-groups .sdr-ef-gpill')[2].trigger('click')
-    await editor.find('.sdr-ef-settings-toggle').trigger('click')
+    await editor.find('.base-accordion-toggle--form').trigger('click')
     await editor.find('input[aria-label="Volume percent"]').setValue('250')
     await wrapper.find('#sdr-ef-save').trigger('click')
     await flushPromises()
@@ -376,7 +376,7 @@ describe('SdrFrequencyManagerTab — add', () => {
     const editor = await openAddForm(wrapper)
     await wrapper.find('#sdr-ef-label').setValue('R')
     await wrapper.find('#sdr-ef-freq').setValue('100')
-    await editor.find('.sdr-ef-settings-toggle').trigger('click')
+    await editor.find('.base-accordion-toggle--form').trigger('click')
     await editor.find('.sdr-ef-toggle').trigger('click') // AGC on
     await editor.find('input[aria-label="Demod bandwidth in kHz"]').setValue('')
     await editor.find('input[aria-label="Squelch threshold in dBFS"]').setValue('')
@@ -449,7 +449,7 @@ describe('SdrFrequencyManagerTab — add', () => {
   it('picks a sample rate inside the form via the picker', async () => {
     const wrapper = mountTab()
     const editor = await openAddForm(wrapper)
-    await editor.find('.sdr-ef-settings-toggle').trigger('click')
+    await editor.find('.base-accordion-toggle--form').trigger('click')
     await editor.find('.sdr-ef-setting-dropdown').trigger('click')
     const items = Array.from(document.querySelectorAll('.sdr-device-menu-item'))
     ;(items.find((item) => item.textContent?.trim() === '1.02 MHz') as HTMLElement).click()
@@ -879,7 +879,7 @@ describe('SdrFrequencyManagerTab — form model', () => {
     const settingsBody = () => wrapper.find('.sdr-freq-editing #sdr-ef-settings-section')
     await wrapper.find('.sdr-freq-row-edit').trigger('click')
     expect(settingsBody().isVisible()).toBe(false)
-    await wrapper.find('.sdr-freq-editing .sdr-ef-settings-toggle').trigger('click')
+    await wrapper.find('.sdr-freq-editing .base-accordion-toggle--form').trigger('click')
     expect(settingsBody().isVisible()).toBe(true)
     await wrapper
       .findAll('.sdr-freq-editing .sdr-editfreq-actions button')

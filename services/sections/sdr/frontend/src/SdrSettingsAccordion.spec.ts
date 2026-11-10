@@ -83,9 +83,9 @@ describe('SdrSettingsAccordion — rendering', () => {
   it('collapses and expands the accordion body', async () => {
     const wrapper = mountAccordion()
     expect(wrapper.find('#sdr-settings-section').isVisible()).toBe(true)
-    await wrapper.find('.sdr-frequency-manager-accordion-toggle').trigger('click')
+    await wrapper.find('.base-accordion-toggle--section').trigger('click')
     expect(wrapper.find('#sdr-settings-section').isVisible()).toBe(false)
-    await wrapper.find('.sdr-frequency-manager-accordion-toggle').trigger('click')
+    await wrapper.find('.base-accordion-toggle--section').trigger('click')
     expect(wrapper.find('#sdr-settings-section').isVisible()).toBe(true)
   })
 

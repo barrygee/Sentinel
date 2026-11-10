@@ -29,79 +29,6 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
 </script>
 
 <style>
-.sip-toggle {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 18px 28px 18px 28px;
-  background: none;
-  border: none;
-  border-top: 1px solid rgba(var(--ink-rgb), 0.08);
-  cursor: pointer;
-  transition: background 0.12s;
-  box-sizing: border-box;
-}
-
-/* Hover lights the chevron accent rather than washing the header background —
-   matches the SDR panel's section accordions (.sdr-scanner-header-row). */
-.sip-toggle:hover .sip-toggle-icon {
-  color: var(--accent-text);
-}
-
-.sip-toggle-left {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-shrink: 0;
-}
-
-.sip-toggle-icon {
-  display: flex;
-  align-items: center;
-  color: rgba(var(--ink-rgb), 0.3);
-  transition:
-    transform 0.2s ease,
-    color 0.15s;
-  flex-shrink: 0;
-  transform: rotate(-90deg);
-}
-
-.sip-toggle.sip-expanded .sip-toggle-icon {
-  transform: rotate(0deg);
-  color: var(--accent-text);
-}
-
-.sip-toggle-label {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(var(--ink-rgb), 0.35);
-  text-transform: uppercase;
-  transition: color 0.15s;
-}
-
-.sip-toggle.sip-expanded .sip-toggle-label {
-  color: rgba(var(--ink-rgb), 0.6);
-}
-
-.sip-toggle-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  min-width: 0;
-  overflow: hidden;
-  transition: opacity 0.15s;
-}
-
-.sip-toggle.sip-expanded .sip-toggle-right {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .sip-sat-name {
   font-family: var(--font-primary);
   font-size: 10px;
@@ -361,12 +288,10 @@ useDocumentEvent('iss-position-update', onIssPositionUpdate)
   border-color: rgba(var(--ink-rgb), 0.5);
 }
 
-.sip-toggle,
 .sip-body {
   display: none !important;
 }
 
-body:not([data-domain='space']) .sip-toggle,
 body:not([data-domain='space']) .sip-body {
   display: none;
 }

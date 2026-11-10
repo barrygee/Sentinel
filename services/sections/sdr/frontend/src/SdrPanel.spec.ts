@@ -262,7 +262,7 @@ async function mountReady(props: { fullPage?: boolean } = {}): Promise<VueWrappe
 }
 
 // Locates an accordion header by the body id it controls (`aria-controls`)
-// rather than its position among `.sdr-scanner-header-row` siblings — sibling
+// rather than its position among `.base-accordion-toggle--section` siblings — sibling
 // order shifts whenever a section is added/removed/reordered, but the body id
 // is stable and states the test's intent directly.
 function accordionToggle(wrapper: VueWrapper, bodyId: string) {
@@ -858,11 +858,11 @@ describe('SdrPanel — RADIO tab: mode & audio controls', () => {
   it('toggles the settings accordion (open by default) closed and open', async () => {
     const { wrapper } = await mountConnected()
     const toggle = wrapper.find('button[aria-controls="sdr-settings-section"]')
-    expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
+    expect(toggle.classes()).toContain('base-accordion-toggle--expanded')
     await toggle.trigger('click')
-    expect(toggle.classes()).not.toContain('sdr-frequency-manager-accordion-toggle-expanded')
+    expect(toggle.classes()).not.toContain('base-accordion-toggle--expanded')
     await toggle.trigger('click')
-    expect(toggle.classes()).toContain('sdr-frequency-manager-accordion-toggle-expanded')
+    expect(toggle.classes()).toContain('base-accordion-toggle--expanded')
   })
 
   it('toggles the CONTROLS accordion (open by default) closed and open', async () => {
@@ -2456,7 +2456,7 @@ describe('SdrPanel — validation & edge branches', () => {
     const { wrapper } = await mountConnected()
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
     await wrapper.vm.$nextTick()
-    const chips = () => wrapper.findAll('.sdr-scanner-header-row ~ * .sdr-scan-group-chip')
+    const chips = () => wrapper.findAll('.base-accordion-toggle--section ~ * .sdr-scan-group-chip')
     void chips
     const allChips = wrapper.findAll('#sdr-scanner-section .sdr-scan-group-chip')
     const air = allChips.find((c) => c.text() === 'Airband')!
@@ -2529,7 +2529,7 @@ describe('SdrPanel — store-driven watchers', () => {
     store.panelOpen = true
     await wrapper.vm.$nextTick()
     expect(accordionToggle(wrapper, 'sdr-scanner-section').classes()).not.toContain(
-      'sdr-frequency-manager-accordion-toggle-expanded',
+      'base-accordion-toggle--expanded',
     )
   })
 
@@ -5155,7 +5155,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     const section = body.find('#sdr-ef-settings-section')
     expect(section.exists()).toBe(true)
     expect(section.isVisible()).toBe(false)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     expect(body.find('#sdr-ef-settings-section').isVisible()).toBe(true)
     expect(inputByLabel(body, 'RF gain in dB').value).toBe('30')
     expect(inputByLabel(body, 'Squelch threshold in dBFS').value).toBe('-30')
@@ -5166,7 +5166,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
   it('opens the sample-rate dropdown, picks a rate, and supports keyboard + outside-click close', async () => {
     const { wrapper } = await mountWithFreqs([])
     const body = await openAddPanel(wrapper)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     const dropdown = body.find('.sdr-ef-setting-dropdown')
     await dropdown.trigger('click')
     await wrapper.vm.$nextTick()
@@ -5205,7 +5205,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
   it('toggles AUTO (AGC) in the add form and disables the RF gain input', async () => {
     const { wrapper } = await mountWithFreqs([])
     const body = await openAddPanel(wrapper)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     const toggle = body.find('.sdr-ef-toggle')
     expect(toggle.classes()).not.toContain('is-on')
     await toggle.trigger('click')
@@ -5216,7 +5216,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
   it('includes the per-frequency settings in the POST payload', async () => {
     const { wrapper } = await mountWithFreqs([])
     const body = await openAddPanel(wrapper)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     await wrapper.find('#sdr-ef-label').setValue('My Freq')
     await wrapper.find('#sdr-ef-freq').setValue('145.500')
     await body.find('input[aria-label="RF gain in dB"]').setValue('40')
@@ -5256,7 +5256,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
   it('falls back to defaults for cleared numeric fields and sends gain -1 with AGC on', async () => {
     const { wrapper } = await mountWithFreqs([])
     const body = await openAddPanel(wrapper)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     await wrapper.find('#sdr-ef-label').setValue('AGC Freq')
     await wrapper.find('#sdr-ef-freq').setValue('120.000')
     await body.find('.sdr-ef-toggle').trigger('click') // AGC on → gain -1
@@ -5283,7 +5283,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await wrapper.findAll('.sdr-freq-row-edit')[0].trigger('click')
     await wrapper.vm.$nextTick()
     const editBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
-    await editBody.find('.sdr-ef-settings-toggle').trigger('click')
+    await editBody.find('.base-accordion-toggle--form').trigger('click')
     // gain -1 → AGC toggle on; bandwidth 8000 Hz → 8 kHz in the field.
     expect(editBody.find('.sdr-ef-toggle').classes()).toContain('is-on')
     expect(inputByLabel(editBody, 'Demod bandwidth in kHz').value).toBe('8')
@@ -5293,7 +5293,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await wrapper.findAll('.sdr-freq-row-edit')[1].trigger('click')
     await wrapper.vm.$nextTick()
     const bareBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
-    await bareBody.find('.sdr-ef-settings-toggle').trigger('click')
+    await bareBody.find('.base-accordion-toggle--form').trigger('click')
     expect(inputByLabel(bareBody, 'RF gain in dB').value).toBe('30')
   })
 
@@ -5302,7 +5302,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
     await wrapper.findAll('.sdr-freq-row-edit')[0].trigger('click')
     await wrapper.vm.$nextTick()
     const editBody = wrapper.find('.sdr-freq-editing .sdr-editfreq-body')
-    await editBody.find('.sdr-ef-settings-toggle').trigger('click')
+    await editBody.find('.base-accordion-toggle--form').trigger('click')
     // Edit every numeric field (drives each field's v-model in the edit form).
     await editBody.find('input[aria-label="RF gain in dB"]').setValue('42')
     await editBody.find('input[aria-label="Demod bandwidth in kHz"]').setValue('20')
@@ -5410,7 +5410,7 @@ describe('SdrPanel — per-frequency RADIO SETTINGS (form, dropdown, toggle, app
   it('the expanded RADIO SETTINGS form has no accessibility violations', async () => {
     const { wrapper } = await mountWithFreqs([])
     const body = await openAddPanel(wrapper)
-    await body.find('.sdr-ef-settings-toggle').trigger('click')
+    await body.find('.base-accordion-toggle--form').trigger('click')
     expect(await axe(body.html(), { rules: { region: { enabled: false } } })).toHaveNoViolations()
   })
 })

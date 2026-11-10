@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
+import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import LandRepeaterFilters from './LandRepeaterFilters.vue'
 import { useRepeatersStore } from './stores/repeaters'
 import { REPEATER_BAND_ORDER, REPEATER_MODE_CODES } from './constants/repeaters'
@@ -89,33 +90,48 @@ describe('LandRepeaterFilters', () => {
   describe('the disclosure', () => {
     it('is collapsed, named and wired to its body', () => {
       const wrapper = mount(LandRepeaterFilters)
-      const toggle = wrapper.get('button.lrf-heading')
+      const toggle = wrapper.get('button.base-accordion-toggle')
       expect(toggle.text()).toContain('Repeater filters')
       expect(toggle.attributes('aria-expanded')).toBe('false')
       const bodyId = toggle.attributes('aria-controls')!
       expect(wrapper.get(`#${bodyId}`).classes()).toContain('lrf-body')
     })
 
+    it('uses the shared section-bar accordion rather than a local copy', () => {
+      const wrapper = mount(LandRepeaterFilters)
+      const accordion = wrapper.getComponent(BaseAccordionSection)
+      expect(accordion.props()).toEqual({
+        expanded: false,
+        title: 'Repeater filters',
+        bodyId: 'land-repeater-filters-body',
+        variant: 'section',
+        bodyClass: 'lrf-body',
+      })
+      expect(wrapper.find('.lrf-heading').exists()).toBe(false)
+      // The chip rows are the accordion's body, not siblings of it.
+      expect(wrapper.get('#land-repeater-filters-body').findAll('[role="group"]')).toHaveLength(3)
+    })
+
     it('hides the chips until it is opened, and hides them again on a second click', async () => {
       const wrapper = mount(LandRepeaterFilters)
-      const toggle = wrapper.get('button.lrf-heading')
+      const toggle = wrapper.get('button.base-accordion-toggle')
       const body = wrapper.get('.lrf-body')
       expect(body.attributes('style')).toContain('display: none')
 
       await toggle.trigger('click')
       expect(toggle.attributes('aria-expanded')).toBe('true')
-      expect(toggle.classes()).toContain('lrf-heading--expanded')
+      expect(toggle.classes()).toContain('base-accordion-toggle--expanded')
       expect(body.attributes('style') ?? '').not.toContain('display: none')
 
       await toggle.trigger('click')
       expect(toggle.attributes('aria-expanded')).toBe('false')
-      expect(toggle.classes()).not.toContain('lrf-heading--expanded')
+      expect(toggle.classes()).not.toContain('base-accordion-toggle--expanded')
       expect(body.attributes('style')).toContain('display: none')
     })
 
     it('opens from the keyboard, as a native button does', async () => {
       const wrapper = mount(LandRepeaterFilters, { attachTo: document.body })
-      const toggle = wrapper.get('button.lrf-heading')
+      const toggle = wrapper.get('button.base-accordion-toggle')
       const element = toggle.element as HTMLButtonElement
       element.focus()
       expect(document.activeElement).toBe(element)
@@ -258,7 +274,7 @@ describe('LandRepeaterFilters', () => {
     const axeOptions = { rules: { region: { enabled: false } } }
     const wrapper = mount(LandRepeaterFilters)
     expect(await axe(wrapper.element, axeOptions)).toHaveNoViolations()
-    await wrapper.get('button.lrf-heading').trigger('click')
+    await wrapper.get('button.base-accordion-toggle').trigger('click')
     expect(await axe(wrapper.element, axeOptions)).toHaveNoViolations()
   })
 })

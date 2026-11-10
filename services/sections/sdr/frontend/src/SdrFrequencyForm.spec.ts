@@ -282,10 +282,10 @@ describe('SdrFrequencyForm — RADIO SETTINGS', () => {
 
   it('reports the open state through update:settingsExpanded when toggled', async () => {
     const { wrapper } = mountForm()
-    await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
+    await wrapper.find('.base-accordion-toggle--form').trigger('click')
     expect(wrapper.emitted('update:settingsExpanded')).toEqual([[true]])
     expect(wrapper.find('#sdr-ef-settings-section').isVisible()).toBe(true)
-    await wrapper.find('.sdr-ef-settings-toggle').trigger('click')
+    await wrapper.find('.base-accordion-toggle--form').trigger('click')
     expect(wrapper.emitted('update:settingsExpanded')).toEqual([[true], [false]])
   })
 
@@ -370,7 +370,7 @@ describe('SdrFrequencyForm — accessibility', () => {
     const { wrapper } = mountForm({ settingsExpanded: true })
     expect(wrapper.find('[role="radiogroup"]').attributes('aria-label')).toBe('Demodulation mode')
     expect(wrapper.find('[role="switch"]').attributes('aria-label')).toBe('Auto gain (AGC)')
-    expect(wrapper.find('.sdr-ef-settings-toggle').attributes('aria-controls')).toBe(
+    expect(wrapper.find('.base-accordion-toggle--form').attributes('aria-controls')).toBe(
       'sdr-ef-settings-section',
     )
   })
