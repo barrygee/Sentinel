@@ -181,6 +181,7 @@ mx.text = function (
 import { useSdrStore, type SdrMode } from './stores/sdr'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { findSignalEdges, findTimeExtent } from './composables/useSdrSignalMarker'
 import { fitBandLabel } from './bandLabel'
 
@@ -3167,9 +3168,7 @@ onBeforeUnmount(() => {
         <div class="sdr-wf-search-overlay-stack">
           <div class="sdr-wf-search-overlay-headline">Searching</div>
           <div v-if="store.searchLabel" class="sdr-wf-scan-overlay-groups">
-            <span class="sdr-scan-group-chip sdr-scan-group-chip-active">{{
-              store.searchLabel
-            }}</span>
+            <BaseChip as="span" active>{{ store.searchLabel }}</BaseChip>
           </div>
           <div
             class="sdr-wf-search-overlay-progress"
@@ -3197,11 +3196,12 @@ onBeforeUnmount(() => {
         <div class="sdr-wf-search-overlay-stack">
           <div class="sdr-wf-search-overlay-headline">Scanning</div>
           <div class="sdr-wf-scan-overlay-groups">
-            <span
+            <BaseChip
               v-for="(name, idx) in store.scanGroupNames"
               :key="name + idx"
-              class="sdr-scan-group-chip sdr-scan-group-chip-active"
-              >{{ name }}</span
+              as="span"
+              active
+              >{{ name }}</BaseChip
             >
           </div>
         </div>

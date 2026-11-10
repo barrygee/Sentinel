@@ -287,7 +287,7 @@ onMounted(() => {
       .base-slider-row-label,
       .lft-row-name,
       .oma-region-list-heading,
-      .sdr-device-confirm-label,
+      .base-inline-confirm-label,
       .oma-progress-status
     )
   ),

@@ -434,43 +434,6 @@
   margin-bottom: 4px;
 }
 
-.sdr-scan-group-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 14px;
-  background: rgba(var(--ink-rgb), 0.06);
-  border: 1px solid transparent;
-  border-radius: 2px;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.7);
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-}
-
-.sdr-scan-group-chip:hover:not(:disabled) {
-  background: rgba(var(--ink-rgb), 0.12);
-  color: var(--accent-text);
-}
-
-.sdr-scan-group-chip.sdr-scan-group-chip-active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-  border-color: transparent;
-}
-
-.sdr-scan-group-chip:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .sdr-search-adhoc-row {
   display: flex;
   align-items: flex-end;

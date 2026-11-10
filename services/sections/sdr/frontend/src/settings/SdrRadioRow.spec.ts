@@ -204,7 +204,7 @@ describe('SdrRadioRow', () => {
     })
     expect(wrapper.find('.sdr-device-btn[title="Edit"]').exists()).toBe(false)
     expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
-    expect(wrapper.find('.sdr-device-confirm').exists()).toBe(true)
+    expect(wrapper.find('.base-inline-confirm').exists()).toBe(true)
     expect(wrapper.find('.sdr-device-info').attributes('style')).toContain('opacity: 0.4')
   })
 
@@ -212,9 +212,9 @@ describe('SdrRadioRow', () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: true },
     })
-    await wrapper.find('.sdr-device-confirm-btn--yes').trigger('click')
+    await wrapper.find('.base-inline-confirm-btn--confirm').trigger('click')
     expect(wrapper.emitted('confirm-delete')).toHaveLength(1)
-    await wrapper.findAll('.sdr-device-confirm-btn').at(-1)!.trigger('click')
+    await wrapper.findAll('.base-inline-confirm-btn').at(-1)!.trigger('click')
     expect(wrapper.emitted('cancel-delete')).toHaveLength(1)
   })
 

@@ -341,26 +341,18 @@
               </div>
             </template>
             <div class="sdr-scan-groups-row">
-              <BasePillToggle
-                class="sdr-scan-group-chip"
-                :active="scanAllSelected"
-                active-class="sdr-scan-group-chip-active"
-                :disabled="tuningDisabled"
-                @click="toggleScanAll"
-              >
+              <BaseChip :active="scanAllSelected" :disabled="tuningDisabled" @click="toggleScanAll">
                 All
-              </BasePillToggle>
-              <BasePillToggle
+              </BaseChip>
+              <BaseChip
                 v-for="g in groupsWithFreqs"
                 :key="g.id"
-                class="sdr-scan-group-chip"
                 :active="!scanAllSelected && scanSelectedGroupIds.includes(g.id)"
-                active-class="sdr-scan-group-chip-active"
                 :disabled="tuningDisabled"
                 @click="toggleScanGroup(g.id)"
               >
                 {{ g.name }}
-              </BasePillToggle>
+              </BaseChip>
             </div>
             <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
               <button
@@ -623,6 +615,7 @@ import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
+import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'

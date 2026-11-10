@@ -981,13 +981,13 @@ describe('SdrPanel — frequency manager tab', () => {
 
   it('filters the list by group and resets to all', async () => {
     const { wrapper } = await mountWithData()
-    const chips = wrapper.findAll('#sdr-freq-manager-groups-section .sdr-scan-group-chip')
+    const chips = wrapper.findAll('#sdr-freq-manager-groups-section .base-chip')
     const airband = chips.find((chip) => chip.text() === 'Airband')!
     await airband.trigger('click')
     // Only the Airband-tagged frequency (ATIS) remains.
     expect(wrapper.findAll('.sdr-freq-row-item')).toHaveLength(1)
     await wrapper
-      .findAll('#sdr-freq-manager-groups-section .sdr-scan-group-chip')
+      .findAll('#sdr-freq-manager-groups-section .base-chip')
       .find((chip) => chip.text() === 'All')!
       .trigger('click')
     expect(wrapper.findAll('.sdr-freq-row-item')).toHaveLength(2)
@@ -1271,13 +1271,13 @@ describe('SdrPanel — scanner', () => {
   it('mirrors selected scan groups into the store', async () => {
     const store = useSdrStore()
     const { wrapper } = await mountScannable()
-    const chips = wrapper.findAll('#sdr-scanner-section .sdr-scan-group-chip')
+    const chips = wrapper.findAll('#sdr-scanner-section .base-chip')
     const marine = chips.find((c) => c.text() === 'Marine')!
     await marine.trigger('click')
     expect(store.scanGroupNames).toEqual(['Marine'])
     // Back to all.
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'All')!
       .trigger('click')
     expect(store.scanGroupNames).toEqual(['All'])
@@ -2464,9 +2464,9 @@ describe('SdrPanel — validation & edge branches', () => {
     const { wrapper } = await mountConnected()
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
     await wrapper.vm.$nextTick()
-    const chips = () => wrapper.findAll('.base-accordion-toggle--section ~ * .sdr-scan-group-chip')
+    const chips = () => wrapper.findAll('.base-accordion-toggle--section ~ * .base-chip')
     void chips
-    const allChips = wrapper.findAll('#sdr-scanner-section .sdr-scan-group-chip')
+    const allChips = wrapper.findAll('#sdr-scanner-section .base-chip')
     const air = allChips.find((c) => c.text() === 'Airband')!
     const marine = allChips.find((c) => c.text() === 'Marine')!
     await air.trigger('click') // select Airband
@@ -2493,7 +2493,7 @@ describe('SdrPanel — validation & edge branches', () => {
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan (All)
     // Select Marine (no scannable freqs) → refreshScanQueue empties → stopScan.
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Marine')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -3133,7 +3133,7 @@ describe('SdrPanel — branch coverage C (socket, scan/search engine)', () => {
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // start scan (All)
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -3371,7 +3371,7 @@ describe('SdrPanel — branch coverage E (scroll-tune, scan/search engine)', () 
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     socket.sent.length = 0
@@ -3496,7 +3496,7 @@ describe('SdrPanel — branch coverage F (guards & engine internals)', () => {
     ]
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const { wrapper } = await mountConnected()
-    const chips = () => wrapper.findAll('#sdr-freq-manager-groups-section .sdr-scan-group-chip')
+    const chips = () => wrapper.findAll('#sdr-freq-manager-groups-section .base-chip')
     await chips()
       .find((c) => c.text() === 'Airband')!
       .trigger('click') // select Airband
@@ -4547,7 +4547,7 @@ describe('SdrPanel — remaining reachable branch arms', () => {
     await accordionToggle(wrapper, 'sdr-scanner-section').trigger('click')
     await wrapper.vm.$nextTick()
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     socket.sent.length = 0
@@ -4748,7 +4748,7 @@ describe('SdrPanel — last template branches', () => {
     fetchState.groups = [makeGroup(), makeGroup({ id: 2, name: 'Marine', slug: 'marine' })]
     const { wrapper } = await mountConnected()
     await wrapper
-      .findAll('#sdr-freq-manager-groups-section .sdr-scan-group-chip')
+      .findAll('#sdr-freq-manager-groups-section .base-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click') // filter to Airband (freq 10)
     // Remove freq 10 (Airband) but keep freq 11 → filteredFreqs 0, freqs > 0.
@@ -4863,7 +4863,7 @@ describe('SdrPanel — if/else fall-through arms', () => {
     await wrapper.vm.$nextTick()
     // Toggle Marine while locked → refreshScanQueue with scanLocked true (no doScanStep).
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Marine')!
       .trigger('click')
     await wrapper.vm.$nextTick()
@@ -5038,7 +5038,7 @@ describe('SdrPanel — final reachable arms', () => {
     await wrapper.vm.$nextTick()
     await wrapper.find('.sdr-search-adhoc-play').trigger('click') // scan, dwell timer pending
     await wrapper
-      .findAll('#sdr-scanner-section .sdr-scan-group-chip')
+      .findAll('#sdr-scanner-section .base-chip')
       .find((c) => c.text() === 'Airband')!
       .trigger('click')
     expect(useSdrStore().scanSweeping).toBe(true)
@@ -5788,7 +5788,7 @@ describe('SdrPanel — tuning ownership', () => {
     await wrapper.vm.$nextTick()
     expect(store.readOnly).toBe(true)
     // Group-filter chips (All + per-group) are all disabled.
-    const chips = wrapper.findAll('#sdr-freq-manager-groups-section .sdr-scan-group-chip')
+    const chips = wrapper.findAll('#sdr-freq-manager-groups-section .base-chip')
     expect(chips.length).toBeGreaterThan(0)
     expect(chips.every((chip) => (chip.element as HTMLButtonElement).disabled)).toBe(true)
     // Per-row edit + delete and the Add Frequency button are disabled.

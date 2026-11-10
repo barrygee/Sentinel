@@ -68,16 +68,12 @@
           />
         </svg>
       </button>
-      <div v-if="confirming" class="sdr-device-confirm" style="display: flex">
-        <span class="sdr-device-confirm-label">DELETE?</span>
-        <button
-          class="sdr-device-confirm-btn sdr-device-confirm-btn--yes"
-          @click="emit('confirm-delete')"
-        >
-          YES
-        </button>
-        <button class="sdr-device-confirm-btn" @click="emit('cancel-delete')">NO</button>
-      </div>
+      <BaseInlineConfirm
+        v-if="confirming"
+        label="DELETE?"
+        @confirm="emit('confirm-delete')"
+        @cancel="emit('cancel-delete')"
+      />
     </div>
     <SdrDeviceForm
       v-if="open"
@@ -101,6 +97,7 @@
  * manual radios only, so both groupings can reuse it instead of duplicating
  * the row chrome per grouping.
  */
+import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'

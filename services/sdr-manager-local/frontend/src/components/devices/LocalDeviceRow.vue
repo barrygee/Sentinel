@@ -66,21 +66,14 @@
         </button>
         <DeviceActions />
       </template>
-      <div v-else class="sdr-device-confirm" style="display: flex">
-        <span class="sdr-device-confirm-label">FORGET?</span>
-        <button
-          ref="confirmButton"
-          type="button"
-          class="sdr-device-confirm-btn sdr-device-confirm-btn--yes"
-          :aria-label="`Forget ${label} and its saved settings`"
-          @click="forget"
-        >
-          YES
-        </button>
-        <button type="button" class="sdr-device-confirm-btn" @click="confirmingForget = false">
-          NO
-        </button>
-      </div>
+      <BaseInlineConfirm
+        v-else
+        label="FORGET?"
+        :confirm-accessible-name="`Forget ${label} and its saved settings`"
+        initial-focus="confirm"
+        @confirm="forget"
+        @cancel="confirmingForget = false"
+      />
     </div>
     <p v-if="rowError" class="sdr-devices-form-error local-device-row-error" role="alert">
       {{ rowError }}
@@ -102,7 +95,8 @@
  * while one is staged. The host page's own action for the SDR (ADD, in
  * Settings › SDR) ends the row, through `LocalDevicesControl`'s slot.
  */
-import { computed, nextTick, ref, watch, type VNodeChild } from 'vue'
+import { computed, ref, type VNodeChild } from 'vue'
+import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import type { LocalDeviceStatus } from '../../api/types'
@@ -130,13 +124,6 @@ const portOnly = usePortOnly()
 const DeviceActions = (): VNodeChild =>
   deviceActionsSlot()?.({ deviceId: props.device.device_id }) ?? null
 const rowError = ref<string | null>(null)
-const confirmButton = ref<HTMLButtonElement | null>(null)
-
-watch(confirmingForget, async (confirming) => {
-  if (!confirming) return
-  await nextTick()
-  confirmButton.value?.focus()
-})
 
 function setEnabled(enabled: boolean): void {
   deviceEdits.updateDraft(props.device, { ...deviceEdits.draftFor(props.device), enabled })

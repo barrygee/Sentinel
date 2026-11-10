@@ -88,11 +88,11 @@ describe('SdrDeviceRadioAction', () => {
 
   it('asks REMOVE? and says which answer was given', async () => {
     const wrapper = mountAction({ radio: RADIO, confirming: true })
-    expect(wrapper.find('.sdr-device-confirm-label').text()).toBe('REMOVE?')
+    expect(wrapper.find('.base-inline-confirm-label').text()).toBe('REMOVE?')
     expect(wrapper.find('.sdr-device-radio-added').exists()).toBe(false)
-    await wrapper.find('.sdr-device-confirm-btn--yes').trigger('click')
+    await wrapper.find('.base-inline-confirm-btn--confirm').trigger('click')
     expect(wrapper.emitted('confirm-delete')).toHaveLength(1)
-    await wrapper.findAll('.sdr-device-confirm-btn').at(-1)!.trigger('click')
+    await wrapper.findAll('.base-inline-confirm-btn').at(-1)!.trigger('click')
     expect(wrapper.emitted('cancel-delete')).toHaveLength(1)
   })
 
