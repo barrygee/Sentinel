@@ -179,6 +179,12 @@ describe('RemoteHostForm', () => {
       expect(wrapper.find(`#${labelId}`).text()).toBe('ADD SDRS')
     })
 
+    it('lets the ADD SDRS pills wrap under their caption on a narrow screen', () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      const row = wrapper.get('[role="radiogroup"]').element.closest('.ba-form-field')!
+      expect(row.classList.contains('ba-form-field--wrap-control')).toBe(true)
+    })
+
     it('adds a host set to AUTOMATICALLY with auto_add_sdrs on', async () => {
       mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
       mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
