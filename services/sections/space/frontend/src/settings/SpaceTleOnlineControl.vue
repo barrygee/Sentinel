@@ -13,33 +13,13 @@
       />
     </div>
     <div class="tle-cat-row-ctrl">
-      <div
-        class="tle-dropdown"
-        :class="{ 'tle-dropdown--open': dropOpen }"
-        tabindex="0"
-        aria-label="TLE category"
-        @blur="dropOpen = false"
-      >
-        <div class="tle-dropdown-selected" @mousedown.prevent="dropOpen = !dropOpen">
-          <span
-            class="tle-dropdown-selected-text"
-            :class="{ 'tle-dropdown-selected-text--chosen': selectedCategory }"
-          >
-            {{ selectedCategoryLabel }}
-          </span>
-          <span class="tle-dropdown-arrow"></span>
-        </div>
-        <div class="tle-dropdown-menu" :class="{ 'tle-dropdown-menu--open': dropOpen }">
-          <div
-            v-for="opt in TLE_CATEGORIES"
-            :key="opt.value"
-            class="tle-dropdown-item"
-            @mousedown.prevent="selectCategory(opt.value)"
-          >
-            {{ opt.label }}
-          </div>
-        </div>
-      </div>
+      <SettingsDropdown
+        :model-value="selectedCategory"
+        class="tle-category-dropdown"
+        :options="TLE_CATEGORIES"
+        accessible-name="TLE category"
+        @update:model-value="selectCategory"
+      />
       <BaseButton
         variant="primary"
         class="tle-action-btn tle-action-btn--primary"
@@ -64,9 +44,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import SettingsDropdown from '@sentinel/ui/base/SettingsDropdown.vue'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },
@@ -95,20 +76,10 @@ const CELESTRAK_URLS: Record<string, string> = {
 const LS_KEY = 'sentinel_space_onlineUrl'
 const effectiveUrls = ref<Record<string, string>>({ ...CELESTRAK_URLS })
 const selectedCategory = ref('active')
-const dropOpen = ref(false)
 const urlValue = ref('')
 const updateLoading = ref(false)
 const statusMsg = ref('')
 const statusType = ref<'ok' | 'error' | 'info'>('ok')
-
-const selectedCategoryLabel = computed(() => {
-  /* v8 ignore start -- defensive: selectedCategory is always one of
-     TLE_CATEGORIES, so the lookup resolves and the ?? fallback is unused */
-  return (
-    TLE_CATEGORIES.find((c) => c.value === selectedCategory.value)?.label ?? selectedCategory.value
-  )
-  /* v8 ignore stop */
-})
 
 try {
   const saved = localStorage.getItem(LS_KEY)
@@ -149,9 +120,9 @@ onMounted(async () => {
   /* v8 ignore stop */
 })
 
+/** Choosing a category also shows that category's source URL. */
 function selectCategory(val: string): void {
   selectedCategory.value = val
-  dropOpen.value = false
   /* v8 ignore start -- defensive: val is always a category with a known URL,
      so the ?? '' fallback is never used */
   urlValue.value = effectiveUrls.value[val] ?? ''

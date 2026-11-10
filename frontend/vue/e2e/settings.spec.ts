@@ -221,36 +221,36 @@ test.describe('Settings panel', () => {
     await expect(page.locator('#settings-section-heading')).toHaveText(/space/i)
 
     // Each TLE category row is its own stacking context, so without the fix the
-    // import row further down painted over the online row's open menu.
-    const onlineTrigger = page.locator('.tle-dropdown-selected').first()
+    // import row further down painted over the online row's open menu. Only one
+    // TLE row shows at a time now, so this guards the menu against anything
+    // later in the panel.
+    const onlineTrigger = page.locator('.tle-cat-row-ctrl .settings-dropdown-trigger').first()
     await onlineTrigger.scrollIntoViewIfNeeded()
-    await onlineTrigger.dispatchEvent('mousedown')
-    const openMenu = page.locator('.tle-dropdown-menu--open')
+    await onlineTrigger.click()
+    const openMenu = page.locator('.tle-cat-row-ctrl .settings-dropdown-menu--open')
     await expect(openMenu).toBeVisible()
     // The whole menu must be on screen for elementFromPoint to see it, and with
     // Space's Source Override above it the menu runs past the bottom unscrolled.
-    await openMenu.evaluate((menu) => menu.scrollIntoView({ block: 'end' }))
+    await openMenu.evaluate((menu) => menu.scrollIntoView({ block: 'center' }))
 
-    const overlap = await page.evaluate(() => {
-      const menu = document.querySelector('.tle-dropdown-menu--open')!
-      const rows = [...document.querySelectorAll('.tle-cat-row-ctrl')]
-      const nextRow = rows[rows.findIndex((row) => row.contains(menu)) + 1]
-      if (!nextRow) return null
-      const menuRect = menu.getBoundingClientRect()
-      const rowRect = nextRow.getBoundingClientRect()
-      if (rowRect.top >= menuRect.bottom) return null
-      return { x: menuRect.left + 30, y: Math.max(menuRect.top, rowRect.top) + 5 }
+    // The open menu must be the topmost thing across its whole visible box:
+    // nothing later in the panel (the next card or group heading, the TLE
+    // Import row when it is shown) may paint over it. Points down the menu's
+    // own box are sampled, not each option, because the list scrolls inside
+    // the menu and its last options sit below that box until scrolled to.
+    const coveredPoints = await openMenu.evaluate((menu) => {
+      const box = menu.getBoundingClientRect()
+      const samples = [0.1, 0.3, 0.5, 0.7, 0.9].flatMap((down) =>
+        [0.2, 0.8].map((across) => ({
+          x: box.left + box.width * across,
+          y: box.top + box.height * down,
+        })),
+      )
+      return samples
+        .filter(({ x, y }) => !menu.contains(document.elementFromPoint(x, y)))
+        .map(({ x, y }) => `${Math.round(x)},${Math.round(y)}`)
     })
-    // The menu must actually reach the next row, or this test proves nothing.
-    expect(overlap).not.toBeNull()
-    const menuIsOnTop = await page.evaluate(
-      ({ x, y }) =>
-        document
-          .querySelector('.tle-dropdown-menu--open')!
-          .contains(document.elementFromPoint(x, y)),
-      overlap!,
-    )
-    expect(menuIsOnTop).toBe(true)
+    expect(coveredPoints).toEqual([])
   })
 
   test('settings footer shows "NO CHANGES" when no edits are pending', async ({ page }) => {

@@ -639,112 +639,9 @@
   color: var(--surface-raised);
 }
 
-.tle-dropdown {
-  position: relative;
+.tle-cat-row-ctrl .tle-category-dropdown {
   width: 230px;
-  flex-shrink: 0;
-  height: 37px;
-  cursor: pointer;
-  outline: none;
-  user-select: none;
-}
-
-.tle-dropdown-selected {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  padding: 0 12px;
-  background-color: var(--surface);
-  border-radius: 0;
-}
-
-.tle-dropdown-selected-text {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-secondary);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tle-dropdown-selected-text--chosen {
-  color: rgba(var(--ink-rgb), 0.9);
-}
-
-.tle-dropdown-arrow {
-  flex-shrink: 0;
-  width: 8px;
-  height: 5px;
-  margin-left: 8px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M0 0l4 5 4-5z' fill='rgba(var(--ink-rgb), 0.5)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  transition: transform 0.15s;
-}
-
-.tle-dropdown--open .tle-dropdown-arrow {
-  transform: rotate(180deg);
-}
-
-.tle-dropdown--open .tle-dropdown-selected {
-  background-color: var(--surface-pressed);
-}
-
-.tle-dropdown-menu {
-  display: none;
-  position: absolute;
-  z-index: 99999;
-  background: var(--surface-raised);
-  border-radius: 0;
-  box-shadow: 0 10px 30px rgba(var(--shadow-rgb), 0.16);
-  overflow-y: auto;
-  max-height: 240px;
-  padding: 4px;
-  margin-top: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
-}
-
-.tle-dropdown-menu::-webkit-scrollbar {
-  width: 4px;
-}
-.tle-dropdown-menu::-webkit-scrollbar-track {
-  background: transparent;
-}
-.tle-dropdown-menu::-webkit-scrollbar-thumb {
-  background: rgba(var(--ink-rgb), 0.15);
-  border-radius: 2px;
-}
-
-.tle-dropdown-menu.tle-dropdown-menu--open {
-  display: block;
-}
-
-.tle-dropdown-item {
-  padding: 9px 12px;
-  border-radius: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 500;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.8);
-  cursor: pointer;
-  white-space: nowrap;
-  transition:
-    background 0.1s,
-    color 0.1s;
-}
-
-.tle-dropdown-item:hover {
-  background: rgba(var(--ink-rgb), 0.08);
-  color: var(--ink-strong);
+  flex: 0 0 230px;
 }
 
 .tle-cat-row-ctrl {
@@ -760,7 +657,7 @@
 /* Each TLE row is its own stacking context (isolation above), so its menu's
    z-index only counts inside that row, and the next TLE row down the panel
    painted over an open menu. Lift the row whose menu is open above the rest. */
-.tle-cat-row-ctrl:has(.tle-dropdown--open) {
+.tle-cat-row-ctrl:has(.settings-dropdown--open) {
   position: relative;
   z-index: 2;
 }
@@ -932,82 +829,6 @@
 .tle-cat-clear--confirm {
   color: var(--warn-text);
   background: var(--warn-soft);
-}
-
-.tle-uncat-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.tle-uncat-count {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-body);
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: rgba(var(--ink-rgb), 0.4);
-  text-decoration: none;
-}
-.tle-uncat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  max-height: 300px;
-  overflow-y: auto;
-  border-radius: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--ink-rgb), 0.15) transparent;
-}
-.tle-uncat-list::-webkit-scrollbar {
-  width: 4px;
-}
-.tle-uncat-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.tle-uncat-list::-webkit-scrollbar-thumb {
-  background: rgba(var(--ink-rgb), 0.15);
-  border-radius: 2px;
-}
-.tle-uncat-row {
-  display: grid;
-  grid-template-columns: 1fr 56px auto;
-  align-items: center;
-  gap: 0;
-  padding: 0;
-  background: rgba(var(--ink-rgb), 0.02);
-  border-radius: 0;
-  overflow: hidden;
-}
-.tle-uncat-name {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 400;
-  color: rgba(var(--ink-rgb), 0.7);
-  padding: 0 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: 0.02em;
-}
-.tle-uncat-id {
-  font-family: 'Barlow Condensed', 'Barlow', monospace;
-  font-size: var(--settings-text-caption);
-  color: rgba(var(--ink-rgb), 0.3);
-  text-align: right;
-  padding-right: 8px;
-  letter-spacing: 0.04em;
-}
-.tle-uncat-row .tle-uncat-drop {
-  height: 34px;
-  min-width: 150px;
-}
-.tle-uncat-row .tle-uncat-drop .tle-dropdown-selected {
-  height: 34px;
-  background-color: var(--surface);
-  border-radius: 0;
-}
-.tle-uncat-row .tle-uncat-drop .tle-dropdown-selected-text {
-  font-size: var(--settings-text-caption);
-  letter-spacing: 0.1em;
 }
 
 .tle-satlist-wrap {
@@ -1432,7 +1253,7 @@
     flex-wrap: wrap;
     width: 100%;
   }
-  .tle-cat-row-ctrl .tle-dropdown {
+  .tle-cat-row-ctrl .tle-category-dropdown {
     width: auto;
     flex: 1 1 150px;
     min-width: 0;
