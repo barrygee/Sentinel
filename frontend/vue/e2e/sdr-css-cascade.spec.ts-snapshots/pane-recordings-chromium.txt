@@ -67,7 +67,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
             span.base-accordion-chevron | display=flex; position=absolute; color=rgb(200, 255, 0); align-items=center; pointer-events=none
               svg.chevron-icon | display=block; overflow-x=hidden; overflow-y=hidden
                 path
-          div#sdr-mode-section | padding-right=7px; overflow-x=hidden; overflow-y=auto
+          div#sdr-mode-section | padding-right=20px; padding-left=20px; overflow-x=hidden; overflow-y=auto
             div.sdr-radio-section | padding-bottom=10px
               label.sdr-field-label | display=block; color=rgb(255, 255, 255); font-size=9px; letter-spacing=1.62px; text-transform=uppercase; cursor=default
               div.sdr-mode-pills | display=flex; gap=4px

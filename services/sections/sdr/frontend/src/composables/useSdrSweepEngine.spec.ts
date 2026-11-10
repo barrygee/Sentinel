@@ -334,7 +334,7 @@ describe('useSdrSweepEngine — range search', () => {
     expect(store.searchLowHz).toBe(100_000_000)
     expect(store.searchHighHz).toBe(100_050_000)
     expect(store.searchCurrentHz).toBe(100_000_000)
-    expect(store.searchLabel).toBe('Ad-hoc')
+    expect(store.searchLabel).toBeNull() // a typed-in range has no chip
   })
 
   it('steps quiet channels and wraps at the high edge', async () => {
@@ -449,6 +449,20 @@ describe('useSdrSweepEngine — range search', () => {
     engine.onSavedRangePlayClick(12)
     expect(store.searchLabel).toBe('Marine')
     engine.onSavedRangePlayClick(12)
+    expect(store.searchLabel).toBeNull()
+  })
+
+  it("drops a saved range's label when an ad-hoc search takes over", () => {
+    useSweepTimers()
+    const { engine } = createHarness()
+    const store = useSdrStore()
+    engine.searchRanges.value = [makeRange()]
+    engine.onSavedRangePlayClick(11)
+    expect(store.searchLabel).toBe('Airband')
+    engine.adhocLowMhz.value = '100'
+    engine.adhocHighMhz.value = '100.05'
+    engine.onAdhocPlayClick() // replaces the saved-range sweep
+    expect(engine.isAdhocSearching.value).toBe(true)
     expect(store.searchLabel).toBeNull()
   })
 
@@ -612,7 +626,7 @@ describe('useSdrSweepEngine — store mirrors and follower publish', () => {
       search_active: true,
       search_low_hz: 100_000_000,
       search_high_hz: 100_050_000,
-      search_label: 'Ad-hoc',
+      search_label: null,
     })
     // Re-assigning an identical value (new array, same content) re-fires the
     // watcher but the serialized payload is unchanged — deduped, no re-send.
