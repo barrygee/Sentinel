@@ -193,9 +193,18 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
       const sites = MILITARY_BASES_DATA.features.map((feature) => {
         const coordinates = feature.geometry.coordinates as LngLat
         return {
+          // A base without an ICAO code (Fylingdales) shows its name alone.
+          code: feature.properties.icao || undefined,
           name: feature.properties.name,
           coordinates,
+          // Clicking a base flies the map to it and opens its accordion in the
+          // side panel's MIL list (AirView and MapSidebar listen for this).
           onClick: () => {
+            document.dispatchEvent(
+              new CustomEvent('air-open-military-base', {
+                detail: { name: feature.properties.name },
+              }),
+            )
             const pitch = this._is3DActive() ? 45 : undefined
             const easeOpts: maplibregl.EaseToOptions = {
               center: coordinates,

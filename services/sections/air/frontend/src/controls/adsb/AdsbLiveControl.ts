@@ -1515,13 +1515,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   private _showHoverTag(
     feature: AircraftGeoFeature,
-    fromLabel = false,
-    labelEl: HTMLElement | null = null,
-    labelDir?: 'left' | 'right',
+    fromLabelArgument = false,
+    labelElArgument: HTMLElement | null = null,
+    labelDirArgument?: 'left' | 'right',
   ): void {
     if (!feature || !this.map) return
     const hex = feature.properties.hex
     if (hex === this._selectedHex) return
+    // A hover that starts on the aircraft's trail or hit area, not its label,
+    // still opens where the label sits. Otherwise the tag took the label-less
+    // below-right placement and jumped sideways off the resting label.
+    const restingLabel = fromLabelArgument ? null : this._callsignMarkers[hex]?.getElement()
+    const fromLabel = fromLabelArgument || !!restingLabel
+    const labelEl = restingLabel ?? labelElArgument
+    const labelDir = restingLabel
+      ? (restingLabel.dataset.dir as 'left' | 'right' | undefined)
+      : labelDirArgument
     if (this._hoverHideTimer) {
       clearTimeout(this._hoverHideTimer)
       this._hoverHideTimer = null

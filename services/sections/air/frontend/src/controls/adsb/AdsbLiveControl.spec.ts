@@ -1317,6 +1317,61 @@ describe('AdsbLiveControl hover tag', () => {
     expect(labelEl.style.visibility).toBe('hidden')
   })
 
+  // A fake resting label, as _syncCallsignMarkers would leave on the map.
+  function restLabel(control: AdsbLiveControl, hex: string, dir: 'left' | 'right'): HTMLElement {
+    const labelEl = document.createElement('div')
+    labelEl.dataset.dir = dir
+    priv(control)._callsignMarkers[hex] = { getElement: () => labelEl }
+    return labelEl
+  }
+
+  it('opens a trail hover where the resting label sits, hiding that label', () => {
+    const { control, map } = mounted()
+    seedFeature(control, { track: 270 })
+    priv(control)._trails['abc123'] = [{ lon: -0.1, lat: 51.5, alt: 100 }]
+    const labelEl = restLabel(control, 'abc123', 'left')
+    map.fire('mouseenter', 'adsb-trail-line', { features: [{ properties: { hex: 'abc123' } }] })
+    const hoverMarker = markerRegistry.instances.at(-1)!
+    // The label-less fallback is top-left at [14, -13]; the label's place is
+    // anchored on its own side with the label's offset.
+    expect(hoverMarker.options.anchor).toBe('right')
+    expect(hoverMarker.options.offset).toEqual(
+      priv(control)._labelOffset(control._geojson.features[0]!.properties, true),
+    )
+    expect(labelEl.style.visibility).toBe('hidden')
+    expect(labelEl.style.pointerEvents).toBe('none')
+  })
+
+  it('follows the side the resting label was drawn on, not the current track', () => {
+    const { control } = mounted()
+    // Right-facing by track, but the label on the map was built facing left
+    // (the track crossed the threshold since): the tag must not flip sides.
+    seedFeature(control, { track: 90 })
+    restLabel(control, 'abc123', 'left')
+    priv(control)._showHoverTag(control._geojson.features[0])
+    expect(markerRegistry.instances.at(-1)!.options.anchor).toBe('right')
+  })
+
+  it('keeps the below-right placement for an aircraft with no resting label', () => {
+    const { control } = mounted()
+    seedFeature(control, { track: 270 })
+    priv(control)._showHoverTag(control._geojson.features[0])
+    const hoverMarker = markerRegistry.instances.at(-1)!
+    expect(hoverMarker.options.anchor).toBe('top-left')
+    expect(hoverMarker.options.offset).toEqual([14, -13])
+  })
+
+  it("uses the hovered label's own element over a resting label lookup", () => {
+    const { control } = mounted()
+    seedFeature(control, { track: 90 })
+    const restingEl = restLabel(control, 'abc123', 'left')
+    const hoveredEl = document.createElement('div')
+    priv(control)._showHoverTag(control._geojson.features[0], true, hoveredEl, 'right')
+    expect(markerRegistry.instances.at(-1)!.options.anchor).toBe('left')
+    expect(hoveredEl.style.visibility).toBe('hidden')
+    expect(restingEl.style.visibility).toBe('')
+  })
+
   it('debounced hide eventually removes the hover marker', () => {
     vi.useFakeTimers()
     const { control } = mounted()

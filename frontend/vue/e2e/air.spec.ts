@@ -206,6 +206,25 @@ test.describe('Air domain', () => {
     expect(zoomInTooltipDisplay).toBe('none')
     expect(rangeRingTooltipDisplay).toBe('none')
   })
+
+  test('a military base map click opens the MIL list on that base, expanded', async ({ page }) => {
+    await page.goto('/air/')
+    await waitForShellHydration(page)
+    // The base markers are drawn on the map canvas, so fire the event a
+    // marker click sends (MilitaryBasesControl's unit spec pins that).
+    await page.evaluate(() =>
+      document.dispatchEvent(
+        new CustomEvent('air-open-military-base', { detail: { name: 'RAF Coningsby' } }),
+      ),
+    )
+    const option = page.getByRole('option', { name: 'EGXC, RAF CONINGSBY, expanded' })
+    await expect(option).toBeVisible()
+    // The accordion renders after the listbox, not inside the option.
+    await expect(page.getByText('53.0930°N', { exact: true })).toBeVisible()
+    await expect(page.getByText('0.1664°W', { exact: true })).toBeVisible()
+    // Only the clicked base is open.
+    await expect(page.getByRole('option', { name: /, expanded$/ })).toHaveCount(1)
+  })
 })
 
 /**
