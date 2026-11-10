@@ -650,8 +650,8 @@ describe('SdrDevicesControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     await wrapper.find('.sdr-device-btn--danger').trigger('click')
-    expect(wrapper.find('.sdr-device-confirm').exists()).toBe(true)
-    await wrapper.find('.sdr-device-confirm-btn--yes').trigger('click')
+    expect(wrapper.find('.base-inline-confirm').exists()).toBe(true)
+    await wrapper.find('.base-inline-confirm-btn--confirm').trigger('click')
     await flushPromises()
     expect(mockDeleteRadio).toHaveBeenCalledWith(1)
     expect(changed).toHaveBeenCalled()
@@ -665,10 +665,10 @@ describe('SdrDevicesControl', () => {
     await flushPromises()
     await wrapper.find('.sdr-device-btn--danger').trigger('click')
     mockListRadios.mockClear()
-    await wrapper.find('.sdr-device-confirm-btn--yes').trigger('click')
+    await wrapper.find('.base-inline-confirm-btn--confirm').trigger('click')
     await flushPromises()
     expect(mockListRadios).not.toHaveBeenCalled()
-    expect(wrapper.find('.sdr-device-confirm').exists()).toBe(true)
+    expect(wrapper.find('.base-inline-confirm').exists()).toBe(true)
   })
 
   it('cancels a pending delete with NO', async () => {
@@ -676,9 +676,9 @@ describe('SdrDevicesControl', () => {
     const wrapper = mountControl()
     await flushPromises()
     await wrapper.find('.sdr-device-btn--danger').trigger('click')
-    const noButton = wrapper.findAll('.sdr-device-confirm-btn').at(-1)!
+    const noButton = wrapper.findAll('.base-inline-confirm-btn').at(-1)!
     await noButton.trigger('click')
-    expect(wrapper.find('.sdr-device-confirm').exists()).toBe(false)
+    expect(wrapper.find('.base-inline-confirm').exists()).toBe(false)
   })
 
   it('adds an SDR-Manager-known device as a mirrored radio and broadcasts the change', async () => {

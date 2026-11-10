@@ -74,13 +74,12 @@
           </svg>
         </button>
       </template>
-      <div v-else class="sdr-device-confirm" style="display: flex">
-        <span class="sdr-device-confirm-label">REMOVE?</span>
-        <button class="sdr-device-confirm-btn sdr-device-confirm-btn--yes" @click="confirmRemove">
-          YES
-        </button>
-        <button class="sdr-device-confirm-btn" @click="confirming = false">NO</button>
-      </div>
+      <BaseInlineConfirm
+        v-else
+        label="REMOVE?"
+        @confirm="confirmRemove"
+        @cancel="confirming = false"
+      />
     </div>
     <p v-if="host.last_error" class="remote-host-header-error">{{ host.last_error }}</p>
     <p v-if="hostEdits.drafts.has(host.id)" class="remote-host-header-staged">
@@ -118,6 +117,7 @@
  * itself into view and clears the request.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useStagedEdits } from '@sentinel/shell-api/settings/useStagedEdits'

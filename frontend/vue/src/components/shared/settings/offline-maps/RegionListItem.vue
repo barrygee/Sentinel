@@ -63,24 +63,14 @@
             />
           </svg>
         </button>
-        <div v-else class="sdr-device-confirm oma-region-confirm">
-          <span class="sdr-device-confirm-label">DELETE?</span>
-          <button
-            type="button"
-            class="sdr-device-confirm-btn sdr-device-confirm-btn--yes"
-            @click="emit('delete-confirm')"
-          >
-            YES
-          </button>
-          <button
-            ref="confirmNoButtonRef"
-            type="button"
-            class="sdr-device-confirm-btn"
-            @click="emit('delete-cancel')"
-          >
-            NO
-          </button>
-        </div>
+        <BaseInlineConfirm
+          v-else
+          class="oma-region-confirm"
+          label="DELETE?"
+          initial-focus="cancel"
+          @confirm="emit('delete-confirm')"
+          @cancel="emit('delete-cancel')"
+        />
       </template>
     </div>
   </li>
@@ -104,6 +94,7 @@
  * export below.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import DownloadProgress from './DownloadProgress.vue'
 import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
 import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
@@ -148,22 +139,19 @@ const metaTail = computed(() => {
 
 const selectButtonRef = ref<HTMLButtonElement | null>(null)
 const deleteButtonRef = ref<HTMLButtonElement | null>(null)
-const confirmNoButtonRef = ref<HTMLButtonElement | null>(null)
 
+// Opening the confirm focuses its NO (BaseInlineConfirm's initial-focus: the
+// safe default, since a stray Enter/Space there can't confirm a destructive
+// action). Closing it returns focus to the row's delete button.
 watch(
   () => props.confirming,
   async (confirming) => {
+    if (confirming) return
     await nextTick()
-    if (confirming) {
-      // NO is the safe default focus target — a stray Enter/Space while
-      // focus lands here can't confirm a destructive action.
-      confirmNoButtonRef.value?.focus()
-    } else {
-      // Cancelling returns focus to the row it came from. If this fires
-      // because the row was instead just confirmed for deletion, the row is
-      // about to be removed from the list and `RegionList` takes over focus.
-      deleteButtonRef.value?.focus()
-    }
+    // If this fires because the row was instead just confirmed for deletion,
+    // the row is about to be removed from the list and `RegionList` takes
+    // over focus.
+    deleteButtonRef.value?.focus()
   },
 )
 
@@ -245,11 +233,5 @@ defineExpose({ focusSelectButton })
 
 .oma-region-progress {
   margin-top: 6px;
-}
-
-/* The shared confirm row is hidden until a stylesheet shows it; this one only
-   renders while confirming. */
-.oma-region-confirm {
-  display: flex;
 }
 </style>

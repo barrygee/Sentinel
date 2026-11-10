@@ -17,20 +17,13 @@
         </svg>
       </button>
     </span>
-    <span v-else class="sdr-device-confirm" style="display: flex">
-      <span class="sdr-device-confirm-label">REMOVE?</span>
-      <button
-        type="button"
-        class="sdr-device-confirm-btn sdr-device-confirm-btn--yes"
-        :aria-label="`Remove ${radio.name} from radios`"
-        @click="emit('confirm-delete')"
-      >
-        YES
-      </button>
-      <button type="button" class="sdr-device-confirm-btn" @click="emit('cancel-delete')">
-        NO
-      </button>
-    </span>
+    <BaseInlineConfirm
+      v-else
+      label="REMOVE?"
+      :confirm-accessible-name="`Remove ${radio.name} from radios`"
+      @confirm="emit('confirm-delete')"
+      @cancel="emit('cancel-delete')"
+    />
   </template>
   <span v-else-if="device && autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
     hostDeviceNotRadioReason(device, true)
@@ -55,6 +48,7 @@
  * SDR isn't a radio (not set up). Private doesn't stop it here: that only keeps
  * an SDR from other machines.
  */
+import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
 import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'

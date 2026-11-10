@@ -179,10 +179,10 @@ describe('LocalDeviceRow', () => {
       const { wrapper } = mountRow(ABSENT, false, true)
       await wrapper.get('button[title="Forget"]').trigger('click')
       await flushPromises()
-      expect(wrapper.get('.sdr-device-confirm-label').text()).toBe('FORGET?')
+      expect(wrapper.get('.base-inline-confirm-label').text()).toBe('FORGET?')
       expect(wrapper.find('[role="switch"]').exists()).toBe(false)
       expect(wrapper.find('button[title="Edit"]').exists()).toBe(false)
-      const yes = wrapper.get('.sdr-device-confirm-btn--yes')
+      const yes = wrapper.get('.base-inline-confirm-btn--confirm')
       expect(yes.attributes('aria-label')).toBe('Forget Roof and its saved settings')
       expect(document.activeElement).toBe(yes.element)
       wrapper.unmount()
@@ -192,10 +192,10 @@ describe('LocalDeviceRow', () => {
       const { wrapper } = mountRow(ABSENT)
       await wrapper.get('button[title="Forget"]').trigger('click')
       const no = wrapper
-        .findAll('.sdr-device-confirm-btn')
+        .findAll('.base-inline-confirm-btn')
         .find((button) => button.text() === 'NO')!
       await no.trigger('click')
-      expect(wrapper.find('.sdr-device-confirm').exists()).toBe(false)
+      expect(wrapper.find('.base-inline-confirm').exists()).toBe(false)
       expect(wrapper.find('button[title="Edit"]').exists()).toBe(true)
       expect(api.forgetDevice).not.toHaveBeenCalled()
     })
@@ -204,7 +204,7 @@ describe('LocalDeviceRow', () => {
       vi.mocked(api.forgetDevice).mockResolvedValue(undefined)
       const { wrapper } = mountRow(ABSENT)
       await wrapper.get('button[title="Forget"]').trigger('click')
-      await wrapper.get('.sdr-device-confirm-btn--yes').trigger('click')
+      await wrapper.get('.base-inline-confirm-btn--confirm').trigger('click')
       await flushPromises()
       expect(api.forgetDevice).toHaveBeenCalledWith('device-1')
       expect(useLocalSdrStore().devicesById['device-1']).toBeUndefined()
@@ -217,12 +217,12 @@ describe('LocalDeviceRow', () => {
       )
       const { wrapper } = mountRow(ABSENT)
       await wrapper.get('button[title="Forget"]').trigger('click')
-      await wrapper.get('.sdr-device-confirm-btn--yes').trigger('click')
+      await wrapper.get('.base-inline-confirm-btn--confirm').trigger('click')
       await flushPromises()
       expect(wrapper.get('[role="alert"]').text()).toBe(
         'This device was plugged back in, so it can no longer be forgotten.',
       )
-      expect(wrapper.find('.sdr-device-confirm').exists()).toBe(false)
+      expect(wrapper.find('.base-inline-confirm').exists()).toBe(false)
       expect(useLocalSdrStore().devicesById['device-1']).toBeDefined()
     })
 
@@ -233,7 +233,7 @@ describe('LocalDeviceRow', () => {
       const { wrapper } = mountRow(ABSENT)
       for (let attempt = 0; attempt < 2; attempt += 1) {
         await wrapper.get('button[title="Forget"]').trigger('click')
-        await wrapper.get('.sdr-device-confirm-btn--yes').trigger('click')
+        await wrapper.get('.base-inline-confirm-btn--confirm').trigger('click')
         await flushPromises()
       }
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
@@ -248,7 +248,7 @@ describe('LocalDeviceRow', () => {
     await expectNoAxeViolations(wrapper)
     await wrapper.get('button[title="Forget"]').trigger('click')
     await expectNoAxeViolations(wrapper)
-    await wrapper.get('.sdr-device-confirm-btn--yes').trigger('click')
+    await wrapper.get('.base-inline-confirm-btn--confirm').trigger('click')
     await flushPromises()
     await expectNoAxeViolations(wrapper)
   })

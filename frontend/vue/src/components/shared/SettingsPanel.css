@@ -1295,54 +1295,6 @@
   color: var(--danger);
 }
 
-.sdr-device-confirm {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.sdr-device-confirm-label {
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--danger);
-  text-transform: uppercase;
-}
-
-.sdr-device-confirm-btn {
-  background: var(--hover-surface);
-  border: none;
-  border-radius: 0;
-  padding: 3px 9px;
-  color: var(--ink-secondary);
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-caption);
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.sdr-device-confirm-btn:hover {
-  background: rgba(var(--ink-rgb), 0.12);
-  color: rgba(var(--ink-rgb), 0.85);
-}
-
-.sdr-device-confirm-btn--yes {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.sdr-device-confirm-btn--yes:hover {
-  background: rgba(var(--danger-wash-rgb), 0.2);
-  color: var(--danger-hover);
-}
-
 .sdr-devices-accordion {
   display: flex;
   flex-direction: column;
