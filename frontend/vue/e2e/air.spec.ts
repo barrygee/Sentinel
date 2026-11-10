@@ -174,6 +174,63 @@ test.describe('Air domain', () => {
     await expect(page.locator('.no-url-overlay')).toBeVisible({ timeout: 8000 })
   })
 
+  // The ALWAYS ON column can only be ticked for a field switched on for civil or
+  // military traffic; a locked box is dimmed so it doesn't read as tickable.
+  // jsdom doesn't apply the component's CSS, so this needs a real browser.
+  test('locked ALWAYS ON label boxes are dimmed until their field is switched on', async ({
+    page,
+  }) => {
+    const fieldsOff = {
+      callsign: false,
+      altitude: false,
+      speed: false,
+      heading: false,
+      aircraftType: false,
+      registration: false,
+      squawk: false,
+      category: false,
+    }
+    await page.route('/api/settings/air', (route) => {
+      void route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          onlineDataSourceURL: 'http://192.168.1.1:8080/data/aircraft.json',
+          labelDataPoints: {
+            civil: { ...fieldsOff, callsign: true },
+            mil: { ...fieldsOff },
+            always: { ...fieldsOff },
+          },
+        }),
+      })
+    })
+    await page.goto('/settings/air')
+    await waitForShellHydration(page)
+
+    const boxStyle = (name: string) =>
+      page.getByRole('checkbox', { name, exact: true }).evaluate((input) => {
+        const box = getComputedStyle(input.nextElementSibling as Element)
+        return { opacity: box.opacity, cursor: box.cursor }
+      })
+    const lockedAltitude = page.getByRole('checkbox', { name: 'Altitude — Always On', exact: true })
+    await expect(lockedAltitude).toBeDisabled()
+    expect(await boxStyle('Altitude — Always On')).toEqual({
+      opacity: '0.35',
+      cursor: 'not-allowed',
+    })
+    await expect(
+      page.getByRole('checkbox', { name: 'Callsign — Always On', exact: true }),
+    ).toBeEnabled()
+    expect(await boxStyle('Callsign — Always On')).toEqual({ opacity: '1', cursor: 'pointer' })
+
+    // Switching Altitude on for civil traffic unlocks its ALWAYS ON box.
+    // The native input is visually hidden (it stays in the tab order), so toggle
+    // it from the keyboard.
+    await page.getByRole('checkbox', { name: 'Altitude — Civil', exact: true }).focus()
+    await page.keyboard.press('Space')
+    await expect(lockedAltitude).toBeEnabled()
+    expect(await boxStyle('Altitude — Always On')).toEqual({ opacity: '1', cursor: 'pointer' })
+  })
+
   // Regression test for the IconRail/IconRailAccordion touch-tooltip fix (see the
   // identical Space-domain test in space.spec.ts): IconRailAccordion is a
   // multi-root component, so Vue's scoped-CSS slot scope-id propagation doesn't
