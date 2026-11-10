@@ -153,8 +153,8 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
   )
 
   // Owner → followers: publish this instance's scanner/search sweep state over the
-  // relay control channel so a read-only watcher renders the same "paused during
-  // active scan/search" overlay. Only the tuning owner of a shared dongle forwards
+  // relay control channel so a read-only watcher renders the same "Scanning" /
+  // "Searching" overlay, label chip included. Only the tuning owner of a shared dongle forwards
   // (a single instance / raw rtl_tcp has no followers, and a follower must not echo
   // the state back); deduped so an unchanged sweep never re-sends.
   let _lastSweepPayload = ''
@@ -168,6 +168,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
         search_low_hz: _ss.searchLowHz,
         search_high_hz: _ss.searchHighHz,
         search_current_hz: _ss.searchCurrentHz,
+        search_label: _ss.searchLabel,
       }
     },
     (payload) => {

@@ -123,9 +123,9 @@ class FakeRelayServer:
                     ):
                         if message.get(key) is not None:
                             self.state[key] = message[key]
-                    # Sweep fields ride through verbatim (the real relay passes
-                    # unknown fields as-is), including explicit nulls that clear the
-                    # search bounds when the owner stops searching.
+                    # Sweep fields ride through verbatim (the real relay keeps the
+                    # owner's metadata and echoes it in every state event), including
+                    # explicit nulls that clear the search when the owner stops.
                     for key in (
                         "scan_active",
                         "scan_groups",
@@ -133,6 +133,7 @@ class FakeRelayServer:
                         "search_low_hz",
                         "search_high_hz",
                         "search_current_hz",
+                        "search_label",
                     ):
                         if key in message:
                             self.state[key] = message[key]
@@ -276,8 +277,10 @@ async def test_control_client_mirrors_sweep_state_from_state(relay):
         search_low_hz=156_000_000,
         search_high_hz=162_000_000,
         search_current_hz=158_000_000,
+        search_label="Marine VHF",
     )
     await _wait_until(lambda: client.scan_active is True)
+    assert client.search_label == "Marine VHF"
     assert client.scan_groups == ["Airband", "Marine"]
     assert client.search_active is True
     assert client.search_low_hz == 156_000_000
@@ -289,11 +292,29 @@ async def test_control_client_mirrors_sweep_state_from_state(relay):
         search_low_hz=None,
         search_high_hz=None,
         search_current_hz=None,
+        search_label=None,
     )
     await _wait_until(lambda: client.search_active is False)
     assert client.search_low_hz is None
     assert client.search_high_hz is None
     assert client.search_current_hz is None
+    assert client.search_label is None
+    await client.close()
+
+
+async def test_control_client_search_label_kept_when_omitted_and_stringified(relay):
+    """A state event without search_label leaves the mirrored label alone, and a
+    non-string label from the relay is stored as text."""
+    client = sdr_svc.RelayControlClient("127.0.0.1", relay.port)
+    await client.connect()
+    await client.claim()
+    await client.set(search_active=True, search_label=42)
+    await _wait_until(lambda: client.search_label is not None)
+    assert client.search_label == "42"
+    relay.state.pop("search_label")  # the next state event omits the key
+    await client.set(center_hz=91_000_000)
+    await _wait_until(lambda: client.center_hz == 91_000_000)
+    assert client.search_label == "42"
     await client.close()
 
 
@@ -450,6 +471,7 @@ class FakeControl:
         self.search_low_hz: int | None = None
         self.search_high_hz: int | None = None
         self.search_current_hz: int | None = None
+        self.search_label: str | None = None
         self.sets: list[dict] = []
         self.claims = 0
         self.releases = 0
@@ -679,10 +701,26 @@ async def test_set_sweep_state_owner_forwards_and_stores():
             "search_low_hz": None,
             "search_high_hz": None,
             "search_current_hz": None,
+            "search_label": None,
         }
     ]
     assert conn.scan_active is True
     assert conn.scan_groups == ["Airband"]
+
+
+async def test_set_sweep_state_owner_forwards_and_stores_the_search_label():
+    conn = _control_conn(owner=True)
+    await conn.set_sweep_state(
+        scan_active=False,
+        scan_groups=[],
+        search_active=True,
+        search_low_hz=118_000_000,
+        search_high_hz=137_000_000,
+        search_current_hz=121_500_000,
+        search_label="Airband",
+    )
+    assert conn.control.sets[-1]["search_label"] == "Airband"
+    assert conn.search_label == "Airband"
 
 
 async def test_set_sweep_state_follower_stores_but_does_not_forward():
@@ -696,8 +734,10 @@ async def test_set_sweep_state_follower_stores_but_does_not_forward():
         search_low_hz=156_000_000,
         search_high_hz=162_000_000,
         search_current_hz=158_000_000,
+        search_label="Marine",
     )
     assert conn.control.sets == []
+    assert conn.search_label == "Marine"
     assert conn.search_active is True
     assert conn.search_low_hz == 156_000_000
     assert conn.search_high_hz == 162_000_000
@@ -734,7 +774,9 @@ def test_adopt_control_state_copies_fields():
     control.search_low_hz = 156_000_000
     control.search_high_hz = 162_000_000
     control.search_current_hz = 158_000_000
+    control.search_label = "Marine"
     conn._adopt_control_state(control)
+    assert conn.search_label == "Marine"
     assert conn.center_hz == 77_000_000
     assert conn.sample_rate == 960_000
     assert conn.gain_db == 8.0
@@ -941,6 +983,7 @@ def test_broadcaster_pushes_control_frame_on_state_change():
     conn.search_low_hz = 156_000_000
     conn.search_high_hz = 162_000_000
     conn.search_current_hz = 158_000_000
+    conn.search_label = "Marine"
     broadcaster = sdr_svc.RadioBroadcaster(conn)
     queue = broadcaster.subscribe()
     broadcaster._on_control_state()
@@ -960,6 +1003,7 @@ def test_broadcaster_pushes_control_frame_on_state_change():
     assert frame["search_low_hz"] == 156_000_000
     assert frame["search_high_hz"] == 162_000_000
     assert frame["search_current_hz"] == 158_000_000
+    assert frame["search_label"] == "Marine"
 
 
 # ── Router: WS status/control frames + follower connect ───────────────────────
@@ -987,6 +1031,7 @@ class _RouterConn:
     search_low_hz: int | None = None
     search_high_hz: int | None = None
     search_current_hz: int | None = None
+    search_label: str | None = None
 
     def __init__(
         self,
@@ -1013,6 +1058,7 @@ class _RouterConn:
         search_low_hz: int | None,
         search_high_hz: int | None,
         search_current_hz: int | None,
+        search_label: str | None = None,
     ) -> None:
         # Records the browser-published sweep state (never raises — like set_demod
         # it touches no hardware, only the shared control channel when we own it).
@@ -1022,6 +1068,7 @@ class _RouterConn:
         self.search_low_hz = search_low_hz
         self.search_high_hz = search_high_hz
         self.search_current_hz = search_current_hz
+        self.search_label = search_label
         self.sweep = {
             "scan_active": scan_active,
             "scan_groups": scan_groups,
@@ -1029,6 +1076,7 @@ class _RouterConn:
             "search_low_hz": search_low_hz,
             "search_high_hz": search_high_hz,
             "search_current_hz": search_current_hz,
+            "search_label": search_label,
         }
 
     async def set_frequency(self, freq_hz: int) -> None:
@@ -1130,6 +1178,7 @@ def test_ws_sweep_state_command_updates_connection(client, monkeypatch):
         "search_low_hz": 156_000_000,
         "search_high_hz": None,
         "search_current_hz": None,  # negative floored to None
+        "search_label": None,  # omitted → None
     }
 
 
@@ -1165,6 +1214,31 @@ def test_ws_sweep_state_caps_and_truncates_group_list(client, monkeypatch):
     assert all(len(name) == MAX_SCAN_GROUP_NAME_LEN for name in conn.sweep["scan_groups"])
 
 
+def test_ws_sweep_state_passes_a_capped_search_label(client, monkeypatch):
+    conn = _RouterConn(is_owner=True)
+    _patch_router(monkeypatch, conn)
+    with client.websocket_connect("/ws/sdr/1") as ws:
+        ws.receive_json()
+        ws.send_json({"cmd": "sweep_state", "search_active": True, "search_label": "L" * 100})
+        ws.send_json({"cmd": "ping"})
+        assert ws.receive_json()["type"] == "pong"
+    from sentinel_radio.routers.radio_control import MAX_SCAN_GROUP_NAME_LEN
+
+    assert conn.sweep["search_label"] == "L" * MAX_SCAN_GROUP_NAME_LEN
+
+
+def test_sanitize_optional_label():
+    from sentinel_radio.routers.radio_control import MAX_SCAN_GROUP_NAME_LEN, _sanitize_optional_label
+
+    assert _sanitize_optional_label("Airband") == "Airband"
+    assert _sanitize_optional_label("x" * (MAX_SCAN_GROUP_NAME_LEN + 1)) == "x" * MAX_SCAN_GROUP_NAME_LEN
+    assert _sanitize_optional_label("x" * MAX_SCAN_GROUP_NAME_LEN) == "x" * MAX_SCAN_GROUP_NAME_LEN
+    assert _sanitize_optional_label("") is None  # empty hides the chip
+    assert _sanitize_optional_label(None) is None
+    assert _sanitize_optional_label(42) is None  # not text
+    assert _sanitize_optional_label(["Airband"]) is None
+
+
 def test_sanitize_optional_hz():
     from sentinel_radio.routers.radio_control import _sanitize_optional_hz
 
@@ -1183,9 +1257,11 @@ def test_ws_initial_status_includes_sweep_state(client, monkeypatch):
     conn.search_low_hz = 156_000_000
     conn.search_high_hz = 162_000_000
     conn.search_current_hz = 158_000_000
+    conn.search_label = "Marine"
     _patch_router(monkeypatch, conn)
     with client.websocket_connect("/ws/sdr/1") as ws:
         status = ws.receive_json()
+    assert status["search_label"] == "Marine"
     assert status["scan_active"] is True
     assert status["scan_groups"] == ["Airband"]
     assert status["search_active"] is True

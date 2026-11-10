@@ -279,6 +279,7 @@ class _FakeConn:
     search_low_hz: int | None = None
     search_high_hz: int | None = None
     search_current_hz: int | None = None
+    search_label: str | None = None
     # Tuning-ownership fields the WS status frame reads (no relay control channel
     # in this stub, so it behaves as a sole owner with control unavailable).
     is_owner = True
