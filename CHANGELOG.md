@@ -1827,6 +1827,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #604 from barrygee/refactor/local-form-field
 - Merge pull request #605 from barrygee/refactor/accordion-section-styles
 - Merge pull request #606 from barrygee/fix/air-military-bases
+- Merge pull request #607 from barrygee/refactor/generic-select-slider-classes
 
 ### Performance
 
@@ -1948,6 +1949,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the old device form row, label and input CSS
 - Drop the accordion header styles from SdrPanel.css
 - Build REPEATER FILTERS on BaseAccordionSection
+- Give BaseSelectMenu and BaseSliderRow generic class names
 
 ### Documentation
 
@@ -2228,6 +2230,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the THIS MACHINE form fields
 - Rebuild for the BaseAccordionSection styles
 - Rebuild for the military base panel and hover tag fixes
+- Rebuild for the generic select menu and slider row classes
 
 ### Continuous Integration
 
