@@ -193,6 +193,8 @@ class RelayControlClient:
         self.search_low_hz: int | None = None
         self.search_high_hz: int | None = None
         self.search_current_hz: int | None = None
+        # The searched range's label (a saved range's name, or "Ad-hoc").
+        self.search_label: str | None = None
 
     async def connect(self) -> bool:
         """Open the control channel and start the read loop. Returns availability.
@@ -265,6 +267,9 @@ class RelayControlClient:
                     if bound in message:
                         value = message[bound]
                         setattr(self, bound, None if value is None else int(value))
+                if "search_label" in message:
+                    label = message["search_label"]
+                    self.search_label = None if label is None else str(label)
                 self._state_event.set()
                 if self._on_state is not None:
                     self._on_state(message)
@@ -378,13 +383,14 @@ class RtlTcpConnection:
     # Owner sweep state shared owner→followers over the control channel (see
     # RelayControlClient). For an owner these mirror what its browser's scanner/
     # search is doing; for a follower they are adopted from the relay so its own
-    # browser can render the same "paused during active scan/search" overlay.
+    # browser can render the same "Scanning"/"Searching" overlay.
     scan_active: bool = False
     scan_groups: list[str] = field(default_factory=list)
     search_active: bool = False
     search_low_hz: int | None = None
     search_high_hz: int | None = None
     search_current_hz: int | None = None
+    search_label: str | None = None
     fft_size: int = DEFAULT_FFT_SIZE
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
     # Tuning-ownership control channel (None until the first connect attempt).
@@ -519,6 +525,7 @@ class RtlTcpConnection:
         self.search_low_hz = control.search_low_hz
         self.search_high_hz = control.search_high_hz
         self.search_current_hz = control.search_current_hz
+        self.search_label = control.search_label
 
     def _on_control_state(self, _message: dict) -> None:
         """Relay state push: mirror ownership + tuning, then notify WS subscribers."""
@@ -641,13 +648,14 @@ class RtlTcpConnection:
         search_low_hz: int | None,
         search_high_hz: int | None,
         search_current_hz: int | None,
+        search_label: str | None = None,
     ) -> None:
         """Record this instance's scanner/search sweep state and, when we own the
         shared tuner, publish it to followers over the relay control channel.
 
         Like ``set_demod`` this touches no hardware — the scan/search loop runs in
         the owner's browser. We forward the sweep state so a read-only watcher can
-        render the same "paused during active scan/search" overlay the owner sees.
+        render the same "Scanning"/"Searching" overlay the owner sees.
         A follower never forwards (``is_owner`` is False); a single instance / raw
         rtl_tcp just stores it locally.
         """
@@ -657,6 +665,7 @@ class RtlTcpConnection:
         self.search_low_hz = search_low_hz
         self.search_high_hz = search_high_hz
         self.search_current_hz = search_current_hz
+        self.search_label = search_label
         if self.control_available and self.control is not None and self.is_owner:
             await self.control.set(
                 scan_active=scan_active,
@@ -665,6 +674,7 @@ class RtlTcpConnection:
                 search_low_hz=search_low_hz,
                 search_high_hz=search_high_hz,
                 search_current_hz=search_current_hz,
+                search_label=search_label,
             )
 
     async def set_sample_rate(self, rate_hz: int) -> None:
@@ -844,6 +854,7 @@ class RadioBroadcaster:
                 "search_low_hz": conn.search_low_hz,
                 "search_high_hz": conn.search_high_hz,
                 "search_current_hz": conn.search_current_hz,
+                "search_label": conn.search_label,
             }
         )
 

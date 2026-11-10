@@ -95,6 +95,7 @@ class _FakeControl:
         self.scan_active = self.search_active = False
         self.scan_groups: list[str] = []
         self.search_low_hz = self.search_high_hz = self.search_current_hz = None
+        self.search_label = None
 
     async def connect(self) -> bool:
         return True

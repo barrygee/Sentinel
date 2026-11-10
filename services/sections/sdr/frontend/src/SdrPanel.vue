@@ -1782,6 +1782,7 @@ function applyOwnership(msg: {
   search_low_hz?: number | null
   search_high_hz?: number | null
   search_current_hz?: number | null
+  search_label?: string | null
 }) {
   // Default to "owner" when the backend omits these fields (a single instance, or
   // a relay without the control channel), so behaviour there is unchanged.
@@ -1823,7 +1824,7 @@ function applyOwnership(msg: {
     sdrAudio.setBandwidthHz(msg.bw_hz)
   }
   // Mirror the owner's scanner/search sweep state so the follower's waterfall shows
-  // the same "paused during active scan/search" overlay. Each field is optional — a
+  // the same "Scanning"/"Searching" overlay. Each field is optional — a
   // relay that doesn't carry them leaves the follower without the overlay (graceful).
   const _ss = _sdrStore()
   if (typeof msg.scan_active === 'boolean') _ss.scanSweeping = msg.scan_active
@@ -1832,6 +1833,7 @@ function applyOwnership(msg: {
   if (msg.search_low_hz !== undefined) _ss.searchLowHz = msg.search_low_hz
   if (msg.search_high_hz !== undefined) _ss.searchHighHz = msg.search_high_hz
   if (msg.search_current_hz !== undefined) _ss.searchCurrentHz = msg.search_current_hz
+  if (msg.search_label !== undefined) _ss.searchLabel = msg.search_label
 }
 
 // ── Radio selection / populate ────────────────────────────────────────────────

@@ -80,6 +80,7 @@ class _FakeConn:
     search_low_hz: int | None = None
     search_high_hz: int | None = None
     search_current_hz: int | None = None
+    search_label: str | None = None
     is_owner = True
     control_available = False
     tuner_locked = False

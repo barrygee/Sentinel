@@ -17,6 +17,7 @@
   "search_active": "bool",
   "search_current_hz": "null",
   "search_high_hz": "null",
+  "search_label": "null",
   "search_low_hz": "null",
   "type": "str"
 }

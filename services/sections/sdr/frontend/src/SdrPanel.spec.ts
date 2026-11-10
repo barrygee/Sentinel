@@ -5900,10 +5900,12 @@ describe('SdrPanel — tuning ownership', () => {
         search_low_hz: 156_000_000,
         search_high_hz: 162_000_000,
         search_current_hz: 158_000_000,
+        search_label: 'Marine VHF',
       }),
     )
     await flushPromises()
-    // The store now drives the same paused-overlay the owner sees (SdrWaterfall).
+    // The store now drives the same overlay the owner sees (SdrWaterfall).
+    expect(store.searchLabel).toBe('Marine VHF')
     expect(store.scanSweeping).toBe(true)
     expect(store.scanGroupNames).toEqual(['Marine'])
     expect(store.searchLowHz).toBe(156_000_000)
@@ -5911,6 +5913,20 @@ describe('SdrPanel — tuning ownership', () => {
     expect(store.searchCurrentHz).toBe(158_000_000)
     // A follower must NOT publish sweep_state back to the backend.
     expect(sentCmds(socket).some((msg) => msg.cmd === 'sweep_state')).toBe(false)
+  })
+
+  it('clears the mirrored search label on an explicit null and keeps it when omitted', async () => {
+    const store = useSdrStore()
+    const { socket } = await mountConnected()
+    socket.message(followerFrame({ search_active: true, search_label: 'Airband' }))
+    await flushPromises()
+    expect(store.searchLabel).toBe('Airband')
+    socket.message(followerFrame({ search_current_hz: 120_000_000 })) // no label key
+    await flushPromises()
+    expect(store.searchLabel).toBe('Airband')
+    socket.message(followerFrame({ search_active: false, search_label: null }))
+    await flushPromises()
+    expect(store.searchLabel).toBeNull()
   })
 
   it('clears mirrored sweep state when this instance stops being a follower', async () => {

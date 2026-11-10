@@ -41,6 +41,18 @@ MAX_SCAN_GROUPS = 64
 MAX_SCAN_GROUP_NAME_LEN = 64
 
 
+def _sanitize_optional_label(value: object) -> str | None:
+    """Coerce an untrusted ``sweep_state`` search label to a capped string, else None.
+
+    The label (a saved range's name, or "Ad-hoc") is shown to followers as a chip,
+    so it is capped like a scan group name. Anything that isn't a non-empty string
+    collapses to None, which hides the chip.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    return value[:MAX_SCAN_GROUP_NAME_LEN]
+
+
 def _sanitize_optional_hz(value: object) -> int | None:
     """Coerce an untrusted sweep-frequency field to a non-negative int, else None.
 
@@ -201,7 +213,8 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
       { type: "spectrum", center_hz, sample_rate, bins, timestamp_ms }
       { type: "status",   connected, radio_id, radio_name, center_hz, mode, gain_db, gain_auto, is_owner, control_available, locked }
       { type: "control",  is_owner, control_available, locked, center_hz, sample_rate, gain_db, gain_auto, mode,
-                          offset_hz, bw_hz, scan_active, scan_groups, search_active, search_low_hz, search_high_hz, search_current_hz }
+                          offset_hz, bw_hz, scan_active, scan_groups, search_active, search_low_hz, search_high_hz, search_current_hz,
+                          search_label }
                           — tuning ownership changed: another instance took/released the
                             shared tuner, or this client's retune was refused (read-only).
                             `locked` = the tuner is held by some instance (vs free to claim).
@@ -218,10 +231,10 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                             bandwidth); forwarded to followers so they mirror the exact
                             channel the owner hears, not just the hardware centre.
       { cmd: "sweep_state", scan_active, scan_groups, search_active,
-                            search_low_hz, search_high_hz, search_current_hz }
+                            search_low_hz, search_high_hz, search_current_hz, search_label }
                           — owner's scanner/search sweep state; forwarded to followers
-                            so they render the same "paused during active scan/search"
-                            overlay. Search bounds are null when not searching.
+                            so they render the same "Scanning"/"Searching" overlay.
+                            Search bounds and label are null when not searching.
       { cmd: "gain",        gain_db }   — null/omit for auto
       { cmd: "squelch",     squelch_dbfs }
       { cmd: "sample_rate", rate_hz }
@@ -262,6 +275,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                     "search_low_hz": conn.search_low_hz,
                     "search_high_hz": conn.search_high_hz,
                     "search_current_hz": conn.search_current_hz,
+                    "search_label": conn.search_label,
                 }
             )
         )
@@ -321,8 +335,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                         )
                     elif cmd == "sweep_state":
                         # Owner publishes its scanner/search sweep state so read-only
-                        # followers render the same "paused during active scan/search"
-                        # overlay. Inputs are validated/clamped here (untrusted client
+                        # followers render the same "Scanning"/"Searching" overlay. Inputs are validated/clamped here (untrusted client
                         # JSON); forwarded to the relay only while we own the tuner.
                         raw_groups = msg.get("scan_groups")
                         scan_groups = (
@@ -337,6 +350,7 @@ async def sdr_websocket(radio_id: int, websocket: WebSocket):
                             search_low_hz=_sanitize_optional_hz(msg.get("search_low_hz")),
                             search_high_hz=_sanitize_optional_hz(msg.get("search_high_hz")),
                             search_current_hz=_sanitize_optional_hz(msg.get("search_current_hz")),
+                            search_label=_sanitize_optional_label(msg.get("search_label")),
                         )
                     elif cmd == "gain":
                         gval = msg.get("gain_db")

@@ -612,6 +612,7 @@ describe('useSdrSweepEngine — store mirrors and follower publish', () => {
       search_active: true,
       search_low_hz: 100_000_000,
       search_high_hz: 100_050_000,
+      search_label: 'Ad-hoc',
     })
     // Re-assigning an identical value (new array, same content) re-fires the
     // watcher but the serialized payload is unchanged — deduped, no re-send.

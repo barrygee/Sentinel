@@ -933,8 +933,8 @@ export const useSdrStore = defineStore('sdr', () => {
   const searchHighHz = ref<number | null>(null)
   const searchCurrentHz = ref<number | null>(null)
   // The searched range's label (a saved range's name, or "Ad-hoc"), shown as a
-  // chip under the overlay headline. Only this instance knows it: the relay to
-  // read-only followers doesn't carry it, so theirs stays null and shows no chip.
+  // chip under the overlay headline. The owner publishes it with its sweep state,
+  // so a read-only follower mirrors it; null hides the chip.
   const searchLabel = ref<string | null>(null)
 
   // True while the scanner is actively stepping between saved frequencies and
