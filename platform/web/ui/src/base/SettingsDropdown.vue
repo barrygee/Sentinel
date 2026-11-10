@@ -65,7 +65,8 @@
  * as the hand-rolled `.tle-dropdown` markup inside the TLE controls, so any new
  * picker either copy-pasted it or fell back to a native select that looked
  * foreign among its neighbours. This is that dropdown, once, with the
- * keyboard/ARIA behaviour the hand-rolled copies never had.
+ * keyboard/ARIA behaviour the hand-rolled copies never had. The TLE category
+ * pickers now use it too, so no hand-rolled copy is left.
  *
  * Implements the ARIA select-only combobox pattern: focus stays on the trigger
  * and the active option is pointed at with `aria-activedescendant`, so arrow

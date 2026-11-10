@@ -94,20 +94,20 @@ describe('SpaceTleOnlineControl', () => {
   it('changes the URL when a different category is selected', async () => {
     const wrapper = mount(SpaceTleOnlineControl)
     await flushPromises()
-    await wrapper.find('.tle-dropdown-selected').trigger('mousedown')
-    const military = wrapper.findAll('.tle-dropdown-item').find((i) => i.text() === 'Military')!
+    await wrapper.find('.settings-dropdown-trigger').trigger('click')
+    const military = wrapper.findAll('[role="option"]').find((i) => i.text() === 'Military')!
     await military.trigger('mousedown')
     expect((urlInput(wrapper).element as HTMLInputElement).value).toContain('GROUP=military')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(false)
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(false)
   })
 
   it('closes the category dropdown on blur', async () => {
     const wrapper = mount(SpaceTleOnlineControl)
     await flushPromises()
-    await wrapper.find('.tle-dropdown-selected').trigger('mousedown')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(true)
-    await wrapper.find('.tle-dropdown').trigger('blur')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(false)
+    await wrapper.find('.settings-dropdown-trigger').trigger('click')
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(true)
+    await wrapper.find('.settings-dropdown-trigger').trigger('blur')
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(false)
   })
 
   it('refuses to fetch when the URL is empty', async () => {
@@ -162,6 +162,51 @@ describe('SpaceTleOnlineControl', () => {
     await wrapper.find('.tle-action-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.tle-status-badge--error').text()).toBe('Error: Bad')
+  })
+
+  it('chooses a category from the keyboard and shows its URL', async () => {
+    const wrapper = mount(SpaceTleOnlineControl, { attachTo: document.body })
+    await flushPromises()
+    const trigger = wrapper.get('[role="combobox"]')
+    expect(trigger.attributes('aria-label')).toBe('TLE category')
+    await trigger.trigger('keydown', { key: 'ArrowDown' }) // opens on the current choice
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'Enter' })
+    expect(trigger.text()).toBe('Amateur Radio')
+    expect((urlInput(wrapper).element as HTMLInputElement).value).toContain('GROUP=amateur')
+    wrapper.unmount()
+  })
+
+  it('leaves the category and URL alone when the menu is dismissed with Escape', async () => {
+    const wrapper = mount(SpaceTleOnlineControl, { attachTo: document.body })
+    await flushPromises()
+    const urlBefore = (urlInput(wrapper).element as HTMLInputElement).value
+    const trigger = wrapper.get('[role="combobox"]')
+    await trigger.trigger('keydown', { key: 'Enter' })
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'Escape' })
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(trigger.text()).toBe('All Active (no category)')
+    expect((urlInput(wrapper).element as HTMLInputElement).value).toBe(urlBefore)
+    wrapper.unmount()
+  })
+
+  it('updates with the chosen category', async () => {
+    const fetchMock = stubFetch({ inserted: 2, updated: 0 })
+    const wrapper = mount(SpaceTleOnlineControl)
+    await flushPromises()
+    await wrapper.get('[role="combobox"]').trigger('click')
+    await wrapper
+      .findAll('[role="option"]')
+      .find((option) => option.text() === 'Military')!
+      .trigger('mousedown')
+    await wrapper.find('.tle-action-btn--primary').trigger('click')
+    await flushPromises()
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes('/api/space/tle'))!
+    const body = JSON.parse(call[1].body as string)
+    expect(body.category).toBe('military')
+    expect(body.url).toContain('GROUP=military')
   })
 
   it('has no accessibility violations', async () => {

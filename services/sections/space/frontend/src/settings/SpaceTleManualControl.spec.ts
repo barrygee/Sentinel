@@ -48,20 +48,20 @@ describe('SpaceTleManualControl', () => {
   it('selects a category from the dropdown', async () => {
     const wrapper = mount(SpaceTleManualControl)
     await flushPromises()
-    await wrapper.find('.tle-dropdown-selected').trigger('mousedown')
-    const military = wrapper.findAll('.tle-dropdown-item').find((i) => i.text() === 'Military')!
+    await wrapper.find('.settings-dropdown-trigger').trigger('click')
+    const military = wrapper.findAll('[role="option"]').find((i) => i.text() === 'Military')!
     await military.trigger('mousedown')
-    expect(wrapper.find('.tle-dropdown-selected-text').text()).toBe('Military')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(false)
+    expect(wrapper.find('.settings-dropdown-text').text()).toBe('Military')
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(false)
   })
 
   it('closes the dropdown on blur', async () => {
     const wrapper = mount(SpaceTleManualControl)
     await flushPromises()
-    await wrapper.find('.tle-dropdown-selected').trigger('mousedown')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(true)
-    await wrapper.find('.tle-dropdown').trigger('blur')
-    expect(wrapper.find('.tle-dropdown--open').exists()).toBe(false)
+    await wrapper.find('.settings-dropdown-trigger').trigger('click')
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(true)
+    await wrapper.find('.settings-dropdown-trigger').trigger('blur')
+    expect(wrapper.find('.settings-dropdown--open').exists()).toBe(false)
   })
 
   it('ignores a change event with no file', async () => {
@@ -146,6 +146,44 @@ describe('SpaceTleManualControl', () => {
     await wrapper.find('.tle-action-btn--primary').trigger('click')
     await flushPromises()
     expect(wrapper.find('.tle-status-badge--error').text()).toBe('Error: bad TLE')
+  })
+
+  it('exposes the category picker as a named combobox showing the default', async () => {
+    const wrapper = mount(SpaceTleManualControl)
+    await flushPromises()
+    const trigger = wrapper.get('[role="combobox"]')
+    expect(trigger.attributes('aria-label')).toBe('TLE category')
+    expect(trigger.text()).toBe('All Active (no category)')
+  })
+
+  it('chooses a category from the keyboard', async () => {
+    const wrapper = mount(SpaceTleManualControl, { attachTo: document.body })
+    await flushPromises()
+    const trigger = wrapper.get('[role="combobox"]')
+    await trigger.trigger('keydown', { key: 'Enter' }) // open on the current choice
+    expect(trigger.attributes('aria-expanded')).toBe('true')
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await trigger.trigger('keydown', { key: 'Enter' })
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(trigger.text()).toBe('Amateur Radio')
+    wrapper.unmount()
+  })
+
+  it('uploads with the chosen category', async () => {
+    const fetchMock = stubFetch({ total: 1, inserted: 1, updated: 0 })
+    const wrapper = mount(SpaceTleManualControl)
+    await flushPromises()
+    await wrapper.get('[role="combobox"]').trigger('click')
+    await wrapper
+      .findAll('[role="option"]')
+      .find((option) => option.text() === 'Weather')!
+      .trigger('mousedown')
+    await selectFile(wrapper, 'NOAA 19\n1 33591U\n2 33591')
+    await wrapper.find('.tle-action-btn--primary').trigger('click')
+    await flushPromises()
+    const body = JSON.parse(fetchMock.mock.calls.at(-1)![1].body as string)
+    expect(body.category).toBe('weather')
   })
 
   it('has no accessibility violations', async () => {

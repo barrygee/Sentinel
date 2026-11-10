@@ -12,33 +12,12 @@
       <span class="tle-file-name">{{ fileName }}</span>
     </div>
     <div class="tle-cat-row-ctrl">
-      <div
-        class="tle-dropdown"
-        :class="{ 'tle-dropdown--open': dropOpen }"
-        tabindex="0"
-        aria-label="TLE category"
-        @blur="dropOpen = false"
-      >
-        <div class="tle-dropdown-selected" @mousedown.prevent="dropOpen = !dropOpen">
-          <span
-            class="tle-dropdown-selected-text"
-            :class="{ 'tle-dropdown-selected-text--chosen': selectedCategory }"
-          >
-            {{ selectedCategoryLabel }}
-          </span>
-          <span class="tle-dropdown-arrow"></span>
-        </div>
-        <div class="tle-dropdown-menu" :class="{ 'tle-dropdown-menu--open': dropOpen }">
-          <div
-            v-for="opt in TLE_CATEGORIES"
-            :key="opt.value"
-            class="tle-dropdown-item"
-            @mousedown.prevent="selectCategory(opt.value)"
-          >
-            {{ opt.label }}
-          </div>
-        </div>
-      </div>
+      <SettingsDropdown
+        v-model="selectedCategory"
+        class="tle-category-dropdown"
+        :options="TLE_CATEGORIES"
+        accessible-name="TLE category"
+      />
       <BaseButton
         variant="primary"
         class="tle-action-btn tle-action-btn--primary"
@@ -63,8 +42,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import SettingsDropdown from '@sentinel/ui/base/SettingsDropdown.vue'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },
@@ -79,26 +59,11 @@ const TLE_CATEGORIES = [
 ]
 
 const selectedCategory = ref('active')
-const dropOpen = ref(false)
 const fileText = ref('')
 const fileName = ref('No file selected')
 const applyLoading = ref(false)
 const statusMsg = ref('')
 const statusType = ref<'ok' | 'error' | 'info'>('ok')
-
-const selectedCategoryLabel = computed(() => {
-  /* v8 ignore start -- defensive: selectedCategory is always one of
-     TLE_CATEGORIES, so the lookup resolves and the ?? fallback is unused */
-  return (
-    TLE_CATEGORIES.find((c) => c.value === selectedCategory.value)?.label ?? selectedCategory.value
-  )
-  /* v8 ignore stop */
-})
-
-function selectCategory(val: string): void {
-  selectedCategory.value = val
-  dropOpen.value = false
-}
 
 function onFileChange(e: Event): void {
   const file = (e.target as HTMLInputElement).files?.[0]
