@@ -283,6 +283,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show the altitude legend in the footer bar
 - Add a settings density to BaseFormField and BaseTextField
 - Add an inline layout to BaseFormField and BaseTextField
+- Let an inline BaseFormField wrap its control under the caption
 
 ### Bug Fixes
 
@@ -649,6 +650,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep map-kit modules out of merged chunks
 - Keep airfield labels bright in arrow mode
 - Match the panel search hint to the other sections
+- Keep the ADD SDRS caption left-aligned on phones
 
 ### Chores
 
@@ -1818,6 +1820,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #601 from barrygee/fix/footer-legend-label-search
 - Merge pull request #602 from barrygee/refactor/settings-text-field
 - Merge pull request #603 from barrygee/refactor/sdr-device-form-field
+- Merge pull request #604 from barrygee/refactor/local-form-field
 
 ### Performance
 
@@ -1935,6 +1938,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the Settings inputs onto BaseTextField
 - Move the device form and serial flash onto BaseTextField
 - Move the host form onto BaseTextField
+- Move the THIS MACHINE forms onto BaseTextField
+- Drop the old device form row, label and input CSS
 
 ### Documentation
 
@@ -2212,6 +2217,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the footer legend, airfield labels and search hint
 - Rebuild for the settings field density
 - Rebuild for the inline device and host form fields
+- Rebuild for the THIS MACHINE form fields
 
 ### Continuous Integration
 
