@@ -9,78 +9,6 @@
   display: flex;
 }
 
-.spp-filter-toggle {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 18px 28px 18px 28px;
-  background: none;
-  border: none;
-  border-top: 1px solid rgba(var(--ink-rgb), 0.08);
-  border-bottom: none;
-  cursor: pointer;
-  transition: background 0.12s;
-  box-sizing: border-box;
-}
-
-/* Hover lights the chevron accent rather than washing the header background —
-   matches the SDR panel's section accordions (.sdr-scanner-header-row). */
-.spp-filter-toggle:hover .spp-filter-toggle-icon {
-  color: var(--accent-text);
-}
-
-.spp-filter-toggle-left {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.spp-filter-toggle-icon {
-  display: flex;
-  align-items: center;
-  color: rgba(var(--ink-rgb), 0.3);
-  transition:
-    transform 0.2s ease,
-    color 0.15s;
-  flex-shrink: 0;
-  transform: rotate(-90deg);
-}
-
-.spp-filter-toggle.expanded .spp-filter-toggle-icon {
-  transform: rotate(0deg);
-  color: var(--accent-text);
-}
-
-.spp-filter-toggle-left > span:last-child {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: rgba(var(--ink-rgb), 0.35);
-  text-transform: uppercase;
-  transition: color 0.15s;
-}
-
-.spp-filter-toggle.expanded .spp-filter-toggle-left > span:last-child {
-  color: rgba(var(--ink-rgb), 0.6);
-}
-
-.spp-filter-summary {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.25);
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.spp-filter-toggle.expanded .spp-filter-summary {
-  opacity: 0;
-}
-
 .spp-filter-body {
   flex-shrink: 0;
   display: flex;
@@ -514,7 +442,6 @@
   border-color: rgba(var(--ink-rgb), 0.5);
 }
 
-body:not([data-domain='space']) .spp-filter-toggle,
 body:not([data-domain='space']) .spp-filter-body {
   display: none;
 }
