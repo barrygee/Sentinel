@@ -359,25 +359,22 @@
 /* Direct-child :has — a nested accordion left expanded inside a COLLAPSED
    section (e.g. SETTINGS inside CONTROLS) must not give the wrapper its
    expanded bottom padding while hidden. */
-.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded),
-.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-scan-controls:has(> .base-accordion-toggle--expanded),
+.sdr-settings-controls:has(> .base-accordion-toggle--expanded) {
   background: transparent;
   padding-bottom: 16px;
 }
 
-.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-settings-controls:has(> .base-accordion-toggle--expanded) {
   padding-bottom: 0;
 }
 
-.sdr-scan-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
-  .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded,
-.sdr-settings-controls:has(> .sdr-frequency-manager-accordion-toggle-expanded)
-  .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle-expanded {
+.sdr-scan-controls:has(> .base-accordion-toggle--expanded) .base-accordion-toggle--expanded,
+.sdr-settings-controls:has(> .base-accordion-toggle--expanded) .base-accordion-toggle--expanded {
   background: transparent;
 }
 
-.sdr-settings-controls
-  > .sdr-scanner-header-row:not(.sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-settings-controls > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded) {
   margin-bottom: 0;
 }
 
@@ -422,19 +419,16 @@
 
 /* Match the Scanner GROUPS title→chips gap (8px) so both group pickers read
    consistently. Scoped to this wrapper so other section accordions keep their
-   own header spacing. */
-.sdr-frequency-manager-groups-filter
-  .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
-  margin-bottom: 8px;
+   own header spacing. Collapsed, there are no chips to separate from the
+   title, so the gap would only push the frequency list further away. */
+.sdr-frequency-manager-groups-filter {
+  --ba-accordion-gap: 8px;
 }
 
-/* Collapsed, there are no chips to separate from the title, so the 8px above
-   only pushes the frequency list further from the GROUPS header. */
-.sdr-frequency-manager-groups-filter
-  .sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle:not(
-    .sdr-frequency-manager-accordion-toggle-expanded
-  ) {
-  margin-bottom: 0;
+.sdr-frequency-manager-groups-filter:has(
+  .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
+) {
+  --ba-accordion-gap: 0px;
 }
 
 .sdr-frequency-manager-groups-filter-row {
@@ -692,59 +686,17 @@
   color: rgba(var(--ink-rgb), 0.5);
 }
 
-.sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: calc(100% + 40px);
-  height: 44px;
-  margin: 0 -20px 4px;
-  padding: 0 44px 0 20px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-  transition: background 0.12s;
+/* The section-bar look lives in BaseAccordionSection. SDR's sections are padded
+   20px, so the bars bleed 20px either side and keep their title on that edge. */
+.sdr-tab-pane {
+  --ba-accordion-bleed: 20px;
+  --ba-accordion-inset: 20px;
+  --ba-accordion-gap: 4px;
 }
 
-.sdr-scanner-header-row {
-  background: none;
-}
-
-/* Accordion section headers signal hover by lighting their chevron accent —
-   NOT by a background wash, which read as heavy across a panel of stacked
-   section bars. The chevron already transitions `color`, and expanded state
-   uses the same accent, so hovering a collapsed header previews where it is
-   going. Applied consistently to every side panel's section accordions
-   (SDR here, .sip-toggle / .spp-filter-toggle in the Space panels). */
-.sdr-scanner-header-row:hover .sdr-frequency-manager-accordion-chevron {
-  color: var(--accent-text);
-}
-
-.sdr-scanner-header-row .sdr-field-label.sdr-frequency-manager-scanner-title {
-  margin-bottom: 0;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--ink-strong);
-  text-transform: uppercase;
-}
-
-.sdr-scanner-header-row .sdr-scan-state-row {
+/* The SCANNER/SEARCH activity rows ride in the bar's #header-extra slot. */
+.base-accordion-toggle .sdr-scan-state-row {
   margin-left: auto;
-}
-
-.sdr-scanner-header-row .sdr-frequency-manager-accordion-chevron {
-  position: absolute;
-  right: 20px;
-  top: 0;
-  height: 44px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
 }
 
 .sdr-scan-subsection-label {
@@ -841,51 +793,6 @@
   padding: 18px 24px;
 }
 
-.sdr-frequency-manager-accordion-toggle {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  color: inherit;
-  transition: background 0.12s;
-}
-
-/* See the .sdr-scanner-header-row:hover note — chevron accent, no background. */
-.sdr-frequency-manager-accordion-toggle:hover .sdr-frequency-manager-accordion-chevron {
-  color: var(--accent-text);
-}
-
-.sdr-frequency-manager-accordion-chevron {
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
-  color: rgba(var(--ink-rgb), 0.25);
-  transition:
-    transform 0.2s ease,
-    color 0.15s;
-  transform: rotate(-90deg);
-  pointer-events: none;
-}
-
-.sdr-frequency-manager-accordion-toggle-expanded .sdr-frequency-manager-accordion-chevron {
-  transform: rotate(0deg);
-  color: var(--accent-text);
-}
-
-.sdr-field-label.sdr-frequency-manager-scanner-title {
-  margin-bottom: 16px;
-}
-
 /* The GROUPS tab's add-row family (.sdr-frequency-manager-group-add-row and
    .sdr-panel-add-row) lives with its sole renderer, SdrGroupsTab.vue (B10
    CSS co-location). */
@@ -953,43 +860,8 @@
   height: 36px;
 }
 
-/* "RADIO SETTINGS" accordion header inside the add/edit form. Self-contained
-   (not the full-bleed freq-manager accordion) so it fits the form's padding. */
-.sdr-ef-settings-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  height: 36px;
-  padding: 0;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  /* ChevronIcon strokes with currentColor. */
-  color: rgba(var(--ink-rgb), 0.5);
-}
-
-/* The form-variant accordion never had a hover background to drop, but it gets
-   the same chevron-accent hover so both BaseAccordionSection variants agree.
-   Only the chevron shifts: it strokes with currentColor, while the title sets
-   its own var(--ink-strong). */
-.sdr-ef-settings-toggle:hover {
-  color: var(--accent-text);
-}
-
-.sdr-ef-settings-toggle-title {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-strong);
-}
-
 /* Gap between the header and the grid when the accordion is expanded. */
-.sdr-ef-settings-toggle + .sdr-ef-settings-grid {
+.base-accordion-toggle--form + .sdr-ef-settings-grid {
   margin-top: 4px;
 }
 
@@ -1807,17 +1679,17 @@
    gap, and each body becomes the scroll container. Direct-child :has so the
    nested SAVED RANGES accordion (inside the SEARCH body) scrolls with its
    parent, not independently. */
-.sdr-tab-pane--radio > .sdr-radio-section:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+.sdr-tab-pane--radio > .sdr-radio-section:has(> .base-accordion-toggle--expanded) {
   display: flex;
   flex-direction: column;
   flex: 1 1 0;
   min-height: 0;
   max-height: max-content;
 }
-.sdr-tab-pane--radio > .sdr-radio-section > .sdr-frequency-manager-accordion-toggle {
+.sdr-tab-pane--radio > .sdr-radio-section > .base-accordion-toggle--section {
   flex-shrink: 0;
 }
-.sdr-tab-pane--radio > .sdr-radio-section > .sdr-frequency-manager-accordion-toggle-expanded + div {
+.sdr-tab-pane--radio > .sdr-radio-section > .base-accordion-toggle--expanded + div {
   flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -1834,7 +1706,7 @@
 }
 .sdr-tab-pane--radio
   > .sdr-radio-section
-  > .sdr-frequency-manager-accordion-toggle-expanded
+  > .base-accordion-toggle--expanded
   + div::-webkit-scrollbar {
   display: none;
 }
@@ -1891,15 +1763,11 @@
   }
   /* Expanded sections take their natural height (no equal-split sliver) and the
      whole column scrolls, rather than each body scrolling independently. */
-  .sdr-tab-pane--radio
-    > .sdr-radio-section:has(> .sdr-frequency-manager-accordion-toggle-expanded) {
+  .sdr-tab-pane--radio > .sdr-radio-section:has(> .base-accordion-toggle--expanded) {
     flex: 0 0 auto;
     max-height: none;
   }
-  .sdr-tab-pane--radio
-    > .sdr-radio-section
-    > .sdr-frequency-manager-accordion-toggle-expanded
-    + div {
+  .sdr-tab-pane--radio > .sdr-radio-section > .base-accordion-toggle--expanded + div {
     flex: 0 0 auto;
     overflow-y: visible;
   }

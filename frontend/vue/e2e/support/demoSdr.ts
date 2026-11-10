@@ -229,7 +229,7 @@ export async function playDemoRadio(page: Page): Promise<void> {
 /** Opens one of the RADIO tab's sections (FAVOURITES, SCANNER, SEARCH), with CONTROLS folded away to make room. */
 export async function openRadioSection(page: Page, title: string): Promise<void> {
   const header = (name: string) =>
-    page.locator(`button[aria-expanded]:has(> label:text-is("${name}"))`)
+    page.locator(`button[aria-expanded]:has(> .base-accordion-title:text-is("${name}"))`)
   if ((await header('CONTROLS').getAttribute('aria-expanded')) === 'true')
     await header('CONTROLS').click()
   await header(title).click()
