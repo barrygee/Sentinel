@@ -38,7 +38,7 @@ withDefaults(
     active?: boolean
     /**
      * The caller's CSS family class for the active state (e.g. `active`,
-     * `sdr-scan-group-chip-active`, `is-active`). No default: the families'
+     * `base-chip--active`, `is-active`). No default: the families'
      * class names predate any shared convention. Omit together with `active`
      * for momentary (non-toggle) pills.
      */
