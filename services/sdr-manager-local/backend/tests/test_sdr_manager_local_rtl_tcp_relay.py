@@ -528,7 +528,7 @@ def test_owner_metadata_updates_accepts_explicit_nulls_to_clear_a_search() -> No
         {"search_label": ["Airband"]},
     ],
 )
-def test_owner_metadata_updates_skips_a_field_with_the_wrong_type_or_range(fields: dict) -> None:
+def test_owner_metadata_updates_skips_a_field_with_the_wrong_type_or_range(fields: dict[str, object]) -> None:
     assert relay.owner_metadata_updates(fields) == {}
 
 
@@ -643,7 +643,9 @@ def test_a_new_claim_starts_from_default_metadata() -> None:
 def test_owner_metadata_defaults_are_not_shared_between_owners() -> None:
     state = relay.RelayState()
     state.change_owner(_session())
-    state.owner_metadata["scan_groups"].append("Mutated")  # type: ignore[union-attr]
+    first_owners_groups = state.owner_metadata["scan_groups"]
+    assert isinstance(first_owners_groups, list)
+    first_owners_groups.append("Mutated")
     state.change_owner(None)
     assert relay.OWNER_METADATA_DEFAULTS["scan_groups"] == []
     assert state.owner_metadata["scan_groups"] == []
