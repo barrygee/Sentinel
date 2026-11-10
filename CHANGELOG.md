@@ -289,6 +289,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Headline sweep overlays "Scanning"/"Searching" with labels
 - Pass the owner's demod and sweep state to followers
 - Show the searched range's label to read-only followers
+- Dim locked checkboxes in LabelFieldsTable
 
 ### Bug Fixes
 
@@ -1835,6 +1836,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #608 from barrygee/feat/sdr-sweep-overlay-labels
 - Merge pull request #609 from barrygee/feat/sdr-relay-search-label
 - Merge pull request #610 from barrygee/fix/sdr-scan-overlay-flash
+- Merge pull request #611 from barrygee/feat/dim-locked-label-checkboxes
 
 ### Performance
 
@@ -2242,6 +2244,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the sweep overlay labels
 - Rebuild bundle for the follower search label
 - Rebuild bundle for the scan hold and overlay fixes
+- Rebuild bundle for the dimmed locked checkboxes
 
 ### Continuous Integration
 
