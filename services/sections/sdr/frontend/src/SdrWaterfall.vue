@@ -3165,8 +3165,11 @@ onBeforeUnmount(() => {
     <div v-if="store.searchSweeping" class="sdr-wf-search-overlay">
       <div class="sdr-wf-search-overlay-inner">
         <div class="sdr-wf-search-overlay-stack">
-          <div class="sdr-wf-search-overlay-headline">
-            Spectrum and waterfall paused during active search.
+          <div class="sdr-wf-search-overlay-headline">Searching</div>
+          <div v-if="store.searchLabel" class="sdr-wf-scan-overlay-groups">
+            <span class="sdr-scan-group-chip sdr-scan-group-chip-active">{{
+              store.searchLabel
+            }}</span>
           </div>
           <div
             class="sdr-wf-search-overlay-progress"
@@ -3192,9 +3195,7 @@ onBeforeUnmount(() => {
     <div v-else-if="store.scanSweeping" class="sdr-wf-search-overlay">
       <div class="sdr-wf-search-overlay-inner">
         <div class="sdr-wf-search-overlay-stack">
-          <div class="sdr-wf-search-overlay-headline">
-            Spectrum and waterfall paused during active group scan.
-          </div>
+          <div class="sdr-wf-search-overlay-headline">Scanning</div>
           <div class="sdr-wf-scan-overlay-groups">
             <span
               v-for="(name, idx) in store.scanGroupNames"

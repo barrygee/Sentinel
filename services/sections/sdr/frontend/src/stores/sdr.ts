@@ -932,6 +932,10 @@ export const useSdrStore = defineStore('sdr', () => {
   const searchLowHz = ref<number | null>(null)
   const searchHighHz = ref<number | null>(null)
   const searchCurrentHz = ref<number | null>(null)
+  // The searched range's label (a saved range's name, or "Ad-hoc"), shown as a
+  // chip under the overlay headline. Only this instance knows it: the relay to
+  // read-only followers doesn't carry it, so theirs stays null and shows no chip.
+  const searchLabel = ref<string | null>(null)
 
   // True while the scanner is actively stepping between saved frequencies and
   // has not yet locked on an active signal. Drives the same paused/holding
@@ -1254,6 +1258,7 @@ export const useSdrStore = defineStore('sdr', () => {
     searchCurrentHz,
     scanSweeping,
     scanGroupNames,
+    searchLabel,
     bwHz,
     tuneRequest,
     bwRequest,
