@@ -10,7 +10,7 @@
     :menu-attrs="{ role: 'listbox', 'aria-label': 'Device sample rate options' }"
   >
     <template #selected>
-      <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
+      <span class="base-select-menu-text base-select-menu-text--chosen">{{
         formatBwHz(sampleRateHz)
       }}</span>
     </template>
@@ -18,8 +18,8 @@
       <div
         v-for="rate in SAMPLE_RATE_OPTIONS"
         :key="rate"
-        class="sdr-device-menu-item"
-        :class="{ 'sdr-device-menu-item--selected': rate === sampleRateHz }"
+        class="base-select-menu-option"
+        :class="{ 'base-select-menu-option--selected': rate === sampleRateHz }"
         role="option"
         :aria-selected="rate === sampleRateHz"
         @click="pickRate(rate)"

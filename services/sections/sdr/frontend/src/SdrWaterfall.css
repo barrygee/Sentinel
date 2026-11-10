@@ -139,7 +139,7 @@
 
 /* Styled as a horizontal slider, then rotated. `width` is set to the wrapper's
  * pixel HEIGHT at runtime via a CSS var so the rotated slider exactly spans the
- * available vertical space. Matches the app's .sdr-panel-slider: 3px stealth
+ * available vertical space. Matches the app's .base-slider-row-input: 3px stealth
  * grey track, 12px round green (var(--accent)) thumb with shadow. */
 .sdr-wf-slider {
   -webkit-appearance: none;

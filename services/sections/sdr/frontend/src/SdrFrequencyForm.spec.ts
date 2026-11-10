@@ -14,7 +14,7 @@ enableAutoUnmount(afterEach)
 const AXE_OPTIONS = { rules: { region: { enabled: false } } }
 
 afterEach(() => {
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ afterEach(() => {
   vi.useRealTimers()
   // The teleported menu can linger between mounts — clear it so document
   // queries always resolve to the current instance.
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 function mountPicker(props: { modelValue?: number } = {}): VueWrapper {
@@ -22,14 +22,14 @@ function mountPicker(props: { modelValue?: number } = {}): VueWrapper {
 }
 
 function menuElement(): HTMLElement | null {
-  return document.querySelector('.sdr-device-menu[role="listbox"]')
+  return document.querySelector('.base-select-menu-popup[role="listbox"]')
 }
 
 describe('SdrSampleRatePicker — trigger', () => {
   it('renders the current rate formatted and exposes listbox ARIA on the trigger', () => {
     const wrapper = mountPicker({ modelValue: 1024000 })
     const trigger = wrapper.find('.sdr-ef-setting-dropdown')
-    expect(trigger.find('.sdr-device-dropdown-text').text()).toBe('1.02 MHz')
+    expect(trigger.find('.base-select-menu-text').text()).toBe('1.02 MHz')
     expect(trigger.attributes('role')).toBe('button')
     expect(trigger.attributes('aria-haspopup')).toBe('listbox')
     expect(trigger.attributes('aria-expanded')).toBe('false')
@@ -43,7 +43,7 @@ describe('SdrSampleRatePicker — menu open/close', () => {
     await wrapper.find('.sdr-ef-setting-dropdown').trigger('click')
     expect(menuElement()).not.toBeNull()
     expect(wrapper.find('.sdr-ef-setting-dropdown').attributes('aria-expanded')).toBe('true')
-    const selected = document.querySelector('.sdr-device-menu-item--selected')
+    const selected = document.querySelector('.base-select-menu-option--selected')
     expect(selected?.textContent?.trim()).toBe('1.54 MHz')
     expect(selected?.getAttribute('aria-selected')).toBe('true')
     await wrapper.find('.sdr-ef-setting-dropdown').trigger('click')
@@ -104,7 +104,7 @@ describe('SdrSampleRatePicker — picking', () => {
   it('emits the picked rate as a number and closes the menu', async () => {
     const wrapper = mountPicker({ modelValue: 2048000 })
     await wrapper.find('.sdr-ef-setting-dropdown').trigger('click')
-    const items = Array.from(document.querySelectorAll('.sdr-device-menu-item'))
+    const items = Array.from(document.querySelectorAll('.base-select-menu-option'))
     const target = items.find((item) => item.textContent?.trim() === '1.02 MHz') as HTMLElement
     target.click()
     await wrapper.vm.$nextTick()

@@ -2,6 +2,7 @@
   <BaseAccordionSection v-model:expanded="expanded" title="SETTINGS" body-id="sdr-settings-section">
     <!-- Volume -->
     <BaseSliderRow
+      class="sdr-radio-section"
       label="VOLUME"
       :readout="`${volume}%`"
       :readout-dimmed="controlsDisabled"
@@ -16,6 +17,7 @@
 
     <!-- Squelch -->
     <BaseSliderRow
+      class="sdr-radio-section"
       label="SQUELCH"
       :readout="`${squelch} dBFS`"
       :readout-dimmed="controlsDisabled"
@@ -30,6 +32,7 @@
 
     <!-- Bandwidth -->
     <BaseSliderRow
+      class="sdr-radio-section"
       label="BANDWIDTH"
       :readout="formatBwHz(bwHz)"
       :readout-dimmed="tuningDisabled"
@@ -44,6 +47,7 @@
 
     <!-- RF Gain -->
     <BaseSliderRow
+      class="sdr-radio-section"
       label="RF GAIN"
       :readout="gainAuto ? 'AUTO' : `${gainDb.toFixed(1)} dB`"
       :readout-dimmed="controlsDisabled"
@@ -87,7 +91,7 @@
         :disabled="controlsDisabled"
       >
         <template #selected>
-          <span class="sdr-device-dropdown-text sdr-device-dropdown-text--chosen">{{
+          <span class="base-select-menu-text base-select-menu-text--chosen">{{
             formatBwHz(sampleRateHz)
           }}</span>
         </template>
@@ -95,8 +99,8 @@
           <div
             v-for="rateOption in SAMPLE_RATE_OPTIONS"
             :key="rateOption"
-            class="sdr-device-menu-item"
-            :class="{ 'sdr-device-menu-item--selected': rateOption === sampleRateHz }"
+            class="base-select-menu-option"
+            :class="{ 'base-select-menu-option--selected': rateOption === sampleRateHz }"
             @click="pickSampleRate(rateOption)"
           >
             {{ formatBwHz(rateOption) }}
@@ -129,11 +133,11 @@
  * controlsDisabled gating (the `--loading` style tracks tuningDisabled
  * separately, preserving the pre-extraction split). The SETTINGS header +
  * collapsible body come from BaseAccordionSection. The AGC checkbox family
- * (`.sdr-agc-row` / `.sdr-checkbox-*`) and the slider-row header family
- * (`.sdr-slider-header/-val`, shared by BaseSliderRow's rows and the
- * hand-rolled SAMPLE RATE header) are styled by the unscoped block below
- * (B10 CSS co-location); the range-input chrome lives in BaseSliderRow, and
- * the remaining styling (dropdown, section chrome) still lives in
+ * (`.sdr-agc-row` / `.sdr-checkbox-*`) and the SAMPLE RATE header
+ * (`.sdr-slider-header/-val`) are styled by the unscoped block below
+ * (B10 CSS co-location). BaseSliderRow styles its own rows; each gets
+ * `sdr-radio-section` passed in so the panel's row spacing applies. The
+ * remaining styling (dropdown, section chrome) still lives in
  * SdrPanel.css (imported globally by SdrPanel.vue).
  */
 import { ref } from 'vue'
@@ -194,14 +198,12 @@ function pickSampleRate(v: number) {
 </script>
 
 <!-- Unscoped on purpose (B10 CSS co-location): the AGC checkbox and
-     slider-row-header families moved here verbatim from SdrPanel.css.
+     SAMPLE RATE header families moved here verbatim from SdrPanel.css.
      `scoped` would add [data-v] attribute selectors and RAISE specificity
-     over the original global rules — and the classes sit on elements rendered
-     by BaseCheckbox/BaseSliderRow, which don't carry this component's scope
-     id anyway. This component hosts the slider-header family (rather than
-     BaseSliderRow) because it contains BOTH renderers: BaseSliderRow's rows
-     and the hand-rolled SAMPLE RATE header above the sample-rate dropdown.
-     Loaded after SdrPanel.css (component modules import after SdrPanel.vue's
+     over the original global rules — and the checkbox classes sit on
+     elements rendered by BaseCheckbox, which doesn't carry this component's
+     scope id anyway. The SAMPLE RATE header mirrors BaseSliderRow's header
+     look but sits above a dropdown, not a range input. Loaded after SdrPanel.css (component modules import after SdrPanel.vue's
      leading CSS import), which preserves today's cascade: `.sdr-agc-row`
      keeps overriding `.sdr-radio-section`'s padding, and the remaining
      equal-specificity `.sdr-radio-section .sdr-field-label` rule in

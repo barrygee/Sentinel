@@ -18,10 +18,10 @@
         :title="connected ? 'CONNECTED' : 'DISCONNECTED'"
       ></div>
       <span
-        class="sdr-device-dropdown-text"
+        class="base-select-menu-text"
         :class="{
-          'sdr-device-dropdown-text--chosen': selectedRadioId !== null,
-          'sdr-device-dropdown-text--readonly': readOnly,
+          'base-select-menu-text--chosen': selectedRadioId !== null,
+          'sdr-device-text--readonly': readOnly,
         }"
         >{{ label }}</span
       >
@@ -49,8 +49,8 @@
         <div
           :id="optionId(0)"
           role="option"
-          class="sdr-device-menu-item sdr-device-menu-placeholder"
-          :class="{ 'sdr-device-menu-item--active': highlight === 0 }"
+          class="base-select-menu-option base-select-menu-placeholder"
+          :class="{ 'base-select-menu-option--active': highlight === 0 }"
           :aria-selected="highlight === 0"
           @click="pickRadio(null)"
           @mousemove="highlight = 0"
@@ -58,33 +58,33 @@
           — select radio —
         </div>
         <div
-          v-for="(r, index) in menuRadios"
+          v-for="(radio, index) in menuRadios"
           :id="optionId(index + 1)"
-          :key="r.id"
+          :key="radio.id"
           role="option"
-          class="sdr-device-menu-item"
+          class="base-select-menu-option"
           :class="{
-            'sdr-device-menu-item--active': highlight === index + 1,
-            'sdr-device-menu-item--readonly': isRadioReadOnly(r),
-            'sdr-device-menu-item--reserved': reservationFor(r) !== null,
+            'base-select-menu-option--active': highlight === index + 1,
+            'sdr-device-option--readonly': isRadioReadOnly(radio),
+            'base-select-menu-option--unavailable': reservationFor(radio) !== null,
           }"
           :aria-selected="highlight === index + 1"
-          :aria-disabled="reservationFor(r) !== null"
-          @click="pickRadio(r)"
+          :aria-disabled="reservationFor(radio) !== null"
+          @click="pickRadio(radio)"
           @mousemove="highlight = index + 1"
         >
-          <span class="sdr-device-menu-item-label"
-            >{{ r.name
-            }}<span class="sdr-device-menu-item-host">{{
-              reservationFor(r) ? `RESERVED · ${reservationFor(r)} RECEIVER` : r.host
+          <span class="base-select-menu-option-label"
+            >{{ radio.name
+            }}<span class="base-select-menu-option-detail">{{
+              reservationFor(radio) ? `RESERVED · ${reservationFor(radio)} RECEIVER` : radio.host
             }}</span></span
           >
           <!-- Padlock: this radio is controlled by another Sentinel, or is
                reserved as a domain receiver. Only the connected radio's remote
                lock is known, so only its row is marked for that case. -->
           <svg
-            v-if="isRadioReadOnly(r) || reservationFor(r) !== null"
-            class="sdr-device-lock sdr-device-menu-item-lock"
+            v-if="isRadioReadOnly(radio) || reservationFor(radio) !== null"
+            class="sdr-device-lock sdr-device-option-lock"
             width="12"
             height="12"
             viewBox="0 0 14 14"
@@ -101,7 +101,10 @@
         </div>
       </div>
       <!-- Non-selectable status note lives outside the listbox. -->
-      <div v-if="menuRadios.length === 0" class="sdr-device-menu-item sdr-device-menu-placeholder">
+      <div
+        v-if="menuRadios.length === 0"
+        class="base-select-menu-option base-select-menu-placeholder"
+      >
         no radios configured
       </div>
     </template>
@@ -136,9 +139,11 @@
  * listbox highlight/keyboard model on top, driving the exposed menu
  * controls. The `open` event is the open-time hook — every open path (click
  * or keyboard) resets the highlight and re-reads the store there. The
- * connection-dot family (`.sdr-conn-dot`, `.sdr-dot-off/-on`) is styled by
- * the unscoped block below (B10 CSS co-location); the dropdown chrome lives
- * with BaseSelectMenu.
+ * connection-dot family (`.sdr-conn-dot`, `.sdr-dot-off/-on`) and the
+ * padlock (`.sdr-device-lock`) are styled by the unscoped block below; the
+ * dropdown chrome and the generic option classes live with BaseSelectMenu.
+ * `sdr-device-text--readonly` and `sdr-device-option--readonly` are unstyled
+ * state hooks for specs.
  */
 import { ref, computed } from 'vue'
 import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
@@ -277,11 +282,9 @@ function onDropdownKey(e: KeyboardEvent) {
 </script>
 
 <!-- Unscoped on purpose (B10 CSS co-location): the connection-dot family
-     moved here verbatim from SdrPanel.css. The base sizing and the on/off
-     colours are disjoint declarations, and the family-context rule in
-     BaseSelectMenu's sheet (`.sdr-device-dropdown-selected .sdr-conn-dot`)
-     is higher-specificity, so order between the two blocks never decides a
-     winner. -->
+     moved here verbatim from SdrPanel.css. Its rules and the padlock's share
+     no declarations with BaseSelectMenu's sheet, so load order between the
+     two blocks never decides a winner. -->
 <style>
 .sdr-conn-dot {
   width: 7px;
@@ -299,5 +302,15 @@ function onDropdownKey(e: KeyboardEvent) {
 
 .sdr-dot-on {
   background: var(--accent);
+}
+
+/* Another Sentinel controls the shared tuner: the red padlock signals this,
+   in the trigger and on read-only menu rows (.sdr-device-option-lock), while
+   the radio name keeps its normal colour so it stays easy to read. The
+   read-only state is still announced via the sr-only status. */
+.sdr-device-lock {
+  flex-shrink: 0;
+  display: block;
+  color: var(--sev-error);
 }
 </style>

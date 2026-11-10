@@ -32,7 +32,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
-  document.querySelectorAll('.sdr-device-menu').forEach((node) => node.remove())
+  document.querySelectorAll('.base-select-menu-popup').forEach((node) => node.remove())
 })
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -451,7 +451,7 @@ describe('SdrFrequencyManagerTab — add', () => {
     const editor = await openAddForm(wrapper)
     await editor.find('.base-accordion-toggle--form').trigger('click')
     await editor.find('.sdr-ef-setting-dropdown').trigger('click')
-    const items = Array.from(document.querySelectorAll('.sdr-device-menu-item'))
+    const items = Array.from(document.querySelectorAll('.base-select-menu-option'))
     ;(items.find((item) => item.textContent?.trim() === '1.02 MHz') as HTMLElement).click()
     await wrapper.vm.$nextTick()
     await wrapper.find('#sdr-ef-label').setValue('R')

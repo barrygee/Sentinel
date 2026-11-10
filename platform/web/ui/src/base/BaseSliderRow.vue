@@ -1,13 +1,15 @@
 <template>
-  <div class="sdr-radio-section">
-    <div class="sdr-slider-header">
-      <label class="sdr-field-label">{{ label }}</label>
-      <span class="sdr-slider-val" :class="{ 'sdr-slider-val--dimmed': readoutDimmed }">{{
-        readout
-      }}</span>
+  <div class="base-slider-row">
+    <div class="base-slider-row-header">
+      <label class="base-slider-row-label">{{ label }}</label>
+      <span
+        class="base-slider-row-value"
+        :class="{ 'base-slider-row-value--dimmed': readoutDimmed }"
+        >{{ readout }}</span
+      >
     </div>
     <input
-      class="sdr-panel-slider"
+      class="base-slider-row-input"
       type="range"
       :aria-label="accessibleName"
       :aria-valuetext="readout"
@@ -23,11 +25,10 @@
 
 <script setup lang="ts">
 /**
- * `BaseSliderRow` — the labelled range-slider row used by the SDR panel's
- * SETTINGS accordion: an uppercase field label with a right-aligned value
- * readout, above a full-width range input. Extracted from (not a rewrite of)
- * the four near-identical VOLUME/SQUELCH/BANDWIDTH/RF-GAIN rows in
- * `SdrSettingsAccordion.vue`.
+ * `BaseSliderRow` — a labelled range-slider row: an uppercase field label
+ * with a right-aligned value readout, above a full-width range input. Used
+ * by the SDR panel's SETTINGS accordion (VOLUME/SQUELCH/BANDWIDTH/RF GAIN)
+ * and the offline-maps DEPTH picker.
  *
  * State stays caller-owned: `value` is a plain prop and `input` re-emits the
  * raw DOM event — the parent panel's handlers own the engine side effects
@@ -40,13 +41,12 @@
  * readout) and CSS family; forcing them under one primitive would leave it
  * describing nothing.
  *
- * The range-input chrome (`.sdr-panel-slider`, hardcoded in this template —
- * its sole renderer) is styled by the unscoped block below (B10 CSS
- * co-location). The header family (`.sdr-slider-header/-val`) lives with
- * `SdrSettingsAccordion.vue`, which contains both of its renderers (these
- * rows and the hand-rolled SAMPLE RATE header); the row wrapper
- * (`.sdr-radio-section`) and label (`.sdr-field-label`) stay in SdrPanel.css
- * with their many other renderers.
+ * The row has no padding of its own: spacing is the context's job, so a
+ * caller passes its row class through (`class` falls through to the root;
+ * the SDR panel passes `sdr-radio-section`). The classes below are styled
+ * by the unscoped block at the end of this file; callers restyle them from
+ * a descendant selector (`.my-context :deep(.base-slider-row-label)`):
+ * `base-slider-row-header`, `-label`, `-value` (+ `--dimmed`), `-input`.
  */
 withDefaults(
   defineProps<{
@@ -54,7 +54,7 @@ withDefaults(
     label: string
     /** Pre-formatted readout text shown right of the label. */
     readout: string
-    /** Renders the readout in its dimmed style (no usable radio / read-only). */
+    /** Renders the readout in its dimmed style (e.g. the control is unusable or read-only). */
     readoutDimmed?: boolean
     /**
      * `aria-label` for the range input (the visual label element is not
@@ -82,13 +82,51 @@ const emit = defineEmits<{
 }>()
 </script>
 
-<!-- Unscoped on purpose (B10 CSS co-location): moved verbatim from
-     SdrPanel.css. `scoped` would add [data-v] attribute selectors and RAISE
-     specificity over the original global rules. `outline: none` looks like a
-     focus-ring risk but isn't: assets/a11y.css restores :focus-visible with
-     !important, which beats this rule regardless of source order. -->
+<!-- Unscoped on purpose: `scoped` would add [data-v] attribute selectors and
+     raise specificity, so callers' descendant overrides would need more
+     weight. The header, label and value rules were the SDR panel's
+     `.sdr-slider-header`/`.sdr-field-label`/`.sdr-slider-val` look (label in
+     strong ink, as inside `.sdr-radio-section`). `outline: none` on the input
+     looks like a focus-ring risk but isn't: assets/a11y.css restores
+     :focus-visible with !important, which beats this rule regardless of
+     source order. -->
 <style>
-.sdr-panel-slider {
+.base-slider-row-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.base-slider-row-label {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+
+.base-slider-row-value {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-secondary);
+  letter-spacing: 0.1em;
+  min-width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.base-slider-row-value--dimmed {
+  opacity: 0.25;
+}
+
+.base-slider-row-input {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
@@ -102,12 +140,12 @@ const emit = defineEmits<{
   border: none;
 }
 
-.sdr-panel-slider:disabled {
+.base-slider-row-input:disabled {
   opacity: 0.3;
   cursor: default;
 }
 
-.sdr-panel-slider::-webkit-slider-thumb {
+.base-slider-row-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 12px;
@@ -119,7 +157,7 @@ const emit = defineEmits<{
   box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.5);
 }
 
-.sdr-panel-slider::-moz-range-thumb {
+.base-slider-row-input::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -129,7 +167,7 @@ const emit = defineEmits<{
   box-shadow: 0 1px 4px rgba(var(--shadow-rgb), 0.5);
 }
 
-.sdr-panel-slider::-moz-range-track {
+.base-slider-row-input::-moz-range-track {
   height: 3px;
   border-radius: 2px;
   background: var(--surface);
