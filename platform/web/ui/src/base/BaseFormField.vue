@@ -23,6 +23,8 @@ import { computed, useId } from 'vue'
  * `inline` in a column beside it, with the error and hint lined up under the
  * control. The column is `--ba-form-field-label-width` wide (110px), and
  * `--ba-form-field-align` (center) aligns the caption with a taller control.
+ * `wrapControl` lets an inline control too wide for the row (a pair of pills
+ * on a phone) drop onto its own line under the caption instead of overflowing.
  *
  * A control whose caption is drawn elsewhere on its card leaves `label` out:
  * no caption is rendered, and the caller names the control itself with an
@@ -52,6 +54,8 @@ const props = withDefaults(
     density?: 'panel' | 'settings'
     /** Where the caption sits: above the control, or in a column beside it. */
     layout?: 'stacked' | 'inline'
+    /** Inline only: moves the control under the caption when the row is too narrow for both. */
+    wrapControl?: boolean
   }>(),
   {
     error: '',
@@ -63,6 +67,7 @@ const props = withDefaults(
     labelKind: 'control',
     density: 'panel',
     layout: 'stacked',
+    wrapControl: false,
   },
 )
 
@@ -82,7 +87,14 @@ const rendersErrorLine = computed(() => hasError.value || props.errorAlert)
 </script>
 
 <template>
-  <div class="ba-form-field" :class="[`ba-form-field--${density}`, `ba-form-field--${layout}`]">
+  <div
+    class="ba-form-field"
+    :class="[
+      `ba-form-field--${density}`,
+      `ba-form-field--${layout}`,
+      { 'ba-form-field--wrap-control': wrapControl && layout === 'inline' },
+    ]"
+  >
     <label
       v-if="label !== '' && labelKind === 'control'"
       :id="labelId"
@@ -183,5 +195,22 @@ const rendersErrorLine = computed(() => hasError.value || props.errorAlert)
 }
 .ba-form-field--inline .ba-form-field__label {
   grid-column: 1;
+}
+
+/* wrapControl: a wrapping row in place of the grid, so a control too wide to
+   sit beside the caption moves under it; the error or hint still starts at the
+   control's column. */
+.ba-form-field--wrap-control {
+  display: flex;
+  flex-flow: row wrap;
+  align-items: var(--ba-form-field-align, center);
+  column-gap: 14px;
+}
+.ba-form-field--wrap-control .ba-form-field__label {
+  flex: 0 0 var(--ba-form-field-label-width, 110px);
+}
+.ba-form-field--wrap-control :is(.ba-form-field__error, .ba-form-field__hint) {
+  flex-basis: 100%;
+  padding-left: calc(var(--ba-form-field-label-width, 110px) + 14px);
 }
 </style>
