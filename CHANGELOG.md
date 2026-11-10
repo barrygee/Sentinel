@@ -1843,6 +1843,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #613 from barrygee/refactor/tle-dropdown-settings-dropdown
 - Merge pull request #614 from barrygee/fix/sdr-panel-polish
 - Merge pull request #615 from barrygee/fix/air-adsb-spec-marker-remove
+- Merge pull request #616 from barrygee/perf/settings-client-cache
 
 ### Performance
 
@@ -1850,6 +1851,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share overlapping namespace reads
 - Merge shared package modules into two chunks
 - Poll the config file status only from visible tabs
+- Cache core settings reads in section services
 
 ### Refactoring
 
