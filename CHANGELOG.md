@@ -657,6 +657,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Match the panel search hint to the other sections
 - Keep the ADD SDRS caption left-aligned on phones
 - Keep an aircraft's hover tag where its label sits
+- Hold on a signal while its squelch is open, and steady the scan overlay
 
 ### Chores
 
@@ -1833,6 +1834,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #607 from barrygee/refactor/generic-select-slider-classes
 - Merge pull request #608 from barrygee/feat/sdr-sweep-overlay-labels
 - Merge pull request #609 from barrygee/feat/sdr-relay-search-label
+- Merge pull request #610 from barrygee/fix/sdr-scan-overlay-flash
 
 ### Performance
 
@@ -2239,6 +2241,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the generic select menu and slider row classes
 - Rebuild bundle for the sweep overlay labels
 - Rebuild bundle for the follower search label
+- Rebuild bundle for the scan hold and overlay fixes
 
 ### Continuous Integration
 
