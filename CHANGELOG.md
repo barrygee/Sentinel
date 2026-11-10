@@ -290,6 +290,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pass the owner's demod and sweep state to followers
 - Show the searched range's label to read-only followers
 - Dim locked checkboxes in LabelFieldsTable
+- Add BaseChip and BaseInlineConfirm
 
 ### Bug Fixes
 
@@ -1837,6 +1838,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #609 from barrygee/feat/sdr-relay-search-label
 - Merge pull request #610 from barrygee/fix/sdr-scan-overlay-flash
 - Merge pull request #611 from barrygee/feat/dim-locked-label-checkboxes
+- Merge pull request #612 from barrygee/refactor/base-chip-inline-confirm
 
 ### Performance
 
@@ -1959,6 +1961,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop the accordion header styles from SdrPanel.css
 - Build REPEATER FILTERS on BaseAccordionSection
 - Give BaseSelectMenu and BaseSliderRow generic class names
+- Use BaseChip for the SDR, Space and Land filter chips
+- Use BaseInlineConfirm for the delete, remove and forget confirms
 
 ### Documentation
 
@@ -2245,6 +2249,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the follower search label
 - Rebuild bundle for the scan hold and overlay fixes
 - Rebuild bundle for the dimmed locked checkboxes
+- Rebuild bundle for BaseChip and BaseInlineConfirm
 
 ### Continuous Integration
 
