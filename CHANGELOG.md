@@ -1842,6 +1842,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #612 from barrygee/refactor/base-chip-inline-confirm
 - Merge pull request #613 from barrygee/refactor/tle-dropdown-settings-dropdown
 - Merge pull request #614 from barrygee/fix/sdr-panel-polish
+- Merge pull request #615 from barrygee/fix/air-adsb-spec-marker-remove
 
 ### Performance
 
@@ -2143,6 +2144,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Expect the plural range rings label
 - Point the RadioIcon guard at SatelliteActionRow
 - Type the owner-metadata relay tests without an ignore
+- Stop leaked controls failing the AdsbLiveControl spec
 
 ### Build System
 
