@@ -48,8 +48,8 @@ def opened(monkeypatch) -> list[dict]:
 
 
 async def test_the_settings_client(opened):
-    with pytest.raises(_Opened):
-        await settings_client._core_request("GET", "https://core.lan:8443/api/settings/app")
+    # One pooled client per process, opened on first use rather than per call.
+    settings_client._core_client()
     assert opened[0]["verify"] is TRUST
 
 

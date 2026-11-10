@@ -46,7 +46,7 @@ from backend.platform.remote_files import RemotesStaticFiles
 from backend.platform.sdk.registration import ServiceRegistrar
 from backend.platform.security import install_request_guard
 from backend.platform.service_manifest import ServiceManifest
-from backend.platform.settings_client import SettingsUnavailable, wait_for_core
+from backend.platform.settings_client import SettingsUnavailable, close_core_client, wait_for_core
 from fastapi import APIRouter, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -190,13 +190,17 @@ def create_service(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        if not serve_before_core:
-            async with run_lifecycles((_core_ready_lifecycle(advertised.id), *core_dependent)):
-                yield
-            return
-        async with run_lifecycles(core_independent_lifecycles):
-            async with _run_once_core_answers(advertised.id, core_dependent):
-                yield
+        try:
+            if not serve_before_core:
+                async with run_lifecycles((_core_ready_lifecycle(advertised.id), *core_dependent)):
+                    yield
+                return
+            async with run_lifecycles(core_independent_lifecycles):
+                async with _run_once_core_answers(advertised.id, core_dependent):
+                    yield
+        finally:
+            # After every module has stopped, so a stop hook may still read settings.
+            await close_core_client()
 
     app = FastAPI(
         title=f"SENTINEL {advertised.display_name or advertised.id} service",

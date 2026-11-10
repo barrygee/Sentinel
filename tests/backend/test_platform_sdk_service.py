@@ -191,6 +191,39 @@ class TestLifespan:
 
         assert calls[3:] == ["registration.stop", "section.stop"]
 
+    async def test_closes_the_core_client_after_every_module_stops(self, calls, monkeypatch):
+        async def close_core_client():
+            calls.append("core-client.close")
+
+        monkeypatch.setattr(sdk_module, "close_core_client", close_core_client)
+        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.section_lifecycle(calls)])
+
+        async with app.router.lifespan_context(app):
+            assert "core-client.close" not in calls
+
+        assert calls[-1] == "core-client.close"
+        assert calls[-2] == "section.stop"
+
+    async def test_closes_the_core_client_when_startup_fails(self, calls, monkeypatch):
+        async def close_core_client():
+            calls.append("core-client.close")
+
+        async def failing_prepare():
+            raise RuntimeError("section prepare failed")
+
+        monkeypatch.setattr(sdk_module, "close_core_client", close_core_client)
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[ModuleLifecycle(name="space", prepare=failing_prepare)],
+        )
+
+        with pytest.raises(RuntimeError, match="section prepare failed"):
+            async with app.router.lifespan_context(app):
+                pass
+
+        assert calls == ["core-client.close"]
+
     async def test_waits_for_core_before_any_section_work(self, calls, monkeypatch):
         async def wait_for_core(waiting_for):
             calls.append(f"core-ready: {waiting_for}")
@@ -402,6 +435,22 @@ class TestServeBeforeCore:
             # Nothing that needs core has run: no section work, no registration.
             assert calls == ["local.prepare", "local.start"]
             core_answered.set()  # let the background task finish before shutdown
+
+    async def test_closes_the_core_client_after_the_core_independent_work_stops(
+        self, calls, core_answered, monkeypatch
+    ):
+        async def close_core_client():
+            calls.append("core-client.close")
+
+        monkeypatch.setattr(sdk_module, "close_core_client", close_core_client)
+        app = self.build(calls)
+        core_answered.set()
+
+        async with self.serving(app):
+            await self.until(calls, "registration.start")
+            assert "core-client.close" not in calls
+
+        assert calls[-2:] == ["local.stop", "core-client.close"]
 
     async def test_the_rest_starts_once_core_answers(self, calls, core_answered):
         app = self.build(calls)
