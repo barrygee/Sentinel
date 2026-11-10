@@ -1324,7 +1324,10 @@ describe('SdrPanel — scanner', () => {
     nowMs += 500
     vi.advanceTimersByTime(300) // dwell → evaluate → db(0) >= squelch(-30) → lock
     await wrapper.vm.$nextTick() // flush the scan-sweep mirror watch
-    expect(store.scanSweeping).toBe(false) // locked → not sweeping
+    expect(store.scanSweeping).toBe(true) // a hold keeps the overlay up at first
+    vi.advanceTimersByTime(2000) // …until the hold has lasted 2 s
+    await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(false)
     vi.useRealTimers()
   })
 })
@@ -2336,6 +2339,9 @@ describe('SdrPanel — scanner lock toggle & validation edges', () => {
     nowMs += 500
     vi.advanceTimersByTime(300) // → lock
     await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true) // a hold keeps the overlay up at first
+    vi.advanceTimersByTime(2000) // …until the hold has lasted 2 s
+    await wrapper.vm.$nextTick()
     expect(store.scanSweeping).toBe(false)
     // Press primary again → toggleScanLock unlocks and resumes stepping.
     await wrapper.find('.sdr-search-adhoc-play').trigger('click')
@@ -3203,6 +3209,9 @@ describe('SdrPanel — branch coverage D (recording, squelch, restore)', () => {
     nowMs += 500
     audioMock._squelchCb!(true) // worklet opens squelch → lock
     await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true) // a hold keeps the overlay up at first
+    vi.advanceTimersByTime(2000) // …until the hold has lasted 2 s
+    await wrapper.vm.$nextTick()
     expect(store.scanSweeping).toBe(false)
     vi.useRealTimers()
   })
@@ -3756,6 +3765,9 @@ describe('SdrPanel — branch coverage H (engine resume, validation, guards)', (
     nowMs += 500
     vi.advanceTimersByTime(300) // → lock
     await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true) // a hold keeps the overlay up at first
+    vi.advanceTimersByTime(2000) // …until the hold has lasted 2 s
+    await wrapper.vm.$nextTick()
     expect(store.scanSweeping).toBe(false)
     // Signal drops: weak frames → resume watcher polls → onResume → toggleScanLock.
     socket.message(frame(118e6, -120, 3))
@@ -3949,8 +3961,12 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     nowMs += 500
     audioMock._squelchCb!(true) // worklet squelch opens after settle → lock + resume watcher
     await wrapper.vm.$nextTick()
+    expect(store.scanSweeping).toBe(true) // a hold keeps the overlay up at first
+    vi.advanceTimersByTime(2000) // …until the hold has lasted 2 s
+    await wrapper.vm.$nextTick()
     expect(store.scanSweeping).toBe(false)
-    socket.message(frame(118e6, -120, 1)) // channel quiet
+    audioMock._squelchCb!(false) // the signal ends: squelch closes…
+    socket.message(frame(118e6, -120, 1)) // …and the channel reads quiet
     nowMs += 500
     vi.advanceTimersByTime(400) // resume poll → toggleScanLock
     await wrapper.vm.$nextTick()
@@ -3972,7 +3988,8 @@ describe('SdrPanel — branch coverage I (resume callbacks & remaining guards)',
     nowMs += 500
     audioMock._squelchCb!(true) // squelch opens after settle → lock + resume watcher
     expect(store.searchSweeping).toBe(false)
-    socket.message(frame(118e6, -120, 1))
+    audioMock._squelchCb!(false) // the signal ends: squelch closes…
+    socket.message(frame(118e6, -120, 1)) // …and the channel reads quiet
     nowMs += 500
     vi.advanceTimersByTime(400) // resume → toggleSearchLock
     expect(store.searchSweeping).toBe(true)

@@ -127,10 +127,24 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     }
   }
 
+  // How long the scanner must hold on a signal before the "Scanning" overlay
+  // hides to show the live plots. On busy channels the scanner holds and resumes
+  // every second or two; hiding at once made the overlay flash.
+  const SCAN_HOLD_HIDE_DELAY_MS = 2000
+  let _scanHoldHideTimer: ReturnType<typeof setTimeout> | null = null
+
+  function clearScanHoldHideTimer() {
+    if (_scanHoldHideTimer) {
+      clearTimeout(_scanHoldHideTimer)
+      _scanHoldHideTimer = null
+    }
+  }
+
   // Mirror scanner sweep state + selected group labels into the store. The
-  // waterfall component reads these to show the same paused/holding overlay
-  // used during a range search whenever the scanner is stepping between
-  // frequencies (but not when it has locked onto an active signal).
+  // waterfall component reads these to show the "Scanning" overlay while the
+  // scanner steps between frequencies. When it locks onto an active signal the
+  // overlay stays up until the hold has lasted SCAN_HOLD_HIDE_DELAY_MS, then
+  // hides so the signal shows on the live plots.
   watch(
     [scanActive, scanLocked, scanAllSelected, scanSelectedGroupIds, groupsWithFreqs],
     ([active, locked, allSel, selIds, groupsList]) => {
@@ -139,7 +153,20 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
       // state (see applyOwnership); its own scanner is idle, so skip here or we'd
       // clobber the mirror back to "not scanning".
       if (_ss.readOnly) return
-      _ss.scanSweeping = !!active && !locked
+      if (active && locked) {
+        // Start the hide countdown once per hold. A group change during the hold
+        // re-runs this watcher but must not restart the countdown.
+        if (_ss.scanSweeping && !_scanHoldHideTimer) {
+          _scanHoldHideTimer = setTimeout(() => {
+            _scanHoldHideTimer = null
+            const store = _sdrStore()
+            if (scanActive.value && scanLocked.value && !store.readOnly) store.scanSweeping = false
+          }, SCAN_HOLD_HIDE_DELAY_MS)
+        }
+      } else {
+        clearScanHoldHideTimer()
+        _ss.scanSweeping = !!active
+      }
       if (allSel || (selIds as number[]).length === 0) {
         _ss.scanGroupNames = ['All']
       } else {
@@ -591,11 +618,18 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
 
   // Shared auto-resume watcher used by both search and scan. When a freq is
   // locked on a signal, poll sampleChannelDb() and only call onResume() once the
-  // channel has been below `thresholdDb` continuously for `delaySec` seconds.
+  // channel has been below `thresholdDb`, with the audio squelch closed,
+  // continuously for `delaySec` seconds.
   // delaySec == 0 → resume on the next poll where the signal is gone.
   const RESUME_POLL_MS = 200
   let _resumeTimer: ReturnType<typeof setTimeout> | null = null
   let _quietSinceMs: number | null = null
+  // Whether the audio worklet's squelch is open right now (see
+  // onSweepSquelchChange). The resume watcher treats an open squelch as an
+  // active channel: sampleChannelDb reads the waterfall, which can underreport
+  // a narrow signal the listener can still hear, and resuming on that reading
+  // cut holds short while the signal was still playing.
+  let _sweepSquelchOpen = false
 
   function stopResumeWatcher() {
     if (_resumeTimer) {
@@ -611,7 +645,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     const tick = () => {
       _resumeTimer = null
       const db = sampleChannelDb()
-      const active = db >= thresholdDb
+      const active = _sweepSquelchOpen || db >= thresholdDb
       if (active) {
         _quietSinceMs = null
       } else {
@@ -735,6 +769,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
 
   // The sweep half of the audio worklet's squelch-change callback.
   function onSweepSquelchChange(open: boolean) {
+    _sweepSquelchOpen = open
     // The audio worklet's squelch is the source of truth for "is this channel
     // audible". The scan/search dwell check samples the spectrum waterfall
     // (sampleChannelDb), which can underreport narrow signals the worklet's

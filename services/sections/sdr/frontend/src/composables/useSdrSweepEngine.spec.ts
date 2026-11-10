@@ -676,3 +676,170 @@ describe('useSdrSweepEngine — race guard', () => {
     expect(tuneToFreq).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('useSdrSweepEngine — scan overlay through a hold', () => {
+  /** Starts a scan and holds it on the first channel's strong signal. */
+  async function startHeldScan(harness: ReturnType<typeof createHarness>) {
+    harness.engine.onScanPrimaryClick()
+    feedFrames(harness.engine, 118_100_000, hotBins())
+    await vi.advanceTimersByTimeAsync(250) // dwell → evaluate → lock
+    expect(harness.engine.scanLocked.value).toBe(true)
+  }
+
+  it('keeps the overlay up for the first 2 s of a hold, then hides it', async () => {
+    useSweepTimers()
+    const harness = createHarness()
+    const store = useSdrStore()
+    await startHeldScan(harness)
+    expect(store.scanSweeping).toBe(true)
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(store.scanSweeping).toBe(true)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(store.scanSweeping).toBe(false)
+  })
+
+  it('never hides the overlay for a hold that ends within 2 s', async () => {
+    useSweepTimers()
+    const harness = createHarness()
+    const store = useSdrStore()
+    await startHeldScan(harness)
+    await vi.advanceTimersByTimeAsync(1_000)
+    feedFrames(harness.engine, 118_100_000, quietBins(), 1) // the signal drops
+    await vi.advanceTimersByTimeAsync(200) // resume poll → scanning again
+    expect(harness.engine.scanLocked.value).toBe(false)
+    expect(store.scanSweeping).toBe(true)
+    feedFrames(harness.engine, 156_800_000, quietBins()) // keep stepping on quiet channels
+    await vi.advanceTimersByTimeAsync(2_000) // past the old hold's countdown
+    expect(store.scanSweeping).toBe(true)
+  })
+
+  it('gives a second hold its own full 2 s, however soon it follows the first', async () => {
+    useSweepTimers()
+    const harness = createHarness()
+    const store = useSdrStore()
+    await startHeldScan(harness) // hold 1 on 118.1 MHz
+    await vi.advanceTimersByTimeAsync(1_000)
+    feedFrames(harness.engine, 118_100_000, quietBins(), 1)
+    await vi.advanceTimersByTimeAsync(200) // resume → steps to 156.8 MHz
+    expect(harness.engine.scanLocked.value).toBe(false)
+    feedFrames(harness.engine, 156_800_000, hotBins())
+    await vi.advanceTimersByTimeAsync(250) // hold 2 begins, 1.45 s after hold 1 did
+    expect(harness.engine.scanLocked.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(1_000) // 2.45 s after hold 1, 1 s into hold 2
+    expect(store.scanSweeping).toBe(true)
+    await vi.advanceTimersByTimeAsync(1_000) // 2 s into hold 2
+    expect(store.scanSweeping).toBe(false)
+  })
+
+  it('does not restart the countdown when the groups change during a hold', async () => {
+    useSweepTimers()
+    const harness = createHarness({
+      freqs: ref<SdrStoredFrequency[]>([
+        makeFreq({ group_ids: [1] }),
+        makeFreq({ id: 2, frequency_hz: 156_800_000, mode: 'NFM', group_ids: [2] }),
+      ]),
+    })
+    const store = useSdrStore()
+    await startHeldScan(harness)
+    await vi.advanceTimersByTimeAsync(1_500)
+    harness.engine.toggleScanGroup(1) // ALL → Air, while still holding
+    await vi.advanceTimersByTimeAsync(0)
+    expect(store.scanGroupNames).toEqual(['Air'])
+    expect(store.scanSweeping).toBe(true)
+    await vi.advanceTimersByTimeAsync(500) // 2 s since the hold began
+    expect(store.scanSweeping).toBe(false)
+  })
+
+  it('hides the overlay at once when the scan stops during a hold', async () => {
+    useSweepTimers()
+    const harness = createHarness()
+    const store = useSdrStore()
+    await startHeldScan(harness)
+    harness.engine.stopScan()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(store.scanSweeping).toBe(false)
+  })
+
+  it("leaves a follower's mirrored overlay alone when its own countdown ends", async () => {
+    useSweepTimers()
+    const harness = createHarness()
+    const store = useSdrStore()
+    await startHeldScan(harness)
+    store.setOwnership(false, true, true) // another instance took the tuner
+    await vi.advanceTimersByTimeAsync(0)
+    store.scanSweeping = true // the owner's mirrored sweep state
+    await vi.advanceTimersByTimeAsync(2_000)
+    expect(store.scanSweeping).toBe(true)
+  })
+})
+
+describe('useSdrSweepEngine — holds last while the squelch is open', () => {
+  it('keeps a squelch-started scan hold while the squelch stays open, though the waterfall reads quiet', async () => {
+    useSweepTimers()
+    const { engine, tuneToFreq } = createHarness()
+    engine.onScanPrimaryClick()
+    await vi.advanceTimersByTimeAsync(250) // past the post-tune settle (no frames yet)
+    engine.onSweepSquelchChange(true)
+    expect(engine.scanLocked.value).toBe(true)
+    feedFrames(engine, 118_100_000, quietBins(), 1) // a narrow signal the waterfall misses
+    await vi.advanceTimersByTimeAsync(1_000) // five resume polls
+    expect(engine.scanLocked.value).toBe(true)
+    expect(tuneToFreq).toHaveBeenCalledTimes(1)
+    engine.onSweepSquelchChange(false) // the transmission ends
+    await vi.advanceTimersByTimeAsync(200)
+    expect(engine.scanLocked.value).toBe(false)
+    expect(tuneToFreq).toHaveBeenCalledTimes(2) // moved on
+  })
+
+  it('keeps a spectrum-started scan hold while the squelch is open after the level drops', async () => {
+    useSweepTimers()
+    const { engine } = createHarness()
+    engine.onScanPrimaryClick()
+    feedFrames(engine, 118_100_000, hotBins())
+    await vi.advanceTimersByTimeAsync(250) // locked on the spectrum level
+    engine.onSweepSquelchChange(true) // already locked: only records the open squelch
+    feedFrames(engine, 118_100_000, quietBins(), 1)
+    await vi.advanceTimersByTimeAsync(600)
+    expect(engine.scanLocked.value).toBe(true)
+    engine.onSweepSquelchChange(false)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(engine.scanLocked.value).toBe(false)
+  })
+
+  it('counts the resume delay from when the squelch closes', async () => {
+    useSweepTimers()
+    const { engine } = createHarness({ resumeDelaySec: ref(1) })
+    engine.onScanPrimaryClick()
+    await vi.advanceTimersByTimeAsync(250)
+    engine.onSweepSquelchChange(true)
+    feedFrames(engine, 118_100_000, quietBins(), 1)
+    await vi.advanceTimersByTimeAsync(2_000) // squelch open the whole time
+    expect(engine.scanLocked.value).toBe(true)
+    engine.onSweepSquelchChange(false)
+    await vi.advanceTimersByTimeAsync(800) // quiet, but under the 1 s delay
+    expect(engine.scanLocked.value).toBe(true)
+    await vi.advanceTimersByTimeAsync(400)
+    expect(engine.scanLocked.value).toBe(false)
+  })
+
+  it('keeps a squelch-started search hold while the squelch stays open', async () => {
+    useSweepTimers()
+    const { engine, tuneToHzMode } = createHarness()
+    const store = useSdrStore()
+    engine.adhocLowMhz.value = '100'
+    engine.adhocHighMhz.value = '100.05'
+    engine.onAdhocPlayClick()
+    await vi.advanceTimersByTimeAsync(250)
+    engine.onSweepSquelchChange(true)
+    expect(engine.searchLocked.value).toBe(true)
+    feedFrames(engine, 100_000_000, quietBins(), 1)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(engine.searchLocked.value).toBe(true)
+    expect(store.searchSweeping).toBe(false)
+    const tunesWhileHeld = tuneToHzMode.mock.calls.length
+    engine.onSweepSquelchChange(false)
+    await vi.advanceTimersByTimeAsync(200)
+    expect(engine.searchLocked.value).toBe(false)
+    expect(tuneToHzMode.mock.calls.length).toBeGreaterThan(tunesWhileHeld) // stepped on
+  })
+})
