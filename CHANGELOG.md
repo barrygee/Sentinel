@@ -285,6 +285,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add an inline layout to BaseFormField and BaseTextField
 - Let an inline BaseFormField wrap its control under the caption
 - Give BaseAccordionSection its own styles and class names
+- Open a clicked military base in the side panel
 
 ### Bug Fixes
 
@@ -652,6 +653,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep airfield labels bright in arrow mode
 - Match the panel search hint to the other sections
 - Keep the ADD SDRS caption left-aligned on phones
+- Keep an aircraft's hover tag where its label sits
 
 ### Chores
 
@@ -1824,6 +1826,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #603 from barrygee/refactor/sdr-device-form-field
 - Merge pull request #604 from barrygee/refactor/local-form-field
 - Merge pull request #605 from barrygee/refactor/accordion-section-styles
+- Merge pull request #606 from barrygee/fix/air-military-bases
 
 ### Performance
 
@@ -2224,6 +2227,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the inline device and host form fields
 - Rebuild for the THIS MACHINE form fields
 - Rebuild for the BaseAccordionSection styles
+- Rebuild for the military base panel and hover tag fixes
 
 ### Continuous Integration
 
