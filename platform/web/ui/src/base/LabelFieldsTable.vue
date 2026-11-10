@@ -247,6 +247,13 @@ function accessibleName(row: LabelFieldRow, column: LabelFieldColumn): string {
 .lft-check :deep(.lft-input:checked + .lft-box) {
   background: var(--lft-accent);
 }
+/* A locked box (isDisabled, e.g. Air's ALWAYS ON for a field that is off for
+   both civil and military) is dimmed with a not-allowed cursor, so it no longer
+   looks like a box that can be ticked. */
+.lft-check :deep(.lft-input:disabled + .lft-box) {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 
 @media (max-width: 480px) {
   .lft-wrap {
