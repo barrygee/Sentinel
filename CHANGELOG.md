@@ -287,6 +287,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give BaseAccordionSection its own styles and class names
 - Open a clicked military base in the side panel
 - Headline sweep overlays "Scanning"/"Searching" with labels
+- Pass the owner's demod and sweep state to followers
+- Show the searched range's label to read-only followers
 
 ### Bug Fixes
 
@@ -1830,6 +1832,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #606 from barrygee/fix/air-military-bases
 - Merge pull request #607 from barrygee/refactor/generic-select-slider-classes
 - Merge pull request #608 from barrygee/feat/sdr-sweep-overlay-labels
+- Merge pull request #609 from barrygee/feat/sdr-relay-search-label
 
 ### Performance
 
@@ -2127,6 +2130,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record the search field in the cascade snapshots
 - Expect the plural range rings label
 - Point the RadioIcon guard at SatelliteActionRow
+- Type the owner-metadata relay tests without an ignore
 
 ### Build System
 
@@ -2234,6 +2238,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the military base panel and hover tag fixes
 - Rebuild for the generic select menu and slider row classes
 - Rebuild bundle for the sweep overlay labels
+- Rebuild bundle for the follower search label
 
 ### Continuous Integration
 
