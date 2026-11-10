@@ -246,8 +246,13 @@ function mounted(options: { zoom?: number; onSync?: ((v: boolean) => void) | nul
     .mockImplementation(() => {})
   control.onAdd(map.map)
   startPolling.mockRestore()
+  mountedControls.push(control)
   return { control, map }
 }
+
+// Controls mounted by a test, unsubscribed afterwards so a window event in a
+// later test can't reach a control (and its fake markers) left from this one.
+const mountedControls: AdsbLiveControl[] = []
 
 /** Seed a control's internal geojson with one feature for the given hex. */
 function seedFeature(
@@ -334,6 +339,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  for (const control of mountedControls.splice(0)) {
+    window.removeEventListener('adsb:tagFieldsChanged', priv(control)._onTagFieldsChanged)
+  }
   vi.clearAllMocks()
   vi.unstubAllGlobals()
   vi.useRealTimers()
@@ -1321,7 +1329,7 @@ describe('AdsbLiveControl hover tag', () => {
   function restLabel(control: AdsbLiveControl, hex: string, dir: 'left' | 'right'): HTMLElement {
     const labelEl = document.createElement('div')
     labelEl.dataset.dir = dir
-    priv(control)._callsignMarkers[hex] = { getElement: () => labelEl }
+    priv(control)._callsignMarkers[hex] = { getElement: () => labelEl, remove: vi.fn() }
     return labelEl
   }
 
