@@ -709,6 +709,32 @@ describe('SdrWaterfall — search & scan overlays', () => {
     expect(vals[1].text()).toBe('110.0000')
   })
 
+  it('headlines the search overlay "Searching" with the range label as a chip', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.searchSweeping = true
+    store.searchLabel = 'Airband'
+    await wrapper.vm.$nextTick()
+    const overlay = wrapper.find('.sdr-wf-search-overlay')
+    expect(overlay.find('.sdr-wf-search-overlay-headline').text()).toBe('Searching')
+    const chips = overlay.findAll('.sdr-scan-group-chip')
+    expect(chips).toHaveLength(1)
+    expect(chips[0].text()).toBe('Airband')
+    expect(chips[0].classes()).toContain('sdr-scan-group-chip-active')
+    expect(overlay.text()).not.toContain('paused')
+  })
+
+  it('shows no label chip on the search overlay when the label is unknown (a follower)', async () => {
+    const { wrapper, store } = mountWaterfall()
+    store.searchSweeping = true
+    store.searchLabel = null
+    await wrapper.vm.$nextTick()
+    const overlay = wrapper.find('.sdr-wf-search-overlay')
+    expect(overlay.find('.sdr-wf-search-overlay-headline').text()).toBe('Searching')
+    expect(overlay.find('.sdr-wf-scan-overlay-groups').exists()).toBe(false)
+    // The progress bar still renders without a label.
+    expect(overlay.find('.sdr-wf-search-overlay-progress').exists()).toBe(true)
+  })
+
   it('shows an em-dash range and zero progress when search bounds are null', async () => {
     const { wrapper, store } = mountWaterfall()
     store.searchSweeping = true
@@ -738,6 +764,8 @@ describe('SdrWaterfall — search & scan overlays', () => {
     await wrapper.vm.$nextTick()
     expect(wrapper.find('.sdr-wf-scan-overlay-groups').exists()).toBe(true)
     expect(wrapper.findAll('.sdr-scan-group-chip')).toHaveLength(2)
+    expect(wrapper.find('.sdr-wf-search-overlay-headline').text()).toBe('Scanning')
+    expect(wrapper.find('.sdr-wf-search-overlay').text()).not.toContain('paused')
   })
 
   it('dulls the plots and disables the Zoom/Max/Min sliders while searching', async () => {

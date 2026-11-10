@@ -194,6 +194,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     _ss.searchLowHz = null
     _ss.searchHighHz = null
     _ss.searchCurrentHz = null
+    _ss.searchLabel = null
   })
 
   // ── Scanner engine ────────────────────────────────────────────────────────
@@ -507,6 +508,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     _ss.searchLowHz = r.low_hz
     _ss.searchHighHz = r.high_hz
     _ss.searchCurrentHz = r.low_hz
+    _ss.searchLabel = r.label
     _searchHz = r.low_hz
     // Invalidate any stale spectrum frame so the first step waits for fresh data.
     _lastSpectrum = null
@@ -522,6 +524,7 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     _ss.searchLowHz = null
     _ss.searchHighHz = null
     _ss.searchCurrentHz = null
+    _ss.searchLabel = null
     searchCurrentHz.value = null
     _expectedCenterHz = null
     _postTuneFrameCount = 0

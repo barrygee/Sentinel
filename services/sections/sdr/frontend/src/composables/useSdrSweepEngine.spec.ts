@@ -334,6 +334,7 @@ describe('useSdrSweepEngine — range search', () => {
     expect(store.searchLowHz).toBe(100_000_000)
     expect(store.searchHighHz).toBe(100_050_000)
     expect(store.searchCurrentHz).toBe(100_000_000)
+    expect(store.searchLabel).toBe('Ad-hoc')
   })
 
   it('steps quiet channels and wraps at the high edge', async () => {
@@ -393,6 +394,7 @@ describe('useSdrSweepEngine — range search', () => {
     expect(engine.searchActive.value).toBe(false)
     expect(store.searchSweeping).toBe(false)
     expect(store.searchLowHz).toBeNull()
+    expect(store.searchLabel).toBeNull()
     expect(engine.searchCurrentHz.value).toBeNull()
   })
 
@@ -431,6 +433,23 @@ describe('useSdrSweepEngine — range search', () => {
     engine.onSavedRangePlayClick(12)
     expect(engine.searchSelectedRangeId.value).toBe(12)
     expect(tuneToHzMode).toHaveBeenLastCalledWith(121_000_000, 'AM')
+  })
+
+  it("mirrors the saved range's label into the store, follows a switch and clears on stop", () => {
+    useSweepTimers()
+    const { engine } = createHarness()
+    const store = useSdrStore()
+    engine.searchRanges.value = [
+      makeRange(),
+      makeRange({ id: 12, label: 'Marine', low_hz: 156_000_000, high_hz: 156_100_000 }),
+    ]
+    expect(store.searchLabel).toBeNull()
+    engine.onSavedRangePlayClick(11)
+    expect(store.searchLabel).toBe('Airband')
+    engine.onSavedRangePlayClick(12)
+    expect(store.searchLabel).toBe('Marine')
+    engine.onSavedRangePlayClick(12)
+    expect(store.searchLabel).toBeNull()
   })
 
   it('starting a search stops an active scan (mutual exclusion)', () => {
@@ -624,6 +643,7 @@ describe('useSdrSweepEngine — store mirrors and follower publish', () => {
     store.searchLowHz = 1
     store.searchHighHz = 2
     store.searchCurrentHz = 3
+    store.searchLabel = 'OwnerRange'
     store.scanSweeping = true
     store.scanGroupNames = ['OwnerGroup']
     options.readOnly.value = false
@@ -632,6 +652,7 @@ describe('useSdrSweepEngine — store mirrors and follower publish', () => {
     expect(store.searchLowHz).toBeNull()
     expect(store.searchHighHz).toBeNull()
     expect(store.searchCurrentHz).toBeNull()
+    expect(store.searchLabel).toBeNull()
     expect(store.scanSweeping).toBe(false)
     expect(store.scanGroupNames).toEqual([])
   })
