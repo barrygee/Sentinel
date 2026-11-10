@@ -286,6 +286,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Let an inline BaseFormField wrap its control under the caption
 - Give BaseAccordionSection its own styles and class names
 - Open a clicked military base in the side panel
+- Headline sweep overlays "Scanning"/"Searching" with labels
 
 ### Bug Fixes
 
@@ -1828,6 +1829,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #605 from barrygee/refactor/accordion-section-styles
 - Merge pull request #606 from barrygee/fix/air-military-bases
 - Merge pull request #607 from barrygee/refactor/generic-select-slider-classes
+- Merge pull request #608 from barrygee/feat/sdr-sweep-overlay-labels
 
 ### Performance
 
@@ -2231,6 +2233,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the BaseAccordionSection styles
 - Rebuild for the military base panel and hover tag fixes
 - Rebuild for the generic select menu and slider row classes
+- Rebuild bundle for the sweep overlay labels
 
 ### Continuous Integration
 
