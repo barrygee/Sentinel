@@ -58,6 +58,7 @@ const AirSideMenuStub = defineComponent({
 let focusSpy: ReturnType<typeof vi.fn>
 let expandAirportSpy: ReturnType<typeof vi.fn>
 let expandAircraftSpy: ReturnType<typeof vi.fn>
+let expandMilitaryBaseSpy: ReturnType<typeof vi.fn>
 
 // Captures the result of the get-map prop arrow so line 12's accessor is exercised.
 let lastGetMapResult: unknown
@@ -68,11 +69,17 @@ const AirFilterStub = defineComponent({
     focusSpy = vi.fn()
     expandAirportSpy = vi.fn()
     expandAircraftSpy = vi.fn()
+    expandMilitaryBaseSpy = vi.fn()
     // Resolve once mounted, by which point AirView's airMapRef is populated.
     onMounted(() => {
       lastGetMapResult = props.getMap?.()
     })
-    expose({ focus: focusSpy, expandAirport: expandAirportSpy, expandAircraft: expandAircraftSpy })
+    expose({
+      focus: focusSpy,
+      expandAirport: expandAirportSpy,
+      expandAircraft: expandAircraftSpy,
+      expandMilitaryBase: expandMilitaryBaseSpy,
+    })
     return () => h('div', { class: 'air-filter-stub' })
   },
 })
@@ -193,6 +200,24 @@ describe('AirView', () => {
       document.dispatchEvent(new CustomEvent('air-open-airport', { detail: {} }))
       document.dispatchEvent(new CustomEvent('air-open-airport'))
       expect(expandAirportSpy).not.toHaveBeenCalled()
+    })
+
+    it('expands the base accordion on air-open-military-base with a name', () => {
+      teleportTargets()
+      mountView()
+      document.dispatchEvent(
+        new CustomEvent('air-open-military-base', { detail: { name: 'RAF Coningsby' } }),
+      )
+      expect(expandMilitaryBaseSpy).toHaveBeenCalledWith('RAF Coningsby')
+      expect(expandAirportSpy).not.toHaveBeenCalled()
+    })
+
+    it('ignores air-open-military-base without a name', () => {
+      teleportTargets()
+      mountView()
+      document.dispatchEvent(new CustomEvent('air-open-military-base', { detail: {} }))
+      document.dispatchEvent(new CustomEvent('air-open-military-base'))
+      expect(expandMilitaryBaseSpy).not.toHaveBeenCalled()
     })
 
     it('expands the aircraft accordion on air-open-aircraft with a hex', () => {

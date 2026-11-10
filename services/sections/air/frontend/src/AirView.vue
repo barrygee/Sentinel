@@ -97,6 +97,13 @@ function onOpenAirport(e: Event) {
   if (icao) airFilterRef.value?.expandAirport(icao)
 }
 
+// Military base click on the map → expand that base's accordion in the MIL
+// list. MapSidebar handles opening the panel on the search tab.
+function onOpenMilitaryBase(e: Event) {
+  const name = (e as CustomEvent<{ name: string }>).detail?.name
+  if (name) airFilterRef.value?.expandMilitaryBase(name)
+}
+
 // Aircraft click on the map → expand that aircraft's accordion in the SEARCH
 // list. MapSidebar handles opening the panel on the search tab.
 function onOpenAircraft(e: Event) {
@@ -108,5 +115,6 @@ useDocumentEvent('keydown', onKeydown)
 useDocumentEvent('air-open-search', onOpenSearch)
 useDocumentEvent('air-open-filter', onOpenFilter)
 useDocumentEvent('air-open-airport', onOpenAirport)
+useDocumentEvent('air-open-military-base', onOpenMilitaryBase)
 useDocumentEvent('air-open-aircraft', onOpenAircraft)
 </script>

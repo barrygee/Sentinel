@@ -13,12 +13,6 @@
     @update:query="query = $event"
     @update:expanded-key="onExpandedKeyChange"
   >
-    <!-- Military bases don't expand — they carry a MIL badge where the other
-         categories show their disclosure chevron. -->
-    <template #row-trailing>
-      <span class="filter-result-badge">MIL</span>
-    </template>
-
     <template #accordion="{ item }">
       <!-- Inline accordion of live telemetry + controls, keyed off the category
            the row came from. Data re-renders each ADS-B poll. -->
@@ -120,9 +114,29 @@
         </div>
       </div>
 
-      <!-- Airport accordion: location + clickable frequencies. Military bases
-           are the only other category and never expand, so the two expandable
-           categories are the whole story here. -->
+      <!-- Military base accordion: its location. The base data carries no
+           frequencies, so there is no tuning section. -->
+      <div v-else-if="filterCategory === 'mil'" class="apt-acc-body">
+        <div class="apt-acc-section">
+          <div class="apt-acc-section-title">LOCATION</div>
+          <div class="apt-acc-grid apt-acc-grid--two">
+            <div class="apt-acc-cell">
+              <div class="apt-acc-cell-label">LATITUDE</div>
+              <div class="apt-acc-cell-value">
+                {{ formatLat(milBaseFor(item.key)!.coords[1]) }}
+              </div>
+            </div>
+            <div class="apt-acc-cell">
+              <div class="apt-acc-cell-label">LONGITUDE</div>
+              <div class="apt-acc-cell-value">
+                {{ formatLon(milBaseFor(item.key)!.coords[0]) }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Airport accordion: location + clickable frequencies. -->
       <div v-else class="apt-acc-body">
         <div class="apt-acc-section">
           <div class="apt-acc-section-title">LOCATION</div>
@@ -241,6 +255,9 @@ const panelRef = useTemplateRef<InstanceType<typeof BaseFilterPanel>>('panelRef'
 // Which airport row is expanded (by ICAO), and which one is currently showing
 // the "connect an SDR" inline notice.
 const expandedAirport = ref<string | null>(null)
+// Keyed by name: two bases (Wyton, Alconbury) share an ICAO code, and
+// Fylingdales has none.
+const expandedMilBase = ref<string | null>(null)
 const tuneNotice = ref<string | null>(null)
 
 // Live telemetry shown in an expanded aircraft row's accordion. The formatted
@@ -516,17 +533,14 @@ const items = computed<FilterPanelItem[]>(() => {
     primary: base.icao || base.name.toUpperCase().slice(0, 6),
     secondary: base.name.toUpperCase(),
     optionLabel: milOptionLabel(base),
-    // A base has no detail to disclose — clicking one just flies the map to it.
-    expandable: false,
   }))
 })
 
-// The row the shell should render open: whichever of the two expandable
-// categories is active (military bases never expand).
+// The row the shell should render open, for whichever category is active.
 const expandedKey = computed<string>(() => {
   if (filterCategory.value === 'aircraft') return expandedPlane.value ?? ''
   if (filterCategory.value === 'airports') return expandedAirport.value ?? ''
-  return ''
+  return expandedMilBase.value ?? ''
 })
 
 function planeOptionLabel(r: PlaneResult): string {
@@ -541,7 +555,8 @@ function airportOptionLabel(r: AirportResult): string {
 }
 function milOptionLabel(r: MilResult): string {
   const primary = r.icao || r.name.toUpperCase().slice(0, 6)
-  return `${primary}, ${r.name.toUpperCase()}`
+  const state = expandedMilBase.value === r.name ? 'expanded' : 'collapsed'
+  return `${primary}, ${r.name.toUpperCase()}, ${state}`
 }
 
 // Look-ups from a row key back to its source record, for the accordion slot and
@@ -553,6 +568,9 @@ function planeFor(key: string): PlaneResult | undefined {
 }
 function airportFor(key: string): AirportResult | undefined {
   return airports.value.find((airport) => airport.icao === key)
+}
+function milBaseFor(key: string): MilResult | undefined {
+  return milBases.value.find((base) => base.name === key)
 }
 
 // ---- Row activation ----
@@ -585,13 +603,17 @@ function onExpandedKeyChange(key: string): void {
     openAirport(airport)
     return
   }
-  // Military bases don't expand: a click just flies the map to the base. The
-  // shell still reports the key (nothing is open, so it is never the collapse
-  // case), which is the signal to navigate.
-  const base = milBases.value.find((candidate) => candidate.name === key)
+  // Military bases open like airports: the accordion shows, and the map fits
+  // the base.
+  if (!key) {
+    expandedMilBase.value = null
+    return
+  }
+  const base = milBaseFor(key)
   /* v8 ignore start -- as above: the key is always a rendered base row. */
   if (!base) return
   /* v8 ignore stop */
+  expandedMilBase.value = base.name
   fitBoundsWithPadding(base.bounds)
 }
 
@@ -865,6 +887,16 @@ function expandAirport(icao: string) {
   tuneNotice.value = null
 }
 
+// Expand a military base's accordion by name (driven by a map base click).
+// Clears any active search and switches the FILTER category to MIL. The map
+// click has already flown to the base, so this doesn't move the map again.
+function expandMilitaryBase(name: string) {
+  if (!MILITARY_BASES_DATA.features.some((feature) => feature.properties.name === name)) return
+  query.value = ''
+  airStore.setAirFilterCategory('mil')
+  expandedMilBase.value = name
+}
+
 // Expand a specific aircraft's accordion by hex (driven by a map aircraft click).
 // Clears any active search and switches the FILTER category to aircraft, then
 // pins the aircraft to the top via the snapshot. A no-op if the hex isn't a
@@ -884,6 +916,7 @@ defineExpose({
   focus: () => panelRef.value?.focus(),
   expandAirport,
   expandAircraft,
+  expandMilitaryBase,
 })
 </script>
 
@@ -938,15 +971,7 @@ defineExpose({
   text-align: center;
 }
 
-.filter-result-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.25);
-  flex-shrink: 0;
-}
-
-/* ---- Expanded-row accordion (airports + aircraft) ---- */
+/* ---- Expanded-row accordion (aircraft, airports, military bases) ---- */
 /* Matches the space satellite detail panel. The same lighter-grey tint as the
    open row carries through the content so the whole expanded block reads as one
    block. */

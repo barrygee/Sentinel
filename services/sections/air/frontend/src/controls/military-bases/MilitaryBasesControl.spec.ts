@@ -6,6 +6,7 @@ import { setActivePinia, createPinia } from 'pinia'
 const fieldRegistry = vi.hoisted(() => ({
   instances: [] as Array<{
     sites: Array<{
+      code?: string
       name: string
       coordinates: [number, number]
       onClick: () => void
@@ -161,6 +162,33 @@ describe('MilitaryBasesToggleControl site click', () => {
     fieldRegistry.instances[0]!.sites[0]!.onClick()
     const easeArgs = map.easeTo.mock.calls[0]![0] as Record<string, unknown>
     expect(easeArgs).not.toHaveProperty('pitch')
+  })
+})
+
+describe('MilitaryBasesToggleControl site labels and panel', () => {
+  it('gives each base its ICAO code for the label, and a base without one its name alone', () => {
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    control.onAdd(fakeMap().map)
+    const sites = fieldRegistry.instances[0]!.sites
+    const fylingdales = sites.find((site) => site.name === 'RAF Fylingdales')!
+    expect(fylingdales.code).toBeUndefined()
+    const coningsby = sites.find((site) => site.name === 'RAF Coningsby')!
+    expect(coningsby.code).toBe('EGXC')
+    for (const [index, feature] of MILITARY_BASES_DATA.features.entries()) {
+      expect(sites[index]!.code).toBe(feature.properties.icao || undefined)
+    }
+  })
+
+  it('asks the side panel to open the clicked base', () => {
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    control.onAdd(fakeMap().map)
+    const listener = vi.fn()
+    document.addEventListener('air-open-military-base', listener)
+    const site = fieldRegistry.instances[0]!.sites[3]!
+    site.onClick()
+    document.removeEventListener('air-open-military-base', listener)
+    expect(listener).toHaveBeenCalledTimes(1)
+    expect((listener.mock.calls[0]![0] as CustomEvent).detail).toEqual({ name: site.name })
   })
 })
 

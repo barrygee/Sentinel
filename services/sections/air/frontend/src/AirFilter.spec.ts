@@ -640,6 +640,36 @@ describe('AirFilter', () => {
       expect(map.fitBounds).toHaveBeenCalled()
     })
 
+    it("opens a base's LOCATION accordion on selection and shuts it on a second click", async () => {
+      const wrapper = mountFilter(makeAdsb([]), () => makeMap())
+      await setCategory('mil')
+      const option = () => wrapper.get('#filter-opt-mil-0')
+      expect(option().attributes('aria-label')).toBe('EGVA, RAF FAIRFORD, collapsed')
+      expect(wrapper.find('.apt-acc-body').exists()).toBe(false)
+
+      await wrapper.find('.bfp-result-option').trigger('click')
+      expect(option().attributes('aria-label')).toBe('EGVA, RAF FAIRFORD, expanded')
+      const body = wrapper.get('.apt-acc-body')
+      expect(body.text()).toContain('LOCATION')
+      expect(body.text()).toContain('51.6800°N')
+      expect(body.text()).toContain('1.7900°W')
+      // The base data has no frequencies, so there is nothing to tune.
+      expect(body.text()).not.toContain('FREQUENCIES')
+      expect(body.find('.apt-acc-freq').exists()).toBe(false)
+
+      await wrapper.find('.bfp-result-option').trigger('click')
+      expect(option().attributes('aria-label')).toBe('EGVA, RAF FAIRFORD, collapsed')
+      expect(wrapper.find('.apt-acc-body').exists()).toBe(false)
+    })
+
+    it('gives base rows the disclosure chevron rather than a MIL badge', async () => {
+      const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('mil')
+      expect(wrapper.find('.bfp-item-chevron').exists()).toBe(true)
+      expect(wrapper.find('.bfp-item-trailing').exists()).toBe(false)
+      expect(wrapper.text()).not.toMatch(/\bMIL\b/)
+    })
+
     it('fires the same handlers from each alternate row hit target', async () => {
       const map = makeMap()
       // Airport + base only → predictable .bfp-result-info ordering.
@@ -1278,6 +1308,36 @@ describe('AirFilter', () => {
       await nextTick()
       expect(useAirStore().airFilterCategory).toBe('airports')
       expect(wrapper.find('.apt-acc-body').exists()).toBe(true)
+    })
+
+    it('expands a military base by name (map click), switching to MIL and clearing the search', async () => {
+      const map = makeMap()
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      await setCategory('airports')
+      await wrapper.find('#filter-input').setValue('heathrow')
+      ;(wrapper.vm as unknown as { expandMilitaryBase: (name: string) => void }).expandMilitaryBase(
+        'RAF Fairford',
+      )
+      await nextTick()
+      expect(useAirStore().airFilterCategory).toBe('mil')
+      expect((wrapper.find('#filter-input').element as HTMLInputElement).value).toBe('')
+      expect(wrapper.get('#filter-opt-mil-0').attributes('aria-label')).toBe(
+        'EGVA, RAF FAIRFORD, expanded',
+      )
+      expect(wrapper.get('.apt-acc-body').text()).toContain('51.6800°N')
+      // The map click has already flown to the base; the panel doesn't move it again.
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+
+    it('ignores a military base name it does not know', async () => {
+      const wrapper = mountFilter(makeAdsb([]))
+      await setCategory('airports')
+      ;(wrapper.vm as unknown as { expandMilitaryBase: (name: string) => void }).expandMilitaryBase(
+        'RAF Nowhere',
+      )
+      await nextTick()
+      expect(useAirStore().airFilterCategory).toBe('airports')
+      expect(wrapper.find('.apt-acc-body').exists()).toBe(false)
     })
 
     it('expands an aircraft by hex (map click), ignoring unknown hexes and ground vehicles', async () => {
