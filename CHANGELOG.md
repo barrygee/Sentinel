@@ -284,6 +284,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add a settings density to BaseFormField and BaseTextField
 - Add an inline layout to BaseFormField and BaseTextField
 - Let an inline BaseFormField wrap its control under the caption
+- Give BaseAccordionSection its own styles and class names
 
 ### Bug Fixes
 
@@ -719,6 +720,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Trace greenlets so backend coverage counts route bodies
 - Remove the unused recordings subfolder code
 - Remove BaseListItem and dead rail CSS
+- Remove the unused sip-toggle and spp-filter-toggle CSS
 
 ### Reverts
 
@@ -1821,6 +1823,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #602 from barrygee/refactor/settings-text-field
 - Merge pull request #603 from barrygee/refactor/sdr-device-form-field
 - Merge pull request #604 from barrygee/refactor/local-form-field
+- Merge pull request #605 from barrygee/refactor/accordion-section-styles
 
 ### Performance
 
@@ -1940,6 +1943,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the host form onto BaseTextField
 - Move the THIS MACHINE forms onto BaseTextField
 - Drop the old device form row, label and input CSS
+- Drop the accordion header styles from SdrPanel.css
+- Build REPEATER FILTERS on BaseAccordionSection
 
 ### Documentation
 
@@ -2218,6 +2223,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the settings field density
 - Rebuild for the inline device and host form fields
 - Rebuild for the THIS MACHINE form fields
+- Rebuild for the BaseAccordionSection styles
 
 ### Continuous Integration
 
