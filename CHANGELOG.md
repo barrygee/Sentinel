@@ -1839,6 +1839,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #610 from barrygee/fix/sdr-scan-overlay-flash
 - Merge pull request #611 from barrygee/feat/dim-locked-label-checkboxes
 - Merge pull request #612 from barrygee/refactor/base-chip-inline-confirm
+- Merge pull request #613 from barrygee/refactor/tle-dropdown-settings-dropdown
 
 ### Performance
 
@@ -1963,6 +1964,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give BaseSelectMenu and BaseSliderRow generic class names
 - Use BaseChip for the SDR, Space and Land filter chips
 - Use BaseInlineConfirm for the delete, remove and forget confirms
+- Use SettingsDropdown for the TLE category pickers
 
 ### Documentation
 
@@ -2250,6 +2252,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the scan hold and overlay fixes
 - Rebuild bundle for the dimmed locked checkboxes
 - Rebuild bundle for BaseChip and BaseInlineConfirm
+- Rebuild bundle for the TLE category pickers
 
 ### Continuous Integration
 
