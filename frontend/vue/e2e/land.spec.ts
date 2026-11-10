@@ -212,6 +212,37 @@ test.describe('Land domain repeaters', () => {
     await expect(expandedRow).toHaveCount(0)
   })
 
+  test('the REPEATER FILTERS bar takes the shared section-bar look from BaseAccordionSection', async ({
+    page,
+  }) => {
+    // Unit tests run without the component's scoped CSS, so only a browser shows
+    // whether the shared look actually reaches Land.
+    await openLandFilterPane(page)
+    const heading = page.getByRole('button', { name: /^repeater filters$/i })
+    const title = heading.locator('.base-accordion-title')
+    const chevron = heading.locator('.base-accordion-chevron')
+
+    await expect(heading).toHaveCSS('height', '44px')
+    await expect(heading).toHaveCSS('padding-left', '24px')
+    await expect(title).toHaveCSS('font-size', '9px')
+    await expect(title).toHaveCSS('font-weight', '700')
+    await expect(title).toHaveCSS('text-transform', 'uppercase')
+    // offsetLeft (from the position:relative bar) is layout only, so the
+    // sidebar's slide-in transform can't skew it the way bounding boxes are.
+    expect(await title.evaluate((element) => (element as HTMLElement).offsetLeft)).toBe(24)
+
+    // Closed: the chevron points right (rotated -90deg) in the dim ink.
+    await page.mouse.move(0, 0)
+    await expect(chevron).toHaveCSS('transform', 'matrix(0, -1, 1, 0, 0, 0)')
+    const closedColour = await chevron.evaluate((element) => getComputedStyle(element).color)
+
+    await expandRepeaterFilters(page)
+    await page.mouse.move(0, 0)
+    // Open: it points down and takes the accent colour.
+    await expect(chevron).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 0)')
+    await expect(chevron).not.toHaveCSS('color', closedColour)
+  })
+
   test('the repeater pane and its chips have no WCAG 2.2 AA violations', async ({ page }) => {
     await openLandFilterPane(page)
     await expandRepeaterFilters(page)

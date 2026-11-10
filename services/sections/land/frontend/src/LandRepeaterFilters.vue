@@ -1,26 +1,15 @@
 <template>
   <div class="lrf">
-    <!-- Styled as the SDR panel's section accordions are (`SdrPanel.css`
-         `.sdr-scanner-header-row.sdr-frequency-manager-accordion-toggle`):
-         a 44px bar, no border or background, 9px white title, chevron on the
-         right that turns accent on hover/expanded. Those styles live with the
-         SDR panel, hence the local copy. -->
-    <button
-      type="button"
-      class="lrf-heading"
-      :class="{ 'lrf-heading--expanded': expanded }"
-      :aria-expanded="expanded"
-      :aria-controls="bodyId"
-      @click="expanded = !expanded"
+    <BaseAccordionSection
+      v-model:expanded="expanded"
+      title="Repeater filters"
+      :body-id="bodyId"
+      body-class="lrf-body"
     >
-      <span class="lrf-heading-label">Repeater filters</span>
-      <span class="lrf-heading-chevron"><ChevronIcon /></span>
-    </button>
-    <div v-show="expanded" :id="bodyId" class="lrf-body">
       <LandFilterChipRow label="Band" :options="bandOptions" @toggle="toggleBand" />
       <LandFilterChipRow label="Mode" :options="modeOptions" @toggle="toggleMode" />
       <LandFilterChipRow label="Status" :options="statusOptions" @toggle="setStatus" />
-    </div>
+    </BaseAccordionSection>
   </div>
 </template>
 
@@ -28,15 +17,14 @@
 /**
  * `LandRepeaterFilters` — the BAND, MODE and STATUS chips for the REPEATERS
  * list in the Land FILTER pane, folded into an accordion directly under the
- * search box (collapsed by default, with the active narrowing summarised in
- * its header so a hidden filter is never a mystery). They narrow the map and
+ * search box (collapsed by default). They narrow the map and
  * the list together and persist at once to `land.repeaterFilters`, so the
  * app-config JSON and other devices follow. ALL clears the band/mode rows
  * (the mode row lists only the modes the directory actually carries); STATUS
  * is single-select — all sites, on air, or off air.
  */
 import { computed, ref } from 'vue'
-import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
+import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import LandFilterChipRow, { type FilterChipOption } from './LandFilterChipRow.vue'
 import { useRepeatersStore } from './stores/repeaters'
 import {
@@ -116,59 +104,9 @@ function toggleMode(key: string): void {
   /* Breathing room between the search box and the bar. */
   padding-top: 8px;
 }
-.lrf-heading {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: 44px;
-  padding: 0 44px 0 24px;
-  margin: 0;
-  border: none;
-  background: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  text-transform: uppercase;
-}
-.lrf-heading:focus-visible {
-  outline: 1px solid var(--focus-ring);
-  outline-offset: -1px;
-}
-.lrf-heading-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--ink-strong);
-}
-/* Hover and expanded state light the chevron, never a background wash. */
-.lrf-heading-chevron {
-  position: absolute;
-  right: 20px;
-  top: 0;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  color: rgba(var(--ink-rgb), 0.25);
-  transform: rotate(-90deg);
-  transition:
-    transform 0.2s ease,
-    color 0.15s;
-}
-.lrf-heading:hover .lrf-heading-chevron,
-.lrf-heading--expanded .lrf-heading-chevron {
-  color: var(--accent-text);
-}
-.lrf-heading--expanded .lrf-heading-chevron {
-  transform: rotate(0deg);
-}
-@media (prefers-reduced-motion: reduce) {
-  .lrf-heading-chevron {
-    transition: none;
-  }
-}
-.lrf-body {
+/* :deep because BaseAccordionSection renders the body as one of its two root
+   nodes, which this component's scope attribute doesn't reach. */
+.lrf :deep(.lrf-body) {
   display: flex;
   flex-direction: column;
   padding-bottom: 16px;
