@@ -536,7 +536,9 @@ export function useSdrSweepEngine(options: UseSdrSweepEngineOptions) {
     _ss.searchLowHz = r.low_hz
     _ss.searchHighHz = r.high_hz
     _ss.searchCurrentHz = r.low_hz
-    _ss.searchLabel = r.label
+    // A saved range's name goes on the overlay chip; a typed-in range has no
+    // name worth showing, so the overlay shows no chip for it.
+    _ss.searchLabel = source === 'saved' ? r.label : null
     _searchHz = r.low_hz
     // Invalidate any stale spectrum frame so the first step waits for fresh data.
     _lastSpectrum = null

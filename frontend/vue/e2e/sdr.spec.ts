@@ -6,6 +6,7 @@ import sdrRadios from './fixtures/sdr-radios.json' with { type: 'json' }
 import sdrFrequencies from './fixtures/sdr-frequencies.json' with { type: 'json' }
 import sdrGroups from './fixtures/sdr-groups.json' with { type: 'json' }
 import sdrRecordings from './fixtures/sdr-recordings.json' with { type: 'json' }
+import { installFakeSdr } from './support/fakeSdr'
 
 /**
  * SDR domain tests: SDR rail tabs, device combobox, frequency input, Tune/Stop
@@ -269,5 +270,98 @@ test.describe('SDR domain', () => {
 
     const scanButton = page.getByRole('button', { name: /start scan/i })
     await expect(scanButton).toBeAttached()
+  })
+})
+
+/**
+ * RADIO pane layout: the open sections' scroll bodies must not clip things that
+ * deliberately reach past the content edge, and the add-frequency button sits
+ * at the right end of the frequency row. Layout, so it needs a real browser.
+ */
+test.describe('SDR radio pane layout', () => {
+  test.beforeEach(async ({ page }) => {
+    await clearPersistedState(page)
+    await installDefaultMocks(page)
+    await page.route('/api/sdr/search-ranges', (route) => {
+      void route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify([
+          {
+            id: 1,
+            label: 'Air Band',
+            low_hz: 118_000_000,
+            high_hz: 130_000_000,
+            step_hz: 25_000,
+            mode: 'AM',
+            threshold_dbfs: -30,
+            dwell_ms: 250,
+            band_name: '',
+            enabled: true,
+            notes: '',
+            sort_order: 0,
+          },
+        ]),
+      })
+    })
+    // Exactly one radio auto-selects, which enables the tuning controls.
+    await installFakeSdr(page, { radios: [{ id: 2, name: 'RTL-SDR V4', centerHz: 145_500_000 }] })
+    await page.setViewportSize({ width: 1440, height: 1000 })
+    await page.goto('/sdr/')
+    await waitForShellHydration(page)
+    await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
+    await expect(page.getByRole('button', { name: /^tune$/i })).toBeEnabled({ timeout: 10_000 })
+  })
+
+  async function openSearch(page: import('@playwright/test').Page): Promise<void> {
+    await page.locator('[aria-controls="sdr-search-section"]').click()
+    const saved = page.locator('[aria-controls="sdr-saved-ranges-section"]')
+    if ((await saved.getAttribute('aria-expanded')) !== 'true') await saved.click()
+  }
+
+  test('a saved range row hover reaches the pane edge, not the text edge', async ({ page }) => {
+    await openSearch(page)
+    const row = page.locator('.sdr-search-range-item').first()
+    await row.hover()
+    const hit = await row.evaluate((element) => {
+      const pane = document.querySelector('#msb-pane-radio')!.getBoundingClientRect()
+      const box = element.getBoundingClientRect()
+      const y = box.top + box.height / 2
+      // 4px in from the pane's left edge: inside the row's 20px bleed, left of the text.
+      return element.contains(document.elementFromPoint(pane.left + 4, y))
+    })
+    expect(hit).toBe(true)
+  })
+
+  test('a focused search input keeps its whole focus ring', async ({ page }) => {
+    await openSearch(page)
+    const input = page.getByRole('spinbutton', { name: 'Search range low frequency in MHz' })
+    await input.focus()
+    // Every scroll-clipping ancestor must leave room for the 2px ring on the left.
+    const clippedBy = await input.evaluate((element) => {
+      const left = element.getBoundingClientRect().left
+      const clips: string[] = []
+      for (let node = element.parentElement; node; node = node.parentElement) {
+        if (getComputedStyle(node).overflowX === 'visible') continue
+        if (node.getBoundingClientRect().left > left - 2) clips.push(node.id || node.className)
+      }
+      return clips
+    })
+    expect(clippedBy).toEqual([])
+  })
+
+  test('the add-frequency button sits at the right end of the frequency row', async ({ page }) => {
+    const frequency = page.getByRole('textbox', { name: /tuned frequency in MHz/i })
+    await frequency.fill('446.0300') // not a saved frequency, so the button is offered
+    const row = page.locator('.sdr-freq-row')
+    await row.hover()
+    const button = page.getByRole('button', {
+      name: 'Add this frequency to the Frequency Manager',
+    })
+    await expect(button).toBeVisible()
+    const rowBox = (await row.boundingBox())!
+    const buttonBox = (await button.boundingBox())!
+    expect(Math.round(buttonBox.x + buttonBox.width)).toBe(Math.round(rowBox.x + rowBox.width))
+    expect(Math.round(buttonBox.width)).toBe(28)
+    expect(Math.round(buttonBox.height)).toBe(28)
   })
 })

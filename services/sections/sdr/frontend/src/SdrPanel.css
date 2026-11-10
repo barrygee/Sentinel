@@ -224,24 +224,27 @@
 .sdr-freq-add {
   position: relative;
   flex-shrink: 0;
-  /* The row aligns on the digits' baseline, which would sit the glyph low. */
+  /* The row aligns on the digits' baseline, which would sit the button low. */
   align-self: center;
-  /* 24x24 target (WCAG 2.5.8) around the 12px glyph. */
-  width: 24px;
-  height: 24px;
-  margin-left: 6px;
+  /* Pushed to the row's right edge, in line with the panel's other right-hand
+     actions (the SAVED RANGES play buttons), rather than trailing the unit. */
+  margin-left: auto;
+  /* The same 28px square button as the range play buttons. */
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  background: none;
+  background: rgba(var(--ink-rgb), 0.08);
   border: none;
+  border-radius: 2px;
   cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.6);
+  color: var(--accent-text);
   opacity: 0;
   transition:
     opacity 0.15s,
-    color 0.15s;
+    background 0.12s;
 }
 
 /* Focus as well as hover: a tap into the input shows it on touch screens, and
@@ -252,7 +255,7 @@
 }
 
 .sdr-freq-add:hover {
-  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1657,14 +1660,18 @@
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
-  /* Move the clip edge 7px right without moving any content, so the FAVOURITES
-     rows' 7px-bled action cluster (.sdr-freq-row-actions) keeps its full 24px
-     targets instead of being cut off here. `overflow-x: visible` is not an
-     option: paired with `overflow-y: auto` it computes to `auto` and adds a
-     horizontal scrollbar. The padding cancels the margin, so row content still
-     lays out to the same right edge. */
-  margin-right: -7px;
-  padding-right: 7px;
+  /* Move both clip edges out to the pane's edges (the section's 20px inset)
+     without moving any content. Clipping at the content edge cut off anything
+     that deliberately reaches past it: the full-width hover of the SAVED
+     RANGES rows (margin 0 -20px), the focus ring of the search inputs, and the
+     FAVOURITES rows' bled action cluster (.sdr-freq-row-actions).
+     `overflow-x: visible` is not an option: paired with `overflow-y: auto` it
+     computes to `auto` and adds a horizontal scrollbar. The padding cancels the
+     margin, so row content still lays out to the same edges. */
+  margin-left: -20px;
+  margin-right: -20px;
+  padding-left: 20px;
+  padding-right: 20px;
 }
 .sdr-tab-pane--radio
   > .sdr-radio-section
