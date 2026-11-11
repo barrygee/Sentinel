@@ -294,6 +294,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
 - Add TuneFrequencyCell
 - Draw ground vehicles as an airport tug
+- Draw range rings as dots instead of dashes
 
 ### Bug Fixes
 
@@ -1852,6 +1853,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #618 from barrygee/docs/plan-docs
 - Merge remote-tracking branch 'origin/main' into feat/ground-vehicle-icon
 - Merge pull request #620 from barrygee/feat/ground-vehicle-icon
+- Merge pull request #621 from barrygee/feat/range-ring-dots
 
 ### Performance
 
@@ -2274,6 +2276,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for BaseIconAction adoption
 - Rebuild for shared data and tune cells
 - Rebuild for the ground-vehicle tug icon
+- Rebuild for dotted range rings
 
 ### Continuous Integration
 
