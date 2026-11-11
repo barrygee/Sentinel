@@ -37,6 +37,7 @@ import { nextTick, ref } from 'vue'
 import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const auth = useLocalAuthStore()
 const password = ref('')

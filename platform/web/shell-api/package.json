@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     "./*.vue": "./src/*.vue",
+    "./*.css": "./src/*.css",
     "./*": "./src/*.ts"
   },
   "scripts": {

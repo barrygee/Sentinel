@@ -20,6 +20,7 @@
 import { ref, onMounted } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { onlineKey } from '@sentinel/shell-api/utils/domainKeys'
+import '@sentinel/shell-api/settings/styles/datasourceRow.css'
 
 const props = defineProps<{ ns: string; defaultUrl: string }>()
 const emit = defineEmits<{

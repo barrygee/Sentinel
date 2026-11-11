@@ -38,6 +38,7 @@ import SettingsDropdown, {
 } from '@sentinel/ui/base/SettingsDropdown.vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import '@sentinel/shell-api/settings/styles/datasourceRow.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

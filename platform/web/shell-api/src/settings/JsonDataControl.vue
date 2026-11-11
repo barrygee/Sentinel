@@ -41,6 +41,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import JsonCodeEditor from '@sentinel/shell-api/settings/JsonCodeEditor.vue'
+import '@sentinel/shell-api/settings/styles/configEditor.css'
 
 // Generic JSON editor that loads from `getUrl` and saves to `postUrl`
 // (POSTing the raw JSON body). Mirrors ConfigCurrentControl's UX — EDIT/HIDE,

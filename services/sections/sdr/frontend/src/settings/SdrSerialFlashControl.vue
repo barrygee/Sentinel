@@ -65,6 +65,7 @@ import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const GHOST_BUTTON_STYLE =
   '--ba-ghost-height: auto; --ba-ghost-padding: 8px 18px; --ba-ghost-font-size: var(--settings-text-caption); ' +

@@ -138,12 +138,13 @@ import RemoteHostTestButton, { type HostTestState } from './RemoteHostTestButton
 import RemoteHostAutoAddToggle from './RemoteHostAutoAddToggle.vue'
 import type { RemoteHostDraft } from '../remoteHostEdits'
 import { createHost, testHost, SdrManagerApiError } from '../api/sdrManagerRemoteApi'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 /** Every field of this form: the Settings hairline look, caption in a column beside the value. */
 const FIELD = { density: 'settings', layout: 'inline' } as const
 
 // SAVE keeps SdrDeviceForm's undimmed disabled look; size and colours come
-// from SettingsPanel.css's `.sdr-devices-form-actions` rule.
+// from deviceList.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 

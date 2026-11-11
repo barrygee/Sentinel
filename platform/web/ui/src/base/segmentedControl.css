@@ -1,0 +1,56 @@
+/* The segmented single-select pills (ONLINE / OFF GRID, theme rows, the SDR device form's STATUS/VISIBILITY pairs).
+   Shared by every settings control that uses these classes; each one imports
+   this file, so the look travels with the control wherever it is mounted. */
+
+/* The segmented single-select family: the source-override picker, the theme
+   rows (`BaseSegmentedSetting`) and the SDR device form's STATUS/VISIBILITY
+   pairs are the same control, so they share one set of rules rather than
+   copies that drift. */
+.settings-source-override-group,
+.settings-segmented-group,
+.sdr-devices-enabled-group {
+  display: flex;
+  flex-direction: row;
+  /* Options sit apart on the panel background, so each pill carries its own
+     surface fill rather than the group. */
+  gap: 2px;
+  border-radius: 0;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.settings-source-override-btn,
+.settings-segmented-btn,
+.sdr-devices-enabled-btn {
+  background: var(--surface);
+  border: none;
+  padding: 8px 16px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  /* AA on the pill's grey: 50% ink was ~3.4:1. */
+  color: var(--ink-secondary);
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  user-select: none;
+}
+
+.settings-source-override-btn:hover,
+.settings-segmented-btn:hover,
+.sdr-devices-enabled-btn:hover {
+  /* Tint layered over the pill's own surface fill. */
+  background:
+    linear-gradient(rgba(var(--ink-rgb), 0.05), rgba(var(--ink-rgb), 0.05)), var(--surface);
+  color: rgba(var(--ink-rgb), 0.8);
+}
+
+.settings-source-override-btn.is-active,
+.settings-segmented-btn.is-active,
+.sdr-devices-enabled-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}

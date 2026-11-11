@@ -121,6 +121,7 @@ import HotspotClientsTable from './HotspotClientsTable.vue'
 import HotspotRollbackBanner from './HotspotRollbackBanner.vue'
 import HotspotSettingsForm from './HotspotSettingsForm.vue'
 import HotspotStatusSummary from './HotspotStatusSummary.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const hotspot = useLocalHotspot()
 const {

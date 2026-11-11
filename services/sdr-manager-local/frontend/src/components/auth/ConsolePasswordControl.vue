@@ -88,6 +88,7 @@ import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
 import LocalAuthGate from './LocalAuthGate.vue'
 import { NEW_PASSWORD_FIELD_ID } from './consolePasswordField'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const CURRENT_FIELD_ID = 'sdr-manager-local-current-password'
 const REPEAT_FIELD_ID = 'sdr-manager-local-repeat-password'

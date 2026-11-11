@@ -113,6 +113,7 @@ import {
 import LocalDeviceDetails from './LocalDeviceDetails.vue'
 import LocalDeviceNotices from './LocalDeviceNotices.vue'
 import LocalVisibilityToggle from './LocalVisibilityToggle.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{ device: LocalDeviceStatus }>()
 

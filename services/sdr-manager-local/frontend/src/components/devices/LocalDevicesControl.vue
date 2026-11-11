@@ -61,6 +61,7 @@ import SerialFlashPanel from '../serial/SerialFlashPanel.vue'
 import LocalAnnouncer from '../shared/LocalAnnouncer.vue'
 import LocalDeviceList from './LocalDeviceList.vue'
 import SerialConflictBanner from './SerialConflictBanner.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = withDefaults(
   defineProps<{

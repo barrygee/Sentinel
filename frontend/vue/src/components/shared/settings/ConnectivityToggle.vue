@@ -148,3 +148,70 @@ onMounted(async () => {
   })
 })
 </script>
+
+<style scoped>
+.settings-connectivity-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+
+/* No fill, no border, no inset — like the cards themselves it sits directly on
+   the panel canvas, separated by space alone. */
+.settings-connectivity-override-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+}
+
+/* Matches .settings-group-label, so the heading inside the box reads as the
+   same kind of label as the group headings above the cards. */
+.settings-conn-override-heading {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-title);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin-bottom: 4px;
+}
+
+.settings-conn-override-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-conn-override-ns {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: rgba(var(--ink-rgb), 0.6);
+  width: 52px;
+}
+
+.settings-conn-override-arrow {
+  font-size: var(--settings-text-caption);
+  color: rgba(var(--ink-rgb), 0.3);
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.settings-conn-override-val {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.18em;
+}
+
+.settings-conn-override-val--online {
+  color: var(--accent-text-deep);
+}
+.settings-conn-override-val--offgrid {
+  color: var(--danger-strong);
+}
+</style>

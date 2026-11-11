@@ -26,6 +26,7 @@
  */
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
+import '@sentinel/ui/base/segmentedControl.css'
 
 const props = defineProps<{
   /** True to add the host's SDRs automatically. */

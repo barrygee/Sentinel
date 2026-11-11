@@ -14,6 +14,7 @@
  */
 import RemoteHostForm from './RemoteHostForm.vue'
 import { announceHostsChanged } from '../hostsChanged'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const emit = defineEmits<{ done: [] }>()
 

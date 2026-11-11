@@ -1,0 +1,71 @@
+/* Location-style fields: a field card's status, notice, hint and error lines, and the latitude/longitude pair.
+   Shared by every settings control that uses these classes; each one imports
+   this file, so the look travels with the control wherever it is mounted. */
+
+/* The location fields mirror the SDR host's Location panel: label above an
+   underlined input, with its range hint (or its validation error) beneath. The
+   field itself is BaseTextField's `settings` density; what stays here is the
+   card around it, and the hint and error lines other cards reuse. */
+.settings-location-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.settings-location-status {
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-body);
+  font-weight: 400;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6); /* 4.5:1 AA on this panel at 11-12px */
+}
+
+.settings-location-notice {
+  margin: 0;
+  padding: 8px 10px;
+  background: rgba(var(--danger-wash-rgb), 0.1);
+  border-radius: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--danger-hover);
+}
+
+/* A latitude and a longitude are one coordinate, so they read as a pair on one
+   line rather than as two unrelated fields stacked down the panel. */
+.settings-location-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  max-width: 464px;
+  /* The fields are BaseTextFields. A coordinate is ~10 characters; a
+     full-column rule reads as an empty text field rather than a number, so the
+     underline stops where the value plausibly ends. */
+  --ba-text-field-max-width: 220px;
+}
+
+.settings-location-hint {
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  font-weight: 400;
+  line-height: 1.45;
+  color: rgba(var(--ink-rgb), 0.6); /* 4.5:1 AA on this panel at 11-12px */
+}
+
+.settings-location-error {
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--danger-hover);
+}
+
+.settings-location-actions {
+  display: flex;
+  justify-content: flex-end;
+}

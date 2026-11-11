@@ -39,6 +39,7 @@
 import { useLocalDeviceEdits } from '../../composables/useLocalDeviceEdits'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
 import LocalDeviceRow from './LocalDeviceRow.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const store = useLocalSdrStore()
 const { openDeviceId } = useLocalDeviceEdits()

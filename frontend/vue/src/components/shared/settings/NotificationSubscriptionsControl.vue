@@ -56,6 +56,7 @@ import LabelFieldsTable, {
 import { useNotificationSubscriptions } from '@/composables/useNotificationSubscriptions'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import '@sentinel/shell-api/settings/styles/configEditor.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

@@ -32,6 +32,7 @@ import {
   type SourceMode,
 } from '@sentinel/shell-api/utils/sourceMode'
 import { showSettingsSourceMode } from '@sentinel/shell-api/settings/settingsSourceModes'
+import '@sentinel/shell-api/settings/styles/sourceOverride.css'
 
 const props = defineProps<{ ns: string }>()
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()

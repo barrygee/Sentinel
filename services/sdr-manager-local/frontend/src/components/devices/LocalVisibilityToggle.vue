@@ -26,6 +26,7 @@
  */
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
+import '@sentinel/ui/base/segmentedControl.css'
 
 type Visibility = 'public' | 'private'
 

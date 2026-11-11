@@ -108,6 +108,7 @@ import SdrDeviceForm from './SdrDeviceForm.vue'
 import { computed } from 'vue'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = withDefaults(
   defineProps<{

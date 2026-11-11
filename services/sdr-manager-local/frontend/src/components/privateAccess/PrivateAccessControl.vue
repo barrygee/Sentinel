@@ -62,6 +62,7 @@ import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { validateIpAddress } from '../../utils/validation'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import PrivateAccessRow from './PrivateAccessRow.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const ADDRESS_FIELD_ID = 'sdr-manager-local-private-address'
 

@@ -65,6 +65,7 @@ import { computed, ref } from 'vue'
 import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LocalConfigFile, LocalConfigImportRequest } from '../../api/types'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 defineProps<{ busy: boolean }>()
 const emit = defineEmits<{ import: [body: LocalConfigImportRequest] }>()

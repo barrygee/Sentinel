@@ -100,6 +100,7 @@ import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import DownloadProgress from './DownloadProgress.vue'
 import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
 import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{
   region: OfflineRegion

@@ -40,6 +40,7 @@ import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@sentinel/ui/base/SettingsDropdown.vue'
+import '@sentinel/shell-api/settings/styles/datasourceRow.css'
 
 /** How often the list re-reads the configured radios. */
 const REFRESH_INTERVAL_MS = 5000
