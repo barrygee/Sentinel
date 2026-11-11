@@ -30,7 +30,7 @@ from typing import Any
 from backend.cache import now_ms
 from backend.config import settings
 from backend.database import AsyncSessionLocal
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from sentinel_sea.models import SeaVesselCache, SeaVesselStatic
@@ -224,10 +224,16 @@ class AisVesselStore:
         # The Sea source ("online" / "offgrid") the held picture came from;
         # None until the first check after startup (see switch_source).
         self.source_mode: str | None = None
+        # MMSI → the source that heard each vessel restored by load_snapshot
+        # (None for snapshot rows older than the column), until the first
+        # switch_source settles which of them may stay. A vessel heard live
+        # again leaves this map: it is no longer a restored guess.
+        self._restored_sources: dict[str, str | None] = {}
 
     def _mark_dirty(self, mmsi: str) -> None:
         self._dirty_mmsis.add(mmsi)
         self._dirty = True
+        self._restored_sources.pop(mmsi, None)
 
     def _remember_static(self, mmsi: str, static_data: dict[str, str], heard_ms: int) -> None:
         """Record a vessel's static data in the durable directory."""
@@ -398,6 +404,7 @@ class AisVesselStore:
         """
         self._vessels.clear()
         self._tracks.clear()
+        self._restored_sources.clear()
         self.newest_position_ms = None
         self._dirty_mmsis.clear()
         self._dirty = True
@@ -410,18 +417,60 @@ class AisVesselStore:
         away from lingers for the whole 30-minute retention window and passes
         for live traffic from the new one. A change therefore empties the store
         AND the ``sea_vessel_cache`` snapshot, so a restart can't warm it back.
-        The first call after startup only records the mode, keeping the warm
-        start. Returns whether the store was cleared.
+        The first call after startup keeps the warm start, but only the vessels
+        the snapshot says this same source heard (see
+        ``_drop_restored_from_other_sources``). Returns whether anything was
+        dropped.
         """
         previous = self.source_mode
         self.source_mode = mode
-        if previous is None or previous == mode:
+        if previous is None:
+            return await self._drop_restored_from_other_sources(mode)
+        if previous == mode:
             return False
         self.clear()
         async with AsyncSessionLocal() as db:
             await db.execute(delete(SeaVesselCache))
             await db.commit()
         logger.info("Sea: source switched %s -> %s — vessel picture cleared", previous, mode)
+        return True
+
+    async def _drop_restored_from_other_sources(self, mode: str) -> bool:
+        """Drop the warm-started vessels another source heard, here and on disk.
+
+        The snapshot outlives the process, so Sea can start in a different mode
+        from the one that wrote it (switched while the container was down, or a
+        snapshot from before rows recorded their source). Without this, an
+        off-grid Sea would serve the last AISStream picture for the whole
+        retention window as if its radio had heard it. Rows with no recorded
+        source are dropped too: costing one warm start beats showing a feed
+        that isn't there.
+        """
+        foreign = [mmsi for mmsi, source in self._restored_sources.items() if source != mode]
+        self._restored_sources.clear()
+        if not foreign:
+            return False
+        for mmsi in foreign:
+            self._vessels.pop(mmsi, None)
+            self._tracks.pop(mmsi, None)
+        self.newest_position_ms = max(
+            (
+                record["lastPositionMs"]
+                for record in self._vessels.values()
+                if isinstance(record.get("lastPositionMs"), int)
+            ),
+            default=None,
+        )
+        async with AsyncSessionLocal() as db:
+            await db.execute(
+                delete(SeaVesselCache).where(
+                    or_(SeaVesselCache.source_mode.is_(None), SeaVesselCache.source_mode != mode)
+                )
+            )
+            await db.commit()
+        logger.info(
+            "Sea: dropped %d restored vessels another source heard — showing %s vessels only", len(foreign), mode
+        )
         return True
 
     # ── reads ─────────────────────────────────────────────────────────────────
@@ -494,6 +543,7 @@ class AisVesselStore:
                             "payload": json.dumps(_public_record(row)),
                             "track": json.dumps([list(sample) for sample in self._tracks.get(mmsi, ())]),
                             "updated_at": row["_updatedAt"],
+                            "source_mode": self.source_mode,
                         }
                     )
                 if not rows:
@@ -506,6 +556,7 @@ class AisVesselStore:
                             "payload": statement.excluded.payload,
                             "track": statement.excluded.track,
                             "updated_at": statement.excluded.updated_at,
+                            "source_mode": statement.excluded.source_mode,
                         },
                     )
                 )
@@ -555,7 +606,9 @@ class AisVesselStore:
         """Warm the empty store from ``sea_vessel_cache``; returns vessels loaded.
 
         Only rows still inside the retention window are restored, and the store
-        is left dirty=False so a persist immediately afterwards is a no-op. The
+        is left dirty=False so a persist immediately afterwards is a no-op. Each
+        row's source is remembered so the first ``switch_source`` can drop the
+        ones another feed heard. The
         static directory is reloaded from ``sea_vessel_static`` first (newest
         ``sea_vessel_static_max`` rows inside its retention).
         """
@@ -607,6 +660,8 @@ class AisVesselStore:
                 # A vessel snapshotted before its name was heard is named from the directory.
                 if cached.mmsi in self._static:
                     self._merge_static_into_live(cached.mmsi, self._static[cached.mmsi])
+                # After the merge, which marks the vessel dirty (and so live).
+                self._restored_sources[cached.mmsi] = cached.source_mode
         self._dirty = False
         return loaded
 
