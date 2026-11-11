@@ -293,6 +293,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add BaseChip and BaseInlineConfirm
 - Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
 - Add TuneFrequencyCell
+- Draw ground vehicles as an airport tug
 
 ### Bug Fixes
 
@@ -1848,6 +1849,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #616 from barrygee/perf/settings-client-cache
 - Merge pull request #617 from barrygee/refactor/adopt-base-icon-action
 - Merge pull request #619 from barrygee/refactor/data-cells
+- Merge pull request #618 from barrygee/docs/plan-docs
+- Merge remote-tracking branch 'origin/main' into feat/ground-vehicle-icon
+- Merge pull request #620 from barrygee/feat/ground-vehicle-icon
 
 ### Performance
 
@@ -2041,6 +2045,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Regenerate the API access matrix (status route listed first)
 - Folded cards and the badge-free header
 - Describe the config status poll in the policy, not the matrix
+- Add container consolidation, running without Docker and SDR IQ playback plans
 
 ### Tests
 
@@ -2268,6 +2273,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the RADIO pane polish
 - Rebuild for BaseIconAction adoption
 - Rebuild for shared data and tune cells
+- Rebuild for the ground-vehicle tug icon
 
 ### Continuous Integration
 
