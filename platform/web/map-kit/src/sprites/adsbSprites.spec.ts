@@ -5,6 +5,7 @@ import {
   createMilBracket,
   createTowerBlip,
   createGroundVehicleBlip,
+  GROUND_VEHICLE_SPRITE_PX,
   createUAVBlip,
 } from './adsbSprites'
 
@@ -28,12 +29,15 @@ interface RecordingContext {
   fillRect: ReturnType<typeof vi.fn>
   stroke: ReturnType<typeof vi.fn>
   getImageData: ReturnType<typeof vi.fn>
+  /** `fillStyle` at each `fill()` call, in order. */
+  fillsInOrder: string[]
 }
 
 let lastContext: RecordingContext
 
 function createRecordingContext(): RecordingContext {
-  return {
+  const context: RecordingContext = {
+    fillsInOrder: [],
     fillStyle: '',
     strokeStyle: '',
     lineWidth: 0,
@@ -43,11 +47,14 @@ function createRecordingContext(): RecordingContext {
     lineTo: vi.fn(),
     closePath: vi.fn(),
     arc: vi.fn(),
-    fill: vi.fn(),
+    fill: vi.fn(() => {
+      context.fillsInOrder.push(context.fillStyle)
+    }),
     fillRect: vi.fn(),
     stroke: vi.fn(),
     getImageData: vi.fn(() => sentinelImageData),
   }
+  return context
 }
 
 beforeEach(() => {
@@ -138,17 +145,82 @@ describe('createTowerBlip', () => {
 })
 
 describe('createGroundVehicleBlip', () => {
-  it('strokes a ring in the default colour and scale', () => {
-    expect(createGroundVehicleBlip()).toBe(sentinelImageData)
-    expect(lastContext.strokeStyle).toBe('#ffffff')
-    expect(lastContext.lineWidth).toBeCloseTo(3 * 1.1)
-    expect(lastContext.arc).toHaveBeenCalledWith(32, 32, 9 * 1.1, 0, Math.PI * 2)
-    expect(lastContext.stroke).toHaveBeenCalled()
+  // Design-grid units to canvas pixels: 22 CSS px per 18 units, on a 64px
+  // canvas the map shows 24 CSS px across (pixel ratio 2, icon size 0.75).
+  const unit = (22 / 18) * (64 / 24)
+  const toCanvas = (x: number, y: number) => [32 + (x - 8.75) * unit, 32 + (y - 10.45) * unit]
+
+  it('is drawn at 22 CSS pixels across its design grid', () => {
+    expect(GROUND_VEHICLE_SPRITE_PX).toBe(22)
   })
 
-  it('uses the supplied colour', () => {
+  it('returns the captured ImageData over the shared 64×64 canvas', () => {
+    expect(createGroundVehicleBlip()).toBe(sentinelImageData)
+    expect(lastContext.getImageData).toHaveBeenCalledWith(0, 0, 64, 64)
+  })
+
+  it('fills the body in the given colour, then dark wheels, then the windscreen tint', () => {
     createGroundVehicleBlip('#abcabc')
-    expect(lastContext.strokeStyle).toBe('#abcabc')
+    expect(lastContext.fillsInOrder).toEqual([
+      '#abcabc',
+      '#222222',
+      '#222222',
+      'rgba(0, 0, 0, 0.55)',
+    ])
+  })
+
+  it('defaults the body to white', () => {
+    createGroundVehicleBlip()
+    expect(lastContext.fillsInOrder[0]).toBe('#ffffff')
+  })
+
+  it('outlines the body and both wheels in black, one design unit thick', () => {
+    createGroundVehicleBlip('#abcabc')
+    expect(lastContext.strokeStyle).toBe('#000000')
+    expect(lastContext.lineWidth).toBeCloseTo(unit)
+    expect(lastContext.stroke).toHaveBeenCalledTimes(3)
+  })
+
+  it('places the body outline on the design grid, centred on the canvas', () => {
+    createGroundVehicleBlip()
+    const [startX, startY] = toCanvas(1.5, 12.5)
+    expect(lastContext.moveTo.mock.calls[0]![0]).toBeCloseTo(startX!)
+    expect(lastContext.moveTo.mock.calls[0]![1]).toBeCloseTo(startY!)
+    // Seven body corners: one moveTo, six lineTo, then the windscreen's four.
+    expect(lastContext.lineTo).toHaveBeenCalledTimes(6 + 3)
+    expect(lastContext.closePath).toHaveBeenCalledTimes(2)
+  })
+
+  it('draws the two wheels as full circles at their design positions', () => {
+    createGroundVehicleBlip()
+    expect(lastContext.arc).toHaveBeenCalledTimes(2)
+    const expectedCentres = [toCanvas(4.2, 13.4), toCanvas(13.2, 13.4)]
+    lastContext.arc.mock.calls.forEach((call, index) => {
+      expect(call[0]).toBeCloseTo(expectedCentres[index]![0]!)
+      expect(call[1]).toBeCloseTo(expectedCentres[index]![1]!)
+      expect(call[2]).toBeCloseTo(2 * unit)
+      expect(call.slice(3)).toEqual([0, Math.PI * 2])
+    })
+  })
+
+  it('stays inside the canvas, outline included', () => {
+    createGroundVehicleBlip()
+    const points = [
+      ...lastContext.moveTo.mock.calls,
+      ...lastContext.lineTo.mock.calls,
+    ] as number[][]
+    const halfLine = unit / 2
+    for (const [x, y] of points) {
+      expect(x! - halfLine).toBeGreaterThanOrEqual(0)
+      expect(x! + halfLine).toBeLessThanOrEqual(64)
+      expect(y! - halfLine).toBeGreaterThanOrEqual(0)
+      expect(y! + halfLine).toBeLessThanOrEqual(64)
+    }
+    for (const [x, y, radius] of lastContext.arc.mock.calls as number[][]) {
+      expect(y! + radius! + halfLine).toBeLessThanOrEqual(64)
+      expect(x! - radius! - halfLine).toBeGreaterThanOrEqual(0)
+      expect(x! + radius! + halfLine).toBeLessThanOrEqual(64)
+    }
   })
 })
 

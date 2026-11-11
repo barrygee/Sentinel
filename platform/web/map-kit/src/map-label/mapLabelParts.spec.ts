@@ -7,7 +7,7 @@ import {
   createFilledDotShape,
   createGlyphSvg,
   createGlyphWell,
-  createHollowDotShape,
+  createGroundVehicleShape,
   createLabelPill,
   createNameSegment,
   isLeftFacing,
@@ -111,10 +111,28 @@ describe('mapLabelParts', () => {
       expect(shape).toContain('fill="none"')
     })
 
-    it('draws a hollow ring for targets without a heading', () => {
-      const shape = createHollowDotShape('#00aaff')
-      expect(shape).toContain('fill="none"')
-      expect(shape).toContain('stroke="#00aaff"')
+    it('draws a ground vehicle whose first shape carries the colour as a fill', () => {
+      const shape = createGroundVehicleShape('#00aaff')
+      const holder = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      holder.innerHTML = shape
+      const paths = holder.querySelectorAll('path')
+      // Body and wheels are one path, so recolouring the first shape recolours
+      // the whole vehicle; the windscreen is a fixed tint on top.
+      expect(paths).toHaveLength(2)
+      expect(paths[0]!.getAttribute('fill')).toBe('#00aaff')
+      expect(paths[0]!.getAttribute('stroke')).toBe('none')
+      expect(paths[0]!.getAttribute('d')!.match(/M/g)).toHaveLength(3)
+      expect(paths[1]!.getAttribute('fill')).toBe('rgba(0,0,0,0.55)')
+      expect(holder.querySelector('path, polygon, rect, circle')).toBe(paths[0])
+    })
+
+    it('keeps the ground vehicle inside the 12×12 glyph box', () => {
+      const numbers = createGroundVehicleShape('#fff')
+        .match(/d="([^"]+)"/g)!
+        .flatMap((attribute) => attribute.replace(/a[^MZ]*/g, '').match(/-?\d+(\.\d+)?/g)!)
+        .map(Number)
+      expect(Math.min(...numbers)).toBeGreaterThanOrEqual(0)
+      expect(Math.max(...numbers)).toBeLessThanOrEqual(12)
     })
 
     it('draws a filled dot for static targets', () => {

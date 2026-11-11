@@ -137,9 +137,20 @@ export function createDirectionArrowShape(color: string): string {
   )
 }
 
-/** A hollow ring, for targets that report a position but no meaningful heading. */
-export function createHollowDotShape(color: string): string {
-  return `<circle cx="6" cy="6" r="3.5" fill="none" stroke="${color}" stroke-width="1.5"/>`
+/**
+ * A side-on airport tug, for surface vehicles: the map sprite's outline
+ * (`createGroundVehicleBlip`) shrunk into the label's glyph well. The body and
+ * wheels are one path so the label's colour update (which sets the first
+ * shape's `fill`) recolours the whole vehicle; the windscreen is a fixed tint.
+ * Wheels wind the same way as the body so their overlap stays filled.
+ */
+export function createGroundVehicleShape(color: string): string {
+  return (
+    `<path d="M0.93 7.44 0.93 5.34 7.92 5.34 7.92 2.54 10.38 2.54 11.07 3.94 11.07 7.44Z` +
+    `M1.42 8.07a1.4 1.4 0 1 1 2.8 0a1.4 1.4 0 1 1 -2.8 0Z` +
+    `M7.71 8.07a1.4 1.4 0 1 1 2.8 0a1.4 1.4 0 1 1 -2.8 0Z" fill="${color}" stroke="none"/>` +
+    `<path d="M8.41 3.17 10.02 3.17 10.45 4.29 8.41 4.29Z" fill="rgba(0,0,0,0.55)" stroke="none"/>`
+  )
 }
 
 /** A filled dot, for static targets (ground structures, fixed stations). */
