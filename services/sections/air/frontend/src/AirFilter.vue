@@ -25,61 +25,23 @@
         }"
       >
         <div v-if="signalLost" class="acft-acc-signal-lost" role="status">SIGNAL LOST</div>
-        <div class="apt-acc-section">
-          <div class="apt-acc-section-title">POSITION</div>
-          <div class="apt-acc-grid apt-acc-grid--three">
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LATITUDE</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.lat }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LONGITUDE</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.lon }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">HEADING</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.hdg }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="apt-acc-section">
-          <div class="apt-acc-grid apt-acc-grid--three">
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">ALTITUDE</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.alt }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">SPEED</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.spd }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">VERTICAL</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.vrate }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="apt-acc-section">
-          <div class="apt-acc-section-title">IDENTIFICATION</div>
-          <div class="apt-acc-grid apt-acc-grid--two">
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">TYPE</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.type }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">REGISTRATION</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.reg }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">CATEGORY</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.category }}</div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">SQUAWK</div>
-              <div class="apt-acc-cell-value">{{ liveAircraftData.squawk }}</div>
-            </div>
-          </div>
-        </div>
-        <div class="apt-acc-section acft-acc-action-section">
+        <BaseDataGrid title="POSITION" :columns="3">
+          <BaseDataCell label="LATITUDE" :value="liveAircraftData.lat" />
+          <BaseDataCell label="LONGITUDE" :value="liveAircraftData.lon" />
+          <BaseDataCell label="HEADING" :value="liveAircraftData.hdg" />
+        </BaseDataGrid>
+        <BaseDataGrid :columns="3">
+          <BaseDataCell label="ALTITUDE" :value="liveAircraftData.alt" />
+          <BaseDataCell label="SPEED" :value="liveAircraftData.spd" />
+          <BaseDataCell label="VERTICAL" :value="liveAircraftData.vrate" />
+        </BaseDataGrid>
+        <BaseDataGrid title="IDENTIFICATION">
+          <BaseDataCell label="TYPE" :value="liveAircraftData.type" />
+          <BaseDataCell label="REGISTRATION" :value="liveAircraftData.reg" />
+          <BaseDataCell label="CATEGORY" :value="liveAircraftData.category" />
+          <BaseDataCell label="SQUAWK" :value="liveAircraftData.squawk" />
+        </BaseDataGrid>
+        <div class="acft-acc-action-section">
           <div class="acft-acc-action-row">
             <BaseIconAction
               class="acft-acc-btn"
@@ -117,65 +79,32 @@
       <!-- Military base accordion: its location. The base data carries no
            frequencies, so there is no tuning section. -->
       <div v-else-if="filterCategory === 'mil'" class="apt-acc-body">
-        <div class="apt-acc-section">
-          <div class="apt-acc-section-title">LOCATION</div>
-          <div class="apt-acc-grid apt-acc-grid--two">
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LATITUDE</div>
-              <div class="apt-acc-cell-value">
-                {{ formatLat(milBaseFor(item.key)!.coords[1]) }}
-              </div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LONGITUDE</div>
-              <div class="apt-acc-cell-value">
-                {{ formatLon(milBaseFor(item.key)!.coords[0]) }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <BaseDataGrid title="LOCATION">
+          <BaseDataCell label="LATITUDE" :value="formatLat(milBaseFor(item.key)!.coords[1])" />
+          <BaseDataCell label="LONGITUDE" :value="formatLon(milBaseFor(item.key)!.coords[0])" />
+        </BaseDataGrid>
       </div>
 
       <!-- Airport accordion: location + clickable frequencies. -->
       <div v-else class="apt-acc-body">
-        <div class="apt-acc-section">
-          <div class="apt-acc-section-title">LOCATION</div>
-          <div class="apt-acc-grid apt-acc-grid--two">
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LATITUDE</div>
-              <div class="apt-acc-cell-value">
-                {{ formatLat(airportFor(item.key)!.coords[1]) }}
-              </div>
-            </div>
-            <div class="apt-acc-cell">
-              <div class="apt-acc-cell-label">LONGITUDE</div>
-              <div class="apt-acc-cell-value">
-                {{ formatLon(airportFor(item.key)!.coords[0]) }}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="apt-acc-section">
-          <div class="apt-acc-section-title">FREQUENCIES</div>
-          <div class="apt-acc-grid apt-acc-grid--two">
-            <button
-              v-for="freq in airportFreqs(airportFor(item.key)!)"
-              :key="freq.label"
-              class="apt-acc-cell apt-acc-freq"
-              :title="
-                sdrConnected ? `Tune to ${freq.display} ${freq.mode}` : 'Connect an SDR to tune'
-              "
-              @click="tuneFreq(airportFor(item.key)!, freq)"
-            >
-              <div class="apt-acc-cell-label">{{ freq.label.toUpperCase() }}</div>
-              <div class="apt-acc-cell-value">
-                {{ freq.display }}<span class="apt-acc-cell-mode"> · {{ freq.mode }}</span>
-              </div>
-            </button>
-          </div>
-          <div v-if="tuneNotice === item.key" class="apt-acc-notice">
-            Connect an SDR before tuning
-          </div>
+        <BaseDataGrid title="LOCATION">
+          <BaseDataCell label="LATITUDE" :value="formatLat(airportFor(item.key)!.coords[1])" />
+          <BaseDataCell label="LONGITUDE" :value="formatLon(airportFor(item.key)!.coords[0])" />
+        </BaseDataGrid>
+        <BaseDataGrid title="FREQUENCIES">
+          <TuneFrequencyCell
+            v-for="freq in airportFreqs(airportFor(item.key)!)"
+            :key="freq.label"
+            class="apt-acc-freq"
+            :label="freq.label.toUpperCase()"
+            :frequency="freq.display"
+            :mode="freq.mode"
+            :sdr-connected="sdrConnected"
+            @tune="tuneFreq(airportFor(item.key)!, freq)"
+          />
+        </BaseDataGrid>
+        <div v-if="tuneNotice === item.key" class="apt-acc-notice" role="status">
+          Connect an SDR before tuning
         </div>
       </div>
     </template>
@@ -198,6 +127,9 @@ import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vu
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
+import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
+import TuneFrequencyCell from '@sentinel/ui/base/TuneFrequencyCell.vue'
 import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
 import CentreOnMapIcon from '@sentinel/ui/icons/CentreOnMapIcon.vue'
 import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
@@ -985,91 +917,17 @@ defineExpose({
   padding-bottom: 12px;
 }
 
-.apt-acc-section {
-  padding: 14px 24px 12px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.apt-acc-section-title {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--accent-text);
-  text-transform: uppercase;
-}
-
 /* POSITION / IDENTIFICATION headings go red for an aircraft with an emergency
    squawk, matching the red callsign and the map marker. */
-.acft-acc-body--emergency .apt-acc-section-title {
-  color: var(--sev-critical);
+.acft-acc-body--emergency {
+  --ba-grid-title-color: var(--sev-critical);
 }
 
-.apt-acc-grid {
-  display: grid;
-  column-gap: 16px;
-  row-gap: 12px;
-}
-
-.apt-acc-grid--two {
-  grid-template-columns: 1fr 1fr;
-}
-
-.apt-acc-grid--three {
-  grid-template-columns: 1fr 1fr 1fr;
-}
-
-.apt-acc-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.apt-acc-cell-label {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(var(--ink-rgb), 0.35);
-  text-transform: uppercase;
-}
-
-.apt-acc-cell-value {
-  font-family: var(--font-primary);
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--ink-strong);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.apt-acc-cell-mode {
-  color: rgba(var(--ink-rgb), 0.45);
-  font-weight: 400;
-  margin-left: 2px;
-}
-
-/* Frequency cells are tunable buttons. */
-.apt-acc-freq {
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  padding: 0;
-  transition: opacity 0.12s;
-}
-
-.apt-acc-freq:hover {
-  opacity: 0.7;
-}
-
+/* Sits after the FREQUENCIES grid, 12px below its last row (the grid section's
+   bottom padding) with the same 12px under it — where it sat when it was inside
+   that section. */
 .apt-acc-notice {
-  margin-top: 2px;
+  padding: 0 24px 12px;
   font-family: var(--font-primary);
   font-size: 9px;
   font-weight: 700;
@@ -1080,8 +938,8 @@ defineExpose({
 
 /* ---- Aircraft live-telemetry accordion ---- */
 /* When the aircraft drops out of the feed, dim the (last-known) values. */
-.acft-acc-body--stale .apt-acc-cell-value {
-  color: rgba(var(--ink-rgb), 0.4);
+.acft-acc-body--stale {
+  --ba-cell-value-color: rgba(var(--ink-rgb), 0.4);
 }
 
 .acft-acc-signal-lost {
@@ -1098,11 +956,9 @@ defineExpose({
 }
 
 .acft-acc-action-section {
-  padding-top: 8px;
-  padding-bottom: 0;
-  /* Pull the button row left so its boxes left-align with the section text
-     above (overrides the 24px left padding inherited from .apt-acc-section). */
-  padding-left: 16px;
+  /* 16px on the left, not the data grids' 24px, so the button boxes line up
+     with the grid text above. */
+  padding: 8px 24px 0 16px;
 }
 
 /* The aircraft accordion ends on the action row, so it needs less bottom

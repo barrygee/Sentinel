@@ -523,7 +523,18 @@ describe('AirFilter', () => {
       await wrapper.find('.bfp-result-option').trigger('click')
       expect(map.fitBounds).toHaveBeenCalled()
       // tower + atis valid; radar (non-numeric) and approach (0) skipped.
-      expect(wrapper.findAll('.apt-acc-freq')).toHaveLength(2)
+      const frequencyCells = wrapper.findAll('.apt-acc-freq')
+      expect(frequencyCells).toHaveLength(2)
+      // Each cell is captioned with the upper-cased frequency label and shows
+      // the frequency with its mode after it.
+      expect(frequencyCells.map((cell) => cell.find('.ba-data-cell-label').text())).toEqual([
+        'TOWER',
+        'ATIS',
+      ])
+      expect(frequencyCells.map((cell) => cell.find('.ba-data-cell-value').text())).toEqual([
+        '118.500 · AM',
+        '113.750 / 113.760 · AM',
+      ])
       // collapse again
       await wrapper.find('.bfp-result-option').trigger('click')
       expect(wrapper.find('.apt-acc-body').exists()).toBe(false)
@@ -569,7 +580,10 @@ describe('AirFilter', () => {
       await setCategory('airports')
       await wrapper.find('.bfp-result-option').trigger('click')
       await wrapper.find('.apt-acc-freq').trigger('click')
-      expect(wrapper.find('.apt-acc-notice').exists()).toBe(true)
+      const notice = wrapper.find('.apt-acc-notice')
+      expect(notice.exists()).toBe(true)
+      // A status region, so screen readers announce why nothing tuned.
+      expect(notice.attributes('role')).toBe('status')
     })
 
     it('shows the notice, and does not tune, when the radio is not connected', async () => {
@@ -878,7 +892,7 @@ describe('AirFilter', () => {
 
   describe('aircraft live-telemetry accordion', () => {
     function cellValues(wrapper: ReturnType<typeof mountFilter>) {
-      return wrapper.findAll('.acft-acc-body .apt-acc-cell-value').map((node) => node.text())
+      return wrapper.findAll('.acft-acc-body .ba-data-cell-value').map((node) => node.text())
     }
 
     it('expands on row click and shows formatted live telemetry', async () => {
@@ -1132,7 +1146,7 @@ describe('AirFilter', () => {
       const body = wrapper.find('.acft-acc-body')
       expect(body.classes()).toContain('acft-acc-body--emergency')
       // The section headings the user named are present inside the flagged body.
-      const titles = body.findAll('.apt-acc-section-title').map((node) => node.text())
+      const titles = body.findAll('.ba-data-grid-title').map((node) => node.text())
       expect(titles).toContain('POSITION')
       expect(titles).toContain('IDENTIFICATION')
     })
