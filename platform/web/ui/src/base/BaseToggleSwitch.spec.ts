@@ -65,6 +65,45 @@ describe('BaseToggleSwitch', () => {
     expect(wrapper.get('[role="switch"]').attributes('disabled')).toBeUndefined()
   })
 
+  it('uses the default size, with no compact class, when size is omitted', () => {
+    const wrapper = mount(BaseToggleSwitch, {
+      props: { modelValue: false, accessibleName: 'Toggle example setting' },
+    })
+    expect(wrapper.get('[role="switch"]').classes()).not.toContain('toggle-track--compact')
+  })
+
+  it('adds the compact class for size="compact" and drops it for size="default"', async () => {
+    const wrapper = mount(BaseToggleSwitch, {
+      props: { modelValue: false, accessibleName: 'Auto gain (AGC)', size: 'compact' },
+    })
+    expect(wrapper.get('[role="switch"]').classes()).toContain('toggle-track--compact')
+    await wrapper.setProps({ size: 'default' })
+    expect(wrapper.get('[role="switch"]').classes()).not.toContain('toggle-track--compact')
+  })
+
+  it('keeps the switch contract at compact size: is-on, aria-checked and toggling', async () => {
+    const wrapper = mount(BaseToggleSwitch, {
+      props: { modelValue: true, accessibleName: 'Auto gain (AGC)', size: 'compact' },
+    })
+    const toggleSwitch = wrapper.get('[role="switch"]')
+    expect(toggleSwitch.classes()).toEqual(
+      expect.arrayContaining(['toggle-track', 'toggle-track--compact', 'is-on']),
+    )
+    expect(toggleSwitch.attributes('aria-checked')).toBe('true')
+    expect(toggleSwitch.attributes('aria-label')).toBe('Auto gain (AGC)')
+    await toggleSwitch.trigger('click')
+    expect(wrapper.emitted('update:modelValue')).toEqual([[false]])
+  })
+
+  it('has no accessibility violations at compact size', async () => {
+    const wrapper = mount(BaseToggleSwitch, {
+      props: { modelValue: true, accessibleName: 'Auto gain (AGC)', size: 'compact' },
+    })
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+
   it('has no accessibility violations when off', async () => {
     const wrapper = mount(BaseToggleSwitch, {
       props: { modelValue: false, accessibleName: 'Toggle example setting' },
