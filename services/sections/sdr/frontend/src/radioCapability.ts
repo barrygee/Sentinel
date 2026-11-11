@@ -132,6 +132,8 @@ export function createSdrRadioCapability(): RadioCapability {
         name: record.name,
         enabled: record.enabled,
         available: record.device_available !== false,
+        sdrManagerHostId: record.sdr_manager_host_id ?? null,
+        sdrManagerDeviceId: record.sdr_manager_device_id ?? null,
       }))
     },
   }
