@@ -42,14 +42,20 @@
         :class="{
           'settings-dropdown-item--selected': option.value === modelValue,
           'settings-dropdown-item--active': optionIndex === activeIndex,
+          'settings-dropdown-item--locked': isLocked(option),
         }"
         role="option"
         :data-value="option.value"
         :aria-selected="option.value === modelValue"
-        @mousedown.prevent="select(option.value)"
+        :aria-disabled="isLocked(option) || undefined"
+        @mousedown.prevent="choose(option)"
         @mousemove="activeIndex = optionIndex"
       >
-        {{ option.label }}
+        <span class="settings-dropdown-item-label">{{ option.label }}</span>
+        <span v-if="option.lockedReason" class="settings-dropdown-item-lock">
+          <PadlockIcon :size="11" />
+          {{ option.lockedReason }}
+        </span>
       </div>
     </div>
   </div>
@@ -74,13 +80,20 @@
  * choose the active option), Escape closes it, Home/End jump to the ends, and
  * blur closes — options commit on `mousedown` so a click lands before the
  * trigger's blur can dismiss the menu.
+ *
+ * An option with a `lockedReason` is listed but can't be chosen: it shows a
+ * padlock and the reason (e.g. the radio another section is using), is marked
+ * `aria-disabled`, and the arrow/Home/End keys step over it.
  */
 import { computed, ref, useId } from 'vue'
+import PadlockIcon from '@sentinel/ui/icons/PadlockIcon.vue'
 
 /** One choice in the list. `value` is what the caller round-trips as the model. */
 export interface SettingsDropdownOption {
   value: string
   label: string
+  /** Set to list the option as locked: shown with a padlock and this text, never chosen. */
+  lockedReason?: string
 }
 
 const props = withDefaults(
@@ -136,6 +149,16 @@ function toggle(): void {
   else open()
 }
 
+function isLocked(option: SettingsDropdownOption): boolean {
+  return Boolean(option.lockedReason)
+}
+
+/** A click on a row: locked rows do nothing, and the menu stays open. */
+function choose(option: SettingsDropdownOption): void {
+  if (isLocked(option)) return
+  select(option.value)
+}
+
 function select(value: string): void {
   close()
   // Refocus on a mouse pick: the option row is not focusable, so without this
@@ -145,11 +168,17 @@ function select(value: string): void {
   emit('update:modelValue', value)
 }
 
-/** Move the active option by `step`, clamped to the ends of the list. */
+/** The nearest unlocked option from `startIndex` in direction `step`, or -1. */
+function nearestUnlocked(startIndex: number, step: number): number {
+  const isCandidate = (option: SettingsDropdownOption, index: number): boolean =>
+    !isLocked(option) && (step > 0 ? index >= startIndex : index <= startIndex)
+  return step > 0 ? props.options.findIndex(isCandidate) : props.options.findLastIndex(isCandidate)
+}
+
+/** Move the active option by `step`, stepping over locked rows and stopping at the ends. */
 function moveActive(step: number): void {
-  if (props.options.length === 0) return
-  const nextIndex = activeIndex.value + step
-  activeIndex.value = Math.min(Math.max(nextIndex, 0), props.options.length - 1)
+  const nextIndex = nearestUnlocked(activeIndex.value + step, step)
+  if (nextIndex !== -1) activeIndex.value = nextIndex
 }
 
 function onTriggerKeydown(keyboardEvent: KeyboardEvent): void {
@@ -164,13 +193,19 @@ function onTriggerKeydown(keyboardEvent: KeyboardEvent): void {
     case 'End':
       if (!isOpen.value) return
       keyboardEvent.preventDefault()
-      activeIndex.value = keyboardEvent.key === 'Home' ? 0 : props.options.length - 1
+      {
+        const endIndex =
+          keyboardEvent.key === 'Home'
+            ? nearestUnlocked(0, 1)
+            : nearestUnlocked(props.options.length - 1, -1)
+        if (endIndex !== -1) activeIndex.value = endIndex
+      }
       break
     case 'Enter':
     case ' ':
       keyboardEvent.preventDefault()
       if (!isOpen.value) open()
-      else if (activeOption.value) select(activeOption.value.value)
+      else if (activeOption.value) choose(activeOption.value)
       else close()
       break
     case 'Escape':
@@ -312,5 +347,38 @@ function onTriggerKeydown(keyboardEvent: KeyboardEvent): void {
 .settings-dropdown-item--selected {
   color: #10131d;
   font-weight: 600;
+}
+
+/* Label left, lock reason right, on one line. */
+.settings-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-dropdown-item-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* In use elsewhere: listed so the operator sees where it went, but dimmed,
+   unclickable-looking and never highlighted. 0.62 ink keeps AA on white. */
+.settings-dropdown-item--locked,
+.settings-dropdown-item--locked:hover {
+  background: none;
+  color: rgba(16, 19, 29, 0.62);
+  cursor: not-allowed;
+}
+
+.settings-dropdown-item-lock {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9em;
+  letter-spacing: 0.08em;
 }
 </style>

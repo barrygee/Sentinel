@@ -4,6 +4,7 @@
     accessible-name="APRS decode SDR"
     off-label="Not set — APRS decode off"
     decode-name="APRS decode"
+    reservation-kind="APRS"
   />
 </template>
 
