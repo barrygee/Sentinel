@@ -339,3 +339,110 @@ describe('SettingsDropdown — no environment assumptions', () => {
     expect(wrapper.emitted('update:modelValue')).toEqual([['one']])
   })
 })
+
+describe('SettingsDropdown — locked options', () => {
+  // Locked rows at both ends and in the middle, so every skip is exercised.
+  const LOCKED_OPTIONS = [
+    { value: 'a', label: 'Radio A', lockedReason: 'IN USE · AIS' },
+    { value: 'b', label: 'Radio B' },
+    { value: 'c', label: 'Radio C', lockedReason: 'IN USE · APRS' },
+    { value: 'd', label: 'Radio D' },
+    { value: 'e', label: 'Radio E', lockedReason: 'IN USE · ADS-B' },
+  ]
+
+  function mountLocked(props: Record<string, unknown> = {}) {
+    return mountDropdown({ options: LOCKED_OPTIONS, ...props })
+  }
+
+  function activeLabel(wrapper: ReturnType<typeof mountDropdown>): string | undefined {
+    return options(wrapper)
+      .find((row) => row.classes().includes('settings-dropdown-item--active'))
+      ?.find('.settings-dropdown-item-label')
+      .text()
+  }
+
+  async function press(wrapper: ReturnType<typeof mountDropdown>, key: string) {
+    await trigger(wrapper).trigger('keydown', { key })
+  }
+
+  it('lists a locked row with a padlock and its reason, marked aria-disabled', () => {
+    const rows = options(mountLocked())
+    const lockedRow = rows[0]!
+    expect(lockedRow.classes()).toContain('settings-dropdown-item--locked')
+    expect(lockedRow.attributes('aria-disabled')).toBe('true')
+    expect(lockedRow.find('.settings-dropdown-item-lock').text()).toBe('IN USE · AIS')
+    expect(lockedRow.find('.settings-dropdown-item-lock svg').attributes('aria-hidden')).toBe(
+      'true',
+    )
+
+    const freeRow = rows[1]!
+    expect(freeRow.classes()).not.toContain('settings-dropdown-item--locked')
+    expect(freeRow.attributes('aria-disabled')).toBeUndefined()
+    expect(freeRow.find('.settings-dropdown-item-lock').exists()).toBe(false)
+  })
+
+  it('ignores a click on a locked row and keeps the list open', async () => {
+    const wrapper = mountLocked()
+    await trigger(wrapper).trigger('click')
+    await options(wrapper)[0]!.trigger('mousedown')
+
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(trigger(wrapper).attributes('aria-expanded')).toBe('true')
+  })
+
+  it('still lets a free row be clicked', async () => {
+    const wrapper = mountLocked()
+    await trigger(wrapper).trigger('click')
+    await options(wrapper)[1]!.trigger('mousedown')
+    expect(wrapper.emitted('update:modelValue')).toEqual([['b']])
+  })
+
+  it('steps over locked rows with the arrow keys and stops at the last free one', async () => {
+    const wrapper = mountLocked()
+    await press(wrapper, 'ArrowDown') // opens, nothing active
+    await press(wrapper, 'ArrowDown')
+    expect(activeLabel(wrapper)).toBe('Radio B')
+    await press(wrapper, 'ArrowDown')
+    expect(activeLabel(wrapper)).toBe('Radio D')
+    await press(wrapper, 'ArrowDown') // only a locked row below
+    expect(activeLabel(wrapper)).toBe('Radio D')
+    await press(wrapper, 'ArrowUp')
+    expect(activeLabel(wrapper)).toBe('Radio B')
+    await press(wrapper, 'ArrowUp') // only a locked row above
+    expect(activeLabel(wrapper)).toBe('Radio B')
+  })
+
+  it('jumps to the first and last free rows with Home and End', async () => {
+    const wrapper = mountLocked()
+    await press(wrapper, 'ArrowDown')
+    await press(wrapper, 'End')
+    expect(activeLabel(wrapper)).toBe('Radio D')
+    await press(wrapper, 'Home')
+    expect(activeLabel(wrapper)).toBe('Radio B')
+  })
+
+  it('moves nowhere when every row is locked', async () => {
+    const wrapper = mountDropdown({ options: [LOCKED_OPTIONS[0], LOCKED_OPTIONS[2]] })
+    await press(wrapper, 'ArrowDown')
+    await press(wrapper, 'ArrowDown')
+    await press(wrapper, 'Home')
+    await press(wrapper, 'End')
+    expect(activeLabel(wrapper)).toBeUndefined()
+    expect(trigger(wrapper).attributes('aria-activedescendant')).toBeUndefined()
+  })
+
+  it('does not choose a locked row the pointer left active when Enter is pressed', async () => {
+    const wrapper = mountLocked()
+    await trigger(wrapper).trigger('click')
+    await options(wrapper)[2]!.trigger('mousemove')
+    await press(wrapper, 'Enter')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('has no accessibility violations with locked rows', async () => {
+    const wrapper = mountLocked()
+    await trigger(wrapper).trigger('click')
+    expect(await axe(wrapper.element)).toHaveNoViolations()
+    wrapper.unmount()
+  })
+})

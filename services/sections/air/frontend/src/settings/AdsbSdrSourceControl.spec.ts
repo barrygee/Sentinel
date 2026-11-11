@@ -7,7 +7,8 @@ import { nextTick } from 'vue'
 import AdsbSdrSourceControl from './AdsbSdrSourceControl.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import * as adsbSourceApi from '../services/adsbSourceApi'
-import { provideFakeRadioSites } from '@sentinel/shell-api/testing/fakeRadio'
+import { provideFakeRadio, provideFakeRadioSites } from '@sentinel/shell-api/testing/fakeRadio'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 import type {
   RadioSiteDevice,
   RadioSiteDevices,
@@ -437,6 +438,87 @@ describe('AdsbSdrSourceControl', () => {
       await flushPromises()
 
       expect(getSourceSpy.mock.calls.length).toBe(callsAfterMount)
+    })
+  })
+
+  describe('devices another section decodes on', () => {
+    let fakeRadio: ReturnType<typeof provideFakeRadio>
+
+    function radioOn(id: number, deviceId: string): RadioSummary {
+      return {
+        id,
+        name: `Radio ${id}`,
+        enabled: true,
+        available: true,
+        sdrManagerHostId: 1,
+        sdrManagerDeviceId: deviceId,
+      }
+    }
+
+    function lockText(wrapper: ReturnType<typeof mount>, value: string): string | null {
+      const lock = wrapper.find(
+        `[role="option"][data-value="${value}"] .settings-dropdown-item-lock`,
+      )
+      return lock.exists() ? lock.text() : null
+    }
+
+    beforeEach(() => {
+      fakeRadio = provideFakeRadio()
+      serveFleet(fleet(device({ deviceId: 'serial:AAA' }), device({ deviceId: 'serial:BBB' })))
+    })
+
+    afterEach(() => {
+      fakeRadio.withdraw()
+    })
+
+    it('locks a device whose radio decodes AIS or APRS, and ignores a click on it', async () => {
+      fakeRadio.listRadios.mockResolvedValue([radioOn(7, 'serial:AAA'), radioOn(8, 'serial:BBB')])
+      useSettingsStore().setSetting('sdr', 'ais_radio_id', 7)
+
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+
+      expect(lockText(wrapper, '1:serial:AAA')).toBe('IN USE · AIS')
+      expect(lockText(wrapper, '1:serial:BBB')).toBeNull()
+      await wrapper.get('[role="option"][data-value="1:serial:AAA"]').trigger('mousedown')
+      expect(wrapper.emitted('stage')).toBeUndefined()
+    })
+
+    it('follows a reservation applied in another card without a reload', async () => {
+      fakeRadio.listRadios.mockResolvedValue([radioOn(7, 'serial:BBB')])
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+      expect(lockText(wrapper, '1:serial:BBB')).toBeNull()
+
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', 7)
+      await nextTick()
+      expect(lockText(wrapper, '1:serial:BBB')).toBe('IN USE · APRS')
+    })
+
+    it('never locks the device already chosen, so the current setting stays visible', async () => {
+      vi.mocked(adsbSourceApi.getAdsbSource).mockResolvedValue({
+        configured: true,
+        sdr_manager_host_id: 1,
+        sdr_manager_device_id: 'serial:AAA',
+      })
+      fakeRadio.listRadios.mockResolvedValue([radioOn(7, 'serial:AAA')])
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', 7)
+
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+
+      expect(lockText(wrapper, '1:serial:AAA')).toBeNull()
+    })
+
+    it('still lists every device, unlocked, when the radios cannot be read', async () => {
+      fakeRadio.listRadios.mockRejectedValue(new Error('hub down'))
+      useSettingsStore().setSetting('sdr', 'ais_radio_id', 7)
+
+      const wrapper = mount(AdsbSdrSourceControl)
+      await flushPromises()
+
+      expect(wrapper.findAll('.settings-dropdown-item-lock')).toHaveLength(0)
+      expect(wrapper.find('[role="option"][data-value="1:serial:AAA"]').exists()).toBe(true)
     })
   })
 
