@@ -5,11 +5,13 @@
     <BaseDataCell label="LONGITUDE" :value="formatLongitude(coordinates[0])" />
   </BaseDataGrid>
   <BaseDataGrid title="VHF CHANNELS" :columns="2">
-    <SeaPortChannelButton
+    <TuneFrequencyCell
       v-for="portChannel in tunableChannels"
       :key="portChannel.channel"
-      :label="portChannel.label"
-      :channel="portChannel.channel"
+      class="sea-port-channel"
+      :label="`${portChannel.label.toUpperCase()} · CH ${portChannel.channel}`"
+      :frequency="formatMarineVhfMhz(portChannel.channel)"
+      :mode="MARINE_VHF_MODE"
       :sdr-connected="sdrConnected"
       @tune="emit('tune', portChannel)"
     />
@@ -26,9 +28,9 @@
 import { computed } from 'vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
-import SeaPortChannelButton from './SeaPortChannelButton.vue'
+import TuneFrequencyCell from '@sentinel/ui/base/TuneFrequencyCell.vue'
 import type { PortChannel, PortProperties } from './controls/ports/portsData'
-import { marineVhfChannelHz } from './utils/marineVhf'
+import { formatMarineVhfMhz, marineVhfChannelHz, MARINE_VHF_MODE } from './utils/marineVhf'
 
 const props = defineProps<{
   port: PortProperties
