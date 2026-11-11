@@ -291,6 +291,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show the searched range's label to read-only followers
 - Dim locked checkboxes in LabelFieldsTable
 - Add BaseChip and BaseInlineConfirm
+- Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
 
 ### Bug Fixes
 
@@ -1844,6 +1845,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #614 from barrygee/fix/sdr-panel-polish
 - Merge pull request #615 from barrygee/fix/air-adsb-spec-marker-remove
 - Merge pull request #616 from barrygee/perf/settings-client-cache
+- Merge pull request #617 from barrygee/refactor/adopt-base-icon-action
 
 ### Performance
 
@@ -1970,6 +1972,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Use BaseChip for the SDR, Space and Land filter chips
 - Use BaseInlineConfirm for the delete, remove and forget confirms
 - Use SettingsDropdown for the TLE category pickers
+- Adopt BaseIconAction for row actions
 
 ### Documentation
 
@@ -2260,6 +2263,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for BaseChip and BaseInlineConfirm
 - Rebuild bundle for the TLE category pickers
 - Rebuild bundle for the RADIO pane polish
+- Rebuild for BaseIconAction adoption
 
 ### Continuous Integration
 
