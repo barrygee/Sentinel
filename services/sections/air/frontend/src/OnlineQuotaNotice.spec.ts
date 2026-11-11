@@ -6,6 +6,7 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 
 import OnlineQuotaNotice from './OnlineQuotaNotice.vue'
 import * as onlineQuotaApi from './services/onlineQuotaApi'
+import { QUOTA_NOTICE_DISMISSAL_STORAGE_KEY } from './services/onlineQuotaDismissal'
 
 /**
  * Tests for the banner over the AIR map as the online feed's daily call limit
@@ -32,7 +33,9 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
+  localStorage.clear()
 })
 
 async function mountWith(quota: onlineQuotaApi.OnlineQuota | null) {
@@ -73,6 +76,69 @@ describe('OnlineQuotaNotice', () => {
 
     expect(wrapper.find('.map-notice').exists()).toBe(true)
     expect(wrapper.find('.map-dim-overlay').exists()).toBe(false)
+  })
+
+  describe('closing the warning', () => {
+    const APPROACHING = { state: 'approaching' as const, used: 400, remaining: 100 }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(Date.UTC(2026, 10, 11, 12, 0, 0))
+    })
+
+    it('hides the banner and remembers it for this level and UTC day', async () => {
+      const wrapper = await mountWith(figure(APPROACHING))
+
+      await wrapper.find('button.warning-notice-dismiss').trigger('click')
+
+      expect(wrapper.find('.map-notice').exists()).toBe(false)
+      expect(localStorage.getItem(QUOTA_NOTICE_DISMISSAL_STORAGE_KEY)).toBe(
+        'api.adsb.lol|approaching|2026-11-11',
+      )
+    })
+
+    it('stays closed on a later visit at the same level and day', async () => {
+      localStorage.setItem(
+        QUOTA_NOTICE_DISMISSAL_STORAGE_KEY,
+        'api.adsb.lol|approaching|2026-11-11',
+      )
+
+      const wrapper = await mountWith(figure({ ...APPROACHING, used: 480, remaining: 20 }))
+
+      expect(wrapper.find('.map-notice').exists()).toBe(false)
+    })
+
+    it('comes back when the limit is reached, and the map is dimmed regardless', async () => {
+      localStorage.setItem(
+        QUOTA_NOTICE_DISMISSAL_STORAGE_KEY,
+        'api.adsb.lol|approaching|2026-11-11',
+      )
+
+      const wrapper = await mountWith(figure({ state: 'reached', used: 500, remaining: 0 }))
+
+      expect(wrapper.find('.map-notice').exists()).toBe(true)
+      expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
+    })
+
+    it('keeps the map dimmed after the reached warning is closed', async () => {
+      const wrapper = await mountWith(figure({ state: 'reached', used: 500, remaining: 0 }))
+
+      await wrapper.find('button.warning-notice-dismiss').trigger('click')
+
+      expect(wrapper.find('.map-notice').exists()).toBe(false)
+      expect(wrapper.find('.map-dim-overlay').exists()).toBe(true)
+    })
+
+    it('comes back on a new UTC day', async () => {
+      localStorage.setItem(
+        QUOTA_NOTICE_DISMISSAL_STORAGE_KEY,
+        'api.adsb.lol|approaching|2026-11-10',
+      )
+
+      const wrapper = await mountWith(figure(APPROACHING))
+
+      expect(wrapper.find('.map-notice').exists()).toBe(true)
+    })
   })
 
   it('has no accessibility violations once reached', async () => {

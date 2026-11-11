@@ -50,6 +50,17 @@ describe('MapNoticeBanner', () => {
     expect(wrapper.find('.warning-notice-action button').text()).toBe('Take control')
   })
 
+  it('has no close button unless it is dismissible', () => {
+    const wrapper = mount(MapNoticeBanner, { props: { message: MESSAGE } })
+    expect(wrapper.find('.warning-notice-dismiss').exists()).toBe(false)
+  })
+
+  it('passes the close button through and re-emits dismiss', async () => {
+    const wrapper = mount(MapNoticeBanner, { props: { message: MESSAGE, dismissible: true } })
+    await wrapper.find('button.warning-notice-dismiss').trigger('click')
+    expect(wrapper.emitted('dismiss')).toHaveLength(1)
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(MapNoticeBanner, {
       props: { message: MESSAGE },

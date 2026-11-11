@@ -294,6 +294,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
 - Add TuneFrequencyCell
 - Draw ground vehicles as an airport tug
+- Draw range rings as dots instead of dashes
+- Let the operator close the online quota warning
 
 ### Bug Fixes
 
@@ -1852,6 +1854,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #618 from barrygee/docs/plan-docs
 - Merge remote-tracking branch 'origin/main' into feat/ground-vehicle-icon
 - Merge pull request #620 from barrygee/feat/ground-vehicle-icon
+- Merge pull request #621 from barrygee/feat/range-ring-dots
+- Merge remote-tracking branch 'origin/main' into feat/dismissible-quota-notice
+- Merge pull request #622 from barrygee/feat/dismissible-quota-notice
 
 ### Performance
 
@@ -2274,6 +2279,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for BaseIconAction adoption
 - Rebuild for shared data and tune cells
 - Rebuild for the ground-vehicle tug icon
+- Rebuild for dotted range rings
+- Rebuild for the dismissible quota warning
+- Rebuild after merging main
 
 ### Continuous Integration
 
