@@ -666,6 +666,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep an aircraft's hover tag where its label sits
 - Hold on a signal while its squelch is open, and steady the scan overlay
 - Polish the RADIO pane's add button, row hover, input focus and search chip
+- Drop warm-started vessels another source heard
 
 ### Chores
 
@@ -1857,6 +1858,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #621 from barrygee/feat/range-ring-dots
 - Merge remote-tracking branch 'origin/main' into feat/dismissible-quota-notice
 - Merge pull request #622 from barrygee/feat/dismissible-quota-notice
+- Merge remote-tracking branch 'origin/main' into fix/sea-snapshot-source
+- Merge pull request #623 from barrygee/fix/sea-snapshot-source
 
 ### Performance
 
