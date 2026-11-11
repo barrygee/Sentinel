@@ -7,6 +7,8 @@ and cap pruning, bbox queries (incl. the antimeridian), track thinning, and
 the incremental SQLite snapshot round trip.
 """
 
+import json
+
 import pytest
 from backend.config import settings
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -412,6 +414,132 @@ class TestPersistence:
         store.ingest_envelope(position(), ais_store.now_ms())
         assert await store.switch_source("online") is True
         assert len(store) == 0
+
+    async def test_persist_records_the_source_that_heard_each_vessel(self, test_engine):
+        from sqlalchemy import select
+
+        from sentinel_sea.models import SeaVesselCache
+
+        store = AisVesselStore()
+        await store.switch_source("offgrid")
+        store.ingest_envelope(position(), ais_store.now_ms())
+        await store.persist_snapshot()
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as db:
+            sources = (await db.execute(select(SeaVesselCache.source_mode))).scalars().all()
+        assert sources == ["offgrid"]
+
+    async def test_warm_start_from_the_same_source_keeps_every_vessel(self):
+        now = ais_store.now_ms()
+        writer = AisVesselStore()
+        await writer.switch_source("online")
+        writer.ingest_envelope(position(mmsi=232000001), now)
+        writer.ingest_envelope(position(mmsi=232000002, lat=52.0), now)
+        await writer.persist_snapshot()
+
+        restored = AisVesselStore()
+        assert await restored.load_snapshot(now) == 2
+        assert await restored.switch_source("online") is False
+        assert len(restored) == 2
+        assert await AisVesselStore().load_snapshot(now) == 2  # snapshot untouched
+
+    async def test_warm_start_drops_vessels_another_source_or_no_source_heard(self, test_engine):
+        from sentinel_sea.models import SeaVesselCache
+
+        now = ais_store.now_ms()
+        online_writer = AisVesselStore()
+        await online_writer.switch_source("online")
+        online_writer.ingest_envelope(position(mmsi=232000001, lat=51.0), now - 60_000)
+        await online_writer.persist_snapshot()
+        offgrid_writer = AisVesselStore()
+        await offgrid_writer.switch_source("offgrid")
+        offgrid_writer.ingest_envelope(position(mmsi=232000002, lat=52.0), now)
+        await offgrid_writer.persist_snapshot()
+        factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as db:
+            # A row written before snapshots recorded their source.
+            db.add(
+                SeaVesselCache(
+                    mmsi="3",
+                    payload=json.dumps({"mmsi": "3", "lat": 1, "lon": 2, "lastPositionMs": now + 1}),
+                    track="[]",
+                    updated_at=now,
+                )
+            )
+            await db.commit()
+
+        restored = AisVesselStore()
+        assert await restored.load_snapshot(now) == 3
+        assert await restored.switch_source("online") is True
+
+        assert restored.get("232000001") is not None
+        assert restored.get("232000002") is None
+        assert restored.track("232000002") == []
+        assert restored.get("3") is None
+        # Recomputed from what is left, not the newest dropped vessel.
+        assert restored.newest_position_ms == restored.get("232000001")["lastPositionMs"]
+        # Gone from disk too, so the next restart can't warm them back.
+        reloaded = AisVesselStore()
+        assert await reloaded.load_snapshot(now) == 1
+        assert reloaded.get("232000001") is not None
+
+    async def test_dropping_every_restored_vessel_leaves_no_newest_position(self):
+        now = ais_store.now_ms()
+        writer = AisVesselStore()
+        await writer.switch_source("online")
+        writer.ingest_envelope(position(), now)
+        await writer.persist_snapshot()
+
+        restored = AisVesselStore()
+        await restored.load_snapshot(now)
+        assert await restored.switch_source("offgrid") is True
+        assert len(restored) == 0
+        assert restored.newest_position_ms is None
+
+    async def test_a_restored_vessel_heard_live_again_is_kept(self):
+        now = ais_store.now_ms()
+        writer = AisVesselStore()
+        await writer.switch_source("online")
+        writer.ingest_envelope(position(mmsi=232000001), now)
+        writer.ingest_envelope(position(mmsi=232000002, lat=52.0), now)
+        await writer.persist_snapshot()
+
+        restored = AisVesselStore()
+        await restored.load_snapshot(now)
+        # The radio hears one of them before the first source check runs.
+        restored.ingest_envelope(position(mmsi=232000001, lat=51.2, time_utc="2026-09-12 09:00:00 +0000 UTC"), now)
+        assert await restored.switch_source("offgrid") is True
+        assert restored.get("232000001") is not None
+        assert restored.get("232000002") is None
+
+    async def test_a_restored_vessel_named_from_the_static_directory_is_still_checked(self):
+        # Merging static data marks a vessel dirty; that must not pass for being heard live.
+        now = ais_store.now_ms()
+        writer = AisVesselStore()
+        await writer.switch_source("online")
+        writer.ingest_envelope(position(mmsi=232000001), now)
+        await writer.persist_snapshot()
+        writer.ingest_envelope(static(mmsi=232000001), now)
+        await writer.persist_snapshot()
+
+        restored = AisVesselStore()
+        await restored.load_snapshot(now)
+        assert await restored.switch_source("offgrid") is True
+        assert restored.get("232000001") is None
+
+    async def test_a_later_switch_has_no_restored_vessels_left_to_drop(self):
+        now = ais_store.now_ms()
+        writer = AisVesselStore()
+        await writer.switch_source("online")
+        writer.ingest_envelope(position(), now)
+        await writer.persist_snapshot()
+
+        restored = AisVesselStore()
+        await restored.load_snapshot(now)
+        await restored.switch_source("online")
+        assert restored._restored_sources == {}
+        assert await restored.switch_source("online") is False
+        assert len(restored) == 1
 
     async def test_load_skips_expired_and_corrupt_rows(self, test_engine):
         from sentinel_sea.models import SeaVesselCache
