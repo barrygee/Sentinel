@@ -145,11 +145,14 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
       id: this.layerId,
       type: 'line',
       source: this.layerId,
-      layout: { visibility: 'none' },
+      // Dotted: zero-length dashes with round caps draw as dots one line-width
+      // across, spaced three widths apart. 1.5px keeps a dot visible where a
+      // 1px one faded into the basemap.
+      layout: { visibility: 'none', 'line-cap': 'round' },
       paint: {
         'line-color': stroke,
-        'line-width': 1,
-        'line-dasharray': [4, 4],
+        'line-width': 1.5,
+        'line-dasharray': [0, 3],
       },
     })
 
