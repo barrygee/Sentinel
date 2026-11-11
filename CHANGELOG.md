@@ -294,6 +294,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
 - Add TuneFrequencyCell
 - Draw ground vehicles as an airport tug
+- Padlock radios another section holds off grid
+- Draw range rings as dots instead of dashes
+- Let the operator close the online quota warning
 
 ### Bug Fixes
 
@@ -664,6 +667,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep an aircraft's hover tag where its label sits
 - Hold on a signal while its squelch is open, and steady the scan overlay
 - Polish the RADIO pane's add button, row hover, input focus and search chip
+- Drop warm-started vessels another source heard
 
 ### Chores
 
@@ -1852,6 +1856,13 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #618 from barrygee/docs/plan-docs
 - Merge remote-tracking branch 'origin/main' into feat/ground-vehicle-icon
 - Merge pull request #620 from barrygee/feat/ground-vehicle-icon
+- Merge pull request #621 from barrygee/feat/range-ring-dots
+- Merge remote-tracking branch 'origin/main' into feat/dismissible-quota-notice
+- Merge pull request #622 from barrygee/feat/dismissible-quota-notice
+- Merge remote-tracking branch 'origin/main' into fix/sea-snapshot-source
+- Merge pull request #623 from barrygee/fix/sea-snapshot-source
+- Merge remote-tracking branch 'origin/main' into feat/settings-radio-locks
+- Merge pull request #624 from barrygee/feat/settings-radio-locks
 
 ### Performance
 
@@ -2274,6 +2285,11 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for BaseIconAction adoption
 - Rebuild for shared data and tune cells
 - Rebuild for the ground-vehicle tug icon
+- Rebuild for settings radio padlocks
+- Rebuild for dotted range rings
+- Rebuild for the dismissible quota warning
+- Rebuild after merging main
+- Rebuild after merging main
 
 ### Continuous Integration
 

@@ -1,9 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
+import { createPinia, setActivePinia } from 'pinia'
 import RadioSelect from './RadioSelect.vue'
 import { provideFakeRadio } from '../testing/fakeRadio'
 import type { RadioSummary } from '../shell/radioCapability'
+import { useSettingsStore } from '../stores/settings'
 
 /**
  * `RadioSelect` is the shared "which SDR radio" dropdown behind LAND's APRS
@@ -28,6 +30,7 @@ const BASE_PROPS = {
   accessibleName: 'AIS receive SDR',
   offLabel: 'Not set — no off-grid AIS receiver',
   decodeName: 'Off-grid AIS decode',
+  reservationKind: 'AIS' as const,
 }
 
 /** Mount with the radio list the backend would return, and let it settle. */
@@ -52,6 +55,7 @@ function hintText(wrapper: ReturnType<typeof mount>): string {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   vi.restoreAllMocks()
   fakeRadio = provideFakeRadio()
 })
@@ -261,6 +265,64 @@ describe('RadioSelect', () => {
 
       await vi.advanceTimersByTimeAsync(15000)
       expect(listSpy).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('radios another section holds off grid', () => {
+    function lockText(wrapper: ReturnType<typeof mount>, value: string): string | null {
+      const lock = wrapper.find(
+        `[role="option"][data-value="${value}"] .settings-dropdown-item-lock`,
+      )
+      return lock.exists() ? lock.text() : null
+    }
+
+    it('locks a radio another job holds, naming the job', async () => {
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', 2)
+      const wrapper = await mountSelect([radio({ id: 1 }), radio({ id: 2, name: 'Shed Dongle' })])
+
+      expect(lockText(wrapper, '2')).toBe('IN USE · APRS')
+      expect(lockText(wrapper, '1')).toBeNull()
+      await wrapper.get('[role="option"][data-value="2"]').trigger('mousedown')
+      expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    })
+
+    it('locks the radio AIR receives ADS-B on, matched by its SDR Manager device', async () => {
+      useSettingsStore().setSetting('air', 'offgridSdrSource', {
+        sdr_manager_host_id: 4,
+        sdr_manager_device_id: 'serial-9',
+      })
+      const wrapper = await mountSelect([
+        radio({ id: 1, sdrManagerHostId: 4, sdrManagerDeviceId: 'serial-9' }),
+        radio({ id: 2, sdrManagerHostId: 4, sdrManagerDeviceId: 'serial-10' }),
+      ])
+
+      expect(lockText(wrapper, '1')).toBe('IN USE · ADS-B')
+      expect(lockText(wrapper, '2')).toBeNull()
+    })
+
+    it("does not lock the radio this picker's own job holds", async () => {
+      useSettingsStore().setSetting('sdr', 'ais_radio_id', 1)
+      const wrapper = await mountSelect([radio({ id: 1 })], { reservationKind: 'AIS' })
+      expect(lockText(wrapper, '1')).toBeNull()
+    })
+
+    it('never locks the chosen radio, so the current setting stays visible', async () => {
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', 1)
+      const wrapper = await mountSelect([radio({ id: 1 })], { modelValue: '1' })
+      expect(lockText(wrapper, '1')).toBeNull()
+    })
+
+    it('locks and frees a radio as reservations are applied elsewhere', async () => {
+      const wrapper = await mountSelect([radio({ id: 1 })])
+      expect(lockText(wrapper, '1')).toBeNull()
+
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', 1)
+      await flushPromises()
+      expect(lockText(wrapper, '1')).toBe('IN USE · APRS')
+
+      useSettingsStore().setSetting('sdr', 'aprs_radio_id', null)
+      await flushPromises()
+      expect(lockText(wrapper, '1')).toBeNull()
     })
   })
 

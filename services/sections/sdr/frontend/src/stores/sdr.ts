@@ -2,6 +2,11 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 import { getNamespace, notifySettingsChanged } from '@sentinel/shell-api/services/settingsApi'
 import { isTunableHz } from '../sdrPanelUtils'
+import {
+  radioReservation as sharedRadioReservation,
+  sdrManagerDeviceKey,
+  type RadioReservationKind,
+} from '@sentinel/shell-api/shell/radioReservations'
 
 export interface SdrRadio {
   id: number
@@ -685,12 +690,10 @@ export const useSdrStore = defineStore('sdr', () => {
       | { sdr_manager_host_id?: unknown; sdr_manager_device_id?: unknown }
       | null
       | undefined
-    const hostId = source?.sdr_manager_host_id
-    const deviceId = source?.sdr_manager_device_id
-    adsbSourceKey.value =
-      Number.isInteger(hostId) && typeof deviceId === 'string' && deviceId
-        ? `${hostId}:${deviceId}`
-        : null
+    adsbSourceKey.value = sdrManagerDeviceKey(
+      source?.sdr_manager_host_id as number | null | undefined,
+      source?.sdr_manager_device_id as string | null | undefined,
+    )
   }
 
   /**
@@ -699,15 +702,22 @@ export const useSdrStore = defineStore('sdr', () => {
    * Returns the domain's operator-facing name so callers can say *why* a radio
    * is locked — "reserved" with no reason sends people hunting through settings.
    */
-  function radioReservation(radioId: number): 'APRS' | 'AIS' | 'ADS-B' | null {
-    if (aprsRadioId.value === radioId) return 'APRS'
-    if (aisRadioId.value === radioId) return 'AIS'
-    if (adsbSourceKey.value === null) return null
+  function radioReservation(radioId: number): RadioReservationKind | null {
+    // The same rule the settings pickers apply (shell-api radioReservations),
+    // fed from this store's own copies of the three settings.
     const radio = radios.value.find((candidate) => candidate.id === radioId)
-    if (!radio || radio.sdr_manager_host_id == null || !radio.sdr_manager_device_id) return null
-    return `${radio.sdr_manager_host_id}:${radio.sdr_manager_device_id}` === adsbSourceKey.value
-      ? 'ADS-B'
-      : null
+    return sharedRadioReservation(
+      {
+        id: radioId,
+        sdrManagerHostId: radio?.sdr_manager_host_id ?? null,
+        sdrManagerDeviceId: radio?.sdr_manager_device_id ?? null,
+      },
+      {
+        aprsRadioId: aprsRadioId.value,
+        aisRadioId: aisRadioId.value,
+        adsbDeviceKey: adsbSourceKey.value,
+      },
+    )
   }
 
   // ── Decode audio muting ───────────────────────────────────────────────────

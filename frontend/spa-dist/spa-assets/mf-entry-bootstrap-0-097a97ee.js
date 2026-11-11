@@ -37,11 +37,19 @@ const __mfImport = (src) =>
 
 
 (async () => {
+<<<<<<<< HEAD:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-097a97ee.js
   const __mfHostInit = await __mfImport("./hostInit-DvUW3sUj.js");
   await __mfHostInit.__tla;
   const { initHost } = __mfHostInit;
   await initHost();
   const __mfPendingShares = await __mfImport("./pendingShares-DhgApdAO.js").catch(() => undefined);
+========
+  const __mfHostInit = await __mfImport("./hostInit-BeZGii88.js");
+  await __mfHostInit.__tla;
+  const { initHost } = __mfHostInit;
+  await initHost();
+  const __mfPendingShares = await __mfImport("./pendingShares-CdMamR6j.js").catch(() => undefined);
+>>>>>>>> origin/main:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-43a73e23.js
   if (__mfPendingShares && typeof __mfPendingShares.preloadPendingShares === "function") await __mfPendingShares.preloadPendingShares();
   if (__mfModuleCache.pendingShareLoads) {
     await Promise.all(__mfModuleCache.pendingShareLoads);
@@ -50,4 +58,8 @@ const __mfImport = (src) =>
   if (__mfReactServerModuleCache?.pendingShareLoads) {
     await Promise.all(__mfReactServerModuleCache.pendingShareLoads);
   }
+<<<<<<<< HEAD:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-097a97ee.js
 })().then(() => __mfImport("./index-DFmSjn9W.js"));
+========
+})().then(() => __mfImport("./index-EGKjj1CF.js"));
+>>>>>>>> origin/main:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-43a73e23.js

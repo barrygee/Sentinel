@@ -4,6 +4,7 @@
     accessible-name="AIS receive SDR"
     off-label="Not set — no off-grid AIS receiver"
     decode-name="Off-grid AIS decode"
+    reservation-kind="AIS"
   />
 </template>
 
