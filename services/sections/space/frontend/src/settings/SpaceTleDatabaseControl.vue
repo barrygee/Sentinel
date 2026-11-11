@@ -167,3 +167,116 @@ onUnmounted(() => {
 })
 useDocumentEvent('tle:refreshStatus', onRefresh)
 </script>
+
+<style scoped>
+.tle-db-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* Caps the category table AND the right-aligned CLEAR ALL button below it, so
+     the button's right edge lands on the table's, not the card's. */
+  max-width: var(--settings-control-measure);
+}
+
+.tle-db-summary {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  /* Small text: 0.5 ink fell under AA (3.4:1) on the panel's surface. */
+  color: rgba(var(--ink-rgb), 0.68);
+}
+
+.tle-cat-table {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.tle-cat-row {
+  display: grid;
+  grid-template-columns: 1fr 48px 90px 58px;
+  align-items: center;
+  padding: 11px 14px;
+  background: rgba(var(--ink-rgb), 0.02);
+}
+
+.tle-cat-name {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.7);
+}
+
+.tle-cat-count {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-value);
+  font-weight: 700;
+  color: rgba(var(--ink-rgb), 0.7);
+  text-align: right;
+  padding-right: 16px;
+}
+
+.tle-cat-age {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  color: var(--ink-secondary);
+  text-align: right;
+  letter-spacing: 0.04em;
+}
+
+.tle-cat-clear {
+  justify-self: end;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.5);
+  background: var(--hover-surface);
+  border: none;
+  border-radius: 0;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    background 0.15s;
+  white-space: nowrap;
+}
+
+.tle-cat-clear:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.tle-cat-clear:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tle-cat-clear--confirm {
+  color: var(--warn-text);
+  background: var(--warn-soft);
+}
+
+/* CLEAR ALL TLE DATA: solid red (not the variant's pink tint), sized to its
+   label and right-aligned instead of stretching the card's full width. The
+   amber confirm state still wins — its vars are set inline on the element,
+   which outranks these. Hover is overridden too (the atom hardcodes a pink
+   hover fill); the #settings-panel ancestor is what out-specifies the atom's
+   own hover rule. One shade darker than --danger, which is under AA (4.35:1)
+   behind the white label; hover goes darker again. */
+.tle-action-btn--danger {
+  --ba-danger-bg: var(--danger-hover);
+  --ba-danger-color: var(--surface-raised);
+  align-self: flex-end;
+}
+
+#settings-panel .tle-action-btn--danger:hover:not(:disabled) {
+  background: var(--danger-strong);
+  color: var(--surface-raised);
+}
+</style>
