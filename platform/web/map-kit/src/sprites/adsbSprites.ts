@@ -87,16 +87,89 @@ export function createTowerBlip(scale = 1.1): ImageData {
   return ctx.getImageData(0, 0, canvasSize, canvasSize)
 }
 
-export function createGroundVehicleBlip(color = '#ffffff', scale = 1.1): ImageData {
+/**
+ * The airport-tug outline shared by the map sprite and the label glyph, in an
+ * 18-unit design grid (side view, facing right): a long low deck with the cab at
+ * the front, two wheels and a windscreen. Side-on, so it never needs rotating:
+ * a surface vehicle's reported track is not a heading worth showing.
+ */
+const GROUND_VEHICLE_BODY: ReadonlyArray<readonly [number, number]> = [
+  [1.5, 12.5],
+  [1.5, 9.5],
+  [11.5, 9.5],
+  [11.5, 5.5],
+  [15, 5.5],
+  [16, 7.5],
+  [16, 12.5],
+]
+const GROUND_VEHICLE_WHEELS: ReadonlyArray<readonly [number, number]> = [
+  [4.2, 13.4],
+  [13.2, 13.4],
+]
+const GROUND_VEHICLE_WHEEL_RADIUS = 2
+const GROUND_VEHICLE_WINDSCREEN: ReadonlyArray<readonly [number, number]> = [
+  [12.2, 6.4],
+  [14.5, 6.4],
+  [15.1, 8],
+  [12.2, 8],
+]
+/** The centre of the drawing (outline included), placed on the vehicle's position. */
+const GROUND_VEHICLE_CENTRE = { x: 8.75, y: 10.45 }
+
+/**
+ * Size of the ground-vehicle sprite on the map, in CSS pixels across its design
+ * grid: a little larger than a light aircraft's silhouette, so a vehicle reads
+ * as one beside the planes.
+ */
+export const GROUND_VEHICLE_SPRITE_PX = 22
+
+/**
+ * The ground-vehicle (airport tug) map sprite: the body in `color` with a black
+ * outline, dark wheels and a tinted windscreen, like the aircraft silhouettes.
+ *
+ * Drawn on the 64px canvas every ADS-B sprite uses, which the map shows at
+ * pixel ratio 2 and icon size 0.75 (24 CSS pixels across).
+ *
+ * @param color - Body colour: the service or emergency colour for the basemap.
+ */
+export function createGroundVehicleBlip(color = '#ffffff'): ImageData {
   const canvasSize = 64
+  const canvasPxPerCssPx = canvasSize / ((canvasSize / 2) * 0.75)
+  const unit = (GROUND_VEHICLE_SPRITE_PX / 18) * canvasPxPerCssPx
+  const toCanvas = ([x, y]: readonly [number, number]): [number, number] => [
+    canvasSize / 2 + (x - GROUND_VEHICLE_CENTRE.x) * unit,
+    canvasSize / 2 + (y - GROUND_VEHICLE_CENTRE.y) * unit,
+  ]
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = canvasSize
   const ctx = canvas.getContext('2d')!
-  ctx.beginPath()
-  ctx.arc(canvasSize / 2, canvasSize / 2, 9 * scale, 0, Math.PI * 2)
-  ctx.strokeStyle = color
-  ctx.lineWidth = 3 * scale
+  const tracePolygon = (points: ReadonlyArray<readonly [number, number]>) => {
+    ctx.beginPath()
+    points.forEach((point, index) => {
+      const [x, y] = toCanvas(point)
+      if (index === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    })
+    ctx.closePath()
+  }
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = unit
+  ctx.lineJoin = 'round'
+  tracePolygon(GROUND_VEHICLE_BODY)
+  ctx.fillStyle = color
+  ctx.fill()
   ctx.stroke()
+  for (const wheel of GROUND_VEHICLE_WHEELS) {
+    const [x, y] = toCanvas(wheel)
+    ctx.beginPath()
+    ctx.arc(x, y, GROUND_VEHICLE_WHEEL_RADIUS * unit, 0, Math.PI * 2)
+    ctx.fillStyle = '#222222'
+    ctx.fill()
+    ctx.stroke()
+  }
+  tracePolygon(GROUND_VEHICLE_WINDSCREEN)
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+  ctx.fill()
   return ctx.getImageData(0, 0, canvasSize, canvasSize)
 }
 

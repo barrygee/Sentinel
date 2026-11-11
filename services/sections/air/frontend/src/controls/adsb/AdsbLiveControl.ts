@@ -33,7 +33,7 @@ import {
   createFilledDotShape,
   createGlyphSvg,
   createGlyphWell,
-  createHollowDotShape,
+  createGroundVehicleShape,
   createLabelPill,
   createNameSegment,
   isLeftFacing,
@@ -622,11 +622,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
     _addOrUpdate('adsb-blip-mil', createRadarBlip('#c8ff00', 1.1), { pixelRatio: 2, sdf: false })
     _addOrUpdate('adsb-blip-emerg', createRadarBlip('#ff2222', 1.1), { pixelRatio: 2, sdf: false })
     _addOrUpdate('adsb-blip-uav', createUAVBlip('#ffffff', 1.1), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-blip-gnd', createGroundVehicleBlip('#ffffff', 1.1), {
+    // Ground vehicles are drawn on the map only in silhouette mode, beside the
+    // silhouettes, so they take the silhouettes' service and emergency colours
+    // for the basemap (initLayers sets the palette first, on every style load).
+    const vehicleColours = SILHOUETTE_PALETTES[this._silhouettePalette]
+    _addOrUpdate('adsb-blip-gnd', createGroundVehicleBlip(vehicleColours.civil), {
       pixelRatio: 2,
       sdf: false,
     })
-    _addOrUpdate('adsb-blip-emerg-gnd', createGroundVehicleBlip('#ff2222', 1.1), {
+    _addOrUpdate('adsb-blip-emerg-gnd', createGroundVehicleBlip(vehicleColours.emergency), {
       pixelRatio: 2,
       sdf: false,
     })
@@ -1671,7 +1675,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   /**
    * The glyph drawn in a label's leading well: a rotated arrowhead for aircraft
-   * in flight, or an unrotated ring/dot for ground vehicles and towers, whose
+   * in flight, or an upright tug (ground vehicles) or dot (towers), whose
    * ADS-B "track" is not a meaningful heading.
    */
   private _glyphMarkup(
@@ -1681,7 +1685,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   ): string {
     const cat = (props.category || '').toUpperCase()
     const isTwr = (props.t || '').toUpperCase() === 'TWR'
-    if (cat === 'C1' || cat === 'C2') return createGlyphSvg(createHollowDotShape(color))
+    if (cat === 'C1' || cat === 'C2') return createGlyphSvg(createGroundVehicleShape(color))
     if (cat === 'C3' || cat === 'C4' || cat === 'C5' || isTwr)
       return createGlyphSvg(createFilledDotShape(color))
     return createGlyphSvg(createDirectionArrowShape(color), track)
@@ -1974,14 +1978,15 @@ export class AdsbLiveControl implements maplibregl.IControl {
           const arrowColor = this._arrowColour(f.properties, isEmerg, isMil)
           const cat = (f.properties.category || '').toUpperCase()
           const isTwr = (f.properties.t || '').toUpperCase() === 'TWR'
-          const isSolidCircle = cat === 'C3' || cat === 'C4' || cat === 'C5' || isTwr
           const isGndOrTower = ['C1', 'C2', 'C3', 'C4', 'C5'].includes(cat) || isTwr
           arrowSvg.style.transform = `rotate(${isGndOrTower ? 0 : (f.properties.track ?? 0)}deg)`
-          const shape = arrowSvg.querySelector('polygon, rect, circle') as SVGElement | null
+          // The first shape carries the colour: the vehicle's body or the tower's
+          // dot (filled), or the aircraft arrow (outlined).
+          const shape = arrowSvg.querySelector('path, polygon, rect, circle') as SVGElement | null
           /* v8 ignore start -- defensive: the arrow svg always contains its shape node */
           if (shape) {
             /* v8 ignore stop */
-            if (isSolidCircle) {
+            if (isGndOrTower) {
               shape.setAttribute('fill', arrowColor)
             } else {
               shape.setAttribute('stroke', arrowColor)

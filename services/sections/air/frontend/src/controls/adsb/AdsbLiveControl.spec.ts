@@ -46,12 +46,13 @@ vi.mock('@sentinel/map-kit/sprites/adsbSprites', () => {
     createBracket: fake,
     createMilBracket: fake,
     createTowerBlip: fake,
-    createGroundVehicleBlip: fake,
+    createGroundVehicleBlip: vi.fn(fake),
     createUAVBlip: fake,
   }
 })
 
 import { AdsbLiveControl } from './AdsbLiveControl'
+import { createGroundVehicleBlip } from '@sentinel/map-kit/sprites/adsbSprites'
 import { CORRECTION_MS, deadReckon } from './aircraftPosition'
 import { silhouetteSideReachPx } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
@@ -1243,7 +1244,14 @@ describe('AdsbLiveControl._categoryLabel + helpers', () => {
 
   it('makes ground/tower arrow shapes without rotation', () => {
     const { control } = mounted()
-    expect(priv(control)._makeArrowSvg('#fff', 90, 'C1')).toContain('circle')
+    for (const category of ['C1', 'C2']) {
+      const vehicle = priv(control)._makeArrowSvg('#fff', 90, category)
+      // The tug, not the old ring: a filled path, upright whatever the track.
+      expect(vehicle).toContain('<path')
+      expect(vehicle).toContain('fill="#fff"')
+      expect(vehicle).not.toContain('circle')
+      expect(vehicle).toContain('rotate(0deg)')
+    }
     expect(priv(control)._makeArrowSvg('#fff', 90, 'C3')).toContain('circle')
     expect(priv(control)._makeArrowSvg('#fff', 90, 'A3', 'TWR')).toContain('circle')
     expect(priv(control)._makeArrowSvg('#fff', 90, 'A3')).toContain('polygon')
@@ -2096,6 +2104,26 @@ describe('AdsbLiveControl misc lifecycle branches', () => {
     priv(control).initLayers()
     expect(map.map.removeLayer).toHaveBeenCalled()
   })
+
+  it.each([
+    ['dark', '#8f949a', '#ff2222'],
+    ['light', '#4b5057', '#c40000'],
+  ] as const)(
+    "draws ground vehicles in the %s palette's service and emergency colours",
+    (palette, serviceColour, emergencyColour) => {
+      const { control, map } = mounted()
+      vi.mocked(createGroundVehicleBlip).mockClear()
+      ;(map.map.addImage as any).mockClear()
+      priv(control)._silhouettePalette = palette
+      priv(control)._registerIcons()
+      expect(vi.mocked(createGroundVehicleBlip).mock.calls).toEqual([
+        [serviceColour],
+        [emergencyColour],
+      ])
+      const imageNames = (map.map.addImage as any).mock.calls.map((call: unknown[]) => call[0])
+      expect(imageNames).toEqual(expect.arrayContaining(['adsb-blip-gnd', 'adsb-blip-emerg-gnd']))
+    },
+  )
 
   it('updates existing sprite images instead of re-adding them', () => {
     const { control, map } = mounted()
@@ -3459,6 +3487,24 @@ describe('AdsbLiveControl marker update branch matrix', () => {
     priv(control)._updateCallsignMarkers()
     priv(control)._updateCallsignMarkers()
     expect(priv(control)._callsignMarkers['gg']).toBeDefined()
+  })
+
+  it('recolours a ground vehicle label by filling its body, not stroking it', () => {
+    const { control } = withLabels()
+    enableAllFields(control)
+    seedFeature(control, { hex: 'tug', category: 'C2', track: 135 })
+    priv(control)._updateCallsignMarkers()
+    const label = priv(control)._callsignMarkers['tug'].getElement() as HTMLElement
+    const body = label.querySelector('.adsb-arrow path') as SVGElement
+    const colour = body.getAttribute('fill')
+    expect(colour).toBeTruthy()
+    expect(colour).not.toBe('#123456')
+    body.setAttribute('fill', '#123456')
+    priv(control)._updateCallsignMarkers()
+    expect(body.getAttribute('fill')).toBe(colour)
+    expect(body.getAttribute('stroke')).toBe('none')
+    // A vehicle's track is not a heading: the glyph stays upright.
+    expect((label.querySelector('.adsb-arrow') as SVGElement).style.transform).toBe('rotate(0deg)')
   })
 })
 
