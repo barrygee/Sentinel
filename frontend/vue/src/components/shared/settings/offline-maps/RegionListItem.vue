@@ -33,13 +33,14 @@
         />
       </div>
       <template v-if="!isActive">
-        <button
+        <BaseIconAction
           v-if="!confirming"
           ref="deleteButtonRef"
-          type="button"
-          class="sdr-device-btn sdr-device-btn--danger oma-region-delete"
+          class="sdr-device-btn oma-region-delete"
+          variant="row"
+          danger
           title="Delete"
-          :aria-label="`Delete offline area ${region.label}`"
+          :accessible-name="`Delete offline area ${region.label}`"
           @click="emit('delete-request')"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
@@ -62,7 +63,7 @@
               stroke-linecap="round"
             />
           </svg>
-        </button>
+        </BaseIconAction>
         <BaseInlineConfirm
           v-else
           class="oma-region-confirm"
@@ -94,6 +95,7 @@
  * export below.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import DownloadProgress from './DownloadProgress.vue'
 import { formatByteSize } from '@sentinel/shell-api/utils/offlineMapEstimate'
@@ -138,7 +140,7 @@ const metaTail = computed(() => {
 })
 
 const selectButtonRef = ref<HTMLButtonElement | null>(null)
-const deleteButtonRef = ref<HTMLButtonElement | null>(null)
+const deleteButtonRef = ref<InstanceType<typeof BaseIconAction> | null>(null)
 
 // Opening the confirm focuses its NO (BaseInlineConfirm's initial-focus: the
 // safe default, since a stray Enter/Space there can't confirm a destructive

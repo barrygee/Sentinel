@@ -164,7 +164,7 @@ describe('RemoteHostHeader', () => {
 
     it('offers no remove for this machine, which is linked rather than added', () => {
       const wrapper = mountHeader({ host: THIS_MACHINE })
-      expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
+      expect(wrapper.find('.ba-icon-action--danger').exists()).toBe(false)
       expect(wrapper.find('button[aria-label="Edit This machine"]').exists()).toBe(true)
       // Its place is kept, so the pencil lines up with other hosts' pencils.
       expect(wrapper.find('.remote-host-header-button-slot').exists()).toBe(true)

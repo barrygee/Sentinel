@@ -147,7 +147,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
               button.base-chip.base-chip--active | display=flex; color=rgb(200, 255, 0); background-color=rgba(200, 255, 0, 0.12); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=not-allowed
               button.base-chip | display=flex; color=rgba(255, 255, 255, 0.7); background-color=rgba(255, 255, 255, 0.06); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-top=1px solid rgba(0, 0, 0, 0); border-right=1px solid rgba(0, 0, 0, 0); border-bottom=1px solid rgba(0, 0, 0, 0); border-left=1px solid rgba(0, 0, 0, 0); border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; align-items=center; cursor=not-allowed
             div.sdr-scan-btns-row.sdr-scan-btns-row--left | display=flex; justify-content=flex-start; gap=8px
-              button.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
+              button.ba-icon-action.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
                 svg | display=block; overflow-x=hidden; overflow-y=hidden
                   polygon
         div.sdr-radio-section.sdr-scan-controls | padding-right=20px; padding-left=20px
@@ -174,7 +174,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                     span.base-select-menu-text.base-select-menu-text--chosen | display=block; color=rgba(255, 255, 255, 0.75); font-size=10px; letter-spacing=1px; text-transform=uppercase; white-space=nowrap; user-select=none; overflow-x=hidden; overflow-y=hidden
                     span.base-select-menu-arrow | display=block; background-color=rgba(255, 255, 255, 0.2); user-select=none
               div.sdr-search-adhoc-col.sdr-search-adhoc-col--play | display=flex; flex-direction=column
-                button.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
+                button.ba-icon-action.sdr-search-adhoc-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; gap=7px; cursor=not-allowed
                   svg | display=block; overflow-x=hidden; overflow-y=hidden
                     polygon
             div.sdr-search-saved-ranges
@@ -189,7 +189,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                     button.sdr-search-range-item-body | display=flex; background-color=rgba(0, 0, 0, 0); padding-top=13px; padding-right=4px; padding-bottom=13px; padding-left=0px; font-size=13.3333px; flex-direction=column; align-items=flex-start; gap=1px; cursor=not-allowed
                       span.sdr-search-range-primary | display=block; color=rgb(255, 255, 255); font-size=11px; font-weight=600; letter-spacing=1.54px; text-transform=uppercase
                       span.sdr-search-range-secondary | display=block; color=rgba(255, 255, 255, 0.5); font-size=9px; letter-spacing=1.08px; text-transform=uppercase
-                    button.sdr-search-range-item-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=not-allowed
+                    button.ba-icon-action.sdr-search-range-item-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=not-allowed
                       svg | display=block; overflow-x=hidden; overflow-y=hidden
                         polygon
       div.sdr-tab-pane | display=none; flex-direction=column
@@ -319,7 +319,7 @@ div#msb-pane-radio.msb-pane.msb-pane-active.msb-pane-radio | display=flex; font-
                     dt | color=rgba(255, 255, 255, 0.55); text-transform=uppercase
                     dd | color=rgba(255, 255, 255, 0.6)
                 div.sdr-recording-controls | display=flex; align-items=center; gap=4px
-                  button.sdr-recording-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer
+                  button.ba-icon-action.sdr-recording-play | display=flex; color=rgb(200, 255, 0); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=0px; padding-bottom=0px; padding-left=0px; border-radius=2px; font-family=Arial; font-size=13.3333px; text-align=center; justify-content=center; align-items=center; cursor=pointer
                     svg | display=block; overflow-x=hidden; overflow-y=hidden
                       polygon
                   button.sdr-recording-export | display=flex; color=rgba(255, 255, 255, 0.5); background-color=rgba(255, 255, 255, 0.08); padding-top=0px; padding-right=14px; padding-bottom=0px; padding-left=14px; border-radius=2px; font-size=9px; letter-spacing=1.26px; text-transform=uppercase; text-align=center; justify-content=center; align-items=center; cursor=pointer

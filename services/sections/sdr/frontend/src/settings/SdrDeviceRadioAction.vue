@@ -4,18 +4,19 @@
       <span class="sdr-device-radio-added-label">ADDED</span>
       <!-- Added automatically, so no cross; the space keeps the pencils in line. -->
       <span v-if="autoAdd" class="sdr-device-btn-slot" aria-hidden="true" />
-      <button
+      <BaseIconAction
         v-else
-        type="button"
-        class="sdr-device-btn sdr-device-btn--danger"
+        class="sdr-device-btn"
+        variant="row"
+        danger
         title="Remove from radios"
-        :aria-label="`Remove ${radio.name} from radios`"
+        :accessible-name="`Remove ${radio.name} from radios`"
         @click="emit('start-delete')"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
           <path d="M2.5 2.5L10.5 10.5M10.5 2.5L2.5 10.5" stroke="currentColor" stroke-width="1.5" />
         </svg>
-      </button>
+      </BaseIconAction>
     </span>
     <BaseInlineConfirm
       v-else
@@ -48,6 +49,7 @@
  * SDR isn't a radio (not set up). Private doesn't stop it here: that only keeps
  * an SDR from other machines.
  */
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'

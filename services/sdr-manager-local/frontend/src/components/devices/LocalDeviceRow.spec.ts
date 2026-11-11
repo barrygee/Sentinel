@@ -160,7 +160,7 @@ describe('LocalDeviceRow', () => {
       const { wrapper } = mountRow({}, true)
       expect(wrapper.findComponent(LocalDeviceForm).exists()).toBe(true)
       expect(wrapper.get('button[title="Edit"]').attributes('aria-expanded')).toBe('true')
-      expect(wrapper.get('button[title="Edit"]').classes()).toContain('sdr-device-btn--active')
+      expect(wrapper.get('button[title="Edit"]').classes()).toContain('ba-icon-action--active')
       expect(wrapper.get('.sdr-device-item').classes()).toContain('sdr-device-item--open')
     })
 

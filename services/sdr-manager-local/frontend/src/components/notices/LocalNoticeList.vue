@@ -18,16 +18,16 @@
           ×{{ notice.repeatCount }}
         </span>
       </span>
-      <button
-        type="button"
+      <BaseIconAction
         class="sdr-device-btn"
-        :aria-label="`Dismiss: ${notice.message}`"
+        variant="row"
+        :accessible-name="`Dismiss: ${notice.message}`"
         @click="store.dismissNotice(notice.id)"
       >
         <svg width="11" height="11" viewBox="0 0 13 13" fill="none" aria-hidden="true">
           <path d="M2.5 2.5L10.5 10.5M10.5 2.5L2.5 10.5" stroke="currentColor" stroke-width="1.5" />
         </svg>
-      </button>
+      </BaseIconAction>
     </li>
   </ul>
 </template>
@@ -39,6 +39,7 @@
  * flash's outcome. Newest first; a notice that repeats is counted rather than
  * listed again. Each can be dismissed.
  */
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import type { LocalNoticeLevel } from '../../api/types'
 import { deviceLabel, useLocalSdrStore } from '../../stores/localSdrStore'
 

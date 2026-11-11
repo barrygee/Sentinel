@@ -9,7 +9,8 @@
  * `src/components/shared/settings/` — the markup and CSS below reproduce
  * theirs exactly (same dimensions, colors, and `is-on` class name some
  * existing tests assert on) so migrating a control to this component is a
- * pure refactor with no visual or behavioural change.
+ * pure refactor with no visual or behavioural change. `size="compact"`
+ * likewise reproduces the SDR panel's smaller switch.
  */
 interface BaseToggleSwitchProps {
   /** Current on/off state. Drive with `v-model` from the parent. */
@@ -27,10 +28,17 @@ interface BaseToggleSwitchProps {
   accessibleName: string
   /** Disables interaction and dims the control. Defaults to `false`. */
   disabled?: boolean
+  /**
+   * `default` is the square 46×25 Settings switch. `compact` is the 36×18
+   * rounded, outlined switch that sits beside a panel-density input (the SDR
+   * frequency form's AUTO (AGC)), with a round thumb and a tinted accent fill.
+   */
+  size?: 'default' | 'compact'
 }
 
 const props = withDefaults(defineProps<BaseToggleSwitchProps>(), {
   disabled: false,
+  size: 'default',
 })
 
 const emit = defineEmits<{
@@ -55,7 +63,7 @@ function toggleValue(): void {
 <template>
   <button
     class="toggle-track"
-    :class="{ 'is-on': modelValue }"
+    :class="{ 'is-on': modelValue, 'toggle-track--compact': size === 'compact' }"
     type="button"
     role="switch"
     :aria-checked="modelValue"
@@ -103,5 +111,37 @@ function toggleValue(): void {
 .toggle-track.is-on .toggle-thumb {
   background: var(--accent-ink);
   left: 24px;
+}
+
+/* Compact: a pill track with a hairline border and a round thumb, tinted
+   rather than filled when on, to sit quietly beside a 36px panel input. */
+.toggle-track--compact {
+  width: 36px;
+  height: 18px;
+  border-radius: 9px;
+  border: 1px solid rgba(var(--ink-rgb), 0.2);
+  background: rgba(var(--ink-rgb), 0.04);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+.toggle-track--compact.is-on {
+  background: rgba(var(--accent-rgb), 0.2);
+  border-color: rgba(var(--accent-rgb), 0.6);
+}
+.toggle-track--compact .toggle-thumb {
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(var(--ink-rgb), 0.55);
+  transition:
+    left 0.15s,
+    background 0.15s;
+}
+.toggle-track--compact.is-on .toggle-thumb {
+  background: var(--accent);
+  left: 20px;
 }
 </style>

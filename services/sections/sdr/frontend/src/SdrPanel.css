@@ -830,51 +830,13 @@
   margin-top: 4px;
 }
 
-/* Center the toggle vertically against the RF GAIN input beside it: the wrapper
-   matches the input's 36px height so the shorter (18px) toggle sits mid-input. */
+/* Center the AUTO (AGC) switch (BaseToggleSwitch size="compact") vertically
+   against the RF GAIN input beside it: the wrapper matches the input's 36px
+   height so the shorter (18px) switch sits mid-input. */
 .sdr-ef-toggle-wrap {
   display: flex;
   align-items: center;
   height: 36px;
-}
-
-/* AUTO (AGC) toggle switch — matches the app's settings toggles (pill track,
-   green when on). */
-.sdr-ef-toggle {
-  position: relative;
-  width: 36px;
-  height: 18px;
-  border-radius: 9px;
-  border: 1px solid rgba(var(--ink-rgb), 0.2);
-  background: rgba(var(--ink-rgb), 0.04);
-  cursor: pointer;
-  padding: 0;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
-}
-
-.sdr-ef-toggle.is-on {
-  background: rgba(var(--accent-rgb), 0.2);
-  border-color: rgba(var(--accent-rgb), 0.6);
-}
-
-.sdr-ef-toggle-thumb {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(var(--ink-rgb), 0.55);
-  transition:
-    left 0.15s,
-    background 0.15s;
-}
-
-.sdr-ef-toggle.is-on .sdr-ef-toggle-thumb {
-  background: var(--accent);
-  left: 20px;
 }
 
 /* Single column on the narrowest screens so the inputs stay usable. */
