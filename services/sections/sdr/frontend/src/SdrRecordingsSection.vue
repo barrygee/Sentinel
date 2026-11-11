@@ -252,10 +252,10 @@
 
           <!-- Play + download (WAV/IQ) as pill buttons, beneath the meta. -->
           <div class="sdr-recording-controls">
-            <button
+            <BaseIconAction
               class="sdr-recording-play"
               :title="playingRecordingId === c.id ? 'Stop' : 'Play'"
-              :aria-label="playingRecordingId === c.id ? 'Stop' : 'Play'"
+              :accessible-name="playingRecordingId === c.id ? 'Stop' : 'Play'"
               @click.stop="toggleRecordingPlay(c)"
             >
               <svg
@@ -279,7 +279,7 @@
                 <rect x="1.5" y="1.5" width="3" height="7" />
                 <rect x="5.5" y="1.5" width="3" height="7" />
               </svg>
-            </button>
+            </BaseIconAction>
             <button
               class="sdr-recording-export"
               title="Download WAV"

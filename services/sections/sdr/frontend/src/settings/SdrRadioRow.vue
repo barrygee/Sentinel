@@ -20,12 +20,13 @@
       <span v-if="isUnavailable && !confirming" class="sdr-device-unavailable">
         {{ radio.unavailable_reason }}
       </span>
-      <button
+      <BaseIconAction
         v-if="!confirming"
         class="sdr-device-btn"
-        :class="{ 'sdr-device-btn--active': open }"
+        variant="row"
+        :active="open"
         title="Edit"
-        aria-label="Edit device"
+        accessible-name="Edit device"
         @click="emit('toggle-edit')"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -36,15 +37,17 @@
             stroke-linejoin="round"
           />
         </svg>
-      </button>
+      </BaseIconAction>
       <!-- A host's SDR is removed by making it private on its host, so its
            radio has no cross; the space keeps the pencils in line. -->
       <span v-if="!confirming && !removable" class="sdr-device-btn-slot" aria-hidden="true" />
-      <button
+      <BaseIconAction
         v-if="!confirming && removable"
-        class="sdr-device-btn sdr-device-btn--danger"
+        class="sdr-device-btn"
+        variant="row"
+        danger
         title="Delete"
-        aria-label="Delete device"
+        accessible-name="Delete device"
         @click="emit('start-delete')"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
@@ -67,7 +70,7 @@
             stroke-linecap="round"
           />
         </svg>
-      </button>
+      </BaseIconAction>
       <BaseInlineConfirm
         v-if="confirming"
         label="DELETE?"
@@ -97,6 +100,7 @@
  * manual radios only, so both groupings can reuse it instead of duplicating
  * the row chrome per grouping.
  */
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import SdrSourceStatusDot from '@sentinel/ui/sdr/SdrSourceStatusDot.vue'
 import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'

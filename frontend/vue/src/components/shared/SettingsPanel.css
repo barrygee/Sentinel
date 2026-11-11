@@ -1084,36 +1084,12 @@
   text-overflow: ellipsis;
 }
 
-/* Where a row has no button that its neighbours have (a cross): the button's
-   width (13px icon + 5px padding each side), so the buttons before it line up. */
+/* Where a row has no button that its neighbours have (a cross): the width of a
+   BaseIconAction variant="row" button (13px icon + 5px padding each side), so
+   the buttons before it line up. */
 .sdr-device-btn-slot {
   flex-shrink: 0;
   width: 23px;
-}
-
-.sdr-device-btn {
-  flex-shrink: 0;
-  background: none;
-  border: none;
-  padding: 4px 5px;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: color 0.12s;
-}
-
-.sdr-device-btn:hover {
-  color: rgba(var(--ink-rgb), 0.85);
-}
-
-.sdr-device-btn--active {
-  color: var(--accent-text);
-}
-
-.sdr-device-btn--danger:hover {
-  color: var(--danger);
 }
 
 .sdr-devices-accordion {

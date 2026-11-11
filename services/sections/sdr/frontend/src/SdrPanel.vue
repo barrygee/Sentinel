@@ -355,12 +355,12 @@
               </BaseChip>
             </div>
             <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
-              <button
-                type="button"
+              <BaseIconAction
                 class="sdr-search-adhoc-play"
-                :class="{ 'sdr-search-adhoc-play--active': scanActive }"
+                :active="scanActive"
+                active-class="sdr-search-adhoc-play--active"
                 :disabled="tuningDisabled"
-                :aria-label="scanActive ? 'Stop scan' : 'Start scan'"
+                :accessible-name="scanActive ? 'Stop scan' : 'Start scan'"
                 :title="scanActive ? 'Stop scan' : 'Start scan'"
                 @click="onScanPrimaryClick"
               >
@@ -384,7 +384,7 @@
                 >
                   <polygon points="2,1 11,6 2,11" fill="currentColor" />
                 </svg>
-              </button>
+              </BaseIconAction>
             </div>
           </BaseAccordionSection>
         </div>
@@ -443,12 +443,12 @@
                 />
               </div>
               <div class="sdr-search-adhoc-col sdr-search-adhoc-col--play">
-                <button
-                  type="button"
+                <BaseIconAction
                   class="sdr-search-adhoc-play"
-                  :class="{ 'sdr-search-adhoc-play--active': isAdhocSearching }"
+                  :active="isAdhocSearching"
+                  active-class="sdr-search-adhoc-play--active"
                   :disabled="tuningDisabled || (!adhocSearchValid && !isAdhocSearching)"
-                  :aria-label="isAdhocSearching ? 'Stop search' : 'Start search'"
+                  :accessible-name="isAdhocSearching ? 'Stop search' : 'Start search'"
                   :title="isAdhocSearching ? 'Stop search' : 'Start search'"
                   @click="onAdhocPlayClick"
                 >
@@ -472,7 +472,7 @@
                   >
                     <polygon points="2,1 11,6 2,11" fill="currentColor" />
                   </svg>
-                </button>
+                </BaseIconAction>
               </div>
             </div>
             <div class="sdr-search-saved-ranges">
@@ -503,12 +503,14 @@
                         MHz</span
                       >
                     </button>
-                    <button
-                      type="button"
+                    <BaseIconAction
                       class="sdr-search-range-item-play"
-                      :class="{ 'sdr-search-range-item-play--active': isSavedRangeSearching(r.id) }"
+                      :active="isSavedRangeSearching(r.id)"
+                      active-class="sdr-search-range-item-play--active"
                       :disabled="tuningDisabled"
-                      :aria-label="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
+                      :accessible-name="
+                        isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'
+                      "
                       :title="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
                       @click.stop="onSavedRangePlayClick(r.id)"
                     >
@@ -532,7 +534,7 @@
                       >
                         <polygon points="2,1 11,6 2,11" fill="currentColor" />
                       </svg>
-                    </button>
+                    </BaseIconAction>
                   </div>
                 </div>
                 <div v-else class="sdr-scan-subsection-label" style="opacity: 0.6">
@@ -616,6 +618,7 @@ import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import BaseChip from '@sentinel/ui/base/BaseChip.vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'

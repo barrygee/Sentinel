@@ -97,17 +97,12 @@
       />
       <BaseFormField label="AUTO (AGC)" label-kind="group">
         <div class="sdr-ef-toggle-wrap">
-          <button
-            type="button"
+          <BaseToggleSwitch
+            v-model="frequencyEditor.gainAuto"
             class="sdr-ef-toggle"
-            :class="{ 'is-on': frequencyEditor.gainAuto }"
-            role="switch"
-            :aria-checked="frequencyEditor.gainAuto"
-            aria-label="Auto gain (AGC)"
-            @click="frequencyEditor.gainAuto = !frequencyEditor.gainAuto"
-          >
-            <span class="sdr-ef-toggle-thumb"></span>
-          </button>
+            size="compact"
+            accessible-name="Auto gain (AGC)"
+          />
         </div>
       </BaseFormField>
       <BaseTextField
@@ -199,6 +194,7 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
+import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import SdrSampleRatePicker from './SdrSampleRatePicker.vue'
 import { MODES } from './sdrPanelUtils'

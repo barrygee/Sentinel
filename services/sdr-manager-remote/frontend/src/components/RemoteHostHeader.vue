@@ -24,11 +24,12 @@
         </span>
       </button>
       <template v-if="!confirming">
-        <button
+        <BaseIconAction
           class="sdr-device-btn"
-          :class="{ 'sdr-device-btn--active': open }"
+          variant="row"
+          :active="open"
           title="Edit"
-          :aria-label="`Edit ${hostLabel}`"
+          :accessible-name="`Edit ${hostLabel}`"
           :aria-expanded="open"
           @click="toggleEdit"
         >
@@ -40,16 +41,18 @@
               stroke-linejoin="round"
             />
           </svg>
-        </button>
+        </BaseIconAction>
         <!-- This machine is linked, not added: sdr-manager-remote keeps its
              row while sdr-manager-local is deployed, so it has no remove. Its
              place stays, so the pencil lines up with every other host's. -->
         <span v-if="host.is_local" class="remote-host-header-button-slot" aria-hidden="true" />
-        <button
+        <BaseIconAction
           v-else
-          class="sdr-device-btn sdr-device-btn--danger"
+          class="sdr-device-btn"
+          variant="row"
+          danger
           title="Remove"
-          :aria-label="`Remove ${hostLabel}`"
+          :accessible-name="`Remove ${hostLabel}`"
           @click="startRemove"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
@@ -72,7 +75,7 @@
               stroke-linecap="round"
             />
           </svg>
-        </button>
+        </BaseIconAction>
       </template>
       <BaseInlineConfirm
         v-else
@@ -117,6 +120,7 @@
  * itself into view and clears the request.
  */
 import { computed, nextTick, ref, watch } from 'vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
@@ -280,7 +284,7 @@ watch(
 /* The app's accordion chevron (the SDR panel's section headers): pointing
    right and faint while folded, down in the accent colour while open, and lit
    on hover to preview that. */
-/* As wide as an icon button (.sdr-device-btn: a 13px icon, 5px each side). */
+/* As wide as an icon button (BaseIconAction variant="row": a 13px icon, 5px each side). */
 .remote-host-header-button-slot {
   width: 23px;
   flex-shrink: 0;

@@ -30,12 +30,12 @@
           :accessible-name="`Stream ${label}`"
           @update:model-value="setEnabled"
         />
-        <button
-          type="button"
+        <BaseIconAction
           class="sdr-device-btn"
-          :class="{ 'sdr-device-btn--active': open }"
+          variant="row"
+          :active="open"
           :aria-expanded="open"
-          :aria-label="`${isNew ? 'Set up' : 'Edit'} ${label}`"
+          :accessible-name="`${isNew ? 'Set up' : 'Edit'} ${label}`"
           :title="isNew ? 'Set up' : 'Edit'"
           @click="emit('toggle')"
         >
@@ -47,12 +47,13 @@
               stroke-linejoin="round"
             />
           </svg>
-        </button>
-        <button
+        </BaseIconAction>
+        <BaseIconAction
           v-if="!device.present"
-          type="button"
-          class="sdr-device-btn sdr-device-btn--danger"
-          :aria-label="`Forget ${label}`"
+          class="sdr-device-btn"
+          variant="row"
+          danger
+          :accessible-name="`Forget ${label}`"
           title="Forget"
           @click="confirmingForget = true"
         >
@@ -63,7 +64,7 @@
               stroke-width="1.5"
             />
           </svg>
-        </button>
+        </BaseIconAction>
         <DeviceActions />
       </template>
       <BaseInlineConfirm
@@ -96,6 +97,7 @@
  * Settings › SDR) ends the row, through `LocalDevicesControl`'s slot.
  */
 import { computed, ref, type VNodeChild } from 'vue'
+import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'

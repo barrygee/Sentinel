@@ -157,7 +157,7 @@ describe('SdrRadioRow', () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },
     })
-    await wrapper.find('.sdr-device-btn--danger').trigger('click')
+    await wrapper.find('.ba-icon-action--danger').trigger('click')
     expect(wrapper.emitted('start-delete')).toHaveLength(1)
   })
 
@@ -171,7 +171,7 @@ describe('SdrRadioRow', () => {
         removable: false,
       },
     })
-    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
+    expect(wrapper.find('.ba-icon-action--danger').exists()).toBe(false)
     const slot = wrapper.find('.sdr-device-btn-slot')
     expect(slot.attributes('aria-hidden')).toBe('true')
     expect(wrapper.find('.sdr-device-btn[title="Edit"]').exists()).toBe(true)
@@ -181,7 +181,7 @@ describe('SdrRadioRow', () => {
     const wrapper = mount(SdrRadioRow, {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: false },
     })
-    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(true)
+    expect(wrapper.find('.ba-icon-action--danger').exists()).toBe(true)
     expect(wrapper.find('.sdr-device-btn-slot').exists()).toBe(false)
   })
 
@@ -203,7 +203,7 @@ describe('SdrRadioRow', () => {
       props: { radio: MANUAL_RADIO, connected: null, open: false, confirming: true },
     })
     expect(wrapper.find('.sdr-device-btn[title="Edit"]').exists()).toBe(false)
-    expect(wrapper.find('.sdr-device-btn--danger').exists()).toBe(false)
+    expect(wrapper.find('.ba-icon-action--danger').exists()).toBe(false)
     expect(wrapper.find('.base-inline-confirm').exists()).toBe(true)
     expect(wrapper.find('.sdr-device-info').attributes('style')).toContain('opacity: 0.4')
   })
