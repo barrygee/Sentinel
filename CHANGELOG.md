@@ -292,6 +292,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Dim locked checkboxes in LabelFieldsTable
 - Add BaseChip and BaseInlineConfirm
 - Add row variant and focus() to BaseIconAction, compact BaseToggleSwitch
+- Add TuneFrequencyCell
 
 ### Bug Fixes
 
@@ -1846,6 +1847,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #615 from barrygee/fix/air-adsb-spec-marker-remove
 - Merge pull request #616 from barrygee/perf/settings-client-cache
 - Merge pull request #617 from barrygee/refactor/adopt-base-icon-action
+- Merge pull request #619 from barrygee/refactor/data-cells
 
 ### Performance
 
@@ -1973,6 +1975,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Use BaseInlineConfirm for the delete, remove and forget confirms
 - Use SettingsDropdown for the TLE category pickers
 - Adopt BaseIconAction for row actions
+- Adopt shared data and tune cells in Air, Land and Sea
 
 ### Documentation
 
@@ -2264,6 +2267,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the TLE category pickers
 - Rebuild bundle for the RADIO pane polish
 - Rebuild for BaseIconAction adoption
+- Rebuild for shared data and tune cells
 
 ### Continuous Integration
 

@@ -1,15 +1,16 @@
 <template>
   <div class="lrfc">
-    <button
-      type="button"
+    <!-- The mode goes in the label rather than after the value: a 4-place
+         frequency already fills a three-column cell. -->
+    <TuneFrequencyCell
       class="lrfc-tune"
-      :title="sdrConnected ? `Tune to ${frequencyText} ${mode}` : 'Connect an SDR to tune'"
-      @click.stop="emit('tune')"
-    >
-      <!-- The mode goes in the label rather than after the value: a 4-place
-           frequency already fills a three-column cell. -->
-      <BaseDataCell :label="`${label} · ${mode}`" :value="frequencyText" />
-    </button>
+      :label="label"
+      :frequency="frequencyText"
+      :mode="mode"
+      mode-placement="label"
+      :sdr-connected="sdrConnected"
+      @tune="emit('tune')"
+    />
     <BaseIconAction
       class="lrfc-save"
       :class="{ 'lrfc-save--saved': saved }"
@@ -44,15 +45,15 @@
 <script setup lang="ts">
 /**
  * One tunable frequency of a repeater channel in the Land FILTER pane — the
- * OUTPUT or INPUT cell. The cell itself is a button that asks the parent to
- * tune the SDR (the Land take on the Sea pane's port channel cells and the
- * Air pane's airport frequencies), with a bookmark beside it that saves the
+ * OUTPUT or INPUT cell. The cell itself is a shared `TuneFrequencyCell` that
+ * asks the parent to tune the SDR (as the Sea pane's port channels and the
+ * Air pane's airport frequencies do), with a bookmark beside it that saves the
  * frequency to the SDR Frequency Manager; the bookmark fills once the
  * frequency is stored, and clicking it then removes the frequency again.
  */
 import { computed } from 'vue'
-import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import TuneFrequencyCell from '@sentinel/ui/base/TuneFrequencyCell.vue'
 import { formatMhz } from './constants/repeaters'
 
 const props = withDefaults(
@@ -91,24 +92,6 @@ function onBookmarkClick(): void {
   gap: 6px;
   min-width: 0;
 }
-.lrfc-tune {
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  min-width: 0;
-  transition: opacity 0.12s;
-}
-.lrfc-tune:hover {
-  opacity: 0.7;
-}
-.lrfc-tune:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
 .lrfc-save {
   /* Anchors the BaseIconAction tooltip to the icon (the component leaves
      `position` to its adopters). */
@@ -144,10 +127,5 @@ function onBookmarkClick(): void {
 .lrfc-save--saved {
   color: var(--accent-text);
   opacity: 0.8;
-}
-@media (prefers-reduced-motion: reduce) {
-  .lrfc-tune {
-    transition: none;
-  }
 }
 </style>

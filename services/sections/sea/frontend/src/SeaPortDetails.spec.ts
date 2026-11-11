@@ -40,6 +40,11 @@ describe('SeaPortDetails', () => {
       'PATROL · CH 14',
       'CALLING · CH 16',
     ])
+    expect(buttons.map((button) => button.find('.ba-data-cell-value').text())).toEqual([
+      '156.600 · NFM',
+      '156.700 · NFM',
+      '156.800 · NFM',
+    ])
     expect(wrapper.find('.sea-port-notice').exists()).toBe(false)
   })
 
