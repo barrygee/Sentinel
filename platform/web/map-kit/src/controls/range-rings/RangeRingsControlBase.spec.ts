@@ -200,6 +200,16 @@ describe('RangeRingsControlBase', () => {
     })
   })
 
+  describe('ring line style', () => {
+    it('draws the rings as dots: zero-length dashes with round caps', () => {
+      const { map } = addedControl()
+      const ringLayer = map._state.layers.get(LAYER)!
+      expect(ringLayer.layout!['line-cap']).toBe('round')
+      expect(ringLayer.paint!['line-dasharray']).toEqual([0, 3])
+      expect(ringLayer.paint!['line-width']).toBe(1.5)
+    })
+  })
+
   describe('basemap-dependent ink', () => {
     it('draws faint white with a light label on the dark basemap', () => {
       const { map } = addedControl()
