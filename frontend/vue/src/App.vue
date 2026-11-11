@@ -1,10 +1,7 @@
 <template>
   <a class="skip-link" href="#main">Skip to main content</a>
 
-  <header id="nav">
-    <div id="nav-logo">
-      <img id="logo-img" src="/assets/logo.svg" alt="SENTINEL" />
-    </div>
+  <AppNavBar>
     <nav id="nav-right" aria-label="Domains">
       <RouterLink
         v-for="[domain, label] in navDomains"
@@ -83,7 +80,7 @@
         />
       </svg>
     </button>
-  </header>
+  </AppNavBar>
 
   <!-- Mobile fullscreen nav overlay — rendered outside the header so it fills
        the viewport below the nav bar without any stacking context clipping -->
@@ -145,6 +142,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import MapSidebar from '@/components/shared/MapSidebar.vue'
 import AppFooter from '@/components/shared/AppFooter.vue'
+import AppNavBar from '@/components/shared/AppNavBar.vue'
 import SettingsPanel from '@/components/shared/SettingsPanel.vue'
 import { getNavEntries, isSectionUnavailable } from '@sentinel/shell-api/shell/sectionRegistry'
 import { usePersistentRadioPane } from '@/shell/sectionEngines'
@@ -356,9 +354,168 @@ watch(
 </script>
 
 <style scoped>
+/* Section links, right side of the nav bar. */
+#nav-right {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+/* Domain navigation link (AIR / SPACE / SEA / LAND). White in every state
+   (21:1 on the black nav bar — well clear of AA); hover previews the accent,
+   and the ACTIVE domain is marked by a subtle accent dot centred beneath the
+   text rather than a text-colour change. */
+.nav-link {
+  position: relative; /* anchors the active dot */
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--rail-ink);
+  transition: color 0.2s;
+}
+
+.nav-link:hover {
+  color: var(--color-accent);
+}
+
+/* The current page needs no accent preview, so its text stays white on hover. */
+.nav-link--active,
+.nav-link--active:hover {
+  color: var(--rail-ink);
+}
+
+/* The active-domain dot. left compensates for the trailing 0.2em
+   letter-spacing so the dot sits under the label's optical centre. */
+.nav-link--active::after {
+  content: '';
+  position: absolute;
+  top: calc(100% + 4px);
+  left: calc(50% - 0.1em);
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
 /* A section whose code could not be loaded (plan §3.5). Struck through rather
    than dimmed, so the label keeps its contrast; its route explains why. */
 .nav-link--unavailable {
   text-decoration: line-through;
+}
+
+/* Menu button: hidden on desktop, replaces the section links on phones. */
+#nav-burger-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: rgba(var(--rail-ink-rgb), 0.8);
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+#nav-burger-btn:hover {
+  color: var(--rail-ink);
+}
+
+/* Full-screen phone menu. It sits above everything (settings panel is 10000,
+   nav bar is 10001) so no other layer bleeds through when open, and matches
+   the no-data-source screen: dark base + contour SVG. */
+#nav-overlay {
+  display: none;
+  position: fixed;
+  top: var(--nav-height);
+  bottom: var(--footer-height);
+  left: 0;
+  right: 0;
+  background-color: var(--canvas);
+  background-image: url('/assets/sentinel-contour-background.svg');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 100% 100%;
+  z-index: 10002;
+  flex-direction: column;
+  align-items: stretch;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+#nav-overlay.nav-overlay-open {
+  display: flex;
+}
+
+.nav-overlay-link {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--ink-strong);
+  padding: 18px 24px;
+  transition:
+    color 0.15s,
+    background 0.15s;
+  display: block;
+  text-align: center;
+}
+
+.nav-overlay-link:hover {
+  color: var(--ink-strong);
+  background: rgba(var(--ink-rgb), 0.04);
+}
+
+/* Active domain in the menu: same treatment as the header links — white text
+   with a subtle accent dot centred beneath (see .nav-link--active). */
+.nav-overlay-link--active,
+.nav-overlay-link--active:hover {
+  color: var(--ink-strong);
+  position: relative;
+}
+
+.nav-overlay-link--active::after {
+  content: '';
+  position: absolute;
+  bottom: 10px;
+  left: calc(50% - 0.1em);
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* The menu's SETTINGS button drops its button chrome so it matches the links. */
+.nav-overlay-settings-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+}
+
+@media (max-width: 1024px) {
+  #nav-right {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  #nav-right {
+    display: none;
+  }
+
+  #nav-burger-btn {
+    display: flex;
+  }
 }
 </style>
