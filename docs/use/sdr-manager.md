@@ -84,7 +84,7 @@ On a host set to **ADD SDRS: AUTOMATICALLY** there is no **ADD**: every usable d
 ## Share this machine with other Sentinels
 
 1. Set a **Console Password** (the notice says so until you do).
-2. On the other Sentinel: **Settings › SDR › + ADD A NEW SENTINEL HOST**, this computer's address, port `8000`, the console password, **ADD**.
+2. On the other Sentinel: **Settings › SDR › + ADD A NEW SENTINEL HOST**, this computer's address, port `8000`, the console password, **ADD**, then compare the certificate fingerprint ([Certificates](#certificates)) and **TRUST AND ADD**.
 
 A program that only speaks `rtl_tcp` (SDR++, GQRX) can use any public streaming dongle at `<this computer>:<OUTPUT PORT>` with no password.
 
@@ -100,7 +100,8 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 ## Sentinel hosts
 
 1. **Settings › SDR › DEVICES › + ADD A NEW SENTINEL HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD SDRS**, **ADD**.
-2. The host is listed under **SENTINEL HOSTS** with its address and how many SDRs it has, and its dongles below it.
+2. Compare the **FINGERPRINT** shown with the host's own ([Certificates](#certificates)), then **TRUST AND ADD**.
+3. The host is listed under **SENTINEL HOSTS** with its address and how many SDRs it has, and its dongles below it.
 
 | **ADD SDRS**               | What it does                                                                                                                              |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
@@ -116,6 +117,29 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 
 - Selecting a host's marker on any map opens it here.
 
+### Certificates
+
+Sentinel talks to a host over HTTPS, so the console password never crosses the network readable. The first time, you confirm that the host is the one you mean by its certificate fingerprint. On the host, run:
+
+```bash
+docker compose exec sdr-manager-local cat /run/service-credentials/certificate-authority.pem | openssl x509 -noout -fingerprint -sha256
+```
+
+(Mac: `openssl x509 -noout -fingerprint -sha256 -in sdr-manager-local-credentials/certificate-authority.pem` in its Sentinel folder.) If the two match, trust it. If not, don't: something else is answering at that address.
+
+An open host says how its connection is secured:
+
+| State                   | Meaning                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------- |
+| **ENCRYPTED**           | HTTPS, checked against the certificate you trusted                                            |
+| **NOT ENCRYPTED**       | Plain HTTP. The host doesn't offer HTTPS, or was added before Sentinel did                    |
+| **NOT TRUSTED YET**     | Its address changed. Nothing is sent to it until you trust its certificate again              |
+| **CERTIFICATE CHANGED** | It presented a different certificate, so nothing is sent to it                                 |
+
+**CHECK CERTIFICATE** reads the host's certificate now, to trust it. Use it to move a **NOT ENCRYPTED** host to HTTPS once it offers it.
+
+A host that doesn't offer HTTPS can be added with **ADD WITHOUT ENCRYPTION**. Do that only on a network you trust.
+
 ## Tips
 
 - Several programs can listen to one dongle at once; only one tunes it at a time, and the rest follow its frequency.
@@ -127,6 +151,8 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 
 - **No dongles under This machine, and no THIS MACHINE:** SDR Manager for this computer isn't running. Linux: `docker compose ps sdr-manager-local`. Mac: `uv run --project backend sdr-manager-local status`.
 - **This machine "not running":** the same; it comes back within 10 seconds of starting.
+- **CERTIFICATE CHANGED:** the host's credentials were made again (for example, its Docker volumes were removed), or another machine has its address. Compare fingerprints ([Certificates](#certificates)), then **CHECK CERTIFICATE** and trust it.
+- **"doesn't offer HTTPS":** the host runs an SDR Manager from before HTTPS. Update it, or add it without encryption.
 - **A remote host says unauthenticated:** a wrong console password, or the host runs the old Sentry program. Replace Sentry with SDR Manager there ([Linux and Pi](../sdr-manager-linux.md)).
 - **"port … is already in use":** something else has port 8000. Stop it, or set `SDR_MANAGER_LOCAL_HTTP_PORT` in `.env`.
 - **A dongle never appears:** Linux: unplug it, plug it in again and see [Linux and Pi](../sdr-manager-linux.md#if-its-not-working). Mac: `rtl_test -t`.

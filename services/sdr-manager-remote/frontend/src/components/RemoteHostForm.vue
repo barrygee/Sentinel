@@ -69,11 +69,27 @@
 
     <div v-if="shownError" class="sdr-devices-form-error" role="alert">{{ shownError }}</div>
 
+    <!-- How an existing host's connection is secured, and trusting its
+         certificate. This machine is verified by the deployment itself. -->
+    <RemoteHostConnectionSecurity v-if="host && !isLocal" :host="host" />
+
     <!-- Only for a host that exists: there is nothing to report about one that
          has not been registered yet. -->
     <RemoteHostDetails v-if="host" :host="host" />
 
-    <div class="sdr-devices-form-actions">
+    <!-- Adding: the certificate the host presents, to compare before it is
+         trusted (or, for a host without HTTPS, the choice to go without). -->
+    <RemoteHostCertificateCheck
+      v-if="!host && pendingPreview"
+      :preview="pendingPreview"
+      :busy="saving"
+      allow-plain-http
+      trust-label="TRUST AND ADD"
+      @confirm="addHost"
+      @cancel="pendingPreview = null"
+    />
+
+    <div v-else class="sdr-devices-form-actions">
       <RemoteHostTestButton v-if="host" :state="testState" @test="probeExisting" />
       <BaseButton type="button" variant="ghost" class="sdr-devices-btn" @click="emit('cancel')">
         CANCEL
@@ -87,9 +103,9 @@
         class="sdr-devices-btn sdr-devices-btn--primary"
         :style="PRIMARY_BUTTON_STYLE"
         :disabled="saving"
-        @click="addHost"
+        @click="checkNewHost"
       >
-        ADD
+        {{ saving ? 'CHECKING' : 'ADD' }}
       </BaseButton>
     </div>
   </div>
@@ -101,8 +117,13 @@
  * the host's IP address (plus an optional label, port defaulting to 8000, and
  * its console password).
  *
- * A new host is added at once with ADD, which then probes `POST .../test` and
- * reports reachability inline. An existing host's edits are drafted
+ * A new host is added at once with ADD. ADD first reads the certificate
+ * authority the host presents (`POST .../certificate`) and shows its
+ * fingerprint to compare with the host's own (`RemoteHostCertificateCheck`);
+ * TRUST AND ADD then adds it with that fingerprint, which the backend pins
+ * only if the host still presents it. A host without HTTPS can be added
+ * without encryption, as the operator's explicit choice. After adding, it
+ * probes `POST .../test` and reports reachability inline. An existing host's edits are drafted
  * (`draft`, null once they match what is saved) and saved by APPLY CHANGES
  * (`RemoteHostHeader`); its TEST CONNECTION probes the *stored* connection.
  *
@@ -136,8 +157,16 @@ import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostDetails from './RemoteHostDetails.vue'
 import RemoteHostTestButton, { type HostTestState } from './RemoteHostTestButton.vue'
 import RemoteHostAutoAddToggle from './RemoteHostAutoAddToggle.vue'
+import RemoteHostCertificateCheck from './RemoteHostCertificateCheck.vue'
+import RemoteHostConnectionSecurity from './RemoteHostConnectionSecurity.vue'
 import type { RemoteHostDraft } from '../remoteHostEdits'
-import { createHost, testHost, SdrManagerApiError } from '../api/sdrManagerRemoteApi'
+import {
+  createHost,
+  previewCertificate,
+  testHost,
+  SdrManagerApiError,
+  type SdrManagerCertificatePreview,
+} from '../api/sdrManagerRemoteApi'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 /** Every field of this form: the Settings hairline look, caption in a column beside the value. */
@@ -175,6 +204,8 @@ const saving = ref(false)
 const testState = ref<HostTestState>('idle')
 /** Why the last test failed; a success needs no words beyond the button's. */
 const probeFailure = ref('')
+/** What the new host presented on ADD, waiting for the operator's decision. */
+const pendingPreview = ref<SdrManagerCertificatePreview | null>(null)
 let testResetTimer: ReturnType<typeof setTimeout> | undefined
 
 const savedForm: RemoteHostDraft = {
@@ -233,7 +264,8 @@ async function probeExisting(): Promise<void> {
 
 onBeforeUnmount(() => clearTimeout(testResetTimer))
 
-async function addHost(): Promise<void> {
+/** ADD: read the certificate the host presents, for the operator to check before anything is stored. */
+async function checkNewHost(): Promise<void> {
   const address = form.value.address.trim()
   if (!address) {
     errorMsg.value = 'IP address is required.'
@@ -243,13 +275,33 @@ async function addHost(): Promise<void> {
   errorMsg.value = ''
   probeFailure.value = ''
   try {
+    pendingPreview.value = await previewCertificate({ address, port: form.value.port || 8000 })
+  } catch (error) {
+    errorMsg.value =
+      error instanceof SdrManagerApiError ? error.message : "Could not read the host's certificate."
+  } finally {
+    saving.value = false
+  }
+}
+
+/** TRUST AND ADD (or ADD WITHOUT ENCRYPTION): add the host with the certificate just checked. */
+async function addHost(): Promise<void> {
+  const preview = pendingPreview.value
+  if (!preview) return
+  saving.value = true
+  errorMsg.value = ''
+  try {
     const savedHost = await createHost({
       name: form.value.name.trim() || null,
-      address,
+      address: form.value.address.trim(),
       port: form.value.port || 8000,
       auth_token: form.value.authToken,
       auto_add_sdrs: form.value.autoAddSdrs,
+      ...(preview.tls_available && preview.fingerprint
+        ? { transport: 'https' as const, tls_fingerprint: preview.fingerprint }
+        : { transport: 'http' as const }),
     })
+    pendingPreview.value = null
     // Report reachability of the connection just written, before closing the
     // form — an operator who mistyped the address sees it immediately.
     try {
@@ -260,6 +312,9 @@ async function addHost(): Promise<void> {
     }
     emit('save')
   } catch (error) {
+    // A `certificate_changed` refusal means the check on screen is stale:
+    // close it, so ADD reads the host again.
+    pendingPreview.value = null
     errorMsg.value = error instanceof SdrManagerApiError ? error.message : 'Save failed.'
   } finally {
     saving.value = false

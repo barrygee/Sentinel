@@ -736,6 +736,27 @@
         "nullable": false,
         "primary_key": false,
         "type": "BOOLEAN"
+      },
+      {
+        "default": "'http'",
+        "name": "transport",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "tls_certificate_authority",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "tls_fingerprint",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
       }
     ],
     "indexes": [

@@ -698,6 +698,16 @@
             "group": "expensive_jobs"
         },
         {
+            "note": "SDR Manager (other machines): reading and trusting a host's certificate authority, which reaches out over the LAN.",
+            "paths": [
+                "/api/sdr-manager/remote/hosts/certificate",
+                "/api/sdr-manager/remote/hosts/{host_id}/certificate"
+            ],
+            "methods": ["POST", "PUT"],
+            "access": ["browser"],
+            "group": "expensive_jobs"
+        },
+        {
             "note": "SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi.",
             "paths": ["/api/sdr-manager/remote/**"],
             "methods": ["POST", "PUT", "PATCH", "DELETE"],

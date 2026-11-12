@@ -12,7 +12,11 @@ import {
   patchHostDevice,
   deleteHostDevice,
   flashHostDeviceSerial,
+  previewCertificate,
+  previewHostCertificate,
+  trustHostCertificate,
   SdrManagerApiError,
+  type SdrManagerCertificatePreview,
   type SdrManagerHostCreateInput,
   type SdrManagerHealthProbeResult,
 } from './sdrManagerRemoteApi'
@@ -46,6 +50,9 @@ const sampleHost: SdrManagerHost = {
   last_error: null,
   reachable: true,
   api_version: '1.0',
+  transport: 'https',
+  tls_fingerprint: null,
+  tls_state: 'untrusted',
 }
 
 const sampleCreateInput: SdrManagerHostCreateInput = {
@@ -149,6 +156,60 @@ describe('testHost', () => {
   })
 })
 
+describe('certificates', () => {
+  const preview: SdrManagerCertificatePreview = {
+    tls_available: true,
+    detail: 'ok',
+    fingerprint: 'AB:CD',
+    subject: 'CN=Roof Pi authority',
+    not_valid_after: 'Nov 10 12:00:00 2036 GMT',
+    matches_pinned: null,
+  }
+
+  it('previewCertificate POSTs the address and port and returns what the host presents', async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(preview) }))
+    await expect(previewCertificate({ address: '10.0.0.5', port: 8123 })).resolves.toEqual(preview)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/certificate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ address: '10.0.0.5', port: 8123 }),
+    })
+  })
+
+  it("previewHostCertificate POSTs to the host's certificate endpoint", async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(preview) }))
+    await expect(previewHostCertificate(3)).resolves.toEqual(preview)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/3/certificate', {
+      method: 'POST',
+    })
+  })
+
+  it('trustHostCertificate PUTs the checked fingerprint and returns the host', async () => {
+    mockFetch(() => ({ ok: true, json: () => Promise.resolve(sampleHost) }))
+    await expect(trustHostCertificate(3, 'AB:CD')).resolves.toEqual(sampleHost)
+    expect(global.fetch).toHaveBeenCalledWith('/api/sdr-manager/remote/hosts/3/certificate', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fingerprint: 'AB:CD' }),
+    })
+  })
+
+  it("trustHostCertificate surfaces a changed certificate with the host's new fingerprint", async () => {
+    mockFetch(() => ({
+      ok: false,
+      status: 409,
+      json: () =>
+        Promise.resolve({
+          detail: { code: 'certificate_changed', message: 'Check it again.', fingerprint: 'EF:01' },
+        }),
+    }))
+    const error = await trustHostCertificate(3, 'AB:CD').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(SdrManagerApiError)
+    expect((error as SdrManagerApiError).code).toBe('certificate_changed')
+    expect((error as SdrManagerApiError).context).toEqual({ fingerprint: 'EF:01' })
+  })
+})
+
 describe('getHostDevices', () => {
   it('returns the cached device snapshot', async () => {
     const snapshot: SdrManagerDeviceSnapshot = {
@@ -182,6 +243,9 @@ describe('getHostInfo', () => {
       last_error: null,
       reachable: true,
       api_version: '1',
+      transport: 'https',
+      tls_fingerprint: null,
+      tls_state: 'untrusted',
       detail: 'ok',
       last_polled_at: 3,
       last_success_at: 3,

@@ -20,7 +20,7 @@ The SDR section turns cheap RTL-SDR dongles into a wide-band receiver you contro
 
 ## Add a Sentinel host
 
-1. **Settings › SDR › DEVICES › + ADD A NEW SENTINEL HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD** ([more](../sdr-manager.md#sentinel-hosts)). This computer's own dongles need no host: they are listed as **This machine**.
+1. **Settings › SDR › DEVICES › + ADD A NEW SENTINEL HOST**: **IP ADDRESS**, **LABEL**, **PORT** (usually `8000`), **CONSOLE PASSWORD**, **ADD**, then check its fingerprint and **TRUST AND ADD** ([more](../sdr-manager.md#sentinel-hosts)). This computer's own dongles need no host: they are listed as **This machine**.
 2. **SENTINEL HOSTS** lists each host's dongles under its name. **ADD** the ones you want.
 
 ![Settings › SDR: DEVICES with SENTINEL HOSTS, a host's dongles and + ADD A NEW SENTINEL HOST, then NON-SENTINEL SDR DEVICES. Docs sits under the section buttons in the left rail.](../../images/settings-sdr.png)

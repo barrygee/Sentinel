@@ -14,14 +14,39 @@ vi.mock('../api/sdrManagerRemoteApi', async (importOriginal) => {
     createHost: vi.fn(),
     updateHost: vi.fn(),
     testHost: vi.fn(),
+    previewCertificate: vi.fn(),
   }
 })
 
-import { createHost, updateHost, testHost } from '../api/sdrManagerRemoteApi'
+import { createHost, updateHost, testHost, previewCertificate } from '../api/sdrManagerRemoteApi'
 
 const mockCreateSdrManagerHost = vi.mocked(createHost)
 const mockUpdateSdrManagerHost = vi.mocked(updateHost)
 const mockTestSdrManagerHost = vi.mocked(testHost)
+const mockPreviewCertificate = vi.mocked(previewCertificate)
+
+const FINGERPRINT = Array(32).fill('AB').join(':')
+const TLS_PREVIEW = {
+  tls_available: true,
+  detail: 'ok',
+  fingerprint: FINGERPRINT,
+  subject: 'CN=Roof Pi authority',
+  not_valid_after: 'Nov 10 12:00:00 2036 GMT',
+  matches_pinned: null,
+}
+const NO_TLS_PREVIEW = {
+  tls_available: false,
+  detail:
+    "This SDR host doesn't offer HTTPS: its console password would cross the network unencrypted.",
+}
+
+/** ADD, then the certificate check's confirm button: how every new host is added now. */
+async function addThroughTheCheck(wrapper: VueWrapper): Promise<void> {
+  await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+  await flushPromises()
+  await wrapper.find('.remote-host-certificate .sdr-devices-btn--primary').trigger('click')
+  await flushPromises()
+}
 
 const EXISTING_HOST: SdrManagerHost = {
   id: 5,
@@ -38,6 +63,9 @@ const EXISTING_HOST: SdrManagerHost = {
   last_error: null,
   reachable: true,
   api_version: '1.0.0',
+  transport: 'https',
+  tls_fingerprint: FINGERPRINT,
+  tls_state: 'pinned',
 }
 
 function makeSavedHost(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost {
@@ -62,6 +90,7 @@ describe('RemoteHostForm', () => {
     // whether the site map can load, so these mounts need an active Pinia.
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    mockPreviewCertificate.mockResolvedValue(TLS_PREVIEW)
   })
   afterEach(() => {
     vi.useRealTimers()
@@ -135,15 +164,17 @@ describe('RemoteHostForm', () => {
     await inputs[0]!.setValue('10.0.0.9')
     await inputs[1]!.setValue('Attic')
     await inputs[3]!.setValue('secret-token')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith({
       name: 'Attic',
       address: '10.0.0.9',
       port: 8000,
       auth_token: 'secret-token',
       auto_add_sdrs: false,
+      transport: 'https',
+      tls_fingerprint: FINGERPRINT,
     })
+    expect(mockPreviewCertificate).toHaveBeenCalledWith({ address: '10.0.0.9', port: 8000 })
     expect(mockTestSdrManagerHost).toHaveBeenCalledWith(5)
     // A reachable host needs no message.
     expect(wrapper.find('.remote-host-probe').exists()).toBe(false)
@@ -155,8 +186,7 @@ describe('RemoteHostForm', () => {
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
       expect.objectContaining({ name: null, auth_token: '' }),
     )
@@ -192,8 +222,7 @@ describe('RemoteHostForm', () => {
       await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
       await autoAddRadios(wrapper)[1]!.trigger('click')
       expect(wrapper.find('.remote-host-auto-add-note').exists()).toBe(false)
-      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-      await flushPromises()
+      await addThroughTheCheck(wrapper)
       expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
         expect.objectContaining({ address: '10.0.0.9', auto_add_sdrs: true }),
       )
@@ -234,9 +263,10 @@ describe('RemoteHostForm', () => {
       return drafts[drafts.length - 1]![0]
     }
 
-    it('has no SAVE or ADD button, only TEST CONNECTION and CANCEL', () => {
+    it('has no SAVE or ADD button, only CHECK CERTIFICATE, TEST CONNECTION and CANCEL', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
       expect(wrapper.findAll('.sdr-devices-btn').map((button) => button.text())).toEqual([
+        'CHECK CERTIFICATE',
         'TEST CONNECTION',
         'CANCEL',
       ])
@@ -365,8 +395,7 @@ describe('RemoteHostForm', () => {
     const inputs = wrapper.findAll('.ba-text-field__input')
     await inputs[0]!.setValue('10.0.0.9')
     await inputs[2]!.setValue(0)
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(expect.objectContaining({ port: 8000 }))
   })
 
@@ -378,8 +407,7 @@ describe('RemoteHostForm', () => {
     )
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
       'Port 1234 is already in use by device rtl-3.',
     )
@@ -390,12 +418,32 @@ describe('RemoteHostForm', () => {
     mockCreateSdrManagerHost.mockRejectedValue(new Error('boom'))
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Save failed.')
   })
 
-  it('labels the new-host action ADD and disables it while the host is being added', async () => {
+  it('labels the new-host action ADD, and says CHECKING while it reads the certificate', async () => {
+    let finishPreview: (preview: typeof TLS_PREVIEW) => void = () => {}
+    mockPreviewCertificate.mockReturnValue(
+      new Promise((resolve) => {
+        finishPreview = resolve
+      }),
+    )
+    const wrapper = mount(RemoteHostForm, { props: { host: null } })
+    const addButton = () => wrapper.find('.sdr-devices-btn--primary')
+    expect(addButton().text()).toBe('ADD')
+    await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
+    await addButton().trigger('click')
+    expect(addButton().text()).toBe('CHECKING')
+    expect((addButton().element as HTMLButtonElement).disabled).toBe(true)
+    finishPreview(TLS_PREVIEW)
+    await flushPromises()
+    // The check replaces the actions row until the operator decides.
+    expect(addButton().text()).toBe('TRUST AND ADD')
+    expect((addButton().element as HTMLButtonElement).disabled).toBe(false)
+  })
+
+  it('disables TRUST AND ADD while the host is being added', async () => {
     let finishCreate: (host: SdrManagerHost) => void = () => {}
     mockCreateSdrManagerHost.mockReturnValue(
       new Promise((resolve) => {
@@ -404,14 +452,106 @@ describe('RemoteHostForm', () => {
     )
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
-    const addButton = () => wrapper.find('.sdr-devices-btn--primary')
-    expect(addButton().text()).toBe('ADD')
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await addButton().trigger('click')
-    expect((addButton().element as HTMLButtonElement).disabled).toBe(true)
+    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+    await flushPromises()
+    const trustButton = () => wrapper.find('.remote-host-certificate .sdr-devices-btn--primary')
+    await trustButton().trigger('click')
+    expect((trustButton().element as HTMLButtonElement).disabled).toBe(true)
     finishCreate(makeSavedHost())
     await flushPromises()
-    expect((addButton().element as HTMLButtonElement).disabled).toBe(false)
+    expect(wrapper.emitted('save')).toHaveLength(1)
+  })
+
+  describe('the certificate check on ADD', () => {
+    async function openCheck(wrapper: VueWrapper): Promise<void> {
+      await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
+      await wrapper.findAll('.ba-text-field__input')[2]!.setValue(8123)
+      await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+    }
+
+    it('shows the fingerprint to compare and adds nothing until trusted', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      expect(mockPreviewCertificate).toHaveBeenCalledWith({ address: '10.0.0.9', port: 8123 })
+      expect(wrapper.find('.remote-host-certificate-fingerprint').text()).toContain('AB:AB')
+      expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
+    })
+
+    it('adds a host without HTTPS over plain HTTP only when asked to', async () => {
+      mockPreviewCertificate.mockResolvedValue(NO_TLS_PREVIEW)
+      mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
+      mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      const confirm = wrapper.find('.remote-host-certificate .sdr-devices-btn--primary')
+      expect(confirm.text()).toBe('ADD WITHOUT ENCRYPTION')
+      await confirm.trigger('click')
+      await flushPromises()
+      expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
+        expect.objectContaining({ transport: 'http' }),
+      )
+      expect(mockCreateSdrManagerHost.mock.calls[0]![0]).not.toHaveProperty('tls_fingerprint')
+    })
+
+    it('CANCEL closes the check and brings back ADD, without adding', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      await wrapper.find('.remote-host-certificate .sdr-devices-btn').trigger('click')
+      expect(wrapper.find('.remote-host-certificate').exists()).toBe(false)
+      expect(wrapper.find('.sdr-devices-btn--primary').text()).toBe('ADD')
+      expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
+    })
+
+    it("shows why the host's certificate could not be read", async () => {
+      mockPreviewCertificate.mockRejectedValue(
+        new SdrManagerApiError(502, 'host_unreachable', 'Could not reach SDR host 10.0.0.9:8123.'),
+      )
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        'Could not reach SDR host 10.0.0.9:8123.',
+      )
+      expect(wrapper.find('.remote-host-certificate').exists()).toBe(false)
+    })
+
+    it('falls back to a generic message when the read fails some other way', async () => {
+      mockPreviewCertificate.mockRejectedValue(new Error('boom'))
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe(
+        "Could not read the host's certificate.",
+      )
+    })
+
+    it('closes a check the host no longer matches, so ADD reads it again', async () => {
+      mockCreateSdrManagerHost.mockRejectedValue(
+        new SdrManagerApiError(409, 'certificate_changed', 'Check it again.', {
+          fingerprint: 'CD:CD',
+        }),
+      )
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await openCheck(wrapper)
+      await wrapper.find('.remote-host-certificate .sdr-devices-btn--primary').trigger('click')
+      await flushPromises()
+      expect(wrapper.find('.remote-host-certificate').exists()).toBe(false)
+      expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Check it again.')
+    })
+
+    it('does nothing if asked to add with no check open', async () => {
+      // TRUST AND ADD exists only while a check is open; the guard is defensive.
+      const wrapper = mount(RemoteHostForm, { props: { host: null } })
+      await (wrapper.vm as unknown as { addHost: () => Promise<void> }).addHost()
+      expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
+    })
+
+    it('has no accessibility violations while the check is open', async () => {
+      const wrapper = mount(RemoteHostForm, { props: { host: null }, attachTo: document.body })
+      await openCheck(wrapper)
+      expect(await axe(wrapper.element)).toHaveNoViolations()
+      wrapper.unmount()
+    })
   })
 
   it('does not emit drafts while a new host is being typed', async () => {
@@ -425,8 +565,7 @@ describe('RemoteHostForm', () => {
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('  10.0.0.9  ')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(mockCreateSdrManagerHost).toHaveBeenCalledWith(
       expect.objectContaining({ address: '10.0.0.9' }),
     )
@@ -438,13 +577,11 @@ describe('RemoteHostForm', () => {
     )
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.find('.sdr-devices-form-error').text()).toBe('Host already exists.')
     mockCreateSdrManagerHost.mockResolvedValue(makeSavedHost())
     mockTestSdrManagerHost.mockResolvedValue({ reachable: true, detail: 'ok' })
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
   })
 
@@ -453,8 +590,7 @@ describe('RemoteHostForm', () => {
     mockTestSdrManagerHost.mockRejectedValue(new Error('probe unreachable'))
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.emitted('save')).toHaveLength(1)
     expect(wrapper.find('.remote-host-probe').exists()).toBe(false)
     expect(wrapper.find('.sdr-devices-form-error').exists()).toBe(false)
@@ -578,8 +714,7 @@ describe('RemoteHostForm', () => {
     mockTestSdrManagerHost.mockResolvedValue({ reachable: false, detail: 'Connection refused' })
     const wrapper = mount(RemoteHostForm, { props: { host: null } })
     await wrapper.findAll('.ba-text-field__input')[0]!.setValue('10.0.0.9')
-    await wrapper.find('.sdr-devices-btn--primary').trigger('click')
-    await flushPromises()
+    await addThroughTheCheck(wrapper)
     expect(wrapper.find('.remote-host-probe').text()).toBe('Connection refused')
   })
 

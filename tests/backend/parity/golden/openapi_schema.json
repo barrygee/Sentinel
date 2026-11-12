@@ -157,6 +157,102 @@
         "title": "Body_stop_recording_api_sdr_recordings_stop_post",
         "type": "object"
       },
+      "CertificatePreviewIn": {
+        "description": "Body for `POST /api/sdr-manager/remote/hosts/certificate` — a host not added yet.",
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "port": {
+            "default": 8000,
+            "title": "Port",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "address"
+        ],
+        "title": "CertificatePreviewIn",
+        "type": "object"
+      },
+      "CertificatePreviewOut": {
+        "description": "What a host presents, for the operator to compare before trusting it. Nothing is stored.\n\n`tls_available: false` means the host answered without TLS (an SDR host\nfrom before HTTPS); the operator may then add it over plain HTTP.",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "matches_pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matches Pinned"
+          },
+          "not_valid_after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Valid After"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "tls_available": {
+            "title": "Tls Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tls_available",
+          "detail"
+        ],
+        "title": "CertificatePreviewOut",
+        "type": "object"
+      },
+      "CertificateTrustIn": {
+        "description": "Body for `PUT .../{host_id}/certificate` — the fingerprint the operator compared.",
+        "properties": {
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          }
+        },
+        "required": [
+          "fingerprint"
+        ],
+        "title": "CertificateTrustIn",
+        "type": "object"
+      },
       "ClaimIn": {
         "description": "Body for `POST /api/sdr/adsb/claim`.",
         "properties": {
@@ -1435,6 +1531,26 @@
             "default": 8000,
             "title": "Port",
             "type": "integer"
+          },
+          "tls_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Fingerprint"
+          },
+          "transport": {
+            "default": "https",
+            "enum": [
+              "https",
+              "http"
+            ],
+            "title": "Transport",
+            "type": "string"
           }
         },
         "required": [
@@ -1598,6 +1714,36 @@
                 "type": "null"
               }
             ]
+          },
+          "tls_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Fingerprint"
+          },
+          "tls_state": {
+            "enum": [
+              "pinned",
+              "changed",
+              "untrusted",
+              "insecure",
+              "deployment"
+            ],
+            "title": "Tls State",
+            "type": "string"
+          },
+          "transport": {
+            "enum": [
+              "https",
+              "http"
+            ],
+            "title": "Transport",
+            "type": "string"
           }
         },
         "required": [
@@ -1615,6 +1761,9 @@
           "last_error",
           "reachable",
           "api_version",
+          "transport",
+          "tls_fingerprint",
+          "tls_state",
           "detail"
         ],
         "title": "RemoteSdrHostInfoOut",
@@ -1706,6 +1855,36 @@
           "reachable": {
             "title": "Reachable",
             "type": "boolean"
+          },
+          "tls_fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tls Fingerprint"
+          },
+          "tls_state": {
+            "enum": [
+              "pinned",
+              "changed",
+              "untrusted",
+              "insecure",
+              "deployment"
+            ],
+            "title": "Tls State",
+            "type": "string"
+          },
+          "transport": {
+            "enum": [
+              "https",
+              "http"
+            ],
+            "title": "Transport",
+            "type": "string"
           }
         },
         "required": [
@@ -1722,13 +1901,16 @@
           "last_seen_at",
           "last_error",
           "reachable",
-          "api_version"
+          "api_version",
+          "transport",
+          "tls_fingerprint",
+          "tls_state"
         ],
         "title": "RemoteSdrHostOut",
         "type": "object"
       },
       "RemoteSdrHostPatch": {
-        "description": "Body for `PUT /api/sdr-manager/remote/hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors the host's own hotspot-PUT convention (architecture: the host's\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting only the name or enabled flag never has to re-paste a token they\ncan no longer see. Moving the host to a new address or port without a new\ntoken clears the stored one instead: the poller would otherwise send the\nconsole password to whichever machine the new address names.",
+        "description": "Body for `PUT /api/sdr-manager/remote/hosts/{host_id}` — all fields optional, at least one required.\n\nMirrors the host's own hotspot-PUT convention (architecture: the host's\n`HotspotConfigRequest`): omitting `auth_token` keeps the currently stored\ntoken, which is what keeps the secret write-only end to end — an operator\nediting only the name or enabled flag never has to re-paste a token they\ncan no longer see. Moving the host to a new address or port without a new\ntoken clears the stored one instead: the poller would otherwise send the\nconsole password to whichever machine the new address names. The pinned\ncertificate authority goes the same way, and with a change of `transport`\ntoo: the host is then HTTPS-but-untrusted until the operator trusts it\nagain (`PUT .../certificate`), and nothing is sent to it meanwhile.",
         "properties": {
           "address": {
             "anyOf": [
@@ -1795,6 +1977,21 @@
               }
             ],
             "title": "Port"
+          },
+          "transport": {
+            "anyOf": [
+              {
+                "enum": [
+                  "https",
+                  "http"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transport"
           }
         },
         "title": "RemoteSdrHostPatch",
@@ -3051,6 +3248,48 @@
         ]
       }
     },
+    "/api/sdr-manager/remote/hosts/certificate": {
+      "post": {
+        "description": "Read the certificate authority a host presents, before adding it. Stores nothing.\n\nDeclared before `/{host_id}` for the same reason as `/locations`.",
+        "operationId": "preview_new_host_certificate_api_sdr_manager_remote_hosts_certificate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificatePreviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificatePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview New Host Certificate",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
     "/api/sdr-manager/remote/hosts/locations": {
       "get": {
         "description": "List every enabled SDR host that reports a position, for plotting on the domain maps.\n\nReads only the fleet poller's cached export — never the network — because\nevery domain map polls this while it is open: a round trip per host per poll\nwould make a slow Pi stall the map. A host that has gone unreachable keeps\nits last known position and is reported with `reachable: false`, so an\noperator sees a site that is off the air rather than a site that vanished.\n\nDeclared before `/{host_id}` on purpose: FastAPI matches routes in\ndeclaration order, so the reverse would parse \"locations\" as a host id.",
@@ -3200,6 +3439,100 @@
           }
         },
         "summary": "Update Host",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      }
+    },
+    "/api/sdr-manager/remote/hosts/{host_id}/certificate": {
+      "post": {
+        "description": "Read the certificate authority a host presents now, and whether it is the pinned one. Stores nothing.",
+        "operationId": "preview_host_certificate_api_sdr_manager_remote_hosts__host_id__certificate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificatePreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Preview Host Certificate",
+        "tags": [
+          "sdr-manager-remote"
+        ]
+      },
+      "put": {
+        "description": "Pin the host's certificate authority — the one whose fingerprint the operator compared.\n\nMoves a plain-HTTP host to HTTPS, trusts a host that has none pinned yet,\nor replaces a pin after the host's credentials were regenerated. The\nconsole password is kept: the operator has just vouched for this host.",
+        "operationId": "trust_host_certificate_api_sdr_manager_remote_hosts__host_id__certificate_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "host_id",
+            "required": true,
+            "schema": {
+              "title": "Host Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CertificateTrustIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RemoteSdrHostOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trust Host Certificate",
         "tags": [
           "sdr-manager-remote"
         ]

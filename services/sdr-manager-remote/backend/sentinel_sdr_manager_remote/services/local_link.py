@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import NamedTuple
 from urllib.parse import urlsplit
 
 from backend.cache import now_ms
@@ -30,7 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_sdr_manager_remote.config import get_settings
-from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, RemoteSdrHost
+from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, TRANSPORT_HTTP, TRANSPORT_HTTPS, RemoteSdrHost
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
 from sentinel_sdr_manager_remote.services.sdr_manager_client import validate_host_address, validate_host_port
 
@@ -39,30 +40,43 @@ logger = logging.getLogger(__name__)
 LOCAL_SERVICE_KIND = "sdr-manager-local"
 
 
-def local_address(internal_url: str) -> tuple[str, int] | None:
-    """The `(address, port)` a registered `internalUrl` names, or None when the client can't use it.
+class LocalAddress(NamedTuple):
+    """Where this machine's sdr-manager-local answers, as its registration says."""
 
-    The client speaks plain HTTP to a bare host and port (`SdrManagerClient`),
-    which is what sdr-manager-local advertises; anything else (another scheme,
-    a path, credentials) is refused rather than guessed at.
+    address: str
+    port: int
+    transport: str  # `https` (verified with the deployment's authority) or `http`
+
+
+_DEFAULT_PORTS = {TRANSPORT_HTTP: 80, TRANSPORT_HTTPS: 443}
+
+
+def local_address(internal_url: str) -> LocalAddress | None:
+    """The address, port and transport a registered `internalUrl` names, or None when the client can't use it.
+
+    The client speaks HTTPS or plain HTTP to a bare host and port
+    (`SdrManagerClient`), which is what sdr-manager-local advertises; anything
+    else (another scheme, a path, credentials) is refused rather than guessed at.
     """
     try:
         parts = urlsplit(internal_url)
-        # Not `or 80`: an explicit `:0` is a bad address, not a missing port.
-        port = parts.port if parts.port is not None else 80
+        port = parts.port
     except ValueError:
         return None
-    if parts.scheme != "http" or not parts.hostname or parts.username or parts.password:
+    if parts.scheme not in _DEFAULT_PORTS or not parts.hostname or parts.username or parts.password:
         return None
+    # Not `or <default>`: an explicit `:0` is a bad address, not a missing port.
+    if port is None:
+        port = _DEFAULT_PORTS[parts.scheme]
     if parts.path not in ("", "/") or parts.query or parts.fragment:
         return None
     try:
-        return validate_host_address(parts.hostname), validate_host_port(port)
+        return LocalAddress(validate_host_address(parts.hostname), validate_host_port(port), parts.scheme)
     except ValueError:
         return None
 
 
-async def _discover_local_address() -> tuple[str, int] | None:
+async def _discover_local_address() -> LocalAddress | None:
     """Where this machine's sdr-manager-local answers, None when it isn't there.
 
     Raises `RegistryUnavailable` when core can't say, including when this
@@ -113,7 +127,7 @@ class LocalLink:
             if discovered is None:
                 await self._disable(db, local)
             else:
-                await self._link(db, local, *discovered)
+                await self._link(db, local, discovered)
 
     async def _disable(self, db: AsyncSession, local: RemoteSdrHost | None) -> None:
         if local is None or not local.enabled:
@@ -123,7 +137,8 @@ class LocalLink:
         await host_poller.stop_host(local.id)
         logger.info("local link: sdr-manager-local is gone; This machine (host %d) is disabled", local.id)
 
-    async def _link(self, db: AsyncSession, local: RemoteSdrHost | None, address: str, port: int) -> None:
+    async def _link(self, db: AsyncSession, local: RemoteSdrHost | None, discovered: LocalAddress) -> None:
+        address, port, transport = discovered
         if local is None:
             # An operator may have added this machine by hand before the link
             # first ran: take that row over, so radios made from it keep its id.
@@ -150,19 +165,23 @@ class LocalLink:
             local.address, local.port = address, port
             changed = True
         else:
-            changed = not local.enabled or local.auth_mode != AUTH_MODE_SERVICE
+            changed = not local.enabled or local.auth_mode != AUTH_MODE_SERVICE or local.transport != transport
         if not changed:
             # Idempotent: an unchanged tick writes nothing and leaves the poller running.
             await host_poller.start_host(local.id)
             return
         local.auth_mode = AUTH_MODE_SERVICE
-        # The bearer replaces any console password an adopted row carried.
+        # The bearer replaces any console password an adopted row carried, and
+        # the deployment's authority any pin it had.
         local.auth_token = ""
+        local.transport = transport
+        local.tls_certificate_authority = None
+        local.tls_fingerprint = None
         local.enabled = True
         await db.commit()
         await db.refresh(local)
         await host_poller.restart_host(local.id)
-        logger.info("local link: This machine (host %d) is linked at %s:%d", local.id, address, port)
+        logger.info("local link: This machine (host %d) is linked at %s://%s:%d", local.id, transport, address, port)
 
     async def _run(self) -> None:
         while True:

@@ -14,6 +14,11 @@ AUTH_MODE_PASSWORD = "password"
 AUTH_MODE_SERVICE = "service"
 """Presents this service's own HTTP credential as a bearer (this machine's row only)."""
 
+TRANSPORT_HTTPS = "https"
+"""TLS, verified against the host's pinned certificate authority (or, for this machine, the deployment's)."""
+TRANSPORT_HTTP = "http"
+"""Plain HTTP: the console password crosses the network readable. Hosts that don't offer HTTPS only."""
+
 
 class RemoteSdrHost(Base):
     """A machine running sdr-manager-local that this Sentinel manages over the SDR Manager API.
@@ -47,6 +52,16 @@ class RemoteSdrHost(Base):
     # itself (and stops being one when made private), instead of by ADD. Off
     # unless the operator turns it on: radios are theirs to choose.
     auto_add_sdrs = Column(Boolean, nullable=False, default=False, server_default=text("0"))
+    # How the client reaches the host. Rows from before HTTPS existed read
+    # `http`, which is what those hosts served; a host added now is `https`
+    # unless the operator chose plain HTTP for one that doesn't offer it.
+    transport = Column(Text, nullable=False, default=TRANSPORT_HTTP, server_default=text(f"'{TRANSPORT_HTTP}'"))
+    # The host's own certificate authority (PEM), pinned when the operator
+    # trusted its fingerprint. Pinning the authority rather than the server
+    # certificate keeps the pin across the host's certificate renewals. Null
+    # until trusted: the client then refuses to send anything over HTTPS.
+    tls_certificate_authority = Column(Text, nullable=True)
+    tls_fingerprint = Column(Text, nullable=True)  # SHA-256 of the pinned authority, AA:BB:… form
 
     __table_args__ = (
         UniqueConstraint("address", "port", name="uq_remote_sdr_hosts_address_port"),

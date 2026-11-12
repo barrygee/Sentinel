@@ -28,6 +28,7 @@ from sentinel_sdr_manager_remote.config import get_settings
 from sentinel_sdr_manager_remote.models import RemoteSdrHost
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
+    SdrManagerCertificateRejectedError,
     SdrManagerClient,
     SdrManagerUnreachableError,
     client_for_host,
@@ -54,6 +55,9 @@ class HostSnapshot:
     # drops off the network stays on the map at its last known position.
     export_payload: dict[str, Any] | None = None
     export_fetched_at: int | None = None  # Unix ms of the last export ATTEMPT, successful or not
+    # The last poll was refused because the host's certificate doesn't chain to
+    # its pinned authority: the Settings host shows CERTIFICATE CHANGED.
+    certificate_rejected: bool = False
 
 
 class HostPoller:
@@ -169,6 +173,7 @@ class HostPoller:
         try:
             response = await client.get_status()
         except SdrManagerUnreachableError as exc:
+            snapshot.certificate_rejected = isinstance(exc, SdrManagerCertificateRejectedError)
             await self._record_failure(host_id, snapshot, str(exc))
             return False
         except SdrManagerApiError as exc:
@@ -182,6 +187,7 @@ class HostPoller:
             return False
 
         snapshot.reachable = True
+        snapshot.certificate_rejected = False
         snapshot.status_payload = response.data
         # The host says, as an older one that doesn't is treated as refusing.
         may_use_private = is_local or bool((response.data or {}).get("private_access"))
