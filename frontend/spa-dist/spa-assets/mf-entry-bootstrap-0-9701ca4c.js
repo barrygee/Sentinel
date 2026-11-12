@@ -50,8 +50,4 @@ const __mfImport = (src) =>
   if (__mfReactServerModuleCache?.pendingShareLoads) {
     await Promise.all(__mfReactServerModuleCache.pendingShareLoads);
   }
-<<<<<<<< HEAD:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-98175582.js
-})().then(() => __mfImport("./index-DoOGiIAp.js"));
-========
-})().then(() => __mfImport("./index-OhCAQxHB.js"));
->>>>>>>> origin/main:frontend/spa-dist/spa-assets/mf-entry-bootstrap-0-236f9de9.js
+})().then(() => __mfImport("./index-B5bet_Bp.js"));
