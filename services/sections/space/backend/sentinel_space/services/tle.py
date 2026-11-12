@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
+from backend.platform.outbound_http import UpstreamUnreachable, check_outbound_url, read_capped_text
 from sgp4.api import Satrec
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,6 +59,31 @@ def _mark_upstream_host_down(url: str) -> None:
 def reset_upstream_breaker() -> None:
     """Forget every host back-off (used by tests and manual refresh flows)."""
     _upstream_host_down_until_ms.clear()
+
+
+# ── Upstream fetch ───────────────────────────────────────────────────────────
+# Celestrak's whole `active` group is ~2 MB of TLE text; 16 MiB leaves room for
+# a bigger mirror while stopping a URL that streams without end.
+TLE_RESPONSE_MAX_BYTES = 16 * 1024 * 1024
+
+
+async def _fetch_feed_text(url: str, timeout_s: float) -> str:
+    """GET a TLE feed URL and return its body, stripped.
+
+    Every feed URL here is operator-set (Settings or the fetch form), so it goes
+    through the outbound guard first: no loopback, link-local or compose-network
+    destination, and at most `TLE_RESPONSE_MAX_BYTES` read. Redirects are not
+    followed, so a feed can't bounce the request to a refused address.
+
+    Raises OutboundUrlRefused, UpstreamUnreachable, UpstreamResponseTooLarge,
+    or httpx errors (transport failure, non-2xx status).
+    """
+    await check_outbound_url(url)
+    async with httpx.AsyncClient(timeout=timeout_s, follow_redirects=False) as client:
+        async with client.stream("GET", url) as response:
+            response.raise_for_status()
+            text = await read_capped_text(response, TLE_RESPONSE_MAX_BYTES)
+    return text.strip()
 
 
 # ── Category priority ordering (higher index = higher priority) ──────────────
@@ -351,16 +377,13 @@ async def fetch_tle(
         if _upstream_host_is_down(url):
             continue
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                try:
-                    resp = await client.get(url)
-                except httpx.TransportError:
-                    # Connection-level failure (DNS, refused, connect/read
-                    # timeout): the host is unreachable, not just this entry.
-                    _mark_upstream_host_down(url)
-                    raise
-                resp.raise_for_status()
-                text = resp.text.strip()
+            try:
+                text = await _fetch_feed_text(url, timeout_s=10.0)
+            except (httpx.TransportError, UpstreamUnreachable):
+                # Connection-level failure (DNS, refused, connect/read
+                # timeout): the host is unreachable, not just this entry.
+                _mark_upstream_host_down(url)
+                raise
 
             # Validate before storing
             entries = validate_tle_text(text)
@@ -404,12 +427,9 @@ async def fetch_tle_from_url(
     """Fetch TLE data from a URL, validate, and bulk-upsert into the DB.
 
     Used by POST /api/space/tle/fetch. Returns insert/update counts.
-    Raises RuntimeError on network failure or ValueError on bad TLE data.
+    Raises what `_fetch_feed_text` raises, or ValueError on bad TLE data.
     """
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        resp = await client.get(url)
-        resp.raise_for_status()
-        text = resp.text.strip()
+    text = await _fetch_feed_text(url, timeout_s=15.0)
 
     entries = validate_tle_text(text)
     return await store_tle_bulk(entries, source="url", category=category, category_source=category_source, db=db)

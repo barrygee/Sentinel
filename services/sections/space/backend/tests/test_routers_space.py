@@ -220,3 +220,170 @@ def _run(coro):
     import asyncio
 
     return asyncio.run(coro)
+
+
+# ── POST /api/space/tle/fetch ────────────────────────────────────────────────
+
+
+class TestTleFetchFromUrl:
+    """Input checks, and that no failure echoes the exception or the upstream body."""
+
+    FEED_URL = "http://192.168.1.50/tle/active.txt"
+    # Stands in for whatever an internal address might answer; must never reach the caller.
+    UPSTREAM_SECRET = "redis-password-hunter2"
+
+    def _stub_fetch(self, monkeypatch, outcome):
+        """Make the service's fetch return `outcome`'s counts, or raise it if it is an exception."""
+        from sentinel_space import router as space_router
+
+        calls: list[tuple] = []
+
+        async def fake_fetch_tle_from_url(url, category, category_source, db):
+            calls.append((url, category, category_source))
+            if isinstance(outcome, BaseException):
+                raise outcome
+            return outcome
+
+        monkeypatch.setattr(space_router.tle_service, "fetch_tle_from_url", fake_fetch_tle_from_url)
+        return calls
+
+    def test_success_returns_counts_and_passes_the_trimmed_url(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 3, "updated": 1})
+        resp = client.post("/api/space/tle/fetch", json={"url": f"  {self.FEED_URL} ", "category": "weather"})
+        assert resp.status_code == 200
+        assert resp.json() == {"inserted": 3, "updated": 1}
+        assert calls == [(self.FEED_URL, "weather", "celestrak_group")]
+
+    def test_active_or_missing_category_uses_active_priority(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        client.post("/api/space/tle/fetch", json={"url": self.FEED_URL, "category": "active"})
+        client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert calls == [(self.FEED_URL, "active", "active"), (self.FEED_URL, None, "active")]
+
+    # Input checks happen before any fetch.
+
+    def test_missing_url_is_400(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={})
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "url is required"}
+        assert calls == []
+
+    def test_blank_url_is_400(self, client, monkeypatch):
+        self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={"url": "   "})
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "url is required"}
+
+    def test_non_string_url_is_400_not_500(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={"url": 12345})
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "url must be a string"}
+        assert calls == []
+
+    def test_url_at_the_length_limit_is_accepted(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        prefix = "http://192.168.1.50/"
+        url = prefix + "a" * (2048 - len(prefix))
+        resp = client.post("/api/space/tle/fetch", json={"url": url})
+        assert resp.status_code == 200
+        assert calls == [(url, None, "active")]
+
+    def test_url_over_the_length_limit_is_400(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        prefix = "http://192.168.1.50/"
+        resp = client.post("/api/space/tle/fetch", json={"url": prefix + "a" * (2049 - len(prefix))})
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "url is too long"}
+        assert calls == []
+
+    def test_url_without_scheme_or_host_is_400(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={"url": "celestrak.org/tle.txt"})
+        assert resp.status_code == 400
+        assert resp.json() == {"error": "Invalid URL"}
+        assert calls == []
+
+    def test_unknown_category_is_400(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL, "category": "spy"})
+        assert resp.status_code == 400
+        assert resp.json()["error"].startswith("Invalid category.")
+        assert calls == []
+
+    def test_non_string_category_is_400_not_500(self, client, monkeypatch):
+        calls = self._stub_fetch(monkeypatch, {"inserted": 0, "updated": 0})
+        resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL, "category": ["weather"]})
+        assert resp.status_code == 400
+        assert resp.json()["error"].startswith("Invalid category.")
+        assert calls == []
+
+    # Each failure maps to a fixed message.
+
+    def test_refused_destination_is_400_with_the_reason(self, client, monkeypatch):
+        from backend.platform.outbound_http import OutboundUrlRefused
+
+        self._stub_fetch(monkeypatch, OutboundUrlRefused("that address is not allowed as a data source"))
+        resp = client.post("/api/space/tle/fetch", json={"url": "http://127.0.0.1:8000/internal/registry"})
+        assert resp.status_code == 400
+        assert resp.json() == {
+            "error": "This URL can't be used as a TLE source: that address is not allowed as a data source."
+        }
+
+    def test_invalid_tle_is_422_without_quoting_the_body(self, client, monkeypatch):
+        self._stub_fetch(monkeypatch, ValueError(f"bad line: {self.UPSTREAM_SECRET}"))
+        resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert resp.status_code == 422
+        assert resp.json() == {"error": "The URL did not return valid TLE data."}
+        assert self.UPSTREAM_SECRET not in resp.text
+
+    def test_oversize_response_is_502_naming_the_limit(self, client, monkeypatch):
+        from backend.platform.outbound_http import UpstreamResponseTooLarge
+
+        self._stub_fetch(monkeypatch, UpstreamResponseTooLarge("response is 99999999999 bytes"))
+        resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "The TLE source sent more than 16 MiB."}
+
+    def test_http_error_is_502_with_only_the_status_code(self, client, monkeypatch):
+        import httpx
+
+        request = httpx.Request("GET", self.FEED_URL)
+        response = httpx.Response(403, text=self.UPSTREAM_SECRET, request=request)
+        self._stub_fetch(monkeypatch, httpx.HTTPStatusError(self.UPSTREAM_SECRET, request=request, response=response))
+        resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "The TLE source answered HTTP 403."}
+        assert self.UPSTREAM_SECRET not in resp.text
+
+    def test_transport_error_is_502_generic_and_logged(self, client, monkeypatch, caplog):
+        import httpx
+
+        self._stub_fetch(monkeypatch, httpx.ConnectError(f"refused by {self.UPSTREAM_SECRET}"))
+        with caplog.at_level("WARNING", logger="sentinel_space.router"):
+            resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "Could not reach the TLE source."}
+        assert self.UPSTREAM_SECRET not in resp.text
+        # The detail goes to the operator's log instead.
+        assert any(
+            self.FEED_URL in record.getMessage() and "ConnectError" in record.getMessage() for record in caplog.records
+        )
+
+    def test_unresolvable_host_is_502_generic(self, client, monkeypatch):
+        from backend.platform.outbound_http import UpstreamUnreachable
+
+        self._stub_fetch(monkeypatch, UpstreamUnreachable("mirror.lan does not resolve"))
+        resp = client.post("/api/space/tle/fetch", json={"url": "http://mirror.lan/tle.txt"})
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "Could not reach the TLE source."}
+
+    def test_unexpected_error_is_502_generic_and_logged(self, client, monkeypatch, caplog):
+        self._stub_fetch(monkeypatch, RuntimeError(self.UPSTREAM_SECRET))
+        with caplog.at_level("ERROR", logger="sentinel_space.router"):
+            resp = client.post("/api/space/tle/fetch", json={"url": self.FEED_URL})
+        assert resp.status_code == 502
+        assert resp.json() == {"error": "Fetching the TLE source failed."}
+        assert self.UPSTREAM_SECRET not in resp.text
+        assert any(record.exc_info for record in caplog.records)

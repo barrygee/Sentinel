@@ -16,6 +16,7 @@ Endpoints:
   DELETE /api/space/tle            — Clear TLE data, optionally by category (requires confirm=true)
 """
 
+import logging
 from datetime import UTC, datetime
 from urllib.parse import urlparse
 
@@ -23,6 +24,7 @@ import httpx
 from backend.cache import now_ms
 from backend.database import get_db
 from backend.error_handlers import handle_service_errors, handle_unexpected_errors
+from backend.platform.outbound_http import OutboundUrlRefused, UpstreamResponseTooLarge, UpstreamUnreachable
 from backend.utils import resolve_domain_urls
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import JSONResponse
@@ -34,6 +36,11 @@ from sentinel_space.services import daynight as dn_service
 from sentinel_space.services import sat_radio
 from sentinel_space.services import satellite as sat_service
 from sentinel_space.services import tle as tle_service
+
+logger = logging.getLogger(__name__)
+
+# Longer than any real feed URL; keeps a pasted blob out of the logs.
+_TLE_SOURCE_URL_MAX_LENGTH = 2048
 
 router = APIRouter(prefix="/api/space", tags=["space"])
 
@@ -440,22 +447,26 @@ async def fetch_tle_from_url(
     are updated but not deleted. Category is applied with 'celestrak_group'
     source priority unless category is null/active (treated as 'active' priority).
     """
+    raw_url = body.get("url")
+    category = body.get("category") or None
+    if raw_url is not None and not isinstance(raw_url, str):
+        return JSONResponse({"error": "url must be a string"}, status_code=400)
+    url = (raw_url or "").strip()
+    if not url:
+        return JSONResponse({"error": "url is required"}, status_code=400)
+    if len(url) > _TLE_SOURCE_URL_MAX_LENGTH:
+        return JSONResponse({"error": "url is too long"}, status_code=400)
+    parsed = urlparse(url)
+    if not parsed.scheme or not parsed.netloc:
+        return JSONResponse({"error": "Invalid URL"}, status_code=400)
+    # isinstance first: an unhashable category (a list) would raise on the set lookup.
+    if category and (not isinstance(category, str) or category not in _VALID_CATEGORIES):
+        return JSONResponse(
+            {"error": f"Invalid category. Valid values: {sorted(_VALID_CATEGORIES)}"},
+            status_code=400,
+        )
+
     try:
-        url = (body.get("url") or "").strip()
-        category = body.get("category") or None
-
-        if not url:
-            return JSONResponse({"error": "url is required"}, status_code=400)
-        parsed = urlparse(url)
-        if not parsed.scheme or not parsed.netloc:
-            return JSONResponse({"error": "Invalid URL"}, status_code=400)
-
-        if category and category not in _VALID_CATEGORIES:
-            return JSONResponse(
-                {"error": f"Invalid category. Valid values: {sorted(_VALID_CATEGORIES)}"},
-                status_code=400,
-            )
-
         cat_source = "celestrak_group" if (category and category != "active") else "active"
         counts = await tle_service.fetch_tle_from_url(url, category, cat_source, db)
 
@@ -466,12 +477,28 @@ async def fetch_tle_from_url(
             }
         )
 
-    except ValueError as e:
-        return JSONResponse({"error": str(e)}, status_code=422)
-    except (httpx.TimeoutException, httpx.ConnectError) as e:
-        return JSONResponse({"error": f"Network error — could not reach {url}: {type(e).__name__}"}, status_code=502)
-    except Exception as e:
-        return JSONResponse({"error": f"Fetch failed: {type(e).__name__}: {e}"}, status_code=502)
+    # Each failure gets a fixed message. Echoing the exception (or any of the
+    # response) would turn this endpoint into a probe that reads back whatever
+    # an internal address answered; the detail goes to the log instead.
+    except OutboundUrlRefused as e:
+        return JSONResponse({"error": f"This URL can't be used as a TLE source: {e}."}, status_code=400)
+    except ValueError:
+        # validate_tle_text's messages are fixed strings and never quote the body.
+        return JSONResponse({"error": "The URL did not return valid TLE data."}, status_code=422)
+    except UpstreamResponseTooLarge:
+        limit_mib = tle_service.TLE_RESPONSE_MAX_BYTES // (1024 * 1024)
+        return JSONResponse({"error": f"The TLE source sent more than {limit_mib} MiB."}, status_code=502)
+    except httpx.HTTPStatusError as e:
+        return JSONResponse(
+            {"error": f"The TLE source answered HTTP {e.response.status_code}."},
+            status_code=502,
+        )
+    except (httpx.TransportError, UpstreamUnreachable) as e:
+        logger.warning("TLE fetch from %s failed: %s: %s", url, type(e).__name__, e)
+        return JSONResponse({"error": "Could not reach the TLE source."}, status_code=502)
+    except Exception:
+        logger.exception("TLE fetch from %s failed", url)
+        return JSONResponse({"error": "Fetching the TLE source failed."}, status_code=502)
 
 
 @router.post("/tle/manual")
