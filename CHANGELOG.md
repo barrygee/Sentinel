@@ -1866,6 +1866,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #624 from barrygee/feat/settings-radio-locks
 - Merge remote-tracking branch 'origin/main' into feat/sea-port-dots
 - Merge pull request #625 from barrygee/feat/sea-port-dots
+- Merge remote-tracking branch 'origin/main' into refactor/shell-chrome-css
+- Merge pull request #626 from barrygee/refactor/shell-chrome-css
 
 ### Performance
 
@@ -1995,6 +1997,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Adopt BaseIconAction for row actions
 - Adopt shared data and tune cells in Air, Land and Sea
 - Move the airfield dot-and-label layer into map-kit as SiteMarkers
+- Move shell chrome CSS out of template.css
 
 ### Documentation
 
@@ -2295,6 +2298,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for the dismissible quota warning
 - Rebuild after merging main
 - Rebuild after merging main
+- Rebuild after merging main
+- Rebuild for shell chrome CSS move
 - Rebuild after merging main
 
 ### Continuous Integration
