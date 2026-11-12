@@ -6,10 +6,11 @@ any `backend` module reads them. Everything else stays in Docker, so the
 values point at what Docker Desktop publishes on this Mac:
 
   - core through the gateway's TLS service entrypoint, `https://localhost:8443`;
-  - this process, for the app and the gateway, at `host.docker.internal`, which
-    Docker Desktop resolves to the Mac;
-  - its HTTP token and the deployment CA in `./sdr-manager-local-credentials/`,
-    which `service-credentials` fills when `SDR_MANAGER_LOCAL_NATIVE=1`.
+  - this process, for the app and the gateway, at `https://host.docker.internal`,
+    which Docker Desktop resolves to the Mac;
+  - its HTTP token, the deployment CA and its TLS certificate and key in
+    `./sdr-manager-local-credentials/`, which `service-credentials` fills when
+    `SDR_MANAGER_LOCAL_NATIVE=1`.
 
 Its database and log live in the user's Library, not in the checkout.
 """
@@ -30,7 +31,15 @@ CREDENTIALS_FOLDER = "sdr-manager-local-credentials"
 HTTP_CREDENTIALS_FILE = "http-credentials.json"
 ACCEPTED_CALLERS_FILE = "accepted-callers.json"
 CERTIFICATE_AUTHORITY_FILE = "certificate-authority.pem"
-CREDENTIAL_FILES = (HTTP_CREDENTIALS_FILE, ACCEPTED_CALLERS_FILE, CERTIFICATE_AUTHORITY_FILE)
+TLS_CERTIFICATE_FILE = "certificate.pem"
+TLS_PRIVATE_KEY_FILE = "private-key.pem"
+CREDENTIAL_FILES = (
+    HTTP_CREDENTIALS_FILE,
+    ACCEPTED_CALLERS_FILE,
+    CERTIFICATE_AUTHORITY_FILE,
+    TLS_CERTIFICATE_FILE,
+    TLS_PRIVATE_KEY_FILE,
+)
 CORE_SERVICE_ENTRYPOINT_URL = "https://localhost:8443"
 DOCKER_HOST_NAME = "host.docker.internal"
 DEFAULT_HTTP_PORT = 8000
@@ -106,7 +115,11 @@ def native_environment(paths: NativePaths, env_values: Mapping[str, str]) -> dic
             "PYTHONUNBUFFERED": "1",
             "DB_PATH": str(paths.database),
             "SENTINEL_CORE_URL": CORE_SERVICE_ENTRYPOINT_URL,
-            "SERVICE_INTERNAL_URL": f"http://{DOCKER_HOST_NAME}:{http_port(env_values)}",
+            # HTTPS, with the certificate service-credentials issues for this
+            # machine: the app and the gateway verify it with the deployment's CA.
+            "SERVICE_INTERNAL_URL": f"https://{DOCKER_HOST_NAME}:{http_port(env_values)}",
+            "SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE": str(credentials / TLS_CERTIFICATE_FILE),
+            "SDR_MANAGER_LOCAL_TLS_PRIVATE_KEY_FILE": str(credentials / TLS_PRIVATE_KEY_FILE),
             # No event bus: it talks to core over HTTPS only (ADR 0007).
             "NATS_URL": "",
             "SERVICE_HTTP_CREDENTIALS_FILE": str(credentials / HTTP_CREDENTIALS_FILE),

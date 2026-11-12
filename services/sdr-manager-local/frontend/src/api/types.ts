@@ -246,3 +246,10 @@ export interface LocalConfigImportResult {
 export interface LocalPrivateAccess {
   addresses: string[]
 }
+
+/** `GET /tls/certificate-authority`: what other Sentinels trust this machine by. */
+export interface LocalCertificateAuthority {
+  certificate_authority: string
+  /** SHA-256 of the authority, `AA:BB:…`: what other Sentinels show when they add this machine. */
+  fingerprint: string
+}

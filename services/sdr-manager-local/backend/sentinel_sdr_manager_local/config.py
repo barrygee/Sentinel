@@ -76,6 +76,14 @@ class Settings(BaseSettings):
             "./sdr-manager-local-credentials"
         ),
     )
+    tls_certificate_file: str = Field(
+        default="",
+        description=(
+            "This machine's TLS certificate (PEM), issued by service-credentials: set, the API is served "
+            "over HTTPS. Compose and the native Mac process set it; empty serves plain HTTP (tests)"
+        ),
+    )
+    tls_private_key_file: str = Field(default="", description="The TLS certificate's private key (PEM)")
     log_level: str = Field(default="INFO", description="Python logging level name")
     cors_origins: str = Field(
         default="",

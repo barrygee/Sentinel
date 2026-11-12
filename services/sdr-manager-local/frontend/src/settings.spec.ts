@@ -4,6 +4,7 @@ import type { AppMode } from '@sentinel/shell-api/types/appMode'
 /** THIS MACHINE's cards, in both modes. */
 const THIS_MACHINE_IDS = [
   'sdr-manager-local-console-password',
+  'sdr-manager-local-certificate',
   'sdr-manager-local-private-access',
   'sdr-manager-local-configuration',
   'sdr-manager-local-hotspot',
@@ -133,7 +134,8 @@ describe('registerSdrManagerLocalSettings', () => {
 
   it('wires each THIS MACHINE card to its control component and layout', async () => {
     const { registry } = await registered()
-    const [password, privateAccess, configuration, hotspot] = registry.getSettingItems()
+    const [password, certificate, privateAccess, configuration, hotspot] =
+      registry.getSettingItems()
     const { default: ConsolePasswordControl } =
       await import('./components/auth/ConsolePasswordControl.vue')
     const { default: PrivateAccessControl } =
@@ -141,8 +143,15 @@ describe('registerSdrManagerLocalSettings', () => {
     const { default: ConfigTransferControl } =
       await import('./components/config/ConfigTransferControl.vue')
     const { default: HotspotControl } = await import('./components/hotspot/HotspotControl.vue')
+    const { default: CertificateFingerprintControl } =
+      await import('./components/certificate/CertificateFingerprintControl.vue')
 
     expect(password!.control).toMatchObject({ component: ConsolePasswordControl, layout: 'half' })
+    expect(certificate!.control).toMatchObject({
+      component: CertificateFingerprintControl,
+      layout: 'half',
+    })
+    expect(certificate!.searchTerms).toContain('fingerprint')
     expect(privateAccess!.control).toMatchObject({
       component: PrivateAccessControl,
       layout: 'half',
@@ -168,7 +177,8 @@ describe('registerSdrManagerLocalSettings', () => {
     setActivePinia(createPinia())
     const { useLocalAuthStore } = await import('./stores/localAuthStore')
     const auth = useLocalAuthStore()
-    const [password, privateAccess, configuration, hotspot] = registry.getSettingItems()
+    const [password, certificate, privateAccess, configuration, hotspot] =
+      registry.getSettingItems()
     const openWhen = password!.control.collapsible!.openWhen!
 
     // Not known yet: no reason to open it.
@@ -179,6 +189,7 @@ describe('registerSdrManagerLocalSettings', () => {
     auth.passwordSet = true
     expect(openWhen()).toBe(false)
     // The others wait to be opened.
+    expect(certificate!.control.collapsible!.openWhen).toBeUndefined()
     expect(privateAccess!.control.collapsible!.openWhen).toBeUndefined()
     expect(configuration!.control.collapsible!.openWhen).toBeUndefined()
     expect(hotspot!.control.collapsible!.openWhen).toBeUndefined()

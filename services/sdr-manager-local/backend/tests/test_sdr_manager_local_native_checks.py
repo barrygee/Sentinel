@@ -9,11 +9,13 @@ Run with:  uv run --project backend pytest services/sdr-manager-local/backend/te
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from backend.platform.tls_fingerprint import certificate_fingerprint
 
 from sentinel_sdr_manager_local import native_checks
 from sentinel_sdr_manager_local.adapters.ctypes_rtlsdr import RtlSdrLibraryUnavailableError
@@ -29,6 +31,7 @@ from sentinel_sdr_manager_local.native_checks import (
     CheckContext,
     CheckResult,
     check_api,
+    check_certificate,
     check_core,
     check_credentials,
     check_dongles,
@@ -102,11 +105,35 @@ def _context(paths: NativePaths, **overrides: Any) -> CheckContext:
     return CheckContext(paths, paths.data_directory.parent, **options)
 
 
-def _write_credentials(paths: NativePaths, mode: int = 0o700) -> None:
+CREDENTIAL_NAMES = (
+    "http-credentials.json",
+    "accepted-callers.json",
+    "certificate-authority.pem",
+    "certificate.pem",
+    "private-key.pem",
+)
+
+
+def _write_credentials(paths: NativePaths, mode: int = 0o700, names: tuple[str, ...] = CREDENTIAL_NAMES) -> None:
     paths.credentials_directory.mkdir()
-    for name in ("http-credentials.json", "accepted-callers.json", "certificate-authority.pem"):
+    for name in names:
         (paths.credentials_directory / name).write_text("x")
     paths.credentials_directory.chmod(mode)
+
+
+@pytest.fixture(scope="module")
+def authority_pem(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """A real certificate authority certificate, as service-credentials makes one."""
+    directory = tmp_path_factory.mktemp("authority")
+    key, certificate = directory / "key.pem", directory / "certificate.pem"
+    subprocess.run(["openssl", "ecparam", "-name", "prime256v1", "-genkey", "-noout", "-out", str(key)], check=True)
+    subprocess.run(
+        ["openssl", "req", "-x509", "-new", "-key", str(key), "-sha256", "-days", "30", "-subj", "/CN=test CA",
+         "-addext", "basicConstraints=critical,CA:TRUE", "-out", str(certificate)],
+        check=True,
+        capture_output=True,
+    )  # fmt: skip
+    return certificate.read_text()
 
 
 class TestContext:
@@ -283,6 +310,30 @@ class TestStatusChecks:
         assert result == CheckResult("SDR Manager", "ok", "answering on port 9000")
         assert asked == [("http://127.0.0.1:9000/health", None)]
 
+    def test_api_is_asked_over_https_once_its_certificate_exists(self, paths: NativePaths) -> None:
+        _write_credentials(paths)
+        asked: list[tuple[str, Path | None]] = []
+
+        result = check_api(_context(paths, http_get=lambda url, authority: asked.append((url, authority)) or 200))
+
+        assert result.outcome == "ok"
+        assert asked == [("https://127.0.0.1:8000/health", paths.credentials_directory / "certificate-authority.pem")]
+
+    @pytest.mark.parametrize(
+        "names",
+        [
+            pytest.param(("certificate.pem",), id="no-authority"),
+            pytest.param(("certificate-authority.pem",), id="no-certificate"),
+        ],
+    )
+    def test_api_is_asked_over_plain_http_without_both_tls_files(self, paths: NativePaths, names) -> None:
+        _write_credentials(paths, names=names)
+        asked: list[str] = []
+
+        check_api(_context(paths, http_get=lambda url, _authority: asked.append(url) or 200))
+
+        assert asked == ["http://127.0.0.1:8000/health"]
+
     @pytest.mark.parametrize("status_code", [0, 503])
     def test_api_not_answering(self, paths: NativePaths, status_code: int) -> None:
         result = check_api(_context(paths, http_get=lambda _url, _authority: status_code))
@@ -333,7 +384,10 @@ class TestDoctorChecks:
         result = check_credentials(_context(paths))
 
         assert result.outcome == "problem"
-        assert "http-credentials.json, accepted-callers.json, certificate-authority.pem" in result.detail
+        assert (
+            "http-credentials.json, accepted-callers.json, certificate-authority.pem, certificate.pem, private-key.pem"
+            in result.detail
+        )
         assert "SDR_MANAGER_LOCAL_NATIVE=1" in result.fix
 
     @pytest.mark.parametrize("mode", [0o750, 0o705])
@@ -343,6 +397,28 @@ class TestDoctorChecks:
         result = check_credentials(_context(paths))
 
         assert (result.outcome, result.fix) == ("warning", f"Run: chmod 700 {paths.credentials_directory}")
+
+    def test_certificate_shows_the_fingerprint_other_sentinels_see(self, paths: NativePaths, authority_pem) -> None:
+        paths.credentials_directory.mkdir()
+        (paths.credentials_directory / "certificate-authority.pem").write_text(authority_pem)
+
+        result = check_certificate(_context(paths))
+
+        assert result == CheckResult(
+            "Certificate", "ok", f"fingerprint (SHA-256) {certificate_fingerprint(authority_pem)}"
+        )
+
+    @pytest.mark.parametrize("contents", [None, "not a certificate"], ids=["missing", "unreadable"])
+    def test_certificate_without_an_authority_is_a_problem(self, paths: NativePaths, contents) -> None:
+        paths.credentials_directory.mkdir()
+        if contents is not None:
+            (paths.credentials_directory / "certificate-authority.pem").write_text(contents)
+
+        result = check_certificate(_context(paths))
+
+        assert (result.name, result.outcome) == ("Certificate", "problem")
+        assert str(paths.credentials_directory) in result.detail
+        assert "SDR_MANAGER_LOCAL_NATIVE=1" in result.fix
 
     def test_core_is_checked_with_the_deployment_ca_once_it_exists(self, paths: NativePaths) -> None:
         _write_credentials(paths)
@@ -397,6 +473,7 @@ class TestRunAndReport:
             check_port,
             check_homebrew,
             check_credentials,
+            check_certificate,
             check_core,
             check_library_version,
         )

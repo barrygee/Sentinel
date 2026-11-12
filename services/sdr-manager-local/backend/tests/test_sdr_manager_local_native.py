@@ -138,7 +138,9 @@ class TestNativeEnvironment:
             "PYTHONUNBUFFERED": "1",
             "DB_PATH": str(paths.database),
             "SENTINEL_CORE_URL": "https://localhost:8443",
-            "SERVICE_INTERNAL_URL": "http://host.docker.internal:8000",
+            "SERVICE_INTERNAL_URL": "https://host.docker.internal:8000",
+            "SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE": str(credentials / "certificate.pem"),
+            "SDR_MANAGER_LOCAL_TLS_PRIVATE_KEY_FILE": str(credentials / "private-key.pem"),
             "NATS_URL": "",
             "SERVICE_HTTP_CREDENTIALS_FILE": str(credentials / "http-credentials.json"),
             "ACCEPTED_CALLERS_FILE": str(credentials / "accepted-callers.json"),
@@ -184,7 +186,17 @@ class TestNativeEnvironment:
     def test_registers_on_the_port_it_serves(self, paths: NativePaths) -> None:
         environment = native_environment(paths, {"SDR_MANAGER_LOCAL_HTTP_PORT": "9000"})
 
-        assert environment["SERVICE_INTERNAL_URL"] == "http://host.docker.internal:9000"
+        assert environment["SERVICE_INTERNAL_URL"] == "https://host.docker.internal:9000"
+
+    def test_its_tls_files_win_over_the_env_file(self, paths: NativePaths) -> None:
+        # .env is shared with the container, whose paths don't exist on the Mac.
+        environment = native_environment(
+            paths, {"SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE": "/run/service-credentials/certificate.pem"}
+        )
+
+        assert environment["SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE"] == str(
+            paths.credentials_directory / "certificate.pem"
+        )
 
 
 class TestApplyNativeEnvironment:
@@ -223,8 +235,11 @@ class TestApplyNativeEnvironment:
 
     def test_sets_the_process_environment_by_default(self, paths: NativePaths, monkeypatch: pytest.MonkeyPatch) -> None:
         # Recorded first, so every variable it sets is put back after the test.
+        # setenv then delenv: a delenv of a variable that isn't set records
+        # nothing, and the TLS paths would leak into later tests.
         for key in native_environment(paths, {}):
-            monkeypatch.delenv(key, raising=False)
+            monkeypatch.setenv(key, "")
+            monkeypatch.delenv(key)
 
         apply_native_environment(paths)
 
@@ -239,4 +254,9 @@ class TestMissingCredentialFiles:
         paths.credentials_directory.mkdir()
         (paths.credentials_directory / "http-credentials.json").write_text("{}")
 
-        assert missing_credential_files(paths) == ["accepted-callers.json", "certificate-authority.pem"]
+        assert missing_credential_files(paths) == [
+            "accepted-callers.json",
+            "certificate-authority.pem",
+            "certificate.pem",
+            "private-key.pem",
+        ]

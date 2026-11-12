@@ -774,7 +774,7 @@
             "group": "json_write"
         },
         {
-            "note": "SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export.",
+            "note": "SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority.",
             "profiles": ["sdr_manager_local"],
             "paths": ["/api/sdr-manager/local/**", "/api/**"],
             "methods": ["GET"],

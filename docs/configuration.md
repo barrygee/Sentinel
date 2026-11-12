@@ -50,7 +50,7 @@ Guides: [Mac](sdr-manager-mac.md), [Linux and Pi](sdr-manager-linux.md), [SDR Ma
 
 | Variable | Default | Set it to |
 |---|---|---|
-| `SENTINEL_ADSB_SDR_MANAGER_API` | empty (no check) | Your SDR host, `http://<sdr-manager-host>:8000`, to log what the dongle is tuned to |
+| `SENTINEL_ADSB_SDR_MANAGER_API` | empty (no check) | Your SDR host, `http://<sdr-manager-host>:8000`, to log what the dongle is tuned to (not yet for a host serving HTTPS: the decoder logs that it can't read it) |
 | `SENTINEL_ADSB_DECODER_ADDRESS` | `127.0.0.1:8090` | `0.0.0.0:8090` to let another computer read it (no password) |
 | `SENTINEL_ADSB_RTL_TCP_HOST` / `_PORT` | empty / `2345` | A fixed dongle, before one is picked in Settings |
 | `SENTINEL_GATEWAY_URL` | `http://gateway:8080` | `http://<sentinel-host>:8080` for a decoder outside this Docker |

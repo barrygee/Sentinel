@@ -34,6 +34,15 @@ def checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return folder
 
 
+CREDENTIAL_NAMES = (
+    "http-credentials.json",
+    "accepted-callers.json",
+    "certificate-authority.pem",
+    "certificate.pem",
+    "private-key.pem",
+)
+
+
 class TestStart:
     @pytest.fixture
     def started(self, monkeypatch: pytest.MonkeyPatch) -> list[str]:
@@ -49,7 +58,7 @@ class TestStart:
     ) -> None:
         credentials = checkout / "sdr-manager-local-credentials"
         credentials.mkdir()
-        for name in ("http-credentials.json", "accepted-callers.json", "certificate-authority.pem"):
+        for name in CREDENTIAL_NAMES:
             (credentials / name).write_text("x")
 
         assert cli.main(["start"], home) == 0
@@ -57,14 +66,34 @@ class TestStart:
         assert started == [f"environment {checkout}", "serve"]
         assert capsys.readouterr().err == ""
 
-    def test_without_credentials_it_still_serves_but_says_why_sentinel_cant_see_it(
+    def test_without_its_certificate_it_says_it_cant_serve_https(
         self, home: Path, checkout: Path, started: list[str], capsys: pytest.CaptureFixture[str]
     ) -> None:
+        # run_server then refuses to start (its own tests): this says why first.
+        assert cli.main(["start"], home) == 0
+
+        error = capsys.readouterr().err
+        assert (
+            "http-credentials.json, accepted-callers.json, certificate-authority.pem, certificate.pem, "
+            "private-key.pem missing" in error
+        )
+        assert "so SDR Manager can't serve HTTPS" in error
+        assert "SDR_MANAGER_LOCAL_NATIVE=1" in error
+        assert started[-1] == "serve"
+
+    def test_with_its_certificate_but_no_sign_in_files_it_says_sentinel_cant_see_it(
+        self, home: Path, checkout: Path, started: list[str], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        credentials = checkout / "sdr-manager-local-credentials"
+        credentials.mkdir()
+        for name in ("certificate.pem", "private-key.pem"):
+            (credentials / name).write_text("x")
+
         assert cli.main(["start"], home) == 0
 
         error = capsys.readouterr().err
         assert "http-credentials.json, accepted-callers.json, certificate-authority.pem missing" in error
-        assert "SDR_MANAGER_LOCAL_NATIVE=1" in error
+        assert "so Sentinel can't see this Mac's SDRs (other machines still can)" in error
         assert started[-1] == "serve"
 
 

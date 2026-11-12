@@ -531,7 +531,7 @@ services:
   # passthrough). Its own image (services/sdr-manager-local/Dockerfile), not
   # the app's, and the one service that runs as root and privileged, with
   # the host's network: each dongle gets its own rtl_tcp/relay ports, and the
-  # SDR Manager API answers on :8000 (SDR_MANAGER_LOCAL_HTTP_PORT) for other
+  # SDR Manager API answers HTTPS on :8000 (SDR_MANAGER_LOCAL_HTTP_PORT) for other
   # Sentinels as well as this one. It registers with the app at
   # host.docker.internal, which hands it /api/sdr-manager/local/ in the
   # gateway, and reads Sentinel's Location setting through core's TLS service
@@ -573,8 +573,13 @@ services:
       # Core's TLS service entrypoint (the gateway's :8443, published on
       # 127.0.0.1), which this host-networked process reaches as localhost.
       SENTINEL_CORE_URL: https://localhost:8443
-      # Where the app and the gateway reach it: the host, from their bridge network.
-      SERVICE_INTERNAL_URL: http://host.docker.internal:${SDR_MANAGER_LOCAL_HTTP_PORT:-8000}
+      # Where the app and the gateway reach it: the host, from their bridge
+      # network, over HTTPS (they verify its certificate with the deployment CA).
+      SERVICE_INTERNAL_URL: https://host.docker.internal:${SDR_MANAGER_LOCAL_HTTP_PORT:-8000}
+      # Its TLS certificate and key, issued by service-credentials: other
+      # Sentinels send it the console password, so the API is HTTPS only.
+      SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE: /run/service-credentials/certificate.pem
+      SDR_MANAGER_LOCAL_TLS_PRIVATE_KEY_FILE: /run/service-credentials/private-key.pem
       # This Sentinel's radio hub reaches a private dongle from its compose network.
       SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS: ${SDR_MANAGER_LOCAL_PRIVATE_EXTRA_NETWORKS:-${SENTINEL_NETWORK_SUBNET:-172.28.0.0/24}}
       # No event bus: it talks to core over HTTPS only (ADR 0007).

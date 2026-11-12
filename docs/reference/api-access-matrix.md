@@ -264,24 +264,24 @@ Profile `sdr_manager_local`.
 | GET | `/remotes/sdr-manager-local/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 | GET | `/api/sdr-manager/local/openapi.json` | `peer`, `operator` | `default` | SDR Manager (this machine): its API schema, published for managers built against it. |
 | GET | `/api/sdr-manager/local/health` | `browser`, `peer`, `internal`, `operator` | `health` | SDR Manager (this machine): health, at both mounts (the gateway's and other machines'). |
-| GET | `/api/sdr-manager/local/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/sdr-manager/local/auth/login` | `browser`, `peer`, `internal` | `console_login` | SDR Manager (this machine): console sign-in and password change. |
 | POST | `/api/sdr-manager/local/auth/logout` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/sdr-manager/local/auth/password` | `browser`, `peer`, `internal` | `console_login` | SDR Manager (this machine): console sign-in and password change. |
-| GET | `/api/sdr-manager/local/status` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/status` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | GET | `/api/sdr-manager/local/events` | `browser`, `peer`, `internal` | `streams` | SDR Manager (this machine): its event stream. |
-| GET | `/api/sdr-manager/local/devices` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/devices` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PATCH | `/api/sdr-manager/local/devices/{device_id}` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/sdr-manager/local/devices/{device_id}` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/sdr-manager/local/devices/{device_id}/serial` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/sdr-manager/local/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/sdr-manager/local/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/sdr-manager/local/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/sdr-manager/local/v1/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdr-manager/local/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdr-manager/local/hotspot` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdr-manager/local/hotspot/interfaces` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdr-manager/local/hotspot/clients` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/v1/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdr-manager/local/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdr-manager/local/hotspot` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdr-manager/local/hotspot/interfaces` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdr-manager/local/hotspot/clients` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PUT | `/api/sdr-manager/local/hotspot` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/sdr-manager/local/hotspot/enable` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/sdr-manager/local/hotspot/disable` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
@@ -289,31 +289,32 @@ Profile `sdr_manager_local`.
 | POST | `/api/sdr-manager/local/hotspot/confirm` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/sdr-manager/local/hotspot` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | PUT | `/api/sdr-manager/local/hotspot/control` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/sdr-manager/local/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdr-manager/local/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdr-manager/local/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/sdr-manager/local/config` | `browser`, `peer`, `internal` | `data_file_upload` | SDR Manager (this machine): importing a config. |
-| GET | `/api/sdr-manager/local/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/sdr-manager/local/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PUT | `/api/sdr-manager/local/private-access` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
+| GET | `/api/sdr-manager/local/tls/certificate-authority` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | GET | `/api/openapi.json` | `operator` | `default` | API reference pages and schema: the operator's machine only. |
 | GET | `/api/health` | `browser`, `peer`, `internal`, `operator` | `health` | SDR Manager (this machine): health, at both mounts (the gateway's and other machines'). |
-| GET | `/api/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/auth/state` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/auth/login` | `browser`, `peer`, `internal` | `console_login` | SDR Manager (this machine): console sign-in and password change. |
 | POST | `/api/auth/logout` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/auth/password` | `browser`, `peer`, `internal` | `console_login` | SDR Manager (this machine): console sign-in and password change. |
-| GET | `/api/status` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/status` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | GET | `/api/events` | `browser`, `peer`, `internal` | `streams` | SDR Manager (this machine): its event stream. |
-| GET | `/api/devices` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/devices` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PATCH | `/api/devices/{device_id}` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/devices/{device_id}` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/devices/{device_id}/serial` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/devices/{device_id}/reservation` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/v1/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/hotspot` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/hotspot/interfaces` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/hotspot/clients` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/v1/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/sdrs` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/hotspot` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/hotspot/interfaces` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/hotspot/clients` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PUT | `/api/hotspot` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/hotspot/enable` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | POST | `/api/hotspot/disable` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
@@ -321,8 +322,9 @@ Profile `sdr_manager_local`.
 | POST | `/api/hotspot/confirm` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | DELETE | `/api/hotspot` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
 | PUT | `/api/hotspot/control` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
-| GET | `/api/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
-| GET | `/api/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/config` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
+| GET | `/api/config/download` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | POST | `/api/config` | `browser`, `peer`, `internal` | `data_file_upload` | SDR Manager (this machine): importing a config. |
-| GET | `/api/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export. |
+| GET | `/api/private-access` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
 | PUT | `/api/private-access` | `browser`, `peer`, `internal` | `json_write` | SDR Manager (this machine): signing out, managing devices, reservations and the hotspot. |
+| GET | `/api/tls/certificate-authority` | `browser`, `peer`, `internal` | `default` | SDR Manager (this machine): state, status, devices, SDRs, hotspot, config export, its certificate authority. |
