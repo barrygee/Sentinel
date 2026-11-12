@@ -30,6 +30,28 @@ describe('BaseWarningNotice', () => {
     expect(withAction.find('.warning-notice-action button').text()).toBe('Take control')
   })
 
+  it('has no close button unless it is dismissible', () => {
+    const wrapper = mount(BaseWarningNotice, { props: { message: 'x' } })
+    expect(wrapper.find('.warning-notice-dismiss').exists()).toBe(false)
+  })
+
+  it('shows a named close button that emits dismiss when clicked', async () => {
+    const wrapper = mount(BaseWarningNotice, { props: { message: 'x', dismissible: true } })
+    const closeButton = wrapper.find('button.warning-notice-dismiss')
+    expect(closeButton.attributes('aria-label')).toBe('Dismiss warning')
+    expect(closeButton.find('svg').attributes('aria-hidden')).toBe('true')
+    expect(wrapper.emitted('dismiss')).toBeUndefined()
+    await closeButton.trigger('click')
+    expect(wrapper.emitted('dismiss')).toHaveLength(1)
+  })
+
+  it('has no accessibility violations when dismissible', async () => {
+    const wrapper = mount(BaseWarningNotice, { props: { message: 'x', dismissible: true } })
+    expect(
+      await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+    ).toHaveNoViolations()
+  })
+
   it('has no accessibility violations', async () => {
     const wrapper = mount(BaseWarningNotice, {
       props: { message: 'Radio off channel' },

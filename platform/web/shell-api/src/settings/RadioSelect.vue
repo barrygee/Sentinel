@@ -30,6 +30,10 @@
  * chosen — the custom dropdown has no empty entry of its own. What choosing
  * a radio *does* is the owning card's business, through `v-model`.
  *
+ * A radio another section holds off grid (APRS, AIS or ADS-B — see
+ * `radioReservations`) is listed with a padlock and can't be chosen: one
+ * dongle can't decode two things at once.
+ *
  * Core, not SDR: radios are read through the `radio` capability, so Land and
  * Sea can offer a receiver without importing the SDR section. With no radio
  * platform registered the list is simply empty.
@@ -37,6 +41,12 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
+import {
+  radioReservation,
+  reservationLabel,
+  useRadioReservations,
+  type RadioReservationKind,
+} from '@sentinel/shell-api/shell/radioReservations'
 import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@sentinel/ui/base/SettingsDropdown.vue'
@@ -54,10 +64,31 @@ const props = defineProps<{
   offLabel: string
   /** What stops working while the selected radio is withdrawn, for the hint. */
   decodeName: string
+  /** The job this picker hands a radio to; radios held by any other job are locked. */
+  reservationKind: RadioReservationKind
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
-const radios = ref<SettingsDropdownOption[]>([])
+/** The radios this picker lists (offered ones, plus a withdrawn selection). */
+const listedRadios = ref<{ radio: RadioSummary; offered: boolean }[]>([])
+const reservations = useRadioReservations()
+
+// Computed rather than built in loadRadios, so a reservation applied in
+// another card locks or frees a radio here straight away.
+const radios = computed<SettingsDropdownOption[]>(() =>
+  listedRadios.value.map(({ radio, offered }) => {
+    const holder = radioReservation(radio, reservations.value)
+    const lockedReason =
+      holder !== null && holder !== props.reservationKind && String(radio.id) !== props.modelValue
+        ? reservationLabel(holder)
+        : undefined
+    return {
+      value: String(radio.id),
+      label: `${radio.name || `Radio ${radio.id}`}${offered ? '' : ' (unavailable)'}`,
+      ...(lockedReason ? { lockedReason } : {}),
+    }
+  }),
+)
 const isLoading = ref(true)
 const radioCount = ref(0)
 /** True when the *selected* radio is no longer available to decode. */
@@ -107,7 +138,7 @@ async function loadRadios(): Promise<void> {
   }
   radioCount.value = records.length
 
-  const options: SettingsDropdownOption[] = []
+  const listed: { radio: RadioSummary; offered: boolean }[] = []
   for (const radio of records) {
     const value = String(radio.id)
     const offered = isOffered(radio)
@@ -117,12 +148,9 @@ async function loadRadios(): Promise<void> {
     // control and leave no clue which radio was decoding.
     if (!offered && value !== props.modelValue) continue
     if (!offered) withdrawn.value = true
-    options.push({
-      value,
-      label: `${radio.name || `Radio ${radio.id}`}${offered ? '' : ' (unavailable)'}`,
-    })
+    listed.push({ radio, offered })
   }
-  radios.value = options
+  listedRadios.value = listed
 }
 
 // A changed selection re-reads the list so a newly chosen radio that has since

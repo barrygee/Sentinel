@@ -37,13 +37,38 @@ import SettingsDropdown, {
   type SettingsDropdownOption,
 } from '@sentinel/ui/base/SettingsDropdown.vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
+import {
+  deviceReservation,
+  reservationLabel,
+  useRadioReservations,
+} from '@sentinel/shell-api/shell/radioReservations'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import '@sentinel/shell-api/settings/styles/datasourceRow.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 
 /** A device option's `value` is `${hostId}:${deviceId}` — the two ids the backend needs, in one. */
-const devices = ref<SettingsDropdownOption[]>([])
+const listedDevices = ref<SettingsDropdownOption[]>([])
+/** The configured radios, to tell which devices LAND's APRS or SEA's AIS decode is using. */
+const radios = ref<RadioSummary[]>([])
+const reservations = useRadioReservations()
+
+/**
+ * The device options, with any device whose radio another section decodes on
+ * (APRS, AIS) locked: one dongle can't be tuned to 1090 MHz and to another
+ * channel at once. Computed, so an applied change elsewhere shows at once. The
+ * chosen device is never locked, so the current setting always stays visible.
+ */
+const devices = computed<SettingsDropdownOption[]>(() =>
+  listedDevices.value.map((option) => {
+    const holder =
+      option.value === selected.value
+        ? null
+        : deviceReservation(option.value, radios.value, reservations.value)
+    return holder === null ? option : { ...option, lockedReason: reservationLabel(holder) }
+  }),
+)
 const selected = ref('')
 const isLoading = ref(true)
 const hostCount = ref(0)
@@ -116,6 +141,12 @@ async function loadDevices(): Promise<void> {
   withdrawn.value = false
   const fleet = (await getCapability('radioSites')?.listDevices()) ?? { hostCount: 0, hosts: [] }
   hostCount.value = fleet.hostCount
+  try {
+    radios.value = (await getCapability('radio')?.listRadios()) ?? []
+  } catch {
+    // Without the radio list nothing can be shown as locked; the devices still list.
+    radios.value = []
+  }
 
   const options: SettingsDropdownOption[] = []
   for (const host of fleet.hosts) {
@@ -141,7 +172,7 @@ async function loadDevices(): Promise<void> {
       })
     }
   }
-  devices.value = options
+  listedDevices.value = options
   isLoading.value = false
 }
 

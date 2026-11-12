@@ -295,8 +295,22 @@ describe('sdr radio capability — radio list', () => {
     ])
 
     await expect(createSdrRadioCapability().listRadios()).resolves.toEqual([
-      { id: 1, name: 'Attic', enabled: true, available: true },
-      { id: 2, name: 'Shed', enabled: false, available: false },
+      {
+        id: 1,
+        name: 'Attic',
+        enabled: true,
+        available: true,
+        sdrManagerHostId: null,
+        sdrManagerDeviceId: null,
+      },
+      {
+        id: 2,
+        name: 'Shed',
+        enabled: false,
+        available: false,
+        sdrManagerHostId: null,
+        sdrManagerDeviceId: null,
+      },
     ])
   })
 
