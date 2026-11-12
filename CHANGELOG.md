@@ -670,6 +670,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Polish the RADIO pane's add button, row hover, input focus and search chip
 - Drop warm-started vessels another source heard
 - Guard TLE source URLs against internal destinations
+- Run deployed services from their images, dev reload via compose.dev.yaml **(breaking change)**
 
 ### Chores
 
@@ -1874,6 +1875,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into refactor/settings-kit-css
 - Merge pull request #628 from barrygee/refactor/settings-kit-css
 - Merge pull request #629 from barrygee/fix/upstream-url-ssrf
+- Merge pull request #630 from barrygee/fix/compose-deploy-hardening
 
 ### Performance
 
@@ -2072,6 +2074,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Folded cards and the badge-free header
 - Describe the config status poll in the policy, not the matrix
 - Add container consolidation, running without Docker and SDR IQ playback plans
+- Close review gaps in the compose.dev.yaml split
 
 ### Tests
 
