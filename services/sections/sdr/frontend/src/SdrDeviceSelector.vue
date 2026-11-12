@@ -27,22 +27,7 @@
       >
       <!-- Padlock shown when another Sentinel controls the shared tuner;
            decorative here (the sr-only status below announces the state). -->
-      <svg
-        v-if="readOnly"
-        class="sdr-device-lock"
-        width="12"
-        height="12"
-        viewBox="0 0 14 14"
-        fill="none"
-        aria-hidden="true"
-      >
-        <path
-          d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-          stroke="currentColor"
-          stroke-width="1.3"
-          stroke-linejoin="round"
-        />
-      </svg>
+      <PadlockIcon v-if="readOnly" class="sdr-device-lock" />
     </template>
     <template #options>
       <div id="sdr-device-listbox" role="listbox" aria-label="Available radios">
@@ -82,22 +67,10 @@
           <!-- Padlock: this radio is controlled by another Sentinel, or is
                reserved as a domain receiver. Only the connected radio's remote
                lock is known, so only its row is marked for that case. -->
-          <svg
+          <PadlockIcon
             v-if="isRadioReadOnly(radio) || reservationFor(radio) !== null"
             class="sdr-device-lock sdr-device-option-lock"
-            width="12"
-            height="12"
-            viewBox="0 0 14 14"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M4 6V4.5a3 3 0 0 1 6 0V6m-7 0h8v6H3V6Z"
-              stroke="currentColor"
-              stroke-width="1.3"
-              stroke-linejoin="round"
-            />
-          </svg>
+          />
         </div>
       </div>
       <!-- Non-selectable status note lives outside the listbox. -->
@@ -147,6 +120,7 @@
  */
 import { ref, computed } from 'vue'
 import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
+import PadlockIcon from '@sentinel/ui/icons/PadlockIcon.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrRadio } from './stores/sdr'
 

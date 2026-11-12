@@ -399,78 +399,6 @@ defineExpose({
 </script>
 
 <style>
-/* Footer edge toggles: the left one shows/hides the map sidebar; the right one
-   (#side-menu-btn, Air/Space only) shows/hides the map's right controls rail.
-   They share styling — both are dim icon buttons that brighten on hover/active. */
-#map-sidebar-btn,
-#side-menu-btn {
-  height: 36px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--rail-ink);
-  opacity: 0.6;
-  transition:
-    background 0.2s,
-    opacity 0.2s;
-  flex-shrink: 0;
-  margin: 4px 0;
-  position: relative;
-}
-
-#map-sidebar-btn:hover,
-#side-menu-btn:hover {
-  background: rgba(var(--rail-ink-rgb), 0.08);
-  border-radius: 6px;
-  opacity: 1;
-}
-
-#map-sidebar-btn.msb-btn-active,
-#side-menu-btn.msb-btn-active {
-  opacity: 1;
-  color: var(--rail-ink);
-  border-radius: 6px;
-}
-
-/* Align the footer's edge buttons with the vertical rail columns: the
-   side-panel button under the 44px left rail (#map-sidebar-rail), and — on
-   Air/Space — the side-menu toggle under the 44px right rail (#side-menu).
-   On views without a right rail the settings button is the right-most element. */
-#footer {
-  padding-left: 0;
-  padding-right: 0;
-}
-
-#footer-left {
-  gap: 0;
-}
-
-#footer-left > #map-sidebar-btn {
-  width: 44px;
-  margin: 0;
-  flex-shrink: 0;
-}
-
-#footer-right > #settings-btn,
-#footer-right > #side-menu-btn {
-  width: 44px;
-  margin: 0;
-  flex-shrink: 0;
-}
-
-/* The right rail's footer toggle is only offered on small screens, where map
-   space is scarce. On wider screens (≥769px) the rail always shows, so the
-   toggle is hidden — matching the ≤768px gate on the rail's collapsed state. */
-@media (min-width: 769px) {
-  #footer-right > #side-menu-btn {
-    display: none;
-  }
-}
-
 #map-sidebar-rail {
   position: fixed;
   top: var(--nav-height);
@@ -724,9 +652,10 @@ body[data-domain='sdr'] #map-sidebar {
 /* ---- ≤768px: panel becomes full-width drawer ---- */
 @media (max-width: 768px) {
   #map-sidebar {
-    left: 44px;
-    width: auto;
-    right: 0;
+    left: 44px !important;
+    width: auto !important;
+    max-width: none !important;
+    right: 0 !important;
   }
   /* Air & Space render a 44px right-edge control rail above the sidebar; keep the
      drawer clear of it so the rail can't cover the drawer's close button.
@@ -742,6 +671,10 @@ body[data-domain='sdr'] #map-sidebar {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  /* Touch screens can't dismiss a hover tooltip. */
+  #map-sidebar-rail [data-tooltip]::before {
+    display: none !important;
   }
 }
 
@@ -769,8 +702,8 @@ body[data-domain='sdr'] #map-sidebar {
     left: 44px !important;
     right: 0 !important;
     width: auto !important;
-    top: var(--nav-height);
-    bottom: var(--footer-height);
+    top: var(--nav-height) !important;
+    bottom: var(--footer-height) !important;
   }
   /* Hidden: slide fully off the left edge (past the rail) so nothing bleeds. */
   #map-sidebar.msb-hidden {
@@ -782,8 +715,15 @@ body[data-domain='sdr'] #map-sidebar {
     left: 44px !important;
     right: 0 !important;
     width: auto !important;
-    top: var(--nav-height);
-    bottom: var(--footer-height);
+    top: var(--nav-height) !important;
+    bottom: var(--footer-height) !important;
+  }
+  /* While the full-width drawer is open the map is covered, so hide the
+     right-edge map controls — they'd otherwise overlap the top tab row and act
+     on a map the user can't see. */
+  body[data-sidebar-open] #side-menu,
+  body[data-sidebar-open] #space-side-menu {
+    display: none;
   }
 }
 </style>

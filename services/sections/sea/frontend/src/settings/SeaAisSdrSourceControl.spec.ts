@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
+import { createPinia, setActivePinia } from 'pinia'
 import SeaAisSdrSourceControl from './SeaAisSdrSourceControl.vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
@@ -49,6 +50,7 @@ async function applyStaged(wrapper: ReturnType<typeof mount>) {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   fakeRadio = provideFakeRadio()
   vi.spyOn(settingsApi, 'put').mockResolvedValue(undefined)
 })

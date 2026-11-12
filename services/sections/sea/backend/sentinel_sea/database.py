@@ -6,11 +6,15 @@ from sentinel_sea import models  # noqa: F401 — registers Sea's tables with Ba
 
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 
+# Columns added after a table's first release (each ALTER is skipped where the
+# column already exists).
+SEA_ADDED_COLUMNS: tuple[str, ...] = ("ALTER TABLE sea_vessel_cache ADD COLUMN source_mode TEXT",)
+
 
 async def create_sea_tables() -> None:
     """Create Sea's tables: the vessel warm-start snapshot and static data.
 
-    Neither has gained a column since its first release. The AISStream key is
-    not Sea's to store: it is a setting, kept in core (secret).
+    The snapshot gained ``source_mode`` (which feed heard each vessel). The
+    AISStream key is not Sea's to store: it is a setting, kept in core (secret).
     """
-    await create_section_tables(SEA_TABLES)
+    await create_section_tables(SEA_TABLES, SEA_ADDED_COLUMNS)

@@ -1,5 +1,10 @@
 <template>
-  <BaseWarningNotice class="map-notice" :message="message">
+  <BaseWarningNotice
+    class="map-notice"
+    :message="message"
+    :dismissible="dismissible"
+    @dismiss="emit('dismiss')"
+  >
     <template v-if="$slots.action" #action><slot name="action" /></template>
   </BaseWarningNotice>
 </template>
@@ -27,14 +32,21 @@
  * there is no remainder to centre in and the banner stays on the page's centre.
  *
  * It is also click-through (`pointer-events: none`), so covering the sidebar
- * rail never costs the operator a control; only the optional action slot takes
- * pointer events back.
+ * rail never costs the operator a control; only the optional action slot and
+ * the `dismissible` × button take pointer events back.
  */
 import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 
 defineProps<{
   /** The warning to show. The caller renders nothing when there is none. */
   message: string
+  /** Show a × button that emits `dismiss` (see `BaseWarningNotice`). */
+  dismissible?: boolean
+}>()
+
+const emit = defineEmits<{
+  /** The operator closed the warning with the × button. */
+  dismiss: []
 }>()
 </script>
 

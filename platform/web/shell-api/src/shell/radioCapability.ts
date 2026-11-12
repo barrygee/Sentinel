@@ -87,6 +87,9 @@ export interface RadioSummary {
   enabled: boolean
   /** False when its device has gone away (e.g. an unplugged SDR Manager dongle). */
   available: boolean
+  /** The SDR Manager host and device it streams from; null for a plain rtl_tcp radio. */
+  sdrManagerHostId?: number | null
+  sdrManagerDeviceId?: string | null
 }
 
 export interface RadioCapability {

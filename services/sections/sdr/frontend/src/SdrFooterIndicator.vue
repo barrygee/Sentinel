@@ -15,7 +15,7 @@
 /**
  * The footer's "SDR tuned to …" readout, registered by the sdr section with
  * the shell's footer registry (moved out of `AppFooter`), so the footer
- * imports no SDR store. Styled by the global `.footer-sdr` rules.
+ * imports no SDR store.
  */
 import { computed } from 'vue'
 import { useSdrStore } from './stores/sdr'
@@ -65,3 +65,48 @@ const indicatorAriaLabel = computed<string>(() =>
     : `SDR active on ${freqDisplay.value}`,
 )
 </script>
+
+<style scoped>
+/* The frequency (and known name, if any) the radio is parked on, shown in the
+   footer on every section but SDR itself. */
+#footer-sdr {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.footer-code {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 100;
+  letter-spacing: 0.12em;
+  color: rgba(var(--rail-ink-rgb), 0.2);
+  text-transform: uppercase;
+}
+
+.footer-sdr-freq {
+  color: var(--color-accent);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.footer-sdr-name {
+  /* 60%: 45% was 4.4:1 on the black footer, just under AA. */
+  color: rgba(var(--rail-ink-rgb), 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22vw;
+}
+
+/* Phones: the footer is narrow, so the readout truncates at a wider share. */
+@media (max-width: 768px) {
+  .footer-code {
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+</style>

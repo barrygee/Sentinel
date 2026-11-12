@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
+import { createPinia, setActivePinia } from 'pinia'
 
 import AprsSdrSourceControl from './AprsSdrSourceControl.vue'
 import { provideFakeRadio } from '@sentinel/shell-api/testing/fakeRadio'
@@ -55,6 +56,7 @@ function optionLabels(wrapper: ReturnType<typeof mount>) {
 }
 
 beforeEach(() => {
+  setActivePinia(createPinia())
   // Nothing decoding unless a test calls persistAprsRadio().
   fakeRadio = provideFakeRadio()
 })

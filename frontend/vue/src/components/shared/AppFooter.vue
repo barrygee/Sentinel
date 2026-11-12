@@ -162,3 +162,155 @@ function onToggleSidePanel(): void {
   }
 }
 </script>
+
+<style scoped>
+/* Fixed bar at the bottom of the viewport. Its edge buttons are 44px wide so
+   they line up with the vertical rail columns: the side-panel button under the
+   44px left rail, and — on Air/Space — the side-menu toggle under the 44px
+   right rail. Without a right rail the settings button is the right-most
+   element. --footer-height (a design token) embeds the iOS safe-area inset. */
+#footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--footer-height);
+  background: var(--chrome-bg);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 0 env(safe-area-inset-bottom);
+  z-index: 1000;
+}
+
+#footer-left {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+#footer-center {
+  flex: 1;
+  min-width: 0;
+}
+
+#footer-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* The edge toggles and the settings gear are dim icon buttons that brighten on
+   hover. The left toggle shows/hides the map sidebar; the right one
+   (#side-menu-btn, Air/Space only) shows/hides the map's right controls rail. */
+#map-sidebar-btn,
+#side-menu-btn,
+#settings-btn {
+  width: 44px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rail-ink);
+  opacity: 0.6;
+  transition:
+    background 0.2s,
+    opacity 0.2s;
+  flex-shrink: 0;
+  margin: 0;
+  position: relative;
+}
+
+#map-sidebar-btn:hover,
+#side-menu-btn:hover {
+  background: rgba(var(--rail-ink-rgb), 0.08);
+  border-radius: 6px;
+  opacity: 1;
+}
+
+#map-sidebar-btn.msb-btn-active,
+#side-menu-btn.msb-btn-active {
+  opacity: 1;
+  color: var(--rail-ink);
+  border-radius: 6px;
+}
+
+#settings-btn:hover {
+  background: var(--color-border);
+  border-radius: 6px;
+  opacity: 1;
+}
+
+#settings-btn[data-tooltip]::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+  background: var(--tooltip-bg);
+  color: var(--tooltip-ink);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0 14px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 10001;
+}
+
+#settings-btn[data-tooltip]:hover::before {
+  opacity: 1;
+}
+
+/* The right rail's toggle is only offered on small screens, where map space is
+   scarce. On wider screens the rail always shows, so the toggle is hidden —
+   matching the ≤768px gate on the rail's collapsed state. */
+@media (min-width: 769px) {
+  #side-menu-btn {
+    display: none;
+  }
+}
+
+/* Below 1024px the safe-area bottom padding has been dropped since the
+   template.css days; kept as it was here, so this move changes nothing. */
+@media (max-width: 1024px) {
+  #footer {
+    padding-bottom: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  #footer-right {
+    gap: 8px;
+  }
+
+  /* Settings is in the phone menu at this size, so the gear hides while the
+     menu is open. */
+  :global(body[data-nav-open] #settings-btn) {
+    display: none;
+  }
+
+  /* Touch screens can't dismiss a hover tooltip. */
+  #footer :deep([data-tooltip])::before {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  #footer-center {
+    display: none;
+  }
+}
+</style>

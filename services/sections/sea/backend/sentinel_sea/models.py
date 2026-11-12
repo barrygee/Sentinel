@@ -27,6 +27,11 @@ class SeaVesselCache(Base):
     payload = Column(Text, nullable=False)  # JSON-serialised vessel record (see ais_store.vessel_record)
     track = Column(Text, nullable=False, default="[]")  # JSON list of [lat, lon, epoch_s] recent fixes
     updated_at = Column(Integer, nullable=False)  # Unix ms of the newest position report
+    # Which feed heard it: "online" (AISStream) or "offgrid" (SDR decode). NULL
+    # for rows written before the column existed. A warm start keeps only rows
+    # from the source Sea is set to, so a restart can't pass one feed's picture
+    # off as the other's.
+    source_mode = Column(Text, nullable=True)
 
 
 class SeaVesselStatic(Base):

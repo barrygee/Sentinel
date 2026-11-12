@@ -1,26 +1,39 @@
-import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import {
+  CIVIL_SITE_COLOURS,
+  SiteMarkers,
+} from '@sentinel/map-kit/controls/site-markers/SiteMarkers'
 import type { useSeaStore } from '../../stores/sea'
-import { PORTS_DATA, type PortProperties } from './portsData'
+import { PORTS_DATA } from './portsData'
 
 type SeaStore = ReturnType<typeof useSeaStore>
 type LngLat = [number, number]
 
+/** The port dots' layer, and the layer their labels open on. */
+export const PORT_LAYER_ID = 'sea-ports'
+export const PORT_OPEN_LABEL_LAYER_ID = 'sea-ports-open'
+
+/** The lowest vessel layer, which the ports sit beneath. */
+const VESSEL_TRACK_LAYER_ID = 'sea-vessel-track-line'
+/** The vessels' hit layer: a vessel over a port takes the hover and the click. */
+const VESSEL_HIT_LAYER_ID = 'sea-vessel-hit'
+
 /**
  * Sea-map control that plots the known ports — the Sea counterpart of the Air
- * map's airports. Each port is a MapLibre marker carrying its UN/LOCODE and
- * name, styled like the airport labels so the two maps read the same way.
+ * map's civil airports, drawn the same way: a black dot until it is hovered or
+ * clicked, when its label opens over it with the UN/LOCODE in a block and then
+ * the name (map-kit `SiteMarkers`, the layer Air's airports use).
  *
- * Clicking a port opens its accordion — location and VHF working channels —
- * in the side-panel FILTER list (`SeaFilter` listens for `sea-open-port`);
- * nothing is shown on the map itself, again as the airports do it.
+ * Clicking a port also opens its accordion — location and VHF working
+ * channels — in the side-panel FILTER list (`SeaFilter` listens for
+ * `sea-open-port`), again as the airports do it.
  *
  * Visibility lives on the Sea store's overlay flags so the rail button, the
  * default-layers config and this control can never disagree.
  */
 export class PortsControl extends SentinelControlBase {
   private readonly _seaStore: SeaStore
-  private _markers: maplibregl.Marker[] | null = null
+  private _markers: SiteMarkers | null = null
 
   constructor(seaStore: SeaStore) {
     super()
@@ -60,62 +73,41 @@ export class PortsControl extends SentinelControlBase {
   }
 
   onRemove(): void {
-    this._markers?.forEach((marker) => marker.remove())
-    this._markers = null
+    this._markers?.setVisible(false)
     super.onRemove()
   }
 
   /**
-   * Build the markers once. Markers are DOM, not style layers, so they
-   * survive a style reload — calling this again after one is a no-op.
+   * Add the port layers. A style reload drops them, so SeaMap calls this again
+   * after one; the markers object is built once and re-attaches its layers.
    */
   initLayers(): void {
     if (!this._markers) {
-      this._markers = PORTS_DATA.features.map((feature) =>
-        this._buildMarker(feature.properties, feature.geometry.coordinates as LngLat),
-      )
+      const sites = PORTS_DATA.features.map((feature) => ({
+        code: feature.properties.locode,
+        name: feature.properties.name,
+        coordinates: feature.geometry.coordinates as LngLat,
+        onClick: () => {
+          document.dispatchEvent(
+            new CustomEvent('sea-open-port', { detail: { locode: feature.properties.locode } }),
+          )
+        },
+      }))
+      this._markers = new SiteMarkers(this.map, sites, {
+        dotLayerId: PORT_LAYER_ID,
+        labelLayerId: PORT_OPEN_LABEL_LAYER_ID,
+        colours: CIVIL_SITE_COLOURS,
+        beneathLayerId: VESSEL_TRACK_LAYER_ID,
+        priorityLayerId: VESSEL_HIT_LAYER_ID,
+      })
     }
     this.applyVisibility()
+    void this._markers.attach()
   }
 
-  private _buildMarker(portProperties: PortProperties, coordinates: LngLat): maplibregl.Marker {
-    const element = document.createElement('div')
-    element.style.cssText =
-      'padding:6px 16px 6px 0;cursor:pointer;pointer-events:auto;user-select:none'
-
-    const label = document.createElement('div')
-    label.style.cssText =
-      "color:#fff;font-family:'Barlow Condensed','Barlow',monospace;font-size:10px;font-weight:700;letter-spacing:.08em;line-height:1.5;white-space:nowrap;pointer-events:none"
-    const locode = document.createElement('span')
-    locode.className = 'port-locode'
-    locode.textContent = portProperties.locode
-    const name = document.createElement('span')
-    name.className = 'port-name'
-    name.style.cssText = 'opacity:0.7;font-weight:400'
-    name.textContent = portProperties.name.toUpperCase()
-    label.append(locode, document.createElement('br'), name)
-    element.appendChild(label)
-
-    element.addEventListener('click', (event: Event) => {
-      event.stopPropagation()
-      document.dispatchEvent(
-        new CustomEvent('sea-open-port', { detail: { locode: portProperties.locode } }),
-      )
-    })
-
-    return new maplibregl.Marker({ element, anchor: 'top-left', offset: [8, -6] }).setLngLat(
-      coordinates,
-    )
-  }
-
-  /** Push the store flag onto the markers and the button. */
+  /** Push the store flag onto the layers and the button. */
   applyVisibility(): void {
-    if (this._markers) {
-      for (const marker of this._markers) {
-        if (this.visible) marker.addTo(this.map)
-        else marker.remove()
-      }
-    }
+    this._markers?.setVisible(this.visible)
     this.setButtonActive(this.visible)
   }
 }
