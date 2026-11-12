@@ -24,7 +24,7 @@ Guides: [Mac](sdr-manager-mac.md), [Linux and Pi](sdr-manager-linux.md), [SDR Ma
 
 | Variable | Default | Set it to |
 |---|---|---|
-| `COMPOSE_FILE` | `docker-compose.yml` | `compose.sdr-manager-local-only.yaml` for [SDR Manager only](sdr-manager-local-only.md) |
+| `COMPOSE_FILE` | `docker-compose.yml` | `compose.sdr-manager-local-only.yaml` for [SDR Manager only](sdr-manager-local-only.md); `docker-compose.yml:compose.dev.yaml` only to [develop Sentinel](development/setup.md#the-dev-loop) |
 | `COMPOSE_PROFILES` | none | Decoders to start every time: `all`, or a list such as `aprs,ais`; add `sdr-manager-local` for this computer's dongles (Linux) |
 | `SDR_MANAGER_LOCAL_NATIVE` | `0` | `1` on a Mac, to manage its dongles with the `sdr-manager-local` command |
 | `SENTINEL_RADIO_REPLICAS` | `1` | `0` when the radio hub runs on [a second computer](radio-host.md) |
@@ -110,7 +110,7 @@ On a radio host, `GUARD_EXTRA_TRUSTED_PROXIES` and `GUARD_TRUSTED_PROXY_DEPTH=2`
 
 ## Anything else
 
-Other backend settings (cache times, timeouts, ports; see `backend/config.py`) do nothing in `.env`. Set them on the service in `docker-compose.override.yml` (Compose reads it automatically; Git ignores it):
+Other backend settings (cache times, timeouts, ports; see `backend/config.py`) do nothing in `.env`. Set them on the service in `docker-compose.override.yml` (Compose reads it automatically; Git ignores it). If `.env` sets `COMPOSE_FILE`, Compose no longer reads it by itself: add it to the end of that list, e.g. `COMPOSE_FILE=docker-compose.yml:compose.dev.yaml:docker-compose.override.yml`.
 
 ```yaml
 services:

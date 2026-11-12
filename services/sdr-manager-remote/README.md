@@ -19,7 +19,7 @@ It is always on in the full app, built from the shared backend image.
 **Docker:**
 
 ```bash
-docker compose up -d sdr-manager-remote          # code is bind-mounted and reloads by itself
+docker compose up -d sdr-manager-remote          # with compose.dev.yaml layered, code is mounted and reloads by itself
 docker compose logs -f sdr-manager-remote
 ```
 

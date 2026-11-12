@@ -216,9 +216,10 @@ class Settings(BaseSettings):
     # ── Live application config file ──────────────────────────────────────────
     # Every setting is mirrored to this JSON file (rewritten on each change) and
     # edits saved to it are applied to the app — see services/app_config_file.py.
-    # Relative paths resolve against the repo root. The default sits under
-    # backend/, which docker-compose bind-mounts, so the file can be edited from
-    # the host.
+    # Relative paths resolve against the repo root. The default is for running
+    # outside Docker (tests, scripts); compose sets APP_CONFIG_PATH to
+    # /app/config/sentinel_config.json, the `./config` bind mount only the app
+    # writes, because edits saved to this file become settings.
     app_config_path: str = "backend/data/sentinel_config.json"
 
     # ── Offline map downloads (user-selected region extracts) ────────────────

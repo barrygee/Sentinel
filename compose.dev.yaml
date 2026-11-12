@@ -1,0 +1,83 @@
+# Development overlay: live reload of backend code. Never deploy with it.
+#
+# docker-compose.yml is the deployment: every service runs its image's code.
+# This file puts the checkout's code over the image's copy and starts each
+# uvicorn with --reload, so a backend edit reloads in place with no rebuild.
+# Layer it per command or once in .env (Docker Compose reads COMPOSE_FILE
+# from there):
+#
+#   docker compose -f docker-compose.yml -f compose.dev.yaml up
+#   COMPOSE_FILE=docker-compose.yml:compose.dev.yaml   # in .env, then plain `docker compose up`
+#
+# With the SDR Manager mock, list this file last so its code mount survives
+# the mock's `volumes: !override`:
+#
+#   COMPOSE_FILE=docker-compose.yml:compose.sdr-manager-local-mock.yaml:compose.dev.yaml
+#
+# Every code mount is read-only, the app's included: nothing a container
+# writes can become code another one reloads. The app writes only its
+# database volume and ./config; Space and SDR write ./backend/data (base file).
+
+x-backend-code: &backend-code ./backend:/app/backend:ro
+
+services:
+  app:
+    volumes:
+      - *backend-code
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  space:
+    volumes:
+      - *backend-code
+      - ./services/sections/space/backend:/app/services/sections/space/backend:ro
+    command: uvicorn sentinel_space.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  land:
+    volumes:
+      - *backend-code
+      - ./services/sections/land/backend:/app/services/sections/land/backend:ro
+    command: uvicorn sentinel_land.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  air:
+    volumes:
+      - *backend-code
+      - ./services/sections/air/backend:/app/services/sections/air/backend:ro
+    command: uvicorn sentinel_air.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  sea:
+    volumes:
+      - *backend-code
+      - ./services/sections/sea/backend:/app/services/sections/sea/backend:ro
+    command: uvicorn sentinel_sea.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  radio:
+    volumes:
+      - *backend-code
+      - ./services/radio/backend:/app/services/radio/backend:ro
+    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  sdr:
+    volumes:
+      - *backend-code
+      - ./services/sections/sdr/backend:/app/services/sections/sdr/backend:ro
+    command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  docs:
+    volumes:
+      - *backend-code
+      - ./services/docs/backend:/app/services/docs/backend:ro
+    command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  sdr-manager-remote:
+    volumes:
+      - *backend-code
+      - ./services/sdr-manager-remote/backend:/app/services/sdr-manager-remote/backend:ro
+    command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
+  # Its own folder only, and no reload: a reload would restart every dongle's
+  # stream, so `docker compose restart sdr-manager-local` after an edit. It
+  # runs as root, so ./backend stays the image's copy: rebuild after a
+  # backend/ edit (`docker compose up -d --build sdr-manager-local`).
+  sdr-manager-local:
+    volumes:
+      - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend:ro

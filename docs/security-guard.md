@@ -58,7 +58,7 @@ All in `.env`, all optional; see [Environment variables](configuration.md#reques
 
 ## The policy file
 
-`backend/security/guard-policy.json` says how the guard behaves. Edits apply when the services reload (straight away with `docker compose up`, which runs them with `--reload`).
+`backend/security/guard-policy.json` says how the guard behaves. Edits apply when the services restart: `docker compose up --build -d` (straight away under the dev overlay, `compose.dev.yaml`, which runs them with `--reload`).
 
 | Part | What it holds |
 |---|---|

@@ -1,6 +1,6 @@
 # Settings and the config file
 
-Every setting is in **Settings** (the gear, bottom right) and in one live file, `backend/data/sentinel_config.json`.
+Every setting is in **Settings** (the gear, bottom right) and in one live file, `config/sentinel_config.json` in your Sentinel folder.
 
 ## Features
 

@@ -29,3 +29,15 @@ services/sdr-manager-local/backend/tests
 docs/plans
 # The native Mac SDR Manager's credentials (secrets) never go into an image.
 sdr-manager-local-credentials
+# Never bake an install's data or secrets into an image: databases (and their
+# WAL/journal files), environment files and the live config file (every
+# setting of the install it came from).
+**/*.db
+**/*.db-*
+**/*.sqlite
+**/*.sqlite3
+# `**/` matches zero or more folders, so these cover the root's own .env too.
+**/.env
+**/.env.*
+**/sentinel_config.json
+config
