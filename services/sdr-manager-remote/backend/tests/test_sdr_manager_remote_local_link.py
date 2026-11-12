@@ -98,20 +98,23 @@ async def add_local_host(session_factory, **overrides) -> int:
 @pytest.mark.parametrize(
     ("internal_url", "expected"),
     [
-        (LOCAL_URL, ("host.docker.internal", 8000)),
-        ("http://sdr-manager-local:8000/", ("sdr-manager-local", 8000)),
-        ("http://192.168.1.20:8123", ("192.168.1.20", 8123)),
-        ("http://sdr-manager-local", ("sdr-manager-local", 80)),
+        (LOCAL_URL, ("host.docker.internal", 8000, "http")),
+        ("http://sdr-manager-local:8000/", ("sdr-manager-local", 8000, "http")),
+        ("http://192.168.1.20:8123", ("192.168.1.20", 8123, "http")),
+        ("http://sdr-manager-local", ("sdr-manager-local", 80, "http")),
+        ("https://host.docker.internal:8000", ("host.docker.internal", 8000, "https")),
+        ("https://sdr-manager-local", ("sdr-manager-local", 443, "https")),
     ],
 )
-def test_local_address_reads_a_plain_http_address(internal_url, expected):
+def test_local_address_reads_an_http_or_https_address(internal_url, expected):
     assert local_address(internal_url) == expected
 
 
 @pytest.mark.parametrize(
     "internal_url",
     [
-        pytest.param("https://sdr-manager-local:8000", id="https"),
+        pytest.param("ftp://sdr-manager-local:8000", id="other-scheme"),
+        pytest.param("https://sdr-manager-local:0", id="https-port-zero"),
         pytest.param("sdr-manager-local:8000", id="no-scheme"),
         pytest.param("http://:8000", id="no-host"),
         pytest.param("http://user:pass@sdr-manager-local:8000", id="credentials"),
@@ -180,7 +183,7 @@ async def test_the_first_available_usable_service_is_the_one_linked(monkeypatch,
         monkeypatch,
         [
             local_service("http://down:8000", available=False, service_id="first"),
-            local_service("https://wrong-scheme:8000", service_id="second"),
+            local_service("ftp://wrong-scheme:8000", service_id="second"),
             local_service("http://sdr-manager-local:8000", service_id="third"),
         ],
     )
@@ -190,7 +193,7 @@ async def test_the_first_available_usable_service_is_the_one_linked(monkeypatch,
 
     (host,) = await all_hosts(session_factory)
     assert (host.address, host.port) == ("sdr-manager-local", 8000)
-    assert "second registered an unusable address 'https://wrong-scheme:8000'" in caplog.text
+    assert "second registered an unusable address 'ftp://wrong-scheme:8000'" in caplog.text
 
 
 async def test_an_operator_row_at_the_same_address_is_adopted(monkeypatch, session_factory, poller):
@@ -286,7 +289,7 @@ async def test_a_drifted_row_is_put_back(monkeypatch, session_factory, poller, d
     [
         pytest.param([], id="nothing-registered"),
         pytest.param([local_service(available=False)], id="failing-probes"),
-        pytest.param([local_service("https://sdr-manager-local:8000")], id="unusable-address"),
+        pytest.param([local_service("ftp://sdr-manager-local:8000")], id="unusable-address"),
     ],
 )
 async def test_an_absent_service_disables_the_row_without_deleting_it(monkeypatch, session_factory, poller, registered):
@@ -472,3 +475,62 @@ async def test_the_lifecycle_starts_the_link_after_the_pollers_and_stops_it_firs
     await service_module._stop()
 
     assert calls == ["pollers started", "link started", "link stopped", "pollers stopped"]
+
+
+# ── HTTPS ──────────────────────────────────────────────────────────────────────
+
+
+async def test_an_https_registration_links_the_row_over_https(monkeypatch, session_factory, poller):
+    registry_answers(monkeypatch, [local_service("https://host.docker.internal:8000")])
+
+    await LocalLink().sync_once()
+
+    (host,) = await all_hosts(session_factory)
+    assert (host.address, host.port, host.transport) == ("host.docker.internal", 8000, "https")
+    # This machine is verified by the deployment's own authority, never a pin.
+    assert (host.tls_certificate_authority, host.tls_fingerprint) == (None, None)
+
+
+async def test_an_adopted_operator_row_loses_its_pin(monkeypatch, session_factory, poller):
+    pinned = "-----BEGIN CERTIFICATE-----\nold\n-----END CERTIFICATE-----\n"
+    host_id = await add_host(
+        session_factory,
+        address="host.docker.internal",
+        transport="https",
+        tls_certificate_authority=pinned,
+        tls_fingerprint="AA",
+        auth_token="pw",
+    )
+    registry_answers(monkeypatch, [local_service("https://host.docker.internal:8000")])
+
+    await LocalLink().sync_once()
+
+    (host,) = await all_hosts(session_factory)
+    assert host.id == host_id
+    assert (host.is_local, host.transport, host.tls_certificate_authority, host.tls_fingerprint) == (
+        True,
+        "https",
+        None,
+        None,
+    )
+
+
+async def test_a_change_of_transport_alone_relinks(monkeypatch, session_factory, poller):
+    # sdr-manager-local moved from plain HTTP to HTTPS at the same address.
+    host_id = await add_local_host(session_factory, transport="http")
+    registry_answers(monkeypatch, [local_service("https://host.docker.internal:8000")])
+
+    await LocalLink().sync_once()
+
+    (host,) = await all_hosts(session_factory)
+    assert host.transport == "https"
+    poller.restart_host.assert_awaited_once_with(host_id)
+
+
+async def test_an_unchanged_https_link_restarts_nothing(monkeypatch, session_factory, poller):
+    await add_local_host(session_factory, transport="https")
+    registry_answers(monkeypatch, [local_service("https://host.docker.internal:8000")])
+
+    await LocalLink().sync_once()
+
+    poller.restart_host.assert_not_awaited()

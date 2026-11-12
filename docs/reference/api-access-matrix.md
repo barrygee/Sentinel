@@ -229,8 +229,11 @@ Profile `sdr_manager_remote`.
 | GET | `/api/sdr-manager/remote/hosts` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
 | POST | `/api/sdr-manager/remote/hosts` | `browser` | `json_write` | SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi. |
 | GET | `/api/sdr-manager/remote/hosts/locations` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
+| POST | `/api/sdr-manager/remote/hosts/certificate` | `browser` | `expensive_jobs` | SDR Manager (other machines): reading and trusting a host's certificate authority, which reaches out over the LAN. |
 | GET | `/api/sdr-manager/remote/hosts/{host_id}` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |
 | PUT | `/api/sdr-manager/remote/hosts/{host_id}` | `browser` | `json_write` | SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi. |
+| POST | `/api/sdr-manager/remote/hosts/{host_id}/certificate` | `browser` | `expensive_jobs` | SDR Manager (other machines): reading and trusting a host's certificate authority, which reaches out over the LAN. |
+| PUT | `/api/sdr-manager/remote/hosts/{host_id}/certificate` | `browser` | `expensive_jobs` | SDR Manager (other machines): reading and trusting a host's certificate authority, which reaches out over the LAN. |
 | DELETE | `/api/sdr-manager/remote/hosts/{host_id}` | `browser` | `json_write` | SDR Manager (other machines): adding hosts, managing their devices and Wi-Fi. |
 | POST | `/api/sdr-manager/remote/hosts/{host_id}/test` | `browser` | `expensive_jobs` | SDR Manager (other machines): host connection tests reach out over the LAN. |
 | GET | `/api/sdr-manager/remote/hosts/{host_id}/info` | `browser` | `default` | SDR Manager (other machines): hosts, their devices, Wi-Fi state and locations. |

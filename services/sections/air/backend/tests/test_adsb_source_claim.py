@@ -37,6 +37,7 @@ HOST_BODY = {
     "port": 8000,
     "auth_token": "console-password",
     "enabled": True,
+    "transport": "http",  # a plain-HTTP host: the claim path, not TLS trust, is under test
 }
 DEVICE_ID = "serial:97710286"
 

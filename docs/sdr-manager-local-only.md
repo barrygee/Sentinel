@@ -31,7 +31,7 @@ First time on this computer? Prepare it first: [Linux and Pi](sdr-manager-linux.
 ## Use it from your main Sentinel
 
 1. Here: set up each dongle (**PUBLIC**, stream on), a **Console Password** and **Sentinel Location** ([how](use/sdr-manager.md#set-up-a-dongle)).
-2. On the main Sentinel: **Settings › SDR › + ADD A NEW SENTINEL HOST**, this computer's address, port `8000`, the console password, **ADD**.
+2. On the main Sentinel: **Settings › SDR › + ADD A NEW SENTINEL HOST**, this computer's address, port `8000`, the console password, **ADD**, then compare the certificate fingerprint ([Certificates](use/sdr-manager.md#certificates)) and **TRUST AND ADD**.
 3. On the main Sentinel: **Settings › SDR › DEVICES**, **ADD** each dongle you want to listen to.
 
 ## Back to the full app

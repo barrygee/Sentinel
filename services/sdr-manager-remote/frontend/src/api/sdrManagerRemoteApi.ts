@@ -25,6 +25,7 @@ import type {
   SdrManagerDeviceSnapshot,
   SdrManagerHost,
   SdrManagerHostInfo,
+  SdrManagerTransport,
 } from '@sentinel/shell-api/types/sdrManager'
 
 import {
@@ -45,6 +46,10 @@ export interface SdrManagerHostCreateInput {
   enabled?: boolean
   /** Make every public SDR on the host a radio by itself; off when omitted. */
   auto_add_sdrs?: boolean
+  /** HTTPS when omitted, which then needs `tls_fingerprint`. */
+  transport?: SdrManagerTransport
+  /** The certificate authority fingerprint the operator compared (from `previewCertificate`). */
+  tls_fingerprint?: string
 }
 
 /**
@@ -61,6 +66,23 @@ export interface SdrManagerHostPatchInput {
   auth_token?: string
   enabled?: boolean
   auto_add_sdrs?: boolean
+  /** A change forgets the trusted certificate authority, as a new address does. */
+  transport?: SdrManagerTransport
+}
+
+/**
+ * What a host presents, from `previewCertificate`/`previewHostCertificate`,
+ * for the operator to compare with the fingerprint the host itself shows.
+ * `tls_available: false` is a host that serves plain HTTP only.
+ */
+export interface SdrManagerCertificatePreview {
+  tls_available: boolean
+  detail: string
+  fingerprint?: string | null
+  subject?: string | null
+  not_valid_after?: string | null
+  /** Existing hosts only: whether this is the authority already trusted. */
+  matches_pinned?: boolean | null
 }
 
 /** Response for `POST /api/sdr-manager/remote/hosts/{id}/test` — always HTTP 200. */
@@ -124,6 +146,44 @@ export async function getHostInfo(hostId: number): Promise<SdrManagerHostInfo> {
  */
 export async function testHost(hostId: number): Promise<SdrManagerHealthProbeResult> {
   return requestJson<SdrManagerHealthProbeResult>(`${BASE}/${hostId}/test`, { method: 'POST' })
+}
+
+// ── Certificates (trust on first use) ────────────────────────────────────────
+
+/**
+ * Read the certificate authority a host not yet added presents. Stores nothing.
+ *
+ * @throws SdrManagerApiError (502 `host_unreachable` / `certificate_invalid`)
+ */
+export async function previewCertificate(input: {
+  address: string
+  port?: number
+}): Promise<SdrManagerCertificatePreview> {
+  return requestJson<SdrManagerCertificatePreview>(`${BASE}/certificate`, jsonInit('POST', input))
+}
+
+/** Read the certificate authority an existing host presents now. Stores nothing. */
+export async function previewHostCertificate(
+  hostId: number,
+): Promise<SdrManagerCertificatePreview> {
+  return requestJson<SdrManagerCertificatePreview>(`${BASE}/${hostId}/certificate`, {
+    method: 'POST',
+  })
+}
+
+/**
+ * Trust (pin) a host's certificate authority: the one whose fingerprint the
+ * operator compared. The backend reads it again and refuses with 409
+ * `certificate_changed` (context `fingerprint`) if it no longer matches.
+ */
+export async function trustHostCertificate(
+  hostId: number,
+  fingerprint: string,
+): Promise<SdrManagerHost> {
+  return requestJson<SdrManagerHost>(
+    `${BASE}/${hostId}/certificate`,
+    jsonInit('PUT', { fingerprint }),
+  )
 }
 
 // ── Devices ──────────────────────────────────────────────────────────────────

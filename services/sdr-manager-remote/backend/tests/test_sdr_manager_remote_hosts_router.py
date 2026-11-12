@@ -65,6 +65,9 @@ def _create_host(client, **overrides) -> dict:
         "address": "10.0.0.5",
         "port": 8000,
         "auth_token": "s3cret-token",
+        # These tests are about the plain-HTTP behaviour every host shares;
+        # HTTPS trust has its own file (test_sdr_manager_remote_host_certificates_router).
+        "transport": "http",
     }
     body.update(overrides)
     resp = client.post("/api/sdr-manager/remote/hosts", json=body)
@@ -109,7 +112,7 @@ class TestCreateHost:
         hosts_router.host_poller.start_host.assert_not_awaited()
 
     def test_create_defaults_port_and_empty_token(self, client):
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.9"})
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.9"})
         assert resp.status_code == 201
         body = resp.json()
         assert body["port"] == 8000
@@ -118,32 +121,40 @@ class TestCreateHost:
     def test_create_never_leaks_auth_token_in_response_body(self, client):
         resp = client.post(
             "/api/sdr-manager/remote/hosts",
-            json={"address": "10.0.0.5", "auth_token": "TOP-SECRET-VALUE"},
+            json={"address": "10.0.0.5", "auth_token": "TOP-SECRET-VALUE", "transport": "http"},
         )
         assert resp.status_code == 201
         assert "TOP-SECRET-VALUE" not in resp.text
 
     def test_create_rejects_duplicate_address_and_port(self, client):
         _create_host(client, address="10.0.0.5", port=8000)
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.5", "port": 8000})
+        resp = client.post(
+            "/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.5", "port": 8000}
+        )
         assert resp.status_code == 409
         assert resp.json()["detail"]["code"] == "host_conflict"
 
     def test_create_allows_same_address_on_a_different_port(self, client):
         _create_host(client, address="10.0.0.5", port=8000)
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.5", "port": 8001})
+        resp = client.post(
+            "/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.5", "port": 8001}
+        )
         assert resp.status_code == 201
 
     def test_create_rejects_malformed_address_with_422(self, client):
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "user:pass@10.0.0.5"})
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "user:pass@10.0.0.5"})
         assert resp.status_code == 422
 
     def test_create_rejects_out_of_range_port_with_422(self, client):
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.5", "port": 70000})
+        resp = client.post(
+            "/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.5", "port": 70000}
+        )
         assert resp.status_code == 422
 
     def test_create_rejects_oversized_name(self, client):
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.5", "name": "x" * 121})
+        resp = client.post(
+            "/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.5", "name": "x" * 121}
+        )
         assert resp.status_code == 422
 
     def test_create_rejects_oversized_auth_token(self, client):
@@ -458,7 +469,7 @@ class TestListHostLocations:
 
     def test_falls_back_to_the_name_the_sdr_manager_calls_itself(self, client, monkeypatch):
         """A host registered without a label takes the SDR host's own name for itself."""
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.7"})
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
         host_id = resp.json()["id"]
         self._patch_snapshots(
             monkeypatch,
@@ -470,7 +481,7 @@ class TestListHostLocations:
         assert body[0]["name"] == "sentry-barn"
 
     def test_name_stays_null_when_neither_side_has_one(self, client, monkeypatch):
-        resp = client.post("/api/sdr-manager/remote/hosts", json={"address": "10.0.0.7"})
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
         host_id = resp.json()["id"]
         self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id, name=None)})
 
@@ -1472,7 +1483,7 @@ class TestHostCreateWithoutName:
     def test_creating_a_host_with_no_name_is_accepted(self, client):
         resp = client.post(
             "/api/sdr-manager/remote/hosts",
-            json={"address": "10.0.0.7", "port": 8000, "auth_token": ""},
+            json={"address": "10.0.0.7", "port": 8000, "auth_token": "", "transport": "http"},
         )
         assert resp.status_code == 201, resp.text
         assert resp.json()["name"] is None
@@ -1480,7 +1491,7 @@ class TestHostCreateWithoutName:
     def test_creating_a_host_with_an_explicit_null_name_is_accepted(self, client):
         resp = client.post(
             "/api/sdr-manager/remote/hosts",
-            json={"name": None, "address": "10.0.0.8", "port": 8000, "auth_token": ""},
+            json={"name": None, "address": "10.0.0.8", "port": 8000, "auth_token": "", "transport": "http"},
         )
         assert resp.status_code == 201, resp.text
         assert resp.json()["name"] is None

@@ -36,6 +36,7 @@ from sentinel_sdr_manager_remote.services import host_poller as poller_module
 from sentinel_sdr_manager_remote.services import sdr_manager_client as client_module
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
+    SdrManagerCertificateRejectedError,
     SdrManagerResponse,
     SdrManagerUnreachableError,
 )
@@ -94,10 +95,11 @@ def _fake_client_class(outcomes: list, export_outcomes: list | None = None):
     class _FakeSdrManagerClient:
         calls = state
 
-        def __init__(self, address, port, auth_token) -> None:
+        def __init__(self, address, port, auth_token, **connection) -> None:
             self.address = address
             self.port = port
             self.auth_token = auth_token
+            self.connection = connection  # service_token / transport / certificate_authority
 
         async def get_status(self) -> SdrManagerResponse:
             index = min(state["count"], len(outcomes) - 1)
@@ -858,3 +860,36 @@ async def test_stopping_a_host_still_ends_its_loop(monkeypatch):
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await asyncio.wait_for(task, timeout=1)
+
+
+# ── certificate rejection ──────────────────────────────────────────────────────
+
+
+async def test_a_rejected_certificate_is_flagged_until_a_poll_succeeds(session_factory, monkeypatch):
+    rejected = SdrManagerCertificateRejectedError("SDR host 10.0.0.5:8000 presented a certificate …")
+    monkeypatch.setattr(client_module, "SdrManagerClient", _fake_client_class([rejected, _status_ok()]))
+    host_id = await _create_host(session_factory)
+    poller = poller_module.HostPoller()
+
+    assert await poller._poll_once(host_id) is False
+    snapshot = poller.get_snapshot(host_id)
+    assert snapshot.certificate_rejected is True
+    assert snapshot.reachable is False
+    assert (await _reload_host(session_factory, host_id)).last_error == str(rejected)
+
+    assert await poller._poll_once(host_id) is True
+    assert poller.get_snapshot(host_id).certificate_rejected is False
+
+
+async def test_a_plain_network_failure_is_not_a_rejected_certificate(session_factory, monkeypatch):
+    rejected = SdrManagerCertificateRejectedError("rejected")
+    unreachable = SdrManagerUnreachableError("Could not reach SDR host 10.0.0.5:8000.")
+    monkeypatch.setattr(client_module, "SdrManagerClient", _fake_client_class([rejected, unreachable]))
+    host_id = await _create_host(session_factory)
+    poller = poller_module.HostPoller()
+
+    await poller._poll_once(host_id)
+    await poller._poll_once(host_id)
+
+    # The host is now simply off the network: saying CERTIFICATE CHANGED would mislead.
+    assert poller.get_snapshot(host_id).certificate_rejected is False

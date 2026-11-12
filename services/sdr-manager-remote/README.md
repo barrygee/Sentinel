@@ -6,7 +6,7 @@ User guide: [SDR Manager](../../docs/use/sdr-manager.md#sentinel-hosts).
 
 | Folder | Holds |
 |---|---|
-| `backend/sentinel_sdr_manager_remote/` | `routers/hosts.py` (`/api/sdr-manager/remote/hosts`), `services/sdr_manager_client.py`, `host_poller.py`, `local_link.py`, `reservations.py` (bus responders and claim events), `models.py` |
+| `backend/sentinel_sdr_manager_remote/` | `routers/hosts.py` (`/api/sdr-manager/remote/hosts`), `services/sdr_manager_client.py`, `host_certificates.py` (trust on first use: fetch, fingerprint and pin a host's certificate authority), `host_poller.py`, `local_link.py`, `reservations.py` (bus responders and claim events), `models.py` |
 | `backend/tests/` | Its tests, every file prefixed `test_sdr_manager_remote_` |
 | `frontend/` | `@sentinel/sdr-manager-remote`, its Module Federation remote (the `radioSites` capability, `RemoteHostHeader`, `RemoteHostAddForm`) |
 
@@ -42,7 +42,17 @@ cd services/sdr-manager-remote/frontend && npm run lint && npm run typecheck
 
 ## Database
 
-SQLite at `/app/data/sdr-manager-remote.db` on the `sdr_manager_remote_data` volume: one table, `remote_sdr_hosts` (with a partial unique index on the local row). No migrations: tables are created from the models at start. It holds console passwords, so back the volume up somewhere safe.
+SQLite at `/app/data/sdr-manager-remote.db` on the `sdr_manager_remote_data` volume: one table, `remote_sdr_hosts` (with a partial unique index on the local row). No migrations: tables are created from the models at start, and later columns are idempotent ALTERs (`database.py`). It holds console passwords, so back the volume up somewhere safe.
+
+## HTTPS to SDR hosts
+
+Each Sentinel deployment has its own certificate authority, and hosts are trusted on first use (`services/host_certificates.py`):
+
+1. `POST /api/sdr-manager/remote/hosts/certificate` reads the authority the host publishes at `GET /api/tls/certificate-authority`, over a connection that checks nothing yet, then proves the host's certificate chains to it with a second, verified request. It stores nothing.
+2. The operator compares the fingerprint with the host's own. Adding the host (or `PUT …/hosts/{id}/certificate`) sends that fingerprint. The server reads the authority again and pins it on the row only if it still matches (409 `certificate_changed` otherwise).
+3. Every request then verifies against that one authority, with no host name check. A host with no pin gets no request, and a host whose certificate doesn't chain to its pin is refused before anything is sent (`certificate_rejected`, shown as **CERTIFICATE CHANGED**).
+
+The authority is pinned rather than the server certificate because the host's certificate gets a new key at every renewal. This machine's row is verified with the deployment's own authority instead. A changed address, port or transport forgets the pin, as it forgets the password. Plain HTTP (`transport: "http"`) is the operator's explicit choice for a host that doesn't offer HTTPS, and is what every host added before HTTPS reads.
 
 ## Configuration
 

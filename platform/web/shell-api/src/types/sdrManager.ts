@@ -35,7 +35,24 @@ export interface SdrManagerHost {
   last_error: string | null
   reachable: boolean
   api_version: string | null
+  /** How sdr-manager-remote reaches the host: HTTPS, or plain HTTP for one that doesn't offer it. */
+  transport: SdrManagerTransport
+  /** SHA-256 of the host's pinned certificate authority (`AA:BB:…`), once trusted. */
+  tls_fingerprint: string | null
+  tls_state: SdrManagerTlsState
 }
+
+export type SdrManagerTransport = 'https' | 'http'
+
+/**
+ * How a host's connection is secured:
+ * - `pinned` — HTTPS, verified against the certificate authority the operator trusted;
+ * - `changed` — the host's certificate no longer matches it, so nothing is sent;
+ * - `untrusted` — HTTPS with no authority trusted yet, so nothing is sent;
+ * - `insecure` — plain HTTP, the console password crosses the network readable;
+ * - `deployment` — this machine over HTTPS, verified by this Sentinel's own authority.
+ */
+export type SdrManagerTlsState = 'pinned' | 'changed' | 'untrusted' | 'insecure' | 'deployment'
 
 /** Where a host reports itself to be, from its `/api/v1/sdrs` `source.location`. */
 export interface SdrManagerHostLocation {

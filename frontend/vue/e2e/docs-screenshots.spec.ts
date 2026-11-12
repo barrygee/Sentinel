@@ -928,6 +928,10 @@ const DEMO_SDR_HOSTS = [
   port: 8000,
   enabled: true,
   auth_token_set: true,
+  transport: 'https',
+  tls_fingerprint:
+    '3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F:3F',
+  tls_state: 'pinned',
   created_at: 1_760_000_000_000,
   last_seen_at: 1_760_000_000_000,
   last_error: null,

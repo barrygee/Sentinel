@@ -1044,6 +1044,14 @@
     ]
   },
   {
+    "path": "/api/sdr-manager/remote/hosts/certificate",
+    "type": "Route",
+    "name": "preview_new_host_certificate",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
     "path": "/api/sdr-manager/remote/hosts/{host_id}",
     "type": "Route",
     "name": "get_host",
@@ -1055,6 +1063,22 @@
     "path": "/api/sdr-manager/remote/hosts/{host_id}",
     "type": "Route",
     "name": "update_host",
+    "methods": [
+      "PUT"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/certificate",
+    "type": "Route",
+    "name": "preview_host_certificate",
+    "methods": [
+      "POST"
+    ]
+  },
+  {
+    "path": "/api/sdr-manager/remote/hosts/{host_id}/certificate",
+    "type": "Route",
+    "name": "trust_host_certificate",
     "methods": [
       "PUT"
     ]

@@ -78,6 +78,9 @@ const HOST: SdrManagerHost = {
   last_error: null,
   reachable: true,
   api_version: '1.0.0',
+  transport: 'https',
+  tls_fingerprint: null,
+  tls_state: 'untrusted',
 }
 
 const UNREACHABLE_HOST: SdrManagerHost = {

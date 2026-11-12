@@ -13,6 +13,10 @@ SDR_MANAGER_REMOTE_TABLES: tuple[str, ...] = ("remote_sdr_hosts",)
 # Columns added after the table first shipped, for databases created before them.
 SDR_MANAGER_REMOTE_ADDED_COLUMNS: tuple[str, ...] = (
     "ALTER TABLE remote_sdr_hosts ADD COLUMN auto_add_sdrs BOOLEAN NOT NULL DEFAULT 0",
+    # Every host a database from before HTTPS holds served plain HTTP.
+    "ALTER TABLE remote_sdr_hosts ADD COLUMN transport TEXT NOT NULL DEFAULT 'http'",
+    "ALTER TABLE remote_sdr_hosts ADD COLUMN tls_certificate_authority TEXT",
+    "ALTER TABLE remote_sdr_hosts ADD COLUMN tls_fingerprint TEXT",
 )
 
 

@@ -13,6 +13,9 @@ Endpoints:
   GET    /api/sdr-manager/remote/hosts/{host_id}                         — one host's record
   PUT    /api/sdr-manager/remote/hosts/{host_id}                         — update a host
   DELETE /api/sdr-manager/remote/hosts/{host_id}                         — forget a host
+  POST   /api/sdr-manager/remote/hosts/certificate                       — read a not-yet-added host's certificate authority
+  POST   /api/sdr-manager/remote/hosts/{host_id}/certificate             — read a host's certificate authority now
+  PUT    /api/sdr-manager/remote/hosts/{host_id}/certificate             — trust (pin) it, by the fingerprint the operator checked
   POST   /api/sdr-manager/remote/hosts/{host_id}/test                    — probe GET /api/health
   GET    /api/sdr-manager/remote/hosts/{host_id}/info                    — everything known about a host
   GET    /api/sdr-manager/remote/hosts/locations                         — every host with a known position
@@ -34,6 +37,14 @@ Endpoints:
 `auth_token` is write-only: accepted on POST/PUT, never returned in any
 response body (only a boolean `auth_token_set`).
 
+HTTPS is trust on first use (`services/host_certificates.py`): the operator
+reads a host's certificate authority fingerprint (`POST .../certificate`),
+compares it with the one the host shows, and the add (or `PUT .../certificate`)
+carries the fingerprint they checked. The server reads the authority again and
+pins it only if it still matches, so nothing can be swapped in between. Plain
+HTTP is the operator's explicit choice (`transport: "http"`) for a host that
+doesn't offer HTTPS.
+
 The "This machine" row (`is_local`) is kept by `services/local_link.py`, not by
 the operator: DELETE on it, or a PUT that changes anything but its `name`,
 answers 409 `local_host_managed`.
@@ -42,8 +53,9 @@ answers 409 `local_host_managed`.
 from __future__ import annotations
 
 import logging
-from typing import Any, NoReturn
+from typing import Any, Literal, NoReturn
 
+import httpx
 from backend.cache import now_ms
 from backend.database import get_db
 from fastapi import APIRouter, Depends, HTTPException
@@ -52,12 +64,20 @@ from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sentinel_sdr_manager_remote.models import RemoteSdrHost
+from sentinel_sdr_manager_remote.config import get_settings
+from sentinel_sdr_manager_remote.models import TRANSPORT_HTTP, TRANSPORT_HTTPS, RemoteSdrHost
 
 # Imported for its side effect: registers the reservation proxy
 # (sdr-manager.remote.*) on the bus at import time, so Air's ADS-B claim
 # reaches it even in tests, which skip the app lifespan.
 from sentinel_sdr_manager_remote.services import reservations  # noqa: F401
+from sentinel_sdr_manager_remote.services.host_certificates import (
+    HostCertificateAuthority,
+    HostCertificateError,
+    HostOffersNoTlsError,
+    fetch_host_certificate_authority,
+    normalize_fingerprint,
+)
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
@@ -75,6 +95,19 @@ _MAX_NAME_LEN = 120
 _MAX_TOKEN_LEN = 512
 _SERIAL_PATTERN = r"^[A-Za-z0-9_-]{1,32}$"
 
+Transport = Literal["https", "http"]
+TlsState = Literal["pinned", "changed", "untrusted", "insecure", "deployment"]
+
+
+def _validated_fingerprint(value: str | None) -> str | None:
+    """Pydantic hook: the fingerprint in canonical `AA:BB:…` form, or a 422."""
+    if value is None:
+        return None
+    try:
+        return normalize_fingerprint(value)
+    except ValueError as exc:
+        raise ValueError(str(exc)) from exc
+
 
 # ── Pydantic schemas ──────────────────────────────────────────────────────────
 
@@ -89,6 +122,22 @@ class RemoteSdrHostIn(BaseModel):
     enabled: bool = True
     # Make every public SDR on the host a radio by itself (see the model).
     auto_add_sdrs: bool = False
+    # HTTPS unless the operator chose plain HTTP for a host that doesn't offer it.
+    transport: Transport = TRANSPORT_HTTPS
+    # The certificate authority fingerprint the operator compared with the
+    # host's (from `POST .../certificate`). Required over HTTPS.
+    tls_fingerprint: str | None = None
+
+    @field_validator("tls_fingerprint")
+    @classmethod
+    def _validate_fingerprint(cls, value: str | None) -> str | None:
+        return _validated_fingerprint(value)
+
+    @model_validator(mode="after")
+    def _require_fingerprint_over_https(self) -> RemoteSdrHostIn:
+        if self.transport == TRANSPORT_HTTPS and self.tls_fingerprint is None:
+            raise ValueError("Check the host's certificate fingerprint first (tls_fingerprint is required over HTTPS).")
+        return self
 
     @field_validator("address")
     @classmethod
@@ -133,7 +182,10 @@ class RemoteSdrHostPatch(BaseModel):
     editing only the name or enabled flag never has to re-paste a token they
     can no longer see. Moving the host to a new address or port without a new
     token clears the stored one instead: the poller would otherwise send the
-    console password to whichever machine the new address names.
+    console password to whichever machine the new address names. The pinned
+    certificate authority goes the same way, and with a change of `transport`
+    too: the host is then HTTPS-but-untrusted until the operator trusts it
+    again (`PUT .../certificate`), and nothing is sent to it meanwhile.
     """
 
     name: str | None = None
@@ -142,6 +194,7 @@ class RemoteSdrHostPatch(BaseModel):
     auth_token: str | None = None
     enabled: bool | None = None
     auto_add_sdrs: bool | None = None
+    transport: Transport | None = None
 
     @field_validator("address")
     @classmethod
@@ -218,6 +271,66 @@ class RemoteSdrHostOut(BaseModel):
     last_error: str | None
     reachable: bool
     api_version: str | None
+    transport: Transport
+    # The pinned certificate authority's SHA-256, for comparing with the host's.
+    tls_fingerprint: str | None
+    # `pinned` verified against the pin · `changed` the last poll met a
+    # certificate the pin rejects · `untrusted` HTTPS with no pin yet (nothing
+    # is sent) · `insecure` plain HTTP · `deployment` this machine over HTTPS,
+    # verified by this deployment's own authority.
+    tls_state: TlsState
+
+
+class CertificatePreviewIn(BaseModel):
+    """Body for `POST /api/sdr-manager/remote/hosts/certificate` — a host not added yet."""
+
+    address: str
+    port: int = 8000
+
+    @field_validator("address")
+    @classmethod
+    def _validate_address(cls, value: str) -> str:
+        try:
+            return validate_host_address(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+    @field_validator("port")
+    @classmethod
+    def _validate_port(cls, value: int) -> int:
+        try:
+            return validate_host_port(value)
+        except ValueError as exc:
+            raise ValueError(str(exc)) from exc
+
+
+class CertificatePreviewOut(BaseModel):
+    """What a host presents, for the operator to compare before trusting it. Nothing is stored.
+
+    `tls_available: false` means the host answered without TLS (an SDR host
+    from before HTTPS); the operator may then add it over plain HTTP.
+    """
+
+    tls_available: bool
+    detail: str
+    fingerprint: str | None = None
+    subject: str | None = None
+    not_valid_after: str | None = None
+    # Whether this is the authority already pinned for the host (existing hosts only).
+    matches_pinned: bool | None = None
+
+
+class CertificateTrustIn(BaseModel):
+    """Body for `PUT .../{host_id}/certificate` — the fingerprint the operator compared."""
+
+    fingerprint: str
+
+    @field_validator("fingerprint")
+    @classmethod
+    def _validate_fingerprint(cls, value: str) -> str:
+        normalized = _validated_fingerprint(value)
+        assert normalized is not None  # a str in, a str out
+        return normalized
 
 
 class HealthProbeResult(BaseModel):
@@ -418,7 +531,7 @@ _LOCAL_HOST_MANAGED = HTTPException(
 
 # The fields the local link owns on the "This machine" row. `name` is the one
 # left to the operator: a cosmetic label, nothing the link reads or writes.
-_LOCAL_HOST_LINKED_FIELDS = frozenset({"address", "port", "auth_token", "enabled"})
+_LOCAL_HOST_LINKED_FIELDS = frozenset({"address", "port", "auth_token", "enabled", "transport"})
 
 
 def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
@@ -439,7 +552,86 @@ def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         last_error=host.last_error,
         reachable=snapshot.reachable if snapshot is not None else False,
         api_version=snapshot.api_version if snapshot is not None else None,
+        transport=host.transport,
+        tls_fingerprint=host.tls_fingerprint,
+        tls_state=_tls_state(host, certificate_rejected=snapshot is not None and snapshot.certificate_rejected),
     )
+
+
+def _tls_state(host: RemoteSdrHost, *, certificate_rejected: bool) -> TlsState:
+    """How the host's connection is secured, for the Settings host card (see `RemoteSdrHostOut`)."""
+    if host.transport == TRANSPORT_HTTP:
+        return "insecure"
+    if host.tls_certificate_authority:
+        return "changed" if certificate_rejected else "pinned"
+    return "deployment" if host.is_local else "untrusted"
+
+
+async def _read_certificate_authority(address: str, port: int) -> HostCertificateAuthority:
+    """Read a host's certificate authority, or raise the HTTP error to answer with.
+
+    409 `host_offers_no_tls` — it serves plain HTTP; 502 `certificate_invalid`
+    — what it sent isn't one authority that signed its own certificate; 502
+    `host_unreachable` — no answer at all.
+    """
+    settings = get_settings()
+    read_s = settings.read_timeout_s
+    timeout = httpx.Timeout(connect=settings.connect_timeout_s, read=read_s, write=read_s, pool=read_s)
+    try:
+        return await fetch_host_certificate_authority(address, port, timeout=timeout)
+    except HostOffersNoTlsError as exc:
+        raise HTTPException(status_code=409, detail={"code": "host_offers_no_tls", "message": str(exc)}) from exc
+    except HostCertificateError as exc:
+        raise HTTPException(status_code=502, detail={"code": "certificate_invalid", "message": str(exc)}) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail={"code": "host_unreachable", "message": f"Could not reach SDR host {address}:{port}."},
+        ) from exc
+
+
+async def _authority_matching(address: str, port: int, fingerprint: str) -> HostCertificateAuthority:
+    """The host's authority, read now, provided it is the one the operator checked — else 409.
+
+    Read again rather than taken from the preview: a client-supplied PEM would
+    let a page trust anything, and the host could have changed in between.
+    """
+    authority = await _read_certificate_authority(address, port)
+    if authority.fingerprint != fingerprint:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "certificate_changed",
+                "message": "The host's certificate fingerprint is not the one you checked. Check it again.",
+                "fingerprint": authority.fingerprint,
+            },
+        )
+    return authority
+
+
+def _preview_of(authority: HostCertificateAuthority, *, pinned: str | None) -> CertificatePreviewOut:
+    return CertificatePreviewOut(
+        tls_available=True,
+        detail="ok",
+        fingerprint=authority.fingerprint,
+        subject=authority.subject,
+        not_valid_after=authority.not_valid_after,
+        matches_pinned=None if pinned is None else authority.fingerprint == pinned,
+    )
+
+
+async def _preview(address: str, port: int, *, pinned: str | None) -> CertificatePreviewOut:
+    """`POST .../certificate`'s answer: a host without TLS is a result to show, not an error."""
+    try:
+        authority = await _read_certificate_authority(address, port)
+    except HTTPException as exc:
+        if isinstance(exc.detail, dict) and exc.detail.get("code") == "host_offers_no_tls":
+            return CertificatePreviewOut(
+                tls_available=False,
+                detail="This SDR host doesn't offer HTTPS: its console password would cross the network unencrypted.",
+            )
+        raise
+    return _preview_of(authority, pinned=pinned)
 
 
 def _raise_for_host_error(exc: SdrManagerApiError) -> NoReturn:
@@ -448,8 +640,12 @@ def _raise_for_host_error(exc: SdrManagerApiError) -> NoReturn:
 
 
 def _raise_for_unreachable(exc: SdrManagerUnreachableError) -> NoReturn:
-    """502: Sentinel never got a response to interpret, so there is no host code to surface."""
-    raise HTTPException(status_code=502, detail={"code": "host_unreachable", "message": str(exc)})
+    """502: Sentinel never got a response to interpret, so there is no host code to surface.
+
+    The code still says why: `host_unreachable`, or `certificate_rejected` /
+    `certificate_untrusted` when the request was refused before it was sent.
+    """
+    raise HTTPException(status_code=502, detail={"code": exc.code, "message": str(exc)})
 
 
 # ── Host CRUD ──────────────────────────────────────────────────────────────────
@@ -476,6 +672,10 @@ async def create_host(body: RemoteSdrHostIn, db: AsyncSession = Depends(get_db))
                 "message": "An SDR host at this address and port is already registered.",
             },
         )
+    authority: HostCertificateAuthority | None = None
+    if body.transport == TRANSPORT_HTTPS:
+        assert body.tls_fingerprint is not None  # the schema requires it over HTTPS
+        authority = await _authority_matching(body.address, body.port, body.tls_fingerprint)
     host = RemoteSdrHost(
         name=body.name,
         address=body.address,
@@ -483,6 +683,9 @@ async def create_host(body: RemoteSdrHostIn, db: AsyncSession = Depends(get_db))
         auth_token=body.auth_token,
         enabled=body.enabled,
         auto_add_sdrs=body.auto_add_sdrs,
+        transport=body.transport,
+        tls_certificate_authority=authority.pem if authority is not None else None,
+        tls_fingerprint=authority.fingerprint if authority is not None else None,
         created_at=now_ms(),
     )
     db.add(host)
@@ -534,6 +737,15 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[HostSi
     return sites
 
 
+@router.post("/certificate", response_model=CertificatePreviewOut)
+async def preview_new_host_certificate(body: CertificatePreviewIn) -> CertificatePreviewOut:
+    """Read the certificate authority a host presents, before adding it. Stores nothing.
+
+    Declared before `/{host_id}` for the same reason as `/locations`.
+    """
+    return await _preview(body.address, body.port, pinned=None)
+
+
 @router.get("/{host_id}", response_model=RemoteSdrHostOut)
 async def get_host(host_id: int, db: AsyncSession = Depends(get_db)) -> RemoteSdrHostOut:
     """Return one SDR host's record."""
@@ -570,11 +782,17 @@ async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession =
                     "message": "An SDR host at this address and port is already registered.",
                 },
             )
-        if (new_address, new_port) != (host.address, host.port) and body.auth_token is None:
-            # Never carry the console password over to a different machine.
-            host.auth_token = ""
+        if (new_address, new_port) != (host.address, host.port):
+            if body.auth_token is None:
+                # Never carry the console password over to a different machine.
+                host.auth_token = ""
+            # Nor the old machine's authority: the new one is trusted afresh.
+            _forget_pin(host)
         host.address = new_address
         host.port = new_port
+    if body.transport is not None and body.transport != host.transport:
+        host.transport = body.transport
+        _forget_pin(host)
     # `name` is the one field a null means something for: it is a cosmetic
     # label that falls back to the address, so an operator must be able to
     # clear it. Keyed on whether the field was sent rather than on its value,
@@ -594,6 +812,46 @@ async def update_host(host_id: int, body: RemoteSdrHostPatch, db: AsyncSession =
         await host_poller.restart_host(host.id)
     else:
         await host_poller.stop_host(host.id)
+    return _host_to_out(host)
+
+
+def _forget_pin(host: RemoteSdrHost) -> None:
+    host.tls_certificate_authority = None
+    host.tls_fingerprint = None
+
+
+@router.post("/{host_id}/certificate", response_model=CertificatePreviewOut)
+async def preview_host_certificate(host_id: int, db: AsyncSession = Depends(get_db)) -> CertificatePreviewOut:
+    """Read the certificate authority a host presents now, and whether it is the pinned one. Stores nothing."""
+    host = await _get_host_or_404(host_id, db)
+    if host.is_local:
+        raise _LOCAL_HOST_MANAGED
+    address, port, pinned = host.address, host.port, host.tls_fingerprint
+    return await _preview(address, port, pinned=pinned)
+
+
+@router.put("/{host_id}/certificate", response_model=RemoteSdrHostOut)
+async def trust_host_certificate(
+    host_id: int, body: CertificateTrustIn, db: AsyncSession = Depends(get_db)
+) -> RemoteSdrHostOut:
+    """Pin the host's certificate authority — the one whose fingerprint the operator compared.
+
+    Moves a plain-HTTP host to HTTPS, trusts a host that has none pinned yet,
+    or replaces a pin after the host's credentials were regenerated. The
+    console password is kept: the operator has just vouched for this host.
+    """
+    host = await _get_host_or_404(host_id, db)
+    if host.is_local:
+        # This machine is verified with the deployment's own authority.
+        raise _LOCAL_HOST_MANAGED
+    authority = await _authority_matching(host.address, host.port, body.fingerprint)
+    host.transport = TRANSPORT_HTTPS
+    host.tls_certificate_authority = authority.pem
+    host.tls_fingerprint = authority.fingerprint
+    await db.commit()
+    await db.refresh(host)
+    if host.enabled:
+        await host_poller.restart_host(host.id)
     return _host_to_out(host)
 
 

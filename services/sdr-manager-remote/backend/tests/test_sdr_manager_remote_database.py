@@ -101,6 +101,24 @@ class TestCreateSdrManagerRemoteTables:
         # An existing host keeps adding its SDRs manually.
         assert rows == [(0,)]
 
+    async def test_adds_the_https_columns_to_a_table_made_before_them(self, service_engine):
+        # Every host a database from before HTTPS holds served plain HTTP, and none is pinned.
+        async with service_engine.begin() as connection:
+            await connection.exec_driver_sql(
+                "CREATE TABLE remote_sdr_hosts (id INTEGER PRIMARY KEY, address TEXT NOT NULL, port INTEGER)"
+            )
+            await connection.exec_driver_sql("INSERT INTO remote_sdr_hosts (id, address, port) VALUES (1, 'pi', 8000)")
+
+        await remote_database.create_sdr_manager_remote_tables()
+
+        async with service_engine.connect() as connection:
+            rows = (
+                await connection.exec_driver_sql(
+                    "SELECT transport, tls_certificate_authority, tls_fingerprint FROM remote_sdr_hosts"
+                )
+            ).all()
+        assert rows == [("http", None, None)]
+
     def test_registers_its_model_itself_in_a_fresh_interpreter(self, tmp_path):
         # Core's backend.models doesn't define RemoteSdrHost, so nothing else
         # registers the table with Base before the service's prepare runs.

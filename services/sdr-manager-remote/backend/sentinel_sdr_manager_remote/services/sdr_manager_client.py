@@ -17,6 +17,10 @@ Security notes:
   message, and never echoed back by any caller of this module. Nor is the
   service bearer (this machine's own sdr-manager-local only), which is this
   process's own HTTP credential, read fresh per client and never stored.
+- Over HTTPS nothing is sent until the host has proved it holds a certificate
+  signed by its pinned certificate authority (`host_certificates`), or for
+  this machine by the deployment's. A host with no pin yet gets no request at
+  all: an unverified TLS connection would hand the password to whoever answers.
 """
 
 from __future__ import annotations
@@ -24,15 +28,18 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import re
+import ssl
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import quote
 
 import httpx
+from backend.platform.internal_tls import internal_verify
 from backend.platform.service_credentials import own_token
 
 from sentinel_sdr_manager_remote.config import get_settings
-from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, RemoteSdrHost
+from sentinel_sdr_manager_remote.models import AUTH_MODE_SERVICE, TRANSPORT_HTTP, TRANSPORT_HTTPS, RemoteSdrHost
+from sentinel_sdr_manager_remote.services.host_certificates import is_tls_refusal, pinned_context
 
 # The SDR Manager API's wire contract (sdr-manager-local). Duplicated here
 # rather than imported: the host is usually another machine, and the two
@@ -120,8 +127,28 @@ class SdrManagerUnreachableError(Exception):
 
     Distinct from `SdrManagerApiError`: this means Sentinel never got an HTTP
     response to interpret, so there is no host-authored `{code, message}` to
-    surface — only Sentinel's own description of the network failure.
+    surface — only Sentinel's own description of the network failure. `code`
+    says which kind, for the router's error envelope.
     """
+
+    code = "host_unreachable"
+
+
+class SdrManagerCertificateRejectedError(SdrManagerUnreachableError):
+    """The host's certificate isn't signed by its pinned authority: refused before anything was sent.
+
+    Either the host's credentials were regenerated (its certificate authority
+    is new) or something else is answering at its address. The operator
+    compares the new fingerprint with the host's and trusts it again.
+    """
+
+    code = "certificate_rejected"
+
+
+class SdrManagerCertificateUntrustedError(SdrManagerUnreachableError):
+    """An HTTPS host whose certificate authority hasn't been trusted yet: no request is made."""
+
+    code = "certificate_untrusted"
 
 
 class SdrManagerApiError(Exception):
@@ -166,6 +193,8 @@ class SdrManagerClient:
         connect_timeout_s: float | None = None,
         read_timeout_s: float | None = None,
         service_token: str | None = None,
+        transport: str = TRANSPORT_HTTP,
+        certificate_authority: str | None = None,
     ) -> None:
         """`console_password` is the host's console password, not a bearer token.
 
@@ -178,9 +207,18 @@ class SdrManagerClient:
         accepts sdr-manager-remote's HTTP credential as a bearer (ADR 0007), so
         a client given one presents it on every request and never signs in.
         Use `client_for_host`, which decides that from the host's row.
+
+        `transport` is `https` or `http`. Over HTTPS, `certificate_authority`
+        is the host's pinned authority (PEM); a bearer client (this machine)
+        verifies with the deployment's own instead, and any other client with
+        none refuses every request (`SdrManagerCertificateUntrustedError`).
         """
+        if transport not in (TRANSPORT_HTTPS, TRANSPORT_HTTP):
+            raise ValueError(f"Unknown transport {transport!r}.")
         self._address = validate_host_address(address)
         self._port = validate_host_port(port)
+        self._transport = transport
+        self._certificate_authority = certificate_authority
         self._console_password = console_password
         self._service_token = service_token
         self._session_key = (
@@ -194,8 +232,30 @@ class SdrManagerClient:
 
     @property
     def base_url(self) -> str:
-        """The validated `http://host:port` this client talks to."""
-        return f"http://{self._address}:{self._port}"
+        """The validated `https://host:port` (or `http://`) this client talks to."""
+        return f"{self._transport}://{self._address}:{self._port}"
+
+    def _verify(self) -> ssl.SSLContext | bool:
+        """httpx's `verify=` for this host; raises before any request when HTTPS can't be verified.
+
+        Plain HTTP has nothing to verify. Over HTTPS this machine's own
+        sdr-manager-local presents a certificate from the deployment's
+        authority, which `internal_verify` already trusts; any other host's must
+        chain to the authority pinned for it, and no pin means no request.
+        """
+        if self._transport == TRANSPORT_HTTP:
+            return True
+        if self._certificate_authority:
+            return pinned_context(self._certificate_authority)
+        if self._service_token is not None:
+            return internal_verify()
+        raise SdrManagerCertificateUntrustedError(
+            f"SDR host {self._address}:{self._port} serves HTTPS, but its certificate hasn't been trusted yet."
+        )
+
+    def _client(self) -> httpx.AsyncClient:
+        """One short-lived httpx client for this host, verifying as `_verify` says."""
+        return httpx.AsyncClient(timeout=self._timeout, verify=self._verify())
 
     def _headers(self) -> dict[str, str]:
         """Request headers, carrying the session cookie once one has been obtained.
@@ -230,9 +290,11 @@ class SdrManagerClient:
             return False
         url = f"{self.base_url}/api/auth/login"
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with self._client() as client:
                 response = await client.post(url, json={"password": self._console_password})
         except httpx.HTTPError:
+            # Never a refused pin's typed error: `_send` already built a client
+            # for this host, so `_verify` had its say before a sign-in is tried.
             return False
         if response.status_code >= 400:
             return False
@@ -291,12 +353,19 @@ class SdrManagerClient:
         headers = self._headers()
         if holder:
             headers[RESERVATION_HOLDER_HEADER] = holder
+        client = self._client()
         try:
-            async with httpx.AsyncClient(timeout=self._timeout) as client:
+            async with client:
                 return await client.request(method, url, headers=headers, json=json_body)
         except httpx.TimeoutException as exc:
             raise SdrManagerUnreachableError(f"Timed out reaching SDR host {self._address}:{self._port}.") from exc
         except httpx.HTTPError as exc:
+            if is_tls_refusal(exc):
+                raise SdrManagerCertificateRejectedError(
+                    f"SDR host {self._address}:{self._port} presented a certificate its trusted certificate "
+                    "authority didn't sign. If the host's credentials were regenerated, check its new "
+                    "fingerprint and trust it again."
+                ) from exc
             raise SdrManagerUnreachableError(f"Could not reach SDR host {self._address}:{self._port}.") from exc
 
     # ── health / status ──────────────────────────────────────────────────────
@@ -435,12 +504,19 @@ class SdrManagerClient:
 def client_for_host(host: RemoteSdrHost) -> SdrManagerClient:
     """The client for one host's row: its console password, or for this machine the service bearer.
 
-    Copies what it needs from the row, so the client outlives the session the
-    row was loaded in.
+    Copies what it needs from the row (transport and pinned authority
+    included), so the client outlives the session the row was loaded in.
     """
-    if host.auth_mode == AUTH_MODE_SERVICE:
-        return SdrManagerClient(host.address, host.port, "", service_token=own_token())
-    return SdrManagerClient(host.address, host.port, host.auth_token)
+    service_mode = host.auth_mode == AUTH_MODE_SERVICE
+    return SdrManagerClient(
+        host.address,
+        host.port,
+        "" if service_mode else host.auth_token,
+        service_token=own_token() if service_mode else None,
+        # A row not flushed yet has no column default applied; the column's is HTTP.
+        transport=host.transport or TRANSPORT_HTTP,
+        certificate_authority=host.tls_certificate_authority,
+    )
 
 
 def _encode_path_segment(value: str) -> str:

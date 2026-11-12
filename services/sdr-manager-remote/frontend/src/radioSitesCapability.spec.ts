@@ -27,6 +27,9 @@ function host(overrides: Partial<SdrManagerHost> = {}): SdrManagerHost {
     last_error: null,
     reachable: true,
     api_version: '1',
+    transport: 'https',
+    tls_fingerprint: null,
+    tls_state: 'untrusted',
     ...overrides,
   }
 }

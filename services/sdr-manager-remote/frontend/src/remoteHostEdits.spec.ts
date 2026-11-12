@@ -27,6 +27,9 @@ const REMOTE_HOST: SdrManagerHost = {
   last_error: null,
   reachable: true,
   api_version: '1.0.0',
+  transport: 'https',
+  tls_fingerprint: null,
+  tls_state: 'untrusted',
 }
 const LOCAL_HOST: SdrManagerHost = {
   ...REMOTE_HOST,

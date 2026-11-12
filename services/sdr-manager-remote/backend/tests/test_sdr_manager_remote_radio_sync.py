@@ -369,7 +369,7 @@ class TestFromThePoll:
             host_id = host.id
 
         class StatusClient:
-            def __init__(self, *_args: Any) -> None:
+            def __init__(self, *_args: Any, **_connection: Any) -> None:
                 pass
 
             async def get_status(self) -> SdrManagerResponse:
