@@ -1,0 +1,161 @@
+/* The settings list of devices, radios, hosts and regions: rows, their info and reason text, the expandable form under a row, and its error and actions.
+   Shared by every settings control that uses these classes; each one imports
+   this file, so the look travels with the control wherever it is mounted. */
+
+.sdr-devices-wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 0;
+}
+
+.sdr-devices-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.sdr-devices-empty {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-body);
+  letter-spacing: 0.06em;
+  color: var(--ink-secondary);
+  padding: 4px 0 12px;
+}
+
+.sdr-device-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.sdr-device-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  background: rgba(var(--ink-rgb), 0.025);
+  border-radius: 0;
+}
+
+.sdr-device-item--open > .sdr-device-row {
+  border-radius: 0;
+}
+
+.sdr-device-info {
+  flex: 1;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: rgba(var(--ink-rgb), 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A row led by an SDR's name (the devices card, this machine's SDRs): the
+   name at the size of a host's name above it (RemoteHostHeader), so every
+   name there reads alike; what follows the name is .sdr-device-meta. */
+.sdr-device-info--named {
+  font-size: var(--settings-text-body);
+  color: var(--ink);
+}
+
+/* What follows an SDR's name (its address, NOT SET UP, EDITED…): the size and
+   tone of a host's address and SDR count. */
+.sdr-device-meta {
+  margin-left: 8px;
+  font-size: var(--settings-text-small);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ink-secondary);
+}
+
+/* A radio whose SDR Manager device is unplugged, disabled or gone. Dimmed rather
+   than hidden: the radio still exists and is still the operator's to keep,
+   rename or delete — it simply cannot be connected to right now. */
+.sdr-device-info--unavailable {
+  opacity: 0.45;
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+
+/* The reason, beside the row. Kept to one short sentence from the backend so it
+   fits without wrapping the row; it is the difference between "this is broken"
+   and "your dongle is unplugged". */
+.sdr-device-unavailable {
+  flex-shrink: 1;
+  min-width: 0;
+  margin-right: 8px;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  color: var(--danger-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Where a row has no button that its neighbours have (a cross): the width of a
+   BaseIconAction variant="row" button (13px icon + 5px padding each side), so
+   the buttons before it line up. */
+.sdr-device-btn-slot {
+  flex-shrink: 0;
+  width: 23px;
+}
+
+.sdr-devices-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(var(--ink-rgb), 0.015);
+  border-radius: 0;
+}
+
+.sdr-device-item--new > .sdr-devices-accordion {
+  border-radius: 0;
+  padding-top: 12px;
+}
+
+.sdr-devices-form-error {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--danger);
+  padding: 0;
+  margin-left: 124px;
+}
+
+.sdr-devices-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-top: 2px;
+}
+
+/* SAVE / CANCEL rows read as a segmented pair (ONLINE / OFF GRID): the same
+   2px gap, surface fill, dimmed ink and hover tint. Sizing comes from the
+   panel-wide BaseButton rule. */
+#settings-panel .sdr-devices-form-actions .ba-btn--ghost {
+  --ba-ghost-bg: var(--surface);
+  --ba-ghost-hover-bg:
+    linear-gradient(rgba(var(--ink-rgb), 0.05), rgba(var(--ink-rgb), 0.05)), var(--surface);
+  --ba-ghost-color: var(--ink-secondary);
+  --ba-ghost-hover-color: rgba(var(--ink-rgb), 0.8);
+}
+
+/* .sdr-devices-btn's own chrome (+ its --primary modifier) now lives in the
+   BaseButton atom's "ghost"/"primary" variants (see
+   src/components/base/BaseButton.vue) — the classnames remain on the
+   rendered buttons purely so tests can still target them. */
+
+/* + ADD SDR now renders through the BaseButton "ghost" variant like the other
+   settings action buttons — only its placement remains family-owned. */
+.sdr-devices-add-btn {
+  align-self: flex-start;
+}

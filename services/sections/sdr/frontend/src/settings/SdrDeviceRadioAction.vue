@@ -55,6 +55,7 @@ import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManage
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
 import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'
 import { hostDeviceNotRadioReason } from './hostDeviceAvailability'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 defineProps<{
   /** The SDR as this machine's host reports it, or undefined until it does. */

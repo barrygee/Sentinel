@@ -130,6 +130,7 @@ import RemoteHostForm from './RemoteHostForm.vue'
 import { deleteHost } from '../api/sdrManagerRemoteApi'
 import { announceHostsChanged } from '../hostsChanged'
 import { saveRemoteHostDraft, type RemoteHostDraft } from '../remoteHostEdits'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{
   host: SdrManagerHost

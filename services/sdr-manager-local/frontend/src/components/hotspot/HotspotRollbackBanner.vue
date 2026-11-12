@@ -37,6 +37,7 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{ deadlineMs: number; busy: boolean }>()
 const emit = defineEmits<{ keep: []; undo: [] }>()

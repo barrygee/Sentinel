@@ -53,6 +53,7 @@
 import { computed, ref, useId } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 const props = defineProps<{
   /** Whether the draw handler is currently armed (drives the button's label/highlight). */

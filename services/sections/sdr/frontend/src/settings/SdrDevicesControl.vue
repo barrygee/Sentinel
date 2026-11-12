@@ -301,6 +301,7 @@ import type {
 } from '@sentinel/shell-api/types/sdrManager'
 import { findSdrManagerHosts } from '../services/sdrManagerHosts'
 import { RADIOS_CHANGED_EVENT } from '../composables/sdrDeviceEvents'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 

@@ -107,6 +107,7 @@ import { deviceLabel, useLocalSdrStore } from '../../stores/localSdrStore'
 import { deviceErrorMessage } from '../../utils/errorMessages'
 import LocalDeviceForm from './LocalDeviceForm.vue'
 import { useDeviceActions, usePortOnly } from '../../composables/useDeviceActions'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{ device: LocalDeviceStatus; open: boolean }>()
 const emit = defineEmits<{ toggle: [] }>()

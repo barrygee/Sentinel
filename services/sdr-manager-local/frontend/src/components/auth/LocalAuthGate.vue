@@ -17,6 +17,7 @@
 import { onMounted } from 'vue'
 import { useLocalAuthStore } from '../../stores/localAuthStore'
 import LocalSignInForm from './LocalSignInForm.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 withDefaults(defineProps<{ signInHere?: boolean }>(), { signInHere: false })
 

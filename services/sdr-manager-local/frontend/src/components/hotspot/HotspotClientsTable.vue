@@ -46,6 +46,7 @@
  */
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { LocalHotspotClient } from '../../api/types'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 defineProps<{ clients: LocalHotspotClient[] | null }>()
 const emit = defineEmits<{ release: [macAddress: string] }>()

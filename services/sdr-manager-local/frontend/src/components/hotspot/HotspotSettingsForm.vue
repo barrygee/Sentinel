@@ -146,6 +146,7 @@ import {
   validatePassphrase,
   validateSsid,
 } from '../../utils/validation'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{
   state: LocalHotspotState

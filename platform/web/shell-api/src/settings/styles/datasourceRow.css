@@ -1,0 +1,74 @@
+/* The hairline-ruled LABEL + input row of the data-source cards (URL fields, radio pickers).
+   Shared by every settings control that uses these classes; each one imports
+   this file, so the look travels with the control wherever it is mounted. */
+
+.settings-datasource-wrap {
+  display: flex;
+  flex-direction: column;
+  /* Enough air to read the field and its category row as two separate steps. */
+  gap: 22px;
+  width: 100%;
+  max-width: var(--settings-control-measure);
+}
+
+.settings-datasource-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--settings-field-line);
+  transition: box-shadow 0.15s;
+  border-radius: 0;
+  overflow: hidden;
+}
+
+/* A row holding a SettingsDropdown (the SDR radio pickers): its option list
+   is positioned absolutely below the trigger, so the row must not clip it —
+   with `overflow: hidden` the list opened invisibly and nothing could be
+   chosen. The hidden overflow above exists only for rows of plain inputs. */
+.settings-datasource-row--dropdown {
+  overflow: visible;
+}
+
+/* A row with no leading label: the field starts at the card's left edge. */
+.settings-datasource-row--bare .settings-datasource-input {
+  padding-left: 0;
+}
+
+.settings-datasource-row:focus-within {
+  box-shadow: inset 0 -2px 0 var(--color-accent);
+}
+
+.settings-datasource-label {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--ink-secondary);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.settings-datasource-input {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 10px 12px;
+  color: var(--ink);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-body);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  outline: none;
+  caret-color: var(--ink-strong);
+  min-width: 0;
+}
+
+.settings-datasource-input::placeholder {
+  color: rgba(var(--ink-rgb), 0.38);
+  letter-spacing: 0.1em;
+}

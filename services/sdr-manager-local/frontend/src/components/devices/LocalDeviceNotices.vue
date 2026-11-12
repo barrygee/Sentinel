@@ -33,6 +33,7 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 import type { LocalDeviceStatus } from '../../api/types'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 defineProps<{ device: LocalDeviceStatus }>()
 

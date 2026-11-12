@@ -188,11 +188,13 @@ import type {
   SdrManagerDeviceStatus,
 } from '@sentinel/shell-api/types/sdrManager'
 import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
+import '@sentinel/ui/base/segmentedControl.css'
 
 // The original `.sdr-devices-btn--primary` never had a disabled visual
 // treatment at all (unlike BaseButton's shared dimmed/not-allowed default),
 // so `saving` never visibly dims this SAVE button — preserve that. Size and
-// colours come from SettingsPanel.css's `.sdr-devices-form-actions` rule.
+// colours come from deviceList.css's `.sdr-devices-form-actions` rule.
 const PRIMARY_BUTTON_STYLE =
   '--ba-primary-font-weight: 600; --ba-disabled-opacity: 1; --ba-disabled-cursor: default'
 

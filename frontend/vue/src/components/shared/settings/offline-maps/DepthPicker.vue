@@ -26,6 +26,7 @@
  */
 import { computed } from 'vue'
 import BaseSliderRow from '@sentinel/ui/base/BaseSliderRow.vue'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 /** Plain-language description per zoom band, matching how OSM/Mapbox commonly describe them. */
 const LEVEL_LABELS: { atOrAbove: number; label: string }[] = [

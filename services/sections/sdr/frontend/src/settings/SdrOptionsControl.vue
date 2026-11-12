@@ -201,7 +201,7 @@ function onToggleOption(_column: string, settingKey: string): void {
   --lft-col-width: 100px;
 }
 
-/* Match the SDR Devices rows (`.sdr-device-info` in SettingsPanel.css) so the
+/* Match the SDR Devices rows (`.sdr-device-info` in @sentinel/shell-api/settings/styles/deviceList.css) so the
    two SDR cards read as one family. The size was already the same 12px Barlow
    500 — what set the option names apart was the label-grid's wider 0.08em
    tracking and slightly lighter ink, both of which are dialled back here. The

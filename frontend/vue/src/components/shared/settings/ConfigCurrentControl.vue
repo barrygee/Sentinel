@@ -43,6 +43,7 @@ import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import JsonCodeEditor from '@sentinel/shell-api/settings/JsonCodeEditor.vue'
+import '@sentinel/shell-api/settings/styles/configEditor.css'
 
 // Same key useUserLocation seeds sharedLocation from on reload. Clearing it
 // here when the config location is emptied keeps the post-reload seed correct

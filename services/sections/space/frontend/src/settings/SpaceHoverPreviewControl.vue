@@ -28,6 +28,8 @@ import { ref, onMounted } from 'vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
 import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
+import '@sentinel/shell-api/settings/styles/sourceOverride.css'
+import '@sentinel/ui/base/segmentedControl.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

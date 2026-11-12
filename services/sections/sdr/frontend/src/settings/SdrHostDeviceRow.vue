@@ -38,6 +38,7 @@ import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'
 import { hostDeviceNotRadioReason } from './hostDeviceAvailability'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 defineProps<{
   device: SdrManagerDeviceStatus

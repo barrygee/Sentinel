@@ -45,6 +45,7 @@ import { configErrorMessage } from '../../utils/errorMessages'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import ConfigImportForm from './ConfigImportForm.vue'
 import ConfigImportReport from './ConfigImportReport.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 /** The name the API gives the same file at `/config/download`. */
 const EXPORT_FILE_NAME = 'sdr-manager-local-config.json'

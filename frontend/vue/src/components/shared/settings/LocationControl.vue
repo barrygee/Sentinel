@@ -58,6 +58,7 @@ import {
   validateLatitude,
   validateLongitude,
 } from '@/utils/locationValidation'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 // Held once rather than repeated in the template and in the aria wiring: the
 // hint and the range it describes must stay in step with locationValidation.

@@ -96,6 +96,7 @@ import { deviceLabel, isDeviceIdle, useLocalSdrStore } from '../../stores/localS
 import { serialFlashErrorMessage, serialFlashFailureMessage } from '../../utils/errorMessages'
 import { validateSerial } from '../../utils/validation'
 import SerialFlashConfirmDialog from './SerialFlashConfirmDialog.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 type FlashPhase = 'form' | 'submitting' | 'awaiting-outcome' | 'succeeded' | 'failed'
 

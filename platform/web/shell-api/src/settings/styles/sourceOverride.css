@@ -1,0 +1,18 @@
+/* The source-override card: its column and the off-grid note beneath the picker.
+   Shared by every settings control that uses these classes; each one imports
+   this file, so the look travels with the control wherever it is mounted. */
+
+.settings-source-override-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-source-override-note {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-small);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: rgba(var(--warn-rgb), 0.9);
+  font-style: italic;
+}

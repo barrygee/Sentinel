@@ -39,6 +39,7 @@
  */
 import { nextTick, onBeforeUnmount, onMounted, ref, type ComponentPublicInstance } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{ serial: string; deviceName: string; idPrefix: string }>()
 const emit = defineEmits<{ confirm: []; cancel: [] }>()

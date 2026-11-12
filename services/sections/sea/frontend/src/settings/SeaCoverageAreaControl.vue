@@ -43,6 +43,7 @@ import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { useSeaStore } from '../stores/sea'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 const seaStore = useSeaStore()

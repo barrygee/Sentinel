@@ -56,6 +56,7 @@ import { computed, reactive, ref, useId, watch } from 'vue'
 import BaseTextField from '@sentinel/ui/base/BaseTextField.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 import { computeBboxFieldErrors } from './bboxValidation'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 const props = defineProps<{
   bounds: LngLatBounds

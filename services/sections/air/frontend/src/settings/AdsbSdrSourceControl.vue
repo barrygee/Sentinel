@@ -44,6 +44,7 @@ import {
   useRadioReservations,
 } from '@sentinel/shell-api/shell/radioReservations'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import '@sentinel/shell-api/settings/styles/datasourceRow.css'
 
 const emit = defineEmits<{ stage: [fn: () => Promise<unknown> | void] }>()
 

@@ -127,6 +127,7 @@ import RegionList from './RegionList.vue'
 import type { LngLatBounds } from './rectangleDrawHandler'
 import { isBboxValid } from './bboxValidation'
 import type { OfflineRegion } from '@sentinel/shell-api/services/offlineMapsApi'
+import '@sentinel/shell-api/settings/styles/locationFields.css'
 
 const appStore = useAppStore()
 const store = useOfflineMapsStore()
