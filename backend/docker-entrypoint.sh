@@ -11,10 +11,10 @@
 #
 # SENTINEL_RUNTIME_USER_ID / SENTINEL_RUNTIME_GROUP_ID pick the runtime user
 # (default 1000, the image's `sentinel` user). Set them to your own ids on a
-# Linux host whose ./backend is bind-mounted (as docker-compose.yml does for
-# live reload) and not owned by uid 1000, so the app can still write
-# backend/data/sentinel_config.json. Started with an explicit non-root `--user`,
-# this execs the command unchanged.
+# Linux host whose checkout is not owned by uid 1000, so the app can still
+# write the bind-mounted ./config/sentinel_config.json (and Space/SDR their
+# ./backend/data files). Started with an explicit non-root `--user`, this
+# execs the command unchanged.
 set -eu
 
 runtime_user_id="${SENTINEL_RUNTIME_USER_ID:-1000}"
@@ -29,11 +29,14 @@ if [ "$(id -u)" != "0" ]; then
 fi
 
 # Only entries not already owned are changed, so a restart walks a few
-# directories and changes nothing.
+# directories and changes nothing. `find` never follows a symlink and `-h`
+# changes the link itself, never what it points at: these directories are
+# writable by the unprivileged process, so a link planted there must not let
+# this root step take ownership of a file outside them (/etc/shadow, say).
 for writable_directory in $writable_directories; do
     [ -d "$writable_directory" ] || continue
     find "$writable_directory" \( ! -user "$runtime_user_id" -o ! -group "$runtime_group_id" \) \
-        -exec chown "$runtime_user_id:$runtime_group_id" {} + 2>/dev/null || true
+        -exec chown -h "$runtime_user_id:$runtime_group_id" {} + 2>/dev/null || true
 done
 
 # /root is not the runtime user's; anything reading HOME looks here instead.

@@ -74,7 +74,8 @@ Core keeps the gateway's routes in step through Caddy's admin API (:2019, on the
 
 - One image (`backend/Dockerfile`) for every Python service; only the `uvicorn` target differs.
 - Its stages: build the SPA and docs (Node), fetch `pmtiles` (checksummed), then the Python runtime as an unprivileged user.
-- Backend code is bind-mounted with `uvicorn --reload`; the built `frontend/spa-dist/` is mounted read-only.
+- Deployed (`docker-compose.yml`), every service runs its image's code, with no reload. `compose.dev.yaml` mounts the checkout's code read-only with `uvicorn --reload` for development. The built `frontend/spa-dist/` and `docs/` are mounted read-only either way.
+- The only checkout folders a container can write: `config/` (core alone: the live settings file) and `backend/data/` (Space and SDR's data files).
 - Every service has its own volume ([Storage](storage.md)).
 
 ## More

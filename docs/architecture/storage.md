@@ -8,7 +8,7 @@ Every service owns its own SQLite database; only settings are shared, and they b
 |---|---|---|
 | `sentinel.db` (`sentinel_db`) | core | `user_settings` (every setting, incl. `sdr.radios`), alerts, offline map areas |
 | `tiles/` beside it | core | Downloaded `.pmtiles` |
-| `backend/data/sentinel_config.json` | core | Live two-way copy of every setting |
+| `config/sentinel_config.json` | core (the only container that mounts it) | Live two-way copy of every setting |
 | `space.db` | space | Satellites and TLEs |
 | `air.db` | air | ADS-B snapshot cache, tracked aircraft |
 | `sea.db` | sea | `sea_vessel_cache` (30-second snapshot), `sea_vessel_static` |

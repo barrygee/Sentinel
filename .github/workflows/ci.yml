@@ -413,7 +413,8 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # The containers drop to an unprivileged uid that must be able to write
-      # the bind-mounted ./backend (the live config file): the runner's own.
+      # the bind-mounted ./config (the live config file) and ./backend/data:
+      # the runner's own.
       - name: Run the stack as the runner's user
         run: |
           echo "SENTINEL_RUNTIME_USER_ID=$(id -u)" >> "$GITHUB_ENV"

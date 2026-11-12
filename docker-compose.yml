@@ -1,3 +1,13 @@
+# Sentinel as deployed: every service runs the code baked into its image, with
+# no --reload and no code bind-mounted from the checkout.
+#
+#   docker compose up --build -d          # app on http://localhost:8080
+#
+# For development (live reload of backend code), layer compose.dev.yaml over
+# it, either per command or once in .env:
+#
+#   COMPOSE_FILE=docker-compose.yml:compose.dev.yaml
+#
 # Applied to every long-running service: a process can never gain privileges
 # through setuid or file capabilities. The entrypoint's setpriv only drops them.
 x-no-new-privileges: &no-new-privileges
@@ -108,15 +118,16 @@ x-section-env: &section-env
 
 # Mounts every section service shares. The app's database is read once on
 # first boot to copy the section's tables out, and it holds the AISStream key,
-# so the mount itself is read-only as well as the import's connection. The
-# backend code is read-only because a section only reads it to live-reload:
-# anything writable here is code that app runs. The SPA build holds each
-# section's UI remote.
+# so the mount itself is read-only as well as the import's connection. No
+# service mounts code from the checkout here: each runs the image's copy, with
+# no --reload. compose.dev.yaml adds the live-reload code mounts for
+# development. The SPA build holds each section's UI remote.
 x-section-mounts:
   - &legacy-db sentinel_db:/legacy:ro
-  - &backend-code ./backend:/app/backend:ro  # live-reload backend code
-  # Settings › SDR and › Space save their edits to files here, so those two sections
-  # mount it writable over the read-only code. Data only: nothing here is executed.
+  # Settings › SDR and › Space save their edits to files here, so those two
+  # sections mount it writable. Data only: nothing here is executed, and the
+  # live config file core applies as settings is NOT here (it is in ./config,
+  # which only the app mounts), so a section can't write settings through it.
   - &editable-data ./backend/data:/app/backend/data
   - &spa-dist ./frontend/spa-dist:/app/frontend/spa-dist:ro
 
@@ -135,7 +146,10 @@ services:
 
     volumes:
       - sentinel_db:/app/data
-      - ./backend:/app/backend         # live-reload backend code
+      # The live config file (sentinel_config.json, every setting of this
+      # install, hand-editable). Its own folder, mounted by the app alone: the
+      # app applies edits to it as settings, so no other container may write it.
+      - ./config:/app/config
       - ./frontend/assets:/app/frontend/assets:ro  # tiles, sprites, fonts
       - ./frontend/spa-dist:/app/frontend/spa-dist:ro  # built Vue SPA
       # Its own credentials (`core`) and the callers it accepts, from service-credentials.
@@ -144,6 +158,9 @@ services:
       <<: *guard-env
       GUARD_PROFILE: core
       DB_PATH: /app/data/sentinel.db
+      APP_CONFIG_PATH: /app/config/sentinel_config.json
+      # The mounts the app writes to, handed to the runtime user on start.
+      SENTINEL_WRITABLE_DIRECTORIES: /app/data /app/config
       # Internal routes (section-containers plan §4.5, P7.4b): services in their
       # own containers register, read their secret settings and fetch IQ
       # captures with their own credential, and decoders post with theirs.
@@ -174,7 +191,7 @@ services:
       # volumes above to this uid/gid and drops to it. The default (1000) is the
       # image's own `sentinel` user. On a Linux host whose checkout is not owned
       # by uid 1000, set both to your ids (`id -u` / `id -g`) in .env, because
-      # the ./backend bind mount is where the app writes sentinel_config.json.
+      # the ./config bind mount is where the app writes sentinel_config.json.
       SENTINEL_RUNTIME_USER_ID: ${SENTINEL_RUNTIME_USER_ID:-1000}
       SENTINEL_RUNTIME_GROUP_ID: ${SENTINEL_RUNTIME_GROUP_ID:-1000}
       # Offline map download sources (core runs the downloads). Empty basemap =
@@ -190,7 +207,7 @@ services:
     # decides which X-Forwarded-For to believe (the gateway's). uvicorn
     # rewriting the client first would let anything on the network claim any
     # address.
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --no-proxy-headers
     # sdr-manager-local runs on the host's network and registers at
     # host.docker.internal; the app health-probes it there.
     extra_hosts:
@@ -289,16 +306,14 @@ services:
     volumes:
       - space_data:/app/data
       - *legacy-db
-      - *backend-code
       - *editable-data
-      - ./services/sections/space/backend:/app/services/sections/space/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/space}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/space.db
       SERVICE_INTERNAL_URL: http://space:8000
-    command: uvicorn sentinel_space.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_space.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The Land section as its own service (P6.2).
   # Same pattern as `space`: registers with the app and takes /api/land/ and
@@ -312,15 +327,13 @@ services:
     volumes:
       - land_data:/app/data
       - *legacy-db
-      - *backend-code
-      - ./services/sections/land/backend:/app/services/sections/land/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/land}}
     environment:
       <<: *section-env
       DB_PATH: /app/data/land.db
       SERVICE_INTERNAL_URL: http://land:8000
-    command: uvicorn sentinel_land.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_land.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The Air section as its own service (P6.3).
   # Same pattern as `space`/`land`: registers with the app and takes /api/air/
@@ -335,8 +348,6 @@ services:
     volumes:
       - air_data:/app/data
       - *legacy-db
-      - *backend-code
-      - ./services/sections/air/backend:/app/services/sections/air/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/air}}
     environment:
@@ -345,7 +356,7 @@ services:
       SERVICE_INTERNAL_URL: http://air:8000
       # Where Off Grid AIR reads decoded aircraft (same default as the app's).
       ADSB_OFFGRID_URL: ${ADSB_OFFGRID_URL:-http://adsb-decoder:8080/data/aircraft.json}
-    command: uvicorn sentinel_air.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_air.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The Sea section as its own service (P6.4).
   # Same pattern as the sections above: registers with the app and takes
@@ -362,8 +373,6 @@ services:
     volumes:
       - sea_data:/app/data
       - *legacy-db
-      - *backend-code
-      - ./services/sections/sea/backend:/app/services/sections/sea/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sea}}
     environment:
@@ -373,7 +382,7 @@ services:
       # The .env fallback key, used when none is saved in Settings › SEA (the
       # same variable the app reads when it hosts Sea itself). Never committed.
       AISSTREAM_API_KEY: ${AISSTREAM_API_KEY:-}
-    command: uvicorn sentinel_sea.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_sea.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The radio hub as its own service (P6.5).
   # Same image and pattern as the sections above, but it is not a section: no
@@ -408,8 +417,6 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - radio_data:/app/data
-      - *backend-code
-      - ./services/radio/backend:/app/services/radio/backend  # live-reload hub code
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/radio}}
       # IQ captures are written to recordings/ on radio_data; the SDR
       # section copies each one over HTTP when its recording stops (P7.3), so
@@ -423,7 +430,7 @@ services:
       # hub; it knows them by hash. The PCM and voice ports keep the app's
       # defaults (7355–7358).
       ACCEPTED_CALLERS_FILE: /run/service-credentials/accepted-callers.json
-    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The SDR section as its own service (P6.6).
   # Same pattern as the sections above: registers with the app and takes
@@ -446,9 +453,7 @@ services:
     volumes:
       - sdr_data:/app/data
       - *legacy-db
-      - *backend-code
       - *editable-data
-      - ./services/sections/sdr/backend:/app/services/sections/sdr/backend  # live-reload section code
       - *spa-dist
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr}}
       - ${SENTINEL_RECORDINGS_DIRECTORY:-sdr_recordings}:/recordings
@@ -459,7 +464,7 @@ services:
       RECORDINGS_DIRECTORY: /recordings
       # Handed to the runtime user on start, with the database volume.
       SENTINEL_WRITABLE_DIRECTORIES: /app/data /recordings
-    command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # The in-app docs (/docs) as their own service. Optional, and started by a
   # plain `docker compose up` like everything above: leave it out with
@@ -469,16 +474,15 @@ services:
   # (sentinel_docs.service, in services/docs/backend). It registers with the
   # app, which hands it /api/documentation/ in the gateway, and serves the
   # repo's docs/ and CONTRIBUTING.md to the shell's docs page. No database and
-  # no settings. The checkout's docs are bind-mounted and read on each request,
-  # so an edited page shows on the next load — no SPA rebuild, no restart.
+  # no settings. The checkout's docs are bind-mounted read-only and read on
+  # each request, so an edited page shows on the next load — no SPA rebuild, no
+  # restart.
   docs:
     <<: *section-service
     container_name: sentinel-docs
     deploy:
       replicas: ${SENTINEL_DOCS_REPLICAS:-1}
     volumes:
-      - *backend-code
-      - ./services/docs/backend:/app/services/docs/backend  # live-reload docs service code
       - ./docs:/app/docs:ro
       - ./CONTRIBUTING.md:/app/CONTRIBUTING.md:ro
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/docs}}
@@ -486,7 +490,7 @@ services:
       <<: *section-env
       GUARD_PROFILE: docs
       SERVICE_INTERNAL_URL: http://docs:8000
-    command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # SDR Manager for SDR hosts on OTHER machines (ADR 0007): the hosts this
   # Sentinel manages, polled for their live status, and the leases Air takes
@@ -510,16 +514,14 @@ services:
         required: false
     volumes:
       - sdr_manager_remote_data:/app/data
-      - *backend-code
       - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-remote/
-      - ./services/sdr-manager-remote/backend:/app/services/sdr-manager-remote/backend  # live-reload its code
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-remote}}
     environment:
       <<: *section-env
       GUARD_PROFILE: sdr_manager_remote
       DB_PATH: /app/data/sdr-manager-remote.db
       SERVICE_INTERNAL_URL: http://sdr-manager-remote:8000
-    command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # SDR Manager for the RTL-SDRs plugged into THIS machine (ADR 0007): Sentry,
   # moved into Sentinel. OPT-IN and Linux only: it starts with the
@@ -534,9 +536,10 @@ services:
   # host.docker.internal, which hands it /api/sdr-manager/local/ in the
   # gateway, and reads Sentinel's Location setting through core's TLS service
   # entrypoint on localhost:8443. It serves before core answers, so dongles
-  # keep streaming through a core restart. No NATS. Code is bind-mounted but
-  # not reloaded (a reload would restart every dongle's stream): after an edit,
-  # `docker compose restart sdr-manager-local`.
+  # keep streaming through a core restart. No NATS. Runs the image's code
+  # (compose.dev.yaml bind-mounts its folder, without a reload: that would
+  # restart every dongle's stream; after an edit, `docker compose restart
+  # sdr-manager-local`).
   # Without a dongle, add compose.sdr-manager-local-mock.yaml (two simulated SDRs).
   sdr-manager-local:
     build:
@@ -563,9 +566,6 @@ services:
       - /run/dbus/system_bus_socket:/run/dbus/system_bus_socket
       - /var/lib/NetworkManager:/var/lib/NetworkManager:ro
       - *spa-dist  # its UI remote, spa-dist/remotes/sdr-manager-local/ (overrides the image's copy)
-      # No ./backend mount: this runs as root, so it uses the image's copy.
-      # Rebuild after changing backend/.
-      - ./services/sdr-manager-local/backend:/app/services/sdr-manager-local/backend
       - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/sdr-manager-local}}
     environment:
       PYTHONUNBUFFERED: "1"

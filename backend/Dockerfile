@@ -106,8 +106,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # should not) do.
 ENV PATH="/app/.venv/bin:${PATH}"
 
-# backend/ is owned by the runtime user: the app writes the live config file
-# (backend/data/sentinel_config.json) when no bind mount replaces it.
+# backend/ is owned by the runtime user: Space and SDR write their data files
+# (backend/data) and, run without compose's APP_CONFIG_PATH, the app writes
+# the live config file there when no bind mount replaces it.
 COPY --chown=sentinel:sentinel backend/ ./backend/
 # Each section's backend package (services/sections/<id>/backend) and the
 # radio hub's (services/radio/backend), the docs service's (services/docs/backend) and

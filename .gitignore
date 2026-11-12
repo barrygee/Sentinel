@@ -30,7 +30,10 @@ __pycache__/
 /backend/data/sdr_frequencies.json
 # Live application config: every setting of THIS install, rewritten on each
 # change (services/app_config_file.py). The committed backend/default_config.json
-# holds the defaults a fresh clone seeds from.
+# holds the defaults a fresh clone seeds from. Under docker compose it lives in
+# ./config (APP_CONFIG_PATH); the backend/data path is the pre-split location
+# and the default outside Docker.
+/config/
 /backend/data/sentinel_config.json
 
 # Local environment / secrets (never commit) — see .env.example
