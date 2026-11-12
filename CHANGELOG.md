@@ -669,6 +669,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Hold on a signal while its squelch is open, and steady the scan overlay
 - Polish the RADIO pane's add button, row hover, input focus and search chip
 - Drop warm-started vessels another source heard
+- Guard TLE source URLs against internal destinations
 
 ### Chores
 
@@ -1872,6 +1873,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #627 from barrygee/refactor/space-tle-css
 - Merge remote-tracking branch 'origin/main' into refactor/settings-kit-css
 - Merge pull request #628 from barrygee/refactor/settings-kit-css
+- Merge pull request #629 from barrygee/fix/upstream-url-ssrf
 
 ### Performance
 
