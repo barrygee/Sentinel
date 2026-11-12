@@ -48,6 +48,7 @@ import { ref, onMounted } from 'vue'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SettingsDropdown from '@sentinel/ui/base/SettingsDropdown.vue'
+import './TleCategoryRow.css'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },
@@ -164,3 +165,9 @@ async function updateTle(): Promise<void> {
   }
 }
 </script>
+
+<style scoped>
+.tle-online-wrap {
+  max-width: 860px;
+}
+</style>

@@ -45,6 +45,7 @@
 import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import SettingsDropdown from '@sentinel/ui/base/SettingsDropdown.vue'
+import './TleCategoryRow.css'
 
 const TLE_CATEGORIES = [
   { value: 'active', label: 'All Active (no category)' },
@@ -116,3 +117,68 @@ async function apply(): Promise<void> {
   }
 }
 </script>
+
+<style scoped>
+.tle-manual-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: var(--settings-control-measure);
+}
+
+/* A hairline-ruled file picker: the native input is hidden behind the
+   CHOOSE FILE label, with the chosen file's name beside it. */
+.tle-file-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: transparent;
+  box-shadow: inset 0 -1px 0 var(--settings-field-line);
+  border-radius: 0;
+  overflow: hidden;
+}
+
+.tle-file-input {
+  display: none;
+}
+
+.tle-file-label {
+  flex-shrink: 0;
+  padding: 0 12px;
+  background: none;
+  border: none;
+  color: var(--ink-secondary);
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition:
+    background 0.15s,
+    color 0.15s;
+  user-select: none;
+}
+
+.tle-file-label:hover {
+  color: rgba(var(--ink-rgb), 0.85);
+}
+
+.tle-file-name {
+  flex: 1;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-body);
+  font-weight: 400;
+  color: var(--ink-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
+}
+</style>

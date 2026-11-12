@@ -1,0 +1,71 @@
+/* The TLE CATEGORY picker + UPDATE TLE button row and its status badge,
+   shared by SpaceTleOnlineControl and SpaceTleManualControl. */
+
+.tle-cat-row-ctrl .tle-category-dropdown {
+  width: 230px;
+  flex: 0 0 230px;
+}
+
+.tle-cat-row-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  overflow: visible;
+  clip-path: none;
+  isolation: isolate;
+}
+
+/* Each TLE row is its own stacking context (isolation above), so its menu's
+   z-index only counts inside that row, and the next TLE row down the panel
+   painted over an open menu. Lift the row whose menu is open above the rest. */
+.tle-cat-row-ctrl:has(.settings-dropdown--open) {
+  position: relative;
+  z-index: 2;
+}
+
+.tle-status-line {
+  min-height: 0;
+}
+
+.tle-status-badge {
+  display: inline-block;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 0;
+}
+
+.tle-status-badge--ok {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+
+.tle-status-badge--error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.tle-status-badge--info {
+  color: rgba(var(--ink-rgb), 0.5);
+}
+
+@media (max-width: 768px) {
+  /* The row is inline-flex sized to max-content and the dropdown a fixed
+     230px, so it overflows the card on narrow screens. Let the row fill the
+     card and the dropdown shrink (its selected text already ellipsises); the
+     UPDATE TLE button wraps if needed. */
+  .tle-cat-row-ctrl {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .tle-cat-row-ctrl .tle-category-dropdown {
+    width: auto;
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+}
