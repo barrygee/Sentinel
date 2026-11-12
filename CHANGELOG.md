@@ -298,6 +298,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Padlock radios another section holds off grid
 - Draw range rings as dots instead of dashes
 - Let the operator close the online quota warning
+- Pin each SDR host's certificate authority over HTTPS **(breaking change)**
 
 ### Bug Fixes
 
@@ -1876,6 +1877,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #628 from barrygee/refactor/settings-kit-css
 - Merge pull request #629 from barrygee/fix/upstream-url-ssrf
 - Merge pull request #630 from barrygee/fix/compose-deploy-hardening
+- Merge pull request #631 from barrygee/fix/sdr-manager-https
 
 ### Performance
 
