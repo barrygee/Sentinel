@@ -1870,6 +1870,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #626 from barrygee/refactor/shell-chrome-css
 - Merge remote-tracking branch 'origin/main' into refactor/space-tle-css
 - Merge pull request #627 from barrygee/refactor/space-tle-css
+- Merge remote-tracking branch 'origin/main' into refactor/settings-kit-css
+- Merge pull request #628 from barrygee/refactor/settings-kit-css
 
 ### Performance
 
@@ -1998,6 +2000,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Use SettingsDropdown for the TLE category pickers
 - Adopt BaseIconAction for row actions
 - Adopt shared data and tune cells in Air, Land and Sea
+- Move shared settings CSS into small kit files
 - Move the airfield dot-and-label layer into map-kit as SiteMarkers
 - Move shell chrome CSS out of template.css
 - Move TLE settings CSS into the Space controls
@@ -2295,6 +2298,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for BaseIconAction adoption
 - Rebuild for shared data and tune cells
 - Rebuild for the ground-vehicle tug icon
+- Rebuild for shared settings CSS move
 - Rebuild for sea port dots
 - Rebuild for settings radio padlocks
 - Rebuild for dotted range rings
@@ -2305,6 +2309,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for shell chrome CSS move
 - Rebuild after merging main
 - Rebuild for TLE settings CSS move
+- Rebuild after merging main
 - Rebuild after merging main
 
 ### Continuous Integration
