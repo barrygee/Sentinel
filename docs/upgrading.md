@@ -20,7 +20,7 @@ Check the one-off steps below for anything newer than your copy (`git log -1 --f
 
 The live settings file is now `config/sentinel_config.json` in your Sentinel folder, and the containers run the code built into their images instead of your checkout's. Nothing to do for settings: they live in the database, and the new file is written on the first start. If you had hand edits in `backend/data/sentinel_config.json` that Sentinel never picked up, copy them across, then delete the old file.
 
-Developing Sentinel? Add `COMPOSE_FILE=docker-compose.yml:compose.dev.yaml` to `.env` to get live reload back ([Set up for development](development/setup.md#the-dev-loop)).
+Developing Sentinel? Add `COMPOSE_FILE=docker-compose.yml:compose.dev.yaml` to `.env` to get live reload back ([Set up for development](development/setup.md#the-dev-loop)). If you use a `docker-compose.override.yml`, add `:docker-compose.override.yml` to the end of that line, or Compose stops reading it.
 
 ### Request guard and a fixed Docker network (October 2026)
 

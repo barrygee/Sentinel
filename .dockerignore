@@ -36,8 +36,7 @@ sdr-manager-local-credentials
 **/*.db-*
 **/*.sqlite
 **/*.sqlite3
-.env
-.env.*
+# `**/` matches zero or more folders, so these cover the root's own .env too.
 **/.env
 **/.env.*
 **/sentinel_config.json

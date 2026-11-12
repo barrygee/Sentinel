@@ -31,9 +31,7 @@ from pathlib import Path
 
 import pytest
 
-ENTRYPOINT_SCRIPT = (
-    Path(__file__).resolve().parents[2] / "backend" / "docker-entrypoint.sh"
-)
+ENTRYPOINT_SCRIPT = Path(__file__).resolve().parents[2] / "backend" / "docker-entrypoint.sh"
 
 FAKE_ID_COMMAND = """#!/bin/sh
 # Stand-in for `id -u`: the effective user id the test chose.
@@ -96,9 +94,7 @@ def run_entrypoint(tmp_path: Path):
             "CHOWN_CALL_LOG": str(chown_call_log),
             "SETPRIV_CALL_LOG": str(setpriv_call_log),
             "SETPRIV_HOME_LOG": str(setpriv_home_log),
-            "SENTINEL_WRITABLE_DIRECTORIES": " ".join(
-                str(directory) for directory in writable_directories
-            ),
+            "SENTINEL_WRITABLE_DIRECTORIES": " ".join(str(directory) for directory in writable_directories),
             **(extra_environment or {}),
         }
         completed = subprocess.run(
@@ -112,15 +108,9 @@ def run_entrypoint(tmp_path: Path):
         return EntrypointRun(
             exit_status=completed.returncode,
             standard_output=completed.stdout,
-            chown_calls=chown_call_log.read_text().splitlines()
-            if chown_call_log.exists()
-            else [],
-            setpriv_arguments=setpriv_call_log.read_text().strip()
-            if setpriv_call_log.exists()
-            else None,
-            setpriv_home=setpriv_home_log.read_text().strip()
-            if setpriv_home_log.exists()
-            else None,
+            chown_calls=chown_call_log.read_text().splitlines() if chown_call_log.exists() else [],
+            setpriv_arguments=setpriv_call_log.read_text().strip() if setpriv_call_log.exists() else None,
+            setpriv_home=setpriv_home_log.read_text().strip() if setpriv_home_log.exists() else None,
         )
 
     return run
@@ -146,9 +136,7 @@ def _make_data_directory(tmp_path: Path) -> Path:
     return data_directory
 
 
-def test_a_non_root_start_runs_the_command_unchanged(
-    run_entrypoint, tmp_path: Path
-) -> None:
+def test_a_non_root_start_runs_the_command_unchanged(run_entrypoint, tmp_path: Path) -> None:
     data_directory = _make_data_directory(tmp_path)
 
     result = run_entrypoint(
@@ -193,17 +181,12 @@ def test_a_root_start_hands_unowned_entries_to_the_runtime_user_then_drops_to_it
         str(secret_directory),
         str(secret_directory / "secret"),
     }
-    assert (
-        result.setpriv_arguments
-        == "--reuid=4242 --regid=4343 --clear-groups -- uvicorn backend.main:app"
-    )
+    assert result.setpriv_arguments == "--reuid=4242 --regid=4343 --clear-groups -- uvicorn backend.main:app"
     # The command runs only through setpriv, never directly as root.
     assert result.standard_output == ""
 
 
-def test_entries_already_owned_by_the_runtime_user_and_group_are_left_alone(
-    run_entrypoint, tmp_path: Path
-) -> None:
+def test_entries_already_owned_by_the_runtime_user_and_group_are_left_alone(run_entrypoint, tmp_path: Path) -> None:
     data_directory = _make_data_directory(tmp_path)
 
     result = run_entrypoint(
@@ -218,15 +201,10 @@ def test_entries_already_owned_by_the_runtime_user_and_group_are_left_alone(
 
     assert result.exit_status == 0
     assert result.chown_calls == []
-    assert (
-        result.setpriv_arguments
-        == f"--reuid={os.getuid()} --regid={os.getgid()} --clear-groups -- uvicorn"
-    )
+    assert result.setpriv_arguments == f"--reuid={os.getuid()} --regid={os.getgid()} --clear-groups -- uvicorn"
 
 
-def test_an_entry_owned_by_the_runtime_user_but_another_group_is_handed_over(
-    run_entrypoint, tmp_path: Path
-) -> None:
+def test_an_entry_owned_by_the_runtime_user_but_another_group_is_handed_over(run_entrypoint, tmp_path: Path) -> None:
     data_directory = _make_data_directory(tmp_path)
     other_group_id = os.getgid() + 1
 
@@ -246,10 +224,7 @@ def test_an_entry_owned_by_the_runtime_user_but_another_group_is_handed_over(
         str(data_directory / "sentinel.db"),
         str(data_directory / "recordings" / "clip.wav"),
     }
-    assert all(
-        _owner_of(call) == f"{os.getuid()}:{other_group_id}"
-        for call in result.chown_calls
-    )
+    assert all(_owner_of(call) == f"{os.getuid()}:{other_group_id}" for call in result.chown_calls)
 
 
 def test_missing_directories_are_skipped(run_entrypoint, tmp_path: Path) -> None:
@@ -288,15 +263,10 @@ def test_a_failing_chown_does_not_stop_the_drop(run_entrypoint, tmp_path: Path) 
 
     assert result.chown_calls != []
     assert result.exit_status == 0
-    assert (
-        result.setpriv_arguments
-        == "--reuid=4242 --regid=4343 --clear-groups -- uvicorn"
-    )
+    assert result.setpriv_arguments == "--reuid=4242 --regid=4343 --clear-groups -- uvicorn"
 
 
-def test_the_runtime_user_defaults_to_1000_and_home_leaves_root(
-    run_entrypoint, tmp_path: Path
-) -> None:
+def test_the_runtime_user_defaults_to_1000_and_home_leaves_root(run_entrypoint, tmp_path: Path) -> None:
     data_directory = _make_data_directory(tmp_path)
 
     result = run_entrypoint(
@@ -305,19 +275,14 @@ def test_the_runtime_user_defaults_to_1000_and_home_leaves_root(
         command=["uvicorn"],
     )
 
-    assert (
-        result.setpriv_arguments
-        == "--reuid=1000 --regid=1000 --clear-groups -- uvicorn"
-    )
+    assert result.setpriv_arguments == "--reuid=1000 --regid=1000 --clear-groups -- uvicorn"
     assert result.setpriv_home == "/home/sentinel"
     if os.getuid() != 1000:
         assert all(_owner_of(call) == "1000:1000" for call in result.chown_calls)
         assert str(data_directory / "sentinel.db") in _chowned_paths(result.chown_calls)
 
 
-def test_a_planted_symlink_never_hands_over_what_it_points_at(
-    run_entrypoint, tmp_path: Path
-) -> None:
+def test_a_planted_symlink_never_hands_over_what_it_points_at(run_entrypoint, tmp_path: Path) -> None:
     # The unprivileged process can write its data directory, so it could plant
     # links there to files and folders it must never own. The root step may
     # change the links themselves (harmless) but never follow them.
@@ -348,18 +313,12 @@ def test_a_planted_symlink_never_hands_over_what_it_points_at(
     # ...and the walk never descends through a link to reach what lies outside.
     assert str(outside_file) not in chowned_paths
     assert str(outside_directory) not in chowned_paths
-    assert not any(
-        path.startswith(str(directory_link) + os.sep) for path in chowned_paths
-    )
+    assert not any(path.startswith(str(directory_link) + os.sep) for path in chowned_paths)
     assert result.setpriv_arguments is not None
 
 
 def test_the_script_itself_uses_the_no_dereference_form() -> None:
     # The stand-in chown can't dereference, so pin the flag in the script too.
-    chown_lines = [
-        line
-        for line in ENTRYPOINT_SCRIPT.read_text().splitlines()
-        if "-exec chown" in line
-    ]
+    chown_lines = [line for line in ENTRYPOINT_SCRIPT.read_text().splitlines() if "-exec chown" in line]
     assert chown_lines
     assert all("chown -h " in line for line in chown_lines)

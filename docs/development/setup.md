@@ -15,9 +15,16 @@ From a fresh clone to editing with live reload. Branches and commits: [Contribut
 git clone https://github.com/barrygee/Sentinel.git && cd Sentinel
 nvm use && npm ci                 # every frontend package, plus the pre-commit hook
 uv sync --project backend         # backend packages, for tests, lint and your editor
-echo 'COMPOSE_FILE=docker-compose.yml:compose.dev.yaml' >> .env   # live reload (see below)
 docker compose up --build -d      # http://localhost:8080
 ```
+
+Before `docker compose up`, open `.env` (create it if there is none) and add this line, for live reload (see below):
+
+```bash
+COMPOSE_FILE=docker-compose.yml:compose.dev.yaml
+```
+
+Edit by hand rather than appending with `echo … >> .env`: if the file doesn't end in a newline, the line is glued onto the last one, and if `.env` already has a `COMPOSE_FILE` line, a second one silently wins. Keep one `COMPOSE_FILE` line.
 
 The wrong Node or npm fails with `EBADENGINE` on purpose.
 
@@ -26,6 +33,8 @@ After that, a `git pull` or merge that changes `package-lock.json` runs `npm ci`
 ## The dev loop
 
 - **Backend:** `compose.dev.yaml` mounts the checkout's code read-only into the containers and runs `uvicorn --reload`. Save a `.py` and that service restarts in a second or two (`docker compose logs -f <service>`). `docker-compose.yml` on its own is the deployment: no code mounts, no reload, so without the `COMPOSE_FILE` line a backend edit needs `docker compose up --build -d`. Never deploy with the overlay.
+  - **`docker-compose.override.yml`:** once `COMPOSE_FILE` is set, Compose stops reading the override file by itself. If you have one, list it last: `COMPOSE_FILE=docker-compose.yml:compose.dev.yaml:docker-compose.override.yml`. Only list it if it exists, or Compose refuses to start.
+  - **SDR Manager only:** the overlay only fits on top of `docker-compose.yml`; layered on `compose.sdr-manager-local-only.yaml` Compose refuses to start (it adds services that file doesn't have). There, a code edit needs `docker compose up -d --build sdr-manager-local`.
 - **Frontend:** `cd frontend/vue && npm run dev`, then open **http://localhost:5173**. Hot reload; API and WebSockets pass through to :8080.
 - **What :8080 serves** is the committed `frontend/spa-dist/`. Rebuild with `cd frontend/vue && npm run build` and reload; commit it. The in-app docs are not in it: the `docs` service reads `docs/` from the checkout on each load, so an edited page shows on reload with no rebuild.
 - **Rebuild images** only when dependencies change (`pyproject.toml`, `package.json`).

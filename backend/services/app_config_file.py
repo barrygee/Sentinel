@@ -80,7 +80,7 @@ class AppConfigFileSync:
 
     @property
     def path(self) -> Path:
-        """Where the live file lives (`APP_CONFIG_PATH`, default backend/data/sentinel_config.json)."""
+        """Where the live file lives (`APP_CONFIG_PATH`: config/sentinel_config.json under compose, backend/data/sentinel_config.json otherwise)."""
         return resolved_app_config_path()
 
     @property

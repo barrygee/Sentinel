@@ -110,7 +110,7 @@ On a radio host, `GUARD_EXTRA_TRUSTED_PROXIES` and `GUARD_TRUSTED_PROXY_DEPTH=2`
 
 ## Anything else
 
-Other backend settings (cache times, timeouts, ports; see `backend/config.py`) do nothing in `.env`. Set them on the service in `docker-compose.override.yml` (Compose reads it automatically; Git ignores it):
+Other backend settings (cache times, timeouts, ports; see `backend/config.py`) do nothing in `.env`. Set them on the service in `docker-compose.override.yml` (Compose reads it automatically; Git ignores it). If `.env` sets `COMPOSE_FILE`, Compose no longer reads it by itself: add it to the end of that list, e.g. `COMPOSE_FILE=docker-compose.yml:compose.dev.yaml:docker-compose.override.yml`.
 
 ```yaml
 services:

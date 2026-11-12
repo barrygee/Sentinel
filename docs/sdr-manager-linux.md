@@ -72,7 +72,7 @@ A Pi still running the old Sentry program can't be managed by this Sentinel (it 
 - **Ports:** `8000` for SDR Manager, and two per dongle (its output port and the one two above it). Other Sentinels need to reach them; nothing else should.
 - **Privileged:** `sdr-manager-local` is the one container that runs as root, privileged and on the host's network, because it drives USB devices and opens a port per dongle. It starts only with its profile.
 - **Linux only:** a Mac runs SDR Manager as a Mac program instead ([Mac guide](sdr-manager-mac.md)); Windows can't manage its own dongles.
-- **After editing its code:** `docker compose restart sdr-manager-local` (it doesn't reload by itself, which would restart every stream).
+- **After editing its code:** `docker compose up -d --build sdr-manager-local`. It never reloads by itself (that would restart every stream). With the [dev overlay](development/setup.md#the-dev-loop) its own folder is mounted, so `docker compose restart sdr-manager-local` is enough for an edit there; a `backend/` edit still needs the rebuild.
 - **No dongle?** Try it with two simulated ones: `docker compose -f docker-compose.yml -f compose.sdr-manager-local-mock.yaml --profile sdr-manager-local up -d --build`.
 - **Forgotten console password:** `docker compose exec sdr-manager-local python -m sentinel_sdr_manager_local.reset_password`.
 
