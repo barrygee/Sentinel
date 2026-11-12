@@ -121,6 +121,15 @@ For a false positive in attack detection, add an exception to the route's group 
 
 Never commit a token or key: they belong in `.env`, which Git ignores.
 
+## Data source URLs
+
+A URL typed into Settings makes a service fetch it, so Space's TLE feeds (the **Online Data Source** URL, its off-grid mirror and **UPDATE TLE**) are checked before each fetch:
+
+- Only `http://` and `https://`.
+- Refused if the host is, or resolves to, this machine's loopback, a link-local or multicast address, or Sentinel's own network (`SENTINEL_NETWORK_SUBNET`). Mirrors on your LAN and hosts on the internet are fine.
+- Redirects are not followed, and at most 16 MiB is read.
+- A failed fetch reports only what went wrong (refused, unreachable, the HTTP status, too large, not TLE data), never what the source sent back. Details are in the Space service's log.
+
 ## Radio hosts
 
 A [radio host](radio-host.md)'s hub runs its own guard, keeping its state in memory. On the radio host, set `GUARD_SERVICE_HOSTS` to the core host's address. Core's health checks and the SDR section's recording copies come from there with a service credential, and are refused without it.

@@ -5,7 +5,7 @@ configured bulk GROUP feed) and the `fetch_tle` upstream-ordering behaviour that
 uses it: the precise URL is tried before the bulk feed, and the configured
 fallback feed is still tried when the primary fails.
 
-Network access is stubbed by swapping `httpx.AsyncClient` for a recorder, so the
+Network access is stubbed by swapping `_fetch_feed_text` for a recorder, so the
 assertions are about *which URLs are requested, in what order* — the thing that
 regressed.
 """
@@ -16,6 +16,7 @@ import httpx
 import pytest
 from backend.cache import now_ms
 from backend.config import settings
+from backend.platform.outbound_http import OutboundUrlRefused, UpstreamResponseTooLarge, UpstreamUnreachable
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import sessionmaker
 
@@ -45,45 +46,22 @@ OFFGRID_FEED_URL = "http://192.168.1.50/tle/active.txt"
 NO_GP_DATA = "No GP data found"
 
 
-class _StubResponse:
-    """Minimal stand-in for httpx.Response covering what fetch_tle touches."""
-
-    def __init__(self, text: str, status_code: int = 200) -> None:
-        self.text = text
-        self.status_code = status_code
-
-    def raise_for_status(self) -> None:
-        if self.status_code >= 400:
-            raise httpx.HTTPStatusError("upstream error", request=None, response=None)  # type: ignore[arg-type]
-
-
 def _install_stub_upstream(monkeypatch, responses: dict[str, str], requested: list[str]):
-    """Replace httpx.AsyncClient so fetch_tle hits `responses` instead of the network.
+    """Replace the feed fetch so fetch_tle hits `responses` instead of the network.
 
     `requested` accumulates every URL in request order. A URL missing from
-    `responses` raises ConnectTimeout, mimicking an unreachable feed.
+    `responses` raises HTTPStatusError — a per-URL miss (e.g. 404 on a CATNR
+    lookup), not a transport failure, which would trip the per-host breaker and
+    hide the ordering these tests assert.
     """
 
-    class _RecordingClient:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
+    async def _recording_fetch(url: str, timeout_s: float) -> str:
+        requested.append(url)
+        if url not in responses:
+            raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
+        return responses[url].strip()
 
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *exc_info) -> bool:
-            return False
-
-        async def get(self, url: str) -> _StubResponse:
-            requested.append(url)
-            if url not in responses:
-                # A per-URL miss (e.g. 404 on a CATNR lookup), not a transport
-                # failure — the latter trips the per-host breaker and would
-                # hide the ordering these tests assert.
-                raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
-            return _StubResponse(responses[url])
-
-    monkeypatch.setattr(tle_service.httpx, "AsyncClient", _RecordingClient)
+    monkeypatch.setattr(tle_service, "_fetch_feed_text", _recording_fetch)
 
 
 @pytest.fixture(autouse=True)
@@ -316,25 +294,15 @@ def _install_transport_failing_upstream(
     breaker keys on, as opposed to a per-URL HTTP miss.
     """
 
-    class _FlakyClient:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
+    async def _flaky_fetch(url: str, timeout_s: float) -> str:
+        requested.append(url)
+        if tle_service.urlparse(url).netloc in failing_hosts:
+            raise httpx.ConnectTimeout("unreachable")
+        if url not in responses:
+            raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
+        return responses[url].strip()
 
-        async def __aenter__(self):
-            return self
-
-        async def __aexit__(self, *exc_info) -> bool:
-            return False
-
-        async def get(self, url: str) -> _StubResponse:
-            requested.append(url)
-            if tle_service.urlparse(url).netloc in failing_hosts:
-                raise httpx.ConnectTimeout("unreachable")
-            if url not in responses:
-                raise httpx.HTTPStatusError("not found", request=None, response=None)  # type: ignore[arg-type]
-            return _StubResponse(responses[url])
-
-    monkeypatch.setattr(tle_service.httpx, "AsyncClient", _FlakyClient)
+    monkeypatch.setattr(tle_service, "_fetch_feed_text", _flaky_fetch)
 
 
 class TestUpstreamBreaker:
@@ -427,3 +395,146 @@ class TestUpstreamBreaker:
 
         assert result.splitlines()[0] == "NOAA 20"
         assert requested == [OFFGRID_FEED_URL]
+
+
+# ── Outbound guard inside fetch_tle / fetch_tle_from_url ─────────────────────
+
+
+class TestFetchTleOutboundFailures:
+    async def test_unresolvable_host_trips_the_breaker(self, db, monkeypatch):
+        async def unresolvable(url: str, timeout_s: float) -> str:
+            raise UpstreamUnreachable("does not resolve")
+
+        monkeypatch.setattr(tle_service, "_fetch_feed_text", unresolvable)
+
+        with pytest.raises(RuntimeError):
+            await tle_service.fetch_tle(NOAA_20_NORAD, db, OFFGRID_FEED_URL)
+        assert tle_service._upstream_host_is_down(OFFGRID_FEED_URL) is True
+
+    async def test_refused_url_falls_back_to_the_cache_without_tripping_the_host(self, db, monkeypatch):
+        requested: list[str] = []
+
+        async def refused(url: str, timeout_s: float) -> str:
+            requested.append(url)
+            raise OutboundUrlRefused("that address is not allowed as a data source")
+
+        monkeypatch.setattr(tle_service, "_fetch_feed_text", refused)
+        db.add(
+            TleCache(
+                cache_key=NOAA_20_NORAD,
+                payload=NOAA_20_TLE,
+                fetched_at=now_ms() - 1_000,
+                expires_at=now_ms() - 1,
+                source="online",
+            )
+        )
+        await db.commit()
+
+        result = await tle_service.fetch_tle(NOAA_20_NORAD, db, "http://127.0.0.1/tle.txt")
+
+        assert result == NOAA_20_TLE
+        assert requested == ["http://127.0.0.1/tle.txt"]
+        # A refusal is about the URL, not an outage: the host must not be benched.
+        assert tle_service._upstream_host_is_down("http://127.0.0.1/tle.txt") is False
+
+    async def test_fetch_tle_from_url_stores_what_the_feed_returned(self, db, monkeypatch):
+        calls: list[tuple[str, float]] = []
+
+        async def feed(url: str, timeout_s: float) -> str:
+            calls.append((url, timeout_s))
+            return (NOAA_20_TLE + ISS_TLE).strip()
+
+        monkeypatch.setattr(tle_service, "_fetch_feed_text", feed)
+
+        counts = await tle_service.fetch_tle_from_url(OFFGRID_FEED_URL, "weather", "celestrak_group", db)
+
+        assert counts == {"inserted": 2, "updated": 0}
+        assert calls == [(OFFGRID_FEED_URL, 15.0)]
+
+    async def test_fetch_tle_from_url_propagates_a_refusal(self, db, monkeypatch):
+        async def refused(url: str, timeout_s: float) -> str:
+            raise OutboundUrlRefused("only http and https URLs can be used")
+
+        monkeypatch.setattr(tle_service, "_fetch_feed_text", refused)
+
+        with pytest.raises(OutboundUrlRefused):
+            await tle_service.fetch_tle_from_url("ftp://x/", None, "active", db)
+
+
+# ── _fetch_feed_text: the real HTTP path against a mock transport ────────────
+
+PUBLIC_FEED_URL = "http://203.0.113.10/tle/active.txt"  # TEST-NET-3: allowed, never looked up
+
+
+def _serve(monkeypatch, handler) -> dict:
+    """Route the service's httpx clients to `handler`; return the kwargs each client was built with."""
+    real_client = httpx.AsyncClient
+    built_with: dict = {}
+
+    def client_factory(**kwargs):
+        built_with.update(kwargs)
+        return real_client(transport=httpx.MockTransport(handler), **kwargs)
+
+    monkeypatch.setattr(tle_service.httpx, "AsyncClient", client_factory)
+    return built_with
+
+
+class TestFetchFeedText:
+    async def test_returns_the_stripped_body(self, monkeypatch):
+        requested: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested.append(str(request.url))
+            return httpx.Response(200, text="\n" + NOAA_20_TLE + "\n\n")
+
+        built_with = _serve(monkeypatch, handler)
+
+        text = await tle_service._fetch_feed_text(PUBLIC_FEED_URL, timeout_s=7.0)
+
+        assert text == NOAA_20_TLE.strip()
+        assert requested == [PUBLIC_FEED_URL]
+        assert built_with == {"timeout": 7.0, "follow_redirects": False}
+
+    async def test_refused_destination_sends_no_request(self, monkeypatch):
+        requested: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested.append(str(request.url))
+            return httpx.Response(200, text=NOAA_20_TLE)
+
+        _serve(monkeypatch, handler)
+
+        with pytest.raises(OutboundUrlRefused):
+            await tle_service._fetch_feed_text("http://169.254.169.254/latest/meta-data/", timeout_s=5.0)
+        assert requested == []
+
+    async def test_error_status_raises(self, monkeypatch):
+        _serve(monkeypatch, lambda request: httpx.Response(404, text="Not Found"))
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await tle_service._fetch_feed_text(PUBLIC_FEED_URL, timeout_s=5.0)
+
+    async def test_redirect_is_not_followed(self, monkeypatch):
+        requested: list[str] = []
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            requested.append(str(request.url))
+            return httpx.Response(302, headers={"location": "http://127.0.0.1:8000/internal/registry"})
+
+        _serve(monkeypatch, handler)
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await tle_service._fetch_feed_text(PUBLIC_FEED_URL, timeout_s=5.0)
+        # Only the original URL was requested; the redirect target never was.
+        assert requested == [PUBLIC_FEED_URL]
+
+    async def test_oversize_body_raises(self, monkeypatch):
+        monkeypatch.setattr(tle_service, "TLE_RESPONSE_MAX_BYTES", 20)
+        _serve(monkeypatch, lambda request: httpx.Response(200, text=NOAA_20_TLE))
+
+        with pytest.raises(UpstreamResponseTooLarge):
+            await tle_service._fetch_feed_text(PUBLIC_FEED_URL, timeout_s=5.0)
+
+    def test_cap_is_well_above_a_full_celestrak_group(self):
+        # The `active` group is ~2 MB; the cap must not cut a real feed short.
+        assert tle_service.TLE_RESPONSE_MAX_BYTES == 16 * 1024 * 1024
