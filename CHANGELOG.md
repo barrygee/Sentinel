@@ -300,6 +300,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Let the operator close the online quota warning
 - Pin each SDR host's certificate authority over HTTPS **(breaking change)**
 - Serve the SDR Manager API over HTTPS **(breaking change)**
+- Serve the web page over HTTPS on :8444
 
 ### Bug Fixes
 
@@ -1895,6 +1896,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #638 from barrygee/fix/sdr-manager-local-cli-import
 - Merge pull request #640 from barrygee/docs/readme-local-and-remote-sdrs
 - Merge pull request #641 from barrygee/fix/picker-shows-private-radios
+- Merge remote-tracking branch 'origin/main' into feat/web-https
+- Merge pull request #639 from barrygee/feat/web-https
 
 ### Performance
 
