@@ -161,7 +161,6 @@ registerSettingItems([
     label: 'HTTPS',
     desc: 'Open Sentinel over an encrypted connection, once each device trusts this Sentinel’s certificate.',
     searchTerms: 'https tls ssl certificate encryption secure fingerprint trust install',
-    docPath: 'https',
     control: { component: HttpsControl, layout: 'full', naturalHeight: true },
     groupLabel: 'SECURITY',
   },

@@ -91,6 +91,9 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
 
 logger = logging.getLogger(__name__)
 
+THIS_MACHINE_LABEL = "This machine"
+"""What this Sentinel's own SDR Manager is called until the operator labels it (as in the UI)."""
+
 router = APIRouter(prefix="/api/sdr-manager/remote/hosts", tags=["sdr-manager-remote"])
 
 _MAX_NAME_LEN = 120
@@ -732,10 +735,12 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[HostSi
         sites.append(
             HostSiteOut(
                 id=host.id,
-                # the host's own name for itself is the better label when Sentinel
-                # has not been given one — it is what the operator set on the Pi.
+                # The operator's label, else "This machine" for this Sentinel's own
+                # SDR Manager (whose reported name, `sdr-manager`, reads like
+                # another host), else the host's own name for itself — what the
+                # operator set on the Pi. The UI's sdrHostLabel follows the same rule.
                 # `source` is never None here: the position came out of it.
-                name=host.name or source.name,
+                name=host.name or (THIS_MACHINE_LABEL if host.is_local else source.name),
                 address=host.address,
                 port=host.port,
                 reachable=snapshot.reachable if snapshot is not None else False,

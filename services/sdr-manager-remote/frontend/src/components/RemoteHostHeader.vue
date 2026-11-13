@@ -130,6 +130,7 @@ import RemoteHostForm from './RemoteHostForm.vue'
 import { deleteHost } from '../api/sdrManagerRemoteApi'
 import { announceHostsChanged } from '../hostsChanged'
 import { saveRemoteHostDraft, type RemoteHostDraft } from '../remoteHostEdits'
+import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const props = defineProps<{
@@ -153,9 +154,7 @@ const confirming = ref(false)
 const applyError = ref<string | null>(null)
 
 /** This machine's host reads "This machine" unless the operator labelled it. */
-const hostLabel = computed(
-  () => props.host.name || (props.host.is_local ? 'This machine' : props.host.address),
-)
+const hostLabel = computed(() => sdrHostLabel(props.host))
 
 function toggleEdit(): void {
   open.value = !open.value

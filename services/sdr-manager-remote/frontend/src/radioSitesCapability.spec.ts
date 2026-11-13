@@ -163,6 +163,19 @@ describe('sdr radioSites capability — devices', () => {
     expect(fleet.hosts[0]!.devices[0]!.name).toBe('serial:AAA')
   })
 
+  it("labels this machine's unnamed host This machine, not Docker's address (the ADS-B source list)", async () => {
+    vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([
+      host({ name: null, address: 'host.docker.internal', is_local: true }),
+    ])
+    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'usb:2-4', name: 'RTLSDR V4' }),
+    )
+
+    const fleet = await createRadioSitesCapability().listDevices()
+
+    expect(fleet.hosts[0]!.label).toBe('This machine')
+  })
+
   it('treats a host with no status payload yet as publishing nothing', async () => {
     // The poller reports `status: null` for a host it has not reached yet.
     vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([host()])

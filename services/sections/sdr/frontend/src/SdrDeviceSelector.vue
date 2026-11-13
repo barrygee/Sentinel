@@ -61,7 +61,9 @@
           <span class="base-select-menu-option-label"
             >{{ radio.name
             }}<span class="base-select-menu-option-detail">{{
-              reservationFor(radio) ? `RESERVED · ${reservationFor(radio)} RECEIVER` : radio.host
+              reservationFor(radio)
+                ? `RESERVED · ${reservationFor(radio)} RECEIVER`
+                : radioPlace(radio)
             }}</span></span
           >
           <!-- Padlock: this radio is controlled by another Sentinel, or is
@@ -123,6 +125,8 @@ import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
 import PadlockIcon from '@sentinel/ui/icons/PadlockIcon.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrRadio } from './stores/sdr'
+import { findSdrManagerHosts } from './services/sdrManagerHosts'
+import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 
 const props = defineProps<{
   /** Text shown in the trigger (radio name / placeholder / loading…). */
@@ -162,6 +166,32 @@ function reservationFor(radio: SdrRadio): string | null {
   return sdrStore.radioReservation(radio.id)
 }
 
+/** Each SDR host's label by id (sdrHostLabel), for the rows of radios made from its dongles. */
+const hostLabels = ref<Map<number, string>>(new Map())
+
+/**
+ * Where a radio is, as its row says it: its SDR host's label ("This machine",
+ * or what the operator called the Pi), not the address Sentinel dials, which
+ * for this machine is Docker's `host.docker.internal`. A radio added by IP and
+ * port, or whose host isn't known (yet), shows its address.
+ */
+function radioPlace(radio: SdrRadio): string {
+  const hostId = radio.sdr_manager_host_id
+  return (hostId != null ? hostLabels.value.get(hostId) : undefined) ?? radio.host
+}
+
+/** Read the SDR hosts' labels. Best effort: with none, rows fall back to addresses. */
+async function loadHostLabels(): Promise<void> {
+  const capability = findSdrManagerHosts()
+  if (!capability) return
+  try {
+    const hosts = await capability.listHosts()
+    hostLabels.value = new Map(hosts.map((host) => [host.id, sdrHostLabel(host)]))
+  } catch {
+    /* Addresses stand in; the next open tries again. */
+  }
+}
+
 const selectMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 // Mirrors the base menu's open state reactively (null before first render).
 const menuOpen = computed(() => selectMenuRef.value?.menuOpen ?? false)
@@ -180,7 +210,7 @@ const activeDescId = computed(() =>
   menuOpen.value ? optionId(Math.min(highlight.value, optionCount.value - 1)) : undefined,
 )
 
-// List every enabled, non-private radio. We deliberately do NOT probe
+// List every enabled radio. We deliberately do NOT probe
 // reachability here: rtl_tcp is single-client, so opening a throwaway probe
 // socket to a radio (then closing it) disturbs the dongle and made the
 // immediately-following control connect fail — the user had to select the
@@ -200,6 +230,7 @@ function populateMenuRadios() {
 function onMenuOpen() {
   highlight.value = 0
   populateMenuRadios()
+  void loadHostLabels()
 }
 
 function pickRadio(radio: SdrRadio | null) {
