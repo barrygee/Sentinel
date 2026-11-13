@@ -679,6 +679,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Mark the ADS-B decoder's SDR, even out the host panel, and fix stale hotspot sign-in
 - Deleting a Sentinel host removes its radios
 - Let the Mac command start again
+- List private dongles' radios in the picker, and drop the ADDED label
 
 ### Chores
 
@@ -1893,6 +1894,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #637 from barrygee/fix/delete-host-removes-radios
 - Merge pull request #638 from barrygee/fix/sdr-manager-local-cli-import
 - Merge pull request #640 from barrygee/docs/readme-local-and-remote-sdrs
+- Merge pull request #641 from barrygee/fix/picker-shows-private-radios
 
 ### Performance
 
