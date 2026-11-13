@@ -686,6 +686,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Call this machine's SDR host "This machine" everywhere
 - Lite Configuration editing, centred altitude legend, unavailable radios, deleted devices
 - Bind each service's manifest kind and route prefixes to its credential
+- Bound alert streams, refuse secret deletes, keep exception text in the log
 
 ### Chores
 
@@ -1908,6 +1909,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #644 from barrygee/feat/radio-locations
 - Merge pull request #645 from barrygee/fix/ui-queue
 - Merge pull request #646 from barrygee/fix/registry-route-ownership
+- Merge pull request #647 from barrygee/chore/security-limits
 
 ### Performance
 
