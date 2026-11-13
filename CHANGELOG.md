@@ -675,6 +675,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Run deployed services from their images, dev reload via compose.dev.yaml **(breaking change)**
 - Health-check over HTTPS and list the Certificate card
 - Never fall back to the online source off grid
+- Point disclosure chevrons right/down and even out the SDR cards
 
 ### Chores
 
@@ -1884,6 +1885,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #632 from barrygee/fix/sdr-manager-local-https
 - Merge pull request #633 from barrygee/docs/main-sentinel-and-pi
 - Merge pull request #634 from barrygee/fix/offgrid-no-online-fallback
+- Merge pull request #635 from barrygee/fix/disclosure-chevron-direction
 
 ### Performance
 
