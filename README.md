@@ -65,6 +65,26 @@ uv run --project backend sdr-manager-local install    # start now and at every l
 uv run --project backend sdr-manager-local status     # check it, with a fix for each problem
 ```
 
+### This computer's dongles and another computer's, together
+
+Turning on this computer's dongles adds them beside other computers'; it replaces nothing. For example, Sentinel on a Mac with one dongle, plus a Raspberry Pi running [SDR Manager only](docs/sdr-manager-local-only.md):
+
+1. On the Mac, in `.env`: `SDR_MANAGER_LOCAL_NATIVE=1` (Linux: `COMPOSE_PROFILES=sdr-manager-local`).
+2. Start it:
+
+    ```bash
+    docker compose up -d
+    uv run --project backend sdr-manager-local install    # Mac only; Linux runs it in Docker
+    ```
+
+3. **Settings › SDR › SENTINEL HOSTS** lists **This machine** (the Mac's dongles, linked for you) first, then each computer you added with **+ ADD A NEW SENTINEL HOST** (the Pi on port `8000`, over HTTPS).
+4. **ADD** the dongles you want as radios. Radios from both computers appear together in the SDR panel, and each decoder (ADS-B, APRS, AIS, voice) can use a dongle on either computer.
+
+- **One job per dongle:** a dongle used by a decoder (Air's ADS-B source, say) shows that instead of **ADD**. Different dongles, on one computer or several, work at the same time.
+- **No port clashes:** each computer's SDR Manager answers on port `8000` on that computer, and Sentinel's own page is on `8080`.
+
+From a fresh Pi to its dongles as radios, step by step: [Main Sentinel and a Pi](docs/main-sentinel-and-pi.md).
+
 Guides: [SDR Manager](docs/use/sdr-manager.md) · [Mac, step by step](docs/sdr-manager-mac.md) · [Linux and Pi](docs/sdr-manager-linux.md) · [SDR Manager only](docs/sdr-manager-local-only.md). For developers: [services/sdr-manager-local](services/sdr-manager-local/README.md) and [services/sdr-manager-remote](services/sdr-manager-remote/README.md).
 
 ## SDR recordings
