@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { axe } from 'jest-axe'
 import SdrDevicesControl from './SdrDevicesControl.vue'
 import SdrDeviceForm from './SdrDeviceForm.vue'
@@ -1190,6 +1191,25 @@ describe('SdrDevicesControl', () => {
       await flushPromises()
       expect(wrapper.findComponent(SdrRadioRow).props('removable')).toBe(true)
       expect(wrapper.findComponent(SdrHostDeviceRow).props('autoAdd')).toBe(false)
+    })
+
+    it("marks the SDR Air's ADS-B decoder reads from, and only that one", async () => {
+      const second = { ...DEVICE, device_id: 'rtl-2' }
+      useSettingsStore().setSetting('air', 'offgridSdrSource', {
+        sdr_manager_host_id: HOST.id,
+        sdr_manager_device_id: 'rtl-2',
+      })
+      mockListSdrManagerHosts.mockResolvedValue([HOST])
+      mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([DEVICE, second]))
+      const wrapper = mountControl()
+      await flushPromises()
+
+      const rows = wrapper.findAllComponents(SdrHostDeviceRow)
+      expect(rows.map((row) => [row.props('device').device_id, row.props('adsbSource')])).toEqual([
+        ['rtl-1', false],
+        ['rtl-2', true],
+      ])
+      expect(rows[1]!.text()).toContain('ADS-B DECODER')
     })
 
     it('shows the radios it adds at the next poll, and tells the radio pickers once', async () => {

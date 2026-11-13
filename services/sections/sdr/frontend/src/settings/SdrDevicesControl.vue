@@ -79,6 +79,7 @@
                   :adding="addingDeviceKey === group.host.id + ':' + deviceId"
                   :confirming="confirmingRadioOf(group.host.id, deviceId)"
                   :auto-add="group.host.auto_add_sdrs"
+                  :adsb-source="isAdsbSource(group.host.id, deviceId)"
                   @add="addHostDevice(group.host.id, deviceId)"
                   @start-delete="startDeleteRadioOf(group.host.id, deviceId)"
                   @confirm-delete="confirmDeleteRadioOf(group.host.id, deviceId)"
@@ -112,6 +113,7 @@
                 :adding="addingDeviceKey === group.host.id + ':' + entry.device.device_id"
                 :auto-add="group.host.auto_add_sdrs"
                 :may-use-private="group.host.may_use_private"
+                :adsb-source="isAdsbSource(group.host.id, entry.device.device_id)"
                 @add="addDeviceAsRadio(group.host, entry.device)"
               />
             </template>
@@ -301,11 +303,14 @@ import type {
 } from '@sentinel/shell-api/types/sdrManager'
 import { findSdrManagerHosts } from '../services/sdrManagerHosts'
 import { RADIOS_CHANGED_EVENT } from '../composables/sdrDeviceEvents'
+import { useAdsbSourceDevice } from './adsbSourceDevice'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 
 const notificationsStore = useNotificationsStore()
+/** Whether Air's ADS-B decoder reads from a host's device: no ADD for it. */
+const isAdsbSource = useAdsbSourceDevice()
 
 // Host groups need sdr-manager-remote; without it only radios added by address exist.
 const sdrManagerDeployed = findSdrManagerHosts() !== undefined

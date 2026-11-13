@@ -52,6 +52,22 @@ function mountAction(props: Partial<ActionProps> = {}) {
  * ADD, or ADDED with a cross that removes the radio after REMOVE? YES / NO.
  */
 describe('SdrDeviceRadioAction', () => {
+  it("shows ADS-B DECODER, not ADD, for the SDR Air's decoder reads from", () => {
+    const wrapper = mountAction({ adsbSource: true })
+    expect(wrapper.findComponent(SdrHostDeviceAddButton).exists()).toBe(false)
+    expect(wrapper.text()).toContain('ADS-B DECODER')
+  })
+
+  it('still reads ADDED for a radio, even on the ADS-B source', () => {
+    const wrapper = mountAction({ adsbSource: true, radio: RADIO })
+    expect(wrapper.text()).toContain('ADDED')
+    expect(wrapper.text()).not.toContain('ADS-B DECODER')
+  })
+
+  it('shows nothing for the ADS-B source before the host has reported it', () => {
+    expect(mountAction({ adsbSource: true, device: undefined }).text()).toBe('')
+  })
+
   it('offers ADD for an SDR that is not a radio yet, and asks to add it', async () => {
     const wrapper = mountAction()
     const add = wrapper.findComponent(SdrHostDeviceAddButton)

@@ -53,11 +53,11 @@ describe('PrivateAccessControl', () => {
     expect(wrapper.find('ul').exists()).toBe(false)
   })
 
-  it('warns that an address is the only proof of who is connecting', async () => {
+  it('says only the listed addresses get in, and why they must be fixed', async () => {
     seedAuth({ passwordSet: true })
     const wrapper = await mountControl()
 
-    expect(wrapper.text()).toContain('Use fixed addresses')
+    expect(wrapper.text()).toContain('Give each one a fixed IP address')
   })
 
   it('is a settings card whose note reads at the description size', async () => {
@@ -65,7 +65,7 @@ describe('PrivateAccessControl', () => {
     const wrapper = await mountControl()
 
     const card = wrapper.get('form.sdr-devices-accordion')
-    expect(card.get('.sdr-devices-note').text()).toContain('Use fixed addresses')
+    expect(card.get('.sdr-devices-note').text()).toContain('Give each one a fixed IP address')
   })
 
   it('adds a valid address and empties the field', async () => {

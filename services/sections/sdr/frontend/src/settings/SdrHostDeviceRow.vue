@@ -10,7 +10,8 @@
         {{ device.name || device.device_id
         }}<span v-if="device.output" class="sdr-device-meta">port {{ device.output.iq_port }}</span>
       </span>
-      <span v-if="autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
+      <SdrAdsbSourceTag v-if="adsbSource" />
+      <span v-else-if="autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
         hostDeviceNotRadioReason(device, mayUsePrivate)
       }}</span>
       <SdrHostDeviceAddButton
@@ -32,11 +33,13 @@
  * radio; disabled until SDR host has allocated the device an output port (a
  * device SDR host has only just detected, not yet configured, has no port to
  * connect to). On a host that adds its SDRs automatically there is no ADD:
- * the row says why the SDR isn't a radio instead.
+ * the row says why the SDR isn't a radio instead. The SDR Air's ADS-B
+ * decoder reads from says so in place of either (`SdrAdsbSourceTag`).
  */
 import SdrDeviceStateDot from '@sentinel/ui/sdr/SdrDeviceStateDot.vue'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'
+import SdrAdsbSourceTag from './SdrAdsbSourceTag.vue'
 import { hostDeviceNotRadioReason } from './hostDeviceAvailability'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
@@ -51,6 +54,8 @@ defineProps<{
   autoAdd?: boolean
   /** The host lets this Sentinel use its private SDRs. */
   mayUsePrivate?: boolean
+  /** Air's ADS-B decoder reads from it, so it can't be a radio too. */
+  adsbSource?: boolean
 }>()
 const emit = defineEmits<{ add: [] }>()
 </script>

@@ -1,13 +1,19 @@
 <template>
   <div class="remote-host-security">
-    <p class="remote-host-security-state" :class="`remote-host-security-state--${state.tone}`">
-      <span class="remote-host-security-label">{{ state.label }}</span>
-      {{ state.detail }}
-    </p>
-    <p v-if="host.tls_fingerprint && !preview" class="remote-host-security-fingerprint">
-      Trusted certificate fingerprint:
-      <code>{{ host.tls_fingerprint }}</code>
-    </p>
+    <div class="remote-host-security-row">
+      <span class="remote-host-security-caption">CONNECTION</span>
+      <p class="remote-host-security-state" :class="`remote-host-security-state--${state.tone}`">
+        <span class="remote-host-security-label">{{ state.label }}</span>
+        {{ state.detail }}
+      </p>
+    </div>
+    <div
+      v-if="host.tls_fingerprint && !preview"
+      class="remote-host-security-row remote-host-security-fingerprint"
+    >
+      <span class="remote-host-security-caption">TRUSTED FINGERPRINT</span>
+      <code>{{ fingerprintLines(host.tls_fingerprint) }}</code>
+    </div>
 
     <RemoteHostCertificateCheck
       v-if="preview"
@@ -57,6 +63,7 @@ import {
 } from '../api/sdrManagerRemoteApi'
 import { announceHostsChanged } from '../hostsChanged'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
+import { fingerprintLines } from '../fingerprintLines'
 
 /** What each state says, and whether it is good news. */
 const STATES: Readonly<
@@ -136,16 +143,35 @@ async function trust(): Promise<void> {
 </script>
 
 <style scoped>
+/* Rows like the edit form's fields around it: the caption in BaseFormField's
+   label column (--ba-form-field-label-width, 110px, then 14px) in its caption
+   style, the value where the inputs start, at their size; the card's 16px
+   rhythm between parts. */
 .remote-host-security {
-  padding: 8px 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
-.remote-host-security-state,
-.remote-host-security-fingerprint {
-  margin: 0 0 6px;
+.remote-host-security-row {
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: baseline;
+}
+.remote-host-security-caption {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
+}
+.remote-host-security-state {
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-value);
+  line-height: 1.5;
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 .remote-host-security-label {
@@ -158,6 +184,12 @@ async function trust(): Promise<void> {
   color: var(--danger-strong);
 }
 .remote-host-security-fingerprint code {
+  /* Two lines of sixteen pairs (fingerprintLines), as the certificate check
+     shows it, so the two read the same and no pair is split. */
+  white-space: pre-wrap;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+  font-size: var(--settings-text-value);
+  line-height: 1.6;
+  color: var(--ink);
 }
 </style>

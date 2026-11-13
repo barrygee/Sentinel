@@ -26,6 +26,7 @@
       @cancel="emit('cancel-delete')"
     />
   </template>
+  <SdrAdsbSourceTag v-else-if="device && adsbSource" />
   <span v-else-if="device && autoAdd" class="sdr-device-meta sdr-host-device-reason">{{
     hostDeviceNotRadioReason(device, true)
   }}</span>
@@ -47,13 +48,15 @@
  * Nothing until the host's device list has the SDR. When This machine adds
  * its SDRs automatically there is neither ADD nor a cross: ADDED, or why the
  * SDR isn't a radio (not set up). Private doesn't stop it here: that only keeps
- * an SDR from other machines.
+ * an SDR from other machines. The SDR Air's ADS-B decoder reads from says so
+ * in place of ADD (`SdrAdsbSourceTag`).
  */
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import type { SdrManagerDeviceStatus } from '@sentinel/shell-api/types/sdrManager'
 import type { SdrRadioRecord } from '../services/sdrRadiosApi'
 import SdrHostDeviceAddButton from './SdrHostDeviceAddButton.vue'
+import SdrAdsbSourceTag from './SdrAdsbSourceTag.vue'
 import { hostDeviceNotRadioReason } from './hostDeviceAvailability'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
@@ -68,6 +71,8 @@ defineProps<{
   confirming: boolean
   /** This machine adds its SDRs automatically (`auto_add_sdrs`). */
   autoAdd?: boolean
+  /** Air's ADS-B decoder reads from it, so it can't be a radio too. */
+  adsbSource?: boolean
 }>()
 const emit = defineEmits<{
   add: []

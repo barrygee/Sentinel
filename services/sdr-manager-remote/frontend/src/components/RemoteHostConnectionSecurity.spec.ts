@@ -91,7 +91,9 @@ describe('RemoteHostConnectionSecurity', () => {
 
   it('shows the trusted fingerprint, and none for a host without one', () => {
     const pinned = mountSecurity()
-    expect(pinned.get('.remote-host-security-fingerprint code').text()).toBe(FINGERPRINT)
+    // Two lines of sixteen pairs, broken between pairs, as the certificate check shows it.
+    const half = Array(16).fill('AB').join(':')
+    expect(pinned.get('.remote-host-security-fingerprint code').text()).toBe(`${half}\n${half}`)
     pinned.unmount()
     const insecure = mountSecurity({ tls_state: 'insecure', tls_fingerprint: null })
     expect(insecure.find('.remote-host-security-fingerprint').exists()).toBe(false)

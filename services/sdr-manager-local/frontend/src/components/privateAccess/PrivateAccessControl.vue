@@ -3,8 +3,8 @@
     <form class="sdr-devices-accordion" novalidate @submit.prevent="addAddress">
       <p class="private-access-note sdr-devices-note">
         <template v-if="auth.passwordSet">
-          Private dongles work on this machine and for the Sentinels listed here, and refuse
-          everyone else. Use fixed addresses: whoever gets a listed address gets access.
+          Only the Sentinels at these addresses can use this machine’s private dongles. Give each
+          one a fixed IP address, so no other device can take its place.
         </template>
         <template v-else>Set a console password first, so nobody else can add themselves.</template>
       </p>
