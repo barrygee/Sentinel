@@ -98,13 +98,13 @@ The first build takes a while on a Pi.
 
 From any computer on your network, open **http://192.168.5.67:8080**. It opens on **Settings › SDR Manager**.
 
-1. **Console Password:** set one. The main Sentinel signs in with it.
+1. **Console Password** (**Settings › App Settings › THIS MACHINE**): set one. The main Sentinel signs in with it.
 2. **Sentinel Location** (under App Settings): where the Pi is, so maps place it.
 3. **Each dongle:** plug it in, then on its row:
     1. the pencil: a **NAME**, its **OUTPUT PORT** (the old port from part 3, or the one suggested), **VISIBILITY: PUBLIC**;
     2. **APPLY CHANGES**;
     3. switch its stream on, **APPLY CHANGES** again.
-4. **Certificate:** open the card and keep the **fingerprint** in view for part 6.
+4. **Certificate** (**App Settings › THIS MACHINE**): open the card and keep the **fingerprint** in view for part 6.
 
 **You should see:** a green dot (**Streaming**) on each dongle.
 
@@ -125,7 +125,7 @@ On the main Sentinel (http://localhost:8080), **Settings › SDR › DEVICES**.
     | **ADD SDRS**         | **MANUALLY**, or **AUTOMATICALLY** to make every public dongle a radio |
 
 2. **ADD**. It shows the Pi's **FINGERPRINT**.
-3. Compare it with the Pi's Certificate card. If they match, **TRUST AND ADD**. If not, stop: something else answers at that address.
+3. Compare it with the Pi's Certificate card (its **App Settings › THIS MACHINE**). If they match, **TRUST AND ADD**. If not, stop: something else answers at that address.
 
 **If the Pi is already listed** (from Sentry):
 

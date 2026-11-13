@@ -60,8 +60,12 @@ test.describe('SDR Manager-only mode', () => {
         await expect(page.locator('#settings-panel .settings-nav-item')).toHaveCount(2);
         await expect(page.getByRole('button', { name: 'SDR Manager', exact: true })).toBeVisible();
         await expect(page.getByRole('button', { name: 'App Settings', exact: true })).toBeVisible();
-        await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
+        // This machine's SDRs are the SDR Manager page; THIS MACHINE is in App Settings.
+        await expect.poll(() => groupLabels(page)).toContain('DEVICES');
         expect(await groupLabels(page)).not.toContain('REMOTE SDR HOSTS');
+        expect(await groupLabels(page)).not.toContain('THIS MACHINE');
+        await page.getByRole('button', { name: 'App Settings', exact: true }).click();
+        await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
         // Nothing of the map app: no section nav, no footer, no map.
         await expect(page.locator('nav#nav-right')).toHaveCount(0);
         await expect(page.locator('canvas.maplibregl-canvas')).toHaveCount(0);
@@ -72,11 +76,12 @@ test.describe('SDR Manager-only mode', () => {
     }) => {
         const mapRequests = recordMapRequests(page);
         await page.goto('/');
-        await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
+        await expect.poll(() => groupLabels(page)).toContain('DEVICES');
 
         // App Settings is where the map's own settings would be, were they offered.
         await page.getByRole('button', { name: 'App Settings', exact: true }).click();
         await expect(page).toHaveURL(/\/settings\/app$/);
+        await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
         await page.waitForLoadState('networkidle');
 
         expect(mapRequests).toEqual([]);
@@ -101,13 +106,17 @@ test.describe('the full app', () => {
             isDeployed('sdr-manager-remote') ? 1 : 0,
         );
         await expect.poll(() => groupLabels(page)).toContain('DEVICES');
+        // THIS MACHINE is in App Settings, not here, whether or not this machine's SDR Manager runs.
+        expect(await groupLabels(page)).not.toContain('THIS MACHINE');
+        // The full app has no SDR Manager page of its own.
+        await expect(page.getByRole('button', { name: 'SDR Manager', exact: true })).toHaveCount(0);
+        await page.goto('/settings/app');
         if (isDeployed('sdr-manager-local')) {
             await expect.poll(() => groupLabels(page)).toContain('THIS MACHINE');
         } else {
+            await expect.poll(() => groupLabels(page)).toContain('SECURITY');
             expect(await groupLabels(page)).not.toContain('THIS MACHINE');
         }
-        // The full app has no SDR Manager page of its own.
-        await expect(page.getByRole('button', { name: 'SDR Manager', exact: true })).toHaveCount(0);
     });
 
     test('still downloads MapLibre and draws a map', async ({ page }) => {
