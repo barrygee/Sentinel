@@ -681,6 +681,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Deleting a Sentinel host removes its radios
 - Let the Mac command start again
 - List private dongles' radios in the picker, and drop the ADDED label
+- Call this machine's SDR host "This machine" everywhere
 
 ### Chores
 
@@ -1898,6 +1899,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #641 from barrygee/fix/picker-shows-private-radios
 - Merge remote-tracking branch 'origin/main' into feat/web-https
 - Merge pull request #639 from barrygee/feat/web-https
+- Merge pull request #642 from barrygee/fix/this-machine-label
 
 ### Performance
 
@@ -2211,6 +2213,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point the RadioIcon guard at SatelliteActionRow
 - Type the owner-metadata relay tests without an ignore
 - Stop leaked controls failing the AdsbLiveControl spec
+- Give the This machine label test's device a name
 
 ### Build System
 
