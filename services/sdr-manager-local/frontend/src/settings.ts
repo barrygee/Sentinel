@@ -124,6 +124,8 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
       searchTerms: 'configuration export import backup restore file json sdr manager',
       control: {
         component: ConfigTransferControl,
+        // Its inline JSON editor stages an import for APPLY CHANGES.
+        emits: ['stage'],
         layout: 'half',
         naturalHeight: true,
         collapsible: {},

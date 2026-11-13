@@ -252,20 +252,22 @@ class HostPoller:
         port is adopted as its mirror rather than duplicated, and a radio saved
         before the SDR Manager rename (`sentry_*` fields) is renamed in place.
 
-        Deliberately does **not** delete a radio whose device has disappeared
-        or is unplugged. A dongle is unplugged for all sorts of temporary
-        reasons, and quietly destroying the operator's configuration — its name,
-        its frequency groups, its recordings — because a USB plug was loose
-        would be far worse than showing it as unavailable, which is what
-        `GET /api/sdr/radios` does. Nothing is written unless something changed.
+        An **unplugged** dongle keeps its radio: SDR Manager keeps listing it
+        (not present), and a USB plug works loose for all sorts of temporary
+        reasons, so `GET /api/sdr/radios` shows the radio unavailable instead.
+        A device the host **no longer lists at all** was deleted there (its
+        Forget), so its radio goes too, here and on every Sentinel linked to
+        that host; replugging into another socket lists a new device beside the
+        old one, so that is never mistaken for a deletion. Only a reply that
+        carries a device list counts: one without (an older or broken host)
+        changes nothing. Nothing is written unless something changed.
         """
-        devices = [
-            device
-            for device in (payload or {}).get("sdrs", [])
-            if isinstance(device, dict) and isinstance(device.get("device_id"), str)
-        ]
-        if not devices:
+        reported = (payload or {}).get("sdrs")
+        if not isinstance(reported, list):
             return
+        devices = [
+            device for device in reported if isinstance(device, dict) and isinstance(device.get("device_id"), str)
+        ]
 
         # `sdr.radios` is a core setting (it is in the config file), so the
         # service reads and writes it through the settings client — the same path
@@ -279,6 +281,9 @@ class HostPoller:
                 changed = (
                     _sync_device_radio(radios, host_id, host_address, device, auto_add_sdrs, may_use_private) or changed
                 )
+            changed = (
+                _drop_radios_of_deleted_devices(radios, host_id, {device["device_id"] for device in devices}) or changed
+            )
             if changed:
                 await write_setting(db, "sdr", "radios", radios)
 
@@ -309,6 +314,27 @@ def _rename_legacy_mirror_fields(radio: Any) -> bool:
     radio.setdefault("sdr_manager_host_id", host_id)
     radio.setdefault("sdr_manager_device_id", device_id)
     return True
+
+
+def _drop_radios_of_deleted_devices(radios: list[Any], host_id: int, listed_device_ids: set[str]) -> bool:
+    """Remove this host's mirrors whose device it no longer lists. Returns whether any went."""
+    deleted = [
+        radio
+        for radio in radios
+        if isinstance(radio, dict)
+        and radio.get("sdr_manager_host_id") == host_id
+        and isinstance(radio.get("sdr_manager_device_id"), str)
+        and radio["sdr_manager_device_id"] not in listed_device_ids
+    ]
+    for radio in deleted:
+        logger.info(
+            "Radio %s removed: device %s was deleted on SDR host %d",
+            radio.get("id"),
+            radio["sdr_manager_device_id"],
+            host_id,
+        )
+        radios.remove(radio)
+    return bool(deleted)
 
 
 def _sync_device_radio(

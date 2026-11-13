@@ -1052,14 +1052,15 @@ describe('SettingsPanel', () => {
       )
     })
 
-    it('offers only Sentinel Location, Application Config and HTTPS in SDR Manager-only mode', async () => {
+    it('offers only Sentinel Location and HTTPS of its own in SDR Manager-only mode', async () => {
       setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
 
       const wrapper = mountPanel()
       await wrapper.vm.$nextTick()
 
-      // HTTPS too: an SDR Manager-only Pi is opened from other devices.
-      expect(appItemIds(wrapper)).toEqual(['location', 'config-current', 'https'])
+      // HTTPS too: an SDR Manager-only Pi is opened from other devices. No
+      // Application Config: THIS MACHINE's Configuration edits that mode's settings.
+      expect(appItemIds(wrapper)).toEqual(['location', 'https'])
     })
 
     it("leaves a mode's hidden settings out of search too", async () => {

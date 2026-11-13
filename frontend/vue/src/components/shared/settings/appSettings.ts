@@ -22,9 +22,9 @@ const OfflineMapsSettings = defineAsyncComponent(
 )
 
 /**
- * The App Settings that only mean something with the map and its sections.
- * SDR Manager-only mode keeps the rest: Sentinel Location (the SDRs' location,
- * which other Sentinels show on their maps) and the Application Config.
+ * The App Settings that only mean something with the full app. SDR
+ * Manager-only mode keeps the rest: Sentinel Location (the SDRs' location,
+ * which other Sentinels show on their maps), HTTPS and THIS MACHINE.
  */
 const FULL_APP_ONLY = ['full'] as const
 
@@ -136,6 +136,10 @@ registerSettingItems([
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'config-current',
+    // Full app only: SDR Manager-only mode's settings are THIS MACHINE's
+    // Configuration (edited in place the same way); Sentinel Location and
+    // HTTPS keep their own cards.
+    modes: FULL_APP_ONLY,
     label: 'Application Config',
     desc: '',
     searchTerms: 'settings currently stored in the database raw json',

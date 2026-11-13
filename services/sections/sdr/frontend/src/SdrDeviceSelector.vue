@@ -51,10 +51,10 @@
           :class="{
             'base-select-menu-option--active': highlight === index + 1,
             'sdr-device-option--readonly': isRadioReadOnly(radio),
-            'base-select-menu-option--unavailable': reservationFor(radio) !== null,
+            'base-select-menu-option--unavailable': isUnpickable(radio),
           }"
           :aria-selected="highlight === index + 1"
-          :aria-disabled="reservationFor(radio) !== null"
+          :aria-disabled="isUnpickable(radio)"
           @click="pickRadio(radio)"
           @mousemove="highlight = index + 1"
         >
@@ -63,7 +63,7 @@
             }}<span class="base-select-menu-option-detail">{{
               reservationFor(radio)
                 ? `RESERVED · ${reservationFor(radio)} RECEIVER`
-                : radioPlace(radio)
+                : (unavailableReason(radio) ?? radioPlace(radio))
             }}</span></span
           >
           <!-- Padlock: this radio is controlled by another Sentinel, or is
@@ -192,6 +192,22 @@ async function loadHostLabels(): Promise<void> {
   }
 }
 
+/**
+ * Why a radio can't be used right now, in the hub's words ("The dongle is
+ * unplugged.", "Its SDR host is not reachable."), or null when it can. Listed
+ * greyed with the reason rather than hidden: a radio that silently vanished
+ * from the list read as deleted, not as unplugged.
+ */
+function unavailableReason(radio: SdrRadio): string | null {
+  if (radio.device_available !== false) return null
+  return radio.unavailable_reason || 'Not available right now.'
+}
+
+/** Whether a row can't be picked: reserved by a domain, or its device is unavailable. */
+function isUnpickable(radio: SdrRadio): boolean {
+  return reservationFor(radio) !== null || unavailableReason(radio) !== null
+}
+
 const selectMenuRef = ref<InstanceType<typeof BaseSelectMenu> | null>(null)
 // Mirrors the base menu's open state reactively (null before first render).
 const menuOpen = computed(() => selectMenuRef.value?.menuOpen ?? false)
@@ -231,12 +247,15 @@ function onMenuOpen() {
   highlight.value = 0
   populateMenuRadios()
   void loadHostLabels()
+  // Availability changes as dongles are plugged in and hosts come and go: read
+  // it afresh, and redraw the rows when it arrives.
+  void sdrStore.loadRadios().then(populateMenuRadios)
 }
 
 function pickRadio(radio: SdrRadio | null) {
-  // A reserved row is inert: the menu stays open so the operator can pick
-  // another radio, and the reason is already on the row they clicked.
-  if (radio && reservationFor(radio) !== null) return
+  // A reserved or unavailable row is inert: the menu stays open so the operator
+  // can pick another radio, and the reason is already on the row they clicked.
+  if (radio && isUnpickable(radio)) return
   // The options only render once the menu (and therefore the ref) exists.
   selectMenuRef.value!.closeMenu()
   emit('select', radio)

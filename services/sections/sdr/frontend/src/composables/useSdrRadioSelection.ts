@@ -117,8 +117,11 @@ export function useSdrRadioSelection(options: UseSdrRadioSelectionOptions) {
     // decoder) is not available here, so it can neither be remembered into the
     // panel nor auto-selected as "the only one" — doing either would retune a
     // dongle another domain depends on.
+    // Never auto-select a radio whose device is unplugged or whose host is down.
     const isSelectable = (radio: SdrRadio) =>
-      radio.enabled && _sdrStore().radioReservation(radio.id) === null
+      radio.enabled &&
+      radio.device_available !== false &&
+      _sdrStore().radioReservation(radio.id) === null
     const savedRadio = savedId ? radios.find((r) => r.id === savedId && isSelectable(r)) : undefined
     // Pick a radio to make the panel usable without a manual dropdown selection:
     //   1. the remembered radio (if still present + enabled), else
