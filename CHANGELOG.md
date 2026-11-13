@@ -684,6 +684,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Let the Mac command start again
 - List private dongles' radios in the picker, and drop the ADDED label
 - Call this machine's SDR host "This machine" everywhere
+- Lite Configuration editing, centred altitude legend, unavailable radios, deleted devices
 
 ### Chores
 
@@ -1904,6 +1905,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #642 from barrygee/fix/this-machine-label
 - Merge pull request #643 from barrygee/feat/this-machine-in-app-settings
 - Merge pull request #644 from barrygee/feat/radio-locations
+- Merge pull request #645 from barrygee/fix/ui-queue
 
 ### Performance
 
