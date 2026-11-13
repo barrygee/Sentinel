@@ -13,7 +13,7 @@ The SDR section turns cheap RTL-SDR dongles into a wide-band receiver you contro
 ## Add an rtl_tcp radio
 
 1. On the computer with the dongle: `rtl_tcp -a 0.0.0.0 -p 1234`.
-2. **Settings › SDR › DEVICES › + ADD A REMOTE SDR DEVICE**: **NAME**, **IP ADDRESS**, **PORT** (usually `1234`), **SAVE**. It is listed under **NON-SENTINEL SDR DEVICES**, or under its Sentinel host when the address is that host's.
+2. **Settings › SDR › DEVICES › + ADD A REMOTE SDR DEVICE**: **NAME**, **IP ADDRESS**, **PORT** (usually `1234`), optionally **LATITUDE** and **LONGITUDE**, **SAVE**. It is listed under **NON-SENTINEL SDR DEVICES**, or under its Sentinel host when the address is that host's. With a position, it shows on every map beside the Sentinel hosts' sites (select it to open Settings › SDR).
 3. Open **SDR** and pick it at the top of the radio panel. It shows **CONNECTED** and the waterfall starts.
 
 ![The add-radio form under NON-SENTINEL SDR DEVICES in Settings › SDR, with NAME, IP ADDRESS, PORT and STATUS, and CANCEL and SAVE buttons.](../../images/settings-add-radio.png)

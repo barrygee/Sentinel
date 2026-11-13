@@ -17,14 +17,17 @@ function recordingEngine(log: string[], name = 'engine'): RadioEngine {
   }
 }
 
+const RECORD_HOST = '10.0.0.5'
+const RECORD_PORT = 1234
+
 function radioRecord(
   overrides: Partial<sdrRadiosApi.SdrRadioRecord> = {},
 ): sdrRadiosApi.SdrRadioRecord {
   return {
     id: 1,
     name: 'Attic',
-    host: '10.0.0.5',
-    port: 1234,
+    host: RECORD_HOST,
+    port: RECORD_PORT,
     description: '',
     enabled: true,
     bandwidth: null,
@@ -291,7 +294,14 @@ describe('sdr radio capability — radio list', () => {
   it('summarises every configured radio', async () => {
     vi.spyOn(sdrRadiosApi, 'listRadios').mockResolvedValue([
       radioRecord({ id: 1, name: 'Attic', enabled: true, device_available: true }),
-      radioRecord({ id: 2, name: 'Shed', enabled: false, device_available: false }),
+      radioRecord({
+        id: 2,
+        name: 'Shed',
+        enabled: false,
+        device_available: false,
+        latitude: 54.95,
+        longitude: -1.53,
+      }),
     ])
 
     await expect(createSdrRadioCapability().listRadios()).resolves.toEqual([
@@ -302,6 +312,10 @@ describe('sdr radio capability — radio list', () => {
         available: true,
         sdrManagerHostId: null,
         sdrManagerDeviceId: null,
+        host: RECORD_HOST,
+        port: RECORD_PORT,
+        latitude: null,
+        longitude: null,
       },
       {
         id: 2,
@@ -310,6 +324,11 @@ describe('sdr radio capability — radio list', () => {
         available: false,
         sdrManagerHostId: null,
         sdrManagerDeviceId: null,
+        host: RECORD_HOST,
+        port: RECORD_PORT,
+        // Where the operator put it, for the maps' site markers.
+        latitude: 54.95,
+        longitude: -1.53,
       },
     ])
   })

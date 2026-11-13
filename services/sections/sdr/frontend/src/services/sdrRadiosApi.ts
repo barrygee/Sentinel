@@ -27,6 +27,9 @@ export interface SdrRadioRecord {
   notes: string
   antenna: string
   visibility: 'public' | 'private'
+  /** Where a radio added by IP and port is, so maps show it; both or neither. */
+  latitude?: number | null
+  longitude?: number | null
   created_at?: number
   /**
    * Whether the SDR Manager device this radio mirrors is currently usable.

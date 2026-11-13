@@ -90,6 +90,12 @@ export interface RadioSummary {
   /** The SDR Manager host and device it streams from; null for a plain rtl_tcp radio. */
   sdrManagerHostId?: number | null
   sdrManagerDeviceId?: string | null
+  /** Where it answers (`rtl_tcp`). */
+  host?: string
+  port?: number
+  /** Where a plain rtl_tcp radio is, when the operator gave it a position; null otherwise. */
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface RadioCapability {

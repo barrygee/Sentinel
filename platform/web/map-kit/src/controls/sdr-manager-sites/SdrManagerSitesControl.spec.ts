@@ -290,6 +290,65 @@ describe('SdrManagerSitesControl', () => {
     })
   })
 
+  describe('radios added by IP and port, given a position', () => {
+    const placedRadio = (overrides: Partial<RadioSite> = {}) =>
+      site({ kind: 'radio', id: 1, name: 'Shed', address: '10.0.0.9', port: 1234, ...overrides })
+
+    it('draws them beside the SDR hosts, named as radios', () => {
+      sitesStore.sites = [site()]
+      sitesStore.radioSites = [placedRadio({ latitude: 53 })]
+      addControl()
+      expect(siteMarkers().map((marker) => marker.element.getAttribute('aria-label'))).toEqual([
+        'SDR host Roof Pi, 192.168.1.60:8000, online, at 51.50000° N 0.10000° W — open in Settings',
+        'SDR radio Shed, 10.0.0.9:1234, online, at 53.00000° N 0.10000° W — open in Settings',
+      ])
+    })
+
+    it('keeps a radio and a host apart when they share an id', async () => {
+      sitesStore.sites = [site({ id: 1 })]
+      sitesStore.radioSites = [placedRadio({ id: 1, latitude: 53 })]
+      addControl()
+      expect(siteMarkers()).toHaveLength(2)
+
+      // The host leaving takes only its own marker.
+      sitesStore.sites = []
+      await nextTick()
+      expect(siteMarkers().map((marker) => marker.lngLat)).toEqual([[-0.1, 53]])
+    })
+
+    it('follows the radio list as it changes', async () => {
+      addControl()
+      sitesStore.radioSites = [placedRadio()]
+      await nextTick()
+      expect(siteMarkers()).toHaveLength(1)
+      sitesStore.radioSites = []
+      await nextTick()
+      expect(siteMarkers()).toHaveLength(0)
+    })
+
+    it('opens Settings › SDR for a radio, not a host row', () => {
+      sitesStore.radioSites = [placedRadio()]
+      addControl()
+      const openHost = vi.spyOn(settingsStore, 'openSdrManagerHost')
+      const openPanel = vi.spyOn(settingsStore, 'openPanel')
+
+      siteMarkers()[0]!.element.click()
+
+      expect(openPanel).toHaveBeenCalledWith('sdr')
+      expect(openHost).not.toHaveBeenCalled()
+    })
+
+    it('lists them in the accessible table with the hosts', () => {
+      sitesStore.sites = [site()]
+      sitesStore.radioSites = [placedRadio({ reachable: false })]
+      const { map } = addControl()
+      const rows = map._container.querySelectorAll('[role="region"] tbody tr')
+      expect(rows).toHaveLength(2)
+      expect(rows[1]!.textContent).toContain('Shed')
+      expect(rows[1]!.textContent).toContain('Off air')
+    })
+  })
+
   describe('crowded sites', () => {
     /** Two sites close enough on screen to collapse into one count, plus a third
      *  well clear of them. */
@@ -308,7 +367,7 @@ describe('SdrManagerSitesControl', () => {
       expect(siteMarkers()).toHaveLength(1) // the one clear of the others
       const count = clusterMarkers()[0]!.element
       expect(count.querySelector('.sdr-manager-cluster-count')!.textContent).toBe('2')
-      expect(count.getAttribute('aria-label')).toBe('2 SDR host sites here — zoom in to see them')
+      expect(count.getAttribute('aria-label')).toBe('2 SDR sites here — zoom in to see them')
     })
 
     it('rings the count in the shared dark ring', () => {
@@ -658,8 +717,8 @@ describe('SdrManagerSitesControl', () => {
       sitesStore.sites = [site(), site({ id: 2, name: 'Barn Pi', reachable: false })]
       const { map } = addControl()
       const region = map._container.querySelector('[role="region"]')!
-      expect(region.getAttribute('aria-label')).toBe('SDR host sites')
-      expect(region.querySelector('caption')!.textContent).toBe('SDR host sites on this map')
+      expect(region.getAttribute('aria-label')).toBe('SDR sites')
+      expect(region.querySelector('caption')!.textContent).toBe('SDR sites on this map')
       expect(region.textContent).toContain('Roof Pi')
       expect(region.textContent).toContain('192.168.1.60:8000')
       expect(region.textContent).toContain('Online')
@@ -672,7 +731,7 @@ describe('SdrManagerSitesControl', () => {
     it('says so plainly when no host reports a position', () => {
       const { map } = addControl()
       expect(map._container.querySelector('[role="region"]')!.textContent).toContain(
-        'No SDR host sites reporting a position.',
+        'No SDR sites with a position.',
       )
     })
 
