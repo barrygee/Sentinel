@@ -36,6 +36,13 @@ describe('SettingItemToggle', () => {
     expect(wrapper.findComponent(ChevronIcon).props('open')).toBe(expanded)
   })
 
+  it.each([
+    [false, 'chevron-icon--closed'],
+    [true, 'chevron-icon--open'],
+  ])('points its chevron right when folded, down when open (expanded=%s)', (expanded, turned) => {
+    expect(mountToggle(expanded).get('.chevron-icon').classes()).toContain(turned)
+  })
+
   it('asks the card to open or fold when clicked, leaving the state to the card', async () => {
     const wrapper = mountToggle(false)
 

@@ -1,7 +1,7 @@
 <template>
   <LocalAuthGate>
     <form class="sdr-devices-accordion" novalidate @submit.prevent="save">
-      <p class="console-password-note">
+      <p class="console-password-note sdr-devices-note">
         <template v-if="auth.passwordSet">
           Last changed {{ lastChanged }}. Changing it signs out every other browser, including one
           you no longer have.
@@ -151,13 +151,3 @@ async function save(): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.console-password-note {
-  margin: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  line-height: 1.5;
-  color: var(--ink-secondary);
-}
-</style>

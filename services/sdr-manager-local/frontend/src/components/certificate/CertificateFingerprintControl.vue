@@ -1,6 +1,6 @@
 <template>
-  <div class="certificate-fingerprint">
-    <p class="certificate-fingerprint-note">
+  <div class="sdr-devices-accordion certificate-fingerprint">
+    <p class="certificate-fingerprint-note sdr-devices-note">
       Other Sentinels show this fingerprint when they add this machine. Tell whoever adds it to
       trust it only if theirs matches.
     </p>
@@ -9,7 +9,7 @@
       <code>{{ fingerprint }}</code>
     </p>
     <p v-else-if="errorMessage" class="sdr-devices-form-error" role="alert">{{ errorMessage }}</p>
-    <p v-else class="certificate-fingerprint-note" aria-live="polite">Reading…</p>
+    <p v-else class="certificate-fingerprint-note sdr-devices-note" aria-live="polite">Reading…</p>
   </div>
 </template>
 
@@ -42,27 +42,29 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.certificate-fingerprint {
-  padding: 4px 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  letter-spacing: 0.02em;
-  color: var(--ink-secondary);
-}
-.certificate-fingerprint-note {
-  margin: 0 0 8px;
-}
+/* The fingerprint sits in a row like the other cards' fields: the caption in
+   BaseFormField's label column (--ba-form-field-label-width, 110px, then a
+   14px gap) in its caption style, the value where their inputs start. */
 .certificate-fingerprint-value {
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: baseline;
   margin: 0;
-  overflow-wrap: anywhere;
 }
 .certificate-fingerprint-label {
-  display: block;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  margin-bottom: 2px;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 .certificate-fingerprint-value code {
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+  font-size: var(--settings-text-value);
+  line-height: 1.6;
+  color: var(--ink);
+  overflow-wrap: anywhere;
 }
 </style>

@@ -60,6 +60,14 @@ describe('PrivateAccessControl', () => {
     expect(wrapper.text()).toContain('Use fixed addresses')
   })
 
+  it('is a settings card whose note reads at the description size', async () => {
+    seedAuth({ passwordSet: true })
+    const wrapper = await mountControl()
+
+    const card = wrapper.get('form.sdr-devices-accordion')
+    expect(card.get('.sdr-devices-note').text()).toContain('Use fixed addresses')
+  })
+
   it('adds a valid address and empties the field', async () => {
     seedAuth({ passwordSet: true })
     vi.mocked(api.setPrivateAccess).mockResolvedValue({ addresses: ['192.168.1.20'] })

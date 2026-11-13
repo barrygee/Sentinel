@@ -21,11 +21,26 @@ describe('ChevronIcon', () => {
     expect(wrapper.find('path').attributes('stroke-width')).toBe('2')
   })
 
-  it('applies the open modifier class only when open', () => {
-    const closed = mount(ChevronIcon, { props: { open: false } })
-    expect(closed.find('svg').classes()).not.toContain('chevron-icon--open')
-    const open = mount(ChevronIcon, { props: { open: true } })
-    expect(open.find('svg').classes()).toContain('chevron-icon--open')
+  it('points right while closed', () => {
+    const classes = mount(ChevronIcon, { props: { open: false } })
+      .find('svg')
+      .classes()
+    expect(classes).toContain('chevron-icon--closed')
+    expect(classes).not.toContain('chevron-icon--open')
+  })
+
+  it('points down while open', () => {
+    const classes = mount(ChevronIcon, { props: { open: true } })
+      .find('svg')
+      .classes()
+    expect(classes).toContain('chevron-icon--open')
+    expect(classes).not.toContain('chevron-icon--closed')
+  })
+
+  it('is left unturned without open, for a caller that turns its own wrapper', () => {
+    const classes = mount(ChevronIcon).find('svg').classes()
+    expect(classes).not.toContain('chevron-icon--open')
+    expect(classes).not.toContain('chevron-icon--closed')
   })
 
   it('has no accessibility violations', async () => {

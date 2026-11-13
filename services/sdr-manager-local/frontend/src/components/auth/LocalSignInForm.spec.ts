@@ -26,6 +26,11 @@ describe('LocalSignInForm', () => {
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined()
   })
 
+  it('is a settings card whose note reads at the description size', () => {
+    const card = mount(LocalSignInForm).get('form.sdr-devices-accordion')
+    expect(card.get('.sdr-devices-note').text()).toContain('has a console password')
+  })
+
   it('enables SIGN IN once a password is typed', async () => {
     const wrapper = mount(LocalSignInForm)
     await wrapper.get(PASSWORD_SELECTOR).setValue('hunter2hunter2')

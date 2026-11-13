@@ -13,6 +13,17 @@ function valueOf(device: LocalDeviceStatus, term: string): string | null {
 }
 
 describe('LocalDeviceDetails', () => {
+  it('lists one fact per row, in reading order, each a caption and its value', () => {
+    const wrapper = mount(LocalDeviceDetails, { props: { device: makeDevice() } })
+    const rows = wrapper.findAll('dl > div')
+    expect(rows.map((row) => row.get('dt').text()).slice(0, 3)).toEqual([
+      'MODEL',
+      'SERIAL',
+      'USB PORT',
+    ])
+    for (const row of rows) expect(row.element.children).toHaveLength(2)
+  })
+
   it('shows the model as manufacturer and product, and the serial and USB port', () => {
     const device = makeDevice()
     expect(valueOf(device, 'MODEL')).toBe('Realtek RTL2838')

@@ -34,6 +34,22 @@ function mountCheck(
 }
 
 describe('RemoteHostCertificateCheck', () => {
+  it('writes its explanations at the card description size', () => {
+    const wrapper = mountCheck({ preview: { ...TLS, matches_pinned: true } })
+    const notes = wrapper.findAll('.sdr-devices-note').map((note) => note.text())
+    expect(notes).toHaveLength(2)
+    expect(notes[0]).toContain('Compare this fingerprint')
+    expect(notes[1]).toContain('already trusted')
+    wrapper.unmount()
+  })
+
+  it('writes the no-encryption warning at the card description size too', () => {
+    const wrapper = mountCheck({ preview: NO_TLS, allowPlainHttp: true })
+    expect(wrapper.findAll('.sdr-devices-note')).toHaveLength(2)
+    expect(wrapper.get('.remote-host-certificate-warning').classes()).toContain('sdr-devices-note')
+    wrapper.unmount()
+  })
+
   it('shows the fingerprint as two even lines of sixteen pairs', () => {
     const wrapper = mountCheck()
     expect(wrapper.get('.remote-host-certificate-fingerprint').text()).toBe(
