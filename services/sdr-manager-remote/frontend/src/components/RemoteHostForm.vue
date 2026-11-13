@@ -3,7 +3,7 @@
     <!-- This machine's row is linked by sdr-manager-remote, which keeps its
          address and sign-in itself (PR 5's local link): only its label and
          ADD SDRS are the operator's to change. -->
-    <p v-if="isLocal" class="remote-host-local-note">
+    <p v-if="isLocal" class="remote-host-local-note sdr-devices-note">
       Linked automatically to this machine's SDR Manager. Only the label and how its SDRs are added
       can be changed here.
     </p>
@@ -61,7 +61,7 @@
     >
       <RemoteHostAutoAddToggle v-model="form.autoAddSdrs" :labelled-by="labelId" />
     </BaseFormField>
-    <p v-if="!form.autoAddSdrs" class="remote-host-auto-add-note">
+    <p v-if="!form.autoAddSdrs" class="remote-host-auto-add-note sdr-devices-note">
       Choose which of its SDRs become radios with ADD.
     </p>
 
@@ -323,26 +323,9 @@ async function addHost(): Promise<void> {
 </script>
 
 <style scoped>
-.remote-host-local-note {
-  margin: 0;
-  padding: 8px 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.75);
-}
-.remote-host-auto-add-note {
-  margin: 0;
-  padding: 0 0 8px;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.75);
-}
 .remote-host-probe {
-  padding: 8px 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
+  font-size: var(--settings-text-body);
   letter-spacing: 0.02em;
   /* --danger-strong: AA contrast on the light settings canvas. */
   color: var(--danger-strong);

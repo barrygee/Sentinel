@@ -61,6 +61,12 @@ describe('ConsolePasswordControl', () => {
       expect(wrapper.get('button[type="submit"]').text()).toBe('SAVE PASSWORD')
     })
 
+    it('is a settings card whose note reads at the description size', () => {
+      const wrapper = mount(ConsolePasswordControl)
+      const card = wrapper.get('form.sdr-devices-accordion')
+      expect(card.get('.sdr-devices-note').text()).toContain('No password is set')
+    })
+
     it('tells the operator the minimum length as a hint on the new password', () => {
       const wrapper = mount(ConsolePasswordControl)
       expect(wrapper.get(`${NEW_PASSWORD}-hint`).text()).toBe('At least 10 characters.')

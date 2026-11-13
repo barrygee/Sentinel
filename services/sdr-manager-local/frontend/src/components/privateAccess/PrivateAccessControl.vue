@@ -1,7 +1,7 @@
 <template>
   <LocalAuthGate>
     <form class="sdr-devices-accordion" novalidate @submit.prevent="addAddress">
-      <p class="private-access-note">
+      <p class="private-access-note sdr-devices-note">
         <template v-if="auth.passwordSet">
           Private dongles work on this machine and for the Sentinels listed here, and refuse
           everyone else. Use fixed addresses: whoever gets a listed address gets access.
@@ -63,6 +63,7 @@ import { validateIpAddress } from '../../utils/validation'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import PrivateAccessRow from './PrivateAccessRow.vue'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
+import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const ADDRESS_FIELD_ID = 'sdr-manager-local-private-address'
 
@@ -99,13 +100,6 @@ async function removeAddress(address: string): Promise<void> {
 </script>
 
 <style scoped>
-.private-access-note {
-  margin: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  color: var(--ink-secondary);
-}
-
 .private-access-list {
   margin: 0;
   padding: 0;

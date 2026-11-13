@@ -42,6 +42,18 @@ describe('CertificateFingerprintControl', () => {
     wrapper.unmount()
   })
 
+  it('is a settings card like the others, its note at the description size', async () => {
+    const wrapper = mountControl()
+    await flushPromises()
+    const card = wrapper.get('.sdr-devices-accordion')
+    expect(card.get('.sdr-devices-note').text()).toContain('Other Sentinels show this fingerprint')
+    // The caption and value share one row, like a field's label and input.
+    const row = card.get('.certificate-fingerprint-value')
+    expect(row.element.children).toHaveLength(2)
+    expect(row.element.children[0]?.textContent).toBe('FINGERPRINT (SHA-256)')
+    wrapper.unmount()
+  })
+
   it.each([
     [
       new SdrManagerApiError(404, 'no_certificate_authority', 'none'),

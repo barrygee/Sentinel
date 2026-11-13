@@ -126,6 +126,15 @@ describe('RemoteHostDetails', () => {
       expect(mockGetSdrManagerHostInfo).toHaveBeenCalledTimes(1)
     })
 
+    it('points its chevron right while collapsed and down while open', async () => {
+      const wrapper = mount(RemoteHostDetails, { props: { host: HOST } })
+      expect(wrapper.get('.chevron-icon').classes()).toContain('chevron-icon--closed')
+      await wrapper.find('.remote-host-details-toggle').trigger('click')
+      await flushPromises()
+      expect(wrapper.get('.chevron-icon').classes()).toContain('chevron-icon--open')
+      expect(wrapper.get('.chevron-icon').classes()).not.toContain('chevron-icon--closed')
+    })
+
     it('points aria-controls at the body, uniquely per host', async () => {
       const wrapper = await mountExpanded()
       const bodyId = wrapper.find('.remote-host-details-toggle').attributes('aria-controls')

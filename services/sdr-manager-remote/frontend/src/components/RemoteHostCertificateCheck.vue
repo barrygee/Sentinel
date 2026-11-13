@@ -10,7 +10,7 @@
     </p>
 
     <template v-if="preview.tls_available">
-      <p :id="descriptionId" class="remote-host-certificate-text">
+      <p :id="descriptionId" class="sdr-devices-note remote-host-certificate-text">
         Compare this fingerprint with the one the SDR host shows (its Settings › SDR Manager, or its
         sdr-manager-local log). Trust it only if they match.
       </p>
@@ -30,15 +30,21 @@
           <dd>{{ preview.not_valid_after }}</dd>
         </div>
       </dl>
-      <p v-if="preview.matches_pinned === true" class="remote-host-certificate-text">
+      <p
+        v-if="preview.matches_pinned === true"
+        class="sdr-devices-note remote-host-certificate-text"
+      >
         This is the certificate already trusted for this host.
       </p>
     </template>
     <template v-else>
-      <p :id="descriptionId" class="remote-host-certificate-text remote-host-certificate-warning">
+      <p
+        :id="descriptionId"
+        class="sdr-devices-note remote-host-certificate-text remote-host-certificate-warning"
+      >
         {{ preview.detail }}
       </p>
-      <p v-if="allowPlainHttp" class="remote-host-certificate-text">
+      <p v-if="allowPlainHttp" class="sdr-devices-note remote-host-certificate-text">
         Add it without encryption only on a network you trust, and update the host when you can.
       </p>
     </template>
@@ -121,41 +127,55 @@ onMounted(() => nextTick(() => headingRef.value?.focus()))
 </script>
 
 <style scoped>
+/* Laid out like the form above it: the card's 16px rhythm between parts,
+   notes in the card description's size (.sdr-devices-note), and each fact a
+   row with its caption in BaseFormField's label column (110px, then 14px). */
 .remote-host-certificate {
-  padding: 8px 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  letter-spacing: 0.02em;
-  color: rgba(16, 19, 29, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 .remote-host-certificate-heading {
-  margin: 0 0 6px;
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-title);
   font-weight: 600;
   letter-spacing: 0.08em;
+  color: var(--ink);
 }
 .remote-host-certificate-heading:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
-}
-.remote-host-certificate-text {
-  margin: 0 0 8px;
 }
 .remote-host-certificate-warning {
   /* --danger-strong: AA contrast on the light settings canvas. */
   color: var(--danger-strong);
 }
 .remote-host-certificate-facts {
-  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
 }
 .remote-host-certificate-facts > div {
-  padding: 4px 0;
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: baseline;
 }
 .remote-host-certificate-facts dt {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-caption);
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.16em;
+  line-height: 1.5;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 .remote-host-certificate-facts dd {
-  margin: 2px 0 0;
+  margin: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--settings-text-value);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 .remote-host-certificate-fingerprint {
@@ -163,6 +183,7 @@ onMounted(() => nextTick(() => headingRef.value?.focus()))
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font-family: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
-  font-size: var(--settings-text-small);
+  font-size: var(--settings-text-value);
+  line-height: 1.6;
 }
 </style>

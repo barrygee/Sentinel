@@ -48,35 +48,34 @@ const usbPort = computed(() => identity.value?.topology_path ?? null)
 </script>
 
 <style scoped>
+/* One row per fact, laid out like the form's fields above it: the caption in
+   BaseFormField's label column (--ba-form-field-label-width, 110px, then a
+   14px gap) in its caption style, the value where the inputs start, in their
+   size. The card's own gap spaces it from the fields. */
 .local-device-details {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   margin: 0;
 }
-@media (min-width: 600px) {
-  .local-device-details {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 .local-device-details div {
-  display: flex;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: baseline;
   min-width: 0;
 }
 .local-device-details dt {
-  flex-shrink: 0;
-  width: 80px;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-caption);
   font-weight: 600;
-  letter-spacing: 0.12em;
-  color: var(--ink-secondary);
+  letter-spacing: 0.16em;
+  color: rgba(var(--ink-rgb), 0.6);
 }
 .local-device-details dd {
   margin: 0;
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
+  font-size: var(--settings-text-value);
   color: var(--ink);
   overflow-wrap: anywhere;
 }

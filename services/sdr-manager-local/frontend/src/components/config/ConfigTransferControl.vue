@@ -1,7 +1,7 @@
 <template>
   <LocalAuthGate>
     <div class="sdr-devices-accordion config-transfer">
-      <p class="config-transfer-note">
+      <p class="config-transfer-note sdr-devices-note">
         Save this machine’s device names, ports and tuning, and its hotspot, to a file — to back it
         up, or to set up another SDR Manager the same way. The hotspot and console passwords are
         never written to it.
@@ -97,13 +97,6 @@ async function importFile(body: LocalConfigImportRequest): Promise<void> {
 </script>
 
 <style scoped>
-.config-transfer-note {
-  margin: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  line-height: 1.5;
-  color: var(--ink-secondary);
-}
 .config-transfer-export {
   justify-content: flex-start;
 }

@@ -1,6 +1,6 @@
 <template>
   <form class="sdr-devices-accordion" @submit.prevent="submit">
-    <p class="local-sign-in-note">
+    <p class="local-sign-in-note sdr-devices-note">
       This machine’s SDR Manager has a console password. Sign in to manage its SDRs.
     </p>
     <BaseTextField
@@ -52,12 +52,3 @@ async function submit(): Promise<void> {
   }
 }
 </script>
-
-<style scoped>
-.local-sign-in-note {
-  margin: 0;
-  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  color: var(--ink-secondary);
-}
-</style>

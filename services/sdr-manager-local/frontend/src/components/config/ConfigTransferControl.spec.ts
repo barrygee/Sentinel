@@ -71,6 +71,11 @@ describe('ConfigTransferControl', () => {
     vi.restoreAllMocks()
   })
 
+  it('is a settings card whose note reads at the description size', () => {
+    const card = mountControl().get('.sdr-devices-accordion')
+    expect(card.get('.sdr-devices-note').text()).toContain('Save this machine’s device names')
+  })
+
   describe('export', () => {
     it('saves the exported configuration as a pretty-printed JSON file', async () => {
       vi.mocked(api.getConfig).mockResolvedValue({ version: 1, devices: [] })

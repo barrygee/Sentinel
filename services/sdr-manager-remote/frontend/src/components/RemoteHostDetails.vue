@@ -303,14 +303,6 @@ watch(
   cursor: pointer;
   text-align: left;
 }
-/* Collapsed points right (at the title), expanded points down (at the body) —
-   ChevronIcon's own default is down/up, so both states are re-pointed here. */
-.remote-host-details-toggle :deep(.chevron-icon) {
-  transform: rotate(-90deg);
-}
-.remote-host-details-toggle :deep(.chevron-icon--open) {
-  transform: rotate(0deg);
-}
 .remote-host-details-toggle:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
