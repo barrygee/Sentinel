@@ -674,6 +674,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Guard TLE source URLs against internal destinations
 - Run deployed services from their images, dev reload via compose.dev.yaml **(breaking change)**
 - Health-check over HTTPS and list the Certificate card
+- Never fall back to the online source off grid
 
 ### Chores
 
@@ -1882,6 +1883,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #631 from barrygee/fix/sdr-manager-https
 - Merge pull request #632 from barrygee/fix/sdr-manager-local-https
 - Merge pull request #633 from barrygee/docs/main-sentinel-and-pi
+- Merge pull request #634 from barrygee/fix/offgrid-no-online-fallback
 
 ### Performance
 
