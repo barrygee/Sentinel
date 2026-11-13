@@ -299,6 +299,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Draw range rings as dots instead of dashes
 - Let the operator close the online quota warning
 - Pin each SDR host's certificate authority over HTTPS **(breaking change)**
+- Serve the SDR Manager API over HTTPS **(breaking change)**
 
 ### Bug Fixes
 
@@ -672,6 +673,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Drop warm-started vessels another source heard
 - Guard TLE source URLs against internal destinations
 - Run deployed services from their images, dev reload via compose.dev.yaml **(breaking change)**
+- Health-check over HTTPS and list the Certificate card
 
 ### Chores
 
@@ -1878,6 +1880,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #629 from barrygee/fix/upstream-url-ssrf
 - Merge pull request #630 from barrygee/fix/compose-deploy-hardening
 - Merge pull request #631 from barrygee/fix/sdr-manager-https
+- Merge pull request #632 from barrygee/fix/sdr-manager-local-https
 
 ### Performance
 
