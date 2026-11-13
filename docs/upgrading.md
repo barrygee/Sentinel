@@ -16,6 +16,10 @@ Check the one-off steps below for anything newer than your copy (`git log -1 --f
 
 ## One-off steps
 
+### The web page over HTTPS (November 2026)
+
+Sentinel now serves its page over HTTPS on port 8444 too, with a certificate from its own certificate authority. Nothing changes until you use it: plain HTTP on 8080 keeps working. To open it from other devices, set `SENTINEL_WEB_HOSTNAMES` and install the certificate authority on each device ([HTTPS](https.md)).
+
 ### SDR Manager serves HTTPS (November 2026)
 
 SDR Manager on each SDR host now serves HTTPS on port 8000, so other Sentinels' console passwords no longer cross the network readable. Upgrade the SDR hosts as usual: `docker compose up --build -d` issues the certificate (on a Mac, then run `uv run --project backend sdr-manager-local install` again).

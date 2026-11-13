@@ -93,6 +93,94 @@
                         ]
                     }
                 },
+                "sentinel_https": {
+                    "listen": [":8444"],
+                    "protocols": ["h1", "h2"],
+                    "automatic_https": { "disable": true },
+                    "tls_connection_policies": [{ "default_sni": "gateway" }],
+                    "routes": [
+                        {
+                            "match": [{ "path": ["/api/sdr/recordings/stop"] }],
+                            "handle": [{ "handler": "request_body", "max_size": 4295032832 }]
+                        },
+                        {
+                            "match": [{ "not": [{ "path": ["/api/sdr/recordings/stop"] }] }],
+                            "handle": [{ "handler": "request_body", "max_size": 16777216 }]
+                        },
+                        {
+                            "match": [{ "path": ["/internal", "/internal/*"] }],
+                            "handle": [
+                                {
+                                    "handler": "static_response",
+                                    "status_code": 404,
+                                    "headers": { "Content-Type": ["application/json"] },
+                                    "body": "{\"detail\": \"Not Found\"}"
+                                }
+                            ],
+                            "terminal": true
+                        },
+                        {
+                            "@id": "static_compression_https",
+                            "match": [
+                                {
+                                    "path": ["/spa-assets/*", "/remotes/*", "/assets/*", "/fonts/*"],
+                                    "not": [{ "path": ["/assets/tiles/*", "*.pmtiles"] }]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "encode",
+                                    "encodings": { "zstd": {}, "gzip": {} },
+                                    "prefer": ["zstd", "gzip"]
+                                }
+                            ]
+                        },
+                        {
+                            "handle": [
+                                { "@id": "registry_routes_https", "handler": "subroute", "routes": [] }
+                            ]
+                        },
+                        {
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [{ "dial": "app:8000" }]
+                                }
+                            ]
+                        }
+                    ],
+                    "errors": {
+                        "routes": [
+                            {
+                                "match": [{ "expression": "{http.error.status_code} == 413" }],
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 413,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Request body too large\"}"
+                                    }
+                                ]
+                            },
+                            {
+                                "handle": [
+                                    {
+                                        "handler": "static_response",
+                                        "status_code": 503,
+                                        "headers": {
+                                            "Content-Type": ["application/json"],
+                                            "Cache-Control": ["no-store"]
+                                        },
+                                        "body": "{\"detail\": \"Service unavailable\"}"
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
                 "service_entrypoint": {
                     "listen": [":8443"],
                     "protocols": ["h1", "h2"],

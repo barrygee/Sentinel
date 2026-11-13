@@ -42,6 +42,8 @@ Profile `core`.
 | GET | `/api/app/sections` | `browser` | `default` | The shell's boot data: sections, docs deployment, app mode. |
 | GET | `/api/app/docs` | `browser` | `default` | The shell's boot data: sections, docs deployment, app mode. |
 | GET | `/api/app/mode` | `browser` | `default` | The shell's boot data: sections, docs deployment, app mode. |
+| GET | `/api/app/certificate-authority` | `browser` | `default` | This deployment's certificate authority (public by nature), so each device can trust the page over HTTPS. Opened from the Settings card or typed into a phone's browser. |
+| GET | `/api/app/certificate-authority.crt` | `browser` | `default` | This deployment's certificate authority (public by nature), so each device can trust the page over HTTPS. Opened from the Settings card or typed into a phone's browser. |
 | POST | `/internal/registry/register` | `service` | `internal` | Service registration and discovery (every service; sdr-manager-remote discovers sdr-manager-local). |
 | GET | `/internal/registry/services` | `service` | `internal` | Service registration and discovery (every service; sdr-manager-remote discovers sdr-manager-local). |
 | GET | `/internal/settings/secrets/{namespace}/{key}` | `service` | `secrets` | Secret settings: Sea's AISStream key, read by the Sea service only. |

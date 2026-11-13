@@ -27,7 +27,15 @@ from sentinel_sdr_manager_remote.routers import hosts as sdr_manager_remote_host
 from sentinel_sea import router as sea
 from sentinel_space import router as space
 
-from backend.core import app_docs, app_mode, app_sections, notifications, registry_router, settings_secrets
+from backend.core import (
+    app_certificate,
+    app_docs,
+    app_mode,
+    app_sections,
+    notifications,
+    registry_router,
+    settings_secrets,
+)
 from backend.core.app import CORE_LIFECYCLES, core_routers, create_core_app
 from backend.modules import bus as bus_module
 from backend.modules import core as core_module
@@ -43,6 +51,7 @@ CORE_ROUTERS = [
     app_sections.router,
     app_docs.router,
     app_mode.router,
+    app_certificate.router,
     registry_router.router,
     settings_secrets.router,
 ]
@@ -91,6 +100,7 @@ class TestCoreRouters:
             app_sections.router,
             app_docs.router,
             app_mode.router,
+            app_certificate.router,
             registry_router.router,
             settings_secrets.router,
             docs.router,

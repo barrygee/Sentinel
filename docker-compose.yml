@@ -181,6 +181,9 @@ services:
       # (a path in the GATEWAY container) for proxying to them.
       INTERNAL_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
       GATEWAY_UPSTREAM_CERTIFICATE_AUTHORITY_FILE: /run/service-credentials/certificate-authority.pem
+      # Where the gateway publishes the web page over HTTPS, reported to the
+      # HTTPS settings card (GET /api/app/certificate-authority).
+      WEB_HTTPS_PORT: ${SENTINEL_HTTPS_PORT:-8444}
       # The gateway's admin API, which core pushes the service registry's routes
       # into. Only reachable on the gateway_admin network (see the gateway), so
       # it is fixed here rather than read from .env, where an old
@@ -229,12 +232,17 @@ services:
   # or a decoder (third-party code parsing untrusted RF) on the sentinel network
   # cannot reach it. Never published.
   #
+  # It serves the web page over HTTPS on :8444 too (SENTINEL_HTTPS_PORT): a
+  # second server with the same routes as :8080 (core keeps both copies of the
+  # registry's routes in step), using the certificate below. Each device trusts
+  # it once by installing this deployment's CA (docs/https.md).
+  #
   # It also serves core's TLS service entrypoint on :8443 (P7.5): only
   # /internal/*, /api/settings* and /health go to the app (anything else is a
   # 404), for Sentinel processes on another host (a radio host's hub, a section
   # elsewhere) to register, read settings and their secrets. Not for browsers. Its certificate is issued by the
-  # deployment CA (service-credentials) for `gateway`, `localhost` and
-  # SENTINEL_CORE_HOSTNAMES. Published on 127.0.0.1 only unless
+  # deployment CA (service-credentials) for `gateway`, `localhost`, 127.0.0.1,
+  # SENTINEL_CORE_HOSTNAMES and SENTINEL_WEB_HOSTNAMES. :8443 is published on 127.0.0.1 only unless
   # SENTINEL_SERVICE_ENTRYPOINT_ADDRESS opens it to the LAN (e.g. 0.0.0.0:8443).
   gateway:
     image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
@@ -249,6 +257,9 @@ services:
     command: ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
     ports:
       - "8080:8080"
+      # The web page over HTTPS: the same routes as :8080, with the
+      # certificate below (SENTINEL_WEB_HOSTNAMES names the addresses it covers).
+      - "${SENTINEL_HTTPS_PORT:-8444}:8444"
       - "${SENTINEL_SERVICE_ENTRYPOINT_ADDRESS:-127.0.0.1:8443}:8443"
     volumes:
       - ./gateway/caddy.json:/etc/caddy/caddy.json:ro
@@ -722,6 +733,10 @@ services:
       # comma-separated: the broker's and the service entrypoint's certificates
       # cover them (a radio host dialling core — P7.5).
       SENTINEL_CORE_HOSTNAMES: ${SENTINEL_CORE_HOSTNAMES:-}
+      # Names (or IP addresses) browsers open THIS machine's web page by over
+      # HTTPS (:8444), comma-separated: the gateway's certificate covers them,
+      # beside localhost and 127.0.0.1.
+      SENTINEL_WEB_HOSTNAMES: ${SENTINEL_WEB_HOSTNAMES:-}
       # Names (or IP addresses) core reaches a RADIO HOST by: when set, its
       # gateway's certificate is issued here (the CA key never leaves this host)
       # and exported with its bundle (backend/scripts/service_credentials_bundle.py).

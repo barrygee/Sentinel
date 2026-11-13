@@ -70,6 +70,15 @@ Guides: [Mac](sdr-manager-mac.md), [Linux and Pi](sdr-manager-linux.md), [SDR Ma
 
 `SDR_MANAGER_REMOTE_*` tune how often SDR hosts are checked and how long a call may take; the defaults suit a home network. After a change: `docker compose up -d` (on a Mac, also `uv run --project backend sdr-manager-local install`).
 
+## HTTPS
+
+| Variable | Default | Set it to |
+|---|---|---|
+| `SENTINEL_WEB_HOSTNAMES` | none (`localhost` and `127.0.0.1` only) | The addresses you open Sentinel by from other devices, e.g. `192.168.5.67,sentinel.local` |
+| `SENTINEL_HTTPS_PORT` | `8444` | Another port for the page over HTTPS |
+
+After a change: `docker compose up -d && docker compose restart gateway`. Trusting it on each device: [HTTPS](https.md).
+
 ## A second computer
 
 `SENTINEL_CORE_HOSTNAMES`, `SENTINEL_RADIO_HOST_HOSTNAMES`, `SENTINEL_SERVICE_ENTRYPOINT_ADDRESS`, `NATS_PUBLISHED_ADDRESS`, and on the radio host `SENTINEL_CORE_ENTRYPOINT_URL`, `SENTINEL_CORE_NATS_URL`, `SENTINEL_RADIO_HOST_URL`, `SENTINEL_RADIO_HOST_GATEWAY_ADDRESS`. Values and where each goes: [Radio host](radio-host.md).

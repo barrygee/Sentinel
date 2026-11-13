@@ -26,6 +26,14 @@ from backend.platform.service_manifest import RESERVED_ROUTE_PREFIXES
 # `gateway/caddy.json` must use the same id.
 REGISTRY_ROUTES_ID = "registry_routes"
 
+# The same routes for the web page over HTTPS (the gateway's `sentinel_https`
+# server, :8444). A Caddy id names one object, so that server's subroute has its
+# own; core pushes the identical table into both.
+HTTPS_REGISTRY_ROUTES_ID = "registry_routes_https"
+
+# Every subroute core keeps the registry's routes in.
+REGISTRY_ROUTES_IDS = (REGISTRY_ROUTES_ID, HTTPS_REGISTRY_ROUTES_ID)
+
 # The core service's name in the table — what an unmatched path reaches anyway,
 # but core's reserved prefixes are listed explicitly so they outrank a section
 # that owns the shorter prefix around them (`/api/air/messages` in `/api/air/`).

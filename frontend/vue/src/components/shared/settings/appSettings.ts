@@ -6,6 +6,7 @@ import {
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'
+import HttpsControl from './HttpsControl.vue'
 import LocationControl from './LocationControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
@@ -151,5 +152,17 @@ registerSettingItems([
     label: 'Export All Configuration',
     desc: 'Back up your full configuration (sentinel_config.json, sdr_frequencies.json and sdr_bandplan.json) to a single folder you choose',
     control: { component: ExportAllControl },
+  },
+  {
+    // Both modes: an SDR Manager-only Pi is opened from other devices too.
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'https',
+    label: 'HTTPS',
+    desc: 'Open Sentinel over an encrypted connection, once each device trusts this Sentinel’s certificate.',
+    searchTerms: 'https tls ssl certificate encryption secure fingerprint trust install',
+    docPath: 'https',
+    control: { component: HttpsControl, layout: 'full', naturalHeight: true },
+    groupLabel: 'SECURITY',
   },
 ])

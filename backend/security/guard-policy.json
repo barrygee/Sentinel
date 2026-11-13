@@ -456,6 +456,12 @@
             "methods": ["GET"],
             "access": ["browser"]
         },
+        {
+            "note": "This deployment's certificate authority (public by nature), so each device can trust the page over HTTPS. Opened from the Settings card or typed into a phone's browser.",
+            "paths": ["/api/app/certificate-authority", "/api/app/certificate-authority.crt"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
 
         {
             "note": "Space: satellite pass prediction.",

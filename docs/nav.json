@@ -14,6 +14,7 @@
                 { "path": "decoders", "title": "Decoders" },
                 { "path": "radio-host", "title": "Radio host" },
                 { "path": "operations", "title": "Run and maintain" },
+                { "path": "https", "title": "HTTPS" },
                 { "path": "security-guard", "title": "Request guard" },
                 { "path": "reference/ports-and-services", "title": "Ports and services" },
                 { "path": "reference/api-access-matrix", "title": "API access matrix" },
