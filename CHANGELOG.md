@@ -1881,6 +1881,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #630 from barrygee/fix/compose-deploy-hardening
 - Merge pull request #631 from barrygee/fix/sdr-manager-https
 - Merge pull request #632 from barrygee/fix/sdr-manager-local-https
+- Merge pull request #633 from barrygee/docs/main-sentinel-and-pi
 
 ### Performance
 
@@ -2080,6 +2081,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Describe the config status poll in the policy, not the matrix
 - Add container consolidation, running without Docker and SDR IQ playback plans
 - Close review gaps in the compose.dev.yaml split
+- Add a step-by-step guide to a main Sentinel plus a Raspberry Pi
 
 ### Tests
 
