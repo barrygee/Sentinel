@@ -1391,7 +1391,7 @@ describe('SdrDevicesControl', () => {
       expect(localRow(wrapper).findComponent(SdrHostDeviceAddButton).exists()).toBe(true)
     })
 
-    it('reads ADDED for an SDR that is a radio, and removes the radio after asking', async () => {
+    it('hands the row its radio for an SDR that is one, and removes the radio after asking', async () => {
       const changed = vi.fn()
       document.addEventListener(RADIOS_CHANGED_EVENT, changed)
       mockListSdrManagerHosts.mockResolvedValue([THIS_MACHINE])

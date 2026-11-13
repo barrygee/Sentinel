@@ -186,13 +186,13 @@ const activeDescId = computed(() =>
 // immediately-following control connect fail — the user had to select the
 // radio twice before it connected. Reachability is shown by the device dot
 // once a radio is selected and the real control connection is established;
-// the menu just lists what's configured. A `visibility: 'private'` device
-// (ADR-0009) still runs and holds its port but is deliberately excluded from
-// this operational list — it exists for another consumer, not this operator.
+// the menu just lists what's configured. A private dongle is listed too:
+// private means "this machine and the Sentinels its host allows", and a radio
+// only exists here for a private dongle this Sentinel may use (one on this
+// machine, or on a host that lists this Sentinel); the hub greys out any it
+// can't. Hiding them made a Mac's own private dongle vanish from its picker.
 function populateMenuRadios() {
-  menuRadios.value = sdrStore.radios.filter(
-    (radio) => radio.enabled && radio.visibility !== 'private',
-  )
+  menuRadios.value = sdrStore.radios.filter((radio) => radio.enabled)
 }
 
 // Runs on every open path (trigger click or keyboard) via the base's `open`
