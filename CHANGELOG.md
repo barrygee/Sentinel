@@ -677,6 +677,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Never fall back to the online source off grid
 - Point disclosure chevrons right/down and even out the SDR cards
 - Mark the ADS-B decoder's SDR, even out the host panel, and fix stale hotspot sign-in
+- Deleting a Sentinel host removes its radios
 
 ### Chores
 
@@ -1888,6 +1889,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #634 from barrygee/fix/offgrid-no-online-fallback
 - Merge pull request #635 from barrygee/fix/disclosure-chevron-direction
 - Merge pull request #636 from barrygee/fix/adsb-source-not-addable
+- Merge pull request #637 from barrygee/fix/delete-host-removes-radios
 
 ### Performance
 
