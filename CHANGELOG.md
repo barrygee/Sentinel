@@ -302,6 +302,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Serve the SDR Manager API over HTTPS **(breaking change)**
 - Serve the web page over HTTPS on :8444
 - Move THIS MACHINE to App Settings in both modes
+- Optional position for radios added by IP, shown on the maps
 
 ### Bug Fixes
 
@@ -1902,6 +1903,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #639 from barrygee/feat/web-https
 - Merge pull request #642 from barrygee/fix/this-machine-label
 - Merge pull request #643 from barrygee/feat/this-machine-in-app-settings
+- Merge pull request #644 from barrygee/feat/radio-locations
 
 ### Performance
 
