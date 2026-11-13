@@ -36,7 +36,7 @@ Then `docker compose up -d`. Windows can't manage its own dongles; it can still 
 3. Select the pencil, then fill in **NAME** and **OUTPUT PORT** (a free one is suggested), and optionally **ANTENNA** and **NOTES**. Set **VISIBILITY** to **PUBLIC** to share it with other Sentinels.
 4. **APPLY CHANGES**. Its dot stays yellow (**Ready**).
 5. Switch its stream on, then **APPLY CHANGES**. Its dot turns green (**Streaming**).
-6. **ADD** at the end of its row makes it a radio in the SDR panel; it then reads **ADDED**, and its cross removes the radio (the dongle stays).
+6. **ADD** at the end of its row makes it a radio in the SDR panel; **ADD** then gives way to a cross, which removes the radio (the dongle stays).
 
 The dot at the start of each row shows the dongle's state; point at it to read the state, and an error's reason.
 

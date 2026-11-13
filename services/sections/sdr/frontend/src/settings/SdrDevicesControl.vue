@@ -63,7 +63,7 @@
               No SDRs plugged in.
             </div>
             <!-- This machine: one row per SDR, sdr-manager-local's (state,
-                 stream switch, settings), ending in its radio's ADD / ADDED. -->
+                 stream switch, settings), ending in its radio's ADD, or its cross once it is one. -->
             <component
               :is="thisMachine.DevicesPanel"
               v-if="thisMachine && showsThisMachinePanel(group)"
