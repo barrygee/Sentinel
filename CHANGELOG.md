@@ -301,6 +301,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Pin each SDR host's certificate authority over HTTPS **(breaking change)**
 - Serve the SDR Manager API over HTTPS **(breaking change)**
 - Serve the web page over HTTPS on :8444
+- Move THIS MACHINE to App Settings in both modes
 
 ### Bug Fixes
 
@@ -1900,6 +1901,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge remote-tracking branch 'origin/main' into feat/web-https
 - Merge pull request #639 from barrygee/feat/web-https
 - Merge pull request #642 from barrygee/fix/this-machine-label
+- Merge pull request #643 from barrygee/feat/this-machine-in-app-settings
 
 ### Performance
 
@@ -2214,6 +2216,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Type the owner-metadata relay tests without an ignore
 - Stop leaked controls failing the AdsbLiveControl spec
 - Give the This machine label test's device a name
+- Look for THIS MACHINE in App Settings in the full-stack smoke
 
 ### Build System
 
