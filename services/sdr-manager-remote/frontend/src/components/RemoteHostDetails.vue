@@ -38,7 +38,7 @@
           v-if="sitePosition && appStore.isOnline"
           :latitude="sitePosition.latitude"
           :longitude="sitePosition.longitude"
-          :label="host.name ?? host.address"
+          :label="sdrHostLabel(host)"
         />
       </div>
 
@@ -106,6 +106,7 @@ import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import { getHostInfo } from '../api/sdrManagerRemoteApi'
 import type { SdrManagerHost, SdrManagerHostInfo } from '@sentinel/shell-api/types/sdrManager'
+import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 
 /** Shown wherever a value is genuinely absent, so no cell renders blank. */
 const UNSET_TEXT = '—'

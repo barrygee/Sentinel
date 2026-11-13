@@ -6,6 +6,10 @@ import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import { useSdrStore } from './stores/sdr'
 import type { SdrRadio } from './stores/sdr'
 import { MENU_OPEN_SETTLE_MS } from '@sentinel/ui/composables/useTeleportedMenu'
+import { flushPromises } from '@vue/test-utils'
+import { findSdrManagerHosts } from './services/sdrManagerHosts'
+
+vi.mock('./services/sdrManagerHosts', () => ({ findSdrManagerHosts: vi.fn(() => undefined) }))
 
 enableAutoUnmount(afterEach)
 
@@ -380,5 +384,49 @@ describe('SdrDeviceSelector — radios reserved by a domain', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('select')![0]![0]).toMatchObject({ id: 1 })
+  })
+})
+
+describe('SdrDeviceSelector — where each radio is', () => {
+  const THIS_MACHINE = { id: 2, name: null, address: 'host.docker.internal', is_local: true }
+  const PI = { id: 1, name: 'RPi', address: '192.168.5.67', is_local: false }
+  const RADIOS = [
+    makeRadio({ id: 1, name: 'Nooelec', host: '192.168.5.67', sdr_manager_host_id: 1 }),
+    makeRadio({ id: 2, name: 'RTLSDR V4', host: 'host.docker.internal', sdr_manager_host_id: 2 }),
+    makeRadio({ id: 3, name: 'Shed', host: '10.0.0.9', sdr_manager_host_id: null }),
+  ]
+
+  function hostsAnswer(listHosts: () => Promise<unknown[]>): void {
+    vi.mocked(findSdrManagerHosts).mockReturnValue({ listHosts } as never)
+  }
+
+  async function openedDetails(): Promise<string[]> {
+    const wrapper = mountSelector({ radios: RADIOS })
+    await wrapper.find('.base-select-menu').trigger('click')
+    await flushPromises()
+    return menuItems()
+      .slice(1)
+      .map((item) => item.querySelector('.base-select-menu-option-detail')!.textContent!)
+  }
+
+  afterEach(() => vi.mocked(findSdrManagerHosts).mockReturnValue(undefined))
+
+  it("names a host's radios by the host — This machine, not Docker's host.docker.internal", async () => {
+    hostsAnswer(() => Promise.resolve([PI, THIS_MACHINE]))
+    expect(await openedDetails()).toEqual(['RPi', 'This machine', '10.0.0.9'])
+  })
+
+  it('shows addresses when SDR Manager is not deployed', async () => {
+    expect(await openedDetails()).toEqual(['192.168.5.67', 'host.docker.internal', '10.0.0.9'])
+  })
+
+  it('shows addresses when the host list cannot be read', async () => {
+    hostsAnswer(() => Promise.reject(new Error('offline')))
+    expect(await openedDetails()).toEqual(['192.168.5.67', 'host.docker.internal', '10.0.0.9'])
+  })
+
+  it("shows a radio's address when its host is not in the list", async () => {
+    hostsAnswer(() => Promise.resolve([PI]))
+    expect(await openedDetails()).toEqual(['RPi', 'host.docker.internal', '10.0.0.9'])
   })
 })

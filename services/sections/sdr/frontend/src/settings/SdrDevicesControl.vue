@@ -304,6 +304,7 @@ import type {
 import { findSdrManagerHosts } from '../services/sdrManagerHosts'
 import { RADIOS_CHANGED_EVENT } from '../composables/sdrDeviceEvents'
 import { useAdsbSourceDevice } from './adsbSourceDevice'
+import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
@@ -762,7 +763,7 @@ async function addDeviceAsRadio(
 
 /** This machine's row reads "This machine" unless the operator labelled it, as in SDR HOSTS. */
 function hostLabel(host: SdrManagerHost): string {
-  return host.name || (host.is_local ? 'This machine' : host.address)
+  return sdrHostLabel(host)
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null

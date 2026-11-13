@@ -541,6 +541,41 @@ class TestListHostLocations:
 
         assert body[0]["name"] == "sentry-barn"
 
+    @staticmethod
+    async def _make_local(test_engine, host_id: int, name: str | None) -> None:
+        """Turn a host row into this machine's own (the local link's row), with `name`."""
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from sqlalchemy.orm import sessionmaker
+
+        from sentinel_sdr_manager_remote.models import RemoteSdrHost
+
+        async with sessionmaker(bind=test_engine, class_=AsyncSession)() as session:
+            host = await session.get(RemoteSdrHost, host_id)
+            host.is_local = True
+            host.name = name
+            await session.commit()
+
+    async def test_this_machine_is_called_this_machine_not_its_sdr_managers_own_name(
+        self, client, monkeypatch, test_engine
+    ):
+        """Its SDR Manager calls itself `sdr-manager`, which read like a second host beside the Pi."""
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
+        await self._make_local(test_engine, host_id, None)
+        self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id, name="sdr-manager")})
+
+        body = client.get("/api/sdr-manager/remote/hosts/locations").json()
+
+        assert body[0]["name"] == "This machine"
+
+    async def test_a_label_given_to_this_machine_wins(self, client, monkeypatch, test_engine):
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
+        await self._make_local(test_engine, host_id, "Mac mini")
+        self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id, name="sdr-manager")})
+
+        assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] == "Mac mini"
+
     def test_name_stays_null_when_neither_side_has_one(self, client, monkeypatch):
         resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
         host_id = resp.json()["id"]

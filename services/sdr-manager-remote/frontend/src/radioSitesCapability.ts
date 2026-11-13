@@ -14,6 +14,7 @@ import type {
   RadioSitesCapability,
 } from '@sentinel/shell-api/shell/radioSitesCapability'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
+import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 
 /**
  * sdr-manager-remote's `radioSites` capability: the SDR hosts, read through
@@ -40,7 +41,7 @@ export function createRadioSitesCapability(): RadioSitesCapability {
           const snapshot = await getHostDevices(host.id)
           result.hosts.push({
             id: host.id,
-            label: host.name || host.address,
+            label: sdrHostLabel(host),
             devices: (snapshot.status?.sdrs ?? []).map((device) => ({
               deviceId: device.device_id,
               name: device.name || device.device_id,
