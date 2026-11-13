@@ -682,6 +682,84 @@ class TestAdsbFeedsSquawkAlerts:
         assert len(observed) == 1
 
 
+# ── /api/air/adsb/point — off grid never reaches the online feed ─────────────
+
+
+class TestOffGridNeverFallsBackOnline:
+    """Off grid, a failing decoder must not send the map to the online feed.
+
+    The regression: a decoder with no source yet answered 404, the resolver
+    handed back adsb.lol as the off-grid fallback, and its aircraft filled an
+    off-grid map, so going off grid looked like it changed nothing.
+    """
+
+    ONLINE = "https://online.example/v2"
+    OFFGRID = "http://offgrid.example/data/aircraft.json"
+    POINT = "/api/air/adsb/point/54.0/-1.5/100"
+    ONLINE_AIRCRAFT = {"ac": [{"hex": "0nl1ne"}], "total": 1}
+
+    def _go_off_grid(self, client):
+        client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
+        client.put("/api/settings/air/offgridDataSourceURL", json={"value": {"url": self.OFFGRID}})
+        client.put("/api/settings/air/sourceOverride", json={"value": "offgrid"})
+
+    def _decoder_fails_online_answers(self, monkeypatch, decoder_failure: Exception) -> list[str]:
+        calls: list[str] = []
+
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
+            calls.append(base_url)
+            if base_url == self.OFFGRID:
+                raise decoder_failure
+            return self.ONLINE_AIRCRAFT
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+        return calls
+
+    @staticmethod
+    def _not_found() -> httpx.HTTPStatusError:
+        request = httpx.Request("GET", "http://offgrid.example/data/aircraft.json")
+        return httpx.HTTPStatusError("no source", request=request, response=httpx.Response(404, request=request))
+
+    @pytest.mark.parametrize(
+        "decoder_failure",
+        [
+            pytest.param("not-found", id="decoder-404"),
+            pytest.param(httpx.ConnectError("refused"), id="decoder-unreachable"),
+            pytest.param(UpstreamThrottledError(), id="decoder-throttled"),
+        ],
+    )
+    def test_a_failing_decoder_never_calls_the_online_feed(self, client, monkeypatch, decoder_failure):
+        self._go_off_grid(client)
+        failure = self._not_found() if decoder_failure == "not-found" else decoder_failure
+        calls = self._decoder_fails_online_answers(monkeypatch, failure)
+
+        response = client.get(self.POINT)
+
+        assert calls == [self.OFFGRID]
+        assert response.status_code == 204
+        assert response.headers["X-Cache"] == "UNAVAILABLE"
+
+    def test_online_still_falls_back_to_the_operators_decoder(self, client, monkeypatch):
+        """The other direction stays: online, a failed feed tries the decoder."""
+        client.put("/api/settings/air/onlineDataSourceURL", json={"value": self.ONLINE})
+        client.put("/api/settings/air/offgridDataSourceURL", json={"value": {"url": self.OFFGRID}})
+        client.put("/api/settings/air/sourceOverride", json={"value": "online"})
+        calls: list[str] = []
+
+        async def fake_fetch(lat, lon, radius, base_url, online_interval_seconds=None):
+            calls.append(base_url)
+            if base_url == self.ONLINE:
+                raise httpx.ConnectError("no internet")
+            return {"ac": [{"hex": "dec0de"}], "total": 1}
+
+        monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
+
+        response = client.get(self.POINT)
+
+        assert calls == [self.ONLINE, self.OFFGRID]
+        assert response.json()["ac"] == [{"hex": "dec0de"}]
+
+
 # ── /api/air/adsb/point — an empty fallback never hides cached aircraft ──────
 
 

@@ -24,6 +24,7 @@ from backend.database import Base
 from backend.db_helpers import upsert_setting
 from backend.platform.bus import EventBus
 from backend.services.upstream_rate_limit import UpstreamThrottledError
+from backend.utils import resolve_domain_urls as real_resolve_domain_urls
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -716,3 +717,42 @@ class TestWatchIntervalDefaults:
         ]
         assert seeded["squawkWatchOnlineIntervalSec"] == 300
         assert seeded["squawkWatchOffgridIntervalSec"] == 20
+
+
+class TestWatchOnceOffGrid:
+    """The watcher, through the real resolver: off grid it never asks the online feed."""
+
+    ONLINE = "https://online.example/v2"
+    OFFGRID = "http://offgrid.example/data/aircraft.json"
+
+    async def _go_off_grid(self, db, monkeypatch):
+        await upsert_setting(db, "air", "onlineDataSourceURL", self.ONLINE)
+        await upsert_setting(db, "air", "offgridDataSourceURL", {"url": self.OFFGRID})
+        await upsert_setting(db, "air", "sourceOverride", "offgrid")
+        await db.commit()
+        monkeypatch.setattr(adsb_squawk, "resolve_domain_urls", real_resolve_domain_urls)
+        mode(monkeypatch, "offgrid")
+
+    async def test_a_failing_decoder_leaves_the_watcher_idle(self, db, watch_setup, monkeypatch):
+        await self._go_off_grid(db, monkeypatch)
+
+        def decoder_fails(base_url):
+            if base_url == self.OFFGRID:
+                request = httpx.Request("GET", base_url)
+                raise httpx.HTTPStatusError("no source", request=request, response=httpx.Response(404, request=request))
+            return {"ac": [{"hex": "0nl1ne"}]}
+
+        calls = fetch(monkeypatch, decoder_fails)
+
+        assert await watch_once(db) is False
+        assert [call[3] for call in calls] == [self.OFFGRID]
+        assert watch_setup.observed == []
+        assert watch_setup.cached == []
+
+    async def test_a_working_decoder_is_what_it_watches(self, db, watch_setup, monkeypatch):
+        await self._go_off_grid(db, monkeypatch)
+        calls = fetch(monkeypatch, lambda base_url: {"ac": [{"hex": "dec0de"}]})
+
+        assert await watch_once(db) is True
+        assert [call[3] for call in calls] == [self.OFFGRID]
+        assert watch_setup.observed == [{"ac": [{"hex": "dec0de"}]}]

@@ -118,7 +118,8 @@ class TestRemoteSettings:
         core_settings["space"] = {"onlineUrl": "https://online.test/tle", "offgridSource": {"url": "http://box.test/tle"}}
         core_settings["app"] = {"connectivityMode": "offgrid"}
 
-        assert await resolve_domain_urls("space", None) == ("http://box.test/tle", "https://online.test/tle")
+        # Off grid never falls back to the online source.
+        assert await resolve_domain_urls("space", None) == ("http://box.test/tle", None)
 
     async def test_a_section_override_beats_the_app_mode(self, core_settings):
         core_settings["space"] = {

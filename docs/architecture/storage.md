@@ -75,7 +75,7 @@ Fresh window: serve the cache. Past it: fetch. Fetch failed: serve a copy inside
 
 Windows are in `backend/config.py`; override them in `docker-compose.override.yml` ([how](../configuration.md#anything-else)).
 
-Air's `X-Cache` header: `HIT`, `MISS`, `BYPASS` (cache write failed), `NEARBY` (nearest recent point), `STALE`, `RATED` (upstream 429), `THROTTLED` (own limiter), `FALLBACK` (other mode's source), `NO-SETTINGS` (core's settings unreadable, nearest recent point). `X-Snapshot-Age-Ms` lets the map place aircraft where they are now.
+Air's `X-Cache` header: `HIT`, `MISS`, `BYPASS` (cache write failed), `NEARBY` (nearest recent point), `STALE`, `RATED` (upstream 429), `THROTTLED` (own limiter), `FALLBACK` (online only: the off-grid decoder answered after the online feed failed; off grid never falls back to the online feed), `NO-SETTINGS` (core's settings unreadable, nearest recent point). `X-Snapshot-Age-Ms` lets the map place aircraft where they are now.
 
 ## Offline map tiles
 

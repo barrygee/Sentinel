@@ -163,7 +163,12 @@ async def resolve_domain_urls(
       2. Otherwise, fall back to app.connectivityMode ('online' | 'offgrid', default 'online').
 
     When effective mode is 'online':   primary = online URL,   fallback = offgrid URL
-    When effective mode is 'offgrid':  primary = offgrid URL,  fallback = online URL
+    When effective mode is 'offgrid':  primary = offgrid URL,  fallback = None
+
+    Off grid never falls back to the online source: off grid means no internet,
+    and a fallback there put the online feed's data on an off-grid map whenever
+    the local source failed (Air: every 404 from a decoder with no source yet).
+    Online may still fall back to the operator's own off-grid source.
 
     Args:
         domain:         Domain namespace string, e.g. 'air' or 'space'.
@@ -197,5 +202,5 @@ def domain_urls_of(
     offgrid = offgrid or _valid_url(offgrid_default)
 
     if effective_mode == "offgrid":
-        return offgrid, online
+        return offgrid, None
     return online, offgrid
