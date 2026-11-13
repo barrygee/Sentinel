@@ -13,7 +13,6 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from backend.platform.tls_fingerprint import certificate_fingerprint
 from fastapi import APIRouter, HTTPException, status
 
 from sentinel_sdr_manager_local.schemas.tls import CertificateAuthorityResponse
@@ -31,8 +30,11 @@ _UNAVAILABLE = HTTPException(
 def read_certificate_authority() -> CertificateAuthorityResponse | None:
     """This deployment's certificate authority and its fingerprint, or None when there is none to read."""
     # Imported here, not at module level: the native Mac process sets the
-    # platform's environment after importing this package (`native.py`).
+    # platform's environment after importing this package (`native.py`), and
+    # the `sdr-manager-local` command imports this module (through run_server)
+    # with only the installed packages on its path, which `backend` isn't.
     from backend.config import settings as platform_settings
+    from backend.platform.tls_fingerprint import certificate_fingerprint
 
     path = platform_settings.internal_certificate_authority_file
     if not path:
