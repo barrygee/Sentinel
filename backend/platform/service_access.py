@@ -7,7 +7,10 @@ internal routes (core and the radio hub) know each credential only by its
 SHA-256 hash and which caller it belongs to, and this table says what that
 caller is allowed to do:
 
-  - register itself with core's service registry, under its own id only
+  - register itself with core's service registry, under its own id only, as
+    its own manifest kind, claiming only its own route prefixes (so a service
+    can't squat another's routes while that one is down, or pose as the docs
+    or SDR Manager)
   - read or write a secret setting, only the ones it owns
   - fetch the hub's staged IQ captures (the SDR section collects them)
   - act as a decoder of one kind: read its config, post its events, register
@@ -35,6 +38,12 @@ class CallerAccess:
 
     registers_as: str | None = None
     """The service id it may register in core's registry (its own)."""
+    registers_kind: str | None = None
+    """The manifest kind it registers as (`section`, `radio`, `docs`, …)."""
+    route_prefixes: frozenset[str] = field(default_factory=frozenset)
+    """The gateway route prefixes its manifest may claim, exactly as its manifest
+    spells them. `tests/backend/test_service_access_routes.py` checks each against
+    the service's real manifest, so this table can't drift from the code."""
     secret_settings: frozenset[tuple[str, str]] = field(default_factory=frozenset)
     """The (namespace, key) secret settings it may read and write."""
     fetches_iq_captures: bool = False
@@ -51,21 +60,57 @@ SERVICE_ACCESS: dict[str, CallerAccess] = {
     # hosts every section, runs as core): whatever a section may do, core may
     # too; `may_*` below lets it through every check.
     CORE_USER: CallerAccess(),
-    "radio": CallerAccess(registers_as="radio"),
-    "space": CallerAccess(registers_as="space"),
-    "land": CallerAccess(registers_as="land"),
-    "air": CallerAccess(registers_as="air"),
+    "radio": CallerAccess(
+        registers_as="radio",
+        registers_kind="radio",
+        route_prefixes=frozenset(
+            {
+                "/api/sdr/radios",
+                "/api/sdr/connect",
+                "/api/sdr/disconnect",
+                "/api/sdr/status/",
+                "/api/sdr/decode/",
+                "/api/sdr/aprs/",
+                "/api/sdr/ais/",
+                "/api/sdr/decoders",
+                "/ws/sdr/",
+            }
+        ),
+    ),
+    "space": CallerAccess(registers_as="space", registers_kind="section", route_prefixes=frozenset({"/api/space/"})),
+    "land": CallerAccess(registers_as="land", registers_kind="section", route_prefixes=frozenset({"/api/land/"})),
+    # Air owns its SDR Manager dongle's routes under /api/sdr/adsb/ too.
+    "air": CallerAccess(
+        registers_as="air", registers_kind="section", route_prefixes=frozenset({"/api/air/", "/api/sdr/adsb/"})
+    ),
     # The AISStream key is Sea's: it holds the one connection the key allows.
-    "sea": CallerAccess(registers_as="sea", secret_settings=frozenset({("sea", "aisstreamApiKey")})),
-    "sdr": CallerAccess(registers_as="sdr", fetches_iq_captures=True),
+    "sea": CallerAccess(
+        registers_as="sea",
+        registers_kind="section",
+        route_prefixes=frozenset({"/api/sea/"}),
+        secret_settings=frozenset({("sea", "aisstreamApiKey")}),
+    ),
+    # The rest of /api/sdr/; the hub's and Air's longer prefixes win in the gateway.
+    "sdr": CallerAccess(
+        registers_as="sdr",
+        registers_kind="section",
+        route_prefixes=frozenset({"/api/sdr/"}),
+        fetches_iq_captures=True,
+    ),
     # The in-app documentation: it only registers.
-    "docs": CallerAccess(registers_as="docs"),
+    "docs": CallerAccess(registers_as="docs", registers_kind="docs", route_prefixes=frozenset({"/api/documentation/"})),
     # This machine's dongles: it only registers, and checks the bearer
     # sdr-manager-remote presents (it is a verifying service, below).
-    "sdr-manager-local": CallerAccess(registers_as="sdr-manager-local"),
+    "sdr-manager-local": CallerAccess(
+        registers_as="sdr-manager-local",
+        registers_kind="sdr-manager-local",
+        route_prefixes=frozenset({"/api/sdr-manager/local/"}),
+    ),
     # Finds sdr-manager-local in the registry and manages it as "This machine".
     "sdr-manager-remote": CallerAccess(
         registers_as="sdr-manager-remote",
+        registers_kind="sdr-manager-remote",
+        route_prefixes=frozenset({"/api/sdr-manager/remote/"}),
         lists_service_kinds=frozenset({"sdr-manager-local"}),
         manages_local_sdrs=True,
     ),
@@ -96,6 +141,28 @@ def may_register(caller: str, service_id: str) -> bool:
     """True when `caller` may register `service_id` in core's registry."""
     access = _access(caller)
     return caller == CORE_USER or (access is not None and access.registers_as == service_id)
+
+
+def registration_refusal(caller: str, kind: str, routes: list[str]) -> str | None:
+    """Why `caller` may not register a manifest of `kind` claiming `routes`, or None when it may.
+
+    Checked after `may_register` (the id is the caller's own). A service claims
+    exactly its own kind and route prefixes: another kind would let it pose as
+    the docs or SDR Manager, and another prefix would let it take that route
+    whenever its owner isn't registered (the registry only refuses a route a
+    *live* registration holds). Core is let through, as everywhere.
+    """
+    if caller == CORE_USER:
+        return None
+    access = _access(caller)
+    if access is None or access.registers_as is None:
+        return "this credential registers no service"
+    if kind != access.registers_kind:
+        return f"{caller} registers as kind {access.registers_kind!r}, not {kind!r}"
+    foreign = sorted(set(routes) - access.route_prefixes)
+    if foreign:
+        return f"{caller} may not claim the route(s) {', '.join(foreign)}"
+    return None
 
 
 def may_use_secret(caller: str, namespace: str, key: str) -> bool:

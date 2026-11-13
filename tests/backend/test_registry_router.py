@@ -65,6 +65,64 @@ def registration(instance_id: str = "weather-1", **manifest_overrides) -> dict:
     return {"instanceId": instance_id, "manifest": manifest}
 
 
+class TestKindAndRoutes:
+    """A service's credential claims only its own manifest kind and route prefixes.
+
+    The registry only refuses a route a *live* registration holds, so without
+    this a service could take another's routes whenever that one was down, or
+    register as `docs` / `sdr-manager-local` to be listed and trusted as one.
+    """
+
+    def space(self, **overrides) -> dict:
+        manifest = {"id": "space", "routes": ["/api/space/"], "internalUrl": "http://space:8000", "ui": None}
+        return registration("space-1", **{**manifest, **overrides})
+
+    def test_its_own_kind_and_routes_register(self, isolated_registry, client):
+        assert client.post(REGISTER_URL, json=self.space(), headers=bearer("space")).status_code == 200
+
+    def test_another_services_route_is_refused_even_with_its_owner_down(self, isolated_registry, client):
+        """Nothing holds /api/land/ (Land isn't registered here), yet Space still may not take it."""
+        assert isolated_registry.get("land") is None
+
+        response = client.post(
+            REGISTER_URL, json=self.space(routes=["/api/space/", "/api/land/"]), headers=bearer("space")
+        )
+
+        assert response.status_code == 403
+        assert "/api/land/" in response.json()["detail"]
+        assert isolated_registry.get("space") is None
+
+    def test_a_route_inside_its_own_prefix_but_not_declared_is_refused(self, isolated_registry, client):
+        response = client.post(
+            REGISTER_URL, json=self.space(routes=["/api/space/admin/"]), headers=bearer("space")
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize("kind", ["docs", "sdr-manager-local", "radio"])
+    def test_another_kind_is_refused(self, isolated_registry, client, kind):
+        response = client.post(REGISTER_URL, json=self.space(kind=kind), headers=bearer("space"))
+
+        assert response.status_code == 403
+        assert f"not {kind!r}" in response.json()["detail"]
+        assert isolated_registry.get("space") is None
+
+    def test_fewer_routes_than_its_own_are_fine(self, isolated_registry, client):
+        """Claiming a subset (an older build, a trimmed manifest) takes nothing that isn't its own."""
+        response = client.post(
+            REGISTER_URL,
+            json=registration("air-1", id="air", routes=["/api/air/"], internalUrl="http://air:8000", ui=None),
+            headers=bearer("air"),
+        )
+
+        assert response.status_code == 200
+
+    def test_core_may_register_any_kind_and_routes(self, isolated_registry, client):
+        response = client.post(REGISTER_URL, json=registration(kind="docs"), headers=AUTHORIZED)
+
+        assert response.status_code == 200
+
+
 class TestCredential:
     def test_disabled_when_core_accepts_no_callers(
         self, isolated_registry, client, monkeypatch

@@ -5,13 +5,15 @@
 
 Called by each service on start, with its own credential as a bearer token
 (`backend/platform/service_credentials.py`); a credential registers only its
-own service id (`backend/platform/service_access.py`). Under `/internal/`,
+own service id, as its own manifest kind, claiming only its own route prefixes
+(`backend/platform/service_access.py`). Under `/internal/`,
 which the gateway never routes from outside: only services on the deployment's
 network reach it.
 
 Status codes a registering service acts on:
   200 registered (or re-registered); 401 wrong or missing credential; 403 the
-  credential belongs to another service; 409 the id is held by another live
+  credential belongs to another service, or the manifest claims a kind or a
+  route that isn't that service's; 409 the id is held by another live
   instance, or a route is another service's; 422 the manifest is invalid; 503
   registration is disabled (core has no accepted-callers list).
 
@@ -26,7 +28,7 @@ from __future__ import annotations
 
 from backend.core.internal_auth import require_caller, require_permission
 from backend.core.service_registry import RegistrationConflict, registry
-from backend.platform.service_access import may_list_services, may_register
+from backend.platform.service_access import may_list_services, may_register, registration_refusal
 from backend.platform.service_manifest import ServiceManifest
 from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel, ConfigDict, Field
@@ -74,8 +76,13 @@ async def register_service(
     authorization: str | None = Header(default=None),
 ) -> RegistrationResponse:
     """Register (or re-register) a service and its manifest."""
-    # A service registers itself only: its credential can't claim another id.
-    require_permission(may_register(require_caller(authorization), request.manifest.id))
+    # A service registers itself only: its credential can't claim another id,
+    caller = require_caller(authorization)
+    require_permission(may_register(caller, request.manifest.id))
+    # …another kind, or another service's routes (even one whose owner is down).
+    refusal = registration_refusal(caller, request.manifest.kind, list(request.manifest.routes))
+    if refusal is not None:
+        raise HTTPException(status_code=403, detail=refusal)
     try:
         registration = await registry.register(request.manifest, request.instance_id)
     except RegistrationConflict as conflict:
