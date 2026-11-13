@@ -23,7 +23,7 @@ from urllib.parse import urlparse
 import httpx
 from backend.cache import now_ms
 from backend.database import get_db
-from backend.error_handlers import handle_service_errors, handle_unexpected_errors
+from backend.error_handlers import UNEXPECTED_ERROR_MESSAGE, handle_service_errors, handle_unexpected_errors
 from backend.platform.outbound_http import OutboundUrlRefused, UpstreamResponseTooLarge, UpstreamUnreachable
 from backend.utils import resolve_domain_urls
 from fastapi import APIRouter, Body, Depends, Query
@@ -138,8 +138,10 @@ async def get_satellite(
         if "not found" in msg.lower() or "no tle" in msg.lower():
             return JSONResponse({"error": msg}, status_code=404)
         return JSONResponse({"error": msg}, status_code=503)
-    except Exception as e:
-        return JSONResponse({"error": f"Unexpected error: {e}"}, status_code=500)
+    except Exception:
+        # The text can name paths or SQL: it goes to the log, not the client.
+        logger.exception("Pass prediction failed")
+        return JSONResponse({"error": UNEXPECTED_ERROR_MESSAGE}, status_code=500)
 
 
 async def _compute_passes_response(
@@ -332,8 +334,9 @@ async def get_daynight():
     try:
         feature = dn_service.compute_terminator()
         return JSONResponse(feature)
-    except Exception as e:
-        return JSONResponse({"error": f"Terminator computation failed: {e}"}, status_code=500)
+    except Exception:
+        logger.exception("Terminator computation failed")
+        return JSONResponse({"error": "Terminator computation failed"}, status_code=500)
 
 
 # ── TLE management endpoints ─────────────────────────────────────────────────
@@ -546,8 +549,9 @@ async def store_tle_manual(
 
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=422)
-    except Exception as e:
-        return JSONResponse({"error": f"Store failed: {e}"}, status_code=500)
+    except Exception:
+        logger.exception("Storing the uploaded TLEs failed")
+        return JSONResponse({"error": "Store failed"}, status_code=500)
 
 
 @router.patch("/tle/category")

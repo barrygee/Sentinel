@@ -6831,7 +6831,7 @@
     },
     "/api/settings/{namespace}/{key}": {
       "delete": {
-        "description": "Delete a single user setting. No-op if the row doesn't exist.",
+        "description": "Delete a single user setting. No-op if the row doesn't exist.\n\nA secret setting is refused, as PUT refuses it: deleting the AISStream key\nbelongs to its owner's own endpoint (`DELETE /api/sea/ais-key`).",
         "operationId": "delete_setting_endpoint_api_settings__namespace___key__delete",
         "parameters": [
           {

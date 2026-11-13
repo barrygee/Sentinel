@@ -65,8 +65,18 @@ class TestRaise:
         await take(second, 1)
         await bus.publish(RAISE_SUBJECT, {**alert(), "db": db})
         rows = await stored(db)
-        assert [(row.msg_id, row.type, row.title, row.detail, row.ts, row.hex) for row in rows] == [
-            ("adsb-squawk:4ca123:7700:42", "emergency", "EIN123", "SQK 7700 — General Emergency", 42, "4ca123")
+        assert [
+            (row.msg_id, row.type, row.title, row.detail, row.ts, row.hex)
+            for row in rows
+        ] == [
+            (
+                "adsb-squawk:4ca123:7700:42",
+                "emergency",
+                "EIN123",
+                "SQK 7700 — General Emergency",
+                42,
+                "4ca123",
+            )
         ]
         expected = f"data: {json.dumps(alert(), separators=(',', ':'))}\n\n"
         assert await take(first, 1) == [expected]
@@ -86,7 +96,9 @@ class TestRaise:
 
     async def test_a_malformed_alert_is_logged_and_dropped(self, db, hub, caplog):
         with caplog.at_level(logging.WARNING, logger=notifications.__name__):
-            await bus.publish(RAISE_SUBJECT, {"msg_id": "x", "db": db})  # no type/title/ts
+            await bus.publish(
+                RAISE_SUBJECT, {"msg_id": "x", "db": db}
+            )  # no type/title/ts
         assert await stored(db) == []
         assert f"ignoring malformed {RAISE_SUBJECT}" in caplog.text
 
@@ -108,7 +120,11 @@ class TestStream:
         monkeypatch.setattr(notifications, "STREAM_KEEPALIVE_S", 0.01)
         events = hub.events()
         # Keeps going after a keep-alive: a quiet stream is not a finished one.
-        assert await take(events, 3) == ["retry: 5000\n\n", ": keep-alive\n\n", ": keep-alive\n\n"]
+        assert await take(events, 3) == [
+            "retry: 5000\n\n",
+            ": keep-alive\n\n",
+            ": keep-alive\n\n",
+        ]
         await events.aclose()
 
     async def test_wake_ends_every_open_stream(self, hub):
@@ -173,3 +189,62 @@ class TestStreamEndpoint:
 
         paths = {route.path for route in app.routes}
         assert "/api/air/messages/stream" in paths
+
+
+# ── a stream that stops reading ──────────────────────────────────────────────
+
+
+class TestStalledStream:
+    """Each stream's queue is bounded: a browser that stops reading is ended, not buffered for forever."""
+
+    async def test_a_stream_that_fills_its_queue_is_ended_and_forgotten(
+        self, hub, monkeypatch, caplog
+    ):
+        monkeypatch.setattr(notifications, "STREAM_QUEUE_LIMIT", 3)
+        stalled, reading = hub.events(), hub.events()
+        await take(stalled, 1)
+        await take(reading, 1)
+
+        with caplog.at_level(logging.WARNING, logger=notifications.__name__):
+            for number in range(5):
+                hub.broadcast(alert(ts=number))
+                # The reading stream keeps up, so only the stalled one fills.
+                assert (await take(reading, 1))[0].startswith("data: ")
+
+        assert "ending an alert stream that stopped reading" in caplog.text
+        assert len(hub._queues) == 1
+        # What it had queued, then the end: it never grew past the limit.
+        received = [line async for line in stalled]
+        assert len(received) == 2
+        assert all(line.startswith("data: ") for line in received)
+
+    async def test_streams_that_keep_up_are_never_ended(self, hub, monkeypatch):
+        monkeypatch.setattr(notifications, "STREAM_QUEUE_LIMIT", 2)
+        events = hub.events()
+        await take(events, 1)
+
+        for number in range(10):
+            hub.broadcast(alert(ts=number))
+            await take(events, 1)
+
+        assert len(hub._queues) == 1
+        await events.aclose()
+
+    async def test_shutting_down_ends_a_full_stream_too(self, hub, monkeypatch):
+        """wake() must get its end marker into a full queue, or shutdown waits on that stream."""
+        monkeypatch.setattr(notifications, "STREAM_QUEUE_LIMIT", 2)
+        events = hub.events()
+        await take(events, 1)
+        queue = next(iter(hub._queues))
+        queue.put_nowait(alert(ts=1))
+        queue.put_nowait(alert(ts=2))
+        assert queue.full()
+
+        hub.wake()
+
+        # The stream ends: the marker displaced the oldest queued alert.
+        assert len([line async for line in events]) <= 2
+        hub.reopen()
+
+    def test_the_limit_is_bounded(self):
+        assert 0 < notifications.STREAM_QUEUE_LIMIT <= 10_000
