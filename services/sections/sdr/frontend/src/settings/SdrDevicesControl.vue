@@ -771,6 +771,16 @@ function onRadiosChanged(): void {
   void loadRadios()
 }
 
+/**
+ * A host added, edited or removed. Its radios may have changed with it (a
+ * deleted host takes its radios), so the radios are reloaded too, here and in
+ * every radio picker, through the same event a radio edit sends.
+ */
+function onHostsChanged(): void {
+  void loadSdrManagerHosts()
+  document.dispatchEvent(new CustomEvent(RADIOS_CHANGED_EVENT))
+}
+
 // Stops the hosts-changed subscription; null while sdr-manager-remote is absent.
 let stopHostsChanged: (() => void) | null = null
 
@@ -778,7 +788,7 @@ onMounted(() => {
   void load()
   pollTimer = setInterval(() => void pollAll(), 3000)
   document.addEventListener(RADIOS_CHANGED_EVENT, onRadiosChanged)
-  stopHostsChanged = findSdrManagerHosts()?.onHostsChanged(() => void loadSdrManagerHosts()) ?? null
+  stopHostsChanged = findSdrManagerHosts()?.onHostsChanged(onHostsChanged) ?? null
 })
 
 onBeforeUnmount(() => {

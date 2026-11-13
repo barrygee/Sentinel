@@ -58,6 +58,7 @@ from typing import Any, Literal, NoReturn
 import httpx
 from backend.cache import now_ms
 from backend.database import get_db
+from backend.platform.settings_client import SettingsUnavailable
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, field_validator, model_validator
@@ -79,6 +80,7 @@ from sentinel_sdr_manager_remote.services.host_certificates import (
     normalize_fingerprint,
 )
 from sentinel_sdr_manager_remote.services.host_poller import host_poller
+from sentinel_sdr_manager_remote.services.host_radios import forget_host_radios
 from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
     SdrManagerUnreachableError,
@@ -521,6 +523,14 @@ async def _get_host_or_404(host_id: int, db: AsyncSession) -> RemoteSdrHost:
     return host
 
 
+_SETTINGS_UNAVAILABLE_FOR_DELETE = HTTPException(
+    status_code=503,
+    detail={
+        "code": "settings_unavailable",
+        "message": "Couldn't remove this host's radios, so it was kept. Try again in a moment.",
+    },
+)
+
 _LOCAL_HOST_MANAGED = HTTPException(
     status_code=409,
     detail={
@@ -863,9 +873,18 @@ async def delete_host(host_id: int, db: AsyncSession = Depends(get_db)) -> None:
         # `sdr.radios` references the row by id; the link disables it when
         # sdr-manager-local goes away instead.
         raise _LOCAL_HOST_MANAGED
+    # Stopped first, so no poll adds a radio back between the two steps below.
     await host_poller.stop_host(host_id)
+    try:
+        # Its radios go before the host: if core can't be reached the delete is
+        # refused whole, rather than leaving radios for a host that is gone.
+        removed = await forget_host_radios(db, host_id)
+    except SettingsUnavailable as error:
+        await host_poller.start_host(host_id)
+        raise _SETTINGS_UNAVAILABLE_FOR_DELETE from error
     await db.delete(host)
     await db.commit()
+    logger.info("SDR host %d deleted with its %d radio(s)", host_id, removed)
     return None
 
 

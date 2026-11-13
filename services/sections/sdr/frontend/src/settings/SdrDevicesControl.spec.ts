@@ -947,6 +947,29 @@ describe('SdrDevicesControl', () => {
     expect(mockListRadios).toHaveBeenCalled()
   })
 
+  it("reloads the radios too after a host change, here and in every radio picker, so a deleted host's radios go", async () => {
+    mockListSdrManagerHosts.mockResolvedValue([HOST])
+    mockGetSdrManagerHostDevices.mockResolvedValue(snapshot([]))
+    mockListRadios.mockResolvedValue([MIRRORED_RADIO])
+    const pickers = vi.fn()
+    document.addEventListener(RADIOS_CHANGED_EVENT, pickers)
+    const wrapper = mountControl()
+    await flushPromises()
+    expect(wrapper.text()).toContain(MIRRORED_RADIO.name)
+
+    // The host is deleted, and its radio with it.
+    mockListSdrManagerHosts.mockResolvedValue([])
+    mockListRadios.mockResolvedValue([])
+    mockListRadios.mockClear()
+    announceFakeHostsChanged()
+    await flushPromises()
+
+    expect(mockListRadios).toHaveBeenCalledTimes(1)
+    expect(pickers).toHaveBeenCalledTimes(1)
+    expect(wrapper.text()).not.toContain(MIRRORED_RADIO.name)
+    document.removeEventListener(RADIOS_CHANGED_EVENT, pickers)
+  })
+
   it('reloads the SDR host list when SDR Manager announces a host change', async () => {
     mountControl()
     await flushPromises()

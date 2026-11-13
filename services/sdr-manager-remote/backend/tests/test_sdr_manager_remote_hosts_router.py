@@ -349,6 +349,67 @@ class TestDeleteHost:
         assert resp.status_code == 404
 
 
+class TestDeleteHostTakesItsRadios:
+    """Deleting a Sentinel host removes the radios its SDRs became, and only those."""
+
+    @staticmethod
+    def _radio(radio_id: int, host_id: int | None, port: int) -> dict:
+        return {
+            "id": radio_id,
+            "name": f"Radio {radio_id}",
+            "host": "192.168.5.67",
+            "port": port,
+            "sdr_manager_host_id": host_id,
+            "sdr_manager_device_id": None if host_id is None else f"serial:{radio_id}",
+        }
+
+    @staticmethod
+    def _radios(client) -> list[dict]:
+        return client.get("/api/settings/sdr").json().get("radios", [])
+
+    def test_its_linked_radios_go_with_it_and_every_other_radio_stays(self, client):
+        deleted, kept_host = _create_host(client), _create_host(client, address="10.0.0.6")
+        radios = [
+            self._radio(1, deleted["id"], 1234),
+            self._radio(2, kept_host["id"], 1236),
+            self._radio(3, None, 1238),  # added by IP and port at the host's address: the operator's own
+            self._radio(4, deleted["id"], 1240),
+        ]
+        client.put("/api/settings/sdr/radios", json={"value": radios})
+
+        resp = client.delete(f"/api/sdr-manager/remote/hosts/{deleted['id']}")
+
+        assert resp.status_code == 204
+        assert [radio["id"] for radio in self._radios(client)] == [2, 3]
+
+    def test_a_host_with_no_radios_leaves_the_radios_untouched(self, client):
+        host = _create_host(client)
+        radios = [self._radio(3, None, 1238)]
+        client.put("/api/settings/sdr/radios", json={"value": radios})
+
+        assert client.delete(f"/api/sdr-manager/remote/hosts/{host['id']}").status_code == 204
+        assert self._radios(client) == radios
+
+    def test_it_is_refused_whole_when_core_cannot_be_reached(self, client, monkeypatch):
+        """No host gone with its radios left behind: the host stays and polls again."""
+        from backend.platform.settings_client import SettingsUnavailable
+
+        host = _create_host(client)
+
+        async def core_down(db, host_id):
+            raise SettingsUnavailable("core unreachable")
+
+        monkeypatch.setattr(hosts_router, "forget_host_radios", core_down)
+        hosts_router.host_poller.start_host.reset_mock()
+
+        resp = client.delete(f"/api/sdr-manager/remote/hosts/{host['id']}")
+
+        assert resp.status_code == 503
+        assert resp.json()["detail"]["code"] == "settings_unavailable"
+        assert client.get(f"/api/sdr-manager/remote/hosts/{host['id']}").status_code == 200
+        hosts_router.host_poller.start_host.assert_awaited_once_with(host["id"])
+
+
 class TestHealthProbe:
     def test_probe_unknown_host_returns_404(self, client):
         resp = client.post("/api/sdr-manager/remote/hosts/999/test")
