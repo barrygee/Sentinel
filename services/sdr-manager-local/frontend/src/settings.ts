@@ -18,26 +18,36 @@ import PrivateAccessControl from './components/privateAccess/PrivateAccessContro
 import { useLocalAuthStore } from './stores/localAuthStore'
 
 const THIS_MACHINE_GROUP = 'THIS MACHINE'
+
+/** Core's App Settings section (frontend/vue's appSettings.ts registers it). */
+const APP_SETTINGS_SECTION_KEY = 'app'
+const APP_SETTINGS_SECTION_LABEL = 'App Settings'
+const AFTER_APP_SETTINGS_OWN_GROUPS = 1
 const DEVICES_GROUP = 'DEVICES'
 
 /**
- * sdr-manager-local's THIS MACHINE group — the RTL-SDRs plugged into this
- * machine, its console password, its Wi-Fi hotspot and its configuration file.
- * In the full app it sits on Settings › SDR (its SDRs are listed in DEVICES,
- * under SENTINEL HOSTS › This machine, through the `thisMachineSdrs`
- * capability); in SDR Manager-only mode, which has no SDR section, on that
- * mode's own page, Settings › SDR Manager, with its SDRs as the first card.
+ * sdr-manager-local's settings: this machine's RTL-SDRs, and its THIS MACHINE
+ * group — console password, certificate, private access, configuration file
+ * and Wi-Fi hotspot.
+ *
+ * THIS MACHINE is in App Settings, in both modes: it is about this computer,
+ * not about radios, and the full app and SDR Manager-only mode keep it in the
+ * same place. The SDRs themselves stay with the radios: the full app lists
+ * them in Settings › SDR's SENTINEL HOSTS › This machine (the
+ * `thisMachineSdrs` capability); SDR Manager-only mode, which has no SDR
+ * section, lists them as the first card of its own page, Settings › SDR Manager.
  */
 export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void {
   const sdrManagerOnly = appMode === 'sdr-manager-local-only'
   const section = sdrManagerOnly ? SDR_MANAGER_SETTINGS_SECTION : SDR_SETTINGS_SECTION
   registerSettingsSection({ ...section })
-  // What every THIS MACHINE item shares: the section, its group and its place on the page.
+  // What every THIS MACHINE item shares: App Settings, its group, and a place
+  // after App Settings' own groups (they sit at the default position, 0).
   const sharedFields = {
-    section: section.key,
-    sectionLabel: section.label,
+    section: APP_SETTINGS_SECTION_KEY,
+    sectionLabel: APP_SETTINGS_SECTION_LABEL,
     groupLabel: THIS_MACHINE_GROUP,
-    position: SDR_SETTINGS_POSITIONS.thisMachine,
+    position: AFTER_APP_SETTINGS_OWN_GROUPS,
   } as const
   // SDR Manager-only mode's page lists this machine's SDRs as a card of their
   // own. The full app lists them in Settings › SDR's SENTINEL HOSTS › This
@@ -45,7 +55,9 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
   const devicesCard: SettingItem[] = sdrManagerOnly
     ? [
         {
-          ...sharedFields,
+          section: section.key,
+          sectionLabel: section.label,
+          position: SDR_SETTINGS_POSITIONS.thisMachine,
           groupLabel: DEVICES_GROUP,
           id: 'sdr-manager-local-devices',
           label: 'SDRs on This Machine',

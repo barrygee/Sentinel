@@ -24,14 +24,15 @@ describe('registerSdrManagerLocalSettings', () => {
   }
 
   describe('in the full app', () => {
-    it('adds its cards to Settings › SDR, the full app being the default', async () => {
+    it('adds THIS MACHINE to App Settings, the full app being the default', async () => {
       const { registry } = await registered()
 
+      // The SDR section is still registered, for the radios card's This machine rows.
       expect(registry.getSettingsSections()).toEqual([
         { key: 'sdr', label: 'SDR', order: 50, domain: true },
       ])
       for (const item of registry.getSettingItems()) {
-        expect(item).toMatchObject({ section: 'sdr', sectionLabel: 'SDR' })
+        expect(item).toMatchObject({ section: 'app', sectionLabel: 'App Settings' })
       }
     })
 
@@ -49,30 +50,27 @@ describe('registerSdrManagerLocalSettings', () => {
       )
     })
 
-    it('places its cards below the radios and above the SDR options, whichever registers first', async () => {
+    it("places THIS MACHINE after App Settings' own cards, whichever registers first", async () => {
       const registry = await import('@sentinel/shell-api/shell/settingsRegistry')
-      const { SDR_SETTINGS_POSITIONS } =
-        await import('@sentinel/shell-api/shell/sdrSettingsSection')
       const { registerSdrManagerLocalSettings } = await import('./settings')
       registerSdrManagerLocalSettings()
-      const sdrCard = (id: string, position: number) => ({
-        section: 'sdr',
-        sectionLabel: 'SDR',
-        id,
-        label: id,
-        desc: '',
-        position,
-        control: { component: {} },
-      })
-      registry.registerSettingItems([
-        sdrCard('sdr-devices', SDR_SETTINGS_POSITIONS.devices),
-        sdrCard('sdr-options', SDR_SETTINGS_POSITIONS.options),
-      ])
+      // App Settings' own cards register later (the shell boots after this remote
+      // in no fixed order) and at the default position.
+      registry.registerSettingItems(
+        ['location', 'https'].map((id) => ({
+          section: 'app',
+          sectionLabel: 'App Settings',
+          id,
+          label: id,
+          desc: '',
+          control: { component: {} },
+        })),
+      )
 
       expect(registry.getSettingItems().map((item) => item.id)).toEqual([
-        'sdr-devices',
+        'location',
+        'https',
         ...THIS_MACHINE_IDS,
-        'sdr-options',
       ])
     })
 
@@ -88,14 +86,16 @@ describe('registerSdrManagerLocalSettings', () => {
   })
 
   describe('in SDR Manager-only mode', () => {
-    it('adds its cards to that mode’s own page, Settings › SDR Manager', async () => {
+    it('lists its SDRs on that mode’s own page, Settings › SDR Manager, and THIS MACHINE in App Settings', async () => {
       const { registry } = await registered('sdr-manager-local-only')
 
       expect(registry.getSettingsSections()).toEqual([
         { key: 'sdr-manager', label: 'SDR Manager', order: 15, domain: false },
       ])
-      for (const item of registry.getSettingItems()) {
-        expect(item).toMatchObject({ section: 'sdr-manager', sectionLabel: 'SDR Manager' })
+      const [devices, ...thisMachine] = registry.getSettingItems()
+      expect(devices).toMatchObject({ section: 'sdr-manager', sectionLabel: 'SDR Manager' })
+      for (const item of thisMachine) {
+        expect(item).toMatchObject({ section: 'app', sectionLabel: 'App Settings' })
       }
     })
 

@@ -1,6 +1,6 @@
 # SDR Manager
 
-One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's password, configuration and hotspot are under **THIS MACHINE** below. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer has a page of its own, **Settings › SDR Manager**.
+One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's console password, certificate, private access, configuration and hotspot are in **Settings › App Settings › THIS MACHINE**, in both modes. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer's dongles have a page of their own, **Settings › SDR Manager**.
 
 ## Features
 
@@ -60,7 +60,7 @@ A dongle you unplug stays listed as **NOT PLUGGED IN**, with its settings, until
 
 ### The other cards
 
-They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
+They are in **Settings › App Settings › THIS MACHINE**. They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
 
 | Card                 | For                                                                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
@@ -90,7 +90,7 @@ A program that only speaks `rtl_tcp` (SDR++, GQRX) can use any public streaming 
 
 ### Private Access
 
-A **PRIVATE** dongle works on this machine and for the Sentinels listed in **Private Access**, under **THIS MACHINE**. Everyone else is refused.
+A **PRIVATE** dongle works on this machine and for the Sentinels listed in **Private Access** (**Settings › App Settings › THIS MACHINE**). Everyone else is refused.
 
 1. Set a **Console Password**. The list can't be changed without one.
 2. Open **Private Access**, enter the other Sentinel's IP address, **ADD ADDRESS**.
@@ -121,7 +121,7 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 
 Sentinel talks to a host over HTTPS, so the console password never crosses the network readable. The first time, you confirm that the host is the one you mean by its certificate fingerprint. The host shows its own:
 
-- in its **Settings › SDR › THIS MACHINE › Certificate** (SDR Manager-only: **Settings › SDR Manager**);
+- in its **Settings › App Settings › THIS MACHINE › Certificate**;
 - in its log when SDR Manager starts: `docker compose logs sdr-manager-local | grep fingerprint`;
 - on a Mac, in `uv run --project backend sdr-manager-local doctor`.
 

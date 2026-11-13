@@ -162,7 +162,7 @@ A ✗ comes with a **Fix:** line under it: do what it says, then run `status` ag
 
 ## 13. Set a console password
 
-1. In **Console Password**, type a password of 8 characters or more in **NEW PASSWORD** and again in **REPEAT IT**.
+1. In **Settings › App Settings › THIS MACHINE › Console Password**, type a password of 8 characters or more in **NEW PASSWORD** and again in **REPEAT IT**.
 2. Click **SAVE PASSWORD**.
 
 **You should see:** "Last changed" and the time. Keep the password: other Sentinels that use this Mac's dongles need it.

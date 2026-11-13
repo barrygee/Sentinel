@@ -20,12 +20,12 @@ describe('register (sdr-manager-local)', () => {
     return pinia
   }
 
-  it('registers the THIS MACHINE settings on Settings › SDR in the full app', async () => {
+  it('registers the THIS MACHINE settings in App Settings in the full app', async () => {
     await registerOnShellPinia('full')
     const { getSettingItems } = await import('@sentinel/shell-api/shell/settingsRegistry')
 
     expect(getSettingItems().length).toBeGreaterThan(0)
-    expect(new Set(getSettingItems().map((item) => item.section))).toEqual(new Set(['sdr']))
+    expect(new Set(getSettingItems().map((item) => item.section))).toEqual(new Set(['app']))
   })
 
   it('treats a shell that names no mode as the full app', async () => {

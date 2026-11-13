@@ -109,6 +109,42 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   ['app', 'config-current', { component: ConfigCurrentControl, emits: ['stage'], layout: 'full' }],
   ['app', 'export-all', { component: ExportAllControl }],
   ['app', 'https', { component: HttpsControl, layout: 'full', naturalHeight: true }],
+  // THIS MACHINE (sdr-manager-local's), after App Settings' own cards.
+  [
+    'app',
+    'sdr-manager-local-console-password',
+    {
+      component: ConsolePasswordControl,
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: { openWhen: expect.any(Function) },
+    },
+  ],
+  [
+    'app',
+    'sdr-manager-local-certificate',
+    {
+      component: CertificateFingerprintControl,
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: {},
+    },
+  ],
+  [
+    'app',
+    'sdr-manager-local-private-access',
+    { component: PrivateAccessControl, layout: 'half', naturalHeight: true, collapsible: {} },
+  ],
+  [
+    'app',
+    'sdr-manager-local-configuration',
+    { component: ConfigTransferControl, layout: 'half', naturalHeight: true, collapsible: {} },
+  ],
+  [
+    'app',
+    'sdr-manager-local-hotspot',
+    { component: HotspotControl, layout: 'full', naturalHeight: true, collapsible: {} },
+  ],
   [
     'air',
     'air-source-override',
@@ -268,41 +304,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     },
   ],
   ['sdr', 'sdr-devices', { component: SdrDevicesControl, emits: ['stage'], layout: 'half' }],
-  [
-    'sdr',
-    'sdr-manager-local-console-password',
-    {
-      component: ConsolePasswordControl,
-      layout: 'half',
-      naturalHeight: true,
-      collapsible: { openWhen: expect.any(Function) },
-    },
-  ],
-  [
-    'sdr',
-    'sdr-manager-local-certificate',
-    {
-      component: CertificateFingerprintControl,
-      layout: 'half',
-      naturalHeight: true,
-      collapsible: {},
-    },
-  ],
-  [
-    'sdr',
-    'sdr-manager-local-private-access',
-    { component: PrivateAccessControl, layout: 'half', naturalHeight: true, collapsible: {} },
-  ],
-  [
-    'sdr',
-    'sdr-manager-local-configuration',
-    { component: ConfigTransferControl, layout: 'half', naturalHeight: true, collapsible: {} },
-  ],
-  [
-    'sdr',
-    'sdr-manager-local-hotspot',
-    { component: HotspotControl, layout: 'full', naturalHeight: true, collapsible: {} },
-  ],
   [
     'sdr',
     'sdr-options',
