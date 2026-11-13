@@ -114,9 +114,10 @@ class TestDerivingFromOneRead:
         }
 
         assert domain_urls_of("sea", settings_map) == ("wss://online.test/stream", "http://box.test/ais")
+        # Off grid never falls back to the online source.
         assert domain_urls_of("sea", {**settings_map, "sea.sourceOverride": "offgrid"}) == (
             "http://box.test/ais",
-            "wss://online.test/stream",
+            None,
         )
 
     def test_urls_use_the_defaults_when_unset(self):

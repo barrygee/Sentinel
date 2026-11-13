@@ -50,6 +50,8 @@ flowchart TB
 | **SDR** | Your radios | Your radios | — |
 | **Maps** | Online | Downloaded areas | Areas downloaded while online |
 
+Off grid, a section never reaches the internet, not even when its off-grid source fails: it shows what that source and its stored data have, and nothing from online.
+
 ## Before you lose internet
 
 1. [Download maps](maps.md#download-an-area), with **Terrain** if you want it.

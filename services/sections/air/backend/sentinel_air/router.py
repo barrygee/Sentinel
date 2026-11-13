@@ -251,8 +251,9 @@ async def get_aircraft_near_point(
             if adsb_service.is_online_feed(base_url):
                 fresh_for_ms = online_interval_ms
             if base_url != primary_url and not data.get("ac"):
-                # The fallback is the other mode's source (online, the operator's
-                # own decoder), which often has nothing for this area. An empty
+                # The fallback (online only: off grid has none, see
+                # resolve_domain_urls) is the operator's own decoder, which
+                # often has nothing for the online map's area. An empty
                 # list from it says nothing about the sky, so it must not
                 # replace aircraft already cached; it is the answer only if
                 # there is nothing else (below).
