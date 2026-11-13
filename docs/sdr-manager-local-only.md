@@ -26,7 +26,7 @@ docker compose up -d --remove-orphans
 
 `--remove-orphans` stops the full app's other containers when you switch. Open **http://\<this computer\>:8080**: it opens on Settings › SDR Manager.
 
-First time on this computer? Prepare it first: [Linux and Pi](sdr-manager-linux.md) or [Mac](sdr-manager-mac.md).
+First time on this computer? Prepare it first: [Linux and Pi](sdr-manager-linux.md) or [Mac](sdr-manager-mac.md). Setting up a Pi for your main Sentinel from scratch? Follow [Main Sentinel and a Pi](main-sentinel-and-pi.md).
 
 ## Use it from your main Sentinel
 

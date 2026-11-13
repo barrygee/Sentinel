@@ -1,149 +1,162 @@
 {
-  "groups": [
-    {
-      "key": "getting-started",
-      "title": "Getting started",
-      "pages": [
-        { "path": "install", "title": "Quick start" },
-        { "path": "configuration", "title": "Environment variables (.env)" },
-        { "path": "hardware", "title": "Hardware" },
-        { "path": "sdr-manager-mac", "title": "SDR Manager on a Mac" },
-        { "path": "sdr-manager-linux", "title": "SDR Manager on Linux and Pi" },
-        { "path": "sdr-manager-local-only", "title": "SDR Manager only" },
-        { "path": "decoders", "title": "Decoders" },
-        { "path": "radio-host", "title": "Radio host" },
-        { "path": "operations", "title": "Run and maintain" },
-        { "path": "security-guard", "title": "Request guard" },
-        { "path": "reference/ports-and-services", "title": "Ports and services" },
-        { "path": "reference/api-access-matrix", "title": "API access matrix" },
-        { "path": "troubleshooting", "title": "Troubleshooting" },
-        { "path": "upgrading", "title": "Upgrade" }
-      ]
-    },
-    {
-      "key": "introduction",
-      "title": "Introduction",
-      "pages": [
-        { "path": "index", "title": "Welcome to Sentinel" },
-        { "path": "use/interface", "title": "The screen" },
-        { "path": "reference/glossary", "title": "Glossary" }
-      ]
-    },
-    {
-      "key": "app",
-      "title": "App-wide",
-      "pages": [
-        { "path": "use/alerts", "title": "Alerts" },
-        { "path": "use/maps", "title": "Maps" },
-        { "path": "use/settings", "title": "Settings and the config file" },
-        { "path": "use/off-grid", "title": "Off grid" }
-      ]
-    },
-    {
-      "key": "air",
-      "title": "Air",
-      "pages": [{ "path": "use/air", "title": "Air: aircraft" }]
-    },
-    {
-      "key": "sdr-manager",
-      "title": "SDR Manager",
-      "pages": [{ "path": "use/sdr-manager", "title": "SDR Manager: your dongles" }]
-    },
-    {
-      "key": "space",
-      "title": "Space",
-      "pages": [{ "path": "use/space", "title": "Space: satellites" }]
-    },
-    {
-      "key": "sea",
-      "title": "Sea",
-      "pages": [{ "path": "use/sea", "title": "Sea: ships" }]
-    },
-    {
-      "key": "land",
-      "title": "Land",
-      "pages": [{ "path": "use/land", "title": "Land: repeaters and APRS" }]
-    },
-    {
-      "key": "sdr",
-      "title": "SDR",
-      "pages": [
-        { "path": "use/sdr/add-a-radio", "title": "Radios" },
-        { "path": "use/sdr/listen", "title": "Listen" },
-        { "path": "use/sdr/frequencies", "title": "Frequencies and scanning" },
-        { "path": "use/sdr/record", "title": "Record" },
-        { "path": "use/sdr/decode", "title": "Decode" }
-      ]
-    },
-    {
-      "key": "develop",
-      "title": "Developer docs",
-      "pages": [
-        { "path": "architecture/overview", "title": "How it works" },
-        { "path": "architecture/data-flows", "title": "Data flows" },
-        { "path": "architecture/radios", "title": "Radios and decoding" },
-        { "path": "architecture/storage", "title": "Storage and caching" },
-        { "path": "architecture/bus-and-security", "title": "Event bus and security" },
-        { "path": "development/setup", "title": "Set up for development" },
-        { "path": "development/code-map", "title": "Code map" },
-        { "path": "development/testing", "title": "Testing" },
-        { "path": "development/how-to", "title": "How to…" },
-        { "path": "contributing", "title": "Contributing", "file": "CONTRIBUTING.md" },
+    "groups": [
         {
-          "title": "Design decisions",
-          "pages": [
-            { "path": "adr/0008-request-guard", "title": "0008 Request guard" },
-            { "path": "adr/0007-sdr-manager", "title": "0007 SDR Manager" },
-            { "path": "adr/0006-section-containers", "title": "0006 Section containers" },
-            { "path": "adr/0005-sea-ais-vessel-tracking", "title": "0005 Sea AIS vessel tracking" },
-            { "path": "adr/0004-remove-trunk-tracking", "title": "0004 Remove trunk tracking" },
-            {
-              "path": "adr/0003-sentry-sdr-lock-and-tune",
-              "title": "0003 Sentry SDR lock and tune"
-            },
-            { "path": "adr/0002-base-component-dedupe", "title": "0002 Shared base components" },
-            {
-              "path": "adr/0001-webapp-standards-retrofit",
-              "title": "0001 Retrofit to the webapp standards"
-            }
-          ]
+            "key": "getting-started",
+            "title": "Getting started",
+            "pages": [
+                { "path": "install", "title": "Quick start" },
+                { "path": "configuration", "title": "Environment variables (.env)" },
+                { "path": "hardware", "title": "Hardware" },
+                { "path": "sdr-manager-mac", "title": "SDR Manager on a Mac" },
+                { "path": "sdr-manager-linux", "title": "SDR Manager on Linux and Pi" },
+                { "path": "sdr-manager-local-only", "title": "SDR Manager only" },
+                { "path": "main-sentinel-and-pi", "title": "Main Sentinel and a Pi" },
+                { "path": "decoders", "title": "Decoders" },
+                { "path": "radio-host", "title": "Radio host" },
+                { "path": "operations", "title": "Run and maintain" },
+                { "path": "security-guard", "title": "Request guard" },
+                { "path": "reference/ports-and-services", "title": "Ports and services" },
+                { "path": "reference/api-access-matrix", "title": "API access matrix" },
+                { "path": "troubleshooting", "title": "Troubleshooting" },
+                { "path": "upgrading", "title": "Upgrade" }
+            ]
+        },
+        {
+            "key": "introduction",
+            "title": "Introduction",
+            "pages": [
+                { "path": "index", "title": "Welcome to Sentinel" },
+                { "path": "use/interface", "title": "The screen" },
+                { "path": "reference/glossary", "title": "Glossary" }
+            ]
+        },
+        {
+            "key": "app",
+            "title": "App-wide",
+            "pages": [
+                { "path": "use/alerts", "title": "Alerts" },
+                { "path": "use/maps", "title": "Maps" },
+                { "path": "use/settings", "title": "Settings and the config file" },
+                { "path": "use/off-grid", "title": "Off grid" }
+            ]
+        },
+        {
+            "key": "air",
+            "title": "Air",
+            "pages": [{ "path": "use/air", "title": "Air: aircraft" }]
+        },
+        {
+            "key": "sdr-manager",
+            "title": "SDR Manager",
+            "pages": [{ "path": "use/sdr-manager", "title": "SDR Manager: your dongles" }]
+        },
+        {
+            "key": "space",
+            "title": "Space",
+            "pages": [{ "path": "use/space", "title": "Space: satellites" }]
+        },
+        {
+            "key": "sea",
+            "title": "Sea",
+            "pages": [{ "path": "use/sea", "title": "Sea: ships" }]
+        },
+        {
+            "key": "land",
+            "title": "Land",
+            "pages": [{ "path": "use/land", "title": "Land: repeaters and APRS" }]
+        },
+        {
+            "key": "sdr",
+            "title": "SDR",
+            "pages": [
+                { "path": "use/sdr/add-a-radio", "title": "Radios" },
+                { "path": "use/sdr/listen", "title": "Listen" },
+                { "path": "use/sdr/frequencies", "title": "Frequencies and scanning" },
+                { "path": "use/sdr/record", "title": "Record" },
+                { "path": "use/sdr/decode", "title": "Decode" }
+            ]
+        },
+        {
+            "key": "develop",
+            "title": "Developer docs",
+            "pages": [
+                { "path": "architecture/overview", "title": "How it works" },
+                { "path": "architecture/data-flows", "title": "Data flows" },
+                { "path": "architecture/radios", "title": "Radios and decoding" },
+                { "path": "architecture/storage", "title": "Storage and caching" },
+                { "path": "architecture/bus-and-security", "title": "Event bus and security" },
+                { "path": "development/setup", "title": "Set up for development" },
+                { "path": "development/code-map", "title": "Code map" },
+                { "path": "development/testing", "title": "Testing" },
+                { "path": "development/how-to", "title": "How to…" },
+                { "path": "contributing", "title": "Contributing", "file": "CONTRIBUTING.md" },
+                {
+                    "title": "Design decisions",
+                    "pages": [
+                        { "path": "adr/0008-request-guard", "title": "0008 Request guard" },
+                        { "path": "adr/0007-sdr-manager", "title": "0007 SDR Manager" },
+                        {
+                            "path": "adr/0006-section-containers",
+                            "title": "0006 Section containers"
+                        },
+                        {
+                            "path": "adr/0005-sea-ais-vessel-tracking",
+                            "title": "0005 Sea AIS vessel tracking"
+                        },
+                        {
+                            "path": "adr/0004-remove-trunk-tracking",
+                            "title": "0004 Remove trunk tracking"
+                        },
+                        {
+                            "path": "adr/0003-sentry-sdr-lock-and-tune",
+                            "title": "0003 Sentry SDR lock and tune"
+                        },
+                        {
+                            "path": "adr/0002-base-component-dedupe",
+                            "title": "0002 Shared base components"
+                        },
+                        {
+                            "path": "adr/0001-webapp-standards-retrofit",
+                            "title": "0001 Retrofit to the webapp standards"
+                        }
+                    ]
+                }
+            ]
         }
-      ]
+    ],
+    "synonyms": {
+        "plane": ["Air", "aircraft", "ADS-B"],
+        "planes": ["Air", "aircraft", "ADS-B"],
+        "aeroplane": ["Air", "aircraft", "ADS-B"],
+        "aircraft": ["Air", "ADS-B"],
+        "flight": ["Air", "aircraft", "ADS-B"],
+        "ship": ["Sea", "vessel", "AIS"],
+        "ships": ["Sea", "vessel", "AIS"],
+        "boat": ["Sea", "vessel", "AIS"],
+        "vessel": ["Sea", "AIS"],
+        "satellite": ["Space", "orbit", "pass"],
+        "satellites": ["Space", "orbit", "pass"],
+        "ham": ["Land", "SDR", "APRS"],
+        "radio": ["SDR", "rtl_tcp", "dongle"],
+        "dongle": ["SDR", "rtl_tcp", "radio"],
+        "sentry": ["SDR Manager", "SDR host"],
+        "pi": ["SDR Manager", "Raspberry Pi"],
+        "mac": ["SDR Manager", "macOS"],
+        "offline": ["Off Grid", "tiles", "pmtiles"],
+        "map": ["tiles", "pmtiles"],
+        "password": ["credentials", "secret"],
+        "env": ["environment", "configuration"],
+        "scanner": ["SDR", "scan", "search"],
+        "repeater": ["Land", "repeaters"],
+        "record": ["recording", "recordings"],
+        "recording": ["record", "recordings"],
+        "emergency": ["squawk", "7700"],
+        "squawk": ["emergency", "Air"],
+        "internet": ["Off Grid", "offline"],
+        "docker": ["compose", "container", "volume"],
+        "database": ["SQLite", "databases", "db"],
+        "architecture": ["overview", "how it works"],
+        "nats": ["event bus"],
+        "caddy": ["gateway"]
     }
-  ],
-  "synonyms": {
-    "plane": ["Air", "aircraft", "ADS-B"],
-    "planes": ["Air", "aircraft", "ADS-B"],
-    "aeroplane": ["Air", "aircraft", "ADS-B"],
-    "aircraft": ["Air", "ADS-B"],
-    "flight": ["Air", "aircraft", "ADS-B"],
-    "ship": ["Sea", "vessel", "AIS"],
-    "ships": ["Sea", "vessel", "AIS"],
-    "boat": ["Sea", "vessel", "AIS"],
-    "vessel": ["Sea", "AIS"],
-    "satellite": ["Space", "orbit", "pass"],
-    "satellites": ["Space", "orbit", "pass"],
-    "ham": ["Land", "SDR", "APRS"],
-    "radio": ["SDR", "rtl_tcp", "dongle"],
-    "dongle": ["SDR", "rtl_tcp", "radio"],
-    "sentry": ["SDR Manager", "SDR host"],
-    "pi": ["SDR Manager", "Raspberry Pi"],
-    "mac": ["SDR Manager", "macOS"],
-    "offline": ["Off Grid", "tiles", "pmtiles"],
-    "map": ["tiles", "pmtiles"],
-    "password": ["credentials", "secret"],
-    "env": ["environment", "configuration"],
-    "scanner": ["SDR", "scan", "search"],
-    "repeater": ["Land", "repeaters"],
-    "record": ["recording", "recordings"],
-    "recording": ["record", "recordings"],
-    "emergency": ["squawk", "7700"],
-    "squawk": ["emergency", "Air"],
-    "internet": ["Off Grid", "offline"],
-    "docker": ["compose", "container", "volume"],
-    "database": ["SQLite", "databases", "db"],
-    "architecture": ["overview", "how it works"],
-    "nats": ["event bus"],
-    "caddy": ["gateway"]
-  }
 }
