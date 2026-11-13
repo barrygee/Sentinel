@@ -49,7 +49,7 @@ function mountAction(props: Partial<ActionProps> = {}) {
 
 /**
  * `SdrDeviceRadioAction` — the radio end of one of this machine's SDR rows:
- * ADD, or ADDED with a cross that removes the radio after REMOVE? YES / NO.
+ * ADD, or a cross that removes the radio after REMOVE? YES / NO.
  */
 describe('SdrDeviceRadioAction', () => {
   it("shows ADS-B DECODER, not ADD, for the SDR Air's decoder reads from", () => {
@@ -58,9 +58,9 @@ describe('SdrDeviceRadioAction', () => {
     expect(wrapper.text()).toContain('ADS-B DECODER')
   })
 
-  it('still reads ADDED for a radio, even on the ADS-B source', () => {
+  it('shows the radio cross, not the tag, for a radio even on the ADS-B source', () => {
     const wrapper = mountAction({ adsbSource: true, radio: RADIO })
-    expect(wrapper.text()).toContain('ADDED')
+    expect(wrapper.find('button[aria-label="Remove Roof RTL-SDR from radios"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('ADS-B DECODER')
   })
 
@@ -88,18 +88,18 @@ describe('SdrDeviceRadioAction', () => {
     expect(wrapper.text()).toBe('')
   })
 
-  it('reads ADDED once the SDR is a radio, with a cross to remove it', async () => {
+  it('shows only a cross to remove it once the SDR is a radio, with no ADDED label', async () => {
     const wrapper = mountAction({ radio: RADIO })
-    expect(wrapper.find('.sdr-device-radio-added-label').text()).toBe('ADDED')
+    expect(wrapper.text()).toBe('')
     expect(wrapper.findComponent(SdrHostDeviceAddButton).exists()).toBe(false)
     const remove = wrapper.find('button[aria-label="Remove Roof RTL-SDR from radios"]')
     await remove.trigger('click')
     expect(wrapper.emitted('start-delete')).toHaveLength(1)
   })
 
-  it('still reads ADDED for a radio whose SDR the host no longer reports', () => {
+  it('still offers the cross for a radio whose SDR the host no longer reports', () => {
     const wrapper = mountAction({ device: undefined, radio: RADIO })
-    expect(wrapper.text()).toContain('ADDED')
+    expect(wrapper.find('button[aria-label="Remove Roof RTL-SDR from radios"]').exists()).toBe(true)
   })
 
   it('asks REMOVE? and says which answer was given', async () => {
@@ -113,9 +113,9 @@ describe('SdrDeviceRadioAction', () => {
   })
 
   describe('when This machine adds its SDRs automatically', () => {
-    it('reads ADDED with no cross, keeping its place so the pencils line up', () => {
+    it('shows nothing and no cross, keeping its place so the pencils line up', () => {
       const wrapper = mountAction({ radio: RADIO, autoAdd: true })
-      expect(wrapper.find('.sdr-device-radio-added-label').text()).toBe('ADDED')
+      expect(wrapper.text()).toBe('')
       expect(wrapper.find('button').exists()).toBe(false)
       expect(wrapper.find('.sdr-device-btn-slot').attributes('aria-hidden')).toBe('true')
     })
@@ -138,7 +138,7 @@ describe('SdrDeviceRadioAction', () => {
 
   it.each([
     ['ADD', {}],
-    ['ADDED', { radio: RADIO }],
+    ['the remove cross', { radio: RADIO }],
     ['REMOVE?', { radio: RADIO, confirming: true }],
   ] as const)('has no accessibility violations showing %s', async (_shown, props) => {
     const wrapper = mountAction(props)

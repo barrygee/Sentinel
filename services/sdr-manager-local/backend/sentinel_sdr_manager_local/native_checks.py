@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
-from backend.platform.tls_fingerprint import certificate_fingerprint
 
 from sentinel_sdr_manager_local.adapters.ctypes_rtlsdr import CtypesRtlSdrLibrary, RtlSdrLibraryUnavailableError
 from sentinel_sdr_manager_local.adapters.macos.homebrew import (
@@ -260,6 +259,12 @@ def check_core(context: CheckContext) -> CheckResult:
 
 def check_certificate(context: CheckContext) -> CheckResult:
     """The fingerprint other Sentinels see when they add this machine, to compare."""
+    # Imported here, not at module level: the `sdr-manager-local` command (the
+    # console script `uv run` starts) imports this module with only the
+    # installed packages on its path, and the repo's `backend` isn't one of them,
+    # so a module-level import made every command fail before it began.
+    from backend.platform.tls_fingerprint import certificate_fingerprint
+
     authority = context.paths.credentials_directory / CERTIFICATE_AUTHORITY_FILE
     try:
         fingerprint = certificate_fingerprint(authority.read_text())

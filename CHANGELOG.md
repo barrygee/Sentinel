@@ -678,6 +678,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point disclosure chevrons right/down and even out the SDR cards
 - Mark the ADS-B decoder's SDR, even out the host panel, and fix stale hotspot sign-in
 - Deleting a Sentinel host removes its radios
+- Let the Mac command start again
 
 ### Chores
 
@@ -1890,6 +1891,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #635 from barrygee/fix/disclosure-chevron-direction
 - Merge pull request #636 from barrygee/fix/adsb-source-not-addable
 - Merge pull request #637 from barrygee/fix/delete-host-removes-radios
+- Merge pull request #638 from barrygee/fix/sdr-manager-local-cli-import
+- Merge pull request #640 from barrygee/docs/readme-local-and-remote-sdrs
 
 ### Performance
 
@@ -2090,6 +2093,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add container consolidation, running without Docker and SDR IQ playback plans
 - Close review gaps in the compose.dev.yaml split
 - Add a step-by-step guide to a main Sentinel plus a Raspberry Pi
+- Using this computer's dongles and another computer's together
 
 ### Tests
 

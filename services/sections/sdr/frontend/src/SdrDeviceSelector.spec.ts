@@ -116,6 +116,36 @@ describe('SdrDeviceSelector — menu', () => {
     )
   })
 
+  it("lists a private dongle's radio: private means this machine and the Sentinels its host allows", async () => {
+    // The regression: a Mac's own private dongle, added as a radio, never
+    // appeared in its own picker because every private radio was hidden.
+    const wrapper = mountSelector({
+      radios: [
+        makeRadio({ id: 1, name: 'Nooelec', visibility: 'public' }),
+        makeRadio({ id: 2, name: 'This Mac', host: 'host.docker.internal', visibility: 'private' }),
+      ],
+    })
+    await wrapper.find('.base-select-menu').trigger('click')
+    const names = menuItems()
+      .slice(1)
+      .map((item) => item.textContent)
+    expect(names).toHaveLength(2)
+    expect(names[1]).toContain('This Mac')
+  })
+
+  it('still leaves out a disabled radio, private or not', async () => {
+    const wrapper = mountSelector({
+      radios: [
+        makeRadio({ id: 1, name: 'Shown' }),
+        makeRadio({ id: 2, name: 'Off', visibility: 'private', enabled: false }),
+      ],
+    })
+    await wrapper.find('.base-select-menu').trigger('click')
+    expect(menuItems().map((item) => item.textContent)).not.toContainEqual(
+      expect.stringContaining('Off'),
+    )
+  })
+
   it('shows the "no radios configured" note when nothing is enabled', async () => {
     const wrapper = mountSelector({ radios: [makeRadio({ enabled: false })] })
     await wrapper.find('.base-select-menu').trigger('click')
