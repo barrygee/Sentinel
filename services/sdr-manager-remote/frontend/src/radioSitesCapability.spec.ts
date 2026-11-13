@@ -167,7 +167,9 @@ describe('sdr radioSites capability — devices', () => {
     vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([
       host({ name: null, address: 'host.docker.internal', is_local: true }),
     ])
-    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(snapshotWith({ device_id: 'usb:2-4' }))
+    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'usb:2-4', name: 'RTLSDR V4' }),
+    )
 
     const fleet = await createRadioSitesCapability().listDevices()
 
