@@ -36,6 +36,7 @@ from sentinel_space import module as space_module
 from sentinel_space import router as space_router
 
 from backend.core import (
+    app_certificate,
     app_docs,
     app_mode,
     app_sections,
@@ -111,6 +112,7 @@ def in_process_routers() -> list[APIRouter]:
         app_sections.router,
         app_docs.router,
         app_mode.router,
+        app_certificate.router,
         registry_router.router,
         settings_secrets.router,
         # The in-app documentation (its own `docs` service in a deployment).

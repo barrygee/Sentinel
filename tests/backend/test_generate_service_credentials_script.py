@@ -31,6 +31,7 @@ from backend.scripts import generate_service_credentials as setup
 def no_extra_hostnames(monkeypatch):
     monkeypatch.delenv("SENTINEL_CORE_HOSTNAMES", raising=False)
     monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES", raising=False)
+    monkeypatch.delenv("SENTINEL_WEB_HOSTNAMES", raising=False)
     # Off unless a test turns it on, so nothing writes to /run/sdr-manager-local-credentials.
     monkeypatch.delenv("SDR_MANAGER_LOCAL_NATIVE", raising=False)
 
@@ -104,7 +105,9 @@ class TestGenerate:
                 expected.insert(0, "accepted-callers.json")
             # sdr-manager-local serves HTTPS with its own certificate.
             if user == "sdr-manager-local":
-                expected = sorted([*expected, "certificate.pem", "hostnames.txt", "private-key.pem"])
+                expected = sorted(
+                    [*expected, "certificate.pem", "hostnames.txt", "private-key.pem"]
+                )
             assert sorted(path.name for path in folder.iterdir()) == expected
         # Nothing left over from issuing the certificate.
         assert sorted(path.name for path in server.iterdir()) == [
@@ -322,7 +325,9 @@ class TestHttpCredentials:
     @pytest.mark.parametrize("caller", ["space", "sdr", "stub-decoder"])
     def test_other_services_get_no_accepted_callers_list(self, tmp_path, caller):
         setup.generate(tmp_path)
-        assert not (tmp_path / "credentials" / caller / "accepted-callers.json").exists()
+        assert not (
+            tmp_path / "credentials" / caller / "accepted-callers.json"
+        ).exists()
 
     @pytest.mark.parametrize(
         "content",
@@ -382,16 +387,16 @@ class TestServerHostnames:
         assert setup.server_hostnames() == ["nats", "localhost"]
 
     def test_extra_names_are_trimmed_and_deduplicated(self, monkeypatch):
-        monkeypatch.setenv(
-            "SENTINEL_CORE_HOSTNAMES", "a.lan, localhost,,b.lan,a.lan"
-        )
+        monkeypatch.setenv("SENTINEL_CORE_HOSTNAMES", "a.lan, localhost,,b.lan,a.lan")
         assert setup.server_hostnames() == ["nats", "localhost", "a.lan", "b.lan"]
 
 
 class TestGatewayCertificates:
     """Core's TLS service entrypoint, and a radio host's gateway (P7.5)."""
 
-    def test_the_service_entrypoint_gets_a_certificate_from_the_deployment_ca(self, tmp_path):
+    def test_the_service_entrypoint_gets_a_certificate_from_the_deployment_ca(
+        self, tmp_path
+    ):
         setup.generate(tmp_path)
         folder = tmp_path / "credentials" / "gateway"
         authority = tmp_path / "certificate-authority" / "certificate.pem"
@@ -399,18 +404,67 @@ class TestGatewayCertificates:
             "certificate-authority.pem", "certificate.pem", "hostnames.txt", "private-key.pem",
         ]  # fmt: skip
         assert _verifies_against(folder / "certificate.pem", authority)
-        assert "DNS:gateway, DNS:localhost" in _subject_alternative_names(folder / "certificate.pem")
+        assert "DNS:gateway, DNS:localhost" in _subject_alternative_names(
+            folder / "certificate.pem"
+        )
         assert _mode(folder / "private-key.pem") == 0o600
         # The CA the gateway trusts upstream, never the CA's key.
-        assert (folder / "certificate-authority.pem").read_bytes() == authority.read_bytes()
+        assert (
+            folder / "certificate-authority.pem"
+        ).read_bytes() == authority.read_bytes()
 
-    def test_core_hostnames_cover_the_entrypoint_and_the_broker_alike(self, tmp_path, monkeypatch):
+    def test_core_hostnames_cover_the_entrypoint_and_the_broker_alike(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setenv("SENTINEL_CORE_HOSTNAMES", "sentinel.lan,192.168.5.10")
         setup.generate(tmp_path)
-        entrypoint = _subject_alternative_names(tmp_path / "credentials" / "gateway" / "certificate.pem")
+        entrypoint = _subject_alternative_names(
+            tmp_path / "credentials" / "gateway" / "certificate.pem"
+        )
         broker = _subject_alternative_names(tmp_path / "server" / "certificate.pem")
-        assert "DNS:gateway, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in entrypoint
-        assert "DNS:nats, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10" in broker
+        assert (
+            "DNS:gateway, DNS:localhost, IP Address:127.0.0.1, DNS:sentinel.lan, IP Address:192.168.5.10"
+            in entrypoint
+        )
+        assert (
+            "DNS:nats, DNS:localhost, DNS:sentinel.lan, IP Address:192.168.5.10"
+            in broker
+        )
+
+    def test_web_hostnames_cover_the_gateway_for_browsers_but_not_the_broker(
+        self, tmp_path, monkeypatch
+    ):
+        """The web page over HTTPS uses the gateway's certificate; the broker serves no browser."""
+        monkeypatch.setenv("SENTINEL_WEB_HOSTNAMES", "192.168.5.67, sentinel.local")
+        setup.generate(tmp_path)
+        gateway = _subject_alternative_names(
+            tmp_path / "credentials" / "gateway" / "certificate.pem"
+        )
+        broker = _subject_alternative_names(tmp_path / "server" / "certificate.pem")
+        assert (
+            "IP Address:127.0.0.1, IP Address:192.168.5.67, DNS:sentinel.local"
+            in gateway
+        )
+        assert "192.168.5.67" not in broker
+        assert "sentinel.local" not in broker
+
+    def test_naming_a_web_address_reissues_the_gateways_certificate(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        setup.generate(tmp_path)
+        certificate = tmp_path / "credentials" / "gateway" / "certificate.pem"
+        before = certificate.read_bytes()
+        capsys.readouterr()
+
+        monkeypatch.setenv("SENTINEL_WEB_HOSTNAMES", "192.168.5.67")
+        setup.generate(tmp_path)
+
+        assert certificate.read_bytes() != before
+        assert "IP Address:192.168.5.67" in _subject_alternative_names(certificate)
+        assert (
+            "issued the service entrypoint certificate for gateway, localhost, 127.0.0.1, 192.168.5.67"
+            in (capsys.readouterr().out)
+        )
 
     def test_the_common_name_is_the_first_host_name(self, tmp_path):
         setup.generate(tmp_path)
@@ -424,52 +478,98 @@ class TestGatewayCertificates:
         setup.generate(tmp_path)
         assert not (tmp_path / "credentials" / "radio-host-gateway").exists()
 
-    def test_a_named_radio_host_gets_its_gateway_certificate(self, tmp_path, monkeypatch, capsys):
+    def test_a_named_radio_host_gets_its_gateway_certificate(
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", " radio.lan, 10.0.0.9 ")
         setup.generate(tmp_path)
         folder = tmp_path / "credentials" / "radio-host-gateway"
         certificate = folder / "certificate.pem"
-        assert _verifies_against(certificate, tmp_path / "certificate-authority" / "certificate.pem")
+        assert _verifies_against(
+            certificate, tmp_path / "certificate-authority" / "certificate.pem"
+        )
         names = _subject_alternative_names(certificate)
-        assert "DNS:radio-host-gateway, DNS:localhost, DNS:radio.lan, IP Address:10.0.0.9" in names
+        assert (
+            "DNS:radio-host-gateway, DNS:localhost, DNS:radio.lan, IP Address:10.0.0.9"
+            in names
+        )
         assert (folder / "certificate-authority.pem").exists()
         assert "issued the radio host gateway certificate" in capsys.readouterr().out
 
-    def test_renaming_the_radio_host_reissues_only_its_certificate(self, tmp_path, monkeypatch):
+    def test_renaming_the_radio_host_reissues_only_its_certificate(
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan")
         setup.generate(tmp_path)
-        entrypoint_before = (tmp_path / "credentials" / "gateway" / "certificate.pem").read_bytes()
-        radio_before = (tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem").read_bytes()
+        entrypoint_before = (
+            tmp_path / "credentials" / "gateway" / "certificate.pem"
+        ).read_bytes()
+        radio_before = (
+            tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem"
+        ).read_bytes()
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio2.lan")
         setup.generate(tmp_path)
-        assert (tmp_path / "credentials" / "gateway" / "certificate.pem").read_bytes() == entrypoint_before
-        radio_after = tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem"
+        assert (
+            tmp_path / "credentials" / "gateway" / "certificate.pem"
+        ).read_bytes() == entrypoint_before
+        radio_after = (
+            tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem"
+        )
         assert radio_after.read_bytes() != radio_before
         assert "DNS:radio2.lan" in _subject_alternative_names(radio_after)
 
-    def test_unsetting_the_radio_host_leaves_its_folder_alone(self, tmp_path, monkeypatch):
+    def test_unsetting_the_radio_host_leaves_its_folder_alone(
+        self, tmp_path, monkeypatch
+    ):
         # A bundle may already be on the radio host: nothing is deleted behind it.
         monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan")
         setup.generate(tmp_path)
         monkeypatch.delenv("SENTINEL_RADIO_HOST_HOSTNAMES")
         setup.generate(tmp_path)
-        assert (tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem").exists()
+        assert (
+            tmp_path / "credentials" / "radio-host-gateway" / "certificate.pem"
+        ).exists()
 
 
 class TestHostnameLists:
     def test_entrypoint_names_default_to_the_built_in_ones(self):
-        assert setup.entrypoint_hostnames() == ["gateway", "localhost"]
+        # 127.0.0.1 too: the web page over HTTPS opened on this machine by address.
+        assert setup.entrypoint_hostnames() == ["gateway", "localhost", "127.0.0.1"]
+
+    def test_core_and_web_names_are_added_trimmed_and_deduplicated(self, monkeypatch):
+        monkeypatch.setenv("SENTINEL_CORE_HOSTNAMES", "core.lan, 192.168.5.67")
+        monkeypatch.setenv(
+            "SENTINEL_WEB_HOSTNAMES", " 192.168.5.67, ,localhost,sentinel.local "
+        )
+        assert setup.entrypoint_hostnames() == [
+            "gateway",
+            "localhost",
+            "127.0.0.1",
+            "core.lan",
+            "192.168.5.67",
+            "sentinel.local",
+        ]
 
     def test_no_radio_host_names_by_default(self):
         assert setup.radio_host_gateway_hostnames() == []
 
     def test_radio_host_names_are_trimmed_and_deduplicated(self, monkeypatch):
-        monkeypatch.setenv("SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan, ,localhost,radio.lan")
-        assert setup.radio_host_gateway_hostnames() == ["radio-host-gateway", "localhost", "radio.lan"]
+        monkeypatch.setenv(
+            "SENTINEL_RADIO_HOST_HOSTNAMES", "radio.lan, ,localhost,radio.lan"
+        )
+        assert setup.radio_host_gateway_hostnames() == [
+            "radio-host-gateway",
+            "localhost",
+            "radio.lan",
+        ]
 
     @pytest.mark.parametrize(
         ("hostname", "expected"),
-        [("radio.lan", "DNS:radio.lan"), ("192.168.1.2", "IP:192.168.1.2"), ("fd00::7", "IP:fd00::7")],
+        [
+            ("radio.lan", "DNS:radio.lan"),
+            ("192.168.1.2", "IP:192.168.1.2"),
+            ("fd00::7", "IP:fd00::7"),
+        ],
     )
     def test_addresses_become_ip_names(self, hostname, expected):
         assert setup._subject_alternative_name(hostname) == expected
@@ -515,11 +615,16 @@ class TestCertificateExpiresAt:
 class TestSdrManagerLocalCertificate:
     """sdr-manager-local's TLS certificate: other Sentinels send it the console password."""
 
-    def test_is_issued_by_the_deployment_ca_for_this_machines_own_callers(self, tmp_path):
+    def test_is_issued_by_the_deployment_ca_for_this_machines_own_callers(
+        self, tmp_path
+    ):
         setup.generate(tmp_path)
 
         folder = tmp_path / "credentials" / "sdr-manager-local"
-        assert _verifies_against(folder / "certificate.pem", tmp_path / "certificate-authority" / "certificate.pem")
+        assert _verifies_against(
+            folder / "certificate.pem",
+            tmp_path / "certificate-authority" / "certificate.pem",
+        )
         assert (
             "DNS:host.docker.internal, DNS:sdr-manager-local, DNS:localhost, IP Address:127.0.0.1"
             in _subject_alternative_names(folder / "certificate.pem")
@@ -540,7 +645,10 @@ class TestSdrManagerLocalCertificate:
     def test_no_other_service_gets_a_server_certificate(self, tmp_path):
         setup.generate(tmp_path)
 
-        holders = sorted(path.parent.name for path in (tmp_path / "credentials").glob("*/private-key.pem"))
+        holders = sorted(
+            path.parent.name
+            for path in (tmp_path / "credentials").glob("*/private-key.pem")
+        )
         assert holders == ["gateway", "sdr-manager-local"]
 
 
@@ -576,12 +684,20 @@ class TestNativeSdrManagerLocalCredentials:
 
         setup.generate(tmp_path / "volume", native)
 
-        source = tmp_path / "volume" / "credentials" / "sdr-manager-local" / "accepted-callers.json"
+        source = (
+            tmp_path
+            / "volume"
+            / "credentials"
+            / "sdr-manager-local"
+            / "accepted-callers.json"
+        )
         assert (native / "accepted-callers.json").read_text() == source.read_text()
         assert _mode(native) == 0o700
 
     @pytest.mark.parametrize("value", [None, "0", "true", ""])
-    def test_nothing_is_copied_unless_it_is_1(self, tmp_path, monkeypatch, capsys, value):
+    def test_nothing_is_copied_unless_it_is_1(
+        self, tmp_path, monkeypatch, capsys, value
+    ):
         if value is not None:
             monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", value)
         native = tmp_path / "native"
@@ -591,7 +707,9 @@ class TestNativeSdrManagerLocalCredentials:
         assert not native.exists()
         assert "native Mac" not in capsys.readouterr().out
 
-    def test_a_failed_copy_is_reported_and_the_rest_still_written(self, tmp_path, monkeypatch, capsys):
+    def test_a_failed_copy_is_reported_and_the_rest_still_written(
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", "1")
         blocked = tmp_path / "a-file"
         blocked.write_text("not a folder")
@@ -603,7 +721,9 @@ class TestNativeSdrManagerLocalCredentials:
         assert (tmp_path / "volume" / "server" / "nats.conf").is_file()
 
     def test_the_default_target_is_the_compose_mount(self):
-        assert setup.NATIVE_CREDENTIALS_DIRECTORY == Path("/run/sdr-manager-local-credentials")
+        assert setup.NATIVE_CREDENTIALS_DIRECTORY == Path(
+            "/run/sdr-manager-local-credentials"
+        )
 
 
 class TestGuardState:
@@ -616,9 +736,13 @@ class TestGuardState:
         assert acl[0] == "user default off"
         assert len(acl) == 2
 
-    def test_the_one_user_touches_only_the_guards_keys_and_cant_administer(self, tmp_path):
+    def test_the_one_user_touches_only_the_guards_keys_and_cant_administer(
+        self, tmp_path
+    ):
         setup.generate(tmp_path)
-        password = (tmp_path / "guard-state" / "guard-state-password").read_text().strip()
+        password = (
+            (tmp_path / "guard-state" / "guard-state-password").read_text().strip()
+        )
 
         user_line = (tmp_path / "guard-state" / "users.acl").read_text().splitlines()[1]
         assert user_line == (
@@ -641,7 +765,9 @@ class TestGuardState:
 
         assert _mode(tmp_path / "guard-state" / "guard-state-password") == 0o600
         assert _mode(tmp_path / "guard-state" / "users.acl") == 0o600
-        assert _mode(tmp_path / "credentials" / "core" / "guard-state-password") == 0o600
+        assert (
+            _mode(tmp_path / "credentials" / "core" / "guard-state-password") == 0o600
+        )
 
     def test_running_again_keeps_the_password(self, tmp_path, capsys):
         setup.generate(tmp_path)
@@ -651,7 +777,9 @@ class TestGuardState:
         setup.generate(tmp_path)
 
         assert (tmp_path / "guard-state" / "guard-state-password").read_text() == first
-        assert "created the request guard's Redis password" not in capsys.readouterr().out
+        assert (
+            "created the request guard's Redis password" not in capsys.readouterr().out
+        )
 
     def test_an_empty_password_file_gets_a_new_password(self, tmp_path):
         (tmp_path / "guard-state").mkdir()
@@ -659,12 +787,17 @@ class TestGuardState:
 
         setup.generate(tmp_path)
 
-        assert len((tmp_path / "guard-state" / "guard-state-password").read_text().strip()) >= 32
+        assert (
+            len((tmp_path / "guard-state" / "guard-state-password").read_text().strip())
+            >= 32
+        )
 
     def test_each_deployment_gets_its_own_password(self, tmp_path):
         setup.generate(tmp_path / "one")
         setup.generate(tmp_path / "two")
 
-        assert (tmp_path / "one" / "guard-state" / "guard-state-password").read_text() != (
+        assert (
+            tmp_path / "one" / "guard-state" / "guard-state-password"
+        ).read_text() != (
             tmp_path / "two" / "guard-state" / "guard-state-password"
         ).read_text()

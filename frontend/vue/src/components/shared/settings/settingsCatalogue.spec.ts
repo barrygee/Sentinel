@@ -29,6 +29,7 @@ import AprsSdrSourceControl from '@sentinel/section-land/settings/AprsSdrSourceC
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'
+import HttpsControl from './HttpsControl.vue'
 import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
 import LandAprsChannelControl from '@sentinel/section-land/settings/LandAprsChannelControl.vue'
 import LandAprsRetentionControl from '@sentinel/section-land/settings/LandAprsRetentionControl.vue'
@@ -107,6 +108,7 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   ['app', 'offline-maps', { component: OfflineMapsSettings, layout: 'full', naturalHeight: true }],
   ['app', 'config-current', { component: ConfigCurrentControl, emits: ['stage'], layout: 'full' }],
   ['app', 'export-all', { component: ExportAllControl }],
+  ['app', 'https', { component: HttpsControl, layout: 'full', naturalHeight: true }],
   [
     'air',
     'air-source-override',

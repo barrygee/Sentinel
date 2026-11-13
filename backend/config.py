@@ -307,6 +307,10 @@ class Settings(BaseSettings):
     # core probing a hub behind a radio host's gateway, the SDR section fetching
     # IQ captures from it. Empty trusts only the public certificate authorities.
     internal_certificate_authority_file: str = ""
+    # The port the gateway serves the web page over HTTPS on (SENTINEL_HTTPS_PORT
+    # in compose, which publishes it). Core only reports it, so Settings ›
+    # App Settings › HTTPS can link to the page's HTTPS address.
+    web_https_port: int = 8444
     # Where the GATEWAY container finds that CA certificate, so it can proxy to a
     # service registered at an `https://` address. A path inside the gateway's
     # container, not this one's. Empty = public certificate authorities only.

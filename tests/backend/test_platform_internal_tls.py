@@ -79,9 +79,12 @@ async def test_a_name_the_certificate_does_not_cover_is_refused(deployment, monk
     server, port = await _serve_tls(deployment)
     async with server:
         async with httpx.AsyncClient(verify=internal_verify()) as client:
-            # 127.0.0.1 is not among the certificate's names (no IP SAN by default).
+            # Dialled at the server, but checked against a name the certificate
+            # doesn't cover (127.0.0.1 now is: the web page over HTTPS).
             with pytest.raises(httpx.ConnectError):
-                await client.get(f"https://127.0.0.1:{port}/health")
+                await client.get(
+                    f"https://127.0.0.1:{port}/health", extensions={"sni_hostname": "not-covered.example"}
+                )
 
 
 def test_the_public_authorities_stay_trusted_alongside(deployment, monkeypatch):

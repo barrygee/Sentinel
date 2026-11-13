@@ -823,7 +823,7 @@ describe('SettingsPanel', () => {
   // so there is no longer a staged edit for that event to supersede.
 
   describe('group labels', () => {
-    it('groups App Settings under GENERAL, ALERTS, LOCATION, MAP and CONFIGURATION', async () => {
+    it('groups App Settings under GENERAL, ALERTS, LOCATION, MAP, CONFIGURATION and SECURITY', async () => {
       const store = useSettingsStore()
       store.openPanel('app')
       const wrapper = mountPanel()
@@ -834,6 +834,7 @@ describe('SettingsPanel', () => {
         'LOCATION',
         'MAP',
         'CONFIGURATION',
+        'SECURITY',
       ])
     })
 
@@ -1051,13 +1052,14 @@ describe('SettingsPanel', () => {
       )
     })
 
-    it('offers only Sentinel Location and Application Config in SDR Manager-only mode', async () => {
+    it('offers only Sentinel Location, Application Config and HTTPS in SDR Manager-only mode', async () => {
       setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
 
       const wrapper = mountPanel()
       await wrapper.vm.$nextTick()
 
-      expect(appItemIds(wrapper)).toEqual(['location', 'config-current'])
+      // HTTPS too: an SDR Manager-only Pi is opened from other devices.
+      expect(appItemIds(wrapper)).toEqual(['location', 'config-current', 'https'])
     })
 
     it("leaves a mode's hidden settings out of search too", async () => {

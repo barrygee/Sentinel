@@ -26,7 +26,8 @@ The output directory (default `/run/service-credentials`, the
         accepted-callers.json   the tokens it accepts, as SHA-256 hashes (core and the radio hub)
         certificate.pem, private-key.pem   sdr-manager-local's TLS certificate and key (that folder only)
         guard-state-password    the request guard's Redis password (services only)
-    credentials/gateway/    core's TLS service entrypoint: its certificate, key and the CA
+    credentials/gateway/    the gateway's certificate (the TLS service entrypoint and the web page
+                            over HTTPS), its key and the CA
     guard-state/            mounted into `redis`: users.acl, the request guard's one Redis user
     credentials/radio-host-gateway/  a radio host's TLS gateway (only with SENTINEL_RADIO_HOST_HOSTNAMES)
 
@@ -39,7 +40,9 @@ A second host (P7.5) gets a copy of its own `credentials/<caller>/` folders
 (`backend/scripts/service_credentials_bundle.py`). The broker's and the service
 entrypoint's certificates must name the address other hosts dial this one by
 (`SENTINEL_CORE_HOSTNAMES`), and a radio host's gateway certificate the address
-core dials it by (`SENTINEL_RADIO_HOST_HOSTNAMES`). Uses the `openssl` command
+core dials it by (`SENTINEL_RADIO_HOST_HOSTNAMES`). The gateway's certificate
+also serves the web page over HTTPS (:8444), so it names the addresses browsers
+open this machine by too (`SENTINEL_WEB_HOSTNAMES`, plus 127.0.0.1). Uses the `openssl` command
 line tool, which the backend image ships.
 """
 
@@ -66,8 +69,8 @@ SERVER_CERTIFICATE_VALID_DAYS = 825
 RENEW_WHEN_EXPIRING_WITHIN_SECONDS = 30 * 24 * 3600
 BUILT_IN_SERVER_HOSTNAMES = ("nats", "localhost")
 """`nats` is the broker's compose DNS name; `localhost` is for running a client next to it."""
-BUILT_IN_ENTRYPOINT_HOSTNAMES = ("gateway", "localhost")
-"""Core's TLS service entrypoint is a listener on the `gateway` container."""
+BUILT_IN_ENTRYPOINT_HOSTNAMES = ("gateway", "localhost", "127.0.0.1")
+"""The gateway container's names: its TLS service entrypoint, and the web page over HTTPS from this machine."""
 BUILT_IN_RADIO_HOST_GATEWAY_HOSTNAMES = ("radio-host-gateway", "localhost")
 SDR_MANAGER_LOCAL_HOSTNAMES = ("host.docker.internal", "sdr-manager-local", "localhost", "127.0.0.1")
 """The names this machine's own callers verify sdr-manager-local's certificate by: the app and the
@@ -304,8 +307,22 @@ def server_hostnames() -> list[str]:
 
 
 def entrypoint_hostnames() -> list[str]:
-    """The names core's service entrypoint certificate covers: built-in plus `SENTINEL_CORE_HOSTNAMES`."""
-    return list(dict.fromkeys([*BUILT_IN_ENTRYPOINT_HOSTNAMES, *_hostnames_from("SENTINEL_CORE_HOSTNAMES")]))
+    """The names the gateway's certificate covers.
+
+    Built-in, plus `SENTINEL_CORE_HOSTNAMES` (other Sentinel hosts dialling the
+    service entrypoint) and `SENTINEL_WEB_HOSTNAMES` (the addresses browsers
+    open the web page by over HTTPS, e.g. 192.168.5.67). Changing either issues
+    the certificate again on the next `docker compose up`.
+    """
+    return list(
+        dict.fromkeys(
+            [
+                *BUILT_IN_ENTRYPOINT_HOSTNAMES,
+                *_hostnames_from("SENTINEL_CORE_HOSTNAMES"),
+                *_hostnames_from("SENTINEL_WEB_HOSTNAMES"),
+            ]
+        )
+    )
 
 
 def radio_host_gateway_hostnames() -> list[str]:

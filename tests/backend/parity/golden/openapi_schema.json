@@ -157,6 +157,30 @@
         "title": "Body_stop_recording_api_sdr_recordings_stop_post",
         "type": "object"
       },
+      "CertificateAuthority": {
+        "description": "Body of GET /api/app/certificate-authority.",
+        "properties": {
+          "certificate_authority": {
+            "title": "Certificate Authority",
+            "type": "string"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "https_port": {
+            "title": "Https Port",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "certificate_authority",
+          "fingerprint",
+          "https_port"
+        ],
+        "title": "CertificateAuthority",
+        "type": "object"
+      },
       "CertificatePreviewIn": {
         "description": "Body for `POST /api/sdr-manager/remote/hosts/certificate` — a host not added yet.",
         "properties": {
@@ -2629,6 +2653,43 @@
         "summary": "Remove Tracked Aircraft",
         "tags": [
           "air"
+        ]
+      }
+    },
+    "/api/app/certificate-authority": {
+      "get": {
+        "description": "The certificate authority and its fingerprint. 404 when there is none.",
+        "operationId": "get_certificate_authority_api_app_certificate_authority_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CertificateAuthority"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Certificate Authority",
+        "tags": [
+          "app"
+        ]
+      }
+    },
+    "/api/app/certificate-authority.crt": {
+      "get": {
+        "description": "The certificate authority as a file to install. 404 when there is none.",
+        "operationId": "download_certificate_authority_api_app_certificate_authority_crt_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Download Certificate Authority",
+        "tags": [
+          "app"
         ]
       }
     },

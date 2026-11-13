@@ -964,6 +964,22 @@
     ]
   },
   {
+    "path": "/api/app/certificate-authority",
+    "type": "Route",
+    "name": "get_certificate_authority",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
+    "path": "/api/app/certificate-authority.crt",
+    "type": "Route",
+    "name": "download_certificate_authority",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/internal/registry/register",
     "type": "Route",
     "name": "register_service",

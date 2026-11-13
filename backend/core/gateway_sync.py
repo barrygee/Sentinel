@@ -1,8 +1,10 @@
 """Keeps the gateway's routes in step with the service registry (section-containers plan §4.4, §6).
 
-Core owns the routing table; Caddy only holds a copy. A reconcile loop reads
-the registry subroute back from Caddy's admin API and replaces it whenever it
-differs from what the registry says, so the copy heals by itself:
+Core owns the routing table; Caddy only holds a copy, twice: once in the plain
+HTTP web server (:8080) and once in the HTTPS one (:8444), each subroute under
+its own id. A reconcile loop reads each back from Caddy's admin API and
+replaces it whenever it differs from what the registry says, so the copies
+heal by themselves:
 
 - a registration, an id taking over, or a service going unavailable or coming
   back announces `registry.changed`, which wakes the loop at once;
@@ -24,7 +26,7 @@ from typing import Any
 
 import httpx
 from backend.config import settings
-from backend.core.gateway_routes import REGISTRY_ROUTES_ID, caddy_routes, routing_table
+from backend.core.gateway_routes import REGISTRY_ROUTES_ID, REGISTRY_ROUTES_IDS, caddy_routes, routing_table
 from backend.core.service_registry import REGISTRY_CHANGED_SUBJECT, registry
 from backend.platform.bus import EventPayload, bus
 
@@ -35,10 +37,10 @@ logger = logging.getLogger(__name__)
 ADMIN_TIMEOUT_S = 5.0
 
 
-def desired_registry_subroute() -> dict[str, Any]:
-    """The registry subroute exactly as Caddy should hold it right now."""
+def desired_registry_subroute(subroute_id: str = REGISTRY_ROUTES_ID) -> dict[str, Any]:
+    """The registry subroute under `subroute_id` exactly as Caddy should hold it right now."""
     return {
-        "@id": REGISTRY_ROUTES_ID,
+        "@id": subroute_id,
         "handler": "subroute",
         "routes": caddy_routes(routing_table(registry.services(), settings.core_internal_url)),
     }
@@ -55,35 +57,48 @@ class GatewaySync:
         self._last_reconcile_ok: bool | None = None
 
     async def reconcile_once(self, client: httpx.AsyncClient) -> bool:
-        """Bring the gateway's registry subroute in line with the registry.
+        """Bring every one of the gateway's registry subroutes in line with the registry.
 
-        Returns True when the gateway holds the desired routes afterwards
-        (whether or not they had to be pushed), False when it couldn't be
-        reached or refused the config — the next pass tries again.
+        Returns True when the gateway holds the desired routes in all of them
+        afterwards (whether or not they had to be pushed), False when it
+        couldn't be reached or refused the config — the next pass tries again.
+        Each subroute is tried even when another failed, so the plain HTTP page
+        keeps its routes whatever happens to the HTTPS one, and the other way
+        round.
         """
-        desired = desired_registry_subroute()
-        url = f"{settings.gateway_admin_url.rstrip('/')}/id/{REGISTRY_ROUTES_ID}"
-        try:
-            current = await client.get(url, timeout=ADMIN_TIMEOUT_S)
-            current.raise_for_status()
-            # Caddy leaves an empty `routes` array out of what it returns.
-            held = current.json()
-            if held.get("routes") is None:
-                held["routes"] = []
-            if held != desired:
-                # PATCH replaces the object under the id: the whole subroute, so
-                # routes that a service no longer claims are dropped too.
-                pushed = await client.patch(url, json=desired, timeout=ADMIN_TIMEOUT_S)
-                pushed.raise_for_status()
-        except httpx.HTTPError as error:
+        failures: list[str] = []
+        for subroute_id in REGISTRY_ROUTES_IDS:
+            try:
+                await self._reconcile_subroute(client, subroute_id)
+            except httpx.HTTPError as error:
+                failures.append(f"{subroute_id}: {error}")
+        if failures:
             if self._last_reconcile_ok is not False:
-                logger.warning("gateway: could not sync routes via %s: %s", settings.gateway_admin_url, error)
+                logger.warning(
+                    "gateway: could not sync routes via %s: %s", settings.gateway_admin_url, "; ".join(failures)
+                )
             self._last_reconcile_ok = False
             return False
         if self._last_reconcile_ok is not True:
-            logger.info("gateway: routes synced (%d prefixes)", len(desired["routes"]))
+            logger.info("gateway: routes synced (%d prefixes)", len(desired_registry_subroute()["routes"]))
         self._last_reconcile_ok = True
         return True
+
+    async def _reconcile_subroute(self, client: httpx.AsyncClient, subroute_id: str) -> None:
+        """Read one subroute back and replace it if it differs. Raises httpx.HTTPError."""
+        desired = desired_registry_subroute(subroute_id)
+        url = f"{settings.gateway_admin_url.rstrip('/')}/id/{subroute_id}"
+        current = await client.get(url, timeout=ADMIN_TIMEOUT_S)
+        current.raise_for_status()
+        # Caddy leaves an empty `routes` array out of what it returns.
+        held = current.json()
+        if held.get("routes") is None:
+            held["routes"] = []
+        if held != desired:
+            # PATCH replaces the object under the id: the whole subroute, so
+            # routes that a service no longer claims are dropped too.
+            pushed = await client.patch(url, json=desired, timeout=ADMIN_TIMEOUT_S)
+            pushed.raise_for_status()
 
     async def _on_registry_changed(self, _payload: EventPayload) -> None:
         # Runs inside the publisher's await (a registration request), so it only
