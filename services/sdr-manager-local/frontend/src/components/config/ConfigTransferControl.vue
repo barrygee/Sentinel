@@ -6,6 +6,7 @@
         up, or to set up another SDR Manager the same way. The hotspot and console passwords are
         never written to it.
       </p>
+      <ConfigInlineEditor @stage="(apply) => emit('stage', apply)" />
       <div class="sdr-devices-form-actions config-transfer-export">
         <BaseButton
           type="button"
@@ -29,8 +30,9 @@
 
 <script setup lang="ts">
 /**
- * `ConfigTransferControl` — the CONFIGURATION card: download this machine's
- * SDR Manager configuration as a JSON file, or import one.
+ * `ConfigTransferControl` — the CONFIGURATION card: this machine's SDR
+ * Manager configuration, edited in place (`ConfigInlineEditor`, staged for
+ * APPLY CHANGES), downloaded as a JSON file, or imported from one.
  *
  * The download is fetched and saved by the page rather than linked, so a
  * signed-out browser gets an error here instead of a bare 401 page.
@@ -44,11 +46,14 @@ import { useLocalSdrStore } from '../../stores/localSdrStore'
 import { configErrorMessage } from '../../utils/errorMessages'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import ConfigImportForm from './ConfigImportForm.vue'
+import ConfigInlineEditor from './ConfigInlineEditor.vue'
 import ConfigImportReport from './ConfigImportReport.vue'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 
 /** The name the API gives the same file at `/config/download`. */
 const EXPORT_FILE_NAME = 'sdr-manager-local-config.json'
+
+const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 
 const devices = useLocalSdrStore()
 const auth = useLocalAuthStore()

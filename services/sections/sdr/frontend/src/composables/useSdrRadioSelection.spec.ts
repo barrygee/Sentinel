@@ -207,6 +207,27 @@ describe('useSdrRadioSelection — radios reserved by a domain', () => {
     expect(harness.options.controlsDisabled.value).toBe(true)
   })
 
+  it('does not auto-select a remembered radio whose device is unavailable', () => {
+    sessionStorage.setItem('sdrLastRadioId', '1')
+    const harness = createHarness()
+
+    harness.selection.populateRadios([makeRadio({ id: 1, device_available: false })])
+
+    expect(harness.options.selectedRadioId.value).toBeNull()
+    expect(harness.openControlSocket).not.toHaveBeenCalled()
+  })
+
+  it('does not treat an unavailable radio as the "sole enabled" one, but picks the one that is up', () => {
+    const harness = createHarness()
+
+    harness.selection.populateRadios([
+      makeRadio({ id: 1, device_available: false }),
+      makeRadio({ id: 2, device_available: true }),
+    ])
+
+    expect(harness.options.selectedRadioId.value).toBe(2)
+  })
+
   it('does not auto-select the remembered radio once it is reserved', () => {
     sessionStorage.setItem('sdrLastRadioId', '1')
     const harness = createHarness()

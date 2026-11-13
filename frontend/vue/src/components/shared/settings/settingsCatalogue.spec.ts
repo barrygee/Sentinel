@@ -138,7 +138,13 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   [
     'app',
     'sdr-manager-local-configuration',
-    { component: ConfigTransferControl, layout: 'half', naturalHeight: true, collapsible: {} },
+    {
+      component: ConfigTransferControl,
+      emits: ['stage'],
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: {},
+    },
   ],
   [
     'app',

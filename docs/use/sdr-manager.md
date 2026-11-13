@@ -48,13 +48,13 @@ The dot at the start of each row shows the dongle's state; point at it to read t
 
 ### Device settings
 
-| Setting                | What it does                                                                                                                          |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **NAME**               | How it is shown here and in every Sentinel that uses it                                                                               |
-| **OUTPUT PORT**        | Where it streams (`rtl_tcp`), such as `1234`; its control port is two above                                                           |
-| **ANTENNA**, **NOTES** | Kept with the dongle                                                                                                                  |
+| Setting                | What it does                                                                                                                                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **NAME**               | How it is shown here and in every Sentinel that uses it                                                                                                                                                           |
+| **OUTPUT PORT**        | Where it streams (`rtl_tcp`), such as `1234`; its control port is two above                                                                                                                                       |
+| **ANTENNA**, **NOTES** | Kept with the dongle                                                                                                                                                                                              |
 | **VISIBILITY**         | **PUBLIC**: can be added as a radio, here and in other Sentinels. **PRIVATE** (the default): this machine and the Sentinels in [Private Access](#private-access) only. Connections from anywhere else are refused |
-| The switch             | Stream on or off                                                                                                                      |
+| The switch             | Stream on or off                                                                                                                                                                                                  |
 
 A dongle you unplug stays listed as **NOT PLUGGED IN**, with its settings, until you plug it back in or **Forget** it (the cross).
 
@@ -62,11 +62,11 @@ A dongle you unplug stays listed as **NOT PLUGGED IN**, with its settings, until
 
 They are in **Settings › App Settings › THIS MACHINE**. They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
 
-| Card                 | For                                                                                                                                 |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Console Password** | Set or change it (8 characters or more); **SIGN OUT**. Changing it signs out every other browser                                    |
-| **Configuration**    | **DOWNLOAD CONFIGURATION** saves names, ports, tuning and hotspot; **IMPORT** a file to apply them. Passwords are never in the file |
-| **Hotspot**          | **ALLOW CHANGES**, then a network name, password, band and channel; **START**, then confirm it within 2 minutes or it is undone     |
+| Card                 | For                                                                                                                                                                                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Console Password** | Set or change it (8 characters or more); **SIGN OUT**. Changing it signs out every other browser                                                                                                                                                                              |
+| **Configuration**    | **EDIT** the configuration as JSON in place (**FORMAT** tidies it; **APPLY CHANGES** applies it, and the hotspot only if you changed it); **DOWNLOAD CONFIGURATION** saves names, ports, tuning and hotspot; **IMPORT** a file to apply them. Passwords are never in the file |
+| **Hotspot**          | **ALLOW CHANGES**, then a network name, password, band and channel; **START**, then confirm it within 2 minutes or it is undone                                                                                                                                               |
 
 This machine's position is **Settings › App Settings › Sentinel Location**. Set it, or other Sentinels can't show where your dongles are (**SET LOCATION** in the notice takes you there).
 
@@ -103,9 +103,9 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 2. Compare the **FINGERPRINT** shown with the host's own ([Certificates](#certificates)), then **TRUST AND ADD**.
 3. The host is listed under **SENTINEL HOSTS** with its address and how many SDRs it has, and its dongles below it.
 
-| **ADD SDRS**               | What it does                                                                                                                              |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| **MANUALLY** (the default) | Each dongle becomes a radio when you press **ADD**                                                                                        |
+| **ADD SDRS**               | What it does                                                                                                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MANUALLY** (the default) | Each dongle becomes a radio when you press **ADD**                                                                                                                                                                           |
 | **AUTOMATICALLY**          | Every public dongle on the host becomes a radio within a few seconds, and stops being one when made private. Private dongles stay radios on **This machine** and on a Sentinel its host allows. Radios can't be removed here |
 
 - The pencil opens a host: its details, devices and site map, **TEST CONNECTION**, and edits (they wait for **APPLY CHANGES**). The cross removes it.
@@ -129,12 +129,12 @@ If the two match, trust it. If not, don't: something else is answering at that a
 
 An open host says how its connection is secured:
 
-| State                   | Meaning                                                                                        |
-| ----------------------- | ---------------------------------------------------------------------------------------------- |
-| **ENCRYPTED**           | HTTPS, checked against the certificate you trusted                                            |
-| **NOT ENCRYPTED**       | Plain HTTP. The host doesn't offer HTTPS, or was added before Sentinel did                    |
-| **NOT TRUSTED YET**     | Its address changed. Nothing is sent to it until you trust its certificate again              |
-| **CERTIFICATE CHANGED** | It presented a different certificate, so nothing is sent to it                                 |
+| State                   | Meaning                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------- |
+| **ENCRYPTED**           | HTTPS, checked against the certificate you trusted                               |
+| **NOT ENCRYPTED**       | Plain HTTP. The host doesn't offer HTTPS, or was added before Sentinel did       |
+| **NOT TRUSTED YET**     | Its address changed. Nothing is sent to it until you trust its certificate again |
+| **CERTIFICATE CHANGED** | It presented a different certificate, so nothing is sent to it                   |
 
 **CHECK CERTIFICATE** reads the host's certificate now, to trust it. Use it to move a **NOT ENCRYPTED** host to HTTPS once it offers it: an SDR host updated to serve HTTPS is unreachable over plain HTTP until you do.
 
@@ -151,6 +151,7 @@ A host that doesn't offer HTTPS can be added with **ADD WITHOUT ENCRYPTION**. Do
 
 - **No dongles under This machine, and no THIS MACHINE:** SDR Manager for this computer isn't running. Linux: `docker compose ps sdr-manager-local`. Mac: `uv run --project backend sdr-manager-local status`.
 - **This machine "not running":** the same; it comes back within 10 seconds of starting.
+- **A host's dongle was deleted there** (its cross on that host): its radio goes from every Sentinel that manages the host within a poll. An unplugged dongle keeps its radio, shown unavailable.
 - **CERTIFICATE CHANGED:** the host's credentials were made again (for example, its Docker volumes were removed), or another machine has its address. Compare fingerprints ([Certificates](#certificates)), then **CHECK CERTIFICATE** and trust it.
 - **"doesn't offer HTTPS":** the host runs an SDR Manager from before HTTPS. Update it, or add it without encryption.
 - **A NOT ENCRYPTED host became unreachable after it was updated:** it now serves HTTPS. **CHECK CERTIFICATE** and trust it.

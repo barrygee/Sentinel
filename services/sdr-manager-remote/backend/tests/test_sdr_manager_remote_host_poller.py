@@ -679,12 +679,11 @@ async def test_a_poll_leaves_an_already_correct_radio_alone(session_factory, mon
     assert (await _reload_radio(session_factory, radio_id))["port"] == 4343
 
 
-async def test_a_poll_never_deletes_a_radio_whose_device_vanished(session_factory, monkeypatch):
-    """A dongle is unplugged for all sorts of temporary reasons.
+async def test_a_poll_removes_the_radio_of_a_device_its_host_deleted(session_factory, monkeypatch):
+    """A device the host no longer lists was deleted there: its radio goes, as on every linked Sentinel.
 
-    Destroying the operator's configuration — its name, its groups, its
-    recordings — because a USB plug was loose would be far worse than showing it
-    as unavailable, which `GET /api/sdr/radios` does instead.
+    (An unplugged dongle is still listed, not present, so it keeps its radio —
+    see the radio sync tests.)
     """
     host_id = await _create_host(session_factory)
     radio_id = await _create_radio(session_factory, device_id="serial:GONE", port=2345, host_id=host_id)
@@ -696,9 +695,7 @@ async def test_a_poll_never_deletes_a_radio_whose_device_vanished(session_factor
 
     await poller_module.HostPoller()._poll_once(host_id)
 
-    radio = await _reload_radio(session_factory, radio_id)
-    assert radio is not None
-    assert radio["port"] == 2345
+    assert await _reload_radio(session_factory, radio_id) is None
 
 
 async def test_a_poll_does_not_touch_another_hosts_radios(session_factory, monkeypatch):

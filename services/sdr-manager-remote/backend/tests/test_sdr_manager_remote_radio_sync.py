@@ -318,14 +318,63 @@ class TestFollowingAndRenaming:
 class TestNothingToDo:
     @pytest.mark.parametrize(
         "payload",
-        [None, {}, {"sdrs": []}, {"sdrs": ["junk", {"name": "no id"}, {"device_id": 5}]}],
+        [None, {}, {"sdrs": None}, {"sdrs": "junk"}],
     )
-    async def test_a_poll_with_no_usable_sdrs_reads_and_writes_nothing(self, settings_store, payload) -> None:
-        store = settings_store([])
+    async def test_a_reply_without_a_device_list_reads_and_writes_nothing(self, settings_store, payload) -> None:
+        """No list (an older or broken host) is not "no devices": nothing may be deleted on it."""
+        store = settings_store([mirror()])
 
         await poller_module.HostPoller()._sync_device_radios(HOST_ID, HOST_ADDRESS, payload, auto_add_sdrs=True)
 
         assert store.reads == 0
+        assert store.writes == 0
+
+    @pytest.mark.parametrize("sdrs", [[], ["junk", {"name": "no id"}, {"device_id": 5}]])
+    async def test_a_list_with_no_usable_sdrs_writes_nothing_when_the_host_has_no_radios(
+        self, settings_store, sdrs
+    ) -> None:
+        store = settings_store([mirror(sdr_manager_host_id=HOST_ID + 1)])
+
+        await poller_module.HostPoller()._sync_device_radios(HOST_ID, HOST_ADDRESS, {"sdrs": sdrs}, auto_add_sdrs=False)
+
+        assert store.writes == 0
+
+
+class TestDeletedOnTheHost:
+    """A device its host no longer lists was deleted there (its Forget), so its radio goes."""
+
+    async def test_the_radio_of_a_device_no_longer_listed_is_removed(self, settings_store) -> None:
+        store = settings_store([mirror(), mirror(id=4, sdr_manager_device_id="serial:KEPT", port=1238)])
+
+        await sync(device(device_id="serial:KEPT", output={"iq_port": 1238, "control_port": 1240}), auto_add_sdrs=False)
+
+        assert [radio["id"] for radio in store.radios] == [4]
+        assert store.writes == 1
+
+    async def test_the_last_device_deleted_takes_the_last_radio(self, settings_store) -> None:
+        store = settings_store([mirror()])
+
+        await sync(auto_add_sdrs=False)
+
+        assert store.radios == []
+
+    async def test_an_unplugged_dongle_keeps_its_radio(self, settings_store) -> None:
+        """Still listed, not present: a loose plug must never cost the operator its radio."""
+        store = settings_store([mirror()])
+
+        await sync(device(present=False), auto_add_sdrs=False)
+
+        assert [radio["id"] for radio in store.radios] == [3]
+        assert store.writes == 0
+
+    async def test_another_hosts_radios_and_radios_added_by_ip_are_left_alone(self, settings_store) -> None:
+        other_host = mirror(id=5, sdr_manager_host_id=HOST_ID + 1)
+        by_ip = {"id": 6, "name": "Shed", "host": HOST_ADDRESS, "port": 1300, "sdr_manager_host_id": None}
+        store = settings_store([other_host, by_ip])
+
+        await sync(auto_add_sdrs=False)
+
+        assert store.radios == [other_host, by_ip]
         assert store.writes == 0
 
     async def test_a_radios_setting_that_is_not_a_list_is_left_alone(self, settings_store) -> None:

@@ -430,3 +430,67 @@ describe('SdrDeviceSelector — where each radio is', () => {
     expect(await openedDetails()).toEqual(['RPi', 'host.docker.internal', '10.0.0.9'])
   })
 })
+
+describe('SdrDeviceSelector — radios whose device is unavailable', () => {
+  const UNPLUGGED = makeRadio({
+    id: 4,
+    name: 'RTL-SDR V4',
+    device_available: false,
+    unavailable_reason: 'The dongle is unplugged.',
+  })
+
+  async function openWith(radios: SdrRadio[]) {
+    const wrapper = mountSelector({ radios, selectedRadioId: null })
+    vi.spyOn(useSdrStore(), 'loadRadios').mockResolvedValue()
+    await wrapper.find('.base-select-menu').trigger('click')
+    await flushPromises()
+    return wrapper
+  }
+
+  it('lists them greyed, with the reason in place of where they are', async () => {
+    await openWith([makeRadio(), UNPLUGGED])
+    const [, rooftop, unplugged] = menuItems()
+    expect(unplugged!.classList).toContain('base-select-menu-option--unavailable')
+    expect(unplugged!.getAttribute('aria-disabled')).toBe('true')
+    expect(unplugged!.querySelector('.base-select-menu-option-detail')!.textContent).toBe(
+      'The dongle is unplugged.',
+    )
+    expect(rooftop!.getAttribute('aria-disabled')).toBe('false')
+  })
+
+  it('says it is unavailable even when the hub gives no reason', async () => {
+    await openWith([makeRadio({ id: 5, device_available: false, unavailable_reason: '' })])
+    expect(menuItems()[1]!.querySelector('.base-select-menu-option-detail')!.textContent).toBe(
+      'Not available right now.',
+    )
+  })
+
+  it('leaves the menu open on a click: there is nothing to connect to', async () => {
+    const wrapper = await openWith([UNPLUGGED])
+    menuItems()[1]!.click()
+    await flushPromises()
+    expect(wrapper.emitted('select')).toBeUndefined()
+    expect(wrapper.find('.base-select-menu').attributes('aria-expanded')).toBe('true')
+  })
+
+  it('reads availability afresh each time the menu opens, and redraws the rows', async () => {
+    const wrapper = mountSelector({
+      radios: [makeRadio({ id: 6, name: 'Attic' })],
+      selectedRadioId: null,
+    })
+    const store = useSdrStore()
+    const load = vi.spyOn(store, 'loadRadios').mockImplementation(async () => {
+      store.radios = [
+        makeRadio({ id: 6, name: 'Attic', device_available: false, unavailable_reason: 'Gone.' }),
+      ]
+    })
+
+    await wrapper.find('.base-select-menu').trigger('click')
+    await flushPromises()
+
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(menuItems()[1]!.querySelector('.base-select-menu-option-detail')!.textContent).toBe(
+      'Gone.',
+    )
+  })
+})

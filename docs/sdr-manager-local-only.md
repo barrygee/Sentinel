@@ -4,7 +4,7 @@ A lightweight Sentinel that only manages the dongles plugged into this computer 
 
 ## Features
 
-- **One page:** Settings › SDR Manager, with this computer's SDRs, and App Settings trimmed to **Sentinel Location**, **Application Config**, **HTTPS** and **THIS MACHINE** (console password, certificate, private access, configuration, hotspot).
+- **One page:** Settings › SDR Manager, with this computer's SDRs, and App Settings trimmed to **Sentinel Location**, **HTTPS** and **THIS MACHINE** (console password, certificate, private access, configuration, hotspot). Its settings file is **THIS MACHINE › Configuration**, edited in place the way the full app's Application Config is.
 - **Light:** four containers (credentials, core, gateway, SDR Manager). Map code and tiles are never downloaded.
 - **Same settings:** switching to or from the full app keeps your settings and data.
 - **Managed from your main Sentinel** as a Sentinel host.

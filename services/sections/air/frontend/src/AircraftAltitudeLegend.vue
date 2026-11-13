@@ -100,7 +100,11 @@ function tickLabel(tickFeet: number): string {
   );
   box-sizing: border-box;
   margin: 0;
-  padding: 0 16px;
+  /* 2px on top: optical centring. This box's top is the footer's 1px top
+     border, and the tick labels leave their descender space empty below the
+     digits, so centring the box's content put the visible bar-and-labels about
+     1px above the middle of the bar the operator sees. */
+  padding: 2px 16px 0;
   transform: translateX(-50%);
   font-family: var(--font-primary);
   color: var(--rail-ink);

@@ -76,6 +76,13 @@ describe('ConfigTransferControl', () => {
     expect(card.get('.sdr-devices-note').text()).toContain('Save this machine’s device names')
   })
 
+  it('passes its inline editor’s staged change on for APPLY CHANGES', async () => {
+    const wrapper = mountControl()
+    const apply = async () => undefined
+    wrapper.findComponent({ name: 'ConfigInlineEditor' }).vm.$emit('stage', apply)
+    expect(wrapper.emitted('stage')).toEqual([[apply]])
+  })
+
   describe('export', () => {
     it('saves the exported configuration as a pretty-printed JSON file', async () => {
       vi.mocked(api.getConfig).mockResolvedValue({ version: 1, devices: [] })
