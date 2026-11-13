@@ -109,13 +109,14 @@
  * a short note on a machine that can't host one at all (no NetworkManager,
  * as on a Mac).
  */
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BaseToggleSwitch from '@sentinel/ui/base/BaseToggleSwitch.vue'
 import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 import { useLocalHotspot } from '../../composables/useLocalHotspot'
 import { useLocalSdrEvents } from '../../composables/useLocalSdrEvents'
+import { useLocalAuthStore } from '../../stores/localAuthStore'
 import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import HotspotClientsTable from './HotspotClientsTable.vue'
 import HotspotRollbackBanner from './HotspotRollbackBanner.vue'
@@ -138,7 +139,19 @@ const confirmingForget = ref(false)
 
 useLocalSdrEvents({ onHotspotRollback: (message) => void hotspot.onRollback(message) })
 
-onMounted(() => void hotspot.refresh())
+const auth = useLocalAuthStore()
+
+// Read again once this browser may (signing in, on this card or another): a
+// read made before the sign-in state arrived is refused (401, "Sign in to
+// continue."), and its error would otherwise stay after signing in. The gate
+// below sits inside this card, so the card itself never remounts to retry.
+watch(
+  () => auth.mustSignIn,
+  (mustSignIn) => {
+    if (!mustSignIn) void hotspot.refresh()
+  },
+  { immediate: true },
+)
 
 async function forget(): Promise<void> {
   confirmingForget.value = false

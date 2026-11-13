@@ -5,6 +5,7 @@ import { SdrManagerApiError } from '@sentinel/shell-api/services/sdrManagerReque
 import * as api from '../../api/sdrManagerLocalApi'
 import type { LocalHotspotState } from '../../api/types'
 import { useLocalSdrStore } from '../../stores/localSdrStore'
+import { useLocalAuthStore } from '../../stores/localAuthStore'
 import { expectNoAxeViolations } from '../../testing/componentTestUtils'
 import { FakeEventSource, makeAuthState, makeHotspotState } from '../../testing/factories'
 import HotspotClientsTable from './HotspotClientsTable.vue'
@@ -49,6 +50,30 @@ describe('HotspotControl', () => {
     const wrapper = mount(HotspotControl)
     mounted.push(wrapper)
     expect(wrapper.get('.sdr-devices-empty').text()).toBe('Reading the hotspot…')
+  })
+
+  it('reads the hotspot again after signing in, clearing a refusal from before', async () => {
+    // The first read races the sign-in state and is refused; then the store
+    // learns a password is set (gate shows), and the operator signs in.
+    vi.mocked(api.getHotspot).mockRejectedValueOnce(
+      new SdrManagerApiError(401, 'unauthenticated', 'Sign in to continue.'),
+    )
+    vi.mocked(api.getAuthState).mockResolvedValue(
+      makeAuthState({ password_set: true, authenticated: false }),
+    )
+    const wrapper = mount(HotspotControl)
+    mounted.push(wrapper)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Sign in under DEVICES above')
+
+    vi.mocked(api.getHotspot).mockResolvedValue(makeHotspotState({ control_enabled: false }))
+    const auth = useLocalAuthStore()
+    auth.authenticated = true
+    await flushPromises()
+
+    expect(api.getHotspot).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).not.toContain('Sign in to continue.')
+    expect(wrapper.text()).toContain('ALLOW CHANGES')
   })
 
   it('shows the failure, not "Reading", when the hotspot cannot be read', async () => {

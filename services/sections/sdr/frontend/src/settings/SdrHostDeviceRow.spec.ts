@@ -26,6 +26,30 @@ function buildDevice(overrides: Partial<SdrManagerDeviceStatus> = {}): SdrManage
 describe('SdrHostDeviceRow', () => {
   const OUTPUT = { iq_port: 1234, control_port: 1236, host: '10.0.0.1' }
 
+  it.each([false, true])(
+    "offers no ADD for the ADS-B decoder's SDR, saying so instead (autoAdd %s)",
+    (autoAdd) => {
+      const wrapper = mount(SdrHostDeviceRow, {
+        props: {
+          device: buildDevice({ output: OUTPUT }),
+          adding: false,
+          adsbSource: true,
+          autoAdd,
+        },
+      })
+      expect(wrapper.find('button').exists()).toBe(false)
+      expect(wrapper.text()).toContain('ADS-B DECODER')
+    },
+  )
+
+  it('keeps ADD for an SDR the ADS-B decoder does not use', () => {
+    const wrapper = mount(SdrHostDeviceRow, {
+      props: { device: buildDevice({ output: OUTPUT }), adding: false, adsbSource: false },
+    })
+    expect(wrapper.get('button').text()).toBe('ADD')
+    expect(wrapper.text()).not.toContain('ADS-B DECODER')
+  })
+
   it.each([
     [false, true],
     [true, false],

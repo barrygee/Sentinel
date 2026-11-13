@@ -326,22 +326,21 @@ watch(
   --ba-grid-section-padding-top: 0px;
   --ba-grid-section-padding-bottom: 0px;
   --ba-grid-section-gap: 16px;
-  --ba-grid-row-gap: 20px;
+  --ba-grid-row-gap: 12px;
   --ba-grid-column-gap: 24px;
   --ba-cell-gap: 7px;
-  /* Section titles take the shared heading size; field labels take
-     the form captions' size. Both sit darker than those panel greys (0.35 /
-     0.5): at this size they are the only carrier of the field's meaning, so
-     they hold AA contrast rather than the decorative weight larger headings
-     can afford. */
+  /* Section titles match the card's other sub-headings (the certificate
+     check's): heading size and weight, tight tracking, full ink. Field labels
+     are BaseFormField's settings caption exactly (size, weight, 0.16em, 60%
+     ink: 4.7:1, AA at that size), so a fact's caption and a field's match. */
   --ba-grid-title-font-size: var(--settings-text-title);
   --ba-grid-title-font-weight: 600;
-  --ba-grid-title-letter-spacing: 0.14em;
-  --ba-grid-title-color: rgba(16, 19, 29, 0.75);
+  --ba-grid-title-letter-spacing: 0.08em;
+  --ba-grid-title-color: var(--ink);
   --ba-cell-label-font-size: var(--settings-text-caption);
   --ba-cell-label-font-weight: 600;
-  --ba-cell-label-letter-spacing: 0.14em;
-  --ba-cell-label-color: var(--ink-secondary);
+  --ba-cell-label-letter-spacing: 0.16em;
+  --ba-cell-label-color: rgba(var(--ink-rgb), 0.6);
   --ba-cell-value-font-size: var(--settings-text-value);
   --ba-cell-value-font-weight: 400;
   --ba-cell-value-letter-spacing: 0.02em;
@@ -351,12 +350,34 @@ watch(
   --ba-cell-value-word-break: break-word;
   display: flex;
   flex-direction: column;
-  gap: 40px;
-  padding: 14px 0 20px;
+  gap: 28px;
+  padding: 8px 0 16px;
+}
+
+/* One fact per row, laid out like the edit form's fields above: the caption in
+   BaseFormField's label column (--ba-form-field-label-width, 110px, then 14px),
+   the value where the inputs start. Every grid, whatever its column count,
+   becomes that one list, so the details read as more rows of the same form. */
+.remote-host-details-body :deep(.ba-data-grid) {
+  grid-template-columns: 1fr;
+}
+.remote-host-details-body :deep(.ba-data-cell) {
+  display: grid;
+  grid-template-columns: var(--ba-form-field-label-width, 110px) minmax(0, 1fr);
+  column-gap: 14px;
+  align-items: baseline;
+}
+.remote-host-details-body :deep(.ba-data-cell-label) {
+  line-height: 1.5;
+}
+/* A wide cell spans two tracks, which in a one-column grid would add a
+   second column back; here it takes the one column like every other row. */
+.remote-host-details-body :deep(.ba-data-cell--wide) {
+  grid-column: 1 / -1;
 }
 
 /* The site map belongs to the LOCATION section, so it sits closer to those
-   cells than the 40px that separates one section from the next. */
+   cells than the 28px that separates one section from the next. */
 .remote-host-details-location {
   display: flex;
   flex-direction: column;

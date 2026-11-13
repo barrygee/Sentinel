@@ -323,6 +323,11 @@ async function addHost(): Promise<void> {
 </script>
 
 <style scoped>
+.remote-host-auto-add-note {
+  /* ADD SDRS's hint, under its control as a field's hint sits under its input
+     (BaseFormField: the label column, 110px, then 14px). */
+  padding-left: calc(var(--ba-form-field-label-width, 110px) + 14px);
+}
 .remote-host-probe {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
   font-size: var(--settings-text-body);

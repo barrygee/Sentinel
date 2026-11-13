@@ -8,16 +8,32 @@
       density="settings"
       layout="inline"
     >
-      <input
-        :id="controlId"
-        ref="fileInput"
-        type="file"
-        accept="application/json,.json"
-        class="config-import-file"
-        :aria-describedby="describedBy"
-        :aria-invalid="invalid"
-        @change="pickFile"
-      />
+      <div class="config-import-file-row">
+        <!-- The native picker's button can't be styled, so it stays hidden and
+             CHOOSE FILE (the page's own ghost button) opens it. -->
+        <input
+          :id="controlId"
+          ref="fileInput"
+          type="file"
+          accept="application/json,.json"
+          class="config-import-file"
+          hidden
+          @change="pickFile"
+        />
+        <BaseButton
+          type="button"
+          variant="ghost"
+          class="sdr-devices-btn"
+          :aria-describedby="[FILE_NAME_ID, describedBy].filter(Boolean).join(' ')"
+          :aria-invalid="invalid"
+          @click="fileInput?.click()"
+        >
+          CHOOSE FILE
+        </BaseButton>
+        <span :id="FILE_NAME_ID" class="config-import-file-name">{{
+          chosenFileName ?? 'No file chosen'
+        }}</span>
+      </div>
     </BaseFormField>
     <template v-if="staged">
       <p class="config-import-summary">
@@ -71,10 +87,13 @@ defineProps<{ busy: boolean }>()
 const emit = defineEmits<{ import: [body: LocalConfigImportRequest] }>()
 
 const FILE_FIELD_ID = 'sdr-manager-local-config-file'
+const FILE_NAME_ID = 'sdr-manager-local-config-file-name'
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const staged = ref<{ fileName: string; config: LocalConfigFile } | null>(null)
 const fileError = ref<string | null>(null)
+/** The picked file's name, shown beside CHOOSE FILE (the hidden input can't show it). */
+const chosenFileName = ref<string | null>(null)
 const applyDevices = ref(true)
 const applyHotspot = ref(false)
 
@@ -85,6 +104,7 @@ async function pickFile(event: Event): Promise<void> {
   const file = (event.target as HTMLInputElement).files?.[0]
   staged.value = null
   fileError.value = null
+  chosenFileName.value = file?.name ?? null
   if (!file) return
   let parsed: unknown
   try {
@@ -105,6 +125,7 @@ async function pickFile(event: Event): Promise<void> {
 function clear(): void {
   staged.value = null
   fileError.value = null
+  chosenFileName.value = null
   if (fileInput.value) fileInput.value.value = ''
 }
 
@@ -137,13 +158,17 @@ defineExpose({ clear })
   flex-direction: column;
   gap: 8px;
 }
-.config-import-file {
-  /* Its natural width, not stretched across the field column. */
-  justify-self: start;
-  min-height: 24px;
+.config-import-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.config-import-file-name {
   font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
-  font-size: var(--settings-text-small);
-  color: var(--ink);
+  font-size: var(--settings-text-value);
+  color: var(--ink-secondary);
+  overflow-wrap: anywhere;
 }
 .config-import-summary {
   margin: 0;

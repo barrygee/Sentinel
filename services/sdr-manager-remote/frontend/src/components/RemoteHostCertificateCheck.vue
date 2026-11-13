@@ -18,7 +18,7 @@
         <div>
           <dt>FINGERPRINT (SHA-256)</dt>
           <dd>
-            <code class="remote-host-certificate-fingerprint">{{ fingerprintLines }}</code>
+            <code class="remote-host-certificate-fingerprint">{{ fingerprintText }}</code>
           </dd>
         </div>
         <div v-if="preview.subject">
@@ -86,9 +86,7 @@
 import { computed, nextTick, onMounted, ref, useId } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { SdrManagerCertificatePreview } from '../api/sdrManagerRemoteApi'
-
-/** Fingerprint byte pairs shown per line, so 32 pairs read as two even rows. */
-const PAIRS_PER_LINE = 16
+import { fingerprintLines } from '../fingerprintLines'
 
 const props = withDefaults(
   defineProps<{
@@ -114,14 +112,7 @@ const confirmable = computed(() => props.preview.tls_available || props.allowPla
 const confirmLabel = computed(() =>
   props.preview.tls_available ? props.trustLabel : 'ADD WITHOUT ENCRYPTION',
 )
-const fingerprintLines = computed(() => {
-  const pairs = (props.preview.fingerprint ?? '').split(':')
-  const lines: string[] = []
-  for (let index = 0; index < pairs.length; index += PAIRS_PER_LINE) {
-    lines.push(pairs.slice(index, index + PAIRS_PER_LINE).join(':'))
-  }
-  return lines.join('\n')
-})
+const fingerprintText = computed(() => fingerprintLines(props.preview.fingerprint))
 
 onMounted(() => nextTick(() => headingRef.value?.focus()))
 </script>

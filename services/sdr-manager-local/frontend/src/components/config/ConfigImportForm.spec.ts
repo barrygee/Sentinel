@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { expectNoAxeViolations } from '../../testing/componentTestUtils'
 import ConfigImportForm from './ConfigImportForm.vue'
@@ -38,7 +38,38 @@ describe('ConfigImportForm', () => {
     expect(wrapper.get('label').text()).toBe('FILE')
     expect(wrapper.get(FILE_SELECTOR).attributes('accept')).toBe('application/json,.json')
     expect(wrapper.find('.config-import-summary').exists()).toBe(false)
-    expect(wrapper.find('button').exists()).toBe(false)
+    // Only CHOOSE FILE: no CLEAR or IMPORT until a file is staged.
+    expect(wrapper.findAll('button').map((button) => button.text())).toEqual(['CHOOSE FILE'])
+    expect(wrapper.get('.config-import-file-name').text()).toBe('No file chosen')
+  })
+
+  it('opens the hidden native picker from CHOOSE FILE, styled like the other buttons', async () => {
+    const wrapper = mountForm()
+    const input = wrapper.get(FILE_SELECTOR).element as HTMLInputElement
+    const opened = vi.spyOn(input, 'click').mockImplementation(() => undefined)
+
+    const choose = wrapper.get('button')
+    expect(choose.classes()).toContain('sdr-devices-btn')
+    expect(input.hidden).toBe(true)
+    await choose.trigger('click')
+
+    expect(opened).toHaveBeenCalledTimes(1)
+  })
+
+  it('names the chosen file beside the button, and forgets it on CLEAR', async () => {
+    const wrapper = mountForm()
+    await pickFile(wrapper, JSON.stringify({ version: 1, devices: [{}] }), 'roof-pi.json')
+    expect(wrapper.get('.config-import-file-name').text()).toBe('roof-pi.json')
+    expect(wrapper.get('button').attributes('aria-describedby')).toContain(
+      'sdr-manager-local-config-file-name',
+    )
+
+    await wrapper
+      .findAll('button')
+      .find((button) => button.text() === 'CLEAR')!
+      .trigger('click')
+
+    expect(wrapper.get('.config-import-file-name').text()).toBe('No file chosen')
   })
 
   it('summarises a file with devices and hotspot settings', async () => {
@@ -125,9 +156,11 @@ describe('ConfigImportForm', () => {
     expect(wrapper.get('#sdr-manager-local-config-file-error').text()).toBe(
       'broken.json is not valid JSON.',
     )
-    const input = wrapper.get(FILE_SELECTOR)
-    expect(input.attributes('aria-invalid')).toBe('true')
-    expect(input.attributes('aria-describedby')).toBe('sdr-manager-local-config-file-error')
+    const choose = wrapper.get('button')
+    expect(choose.attributes('aria-invalid')).toBe('true')
+    expect(choose.attributes('aria-describedby')).toBe(
+      'sdr-manager-local-config-file-name sdr-manager-local-config-file-error',
+    )
     expect(wrapper.find('.config-import-summary').exists()).toBe(false)
   })
 
@@ -146,18 +179,20 @@ describe('ConfigImportForm', () => {
   })
 
   it('leaves the field unflagged when there is no error', () => {
-    const input = mountForm().get(FILE_SELECTOR)
-    expect(input.attributes('aria-invalid')).toBe('false')
-    expect(input.attributes('aria-describedby')).toBeUndefined()
+    // CHOOSE FILE carries the field's state: the hidden input is never focused.
+    const choose = mountForm().get('button')
+    expect(choose.attributes('aria-invalid')).toBe('false')
+    expect(choose.attributes('aria-describedby')).toBe('sdr-manager-local-config-file-name')
   })
 
   it('flags the file field and describes it with the error while there is one', async () => {
     const wrapper = mountForm()
     await pickFile(wrapper, 'bad', 'odd.json')
-    const input = wrapper.get(FILE_SELECTOR)
-    expect(input.attributes('aria-invalid')).toBe('true')
-    expect(input.attributes('aria-describedby')).toBe('sdr-manager-local-config-file-error')
+    const choose = wrapper.get('button')
+    expect(choose.attributes('aria-invalid')).toBe('true')
+    expect(choose.attributes('aria-describedby')).toContain('sdr-manager-local-config-file-error')
     expect(wrapper.get('#sdr-manager-local-config-file-error').text()).toContain('odd.json')
+    const input = wrapper.get(FILE_SELECTOR)
     expect(wrapper.get(`label[for="${input.attributes('id')}"]`).text()).toBe('FILE')
   })
 
