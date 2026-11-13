@@ -47,18 +47,38 @@ class TestReadingAndWriting:
         client.put(SECRET_URL, headers=AUTHORIZED, json={"value": KEY})
         client.put(SECRET_URL, headers=AUTHORIZED, json={"value": "replacement-key-1"})
 
-        assert client.get(SECRET_URL, headers=AUTHORIZED).json() == {"value": "replacement-key-1"}
+        assert client.get(SECRET_URL, headers=AUTHORIZED).json() == {
+            "value": "replacement-key-1"
+        }
 
     def test_is_the_same_value_seas_own_endpoint_reports(self, client):
         client.put(SECRET_URL, headers=AUTHORIZED, json={"value": KEY})
 
         assert client.get("/api/sea/ais-key").json()["source"] == "settings"
 
-    def test_a_stored_secret_still_never_leaves_through_the_public_settings_api(self, client):
+    def test_a_stored_secret_still_never_leaves_through_the_public_settings_api(
+        self, client
+    ):
         client.put(SECRET_URL, headers=AUTHORIZED, json={"value": KEY})
 
         assert "aisstreamApiKey" not in client.get("/api/settings/sea").json()
         assert KEY not in client.get("/api/settings").text
+
+    def test_the_public_settings_api_may_not_delete_it(self, client):
+        """PUT refused it already; DELETE let anyone on the page wipe the key until it refused too."""
+        client.put(SECRET_URL, headers=AUTHORIZED, json={"value": KEY})
+
+        response = client.delete("/api/settings/sea/aisstreamApiKey")
+
+        assert response.status_code == 400
+        assert "is a secret" in response.json()["detail"]
+        assert client.get(SECRET_URL, headers=AUTHORIZED).json() == {"value": KEY}
+
+    def test_the_public_settings_api_still_deletes_ordinary_settings(self, client):
+        client.put("/api/settings/sea/aisStreamTimeoutSec", json={"value": 30})
+
+        assert client.delete("/api/settings/sea/aisStreamTimeoutSec").status_code == 200
+        assert "aisStreamTimeoutSec" not in client.get("/api/settings/sea").json()
 
     def test_delete_forgets_it(self, client):
         client.put(SECRET_URL, headers=AUTHORIZED, json={"value": KEY})
@@ -74,7 +94,9 @@ class TestReadingAndWriting:
     async def test_a_non_string_stored_value_reads_as_empty(self, client, test_engine):
         # Written behind the API's back (a hand-edited database): never handed
         # to the AIS reader as a key.
-        session_factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+        session_factory = sessionmaker(
+            bind=test_engine, class_=AsyncSession, expire_on_commit=False
+        )
         async with session_factory() as session:
             await upsert_setting(session, "sea", "aisstreamApiKey", {"not": "a key"})
 
@@ -170,4 +192,7 @@ class TestRefusals:
 
 
 def test_is_left_out_of_the_public_api_schema(client):
-    assert not any(path.startswith("/internal/") for path in client.get("/api/openapi.json").json()["paths"])
+    assert not any(
+        path.startswith("/internal/")
+        for path in client.get("/api/openapi.json").json()["paths"]
+    )

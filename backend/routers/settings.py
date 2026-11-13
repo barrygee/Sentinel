@@ -194,7 +194,13 @@ async def delete_setting_endpoint(
     key: str,
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete a single user setting. No-op if the row doesn't exist."""
+    """Delete a single user setting. No-op if the row doesn't exist.
+
+    A secret setting is refused, as PUT refuses it: deleting the AISStream key
+    belongs to its owner's own endpoint (`DELETE /api/sea/ais-key`).
+    """
+    if is_secret_setting(namespace, key):
+        raise HTTPException(status_code=400, detail=f"{namespace}/{key} is a secret — use its dedicated endpoint")
     await db.execute(
         delete(UserSettings).where(
             UserSettings.namespace == namespace,

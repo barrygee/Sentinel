@@ -387,3 +387,54 @@ class TestTleFetchFromUrl:
         assert resp.json() == {"error": "Fetching the TLE source failed."}
         assert self.UPSTREAM_SECRET not in resp.text
         assert any(record.exc_info for record in caplog.records)
+
+
+class TestUnexpectedErrorsStayInTheLog:
+    """An unexpected exception's text can name paths, hosts or SQL: the client gets a fixed message."""
+
+    LEAK = "sqlite3.OperationalError: /data/space.db is locked"
+
+    def _explode(self, *args, **kwargs):
+        raise OSError(self.LEAK)
+
+    def test_satellite_lookup(self, client, monkeypatch, caplog):
+        from sentinel_space import router as space_router
+
+        monkeypatch.setattr(space_router, "_tle_database_is_empty", self._async_explode)
+
+        with caplog.at_level("ERROR"):
+            response = client.get("/api/space/satellite/25544")
+
+        assert response.status_code == 500
+        assert response.json() == {"error": "Unexpected error"}
+        assert self.LEAK not in response.text
+        assert self.LEAK in caplog.text
+
+    def test_terminator(self, client, monkeypatch, caplog):
+        from sentinel_space import router as space_router
+
+        monkeypatch.setattr(space_router.dn_service, "compute_terminator", self._explode)
+
+        with caplog.at_level("ERROR"):
+            response = client.get("/api/space/daynight")
+
+        assert response.status_code == 500
+        assert response.json() == {"error": "Terminator computation failed"}
+        assert self.LEAK in caplog.text
+
+    def test_storing_pasted_tles(self, client, monkeypatch, caplog):
+        from sentinel_space import router as space_router
+
+        monkeypatch.setattr(space_router.tle_service, "validate_tle_text", lambda text: [object()])
+        monkeypatch.setattr(space_router.tle_service, "store_tle_bulk", self._async_explode)
+
+        with caplog.at_level("ERROR"):
+            response = client.post("/api/space/tle/manual", json={"text": "ISS\n1 x\n2 y"})
+
+        assert response.status_code == 500
+        assert response.json() == {"error": "Store failed"}
+        assert self.LEAK not in response.text
+        assert self.LEAK in caplog.text
+
+    async def _async_explode(self, *args, **kwargs):
+        raise OSError(self.LEAK)

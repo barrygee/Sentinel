@@ -39,6 +39,11 @@ RAISE_SUBJECT = "notifications.raise"
 """Bus subject a section publishes to raise a server-side alert."""
 
 STREAM_KEEPALIVE_S = 15.0
+
+STREAM_QUEUE_LIMIT = 256
+"""Alerts held for one open stream before it counts as stalled and is ended.
+Far more than a burst of squawk alerts; a browser reading the stream drains it
+as fast as they come."""
 """Seconds between SSE keep-alive comments, so proxies and the browser don't
 treat a quiet stream as dead."""
 
@@ -89,20 +94,44 @@ class _StreamHub:
         self._closing = False
 
     def broadcast(self, message: dict) -> None:
-        for queue in self._queues:
-            queue.put_nowait(message)
+        for queue in list(self._queues):
+            try:
+                queue.put_nowait(message)
+            except asyncio.QueueFull:
+                self._end_stalled(queue)
 
     def wake(self) -> None:
         self._closing = True
-        for queue in self._queues:
-            queue.put_nowait(None)
+        for queue in list(self._queues):
+            self._end(queue)
+
+    def _end_stalled(self, queue: asyncio.Queue[dict | None]) -> None:
+        """A stream that stopped reading: end it rather than buffer for it without limit.
+
+        Ending it is honest where dropping messages wouldn't be: the browser
+        reconnects (the stream's `retry`), and its notifications store has the
+        stored alerts from `GET /api/air/messages` either way.
+        """
+        logger.warning("notifications: ending an alert stream that stopped reading (%d queued)", queue.qsize())
+        self._queues.discard(queue)
+        self._end(queue)
+
+    @staticmethod
+    def _end(queue: asyncio.Queue[dict | None]) -> None:
+        """Put the end-of-stream marker in, making room for it if the queue is full."""
+        while True:
+            try:
+                queue.put_nowait(None)
+                return
+            except asyncio.QueueFull:
+                queue.get_nowait()
 
     def reopen(self) -> None:
         """Accept streams again (the next app start in the same process, e.g. tests)."""
         self._closing = False
 
     async def events(self) -> AsyncIterator[str]:
-        queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        queue: asyncio.Queue[dict | None] = asyncio.Queue(maxsize=STREAM_QUEUE_LIMIT)
         self._queues.add(queue)
         try:
             # Ask the browser to wait 5 s before reconnecting after a drop.
