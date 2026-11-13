@@ -688,6 +688,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bind each service's manifest kind and route prefixes to its credential
 - Bound alert streams, refuse secret deletes, keep exception text in the log
 - Bump certifi to 2026.10.23 for distrusted emSign roots
+- Patch dompurify, markdown-it, undici, vite and vitest advisories
 
 ### Chores
 
@@ -1912,6 +1913,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #646 from barrygee/fix/registry-route-ownership
 - Merge pull request #647 from barrygee/chore/security-limits
 - Merge pull request #648 from barrygee/fix/uv-certifi-2026-11
+- Merge pull request #649 from barrygee/fix/npm-dependabot-2026-11
 
 ### Performance
 
@@ -2356,6 +2358,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild for TLE settings CSS move
 - Rebuild after merging main
 - Rebuild after merging main
+- Rebuild bundle with patched dompurify and markdown-it
 
 ### Continuous Integration
 
