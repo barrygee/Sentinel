@@ -172,10 +172,10 @@ describe('SdrDeviceForm', () => {
       expect(enabledBtn!.attributes('aria-checked')).toBe('true')
     })
 
-    it('renders only name/host/port inputs — no SDR-Manager-only fields', async () => {
+    it('renders only name/host/port and the optional position — no SDR-Manager-only fields', async () => {
       const wrapper = mount(SdrDeviceForm, { props: { radio: EXISTING } })
       await flushPromises()
-      expect(wrapper.findAll('.ba-text-field__input')).toHaveLength(3)
+      expect(wrapper.findAll('.ba-text-field__input')).toHaveLength(5)
       expect(wrapper.find('.sdr-devices-agc-input').exists()).toBe(false)
       expect(wrapper.text()).not.toContain('OUTPUT PORT')
       expect(wrapper.text()).not.toContain('TUNING')
@@ -231,8 +231,86 @@ describe('SdrDeviceForm', () => {
         notes: '',
         antenna: '',
         visibility: 'public',
+        latitude: null,
+        longitude: null,
       })
       expect(wrapper.emitted('save')).toHaveLength(1)
+    })
+
+    describe('position', () => {
+      async function fillAndSave(
+        radio: typeof EXISTING | null,
+        latitude: string,
+        longitude: string,
+      ) {
+        const wrapper = mount(SdrDeviceForm, { props: { radio } })
+        await flushPromises()
+        const inputs = wrapper.findAll('.ba-text-field__input')
+        if (!radio) {
+          await inputs[0]!.setValue('Shed')
+          await inputs[1]!.setValue('10.0.0.9')
+        }
+        await inputs[3]!.setValue(latitude)
+        await inputs[4]!.setValue(longitude)
+        await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+        await flushPromises()
+        return wrapper
+      }
+
+      it('saves a position given as both fields, so maps can show the radio', async () => {
+        mockCreateRadio.mockResolvedValue({ ...EXISTING, id: 99 })
+        await fillAndSave(null, ' 54.9516 ', '-1.5358')
+        expect(mockCreateRadio).toHaveBeenCalledWith(
+          expect.objectContaining({ latitude: 54.9516, longitude: -1.5358 }),
+        )
+      })
+
+      it('prefills a stored position, and clearing both fields removes it', async () => {
+        mockUpdateRadio.mockResolvedValue(EXISTING)
+        const placed = { ...EXISTING, latitude: 51.5, longitude: -0.12 }
+        const wrapper = mount(SdrDeviceForm, { props: { radio: placed } })
+        await flushPromises()
+        const inputs = wrapper.findAll('.ba-text-field__input')
+        expect((inputs[3]!.element as HTMLInputElement).value).toBe('51.5')
+        expect((inputs[4]!.element as HTMLInputElement).value).toBe('-0.12')
+
+        await inputs[3]!.setValue('')
+        await inputs[4]!.setValue('')
+        await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+        await flushPromises()
+
+        expect(mockUpdateRadio).toHaveBeenCalledWith(
+          EXISTING.id,
+          expect.objectContaining({ latitude: null, longitude: null }),
+        )
+      })
+
+      it('refuses half a position, saying so under the empty field', async () => {
+        const wrapper = await fillAndSave(null, '54.95', '')
+        expect(mockCreateRadio).not.toHaveBeenCalled()
+        const errors = wrapper.findAll('.ba-form-field__error').map((error) => error.text())
+        expect(errors).toEqual(['Give both latitude and longitude, or neither.'])
+      })
+
+      it('refuses a coordinate out of range', async () => {
+        const wrapper = await fillAndSave(null, '91', '-1.5')
+        expect(mockCreateRadio).not.toHaveBeenCalled()
+        expect(wrapper.find('.ba-form-field__error').text()).toBe(
+          'Latitude must be between -90 and 90.',
+        )
+      })
+
+      it('clears the errors once the position is fixed', async () => {
+        mockCreateRadio.mockResolvedValue({ ...EXISTING, id: 99 })
+        const wrapper = await fillAndSave(null, 'north', '-1.5')
+        expect(wrapper.find('.ba-form-field__error').text()).toBe('Latitude must be a number.')
+        const inputs = wrapper.findAll('.ba-text-field__input')
+        await inputs[3]!.setValue('54.9')
+        await wrapper.find('.sdr-devices-btn--primary').trigger('click')
+        await flushPromises()
+        expect(wrapper.find('.ba-form-field__error').exists()).toBe(false)
+        expect(mockCreateRadio).toHaveBeenCalledTimes(1)
+      })
     })
 
     it('sends the name/host/port the user fills in on a new radio', async () => {
@@ -298,6 +376,8 @@ describe('SdrDeviceForm', () => {
         NAME: 'Device name',
         'IP ADDRESS': 'IP address',
         PORT: 'Port',
+        LATITUDE: 'Latitude',
+        LONGITUDE: 'Longitude',
       })
     })
 

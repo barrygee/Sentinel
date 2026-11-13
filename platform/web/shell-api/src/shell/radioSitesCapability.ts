@@ -23,6 +23,12 @@ import type {
 
 /** An SDR host that reports where it is. */
 export interface RadioSite {
+  /**
+   * What the site is: an SDR host (the default — `id` is the host's), or a
+   * radio added by IP and port that was given a position (`id` is the radio's).
+   * The two id spaces overlap, so anything keyed by site must key by both.
+   */
+  kind?: 'host' | 'radio'
   id: number
   name: string | null
   address: string

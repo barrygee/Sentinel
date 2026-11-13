@@ -28,6 +28,9 @@ export interface SdrRadio {
   // A 'private' device still runs and holds its port but is hidden from the
   // operational radio list (SdrDeviceSelector filters it out) — see ADR-0009.
   visibility?: 'public' | 'private'
+  // Where a radio added by IP and port is, so maps show it (both or neither).
+  latitude?: number | null
+  longitude?: number | null
   // Whether the backend can currently reach this radio's device (a mirrored
   // dongle unplugged, or its SDR host down, reports false) and why not.
   device_available?: boolean

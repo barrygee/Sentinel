@@ -134,6 +134,10 @@ export function createSdrRadioCapability(): RadioCapability {
         available: record.device_available !== false,
         sdrManagerHostId: record.sdr_manager_host_id ?? null,
         sdrManagerDeviceId: record.sdr_manager_device_id ?? null,
+        host: record.host,
+        port: record.port,
+        latitude: record.latitude ?? null,
+        longitude: record.longitude ?? null,
       }))
     },
   }

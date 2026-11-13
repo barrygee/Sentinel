@@ -14,7 +14,7 @@ from backend.cache import now_ms
 from backend.database import get_db
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_radio import radios as radio_registry
@@ -42,6 +42,11 @@ class RadioIn(BaseModel):
     notes: str = ""
     antenna: str = ""
     visibility: str = "public"
+    # Where a radio added by IP and port is, so maps can show it like an SDR
+    # host's site. Optional, and both or neither. A radio mirroring an SDR host's
+    # device has its host's position instead and leaves these unset.
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator("sdr_manager_device_id")
     @classmethod
@@ -63,6 +68,27 @@ class RadioIn(BaseModel):
         if value not in ("public", "private"):
             raise ValueError("visibility must be 'public' or 'private'")
         return value
+
+    @model_validator(mode="after")
+    def _both_coordinates_or_neither(self) -> RadioIn:
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("give both latitude and longitude, or neither")
+        return self
+
+    def stored_fields(self) -> dict:
+        """What a save writes. A body that leaves the position out keeps the stored one.
+
+        Settings that edit other fields (gain, bandwidth, an SDR host's mirror
+        sync) send no position, and must not wipe one the operator set.
+        """
+        fields = self.model_dump()
+        if not POSITION_FIELDS & self.model_fields_set:
+            for name in POSITION_FIELDS:
+                fields.pop(name)
+        return fields
+
+
+POSITION_FIELDS = frozenset({"latitude", "longitude"})
 
 
 @router.get("/api/sdr/radios")
@@ -90,7 +116,7 @@ async def update_radio(radio_id: int, body: RadioIn, db: AsyncSession = Depends(
     radios = await radio_registry.get_radios(db)
     for i, radio in enumerate(radios):
         if radio.get("id") == radio_id:
-            radios[i] = {**radio, **body.model_dump()}
+            radios[i] = {**radio, **body.stored_fields()}
             await radio_registry.save_radios(db, radios)
             return JSONResponse(radios[i])
     raise HTTPException(404, "Radio not found")

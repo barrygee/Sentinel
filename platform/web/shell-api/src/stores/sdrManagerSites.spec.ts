@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSdrManagerSitesStore } from './sdrManagerSites'
 import type { RadioSite } from '../shell/radioSitesCapability'
-import { provideFakeRadioSites } from '../testing/fakeRadio'
+import { provideFakeRadio, provideFakeRadioSites } from '../testing/fakeRadio'
+import type { RadioSummary } from '../shell/radioCapability'
 
 const SITE: RadioSite = {
   id: 1,
@@ -126,5 +127,82 @@ describe('sdrManagerSites store', () => {
     store.startPolling()
     expect(radioSites.listSites).toHaveBeenCalledTimes(1)
     store.stopPolling()
+  })
+
+  describe('radios added by IP and port, given a position', () => {
+    const SHED: RadioSummary = {
+      id: 7,
+      name: 'Shed',
+      enabled: true,
+      available: false,
+      sdrManagerHostId: null,
+      host: '10.0.0.9',
+      port: 1234,
+      latitude: 54.95,
+      longitude: -1.53,
+    }
+    let radio: ReturnType<typeof provideFakeRadio>
+    beforeEach(() => {
+      radio = provideFakeRadio()
+    })
+    afterEach(() => radio.withdraw())
+
+    it('lists them as radio sites, apart from the SDR hosts', async () => {
+      radioSites.listSites.mockResolvedValue([SITE])
+      radio.listRadios.mockResolvedValue([SHED])
+      const store = useSdrManagerSitesStore()
+      await store.fetchSites()
+
+      expect(store.sites).toEqual([SITE])
+      expect(store.radioSites).toEqual([
+        {
+          kind: 'radio',
+          id: 7,
+          name: 'Shed',
+          address: '10.0.0.9',
+          port: 1234,
+          reachable: false,
+          latitude: 54.95,
+          longitude: -1.53,
+          updated_at: null,
+        },
+      ])
+    })
+
+    it.each([
+      ['no position', { latitude: null, longitude: null }],
+      ['half a position', { latitude: 54.95, longitude: undefined }],
+      ['disabled', { enabled: false }],
+      ["mirroring an SDR host's dongle (its host's site shows it)", { sdrManagerHostId: 2 }],
+    ])('leaves out a radio with %s', async (_why, overrides) => {
+      radio.listRadios.mockResolvedValue([{ ...SHED, ...overrides }])
+      const store = useSdrManagerSitesStore()
+      await store.fetchSites()
+      expect(store.radioSites).toEqual([])
+    })
+
+    it('names an unnamed radio by its address, as host sites are', async () => {
+      radio.listRadios.mockResolvedValue([{ ...SHED, name: '', host: undefined, port: undefined }])
+      const store = useSdrManagerSitesStore()
+      await store.fetchSites()
+      expect(store.radioSites[0]).toMatchObject({ name: null, address: '', port: 0 })
+    })
+
+    it('keeps the last radio list when the radios cannot be read', async () => {
+      radio.listRadios.mockResolvedValue([SHED])
+      const store = useSdrManagerSitesStore()
+      await store.fetchSites()
+      radio.listRadios.mockRejectedValue(new Error('offline'))
+      await store.fetchSites()
+      expect(store.radioSites).toHaveLength(1)
+    })
+
+    it('has no radio sites without an SDR section', async () => {
+      radio.withdraw()
+      const store = useSdrManagerSitesStore()
+      await store.fetchSites()
+      expect(store.radioSites).toEqual([])
+      radio = provideFakeRadio()
+    })
   })
 })

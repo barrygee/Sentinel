@@ -50,7 +50,8 @@ type SettingsStore = ReturnType<typeof useSettingsStore>
 export class SdrManagerSitesControl extends SentinelControlBase {
   private readonly _sitesStore: SdrManagerSitesStore
   private readonly _settingsStore: SettingsStore
-  private _markers = new Map<number, maplibregl.Marker>()
+  // Keyed by siteKey: a host and a placed radio can share an id.
+  private _markers = new Map<string, maplibregl.Marker>()
   private _clusterMarkers = new Map<string, maplibregl.Marker>()
   /** How many sites each count stands for, so it is only rebuilt when that
    *  number changes. */
@@ -113,7 +114,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     // position moving — a fix that lands on top of an SDR host has to collapse the
     // two into a count just as two Sentries would.
     this._stopWatch = watch(
-      () => [this._sitesStore.sites, this._getUserLocation()] as const,
+      () => [this._sitesStore.sites, this._sitesStore.radioSites, this._getUserLocation()] as const,
       () => this._render(),
       { immediate: true, deep: true },
     )
@@ -149,7 +150,8 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   // ── rendering ──────────────────────────────────────────────────────────────
 
   private _render(): void {
-    const sites = this._sitesStore.sites
+    // SDR hosts, then radios added by IP and port that were given a position.
+    const sites = [...this._sitesStore.sites, ...this._sitesStore.radioSites]
     this._syncMarkers(this._visible ? sites : [])
     this._renderA11yTable(sites)
   }
@@ -157,11 +159,11 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   /** Add/update/remove markers so the on-map set matches `sites`. */
   private _syncMarkers(sites: RadioSite[]): void {
     const { plotted, clusters, userLocationCounted } = this._planMarkers(sites)
-    const seenSites = new Set<number>()
+    const seenSites = new Set<string>()
     const seenClusters = new Set<string>()
 
     for (const site of plotted) {
-      seenSites.add(site.id)
+      seenSites.add(siteKey(site))
       this._syncSiteMarker(site)
     }
     for (const cluster of clusters) {
@@ -175,10 +177,10 @@ export class SdrManagerSitesControl extends SentinelControlBase {
 
     // Drop markers for sites no longer plotted — deregistered, disabled, or now
     // inside a count.
-    for (const [siteId, marker] of this._markers) {
-      if (seenSites.has(siteId)) continue
+    for (const [key, marker] of this._markers) {
+      if (seenSites.has(key)) continue
       marker.remove()
-      this._markers.delete(siteId)
+      this._markers.delete(key)
     }
     // …and counts for groups the zoom has since taken apart.
     for (const [key, marker] of this._clusterMarkers) {
@@ -250,7 +252,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   /** Add or move one site's marker. */
   private _syncSiteMarker(site: RadioSite): void {
     const coords: [number, number] = [site.longitude, site.latitude]
-    const existing = this._markers.get(site.id)
+    const existing = this._markers.get(siteKey(site))
     if (existing) {
       existing.setLngLat(coords)
       return
@@ -264,7 +266,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     // After addTo: MapLibre replaces the element's aria-label with its own
     // generic "Map marker" as it adds one, so the site's is put back.
     setMarkerAccessibleName(marker, siteMarkerLabel(site))
-    this._markers.set(site.id, marker)
+    this._markers.set(siteKey(site), marker)
   }
 
   /**
@@ -286,7 +288,9 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     element.appendChild(this._buildDetails(site))
     element.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
-      this._settingsStore.openSdrManagerHost(site.id)
+      // A host opens on its own row; a radio added by IP is in Settings › SDR too.
+      if (site.kind === 'radio') this._settingsStore.openPanel('sdr')
+      else this._settingsStore.openSdrManagerHost(site.id)
     })
     return element
   }
@@ -391,7 +395,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     /* v8 ignore stop */
     const region = document.createElement('div')
     region.setAttribute('role', 'region')
-    region.setAttribute('aria-label', 'SDR host sites')
+    region.setAttribute('aria-label', 'SDR sites')
     // Visually hidden but available to assistive tech (the map canvas itself is
     // opaque to screen readers, so this table is the accessible equivalent).
     region.style.cssText =
@@ -407,7 +411,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     if (!this._a11yRegion) return
     /* v8 ignore stop */
     if (sites.length === 0) {
-      this._a11yRegion.innerHTML = '<p>No SDR host sites reporting a position.</p>'
+      this._a11yRegion.innerHTML = '<p>No SDR sites with a position.</p>'
       return
     }
     const rows = sites
@@ -420,7 +424,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       )
       .join('')
     this._a11yRegion.innerHTML =
-      '<table><caption>SDR host sites on this map</caption><thead><tr>' +
+      '<table><caption>SDR sites on this map</caption><thead><tr>' +
       '<th scope="col">Name</th><th scope="col">Address</th><th scope="col">Status</th>' +
       '<th scope="col">Latitude</th><th scope="col">Longitude</th></tr></thead>' +
       `<tbody>${rows}</tbody></table>`
@@ -493,7 +497,7 @@ const USER_LOCATION_KEY = 'user-location'
 function clusterLabel(cluster: SdrManagerCluster): string {
   const subject = cluster.holdsUserLocation
     ? `${cluster.memberCount} markers here, including your location,`
-    : `${cluster.memberCount} SDR host sites here`
+    : `${cluster.memberCount} SDR sites here`
   return `${subject} — zoom in to see them`
 }
 
@@ -502,12 +506,14 @@ function clusterLabel(cluster: SdrManagerCluster): string {
 function siteMarkerLabel(site: RadioSite): string {
   const status = site.reachable ? 'online' : 'off air'
   const position = `${formatLatitude(site.latitude)} ${formatLongitude(site.longitude)}`
-  return `SDR host ${siteLabel(site)}, ${site.address}:${site.port}, ${status}, at ${position} — open in Settings`
+  const kind = site.kind === 'radio' ? 'SDR radio' : 'SDR host'
+  return `${kind} ${siteLabel(site)}, ${site.address}:${site.port}, ${status}, at ${position} — open in Settings`
 }
 
-/** Identity of a site for clustering — its host id, which is stable across polls. */
+/** Identity of a site for clustering and markers — stable across polls, and
+ *  apart for a host and a placed radio that share an id. */
 function siteKey(site: RadioSite): string {
-  return String(site.id)
+  return site.kind === 'radio' ? `radio:${site.id}` : String(site.id)
 }
 
 /**

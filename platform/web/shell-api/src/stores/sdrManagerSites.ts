@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
+import type { RadioSummary } from '@sentinel/shell-api/shell/radioCapability'
 
 /**
  * How often the site list is refreshed while a map is open, in ms.
@@ -26,6 +27,12 @@ export const useSdrManagerSitesStore = defineStore('sdrManagerSites', () => {
   /** Every enabled SDR host with a known position, newest snapshot wins. */
   const sites = ref<RadioSite[]>([])
   /**
+   * Radios added by IP and port that were given a position, as `kind: 'radio'`
+   * sites. Kept apart from `sites` (the SDR hosts), which range rings and
+   * overhead alerts key by host id; the map draws both.
+   */
+  const radioSites = ref<RadioSite[]>([])
+  /**
    * True once a list has been fetched successfully at least once.
    *
    * An empty `sites` means two different things — "no host reports a position"
@@ -38,16 +45,33 @@ export const useSdrManagerSitesStore = defineStore('sdrManagerSites', () => {
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let pollers = 0
 
-  /** Refresh the site list from the radio platform's `radioSites` capability.
+  /** Refresh both lists: the SDR hosts and the placed radios. */
+  async function fetchSites(): Promise<void> {
+    await Promise.all([fetchHostSites(), fetchRadioSites()])
+  }
+
+  /** Refresh the host list from the radio platform's `radioSites` capability.
    *  Silent on transient/offline failures — the last-known list simply
    *  persists, which is the truthful thing to draw. With no radio platform
    *  registered there are no sites, and the list never counts as loaded. */
-  async function fetchSites(): Promise<void> {
-    const radioSites = getCapability('radioSites')
-    if (!radioSites) return
+  async function fetchHostSites(): Promise<void> {
+    const hostSites = getCapability('radioSites')
+    if (!hostSites) return
     try {
-      sites.value = await radioSites.listSites()
+      sites.value = await hostSites.listSites()
       loaded.value = true
+    } catch {
+      /* offline / transient — keep the current list */
+    }
+  }
+
+  /** Refresh the placed radios from the SDR section's `radio` capability; silent
+   *  on failure like the hosts, and none without an SDR section. */
+  async function fetchRadioSites(): Promise<void> {
+    const radio = getCapability('radio')
+    if (!radio) return
+    try {
+      radioSites.value = (await radio.listRadios()).flatMap(placedRadioSite)
     } catch {
       /* offline / transient — keep the current list */
     }
@@ -70,5 +94,28 @@ export const useSdrManagerSitesStore = defineStore('sdrManagerSites', () => {
     pollTimer = null
   }
 
-  return { sites, loaded, fetchSites, startPolling, stopPolling }
+  return { sites, radioSites, loaded, fetchSites, startPolling, stopPolling }
 })
+
+/**
+ * A radio as a map site, or none: only an enabled radio added by IP and port
+ * with a position is one. A radio mirroring an SDR host's dongle is shown by
+ * its host's site instead.
+ */
+function placedRadioSite(radio: RadioSummary): RadioSite[] {
+  if (!radio.enabled || radio.sdrManagerHostId != null) return []
+  if (radio.latitude == null || radio.longitude == null) return []
+  return [
+    {
+      kind: 'radio',
+      id: radio.id,
+      name: radio.name || null,
+      address: radio.host ?? '',
+      port: radio.port ?? 0,
+      reachable: radio.available,
+      latitude: radio.latitude,
+      longitude: radio.longitude,
+      updated_at: null,
+    },
+  ]
+}

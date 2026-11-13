@@ -31,6 +31,29 @@
         min="1"
         max="65535"
       />
+      <!-- Optional: where it is, so maps show it beside SDR hosts' sites. -->
+      <BaseTextField
+        v-model="form.latitude"
+        v-bind="FIELD"
+        label="LATITUDE"
+        aria-label="Latitude"
+        placeholder="Optional, e.g. 54.9516"
+        inputmode="decimal"
+        autocomplete="off"
+        spellcheck="false"
+        :error="positionErrors.latitude ?? ''"
+      />
+      <BaseTextField
+        v-model="form.longitude"
+        v-bind="FIELD"
+        label="LONGITUDE"
+        aria-label="Longitude"
+        placeholder="Optional, e.g. -1.5358"
+        inputmode="decimal"
+        autocomplete="off"
+        spellcheck="false"
+        :error="positionErrors.longitude ?? ''"
+      />
     </template>
 
     <template v-else>
@@ -188,6 +211,7 @@ import type {
   SdrManagerDeviceStatus,
 } from '@sentinel/shell-api/types/sdrManager'
 import { hostErrorMessage, requireSdrManagerHosts } from '../services/sdrManagerHosts'
+import { coordinateText, readRadioPosition } from './radioPosition'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
 import '@sentinel/ui/base/segmentedControl.css'
 
@@ -239,6 +263,11 @@ const needsIdentification = computed(() => {
 const nameRef = ref<{ focus: () => void } | null>(null)
 const errorMsg = ref('')
 const saving = ref(false)
+/** What is wrong with LATITUDE / LONGITUDE, shown under each field. */
+const positionErrors = ref<{ latitude: string | null; longitude: string | null }>({
+  latitude: null,
+  longitude: null,
+})
 
 const form = ref({
   name: props.radio?.name ?? '',
@@ -249,6 +278,8 @@ const form = ref({
   visibility: props.radio?.visibility ?? ('public' as 'public' | 'private'),
   notes: props.radio?.notes ?? props.sdrManagerDeviceStatus?.notes ?? '',
   antenna: props.radio?.antenna ?? props.sdrManagerDeviceStatus?.antenna ?? '',
+  latitude: coordinateText(props.radio?.latitude),
+  longitude: coordinateText(props.radio?.longitude),
   // Tuning starts empty and is filled in by `loadSdrManagerDeviceRecord` below.
   // It cannot come from `sdrManagerDeviceStatus`: the SDR host's `DeviceStatus` reports
   // what a device is *doing* and carries no persisted tuning at all, so
@@ -328,6 +359,12 @@ async function saveManualRadio(): Promise<void> {
     errorMsg.value = 'Name and IP address are required.'
     return
   }
+  const position = readRadioPosition(form.value.latitude, form.value.longitude)
+  if (!position.ok) {
+    positionErrors.value = { latitude: position.latitudeError, longitude: position.longitudeError }
+    return
+  }
+  positionErrors.value = { latitude: null, longitude: null }
   const body: SdrRadioInput = {
     name: form.value.name.trim(),
     host: form.value.host.trim(),
@@ -344,6 +381,8 @@ async function saveManualRadio(): Promise<void> {
     notes: '',
     antenna: '',
     visibility: 'public',
+    latitude: position.latitude,
+    longitude: position.longitude,
   }
   saving.value = true
   errorMsg.value = ''
