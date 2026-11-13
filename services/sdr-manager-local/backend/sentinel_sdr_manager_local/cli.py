@@ -20,6 +20,8 @@ from pathlib import Path
 
 from sentinel_sdr_manager_local.launch_agent import install_launch_agent, launch_agent_path, uninstall_launch_agent
 from sentinel_sdr_manager_local.native import (
+    TLS_CERTIFICATE_FILE,
+    TLS_PRIVATE_KEY_FILE,
     apply_native_environment,
     missing_credential_files,
     native_paths,
@@ -40,10 +42,16 @@ def start(home: Path) -> int:
     # Before anything imports `backend.config`, whose settings are read once at import.
     apply_native_environment(paths)
     if missing := missing_credential_files(paths):
+        # Without its certificate it can't serve at all (run_server says so and
+        # exits); without the rest it serves, but Sentinel can't sign it in.
+        consequence = (
+            "so SDR Manager can't serve HTTPS"
+            if {TLS_CERTIFICATE_FILE, TLS_PRIVATE_KEY_FILE} & set(missing)
+            else "so Sentinel can't see this Mac's SDRs (other machines still can)"
+        )
         print(
-            f"sdr-manager-local: {', '.join(missing)} missing from {paths.credentials_directory}, so "
-            "Sentinel can't see this Mac's SDRs (other machines still can). Set "
-            "SDR_MANAGER_LOCAL_NATIVE=1 in .env and run `docker compose up -d`.",
+            f"sdr-manager-local: {', '.join(missing)} missing from {paths.credentials_directory}, "
+            f"{consequence}. Set SDR_MANAGER_LOCAL_NATIVE=1 in .env and run `docker compose up -d`.",
             file=sys.stderr,
         )
     from sentinel_sdr_manager_local.run_server import main as run_server

@@ -72,3 +72,9 @@ docker compose exec sdr-manager-local python -m sentinel_sdr_manager_local.reset
 ## Configuration
 
 Every `SDR_MANAGER_LOCAL_*` variable (`config.py`) is listed in `.env.example` with its default; compose passes them with `env_file`, and the native command reads them from `.env`. The platform variables (`DB_PATH`, `SENTINEL_CORE_URL`, `SERVICE_INTERNAL_URL`, the credential files) are set by `docker-compose.yml`, or by `native.py` on a Mac. It reaches core at `https://localhost:8443` (the gateway's TLS entrypoint), has no NATS, and keeps serving while core is down.
+
+## HTTPS
+
+The API on `:8000` is HTTPS, with a certificate `service-credentials` issues into its `credentials/sdr-manager-local/` folder (`certificate.pem`, `private-key.pem`; names `host.docker.internal`, `sdr-manager-local`, `localhost`, `127.0.0.1`), signed by the deployment's certificate authority. `SDR_MANAGER_LOCAL_TLS_CERTIFICATE_FILE`/`_PRIVATE_KEY_FILE` point at them (compose, `native.py`). Set but missing, `run_server` refuses to start rather than serve plain HTTP; unset (tests), it serves plain HTTP and logs a warning.
+
+Other Sentinels trust it on first use: `GET /api/tls/certificate-authority` (`routers/tls.py`, public) gives the authority and its SHA-256 fingerprint, which they pin once their operator compares it with this machine's. It is shown in Settings (**THIS MACHINE › Certificate**), logged at start (`serving HTTPS on port 8000; certificate fingerprint (SHA-256) …`) and, on a Mac, in `doctor`. This machine's app and gateway reach it at `https://host.docker.internal:8000` and verify it with the deployment's authority.

@@ -10,6 +10,7 @@ import {
 import type { AppMode } from '@sentinel/shell-api/types/appMode'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue'
+import CertificateFingerprintControl from './components/certificate/CertificateFingerprintControl.vue'
 import ConfigTransferControl from './components/config/ConfigTransferControl.vue'
 import LocalDevicesControl from './components/devices/LocalDevicesControl.vue'
 import HotspotControl from './components/hotspot/HotspotControl.vue'
@@ -74,6 +75,20 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
         naturalHeight: true,
         // Open while there is no password: setting one is what needs doing.
         collapsible: { openWhen: () => useLocalAuthStore().isUnprotected },
+      },
+    },
+    {
+      ...sharedFields,
+      id: 'sdr-manager-local-certificate',
+      label: 'Certificate',
+      desc: 'The fingerprint other Sentinels check before they trust this machine.',
+      searchTerms:
+        'certificate fingerprint tls https sha-256 trust security encryption sdr manager',
+      control: {
+        component: CertificateFingerprintControl,
+        layout: 'half',
+        naturalHeight: true,
+        collapsible: {},
       },
     },
     {

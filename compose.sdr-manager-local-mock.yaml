@@ -11,7 +11,7 @@
 #     --profile sdr-manager-local up -d --build
 #
 # The SDR Manager API is then at http://localhost:8080/api/sdr-manager/local/
-# through the gateway; it is not published on the host.
+# through the gateway (which reaches it over HTTPS); it is not published on the host.
 
 services:
   sdr-manager-local:
@@ -32,6 +32,7 @@ services:
       # .env says, since nothing else is on this container's network stack.
       SDR_MANAGER_LOCAL_HTTP_PORT: "8000"
       # Core's TLS service entrypoint by its compose name (its certificate
-      # covers `gateway`), and its own address on this network.
+      # covers `gateway`), and its own address on this network (its certificate
+      # covers `sdr-manager-local`).
       SENTINEL_CORE_URL: https://gateway:8443
-      SERVICE_INTERNAL_URL: http://sdr-manager-local:8000
+      SERVICE_INTERNAL_URL: https://sdr-manager-local:8000

@@ -24,6 +24,7 @@ The output directory (default `/run/service-credentials`, the
         nats-credentials.json   its NATS user (services only; decoders don't use the bus)
         certificate-authority.pem   the CA certificate (services only)
         accepted-callers.json   the tokens it accepts, as SHA-256 hashes (core and the radio hub)
+        certificate.pem, private-key.pem   sdr-manager-local's TLS certificate and key (that folder only)
         guard-state-password    the request guard's Redis password (services only)
     credentials/gateway/    core's TLS service entrypoint: its certificate, key and the CA
     guard-state/            mounted into `redis`: users.acl, the request guard's one Redis user
@@ -68,6 +69,11 @@ BUILT_IN_SERVER_HOSTNAMES = ("nats", "localhost")
 BUILT_IN_ENTRYPOINT_HOSTNAMES = ("gateway", "localhost")
 """Core's TLS service entrypoint is a listener on the `gateway` container."""
 BUILT_IN_RADIO_HOST_GATEWAY_HOSTNAMES = ("radio-host-gateway", "localhost")
+SDR_MANAGER_LOCAL_HOSTNAMES = ("host.docker.internal", "sdr-manager-local", "localhost", "127.0.0.1")
+"""The names this machine's own callers verify sdr-manager-local's certificate by: the app and the
+gateway dial `host.docker.internal` (or `sdr-manager-local` under the mock), the native Mac
+`doctor` dials `127.0.0.1`. Other Sentinels check its certificate authority, not a name (they
+add hosts by IP as often as by name), so no LAN name needs listing here."""
 CALLER_FOLDERS_DIRECTORY = "credentials"
 """`credentials/<caller>/`: one folder per service or decoder, each mounted into that caller only.
 
@@ -331,7 +337,13 @@ def copy_native_credentials(callers_directory: Path, native_directory: Path) -> 
     try:
         native_directory.mkdir(parents=True, exist_ok=True)
         native_directory.chmod(0o700)
-        for name in (HTTP_CREDENTIALS_FILE, ACCEPTED_CALLERS_FILE, CERTIFICATE_AUTHORITY_FILE):
+        for name in (
+            HTTP_CREDENTIALS_FILE,
+            ACCEPTED_CALLERS_FILE,
+            CERTIFICATE_AUTHORITY_FILE,
+            CERTIFICATE_FILE,
+            PRIVATE_KEY_FILE,
+        ):
             _write_private(native_directory / name, (source / name).read_text())
     except OSError as error:
         print(f"service-credentials: could not copy sdr-manager-local's credentials to {native_directory}: {error}")
@@ -367,6 +379,14 @@ def generate(output_directory: Path, native_directory: Path = NATIVE_CREDENTIALS
         for user in SERVICE_PERMISSIONS
     }
     tokens = {caller: ensure_http_credentials(callers_directory / caller, caller) for caller in CALLER_ACCESS}
+    # sdr-manager-local serves HTTPS: other Sentinels send it the console password.
+    ensure_server_certificate(
+        callers_directory / NATIVE_SDR_MANAGER_LOCAL_CALLER,
+        list(SDR_MANAGER_LOCAL_HOSTNAMES),
+        authority_certificate,
+        authority_key,
+        "SDR Manager",
+    )
     # The request guard's shared state: Redis gets the ACL, each service a copy
     # of the password in its own folder (decoders get none, and can't reach Redis).
     guard_state_directory = output_directory / GUARD_STATE_FOLDER

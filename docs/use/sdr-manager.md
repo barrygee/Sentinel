@@ -119,13 +119,13 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 
 ### Certificates
 
-Sentinel talks to a host over HTTPS, so the console password never crosses the network readable. The first time, you confirm that the host is the one you mean by its certificate fingerprint. On the host, run:
+Sentinel talks to a host over HTTPS, so the console password never crosses the network readable. The first time, you confirm that the host is the one you mean by its certificate fingerprint. The host shows its own:
 
-```bash
-docker compose exec sdr-manager-local cat /run/service-credentials/certificate-authority.pem | openssl x509 -noout -fingerprint -sha256
-```
+- in its **Settings › SDR › THIS MACHINE › Certificate** (SDR Manager-only: **Settings › SDR Manager**);
+- in its log when SDR Manager starts: `docker compose logs sdr-manager-local | grep fingerprint`;
+- on a Mac, in `uv run --project backend sdr-manager-local doctor`.
 
-(Mac: `openssl x509 -noout -fingerprint -sha256 -in sdr-manager-local-credentials/certificate-authority.pem` in its Sentinel folder.) If the two match, trust it. If not, don't: something else is answering at that address.
+If the two match, trust it. If not, don't: something else is answering at that address.
 
 An open host says how its connection is secured:
 
@@ -136,7 +136,7 @@ An open host says how its connection is secured:
 | **NOT TRUSTED YET**     | Its address changed. Nothing is sent to it until you trust its certificate again              |
 | **CERTIFICATE CHANGED** | It presented a different certificate, so nothing is sent to it                                 |
 
-**CHECK CERTIFICATE** reads the host's certificate now, to trust it. Use it to move a **NOT ENCRYPTED** host to HTTPS once it offers it.
+**CHECK CERTIFICATE** reads the host's certificate now, to trust it. Use it to move a **NOT ENCRYPTED** host to HTTPS once it offers it: an SDR host updated to serve HTTPS is unreachable over plain HTTP until you do.
 
 A host that doesn't offer HTTPS can be added with **ADD WITHOUT ENCRYPTION**. Do that only on a network you trust.
 
@@ -153,6 +153,7 @@ A host that doesn't offer HTTPS can be added with **ADD WITHOUT ENCRYPTION**. Do
 - **This machine "not running":** the same; it comes back within 10 seconds of starting.
 - **CERTIFICATE CHANGED:** the host's credentials were made again (for example, its Docker volumes were removed), or another machine has its address. Compare fingerprints ([Certificates](#certificates)), then **CHECK CERTIFICATE** and trust it.
 - **"doesn't offer HTTPS":** the host runs an SDR Manager from before HTTPS. Update it, or add it without encryption.
+- **A NOT ENCRYPTED host became unreachable after it was updated:** it now serves HTTPS. **CHECK CERTIFICATE** and trust it.
 - **A remote host says unauthenticated:** a wrong console password, or the host runs the old Sentry program. Replace Sentry with SDR Manager there ([Linux and Pi](../sdr-manager-linux.md)).
 - **"port … is already in use":** something else has port 8000. Stop it, or set `SDR_MANAGER_LOCAL_HTTP_PORT` in `.env`.
 - **A dongle never appears:** Linux: unplug it, plug it in again and see [Linux and Pi](../sdr-manager-linux.md#if-its-not-working). Mac: `rtl_test -t`.

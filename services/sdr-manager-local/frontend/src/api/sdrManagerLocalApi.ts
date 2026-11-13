@@ -19,6 +19,7 @@ import {
 } from '@sentinel/shell-api/services/sdrManagerRequest'
 import type {
   LocalAuthState,
+  LocalCertificateAuthority,
   LocalConfigFile,
   LocalConfigImportRequest,
   LocalConfigImportResult,
@@ -52,6 +53,18 @@ async function request<TResponse>(path: string, init?: RequestInit): Promise<TRe
     if (error instanceof SdrManagerApiError && error.status === 401) unauthorizedHandler?.()
     throw error
   }
+}
+
+// ── Certificate ──────────────────────────────────────────────────────────────
+
+/**
+ * This machine's certificate authority and its fingerprint, which other
+ * Sentinels show when they add this machine. Public: no sign-in needed.
+ *
+ * @throws SdrManagerApiError 404 `no_certificate_authority` when there is none
+ */
+export function getCertificateAuthority(): Promise<LocalCertificateAuthority> {
+  return request<LocalCertificateAuthority>('/tls/certificate-authority')
 }
 
 // ── Console password ─────────────────────────────────────────────────────────

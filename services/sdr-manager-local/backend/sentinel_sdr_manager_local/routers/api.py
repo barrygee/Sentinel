@@ -20,6 +20,7 @@ from sentinel_sdr_manager_local.routers import (
     private_access,
     sdrs,
     status,
+    tls,
 )
 
 api_router = APIRouter()
@@ -32,3 +33,4 @@ api_router.include_router(sdrs.router)
 api_router.include_router(hotspot.router)
 api_router.include_router(config.router)
 api_router.include_router(private_access.router)
+api_router.include_router(tls.router)

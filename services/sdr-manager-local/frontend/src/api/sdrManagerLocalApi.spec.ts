@@ -32,6 +32,17 @@ describe('sdrManagerLocalApi', () => {
     expect(api.EVENTS_URL).toBe(`${BASE}/events`)
   })
 
+  describe('certificate', () => {
+    it('reads the certificate authority with a plain GET, no sign-in', async () => {
+      const authority = { certificate_authority: 'PEM', fingerprint: 'AB:CD' }
+      requestJson.mockResolvedValue(authority)
+
+      await expect(api.getCertificateAuthority()).resolves.toEqual(authority)
+
+      expect(requestJson).toHaveBeenCalledWith(`${BASE}/tls/certificate-authority`, undefined)
+    })
+  })
+
   describe('console password', () => {
     it('reads the auth state with a plain GET', async () => {
       requestJson.mockResolvedValue({ password_set: true })

@@ -16,6 +16,14 @@ Check the one-off steps below for anything newer than your copy (`git log -1 --f
 
 ## One-off steps
 
+### SDR Manager serves HTTPS (November 2026)
+
+SDR Manager on each SDR host now serves HTTPS on port 8000, so other Sentinels' console passwords no longer cross the network readable. Upgrade the SDR hosts as usual: `docker compose up --build -d` issues the certificate (on a Mac, then run `uv run --project backend sdr-manager-local install` again).
+
+Every Sentinel that manages one still speaks plain HTTP to it, so the host shows as unreachable (**NOT ENCRYPTED**) until you move it over. Open the host in **Settings › SDR**, press **CHECK CERTIFICATE**, compare the fingerprint with the host's own, and trust it ([Certificates](use/sdr-manager.md#certificates)). The console password is kept.
+
+- `SENTINEL_ADSB_SDR_MANAGER_API`: the ADS-B decoder's start-up tuning check can't read an HTTPS host yet. It logs that and decodes as usual.
+
 ### Settings file moved to `config/`, no live code reload (November 2026)
 
 The live settings file is now `config/sentinel_config.json` in your Sentinel folder, and the containers run the code built into their images instead of your checkout's. Nothing to do for settings: they live in the database, and the new file is written on the first start. If you had hand edits in `backend/data/sentinel_config.json` that Sentinel never picked up, copy them across, then delete the old file.

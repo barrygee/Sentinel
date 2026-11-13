@@ -26,13 +26,13 @@ is 3.13), which is why the authority comes from an endpoint, not the handshake.
 
 from __future__ import annotations
 
-import hashlib
 import re
 import ssl
 from dataclasses import dataclass
 from functools import lru_cache
 
 import httpx
+from backend.platform.tls_fingerprint import certificate_fingerprint
 
 CERTIFICATE_AUTHORITY_PATH = "/api/tls/certificate-authority"
 """sdr-manager-local's public endpoint: `{"certificate_authority": "<PEM>"}`."""
@@ -60,12 +60,6 @@ class HostCertificateAuthority:
     fingerprint: str
     subject: str
     not_valid_after: str
-
-
-def certificate_fingerprint(pem: str) -> str:
-    """SHA-256 of the certificate's DER bytes, as `AA:BB:…` (the form `openssl x509 -fingerprint` prints)."""
-    digest = hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest().upper()
-    return ":".join(digest[index : index + 2] for index in range(0, len(digest), 2))
 
 
 def normalize_fingerprint(fingerprint: str) -> str:

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
+from backend.platform.tls_fingerprint import certificate_fingerprint
 
 from sentinel_sdr_manager_local.adapters.ctypes_rtlsdr import CtypesRtlSdrLibrary, RtlSdrLibraryUnavailableError
 from sentinel_sdr_manager_local.adapters.macos.homebrew import (
@@ -33,6 +34,7 @@ from sentinel_sdr_manager_local.launch_agent import LaunchAgentState, launch_age
 from sentinel_sdr_manager_local.native import (
     CERTIFICATE_AUTHORITY_FILE,
     CORE_SERVICE_ENTRYPOINT_URL,
+    TLS_CERTIFICATE_FILE,
     NativePaths,
     http_port,
     missing_credential_files,
@@ -186,6 +188,11 @@ def check_launch_agent(context: CheckContext) -> CheckResult:
 
 
 def _api_answers(context: CheckContext) -> bool:
+    """Whether SDR Manager answers: over HTTPS once its certificate exists, as it then serves."""
+    credentials = context.paths.credentials_directory
+    authority = credentials / CERTIFICATE_AUTHORITY_FILE
+    if (credentials / TLS_CERTIFICATE_FILE).is_file() and authority.is_file():
+        return context.http_get(f"https://127.0.0.1:{context.port}/health", authority) == 200
     return context.http_get(f"http://127.0.0.1:{context.port}/health", None) == 200
 
 
@@ -251,6 +258,21 @@ def check_core(context: CheckContext) -> CheckResult:
     )
 
 
+def check_certificate(context: CheckContext) -> CheckResult:
+    """The fingerprint other Sentinels see when they add this machine, to compare."""
+    authority = context.paths.credentials_directory / CERTIFICATE_AUTHORITY_FILE
+    try:
+        fingerprint = certificate_fingerprint(authority.read_text())
+    except (OSError, ValueError):
+        return CheckResult(
+            "Certificate",
+            "problem",
+            f"no certificate authority in {authority.parent}",
+            "Set SDR_MANAGER_LOCAL_NATIVE=1 in .env, then run: docker compose up -d",
+        )
+    return CheckResult("Certificate", "ok", f"fingerprint (SHA-256) {fingerprint}")
+
+
 def check_library_version(context: CheckContext) -> CheckResult:
     try:
         library = context.load_library(context.library_path)
@@ -277,6 +299,7 @@ DOCTOR_CHECKS: tuple[StatusCheck, ...] = (
     check_port,
     check_homebrew,
     check_credentials,
+    check_certificate,
     check_core,
     check_library_version,
 )

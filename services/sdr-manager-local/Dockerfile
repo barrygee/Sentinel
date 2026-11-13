@@ -123,8 +123,9 @@ RUN mkdir -p /data
 EXPOSE 8000
 
 # /health is the outer app's: it answers as soon as the service serves, core or no core.
+# Over HTTPS (verified against the deployment CA) when SDR Manager serves it.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=3 \
-    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('SDR_MANAGER_LOCAL_HTTP_PORT', '8000') + '/health', timeout=4)"
+    CMD ["python", "-m", "sentinel_sdr_manager_local.healthcheck"]
 
 # run_server binds uvicorn from SDR_MANAGER_LOCAL_HTTP_HOST/_HTTP_PORT and exits
 # with a clear message when the port is already taken.

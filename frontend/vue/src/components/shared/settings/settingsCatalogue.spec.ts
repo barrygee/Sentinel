@@ -51,6 +51,7 @@ import SeaCoverageAreaControl from '@sentinel/section-sea/settings/SeaCoverageAr
 import SeaLabelFieldsControl from '@sentinel/section-sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@sentinel/section-sea/settings/SeaMapLayersControl.vue'
 import ConsolePasswordControl from '@sentinel/sdr-manager-local/components/auth/ConsolePasswordControl.vue'
+import CertificateFingerprintControl from '@sentinel/sdr-manager-local/components/certificate/CertificateFingerprintControl.vue'
 import PrivateAccessControl from '@sentinel/sdr-manager-local/components/privateAccess/PrivateAccessControl.vue'
 import ConfigTransferControl from '@sentinel/sdr-manager-local/components/config/ConfigTransferControl.vue'
 import HotspotControl from '@sentinel/sdr-manager-local/components/hotspot/HotspotControl.vue'
@@ -273,6 +274,16 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       layout: 'half',
       naturalHeight: true,
       collapsible: { openWhen: expect.any(Function) },
+    },
+  ],
+  [
+    'sdr',
+    'sdr-manager-local-certificate',
+    {
+      component: CertificateFingerprintControl,
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: {},
     },
   ],
   [

@@ -102,6 +102,9 @@ class TestGenerate:
             # sdr-manager-remote's bearer).
             if user in ("core", "radio", "sdr-manager-local"):
                 expected.insert(0, "accepted-callers.json")
+            # sdr-manager-local serves HTTPS with its own certificate.
+            if user == "sdr-manager-local":
+                expected = sorted([*expected, "certificate.pem", "hostnames.txt", "private-key.pem"])
             assert sorted(path.name for path in folder.iterdir()) == expected
         # Nothing left over from issuing the certificate.
         assert sorted(path.name for path in server.iterdir()) == [
@@ -509,11 +512,43 @@ class TestCertificateExpiresAt:
         assert setup.certificate_expires_at(Path("unused")) == 1854102606.0
 
 
+class TestSdrManagerLocalCertificate:
+    """sdr-manager-local's TLS certificate: other Sentinels send it the console password."""
+
+    def test_is_issued_by_the_deployment_ca_for_this_machines_own_callers(self, tmp_path):
+        setup.generate(tmp_path)
+
+        folder = tmp_path / "credentials" / "sdr-manager-local"
+        assert _verifies_against(folder / "certificate.pem", tmp_path / "certificate-authority" / "certificate.pem")
+        assert (
+            "DNS:host.docker.internal, DNS:sdr-manager-local, DNS:localhost, IP Address:127.0.0.1"
+            in _subject_alternative_names(folder / "certificate.pem")
+        )
+        assert _mode(folder / "private-key.pem") == 0o600
+        # The CA's key never reaches it.
+        assert "PRIVATE KEY" not in (folder / "certificate-authority.pem").read_text()
+
+    def test_a_rerun_keeps_a_current_certificate(self, tmp_path):
+        setup.generate(tmp_path)
+        certificate = tmp_path / "credentials" / "sdr-manager-local" / "certificate.pem"
+        issued = certificate.read_bytes()
+
+        setup.generate(tmp_path)
+
+        assert certificate.read_bytes() == issued
+
+    def test_no_other_service_gets_a_server_certificate(self, tmp_path):
+        setup.generate(tmp_path)
+
+        holders = sorted(path.parent.name for path in (tmp_path / "credentials").glob("*/private-key.pem"))
+        assert holders == ["gateway", "sdr-manager-local"]
+
+
 class TestNativeSdrManagerLocalCredentials:
     """`SDR_MANAGER_LOCAL_NATIVE=1`: sdr-manager-local's folder copied for the native Mac process (ADR 0007)."""
 
     @pytest.mark.parametrize("value", ["1", " 1 "])
-    def test_copies_its_three_files_owner_only(self, tmp_path, monkeypatch, value):
+    def test_copies_its_five_files_owner_only(self, tmp_path, monkeypatch, value):
         monkeypatch.setenv("SDR_MANAGER_LOCAL_NATIVE", value)
         native = tmp_path / "native"
 
@@ -523,7 +558,9 @@ class TestNativeSdrManagerLocalCredentials:
         assert sorted(path.name for path in native.iterdir()) == [
             "accepted-callers.json",
             "certificate-authority.pem",
+            "certificate.pem",
             "http-credentials.json",
+            "private-key.pem",
         ]
         for path in native.iterdir():
             assert path.read_text() == (source / path.name).read_text()
