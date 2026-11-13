@@ -687,6 +687,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Lite Configuration editing, centred altitude legend, unavailable radios, deleted devices
 - Bind each service's manifest kind and route prefixes to its credential
 - Bound alert streams, refuse secret deletes, keep exception text in the log
+- Bump certifi to 2026.10.23 for distrusted emSign roots
 
 ### Chores
 
@@ -1910,6 +1911,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #645 from barrygee/fix/ui-queue
 - Merge pull request #646 from barrygee/fix/registry-route-ownership
 - Merge pull request #647 from barrygee/chore/security-limits
+- Merge pull request #648 from barrygee/fix/uv-certifi-2026-11
 
 ### Performance
 
