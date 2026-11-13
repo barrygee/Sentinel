@@ -56,7 +56,9 @@ const usbPort = computed(() => identity.value?.topology_path ?? null)
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin: 0;
+  /* Read-only facts, set apart from the editable fields above: the card's
+     16px gap plus this makes 32px, a section break rather than a next row. */
+  margin: 16px 0 0;
 }
 .local-device-details div {
   display: grid;
