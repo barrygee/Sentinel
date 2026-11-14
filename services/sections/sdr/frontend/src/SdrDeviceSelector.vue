@@ -127,6 +127,8 @@ import { useSdrStore } from './stores/sdr'
 import type { SdrRadio } from './stores/sdr'
 import { findSdrManagerHosts } from './services/sdrManagerHosts'
 import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
+import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 
 const props = defineProps<{
   /** Text shown in the trigger (radio name / placeholder / loading…). */
@@ -145,6 +147,7 @@ const emit = defineEmits<{
 }>()
 
 const sdrStore = useSdrStore()
+const appStore = useAppStore()
 const readOnly = computed(() => sdrStore.readOnly)
 
 // A dropdown row is shown read-only (red + padlock) when this instance is a
@@ -166,8 +169,18 @@ function reservationFor(radio: SdrRadio): string | null {
   return sdrStore.radioReservation(radio.id)
 }
 
-/** Each SDR host's label by id (sdrHostLabel), for the rows of radios made from its dongles. */
-const hostLabels = ref<Map<number, string>>(new Map())
+/** The SDR hosts as last read, for their labels. */
+const sdrManagerHosts = ref<SdrManagerHost[]>([])
+/**
+ * Each SDR host's label by id (sdrHostLabel), for the rows of radios made from
+ * its dongles. Computed, so this machine's follows its name as it is applied.
+ */
+const hostLabels = computed(
+  () =>
+    new Map(
+      sdrManagerHosts.value.map((host) => [host.id, sdrHostLabel(host, appStore.thisMachineLabel)]),
+    ),
+)
 
 /**
  * Where a radio is, as its row says it: its SDR host's label ("This machine",
@@ -186,7 +199,7 @@ async function loadHostLabels(): Promise<void> {
   if (!capability) return
   try {
     const hosts = await capability.listHosts()
-    hostLabels.value = new Map(hosts.map((host) => [host.id, sdrHostLabel(host)]))
+    sdrManagerHosts.value = hosts
   } catch {
     /* Addresses stand in; the next open tries again. */
   }

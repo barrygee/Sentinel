@@ -2,6 +2,10 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getNamespace } from '@sentinel/shell-api/services/settingsApi'
 import type { SourceMode } from '@sentinel/shell-api/utils/sourceMode'
+import {
+  MACHINE_NAME_MAX_LENGTH,
+  thisMachineLabel as formatThisMachineLabel,
+} from '@sentinel/shell-api/utils/thisMachineLabel'
 
 /** The app-wide data-source mode (Settings › Connectivity Mode). */
 export type ConnectivityMode = SourceMode
@@ -47,6 +51,25 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  /**
+   * The operator's name for this machine (`app.machineName`, Settings › App
+   * Settings › Machine Name); blank while unnamed. Applied from the settings
+   * payload at boot and on every in-place refresh (`applySettingsPayload`).
+   */
+  const machineName = ref('')
+  /** This machine as its own screens name it: `<name> (This machine)`, or `This machine`. */
+  const thisMachineLabel = computed(() => formatThisMachineLabel(machineName.value))
+  /** Adopt a stored machine name; anything but text counts as unnamed. */
+  function setMachineName(name: unknown) {
+    machineName.value =
+      typeof name === 'string' ? name.trim().slice(0, MACHINE_NAME_MAX_LENGTH) : ''
+  }
+  /** Re-read the machine name from the settings API (the Machine Name control's hydrate). */
+  async function hydrateMachineNameFromDb(): Promise<void> {
+    const data = await getNamespace('app')
+    if (data) setMachineName(data.machineName)
+  }
+
   function setConnectivityMode(mode: ConnectivityMode) {
     if (connectivityMode.value === mode) return
     connectivityMode.value = mode
@@ -70,6 +93,10 @@ export const useAppStore = defineStore('app', () => {
     notificationSound,
     setNotificationSound,
     hydrateNotificationSoundFromDb,
+    machineName,
+    thisMachineLabel,
+    setMachineName,
+    hydrateMachineNameFromDb,
     setConnectivityMode,
     setEnabledDomains,
     firstEnabledDomain,

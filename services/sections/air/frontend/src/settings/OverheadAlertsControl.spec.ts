@@ -21,6 +21,7 @@ vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
 
 import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import OverheadAlertsControl from './OverheadAlertsControl.vue'
 
 enableAutoUnmount(afterEach)
@@ -64,10 +65,10 @@ describe('OverheadAlertsControl', () => {
   })
 
   describe('the list of locations', () => {
-    it('leads with the Sentinel location, then names each SDR host', () => {
+    it('leads with this machine, then names each SDR host', () => {
       const wrapper = mountControl({ sites: [site(), site({ id: 2, name: 'Coastal' })] })
       expect(rows(wrapper).map((row) => row.find('.overhead-alerts-name').text())).toEqual([
-        'Sentinel location',
+        'This machine',
         'SDR host: GATESHEAD',
         'SDR host: COASTAL',
       ])
@@ -118,7 +119,7 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      await switchFor(wrapper, 'Sentinel location', 1).trigger('click')
+      await switchFor(wrapper, 'This machine', 1).trigger('click')
 
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID)).toMatchObject({
         civil: false,
@@ -131,7 +132,7 @@ describe('OverheadAlertsControl', () => {
       airStore.setOverheadAlert(USER_ALERT_LOCATION_ID, { civil: true })
       const wrapper = mountControl()
 
-      await switchFor(wrapper, 'Sentinel location', 0).trigger('click')
+      await switchFor(wrapper, 'This machine', 0).trigger('click')
 
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID).civil).toBe(false)
     })
@@ -139,8 +140,8 @@ describe('OverheadAlertsControl', () => {
     it('reflects the stored state', () => {
       useAirStore().setOverheadAlert(USER_ALERT_LOCATION_ID, { mil: true })
       const wrapper = mountControl()
-      expect(switchFor(wrapper, 'Sentinel location', 0).attributes('aria-checked')).toBe('false')
-      expect(switchFor(wrapper, 'Sentinel location', 1).attributes('aria-checked')).toBe('true')
+      expect(switchFor(wrapper, 'This machine', 0).attributes('aria-checked')).toBe('false')
+      expect(switchFor(wrapper, 'This machine', 1).attributes('aria-checked')).toBe('true')
     })
   })
 
@@ -149,7 +150,7 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       airStore.setOverheadAlert(sdrManagerAlertLocationId(1), { radiusNm: 40 })
       const wrapper = mountControl({ sites: [site()] })
-      expect((radiusFor(wrapper, 'Sentinel location').element as HTMLInputElement).value).toBe('10')
+      expect((radiusFor(wrapper, 'This machine').element as HTMLInputElement).value).toBe('10')
       expect((radiusFor(wrapper, 'SDR host: GATESHEAD').element as HTMLInputElement).value).toBe(
         '40',
       )
@@ -159,7 +160,7 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('25')
       await field.trigger('blur')
 
@@ -170,7 +171,7 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('')
 
       expect((field.element as HTMLInputElement).value).toBe('')
@@ -181,19 +182,19 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('abc')
       await field.trigger('blur')
 
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID).radiusNm).toBe(10)
-      expect((radiusFor(wrapper, 'Sentinel location').element as HTMLInputElement).value).toBe('10')
+      expect((radiusFor(wrapper, 'This machine').element as HTMLInputElement).value).toBe('10')
     })
 
     it('refuses a non-positive radius, keeping the stored one', async () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('0')
       await field.trigger('blur')
 
@@ -204,7 +205,7 @@ describe('OverheadAlertsControl', () => {
       const airStore = useAirStore()
       const wrapper = mountControl()
 
-      await radiusFor(wrapper, 'Sentinel location').trigger('blur')
+      await radiusFor(wrapper, 'This machine').trigger('blur')
 
       expect(airStore.overheadAlertFor(USER_ALERT_LOCATION_ID).radiusNm).toBe(10)
     })
@@ -212,7 +213,7 @@ describe('OverheadAlertsControl', () => {
     it('keeps each location’s draft separate', async () => {
       const wrapper = mountControl({ sites: [site()] })
 
-      await radiusFor(wrapper, 'Sentinel location').setValue('99')
+      await radiusFor(wrapper, 'This machine').setValue('99')
 
       expect((radiusFor(wrapper, 'SDR host: GATESHEAD').element as HTMLInputElement).value).toBe(
         '10',
@@ -224,7 +225,7 @@ describe('OverheadAlertsControl', () => {
     it('stages a write so APPLY CHANGES reports what it did, not "NO CHANGES"', async () => {
       const wrapper = mountControl()
 
-      await switchFor(wrapper, 'Sentinel location', 0).trigger('click')
+      await switchFor(wrapper, 'This machine', 0).trigger('click')
 
       // The store update is immediate (the map draws its zone at once); the
       // durable write is staged for the panel's APPLY button.
@@ -239,7 +240,7 @@ describe('OverheadAlertsControl', () => {
     it('stages a radius change too', async () => {
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('25')
       await field.trigger('blur')
 
@@ -249,7 +250,7 @@ describe('OverheadAlertsControl', () => {
     it('stages nothing for a rejected radius', async () => {
       const wrapper = mountControl()
 
-      const field = radiusFor(wrapper, 'Sentinel location')
+      const field = radiusFor(wrapper, 'This machine')
       await field.setValue('abc')
       await field.trigger('blur')
 
@@ -268,7 +269,7 @@ describe('OverheadAlertsControl', () => {
       await flushPromises()
 
       expect(useAirStore().overheadAlertFor(USER_ALERT_LOCATION_ID).radiusNm).toBe(22)
-      expect(switchFor(wrapper, 'Sentinel location', 0).attributes('aria-checked')).toBe('true')
+      expect(switchFor(wrapper, 'This machine', 0).attributes('aria-checked')).toBe('true')
     })
 
     it('carries the pre-split single configuration onto your own location', async () => {
@@ -330,10 +331,21 @@ describe('OverheadAlertsControl', () => {
       )
     })
 
-    it('names the operator’s own row in plain words', () => {
+    it('names this machine’s own row by the machine name', () => {
+      useAppStore().setMachineName('Home')
       const wrapper = mountControl()
-      expect(switchFor(wrapper, 'Sentinel location', 0).attributes('aria-label')).toBe(
-        'Civil aircraft alerts for your location',
+      expect(switchFor(wrapper, 'Home (This machine)', 0).attributes('aria-label')).toBe(
+        'Civil aircraft alerts for Home (This machine)',
+      )
+    })
+
+    it('names an SDR host’s row by its label', () => {
+      const wrapper = mountControl({ sites: [site()] })
+      expect(switchFor(wrapper, 'SDR host: GATESHEAD', 1).attributes('aria-label')).toBe(
+        'Military aircraft alerts for GATESHEAD',
+      )
+      expect(radiusFor(wrapper, 'SDR host: GATESHEAD').attributes('aria-label')).toBe(
+        'Alert radius for GATESHEAD, nautical miles',
       )
     })
 

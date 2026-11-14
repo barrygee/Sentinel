@@ -12,7 +12,7 @@
     >
       <p class="overhead-alerts-heading">
         <span class="overhead-alerts-name">
-          {{ location.isUser ? 'Sentinel location' : `SDR host: ${location.label}` }}
+          {{ location.isUser ? location.name : `SDR host: ${location.label}` }}
         </span>
         <span class="overhead-alerts-coords">
           ({{ formatLatitude(location.lat) }} {{ formatLongitude(location.lon) }})
@@ -24,7 +24,7 @@
           <span class="overhead-alerts-toggle-label">Civil</span>
           <BaseToggleSwitch
             :model-value="location.civil"
-            :accessible-name="`Civil aircraft alerts for ${alertLocationName(location)}`"
+            :accessible-name="`Civil aircraft alerts for ${placeName(location)}`"
             @update:model-value="setFlag(location.id, 'civil', $event)"
           />
         </span>
@@ -32,7 +32,7 @@
           <span class="overhead-alerts-toggle-label">Military</span>
           <BaseToggleSwitch
             :model-value="location.mil"
-            :accessible-name="`Military aircraft alerts for ${alertLocationName(location)}`"
+            :accessible-name="`Military aircraft alerts for ${placeName(location)}`"
             @update:model-value="setFlag(location.id, 'mil', $event)"
           />
         </span>
@@ -44,7 +44,7 @@
             inputmode="numeric"
             spellcheck="false"
             :value="radiusDraft(location)"
-            :aria-label="`Alert radius for ${alertLocationName(location)}, nautical miles`"
+            :aria-label="`Alert radius for ${placeName(location)}, nautical miles`"
             @input="onRadiusInput(location.id, $event)"
             @blur="onRadiusBlur(location.id)"
           />
@@ -97,9 +97,9 @@ function stageWrite(): void {
 /** In-flight radius text, keyed by location id; absent once committed. */
 const radiusDrafts = ref<Record<string, string>>({})
 
-/** How the row is named in an accessible label. */
-function alertLocationName(location: OverheadAlertLocation): string {
-  return location.isUser ? 'your location' : location.label
+/** How the row is named in an accessible label: this machine by name, a host by its label. */
+function placeName(location: OverheadAlertLocation): string {
+  return location.isUser ? location.name : location.label
 }
 
 function radiusDraft(location: OverheadAlertLocation): string {

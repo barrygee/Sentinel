@@ -26,8 +26,10 @@
 
 <script setup lang="ts">
 /**
- * Choosing what the range rings are centred on: the Sentinel's own position or
- * one of the SDR host sites.
+ * Choosing what the range rings are centred on: this machine's own position
+ * (`<name> (This machine)`) or one of the other SDR host sites. This machine's
+ * own SDR Manager is not listed again: it stands where this machine does, so
+ * the two are one entry, and a choice pinned to it shows as that entry.
  *
  * The named places are a radio group — the operator is picking exactly one of
  * a listed set, and each row shows its coordinates so the choice can be made
@@ -38,6 +40,7 @@
  * heading and the resolved-coordinates line.
  */
 import { computed, ref, watch } from 'vue'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
@@ -52,13 +55,14 @@ interface OriginOption {
   name: string
   /** Coordinates, plus distance from the operator where that is known. */
   detail: string
-  /** Which SDR host this is, or null for the Sentinel's own position. */
+  /** Which SDR host this is, or null for this machine's own position. */
   sdrManagerHostId: number | null
   /** A place with no position: listed for context, but not choosable. */
   disabled: boolean
   selected: boolean
 }
 
+const appStore = useAppStore()
 const sdrManagerSitesStore = useSdrManagerSitesStore()
 const { location: userLocation } = useUserLocation()
 const {
@@ -82,19 +86,29 @@ function placeDetail(lat: number, lon: number, withDistance: boolean): string {
   return `${coords} - ${Math.round(haversineNm(own.lat, own.lon, lat, lon))} NM`
 }
 
+/** The pinned host is this machine's own SDR Manager, which the first entry already stands for. */
+const pinnedToThisMachine = computed(
+  () =>
+    setting.value.kind === 'sdr-manager' &&
+    sdrManagerSitesStore.sites.some(
+      (site) => site.is_local && site.id === setting.value.sdrManagerHostId,
+    ),
+)
+
 const options = computed<OriginOption[]>(() => {
   const own = userLocation.value
   const list: OriginOption[] = [
     {
       key: 'user',
-      name: 'Sentinel location',
+      name: appStore.thisMachineLabel,
       detail: own ? placeDetail(own.lat, own.lon, false) : 'Set your location first',
       sdrManagerHostId: null,
       disabled: own === null,
-      selected: setting.value.kind === 'user',
+      selected: setting.value.kind === 'user' || pinnedToThisMachine.value,
     },
   ]
   for (const site of sdrManagerSitesStore.sites) {
+    if (site.is_local) continue
     list.push({
       key: `sdr-manager:${site.id}`,
       name: siteLabel(site),
@@ -144,7 +158,7 @@ function pick(index: number): void {
   clearNotice()
   if (option.sdrManagerHostId === null) {
     selectUserOrigin()
-    announce('the Sentinel location')
+    announce(appStore.thisMachineLabel)
   } else {
     selectSdrManagerOrigin(option.sdrManagerHostId)
     announce(option.name)

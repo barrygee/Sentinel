@@ -1,5 +1,6 @@
 import { computed, type ComputedRef } from 'vue'
 import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
@@ -9,9 +10,11 @@ import type { OverheadAlertZone } from '../controls/overhead-zone/OverheadAlerts
  * Every place overhead alerts can watch, with its own settings resolved.
  *
  * An SDR host watches its own patch of sky, so "is anything overhead?" is asked
- * once per receiver rather than once for the app. The operator's own position
+ * once per receiver rather than once for the app. This machine's own position
  * leads the list — it is the one place that exists before any SDR host does — and
- * each SDR host follows in fleet order.
+ * each other SDR host follows in fleet order. This machine's own SDR Manager is
+ * not listed again while that first entry exists: it stands where this machine
+ * does, so the two are one place, named once (`<name> (This machine)`).
  *
  * Used by the two things that need the same answer: the background alert
  * service, which decides what to notify about, and the Air map, which draws a
@@ -23,8 +26,10 @@ import type { OverheadAlertZone } from '../controls/overhead-zone/OverheadAlerts
  * trap the moment a second pinia exists.)
  */
 export interface OverheadAlertLocation extends OverheadAlertZone {
-  /** True for the operator's own position, false for an SDR host site. */
+  /** True for this machine's own position, false for an SDR host site. */
   isUser: boolean
+  /** The place's name as a sentence reads it (`label` is the map's capitals). */
+  name: string
 }
 
 /** The alert locations, in the order the Settings table lists them. */
@@ -34,6 +39,7 @@ export function useOverheadAlertZones(): {
   activeZones: ComputedRef<OverheadAlertZone[]>
 } {
   const airStore = useAirStore()
+  const appStore = useAppStore()
   const sdrManagerSitesStore = useSdrManagerSitesStore()
   const { location } = useUserLocation()
 
@@ -44,7 +50,8 @@ export function useOverheadAlertZones(): {
     if (own) {
       zones.push({
         id: USER_ALERT_LOCATION_ID,
-        label: 'MY LOCATION',
+        label: appStore.thisMachineLabel.toUpperCase(),
+        name: appStore.thisMachineLabel,
         lon: own.lon,
         lat: own.lat,
         isUser: true,
@@ -53,10 +60,13 @@ export function useOverheadAlertZones(): {
     }
 
     for (const site of sdrManagerSitesStore.sites) {
+      if (own && site.is_local) continue
       const id = sdrManagerAlertLocationId(site.id)
+      const name = siteLabel(site)
       zones.push({
         id,
-        label: siteLabel(site).toUpperCase(),
+        label: name.toUpperCase(),
+        name,
         lon: site.longitude,
         lat: site.latitude,
         isUser: false,

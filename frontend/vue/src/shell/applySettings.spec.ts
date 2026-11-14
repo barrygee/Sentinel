@@ -27,6 +27,7 @@ const PAYLOAD = {
     connectivityMode: 'offgrid',
     mapTheme: 'light',
     notificationSound: true,
+    machineName: 'Home',
     mapLayers: { roads: false },
   },
   sdr: { bandPlan: [{ name: 'Air' }] },
@@ -64,6 +65,8 @@ describe('shell/applySettings', () => {
       expect(localStorage.getItem(APP_MODE_STORAGE_KEY)).toBe('offgrid')
       expect(useThemeStore().mapTheme).toBe('light')
       expect(useAppStore().notificationSound).toBe(true)
+      expect(useAppStore().machineName).toBe('Home')
+      expect(useAppStore().thisMachineLabel).toBe('Home (This machine)')
       expect(useBasemapStore().layers.roads).toBe(false)
       expect(registries.runSettingsHydrators).toHaveBeenCalledWith(PAYLOAD)
     })
@@ -94,6 +97,12 @@ describe('shell/applySettings', () => {
       useAppStore().setNotificationSound(true)
       applySettingsPayload({ app: {} })
       expect(useAppStore().notificationSound).toBe(false)
+    })
+
+    it('clears the machine name when the payload no longer has one', () => {
+      useAppStore().setMachineName('Home')
+      applySettingsPayload({ app: {} })
+      expect(useAppStore().machineName).toBe('')
     })
 
     it('copes with a payload that has no app namespace at all', () => {

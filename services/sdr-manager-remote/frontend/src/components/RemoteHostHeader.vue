@@ -123,6 +123,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseInlineConfirm from '@sentinel/ui/base/BaseInlineConfirm.vue'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useStagedEdits } from '@sentinel/shell-api/settings/useStagedEdits'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
@@ -147,14 +148,15 @@ const emit = defineEmits<{
 }>()
 
 const settingsStore = useSettingsStore()
+const appStore = useAppStore()
 const rootElement = ref<HTMLElement | null>(null)
 const open = ref(false)
 const confirming = ref(false)
 /** Why APPLY CHANGES could not save this host's edit. */
 const applyError = ref<string | null>(null)
 
-/** This machine's host reads "This machine" unless the operator labelled it. */
-const hostLabel = computed(() => sdrHostLabel(props.host))
+/** This machine's host reads `<name> (This machine)`; any other host its label (`sdrHostLabel`). */
+const hostLabel = computed(() => sdrHostLabel(props.host, appStore.thisMachineLabel))
 
 function toggleEdit(): void {
   open.value = !open.value
