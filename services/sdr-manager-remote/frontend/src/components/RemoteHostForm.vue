@@ -1,11 +1,11 @@
 <template>
   <div class="sdr-devices-accordion">
     <!-- This machine's row is linked by sdr-manager-remote, which keeps its
-         address and sign-in itself (PR 5's local link): only its label and
-         ADD SDRS are the operator's to change. -->
+         address and sign-in itself (PR 5's local link), and is named by the
+         one machine name setting: only ADD SDRS is the operator's to change. -->
     <p v-if="isLocal" class="remote-host-local-note sdr-devices-note">
-      Linked automatically to this machine's SDR Manager. Only the label and how its SDRs are added
-      can be changed here.
+      Linked automatically to this machine's SDR Manager. Its name is this machine's, set in App
+      Settings › Machine Name; only how its SDRs are added can be changed here.
     </p>
     <BaseTextField
       v-else
@@ -18,17 +18,16 @@
       autocomplete="off"
       spellcheck="false"
     />
-    <BaseTextField
-      ref="labelRef"
-      v-model="form.name"
-      v-bind="FIELD"
-      label="LABEL"
-      aria-label="SDR host label"
-      :placeholder="isLocal ? 'This machine' : 'e.g. Roof Pi'"
-      autocomplete="off"
-      spellcheck="false"
-    />
     <template v-if="!isLocal">
+      <BaseTextField
+        v-model="form.name"
+        v-bind="FIELD"
+        label="LABEL"
+        aria-label="SDR host label"
+        :placeholder="host?.machine_name || 'e.g. Roof Pi'"
+        autocomplete="off"
+        spellcheck="false"
+      />
       <BaseTextField
         v-model.number="form.port"
         v-bind="FIELD"
@@ -133,10 +132,13 @@
  * the address or port changes, when the backend drops it rather than send it
  * to a different machine, and the placeholder asks for it again.
  *
- * This machine's own row (`is_local`) shows only the label and ADD SDRS:
- * sdr-manager-remote links it from core's registry and signs in with its
- * service bearer, and the API refuses any other change to it (409
- * `local_host_managed`).
+ * This machine's own row (`is_local`) shows only ADD SDRS: sdr-manager-remote
+ * links it from core's registry and signs in with its service bearer, and the
+ * API refuses any other change to it (409 `local_host_managed`). Its name is
+ * the machine name setting (App Settings › Machine Name), not a label here.
+ *
+ * Another host's LABEL placeholder is the name its own operator gave it
+ * (`machine_name`), which is what it is called while the label is blank.
  *
  * ADD SDRS picks how the host's SDRs become radios: MANUALLY (the default),
  * one at a time with ADD, or AUTOMATICALLY, every public one by itself
@@ -196,7 +198,6 @@ const emit = defineEmits<{
 }>()
 
 const addressRef = ref<{ focus: () => void } | null>(null)
-const labelRef = ref<{ focus: () => void } | null>(null)
 const isLocal = computed(() => props.host?.is_local === true)
 const errorMsg = ref('')
 const shownError = computed(() => errorMsg.value || props.applyError || '')
@@ -231,7 +232,7 @@ const passwordPlaceholder = computed(() => {
 })
 
 // The first editable field: the address, or the label on this machine's row.
-onMounted(() => setTimeout(() => (addressRef.value ?? labelRef.value)?.focus(), 0))
+onMounted(() => setTimeout(() => addressRef.value?.focus(), 0))
 
 watch(
   form,

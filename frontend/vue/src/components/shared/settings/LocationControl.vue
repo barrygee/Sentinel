@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 /**
- * Settings > Sentinel Location — a fixed latitude/longitude for your own position.
+ * Settings > Location — a fixed latitude/longitude for this machine (named by Machine Name).
  *
  * Mirrors the SDR host's SDR host Location panel: stacked labelled fields with a decimal-degrees hint apiece and per-field validation on blur.
  * Edits stage into APPLY CHANGES like every other control here (Enter in a

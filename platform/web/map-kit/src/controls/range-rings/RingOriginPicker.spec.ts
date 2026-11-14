@@ -29,6 +29,7 @@ vi.mock('../../composables/useUserLocation', () => ({
   useUserLocation: () => ({ location: userLocation }),
 }))
 
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import RingOriginPicker from './RingOriginPicker.vue'
 
@@ -81,9 +82,9 @@ describe('RingOriginPicker', () => {
   })
 
   describe('the choices', () => {
-    it('lists the Sentinel location first, then every SDR host', () => {
+    it('lists this machine first, then every SDR host', () => {
       const wrapper = mountPicker({ sites: [site(), site({ id: 2, name: 'Coastal' })] })
-      expect(optionNames(wrapper)).toEqual(['Sentinel location', 'Gateshead', 'Coastal'])
+      expect(optionNames(wrapper)).toEqual(['This machine', 'Gateshead', 'Coastal'])
     })
 
     it('is one radio group, so the choice reads as single-select', () => {
@@ -106,31 +107,71 @@ describe('RingOriginPicker', () => {
     })
 
     it('shows your coordinates, or tells you to set them', () => {
-      expect(optionDetail(mountPicker(), 'Sentinel location')).toBe('(51.50000° N 0.12000° W)')
+      expect(optionDetail(mountPicker(), 'This machine')).toBe('(51.50000° N 0.12000° W)')
 
       userLocation.value = null
       const wrapper = mountPicker()
-      expect(optionDetail(wrapper, 'Sentinel location')).toBe('(Set your location first)')
-      expect(rowNamed(wrapper, 'Sentinel location').attributes('aria-disabled')).toBe('true')
+      expect(optionDetail(wrapper, 'This machine')).toBe('(Set your location first)')
+      expect(rowNamed(wrapper, 'This machine').attributes('aria-disabled')).toBe('true')
     })
 
     it('checks the current choice and only that one', () => {
       setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
       expect(rowNamed(wrapper, 'Gateshead').attributes('aria-checked')).toBe('true')
-      expect(rowNamed(wrapper, 'Sentinel location').attributes('aria-checked')).toBe('false')
+      expect(rowNamed(wrapper, 'This machine').attributes('aria-checked')).toBe('false')
+    })
+  })
+
+  describe('this machine, named and merged', () => {
+    it('names the first entry by the machine name', () => {
+      useAppStore().setMachineName('Home')
+      expect(optionNames(mountPicker({ sites: [site()] }))).toEqual([
+        'Home (This machine)',
+        'Gateshead',
+      ])
+    })
+
+    it('does not list this machine’s own SDR Manager again', () => {
+      const wrapper = mountPicker({
+        sites: [site({ id: 7, is_local: true, name: 'This machine' }), site({ id: 2 })],
+      })
+      expect(optionNames(wrapper)).toEqual(['This machine', 'Gateshead'])
+    })
+
+    it('shows a choice pinned to this machine’s own SDR Manager as the this-machine entry', () => {
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 7 }
+      const wrapper = mountPicker({ sites: [site({ id: 7, is_local: true }), site({ id: 2 })] })
+      expect(rowNamed(wrapper, 'This machine').attributes('aria-checked')).toBe('true')
+      expect(rowNamed(wrapper, 'Gateshead').attributes('aria-checked')).toBe('false')
+    })
+
+    it('does not check the this-machine entry for a choice pinned to another host', () => {
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 2 }
+      const wrapper = mountPicker({ sites: [site({ id: 7, is_local: true }), site({ id: 2 })] })
+      expect(rowNamed(wrapper, 'This machine').attributes('aria-checked')).toBe('false')
+      expect(rowNamed(wrapper, 'Gateshead').attributes('aria-checked')).toBe('true')
+    })
+
+    it('announces this machine by its name when chosen', async () => {
+      useAppStore().setMachineName('Home')
+      setting.value = { kind: 'sdr-manager', sdrManagerHostId: 2 }
+      const wrapper = mountPicker({ sites: [site({ id: 2 })] })
+      await rowNamed(wrapper, 'Home (This machine)').trigger('click')
+      expect(selectUserOrigin).toHaveBeenCalled()
+      expect(wrapper.find('.sr-only').text()).toBe('Range rings centred on Home (This machine).')
     })
   })
 
   describe('choosing', () => {
-    it('centres on the Sentinel location and announces it', async () => {
+    it('centres on this machine and announces it', async () => {
       setting.value = { kind: 'sdr-manager', sdrManagerHostId: 1 }
       const wrapper = mountPicker({ sites: [site()] })
 
-      await rowNamed(wrapper, 'Sentinel location').trigger('click')
+      await rowNamed(wrapper, 'This machine').trigger('click')
 
       expect(selectUserOrigin).toHaveBeenCalledOnce()
-      expect(wrapper.find('.sr-only').text()).toBe('Range rings centred on the Sentinel location.')
+      expect(wrapper.find('.sr-only').text()).toBe('Range rings centred on This machine.')
     })
 
     it('pins an SDR host by id and names it in the announcement', async () => {
@@ -146,7 +187,7 @@ describe('RingOriginPicker', () => {
       userLocation.value = null
       const wrapper = mountPicker()
 
-      await rowNamed(wrapper, 'Sentinel location').trigger('click')
+      await rowNamed(wrapper, 'This machine').trigger('click')
 
       expect(selectUserOrigin).not.toHaveBeenCalled()
       expect(wrapper.find('.sr-only').text()).toBe('')
@@ -250,7 +291,7 @@ describe('RingOriginPicker', () => {
       userLocation.value = null
       const wrapper = mountPicker()
 
-      await rowNamed(wrapper, 'Sentinel location').trigger('click')
+      await rowNamed(wrapper, 'This machine').trigger('click')
 
       expect(wrapper.emitted('stage')).toBeUndefined()
     })

@@ -14,6 +14,7 @@ import type {
   RadioSitesCapability,
 } from '@sentinel/shell-api/shell/radioSitesCapability'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { sdrHostLabel } from '@sentinel/shell-api/utils/sdrHostLabel'
 
 /**
@@ -35,13 +36,15 @@ export function createRadioSitesCapability(): RadioSitesCapability {
         hosts = []
       }
       const result: RadioSiteDevices = { hostCount: hosts.length, hosts: [] }
+      // Read once, outside the per-host catch below, which is for unreachable hosts only.
+      const thisMachine = useAppStore().thisMachineLabel
       for (const host of hosts) {
         if (!host.enabled) continue
         try {
           const snapshot = await getHostDevices(host.id)
           result.hosts.push({
             id: host.id,
-            label: sdrHostLabel(host),
+            label: sdrHostLabel(host, thisMachine),
             devices: (snapshot.status?.sdrs ?? []).map((device) => ({
               deviceId: device.device_id,
               name: device.name || device.device_id,

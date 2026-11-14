@@ -112,6 +112,22 @@ describe('RemoteHostForm', () => {
     expect((inputs[2]!.element as HTMLInputElement).value).toBe('8000')
   })
 
+  it("offers another host's own published name as its LABEL placeholder", () => {
+    const wrapper = mount(RemoteHostForm, {
+      props: { host: makeSavedHost({ name: null, machine_name: 'Shed' }) },
+    })
+    expect(wrapper.find('input[aria-label="SDR host label"]').attributes('placeholder')).toBe(
+      'Shed',
+    )
+  })
+
+  it('offers an example LABEL placeholder for a host that publishes no name', () => {
+    const wrapper = mount(RemoteHostForm, { props: { host: makeSavedHost({ name: null }) } })
+    expect(wrapper.find('input[aria-label="SDR host label"]').attributes('placeholder')).toBe(
+      'e.g. Roof Pi',
+    )
+  })
+
   it('shows the "password set" placeholder for a host with a stored password', async () => {
     const wrapper = mount(RemoteHostForm, { props: { host: EXISTING_HOST } })
     const tokenInput = wrapper.findAll('.ba-text-field__input')[3]!
@@ -776,17 +792,18 @@ describe('RemoteHostForm', () => {
       auto_add_sdrs: false,
     })
 
-    it('shows only the label and ADD SDRS, with a note that the row is linked automatically', () => {
+    it('shows only ADD SDRS, with a note that the row is linked and named by Machine Name', () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
       const labels = wrapper.findAll('.ba-form-field__label').map((label) => label.text())
-      expect(labels).toEqual(['LABEL', 'ADD SDRS'])
+      expect(labels).toEqual(['ADD SDRS'])
       expect(wrapper.find('input[aria-label="SDR host IP address or hostname"]').exists()).toBe(
         false,
       )
+      expect(wrapper.find('input[aria-label="SDR host label"]').exists()).toBe(false)
       expect(wrapper.find('input[type="password"]').exists()).toBe(false)
-      expect(wrapper.find('.remote-host-local-note').text()).toContain('Linked automatically')
-      const labelInput = wrapper.find('input[aria-label="SDR host label"]')
-      expect(labelInput.attributes('placeholder')).toBe('This machine')
+      const note = wrapper.find('.remote-host-local-note').text()
+      expect(note).toContain('Linked automatically')
+      expect(note).toContain('App Settings › Machine Name')
     })
 
     it('has no ADD or SAVE button, only TEST CONNECTION and CANCEL', () => {
@@ -798,41 +815,19 @@ describe('RemoteHostForm', () => {
       ])
     })
 
-    it('drafts a label edit without saving, and without creating or updating anything', async () => {
+    it('drafts an ADD SDRS change without saving, and drafts null once it is back', async () => {
       const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      await wrapper.find('input[aria-label="SDR host label"]').setValue('Shack')
-      const drafts = wrapper.emitted('draft')!
-      expect(drafts[drafts.length - 1]![0]).toMatchObject({ name: 'Shack' })
+      const radios = wrapper.findAll('[role="radio"]')
+      await radios[1]!.trigger('click')
+      let drafts = wrapper.emitted('draft')!
+      expect(drafts[drafts.length - 1]![0]).toMatchObject({ autoAddSdrs: true })
       expect(mockUpdateSdrManagerHost).not.toHaveBeenCalled()
       expect(mockCreateSdrManagerHost).not.toHaveBeenCalled()
       expect(wrapper.emitted('save')).toBeUndefined()
-    })
 
-    it('drafts null once the label is back to what is saved', async () => {
-      const wrapper = mount(RemoteHostForm, { props: { host: LOCAL_HOST } })
-      const labelInput = wrapper.find('input[aria-label="SDR host label"]')
-      await labelInput.setValue('Shack')
-      await labelInput.setValue('')
-      const drafts = wrapper.emitted('draft')!
+      await radios[0]!.trigger('click')
+      drafts = wrapper.emitted('draft')!
       expect(drafts[drafts.length - 1]![0]).toBeNull()
-    })
-
-    it('reopens on the staged label', () => {
-      const wrapper = mount(RemoteHostForm, {
-        props: {
-          host: LOCAL_HOST,
-          stagedDraft: {
-            address: 'host.docker.internal',
-            name: 'Shack',
-            port: 8000,
-            authToken: '',
-            autoAddSdrs: false,
-          },
-        },
-      })
-      expect(
-        (wrapper.find('input[aria-label="SDR host label"]').element as HTMLInputElement).value,
-      ).toBe('Shack')
     })
 
     it("shows the API's refusal handed back by APPLY CHANGES", () => {
@@ -844,16 +839,14 @@ describe('RemoteHostForm', () => {
       )
     })
 
-    it('focuses the label field shortly after mount, as there is no address field', () => {
+    it('moves focus nowhere after mount, having no text field to focus', () => {
       vi.useFakeTimers()
       const wrapper = mount(RemoteHostForm, {
         props: { host: LOCAL_HOST },
         attachTo: document.body,
       })
       vi.runAllTimers()
-      expect(document.activeElement).toBe(
-        wrapper.find('input[aria-label="SDR host label"]').element,
-      )
+      expect(document.activeElement).toBe(document.body)
       wrapper.unmount()
     })
 

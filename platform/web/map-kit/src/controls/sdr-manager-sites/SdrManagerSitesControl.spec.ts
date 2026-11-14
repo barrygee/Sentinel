@@ -54,6 +54,7 @@ import { SdrManagerSitesControl, siteLabel } from './SdrManagerSitesControl'
 import { DARK_COUNT_RING } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 function site(overrides: Partial<RadioSite> = {}): RadioSite {
@@ -273,6 +274,22 @@ describe('SdrManagerSitesControl', () => {
       await nextTick()
       expect(created.markers).toHaveLength(before) // same marker, moved
       expect(siteMarkers()[0]!.lngLat).toEqual([-0.1, 52])
+    })
+
+    it('rebuilds this machine’s marker with its new name when the machine is renamed', async () => {
+      sitesStore.sites = [site({ id: 7, is_local: true, name: 'This machine' })]
+      addControl()
+      const first = siteMarkers()[0]!
+      expect(details(first).textContent).toContain('This machine')
+
+      useAppStore().setMachineName('Home')
+      await nextTick()
+
+      expect(first.removed).toBe(true)
+      const rebuilt = siteMarkers()
+      expect(rebuilt).toHaveLength(1)
+      expect(details(rebuilt[0]!).textContent).toContain('Home (This machine)')
+      expect(rebuilt[0]!.element.getAttribute('aria-label')).toContain('Home (This machine)')
     })
 
     it('removes the marker for a host that is deregistered or disabled', async () => {

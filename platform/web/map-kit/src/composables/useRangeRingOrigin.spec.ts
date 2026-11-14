@@ -35,6 +35,8 @@ interface SetupOptions {
   userLocation?: { lat: number; lon: number } | null
   sites?: RadioSite[]
   sitesLoaded?: boolean
+  /** The `app.machineName` setting, as the app store holds it. */
+  machineName?: string
 }
 
 /**
@@ -73,12 +75,21 @@ async function setup(options: SetupOptions = {}) {
   const sdrManagerSitesStore = useSdrManagerSitesStore()
   sdrManagerSitesStore.sites = options.sites ?? []
   sdrManagerSitesStore.loaded = options.sitesLoaded ?? false
+  const { useAppStore } = await import('@sentinel/shell-api/stores/app')
+  const appStore = useAppStore()
+  appStore.setMachineName(options.machineName ?? '')
 
   // Re-imported per graph: vi.mock's factory re-runs on reset, so the spies the
   // composable calls are not the ones this file imported at the top.
   const settingsApi = await import('@sentinel/shell-api/services/settingsApi')
   const composable = await import('./useRangeRingOrigin')
-  return { ...composable, api: composable.useRangeRingOrigin(), sdrManagerSitesStore, settingsApi }
+  return {
+    ...composable,
+    api: composable.useRangeRingOrigin(),
+    sdrManagerSitesStore,
+    appStore,
+    settingsApi,
+  }
 }
 
 const readStoredSetting = () => JSON.parse(localStorage.getItem(SETTING_KEY) ?? 'null')
@@ -100,10 +111,31 @@ describe('useRangeRingOrigin', () => {
       expect(api.origin.value).toEqual({
         longitude: -0.12,
         latitude: 51.5,
-        label: 'MY LOCATION',
+        label: 'THIS MACHINE',
         kind: 'user',
         degraded: false,
       })
+    })
+
+    it('labels this machine by its name, in capitals, and follows a rename', async () => {
+      const { api, appStore } = await setup({
+        userLocation: { lat: 51.5, lon: -0.12 },
+        machineName: 'Home',
+      })
+      expect(api.origin.value?.label).toBe('HOME (THIS MACHINE)')
+      appStore.setMachineName('Shed')
+      await nextTick()
+      expect(api.origin.value?.label).toBe('SHED (THIS MACHINE)')
+    })
+
+    it('labels a choice pinned to this machine’s own SDR Manager as this machine', async () => {
+      const { api } = await setup({
+        storedSetting: { kind: 'sdr-manager', sdrManagerHostId: 7 },
+        sites: [site({ id: 7, is_local: true, name: 'This machine' })],
+        sitesLoaded: true,
+        machineName: 'Home',
+      })
+      expect(api.origin.value).toMatchObject({ label: 'HOME (THIS MACHINE)', kind: 'sdr-manager' })
     })
 
     it('resolves to nothing when the choice is "user" and no location is set', async () => {

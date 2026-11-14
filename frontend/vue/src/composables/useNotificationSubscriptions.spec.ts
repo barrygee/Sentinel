@@ -41,8 +41,8 @@ function useZonesFromStore(): void {
     const airStore = useAirStore()
     const locations = computed(() =>
       [
-        { id: USER_ALERT_LOCATION_ID, label: 'YOU', isUser: true },
-        { id: SDR_MANAGER_ID, label: 'GATESHEAD', isUser: false },
+        { id: USER_ALERT_LOCATION_ID, label: 'THIS MACHINE', name: 'This machine', isUser: true },
+        { id: SDR_MANAGER_ID, label: 'GATESHEAD', name: 'Gateshead', isUser: false },
       ].map((place) => ({ ...place, lon: 0, lat: 51, ...airStore.overheadAlertFor(place.id) })),
     )
     return { locations, activeZones: computed(() => []) }
@@ -115,7 +115,7 @@ describe('useNotificationSubscriptions', () => {
     airStore.setOverheadAlert(SDR_MANAGER_ID, { mil: true })
     const { subscriptions } = useNotificationSubscriptions()
     expect(subscriptions.value).toEqual([
-      { key: 'overhead:user:civil', label: 'Sentinel location — civil aircraft overhead' },
+      { key: 'overhead:user:civil', label: 'This machine — civil aircraft overhead' },
       {
         key: `overhead:${SDR_MANAGER_ID}:mil`,
         label: 'SDR host: GATESHEAD — military aircraft overhead',
@@ -136,7 +136,7 @@ describe('useNotificationSubscriptions', () => {
     await vi.waitFor(() =>
       expect(labels(subscriptions.value)).toEqual([
         'ISS (ZARYA) — pass alert',
-        'Sentinel location — military aircraft overhead',
+        'This machine — military aircraft overhead',
       ]),
     )
     expect(settingsApi.getNamespace).toHaveBeenCalledWith('air')
