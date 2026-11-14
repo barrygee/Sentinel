@@ -92,7 +92,10 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
 logger = logging.getLogger(__name__)
 
 THIS_MACHINE_LABEL = "This machine"
-"""What this Sentinel's own SDR Manager is called until the operator labels it (as in the UI)."""
+"""What this Sentinel's own SDR Manager is called; the UI puts the machine name (`app.machineName`) in front."""
+
+MACHINE_NAME_MAX_LENGTH = 64
+"""A host's published machine name is cut to this, as sdr-manager-local cuts its own."""
 
 router = APIRouter(prefix="/api/sdr-manager/remote/hosts", tags=["sdr-manager-remote"])
 
@@ -268,6 +271,10 @@ class RemoteSdrHostOut(BaseModel):
     # This machine's own sdr-manager-local, linked from core's registry: it
     # signs in with the service bearer, so `auth_token_set` stays false.
     is_local: bool
+    # What the host's own operator named it (`source.machine_name` of its
+    # export), from the poller's last snapshot; null when it gives none. Shown
+    # when this Sentinel's operator hasn't labelled the host (`name`).
+    machine_name: str | None = None
     # The host lets this Sentinel use its private SDRs.
     may_use_private: bool
     auto_add_sdrs: bool
@@ -363,6 +370,8 @@ class HostSourceOut(BaseModel):
     """The `source` block of `/api/v1/sdrs` — the host's own description of itself."""
 
     name: str | None = None
+    # The operator's name for that machine, if its SDR Manager publishes one.
+    machine_name: str | None = None
     version: str | None = None
     host: str | None = None
     http_port: int | None = None
@@ -406,6 +415,9 @@ class HostSiteOut(BaseModel):
     name: str | None
     address: str
     port: int
+    # This Sentinel's own SDR Manager: its position is this machine's, so the UI
+    # names it as this machine and merges it with this machine's own entry.
+    is_local: bool = False
     reachable: bool
     latitude: float
     longitude: float
@@ -542,8 +554,9 @@ _LOCAL_HOST_MANAGED = HTTPException(
     },
 )
 
-# The fields the local link owns on the "This machine" row. `name` is the one
-# left to the operator: a cosmetic label, nothing the link reads or writes.
+# The fields the local link owns on the "This machine" row. `name` is not one,
+# but the UI no longer shows or sends it for this row: this machine is named by
+# the `app.machineName` setting, the one name every surface uses for it.
 _LOCAL_HOST_LINKED_FIELDS = frozenset({"address", "port", "auth_token", "enabled", "transport"})
 
 
@@ -558,6 +571,7 @@ def _host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         enabled=host.enabled,
         auth_token_set=bool(host.auth_token),
         is_local=host.is_local,
+        machine_name=_published_machine_name(snapshot.export_payload if snapshot is not None else None),
         may_use_private=host.is_local or (snapshot is not None and snapshot.may_use_private),
         auto_add_sdrs=host.auto_add_sdrs,
         created_at=host.created_at,
@@ -735,14 +749,19 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[HostSi
         sites.append(
             HostSiteOut(
                 id=host.id,
-                # The operator's label, else "This machine" for this Sentinel's own
-                # SDR Manager (whose reported name, `sdr-manager`, reads like
-                # another host), else the host's own name for itself — what the
-                # operator set on the Pi. The UI's sdrHostLabel follows the same rule.
+                # This Sentinel's own SDR Manager is "This machine" (the UI puts the
+                # operator's machine name in front, `is_local`); any other host is
+                # this operator's label, else the name its own operator gave it
+                # (`machine_name`), else the name an older host reports for itself
+                # (a Sentry Pi's own name; SDR Manager's fixed `sdr-manager` names
+                # nothing), else none, and the UI falls back to its address.
                 # `source` is never None here: the position came out of it.
-                name=host.name or (THIS_MACHINE_LABEL if host.is_local else source.name),
+                name=THIS_MACHINE_LABEL
+                if host.is_local
+                else (host.name or source.machine_name or _self_reported_name(source)),
                 address=host.address,
                 port=host.port,
+                is_local=host.is_local,
                 reachable=snapshot.reachable if snapshot is not None else False,
                 latitude=location.latitude,
                 longitude=location.longitude,
@@ -912,6 +931,24 @@ async def test_host(host_id: int, db: AsyncSession = Depends(get_db)) -> HealthP
     return HealthProbeResult(reachable=True, detail="ok", api_version=response.api_version, health=response.data)
 
 
+SDR_MANAGER_SOURCE_NAME = "sdr-manager"
+"""What every SDR Manager reports as `source.name`: the kind of service, not a name for the machine."""
+
+
+def _self_reported_name(source: HostSourceOut) -> str | None:
+    """`source.name` when it names the machine (an older Sentry host's own name), else None."""
+    return source.name if source.name and source.name != SDR_MANAGER_SOURCE_NAME else None
+
+
+def _published_machine_name(export_payload: dict[str, Any] | None) -> str | None:
+    """The `source.machine_name` a host's export carries, trimmed; None when absent, blank or not text."""
+    source = (export_payload or {}).get("source")
+    machine_name = source.get("machine_name") if isinstance(source, dict) else None
+    if not isinstance(machine_name, str):
+        return None
+    return machine_name.strip()[:MACHINE_NAME_MAX_LENGTH] or None
+
+
 def _coerce_source(export_payload: dict[str, Any] | None) -> HostSourceOut | None:
     """Pull the `source` block out of a `/api/v1/sdrs` body, tolerating any shape.
 
@@ -931,6 +968,7 @@ def _coerce_source(export_payload: dict[str, Any] | None) -> HostSourceOut | Non
     )
     return HostSourceOut(
         name=source.get("name") if isinstance(source.get("name"), str) else None,
+        machine_name=_published_machine_name(export_payload),
         version=source.get("version") if isinstance(source.get("version"), str) else None,
         host=source.get("host") if isinstance(source.get("host"), str) else None,
         http_port=source.get("http_port") if isinstance(source.get("http_port"), int) else None,

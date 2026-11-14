@@ -1,7 +1,9 @@
-"""Tests for `location_source.py`: this machine's position, read from Sentinel's Location setting.
+"""Tests for `location_source.py`: this machine's position and name, read from Sentinel's settings.
 
 The position other Sentinels plot must come from core's `app.location`, survive
-a core outage (the last good value is kept), and never be half-published.
+a core outage (the last good value is kept), and never be half-published. The
+name they call this machine by comes from `app.machineName` the same way, and a
+name that can't be read never holds the position back.
 
 Run with:  uv run --project backend pytest services/sdr-manager-local/backend/tests/test_sdr_manager_local_location_source.py
 """
@@ -19,8 +21,10 @@ from sdr_manager_local_fake_clock import FakeClock
 from sentinel_sdr_manager_local.location_source import (
     LOCATION_KEY,
     LOCATION_NAMESPACE,
+    MACHINE_NAME_KEY,
     CoreLocationSource,
     parse_location_setting,
+    parse_machine_name_setting,
 )
 
 NOW_MS = 1_700_000_000_000
@@ -60,13 +64,43 @@ class TestParseLocationSetting:
         assert parse_location_setting(setting) is None
 
 
+class TestParseMachineNameSetting:
+    @pytest.mark.parametrize(
+        ("setting", "expected"),
+        [
+            pytest.param("Home", "Home", id="a-name"),
+            pytest.param("  Roof Pi  ", "Roof Pi", id="trimmed"),
+            pytest.param("x" * 80, "x" * 64, id="cut-to-64"),
+            pytest.param("", "", id="blank"),
+            pytest.param(None, "", id="absent"),
+            pytest.param(42, "", id="not-text"),
+            pytest.param({"name": "Home"}, "", id="an-object"),
+        ],
+    )
+    def test_reads_a_trimmed_name_or_nothing(self, setting: Any, expected: str) -> None:
+        assert parse_machine_name_setting(setting) == expected
+
+
 @pytest.fixture
 def core_answers(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    """Make the settings client remote, answering `app.location` with whatever the test sets."""
-    answer: dict[str, Any] = {"value": None, "error": None, "calls": []}
+    """Make the settings client remote, answering `app.location` and `app.machineName` as the test sets.
+
+    `value`/`error` answer the location; `machine_name`/`machine_name_error` the name.
+    """
+    answer: dict[str, Any] = {
+        "value": None,
+        "error": None,
+        "machine_name": None,
+        "machine_name_error": None,
+        "calls": [],
+    }
 
     async def read_setting(db: Any, namespace: str, key: str, default: Any = None) -> Any:
         answer["calls"].append((db, namespace, key))
+        if key == MACHINE_NAME_KEY:
+            if answer["machine_name_error"] is not None:
+                raise answer["machine_name_error"]
+            return answer["machine_name"]
         if answer["error"] is not None:
             raise answer["error"]
         return answer["value"]
@@ -90,9 +124,58 @@ class TestRefresh:
         await source.refresh()
         location = await source.get_location()
 
-        assert core_answers["calls"] == [(None, LOCATION_NAMESPACE, LOCATION_KEY)]
+        assert core_answers["calls"] == [
+            (None, LOCATION_NAMESPACE, LOCATION_KEY),
+            (None, LOCATION_NAMESPACE, MACHINE_NAME_KEY),
+        ]
         assert (location.latitude, location.longitude) == (54.95149, -1.53586)
         assert location.updated_at == NOW_MS
+
+    async def test_starts_unnamed(self) -> None:
+        assert CoreLocationSource(FakeClock(NOW_MS), 60).get_machine_name() == ""
+
+    async def test_reads_app_machine_name_from_core(self, core_answers: dict[str, Any]) -> None:
+        core_answers["value"] = {"latitude": "1", "longitude": "2"}
+        core_answers["machine_name"] = "  Roof Pi "
+        source = CoreLocationSource(FakeClock(NOW_MS), 60)
+
+        await source.refresh()
+
+        assert source.get_machine_name() == "Roof Pi"
+
+    async def test_a_cleared_name_stops_being_published(self, core_answers: dict[str, Any]) -> None:
+        source = CoreLocationSource(FakeClock(NOW_MS), 60)
+        core_answers["machine_name"] = "Roof Pi"
+        await source.refresh()
+
+        core_answers["machine_name"] = ""
+        await source.refresh()
+
+        assert source.get_machine_name() == ""
+
+    async def test_a_name_core_cannot_answer_keeps_the_last_one_and_the_new_position(
+        self, core_answers: dict[str, Any]
+    ) -> None:
+        source = CoreLocationSource(FakeClock(NOW_MS), 60)
+        core_answers["value"] = {"latitude": "1", "longitude": "2"}
+        core_answers["machine_name"] = "Roof Pi"
+        await source.refresh()
+
+        core_answers["value"] = {"latitude": "3", "longitude": "4"}
+        core_answers["machine_name_error"] = settings_client.SettingsUnavailable("down between reads")
+        await source.refresh()
+        location = await source.get_location()
+
+        assert source.get_machine_name() == "Roof Pi"
+        assert (location.latitude, location.longitude) == (3.0, 4.0)
+
+    async def test_the_name_is_not_asked_for_while_core_is_down(self, core_answers: dict[str, Any]) -> None:
+        core_answers["error"] = settings_client.SettingsUnavailable("down")
+        source = CoreLocationSource(FakeClock(NOW_MS), 60)
+
+        await source.refresh()
+
+        assert core_answers["calls"] == [(None, LOCATION_NAMESPACE, LOCATION_KEY)]
 
     async def test_a_blank_setting_clears_the_position(self, core_answers: dict[str, Any]) -> None:
         source = CoreLocationSource(FakeClock(NOW_MS), 60)
@@ -199,7 +282,8 @@ class TestRun:
         with pytest.raises(asyncio.CancelledError):
             await source.run()
 
-        assert len(core_answers["calls"]) == 2
+        # Each refresh asks for the position and the name.
+        assert len(core_answers["calls"]) == 4
         assert clock.sleeps == [45, 45]
 
     async def test_an_unexpected_failure_is_logged_and_the_loop_carries_on(
