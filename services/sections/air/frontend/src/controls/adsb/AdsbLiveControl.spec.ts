@@ -1849,6 +1849,49 @@ describe('AdsbLiveControl._fetch deep paths', () => {
     expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(1)
   })
 
+  it('keeps an old-positioned aircraft bright until the next online snapshot is due', async () => {
+    // The reported fading: online, the feed refreshes every 60 s and a poll
+    // can land 10 s after that. An aircraft whose position was already 40 s
+    // old in the snapshot must not dim while the next one is simply not due.
+    vi.useFakeTimers()
+    const { control } = mounted()
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      headers: new Headers({ 'X-Snapshot-Age-Ms': '0', 'X-Snapshot-Lifetime-Ms': '60000' }),
+      status: 200,
+      json: () => Promise.resolve({ ac: [apiEntry({ seen_pos: 40 })] }),
+    } as Response)
+    await priv(control)._fetch()
+    vi.setSystemTime(Date.now() + 70_000)
+    priv(control)._interpolate()
+    expect(priv(control)._interpolatedFeatures![0]!.properties.stale).toBe(0)
+  })
+
+  it('dims only the aircraft a newer snapshot left out for 45 s', async () => {
+    vi.useFakeTimers()
+    const { control } = mounted()
+    const respond = (ac: ApiEntry[]) =>
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        headers: new Headers({ 'X-Snapshot-Age-Ms': '0', 'X-Snapshot-Lifetime-Ms': '60000' }),
+        status: 200,
+        json: () => Promise.resolve({ ac }),
+      } as Response)
+    respond([apiEntry({ hex: 'stays' }), apiEntry({ hex: 'missing', lon: 0.2 })])
+    await priv(control)._fetch()
+    vi.setSystemTime(Date.now() + 45_000)
+    respond([apiEntry({ hex: 'stays' })])
+    await priv(control)._fetch()
+
+    const staleByHex = Object.fromEntries(
+      priv(control)._interpolatedFeatures.map((f: AircraftFeatureLike) => [
+        f.properties.hex,
+        f.properties.stale,
+      ]),
+    )
+    expect(staleByHex).toEqual({ stays: 0, missing: 1 })
+  })
+
   it('shows an aircraft from a snapshot over a minute old dimmed, since the feed has nothing newer', async () => {
     const { control } = mounted()
     fetchMock.mockResolvedValueOnce({

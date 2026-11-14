@@ -14,9 +14,10 @@
  *   dead-reckoned along its track. A new report re-anchors it on the reported
  *   position; the gap between where it was drawn and where it really is
  *   shrinks to nothing over `CORRECTION_MS`, so it glides into place.
- * - **Gone means the feed moved on without it.** An aircraft unheard for
- *   `DIM_AFTER_MS` past its snapshot's lifetime is drawn dimmed, but it is removed only once the feed
- *   has delivered `GONE_AFTER_MS` of newer snapshots that leave it out. While
+ * - **Dim and gone mean the feed moved on without it.** An aircraft the feed
+ *   has gone `DIM_AFTER_MS` without placing (or whose next snapshot is that
+ *   overdue) is drawn dimmed, and it is removed only once the feed has
+ *   delivered `GONE_AFTER_MS` of newer snapshots that leave it out. While
  *   the feed itself is silent (an upstream hanging or rate-limiting) nothing is
  *   removed — every aircraft came from the same last snapshot, so removing by
  *   age alone empties the whole map at once. `FEED_SILENCE_LIMIT_MS` bounds
@@ -26,7 +27,7 @@
 /** How long a re-anchored aircraft takes to glide from where it was drawn onto its reported track. */
 export const CORRECTION_MS = 2000
 
-/** Not heard from for this long past its snapshot's lifetime: drawn dimmed. */
+/** Left out of this much newer feed, or the next snapshot this overdue: drawn dimmed. */
 export const DIM_AFTER_MS = 45_000
 
 /** Left out of this much newer feed: removed. */
@@ -166,15 +167,30 @@ export function reanchor(
 /**
  * Whether the aircraft has gone unheard long enough to be drawn dimmed.
  *
- * `snapshotLifetimeMs` is how long its snapshot was meant to stand before a
- * newer one (`X-Snapshot-Lifetime-Ms`: about 10 s from the local decoder, the
- * online refresh interval online — a minute or more, to stay inside the feed's
- * daily call limit). Waiting out that lifetime is not silence, so the
- * aircraft dims only `DIM_AFTER_MS` after it. Without one (an older backend),
- * 45 s as before.
+ * Measured against the feed, not the wall clock, like `isGone`:
+ *
+ * - `feedObservedAtMs - lastSeen` is how much newer feed has gone by without
+ *   a fresh position for it (it was left out, or the feed itself only had an
+ *   old one). `DIM_AFTER_MS` of that dims it.
+ * - `snapshotLifetimeMs` is how long the newest snapshot was meant to stand
+ *   (`X-Snapshot-Lifetime-Ms`: about 10 s from the local decoder, the online
+ *   refresh interval online — a minute or more, to stay inside the feed's
+ *   daily call limit). Only when the next snapshot is `DIM_AFTER_MS` overdue
+ *   is the feed itself late, and then everything it last placed dims.
+ *
+ * Waiting out a long online refresh is therefore never mistaken for silence:
+ * an aircraft the newest snapshot placed stays bright until a newer one
+ * leaves it out, however old its position was by the wall clock.
  */
-export function isStale(position: TrackedPosition, nowMs: number, snapshotLifetimeMs = 0): boolean {
-  return nowMs - position.lastSeen >= snapshotLifetimeMs + DIM_AFTER_MS
+export function isStale(
+  position: TrackedPosition,
+  feedObservedAtMs: number,
+  nowMs: number,
+  snapshotLifetimeMs = 0,
+): boolean {
+  const feedHasMovedOn = feedObservedAtMs - position.lastSeen >= DIM_AFTER_MS
+  const feedIsOverdue = nowMs - feedObservedAtMs >= snapshotLifetimeMs + DIM_AFTER_MS
+  return feedHasMovedOn || feedIsOverdue
 }
 
 /**

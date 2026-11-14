@@ -1947,7 +1947,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates
       /* v8 ignore stop */
       const pos2 = this._lastPositions[hex]
-      const isDim = pos2 ? isStale(pos2, Date.now(), this._snapshotLifetimeMs) : false
+      const isDim = pos2
+        ? isStale(pos2, this._feedObservedAt, Date.now(), this._snapshotLifetimeMs)
+        : false
       if (this._callsignMarkers[hex]) {
         this._callsignMarkers[hex].setLngLat(lngLat)
         const labelEl = this._callsignMarkers[hex].getElement()
@@ -2389,7 +2391,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const hex = f.properties.hex
       const pos = this._lastPositions[hex]
       const coords = pos ? displayedPosition(pos, now) : f.geometry.coordinates
-      const stale = pos && isStale(pos, now, this._snapshotLifetimeMs) ? 1 : 0
+      const stale = pos && isStale(pos, this._feedObservedAt, now, this._snapshotLifetimeMs) ? 1 : 0
       return {
         ...f,
         geometry: { type: 'Point' as const, coordinates: coords },
