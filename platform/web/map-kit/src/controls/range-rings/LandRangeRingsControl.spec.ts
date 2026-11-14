@@ -16,6 +16,15 @@ function makeFakeMap(styleLoaded = true) {
   }
   const map = {
     isStyleLoaded: () => styleLoaded,
+    on: vi.fn(),
+    off: vi.fn(),
+    getCanvas: () => ({ clientWidth: 800, clientHeight: 600 }),
+    // A flat projection, 100 px a degree: enough for the dots to be placed.
+    project: ([longitude, latitude]: [number, number]) => ({
+      x: longitude * 100,
+      y: -latitude * 100,
+    }),
+    unproject: ([x, y]: [number, number]) => ({ lng: x / 100, lat: -y / 100 }),
     once: (event: string, cb: () => void) => {
       if (event === 'style.load') state.styleLoadCb = cb
     },

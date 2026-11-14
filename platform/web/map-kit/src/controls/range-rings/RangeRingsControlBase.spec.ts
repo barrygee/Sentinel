@@ -9,6 +9,10 @@ const ORIGIN_LAYER = `${LAYER}-origin`
 const ORIGIN_DOT_LAYER = `${LAYER}-origin-dot`
 const LABEL_LAYER = `${LAYER}-label`
 const DISTANCE_LAYER = `${LAYER}-distances`
+const DOTS_SOURCE = `${LAYER}-dots`
+
+/** The on-screen gap between ring dots the control promises. */
+const DOT_SPACING_PX = 7
 
 /** The smallest concrete control: a fixed layer id and a recorded toggle. */
 class TestRangeRingsControl extends RangeRingsControlBase {
@@ -29,8 +33,15 @@ interface FakeLayer {
   paint?: Record<string, unknown>
 }
 
-function makeFakeMap() {
+/**
+ * A fake map with a flat projection: `pixelsPerDegree` screen pixels for each
+ * degree of longitude and latitude, centred on 0,0, in a `width` × `height`
+ * canvas. Flat on purpose, so a dot's screen position is easy to check.
+ */
+function makeFakeMap({ pixelsPerDegree = 100, width = 800, height = 600 } = {}) {
   const state = {
+    pixelsPerDegree,
+    moveEndHandlers: [] as (() => void)[],
     layers: new Map<string, FakeLayer>(),
     sources: new Map<string, { data?: unknown; setData: ReturnType<typeof vi.fn> }>(),
     visibility: {} as Record<string, string>,
@@ -41,6 +52,23 @@ function makeFakeMap() {
   const map = {
     isStyleLoaded: () => true,
     once: vi.fn(),
+    on: vi.fn((event: string, handler: () => void) => {
+      if (event === 'moveend') state.moveEndHandlers.push(handler)
+    }),
+    off: vi.fn((event: string, handler: () => void) => {
+      if (event === 'moveend') {
+        state.moveEndHandlers = state.moveEndHandlers.filter((candidate) => candidate !== handler)
+      }
+    }),
+    getCanvas: () => ({ clientWidth: width, clientHeight: height }),
+    project: ([longitude, latitude]: [number, number]) => ({
+      x: width / 2 + longitude * state.pixelsPerDegree,
+      y: height / 2 - latitude * state.pixelsPerDegree,
+    }),
+    unproject: ([x, y]: [number, number]) => ({
+      lng: state.pixelsPerDegree === 0 ? 0 : (x - width / 2) / state.pixelsPerDegree,
+      lat: state.pixelsPerDegree === 0 ? 0 : (height / 2 - y) / state.pixelsPerDegree,
+    }),
     getLayer: (id: string) => state.layers.get(id),
     removeLayer: (id: string) => {
       state.removedLayers.push(id)
@@ -79,9 +107,13 @@ function origin(overrides: Partial<ResolvedRingOrigin> = {}): ResolvedRingOrigin
   }
 }
 
-function addedControl(initialOrigin: ResolvedRingOrigin | null = origin(), visible = true) {
+function addedControl(
+  initialOrigin: ResolvedRingOrigin | null = origin(),
+  visible = true,
+  mapOptions: Parameters<typeof makeFakeMap>[0] = {},
+) {
   const control = new TestRangeRingsControl(visible, initialOrigin)
-  const map = makeFakeMap()
+  const map = makeFakeMap(mapOptions)
   control.onAdd(asMap(map))
   return { control, map }
 }
@@ -108,6 +140,7 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.sources.get(LAYER)!.setData).not.toHaveBeenCalled()
       expect(map._state.sources.get(ORIGIN_LAYER)!.setData).not.toHaveBeenCalled()
       expect(map._state.sources.get(DISTANCE_LAYER)!.setData).not.toHaveBeenCalled()
+      expect(map._state.sources.get(DOTS_SOURCE)!.setData).not.toHaveBeenCalled()
     })
 
     it.each([
@@ -122,6 +155,7 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.sources.get(LAYER)!.setData).toHaveBeenCalledTimes(1)
       expect(map._state.sources.get(ORIGIN_LAYER)!.setData).toHaveBeenCalledTimes(1)
       expect(map._state.sources.get(DISTANCE_LAYER)!.setData).toHaveBeenCalledTimes(1)
+      expect(map._state.sources.get(DOTS_SOURCE)!.setData).toHaveBeenCalledTimes(1)
     })
 
     it('moves the distance labels to the tops of the re-centred rings', () => {
@@ -160,10 +194,10 @@ describe('RangeRingsControlBase', () => {
       })
     })
 
-    it('sets the distance in small bold type', () => {
+    it('sets the distance in small regular type', () => {
       const { map } = addedControl()
       expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
-        'text-font': ['Noto Sans Bold'],
+        'text-font': ['Noto Sans Regular'],
         'text-size': 9,
       })
     })
@@ -180,7 +214,7 @@ describe('RangeRingsControlBase', () => {
       const { map } = addedControl()
       expect(map._state.layers.get(DISTANCE_LAYER)!.layout).toMatchObject({
         'text-anchor': 'bottom',
-        'text-offset': [0, -0.3],
+        'text-offset': [0, -0.5],
         'text-allow-overlap': true,
         'text-ignore-placement': true,
       })
@@ -200,36 +234,170 @@ describe('RangeRingsControlBase', () => {
     })
   })
 
-  describe('ring line style', () => {
-    it('draws the rings as dots: zero-length dashes with round caps', () => {
+  describe('ring dots', () => {
+    /** The dots placed for the current view, as screen positions in the fake projection. */
+    function screenDots(map: ReturnType<typeof makeFakeMap>, call = -1) {
+      const source = map._state.sources.get(DOTS_SOURCE)!
+      const calls = source.setData.mock.calls
+      const data = (
+        call === -1 && calls.length === 0 ? source.data : calls.at(call)![0]
+      ) as GeoJSON.FeatureCollection<GeoJSON.Point>
+      return data.features.map((feature) => {
+        const [longitude, latitude] = feature.geometry.coordinates as [number, number]
+        return map.project([longitude, latitude])
+      })
+    }
+
+    /** Which ring a screen point is on, by its distance from the centre (equator origin). */
+    function ringOf(point: { x: number; y: number }, pixelsPerDegree: number) {
+      const radiusDegrees = Math.hypot(point.x - 400, point.y - 300) / pixelsPerDegree
+      return Math.round((radiusDegrees * 60) / 50) * 50
+    }
+
+    it('draws the rings as round dots of a fixed screen size, from points of its own', () => {
       const { map } = addedControl()
-      const ringLayer = map._state.layers.get(LAYER)!
-      expect(ringLayer.layout!['line-cap']).toBe('round')
-      expect(ringLayer.paint!['line-dasharray']).toEqual([0, 3])
-      expect(ringLayer.paint!['line-width']).toBe(1.5)
+      const ringLayer = map._state.layers.get(LAYER) as FakeLayer & { type: string; source: string }
+      expect(ringLayer.type).toBe('circle')
+      expect(ringLayer.source).toBe(DOTS_SOURCE)
+      expect(ringLayer.paint).toMatchObject({
+        'circle-radius': 1.125,
+        'circle-pitch-alignment': 'viewport',
+      })
+    })
+
+    it('spaces the dots evenly round each ring, carrying the gap across the ring’s vertices', () => {
+      // Equator, 40 px a degree: every ring fits on screen (the 250 NM one is
+      // about 330 px across), so consecutive dots on a ring are one spacing apart.
+      const { map } = addedControl(origin({ longitude: 0, latitude: 0 }), true, {
+        pixelsPerDegree: 40,
+      })
+      const dots = screenDots(map)
+      const rings = new Map<number, { x: number; y: number }[]>()
+      for (const dot of dots) {
+        const ring = ringOf(dot, 40)
+        rings.set(ring, [...(rings.get(ring) ?? []), dot])
+      }
+      expect([...rings.keys()]).toEqual([50, 100, 150, 200, 250])
+      for (const ringDots of rings.values()) {
+        for (let index = 1; index < ringDots.length; index++) {
+          const gap = Math.hypot(
+            ringDots[index]!.x - ringDots[index - 1]!.x,
+            ringDots[index]!.y - ringDots[index - 1]!.y,
+          )
+          // Chords across a vertex are a hair shorter than the path; never longer.
+          expect(gap).toBeGreaterThan(DOT_SPACING_PX - 0.05)
+          expect(gap).toBeLessThanOrEqual(DOT_SPACING_PX + 1e-9)
+        }
+      }
+    })
+
+    it('places as many dots as each ring’s circumference holds', () => {
+      const { map } = addedControl(origin({ longitude: 0, latitude: 0 }), true, {
+        pixelsPerDegree: 40,
+      })
+      const circumference = (distanceNm: number) => 2 * Math.PI * (distanceNm / 60) * 40
+      const expected = [50, 100, 150, 200, 250].reduce(
+        (total, distanceNm) => total + circumference(distanceNm) / DOT_SPACING_PX,
+        0,
+      )
+      // Within one dot a ring (the remainder of the last gap).
+      expect(Math.abs(screenDots(map).length - expected)).toBeLessThanOrEqual(5)
+    })
+
+    it('keeps only the dots near the view when a ring runs far off screen', () => {
+      // 400 px a degree: the 250 NM ring is about 10,000 px across.
+      const { map } = addedControl(origin({ longitude: 0, latitude: 0 }), true, {
+        pixelsPerDegree: 400,
+      })
+      const dots = screenDots(map)
+      expect(dots.length).toBeGreaterThan(0)
+      // The margin is half the canvas's longer side (400 px); a kept segment
+      // may run past it by at most one ring segment.
+      const segment = (2 * Math.PI * (250 / 60) * 400) / 720
+      for (const dot of dots) {
+        expect(dot.x).toBeGreaterThanOrEqual(-400 - segment)
+        expect(dot.x).toBeLessThanOrEqual(800 + 400 + segment)
+        expect(dot.y).toBeGreaterThanOrEqual(-400 - segment)
+        expect(dot.y).toBeLessThanOrEqual(600 + 400 + segment)
+      }
+      const allRingsDots = [50, 100, 150, 200, 250].reduce(
+        (total, distanceNm) => total + (2 * Math.PI * (distanceNm / 60) * 400) / DOT_SPACING_PX,
+        0,
+      )
+      expect(dots.length).toBeLessThan(allRingsDots / 2)
+    })
+
+    it('puts a single dot on a ring too small to have length on screen', () => {
+      const { map } = addedControl(origin({ longitude: 0, latitude: 0 }), true, {
+        pixelsPerDegree: 0,
+      })
+      expect(screenDots(map)).toHaveLength(5)
+    })
+
+    it('re-places the dots each time the map stops moving', () => {
+      const { map } = addedControl(origin({ longitude: 0, latitude: 0 }), true, {
+        pixelsPerDegree: 20,
+      })
+      const before = screenDots(map).length
+      expect(map.on).toHaveBeenCalledWith('moveend', expect.any(Function))
+
+      map._state.pixelsPerDegree = 40
+      for (const handler of map._state.moveEndHandlers) handler()
+
+      expect(map._state.sources.get(DOTS_SOURCE)!.setData).toHaveBeenCalledOnce()
+      // Twice the scale, twice the circumference on screen: about twice the dots.
+      expect(screenDots(map).length / before).toBeCloseTo(2, 1)
+    })
+
+    it('has no dots without an origin', () => {
+      const { control, map } = addedControl()
+      control.setOrigin(null)
+      expect(map._state.sources.get(DOTS_SOURCE)!.setData).toHaveBeenCalledWith({
+        type: 'FeatureCollection',
+        features: [],
+      })
+    })
+
+    it('ignores a move before its layers exist', () => {
+      const control = new TestRangeRingsControl(true, origin())
+      const map = makeFakeMap()
+      map.isStyleLoaded = () => false
+      control.onAdd(asMap(map))
+      expect(() => map._state.moveEndHandlers[0]!()).not.toThrow()
+      expect(map._state.sources.size).toBe(0)
+    })
+
+    it('stops listening for moves when it is removed from the map', () => {
+      const { control, map } = addedControl()
+      const [, handler] = map.on.mock.calls.find(([event]) => event === 'moveend')!
+      control.onRemove()
+      expect(map.off).toHaveBeenCalledWith('moveend', handler)
+      expect(map._state.moveEndHandlers).toHaveLength(0)
     })
   })
 
   describe('basemap-dependent ink', () => {
-    it('draws faint white with a light label on the dark basemap', () => {
+    it('draws black dots and black labels, without a halo, on the dark basemap', () => {
       const { map } = addedControl()
-      expect(map._state.layers.get(LAYER)!.paint!['line-color']).toBe('rgba(255,255,255,0.40)')
-      expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-color']).toBe(
-        'rgba(255,255,255,0.65)',
-      )
-      expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#000000')
-      expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
-        'text-color': 'rgba(255,255,255,0.85)',
+      expect(map._state.layers.get(LAYER)!.paint!['circle-color']).toBe('#000000')
+      expect(map._state.layers.get(ORIGIN_LAYER)!.paint!['circle-stroke-color']).toBe('#000000')
+      expect(map._state.layers.get(LABEL_LAYER)!.paint).toMatchObject({
+        'text-color': '#000000',
+        'text-halo-width': 0,
       })
+      expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({ 'text-color': '#000000' })
     })
 
     it('switches to black with a white halo on the bright basemap', () => {
       document.documentElement.dataset.mapTheme = 'light'
       const { map } = addedControl()
-      expect(map._state.layers.get(LAYER)!.paint!['line-color']).toBe('#000000')
+      expect(map._state.layers.get(LAYER)!.paint!['circle-color']).toBe('#000000')
       expect(map._state.layers.get(ORIGIN_LAYER)!.paint!['circle-stroke-color']).toBe('#000000')
-      expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-color']).toBe('#000000')
-      expect(map._state.layers.get(LABEL_LAYER)!.paint!['text-halo-color']).toBe('#ffffff')
+      expect(map._state.layers.get(LABEL_LAYER)!.paint).toMatchObject({
+        'text-color': '#000000',
+        'text-halo-color': '#ffffff',
+        'text-halo-width': 1,
+      })
       expect(map._state.layers.get(DISTANCE_LAYER)!.paint).toEqual({
         'text-color': 'rgba(27,29,34,0.85)',
       })
@@ -243,7 +411,9 @@ describe('RangeRingsControlBase', () => {
       expect(map._state.removedLayers.sort()).toEqual(
         [LAYER, ORIGIN_LAYER, ORIGIN_DOT_LAYER, LABEL_LAYER, DISTANCE_LAYER].sort(),
       )
-      expect(map._state.removedSources.sort()).toEqual([LAYER, ORIGIN_LAYER, DISTANCE_LAYER].sort())
+      expect(map._state.removedSources.sort()).toEqual(
+        [LAYER, ORIGIN_LAYER, DISTANCE_LAYER, DOTS_SOURCE].sort(),
+      )
       expect([...map._state.layers.keys()]).toHaveLength(5)
     })
   })

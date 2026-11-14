@@ -9,7 +9,7 @@ describe('buildRingsGeoJSON', () => {
     for (const feature of fc.features) {
       expect(feature.geometry.type).toBe('LineString')
       const coords = (feature.geometry as GeoJSON.LineString).coordinates
-      expect(coords).toHaveLength(65) // 64 steps + closing point
+      expect(coords).toHaveLength(721) // 720 steps (one per half degree) + closing point
       // Closed ring: first and last points coincide (within float tolerance).
       const last = coords[coords.length - 1]
       expect(coords[0][0]).toBeCloseTo(last[0], 9)

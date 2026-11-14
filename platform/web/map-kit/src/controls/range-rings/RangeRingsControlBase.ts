@@ -14,7 +14,7 @@ import { isBrightBasemap, overlayAccentColor } from '@sentinel/map-kit/utils/map
  * plus the map furniture that says *which* point they are centred on.
  *
  * Extracted from the byte-for-byte twins the Air and Land controls had become —
- * both built the same source, the same dashed line layer and the same
+ * both built the same source, the same dotted ring layer and the same
  * "hide unless there is a centre" rule, and both would otherwise have grown the
  * same origin crosshair and label. Subclasses supply only what genuinely
  * differs: the layer id prefix, and where the on/off toggle is persisted.
@@ -25,15 +25,24 @@ import { isBrightBasemap, overlayAccentColor } from '@sentinel/map-kit/utils/map
  */
 export abstract class RangeRingsControlBase extends SentinelControlBase {
   /** Stroke of the rings and origin crosshair on the dark basemap. */
-  private static readonly DARK_STROKE = 'rgba(255,255,255,0.40)'
+  private static readonly DARK_STROKE = '#000000'
 
   /**
    * Ring distance labels: --map-overlay-ink at slightly reduced strength (light
-   * on the dark map, dark on the light one), bold and with no halo — the
-   * weight alone carries it, and any halo read as a drop shadow.
+   * on the dark map, dark on the light one), regular weight and no halo — any
+   * halo read as a drop shadow.
    */
-  private static readonly DARK_MAP_DISTANCE_INK = 'rgba(255,255,255,0.85)'
+  private static readonly DARK_MAP_DISTANCE_INK = '#000000'
   private static readonly LIGHT_MAP_DISTANCE_INK = 'rgba(27,29,34,0.85)'
+
+  /** Screen distance from one ring dot to the next: three dot widths. */
+  private static readonly DOT_SPACING_PX = 7
+
+  /** Diameter of a ring dot, in screen pixels. */
+  private static readonly DOT_DIAMETER_PX = 2.25
+
+  /** Re-places the dots when the map stops moving (bound once, so it can be removed). */
+  private readonly _onMoveEnd = (): void => this._placeDots()
 
   /** Whether the operator has the rings switched on for this map. */
   ringsVisible: boolean
@@ -66,6 +75,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
   private get labelLayerId(): string {
     return `${this.layerId}-label`
   }
+  /** The dots the rings are drawn with, placed on screen (`_placeDots`). */
+  private get dotsSourceId(): string {
+    return `${this.layerId}-dots`
+  }
   /** Each ring's distance, at the top of the ring (layer and its point source). */
   private get distanceLayerId(): string {
     return `${this.layerId}-distances`
@@ -82,6 +95,12 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     this.setButtonActive(this.ringsVisible)
     if (this.map.isStyleLoaded()) this._initRings()
     else this.map.once('style.load', () => this._initRings())
+    this.map.on('moveend', this._onMoveEnd)
+  }
+
+  override onRemove(): void {
+    this.map?.off('moveend', this._onMoveEnd)
+    super.onRemove()
   }
 
   protected handleClick(): void {
@@ -101,13 +120,14 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
    */
   setOrigin(origin: ResolvedRingOrigin | null): void {
     // The origin is recomputed on every SDR Manager poll, so most calls carry the
-    // same point as the last: rebuilding 5 × 65-point rings every 15 seconds
+    // same point as the last: rebuilding 5 × 721-point rings every 15 seconds
     // for no visible change is work the map does not need.
     if (this._sameOrigin(origin)) return
     this.origin = origin
     if (!this.map) return
     const ringsSource = this.map.getSource(this.layerId) as maplibregl.GeoJSONSource | undefined
     if (ringsSource) ringsSource.setData(this._buildRings())
+    this._placeDots()
     const originSource = this.map.getSource(this.originLayerId) as
       | maplibregl.GeoJSONSource
       | undefined
@@ -136,23 +156,27 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
     ]) {
       if (this.map.getLayer(id)) this.map.removeLayer(id)
     }
-    for (const id of [this.distanceLayerId, this.originLayerId, this.layerId]) {
+    for (const id of [this.distanceLayerId, this.originLayerId, this.dotsSourceId, this.layerId]) {
       if (this.map.getSource(id)) this.map.removeSource(id)
     }
 
     this.map.addSource(this.layerId, { type: 'geojson', data: this._buildRings() })
+    // The rings' own lines are not drawn: they carry the origin's name (the
+    // label layer below). The dots are points this control places itself,
+    // DOT_SPACING_PX apart on screen. MapLibre's own dotting could not keep an
+    // even gap: a dashed line blended two zoom levels' patterns when zoomed out
+    // (dots overlapped), and icons along the line restarted their spacing in
+    // every tile (gaps and doubled dots at tile edges).
+    this.map.addSource(this.dotsSourceId, { type: 'geojson', data: this._buildDots() })
     this.map.addLayer({
       id: this.layerId,
-      type: 'line',
-      source: this.layerId,
-      // Dotted: zero-length dashes with round caps draw as dots one line-width
-      // across, spaced three widths apart. 1.5px keeps a dot visible where a
-      // 1px one faded into the basemap.
-      layout: { visibility: 'none', 'line-cap': 'round' },
+      type: 'circle',
+      source: this.dotsSourceId,
+      layout: { visibility: 'none' },
       paint: {
-        'line-color': stroke,
-        'line-width': 1.5,
-        'line-dasharray': [0, 3],
+        'circle-radius': RangeRingsControlBase.DOT_DIAMETER_PX / 2,
+        'circle-color': stroke,
+        'circle-pitch-alignment': 'viewport',
       },
     })
 
@@ -201,9 +225,10 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
         'text-offset': [0, -0.9],
       },
       paint: {
-        'text-color': brightBasemap ? '#000000' : 'rgba(255,255,255,0.65)',
+        'text-color': brightBasemap ? '#000000' : RangeRingsControlBase.DARK_MAP_DISTANCE_INK,
         'text-halo-color': brightBasemap ? '#ffffff' : '#000000',
-        'text-halo-width': 1,
+        // No halo on the dark map: a black halo round black text only smudges it.
+        'text-halo-width': brightBasemap ? 1 : 0,
       },
     })
 
@@ -225,13 +250,12 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
         visibility: 'none',
         'symbol-placement': 'point',
         'text-field': ['concat', ['to-string', ['get', 'dist']], ' NM'],
-        // Bold so the small label holds up against the ring line and basemap.
-        // Only the ASCII range of Noto Sans Bold is bundled (digits + "NM").
-        'text-font': ['Noto Sans Bold'],
+        // Regular: Bold read too heavy beside the dotted rings.
+        'text-font': ['Noto Sans Regular'],
         'text-size': 9,
         'text-letter-spacing': 0.1,
         'text-anchor': 'bottom',
-        'text-offset': [0, -0.3],
+        'text-offset': [0, -0.5],
         'text-rotation-alignment': 'viewport',
         'text-pitch-alignment': 'viewport',
         'text-allow-overlap': true,
@@ -261,6 +285,66 @@ export abstract class RangeRingsControlBase extends SentinelControlBase {
   private _buildRings(): GeoJSON.FeatureCollection {
     if (!this.origin) return { type: 'FeatureCollection', features: [] }
     return buildRingsGeoJSON(this.origin.longitude, this.origin.latitude)
+  }
+
+  /** Re-place the dots for the current view (after a move, or a new origin). */
+  private _placeDots(): void {
+    const dotsSource = this.map?.getSource(this.dotsSourceId) as
+      | maplibregl.GeoJSONSource
+      | undefined
+    if (dotsSource) dotsSource.setData(this._buildDots())
+  }
+
+  /**
+   * The ring dots for the current view: each ring walked on screen, a dot every
+   * DOT_SPACING_PX, carried across vertices so the gap never restarts. Only the
+   * stretches within a margin of the view are kept, so a ring thousands of
+   * pixels round at a close zoom costs only what is on screen.
+   */
+  private _buildDots(): GeoJSON.FeatureCollection {
+    const features: GeoJSON.Feature[] = []
+    if (!this.origin) return { type: 'FeatureCollection', features }
+    const canvas = this.map.getCanvas()
+    const width = canvas.clientWidth
+    const height = canvas.clientHeight
+    const margin = Math.max(width, height) / 2
+    const spacing = RangeRingsControlBase.DOT_SPACING_PX
+    for (const ring of this._buildRings().features) {
+      const coordinates = (ring.geometry as GeoJSON.LineString).coordinates
+      const points = coordinates.map(([longitude, latitude]) =>
+        this.map.project([longitude!, latitude!]),
+      )
+      // Distance still to travel before the next dot; carried between segments.
+      let untilNextDot = 0
+      for (let index = 1; index < points.length; index++) {
+        const start = points[index - 1]!
+        const end = points[index]!
+        const segmentLength = Math.hypot(end.x - start.x, end.y - start.y)
+        const visible =
+          Math.max(start.x, end.x) >= -margin &&
+          Math.min(start.x, end.x) <= width + margin &&
+          Math.max(start.y, end.y) >= -margin &&
+          Math.min(start.y, end.y) <= height + margin
+        let travelled = untilNextDot
+        while (travelled <= segmentLength) {
+          if (visible) {
+            const fraction = segmentLength === 0 ? 0 : travelled / segmentLength
+            const dot = this.map.unproject([
+              start.x + (end.x - start.x) * fraction,
+              start.y + (end.y - start.y) * fraction,
+            ])
+            features.push({
+              type: 'Feature',
+              geometry: { type: 'Point', coordinates: [dot.lng, dot.lat] },
+              properties: {},
+            })
+          }
+          travelled += spacing
+        }
+        untilNextDot = travelled - segmentLength
+      }
+    }
+    return { type: 'FeatureCollection', features }
   }
 
   private _buildRingTops(): GeoJSON.FeatureCollection {
