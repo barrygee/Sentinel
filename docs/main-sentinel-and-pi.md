@@ -99,7 +99,7 @@ The first build takes a while on a Pi.
 From any computer on your network, open **http://192.168.5.67:8080**. It opens on **Settings › SDR Manager**.
 
 1. **Console Password** (**Settings › App Settings › THIS MACHINE**): set one. The main Sentinel signs in with it.
-2. **Sentinel Location** (under App Settings): where the Pi is, so maps place it.
+2. **Machine Name** and **Location** (under App Settings): what the Pi is called and where it is, so other Sentinels name it and place it on their maps.
 3. **Each dongle:** plug it in, then on its row:
     1. the pencil: a **NAME**, its **OUTPUT PORT** (the old port from part 3, or the one suggested), **VISIBILITY: PUBLIC**;
     2. **APPLY CHANGES**;
