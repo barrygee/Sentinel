@@ -11,6 +11,7 @@ const ORIGIN_LAYER = `${LAYER_ID}-origin`
 const ORIGIN_DOT_LAYER = `${LAYER_ID}-origin-dot`
 const LABEL_LAYER = `${LAYER_ID}-label`
 const DISTANCE_LAYER = `${LAYER_ID}-distances`
+const DOTS_SOURCE = `${LAYER_ID}-dots`
 
 interface FakeMap {
   map: maplibregl.Map
@@ -59,6 +60,15 @@ function fakeMap(options: { styleLoaded?: boolean } = {}): FakeMap {
 
   const map = {
     isStyleLoaded: vi.fn(() => options.styleLoaded ?? true),
+    on: vi.fn(),
+    off: vi.fn(),
+    getCanvas: vi.fn(() => ({ clientWidth: 800, clientHeight: 600 })),
+    // A flat projection, 100 px a degree: enough for the dots to be placed.
+    project: vi.fn(([longitude, latitude]: [number, number]) => ({
+      x: longitude * 100,
+      y: -latitude * 100,
+    })),
+    unproject: vi.fn(([x, y]: [number, number]) => ({ lng: x / 100, lat: -y / 100 })),
     once: vi.fn((event: string, handler: () => void) => {
       if (event === 'style.load') styleLoadHandlers.push(handler)
     }),
@@ -158,6 +168,10 @@ describe('RangeRingsControlBase.onInit', () => {
       DISTANCE_LAYER,
       expect.objectContaining({ type: 'geojson' }),
     )
+    expect(map.addSource).toHaveBeenCalledWith(
+      DOTS_SOURCE,
+      expect.objectContaining({ type: 'geojson' }),
+    )
     expect([...map.layers]).toEqual([
       LAYER_ID,
       ORIGIN_LAYER,
@@ -172,7 +186,7 @@ describe('RangeRingsControlBase.onInit', () => {
     control.onAdd(fakeMap().map)
     const data = fakeRingsOf(control)
     expect(data.features).toHaveLength(5)
-    expect((data.features[0]!.geometry as GeoJSON.LineString).coordinates).toHaveLength(65)
+    expect((data.features[0]!.geometry as GeoJSON.LineString).coordinates).toHaveLength(721)
   })
 
   function fakeRingsOf(control: RangeRingsControl): GeoJSON.FeatureCollection {
@@ -193,6 +207,7 @@ describe('RangeRingsControlBase.onInit', () => {
     map.styleLoadHandlers[0]!()
     expect(map.addSource.mock.calls.map((call: unknown[]) => call[0])).toEqual([
       LAYER_ID,
+      DOTS_SOURCE,
       ORIGIN_LAYER,
       DISTANCE_LAYER,
     ])
@@ -203,6 +218,7 @@ describe('RangeRingsControlBase.onInit', () => {
     const map = fakeMap()
     control.onAdd(map.map)
     expect(map.sourceData(LAYER_ID)!.features).toHaveLength(0)
+    expect(map.sourceData(DOTS_SOURCE)!.features).toHaveLength(0)
     expect(map.sourceData(ORIGIN_LAYER)!.features).toHaveLength(0)
   })
 
@@ -213,6 +229,7 @@ describe('RangeRingsControlBase.onInit', () => {
     map.sources.add(LAYER_ID)
     map.sources.add(ORIGIN_LAYER)
     map.sources.add(DISTANCE_LAYER)
+    map.sources.add(DOTS_SOURCE)
 
     control.onAdd(map.map)
 
@@ -221,6 +238,7 @@ describe('RangeRingsControlBase.onInit', () => {
     expect(map.map.removeSource).toHaveBeenCalledWith(LAYER_ID)
     expect(map.map.removeSource).toHaveBeenCalledWith(ORIGIN_LAYER)
     expect(map.map.removeSource).toHaveBeenCalledWith(DISTANCE_LAYER)
+    expect(map.map.removeSource).toHaveBeenCalledWith(DOTS_SOURCE)
   })
 
   it('filters the label to the outermost ring only', () => {
@@ -375,7 +393,7 @@ describe('RangeRingsControlBase.setOrigin', () => {
     control.onAdd(map.map)
     const setData = map.setData.get(LAYER_ID)!
 
-    // The origin recomputes on every 15s SDR Manager poll; rebuilding five 65-point
+    // The origin recomputes on every 15s SDR Manager poll; rebuilding five 721-point
     // rings each time for an identical point is work the map does not need.
     control.setOrigin(origin())
 
@@ -460,7 +478,7 @@ describe('RangeRingsControlBase palette', () => {
       const map = fakeMap()
       control.onAdd(map.map)
 
-      expect(paintOf(map, LAYER_ID)['line-color']).toBe('#000000')
+      expect(paintOf(map, LAYER_ID)['circle-color']).toBe('#000000')
       expect(paintOf(map, ORIGIN_LAYER)['circle-stroke-color']).toBe('#000000')
       expect(paintOf(map, ORIGIN_DOT_LAYER)['circle-color']).toBe('#000000')
       expect(paintOf(map, LABEL_LAYER)).toMatchObject({
@@ -470,18 +488,18 @@ describe('RangeRingsControlBase palette', () => {
     },
   )
 
-  it('keeps the faint white rings on the dark basemap', () => {
+  it('draws black rings and labels on the dark basemap, the label without a halo', () => {
     document.documentElement.dataset.mapTheme = 'dark'
     const control = new RangeRingsControl(airStore, HOST_ORIGIN)
     const map = fakeMap()
     control.onAdd(map.map)
 
-    expect(paintOf(map, LAYER_ID)['line-color']).toBe('rgba(255,255,255,0.40)')
-    expect(paintOf(map, ORIGIN_LAYER)['circle-stroke-color']).toBe('rgba(255,255,255,0.40)')
-    expect(paintOf(map, ORIGIN_DOT_LAYER)['circle-color']).toBe('rgba(255,255,255,0.40)')
+    expect(paintOf(map, LAYER_ID)['circle-color']).toBe('#000000')
+    expect(paintOf(map, ORIGIN_LAYER)['circle-stroke-color']).toBe('#000000')
+    expect(paintOf(map, ORIGIN_DOT_LAYER)['circle-color']).toBe('#000000')
     expect(paintOf(map, LABEL_LAYER)).toMatchObject({
-      'text-color': 'rgba(255,255,255,0.65)',
-      'text-halo-color': '#000000',
+      'text-color': '#000000',
+      'text-halo-width': 0,
     })
   })
 
@@ -493,6 +511,7 @@ describe('RangeRingsControlBase palette', () => {
 
     document.documentElement.dataset.mapTheme = 'light'
     control._initRings()
-    expect(paintOf(map, LAYER_ID)['line-color']).toBe('#000000')
+    // Both palettes draw black rings now; the label's halo says which was read.
+    expect(paintOf(map, LABEL_LAYER)['text-halo-width']).toBe(1)
   })
 })

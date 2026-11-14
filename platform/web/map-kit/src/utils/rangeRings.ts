@@ -12,7 +12,9 @@ export function buildRingsGeoJSON(lng: number, lat: number): GeoJSON.FeatureColl
   for (const distNm of RING_DISTANCES_NM) {
     const R = distNm / EARTH_RADIUS_NM
     const points: [number, number][] = []
-    const steps = 64
+    // 720 points (one every half degree): with fewer, a zoomed-in ring showed
+    // its straight segments instead of a curve.
+    const steps = 720
     for (let i = 0; i <= steps; i++) {
       const bearing = (i / steps) * Math.PI * 2
       const lat1 = (lat * Math.PI) / 180
