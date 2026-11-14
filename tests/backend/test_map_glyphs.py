@@ -4,7 +4,7 @@ Map glyphs are served from `frontend/assets/fonts/<stack>/<range>.pbf` (the
 basemap styles' `glyphs` URL), and the maps run offline, so a stack named in a
 layer's `text-font` but missing from the bundle silently drops every label set
 in it. Only the ASCII range is required: map-layer labels are digits and Latin
-text (Noto Sans Bold ships only that range for the range-ring distances).
+text.
 """
 
 import re
@@ -32,7 +32,7 @@ def font_stacks_used_by_map_layers() -> set[str]:
 
 def test_finds_the_font_stacks_map_layers_use():
     # Guards the scan itself: a broken pattern would find nothing and pass below.
-    assert {"Noto Sans Regular", "Noto Sans Bold"} <= font_stacks_used_by_map_layers()
+    assert "Noto Sans Regular" in font_stacks_used_by_map_layers()
 
 
 @pytest.mark.parametrize("stack", sorted(font_stacks_used_by_map_layers()))
