@@ -52,6 +52,8 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   private readonly _settingsStore: SettingsStore
   // Keyed by siteKey: a host and a placed radio can share an id.
   private _markers = new Map<string, maplibregl.Marker>()
+  /** Each marker's site name when it was built, so a renamed site is rebuilt. */
+  private _markerNames = new Map<string, string>()
   private _clusterMarkers = new Map<string, maplibregl.Marker>()
   /** How many sites each count stands for, so it is only rebuilt when that
    *  number changes. */
@@ -114,7 +116,15 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     // position moving — a fix that lands on top of an SDR host has to collapse the
     // two into a count just as two Sentries would.
     this._stopWatch = watch(
-      () => [this._sitesStore.sites, this._sitesStore.radioSites, this._getUserLocation()] as const,
+      () =>
+        [
+          this._sitesStore.sites,
+          this._sitesStore.radioSites,
+          this._getUserLocation(),
+          // This machine's site is named by the machine name setting, which can
+          // change while the sites themselves don't.
+          this._sitesStore.sites.map((site) => siteLabel(site)),
+        ] as const,
       () => this._render(),
       { immediate: true, deep: true },
     )
@@ -181,6 +191,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       if (seenSites.has(key)) continue
       marker.remove()
       this._markers.delete(key)
+      this._markerNames.delete(key)
     }
     // …and counts for groups the zoom has since taken apart.
     for (const [key, marker] of this._clusterMarkers) {
@@ -252,11 +263,16 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   /** Add or move one site's marker. */
   private _syncSiteMarker(site: RadioSite): void {
     const coords: [number, number] = [site.longitude, site.latitude]
-    const existing = this._markers.get(siteKey(site))
-    if (existing) {
+    const key = siteKey(site)
+    const name = siteLabel(site)
+    const existing = this._markers.get(key)
+    if (existing && this._markerNames.get(key) === name) {
       existing.setLngLat(coords)
       return
     }
+    // A site whose name changed (this machine renamed) is built afresh: its
+    // details pill and accessible name are fixed when it is made.
+    existing?.remove()
     const marker = new maplibregl.Marker({
       element: this._buildSiteElement(site),
       anchor: 'center',
@@ -266,7 +282,8 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     // After addTo: MapLibre replaces the element's aria-label with its own
     // generic "Map marker" as it adds one, so the site's is put back.
     setMarkerAccessibleName(marker, siteMarkerLabel(site))
-    this._markers.set(siteKey(site), marker)
+    this._markers.set(key, marker)
+    this._markerNames.set(key, name)
   }
 
   /**
@@ -436,6 +453,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     this._userMarker?.setHidden(false)
     for (const marker of this._markers.values()) marker.remove()
     this._markers.clear()
+    this._markerNames.clear()
     for (const marker of this._clusterMarkers.values()) marker.remove()
     this._clusterMarkers.clear()
     this._clusterCounts.clear()

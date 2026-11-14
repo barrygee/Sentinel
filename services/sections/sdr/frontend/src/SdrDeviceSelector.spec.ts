@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount, type VueWrapper } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { axe } from 'jest-axe'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
 import { useSdrStore } from './stores/sdr'
@@ -414,6 +415,23 @@ describe('SdrDeviceSelector — where each radio is', () => {
   it("names a host's radios by the host — This machine, not Docker's host.docker.internal", async () => {
     hostsAnswer(() => Promise.resolve([PI, THIS_MACHINE]))
     expect(await openedDetails()).toEqual(['RPi', 'This machine', '10.0.0.9'])
+  })
+
+  it("names this machine's radios by the machine name, and follows a rename", async () => {
+    hostsAnswer(() => Promise.resolve([PI, { ...THIS_MACHINE, name: 'Old label' }]))
+    useAppStore().setMachineName('Home')
+    const wrapper = mountSelector({ radios: RADIOS })
+    await wrapper.find('.base-select-menu').trigger('click')
+    await flushPromises()
+    const details = () =>
+      menuItems()
+        .slice(1)
+        .map((item) => item.querySelector('.base-select-menu-option-detail')!.textContent!)
+    expect(details()).toEqual(['RPi', 'Home (This machine)', '10.0.0.9'])
+
+    useAppStore().setMachineName('Shed')
+    await flushPromises()
+    expect(details()).toEqual(['RPi', 'Shed (This machine)', '10.0.0.9'])
   })
 
   it('shows addresses when SDR Manager is not deployed', async () => {

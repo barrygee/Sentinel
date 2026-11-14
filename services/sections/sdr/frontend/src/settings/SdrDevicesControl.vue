@@ -22,7 +22,7 @@
              machine as a host (or without it): listed, with nothing to add
              them from yet. -->
         <template v-if="thisMachine && !hasLocalHost">
-          <div class="sdr-this-machine-title">This machine</div>
+          <div class="sdr-this-machine-title">{{ appStore.thisMachineLabel }}</div>
           <component
             :is="thisMachine.DevicesPanel"
             port-only
@@ -287,6 +287,7 @@ import SdrRadioRow from './SdrRadioRow.vue'
 import SdrHostDeviceRow from './SdrHostDeviceRow.vue'
 import SdrDeviceRadioAction from './SdrDeviceRadioAction.vue'
 import { getCapability } from '@sentinel/shell-api/shell/capabilities'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import {
   listRadios,
@@ -310,6 +311,7 @@ import '@sentinel/shell-api/settings/styles/deviceList.css'
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 
 const notificationsStore = useNotificationsStore()
+const appStore = useAppStore()
 /** Whether Air's ADS-B decoder reads from a host's device: no ADD for it. */
 const isAdsbSource = useAdsbSourceDevice()
 
@@ -761,9 +763,9 @@ async function addDeviceAsRadio(
   }
 }
 
-/** This machine's row reads "This machine" unless the operator labelled it, as in SDR HOSTS. */
+/** This machine's row reads `<name> (This machine)`, any other host its label, as in SDR HOSTS. */
 function hostLabel(host: SdrManagerHost): string {
-  return sdrHostLabel(host)
+  return sdrHostLabel(host, appStore.thisMachineLabel)
 }
 
 let pollTimer: ReturnType<typeof setInterval> | null = null

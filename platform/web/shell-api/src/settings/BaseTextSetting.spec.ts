@@ -133,6 +133,34 @@ describe('BaseTextSetting', () => {
     expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'exampleText', 'satellites')
   })
 
+  it('with deferMirror, leaves the store alone until the staged write runs on APPLY', async () => {
+    const store = makeFakeStore('before')
+    const wrapper = mountSetting(store, { deferMirror: true })
+    await flushPromises()
+
+    await wrapper.get('input').setValue('after')
+
+    expect(store.getValue()).toBe('before')
+    const staged = wrapper.emitted('stage')
+    expect(staged).toHaveLength(1)
+    await (staged![0]![0] as () => Promise<unknown>)()
+    expect(store.getValue()).toBe('after')
+    expect(settingsApi.put).toHaveBeenCalledWith('sdr', 'exampleText', 'after')
+  })
+
+  it('emits every edit as typed, valid or not', async () => {
+    const store = makeFakeStore('')
+    const wrapper = mountSetting(store, { validate: noSpaces })
+    await flushPromises()
+
+    await wrapper.get('input').setValue('ok')
+    await wrapper.get('input').setValue('not ok')
+
+    expect(wrapper.emitted('edit')).toEqual([['ok'], ['not ok']])
+    // The invalid one is still not staged.
+    expect(wrapper.emitted('stage')).toHaveLength(1)
+  })
+
   it('accepts anything when no validate is given', async () => {
     const store = makeFakeStore('')
     const wrapper = mountSetting(store)

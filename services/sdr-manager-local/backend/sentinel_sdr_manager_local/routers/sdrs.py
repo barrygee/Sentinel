@@ -131,6 +131,7 @@ async def _build_sdr_export(
             version=SDR_MANAGER_LOCAL_VERSION,
             host=host,
             http_port=settings.http_port,
+            machine_name=location_service.get_machine_name(),
             # A fact about this instance, not about any one dongle, so it rides
             # on `source` — which is also why an SDR Manager with no public devices
             # still reports a plottable position.

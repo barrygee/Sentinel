@@ -18,10 +18,15 @@ export interface SdrManagerHost {
   auth_token_set: boolean
   /**
    * This machine's own sdr-manager-local, linked by sdr-manager-remote rather
-   * than added by the operator: listed as "This machine", only its name can be
-   * changed, and it cannot be deleted.
+   * than added by the operator: named by the machine name setting
+   * (`thisMachineLabel`), never by `name`, and it cannot be deleted.
    */
   is_local: boolean
+  /**
+   * What the host's own operator named it (its export's `source.machine_name`),
+   * or null when it publishes none. Shown when `name` is empty.
+   */
+  machine_name?: string | null
   /** The host lets this Sentinel use its private SDRs: this machine, or one it lists. */
   may_use_private: boolean
   /**

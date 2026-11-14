@@ -19,6 +19,8 @@ describe('app store', () => {
     expect(store.enabledDomains).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect(store.notificationSound).toBe(false)
     expect(store.sideMenuOpen).toBe(true)
+    expect(store.machineName).toBe('')
+    expect(store.thisMachineLabel).toBe('This machine')
   })
 
   it('toggleSideMenu flips the map right-rail visibility', () => {
@@ -134,6 +136,50 @@ describe('app store', () => {
       const store = useAppStore()
       await expect(store.hydrateNotificationSoundFromDb()).resolves.toBeUndefined()
       expect(store.notificationSound).toBe(false)
+    })
+  })
+
+  describe('machine name', () => {
+    it('setMachineName stores the trimmed name and the label follows it', () => {
+      const store = useAppStore()
+      store.setMachineName('  Home base ')
+      expect(store.machineName).toBe('Home base')
+      expect(store.thisMachineLabel).toBe('Home base (This machine)')
+    })
+
+    it('cuts a name longer than the limit', () => {
+      const store = useAppStore()
+      store.setMachineName('x'.repeat(80))
+      expect(store.machineName).toBe('x'.repeat(64))
+    })
+
+    it.each([undefined, null, 42, { name: 'a' }])(
+      'treats a stored value that is not text (%j) as unnamed',
+      (value) => {
+        const store = useAppStore()
+        store.setMachineName('Home')
+        store.setMachineName(value)
+        expect(store.machineName).toBe('')
+        expect(store.thisMachineLabel).toBe('This machine')
+      },
+    )
+
+    it('hydrateMachineNameFromDb adopts the stored name', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({ ok: true, json: async () => ({ machineName: 'Shed' }) }),
+      )
+      const store = useAppStore()
+      await store.hydrateMachineNameFromDb()
+      expect(store.machineName).toBe('Shed')
+    })
+
+    it('hydrateMachineNameFromDb leaves the name alone when the settings cannot be read', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) }))
+      const store = useAppStore()
+      store.setMachineName('Home')
+      await store.hydrateMachineNameFromDb()
+      expect(store.machineName).toBe('Home')
     })
   })
 })

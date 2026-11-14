@@ -31,8 +31,13 @@ beforeEach(() => {
       const airStore = useAirStore()
       const locations = computed(() =>
         [
-          { id: USER_ALERT_LOCATION_ID, label: 'YOU', isUser: true },
-          { id: SDR_MANAGER_ID, label: 'GATESHEAD', isUser: false },
+          {
+            id: USER_ALERT_LOCATION_ID,
+            label: 'HOME (THIS MACHINE)',
+            name: 'Home (This machine)',
+            isUser: true,
+          },
+          { id: SDR_MANAGER_ID, label: 'GATESHEAD', name: 'GATESHEAD', isUser: false },
         ].map((place) => ({ ...place, lon: 0, lat: 51, ...airStore.overheadAlertFor(place.id) })),
       )
       return { locations, activeZones: computed(() => []) }
@@ -83,7 +88,7 @@ describe('overheadAlertSubscriptions', () => {
     airStore.setOverheadAlert(SDR_MANAGER_ID, { civil: true, mil: true })
 
     expect(overheadAlertSubscriptions.list()).toEqual([
-      { id: 'user:civil', label: 'Sentinel location — civil aircraft overhead' },
+      { id: 'user:civil', label: 'Home (This machine) — civil aircraft overhead' },
       { id: `${SDR_MANAGER_ID}:civil`, label: 'SDR host: GATESHEAD — civil aircraft overhead' },
       { id: `${SDR_MANAGER_ID}:mil`, label: 'SDR host: GATESHEAD — military aircraft overhead' },
     ])

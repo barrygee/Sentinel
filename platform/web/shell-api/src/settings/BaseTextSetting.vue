@@ -35,6 +35,8 @@ interface BaseTextSettingProps {
   mirrorToStore: (value: string) => void
   /** Disables the input. Defaults to `false`. */
   disabled?: boolean
+  /** Hold the store mirror until APPLY CHANGES too; see `useStagedSetting`'s `deferMirror`. */
+  deferMirror?: boolean
 }
 
 const props = withDefaults(defineProps<BaseTextSettingProps>(), {
@@ -42,6 +44,7 @@ const props = withDefaults(defineProps<BaseTextSettingProps>(), {
   maxLength: undefined,
   validate: () => null,
   disabled: false,
+  deferMirror: false,
 })
 
 const emit = defineEmits<{
@@ -49,6 +52,8 @@ const emit = defineEmits<{
   stage: [fn: () => Promise<unknown> | void]
   /** Fired on Enter — the Settings panel treats this as "commit and close". */
   commit: []
+  /** The text as typed, valid or not, for a caller that previews it. */
+  edit: [text: string]
 }>()
 
 const { value, applyChange } = useStagedSetting<string>({
@@ -57,6 +62,7 @@ const { value, applyChange } = useStagedSetting<string>({
   hydrateFromDb: props.hydrateFromDb,
   readFromStore: props.readFromStore,
   mirrorToStore: props.mirrorToStore,
+  deferMirror: props.deferMirror,
   stageWrite: (stagedWriter) => emit('stage', stagedWriter),
 })
 
@@ -71,6 +77,7 @@ watch(value, (newValue) => {
 })
 
 function onInput(): void {
+  emit('edit', inputText.value)
   if (errorMessage.value !== null) return
   applyChange(inputText.value)
 }

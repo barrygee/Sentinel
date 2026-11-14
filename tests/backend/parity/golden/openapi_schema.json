@@ -880,6 +880,11 @@
             "title": "Id",
             "type": "integer"
           },
+          "is_local": {
+            "default": false,
+            "title": "Is Local",
+            "type": "boolean"
+          },
           "latitude": {
             "title": "Latitude",
             "type": "number"
@@ -965,6 +970,17 @@
                 "type": "null"
               }
             ]
+          },
+          "machine_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Name"
           },
           "name": {
             "anyOf": [
@@ -1732,6 +1748,17 @@
               }
             ]
           },
+          "machine_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Name"
+          },
           "may_use_private": {
             "title": "May Use Private",
             "type": "boolean"
@@ -1882,6 +1909,17 @@
               }
             ],
             "title": "Last Seen At"
+          },
+          "machine_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine Name"
           },
           "may_use_private": {
             "title": "May Use Private",

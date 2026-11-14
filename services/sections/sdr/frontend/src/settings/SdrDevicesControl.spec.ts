@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { axe } from 'jest-axe'
 import SdrDevicesControl from './SdrDevicesControl.vue'
@@ -1172,6 +1173,23 @@ describe('SdrDevicesControl', () => {
         }),
       )
     })
+
+    it('names this machine by the machine name in a device-connected notice, not an old label', async () => {
+      vi.useFakeTimers()
+      useAppStore().setMachineName('Home')
+      const addSpy = vi.spyOn(useNotificationsStore(), 'add')
+      mockListSdrManagerHosts.mockResolvedValue([{ ...LOCAL_HOST, name: 'Old label' }])
+      mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: false }]))
+      mountControl()
+      await vi.runOnlyPendingTimersAsync()
+
+      mockGetSdrManagerHostDevices.mockResolvedValueOnce(snapshot([{ ...DEVICE, present: true }]))
+      await vi.advanceTimersByTimeAsync(3000)
+
+      expect(addSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ detail: 'RTL 1 on Home (This machine)' }),
+      )
+    })
   })
 
   it('stops polling hosts, without failing, if SDR Manager goes away while the list is open', async () => {
@@ -1458,6 +1476,15 @@ describe('SdrDevicesControl', () => {
         expect(hosts.find('.fake-this-machine').exists()).toBe(true)
         expect(localRow(wrapper).findComponent(SdrDeviceRadioAction).exists()).toBe(false)
         expect(hosts.text()).not.toContain('No Sentinel hosts yet.')
+      })
+
+      it('titles them by the machine name once it is set', async () => {
+        mockListSdrManagerHosts.mockResolvedValue([HOST])
+        useAppStore().setMachineName('Home')
+        const wrapper = mountControl()
+        await flushPromises()
+        const hosts = subcategory(wrapper, 'Sentinel Hosts')!
+        expect(hosts.find('.sdr-this-machine-title').text()).toBe('Home (This machine)')
       })
 
       it('stages its edits too', async () => {

@@ -1,4 +1,6 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { siteLabel } from './sdrManagerSiteLabel'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 
@@ -33,5 +35,20 @@ describe('siteLabel', () => {
 
   it('falls back when the name is an empty string', () => {
     expect(siteLabel(site({ name: '' }))).toBe('192.168.1.60:8000')
+  })
+
+  describe('this machine’s own SDR Manager', () => {
+    beforeEach(() => {
+      setActivePinia(createPinia())
+    })
+
+    it('is "This machine" while the machine is unnamed, whatever name the site carries', () => {
+      expect(siteLabel(site({ is_local: true, name: 'sdr-manager' }))).toBe('This machine')
+    })
+
+    it('is "<name> (This machine)" once the machine is named', () => {
+      useAppStore().setMachineName('Home')
+      expect(siteLabel(site({ is_local: true, name: 'This machine' }))).toBe('Home (This machine)')
+    })
   })
 })

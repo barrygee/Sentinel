@@ -49,7 +49,7 @@ All in **Settings › AIR**.
 
 ## Tips
 
-- Set **Sentinel Location** first: emergency checks and range rings centre on it.
+- Set this machine's **Location** first: emergency checks and range rings centre on it.
 - Off grid, the map centres on your receiver; it only hears around itself.
 
 ## If it's not working

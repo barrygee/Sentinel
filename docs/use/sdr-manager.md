@@ -68,7 +68,7 @@ They are in **Settings › App Settings › THIS MACHINE**. They start folded: c
 | **Configuration**    | **EDIT** the configuration as JSON in place (**FORMAT** tidies it; **APPLY CHANGES** applies it, and the hotspot only if you changed it); **DOWNLOAD CONFIGURATION** saves names, ports, tuning and hotspot; **IMPORT** a file to apply them. Passwords are never in the file |
 | **Hotspot**          | **ALLOW CHANGES**, then a network name, password, band and channel; **START**, then confirm it within 2 minutes or it is undone                                                                                                                                               |
 
-This machine's position is **Settings › App Settings › Sentinel Location**. Set it, or other Sentinels can't show where your dongles are (**SET LOCATION** in the notice takes you there).
+This machine's position is **Settings › App Settings › Location**, and its name **Settings › App Settings › Machine Name**. Set the position, or other Sentinels can't show where your dongles are; set the name, and they call this machine by it rather than by its address (**SET LOCATION** in the notice takes you there).
 
 ## Use a dongle as a radio
 

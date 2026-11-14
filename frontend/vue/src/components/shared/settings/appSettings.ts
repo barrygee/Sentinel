@@ -8,6 +8,7 @@ import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import HttpsControl from './HttpsControl.vue'
 import LocationControl from './LocationControl.vue'
+import MachineNameControl from './MachineNameControl.vue'
 import MapThemeControl from './MapThemeControl.vue'
 import NotificationSoundControl from './NotificationSoundControl.vue'
 import NotificationSubscriptionsControl from './NotificationSubscriptionsControl.vue'
@@ -23,8 +24,8 @@ const OfflineMapsSettings = defineAsyncComponent(
 
 /**
  * The App Settings that only mean something with the full app. SDR
- * Manager-only mode keeps the rest: Sentinel Location (the SDRs' location,
- * which other Sentinels show on their maps), HTTPS and THIS MACHINE.
+ * Manager-only mode keeps the rest: Machine Name and Location (what other
+ * Sentinels call this machine and where they show it), HTTPS and THIS MACHINE.
  */
 const FULL_APP_ONLY = ['full'] as const
 
@@ -67,15 +68,31 @@ registerSettingItems([
     control: { component: NotificationSubscriptionsControl, emits: ['stage'] },
   },
   {
+    // Both modes: other Sentinels call this machine's SDR Manager by it.
+    section: 'app',
+    sectionLabel: 'App Settings',
+    id: 'machine-name',
+    label: 'Machine Name',
+    desc: 'One name for this machine. It reads “<name> (This machine)” here; other Sentinels see the name.',
+    searchTerms:
+      'machine name this machine sentinel name label identity call host site my location',
+    control: {
+      component: MachineNameControl,
+      emits: ['stage'],
+      layout: 'half',
+      naturalHeight: true,
+    },
+    groupLabel: 'LOCATION',
+  },
+  {
     section: 'app',
     sectionLabel: 'App Settings',
     id: 'location',
-    label: 'Sentinel Location',
+    label: 'Location',
     desc: '',
     // Keeps the setting findable by the words the removed description carried.
-    searchTerms: 'fixed latitude longitude position',
+    searchTerms: 'fixed latitude longitude position sentinel location this machine',
     control: { component: LocationControl, emits: ['stage'], layout: 'half', naturalHeight: true },
-    groupLabel: 'LOCATION',
   },
   {
     section: 'app',
@@ -137,8 +154,8 @@ registerSettingItems([
     sectionLabel: 'App Settings',
     id: 'config-current',
     // Full app only: SDR Manager-only mode's settings are THIS MACHINE's
-    // Configuration (edited in place the same way); Sentinel Location and
-    // HTTPS keep their own cards.
+    // Configuration (edited in place the same way); Machine Name, Location
+    // and HTTPS keep their own cards.
     modes: FULL_APP_ONLY,
     label: 'Application Config',
     desc: '',

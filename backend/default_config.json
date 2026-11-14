@@ -2,6 +2,7 @@
     "_comment": "Default application configuration \u2014 seeds the database on first startup. The live copy of every setting is config/sentinel_config.json under Docker Compose (APP_CONFIG_PATH): it is rewritten whenever a setting changes, and edits saved to it are applied to the app automatically.",
     "app": {
         "connectivityMode": "online",
+        "machineName": "",
         "location": {
             "latitude": "",
             "longitude": ""

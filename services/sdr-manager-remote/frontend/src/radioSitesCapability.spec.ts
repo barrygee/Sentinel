@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest'
+import { setActivePinia, createPinia } from 'pinia'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import * as hostsApi from './api/sdrManagerRemoteApi'
 import type { SdrManagerDeviceSnapshot, SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import { createRadioSitesCapability } from './radioSitesCapability'
@@ -53,6 +55,10 @@ function snapshotWith(
     },
   }
 }
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+})
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -174,6 +180,31 @@ describe('sdr radioSites capability — devices', () => {
     const fleet = await createRadioSitesCapability().listDevices()
 
     expect(fleet.hosts[0]!.label).toBe('This machine')
+  })
+
+  it("labels this machine's host by the machine name, over any old label", async () => {
+    useAppStore().setMachineName('Home')
+    vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([
+      host({ name: 'Old label', address: 'host.docker.internal', is_local: true }),
+    ])
+    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'usb:2-4', name: 'RTLSDR V4' }),
+    )
+
+    const fleet = await createRadioSitesCapability().listDevices()
+
+    expect(fleet.hosts[0]!.label).toBe('Home (This machine)')
+  })
+
+  it('labels another unlabelled host by the name its own operator published', async () => {
+    vi.spyOn(hostsApi, 'listHosts').mockResolvedValue([host({ name: null, machine_name: 'Shed' })])
+    vi.spyOn(hostsApi, 'getHostDevices').mockResolvedValue(
+      snapshotWith({ device_id: 'usb:2-4', name: 'RTLSDR V4' }),
+    )
+
+    const fleet = await createRadioSitesCapability().listDevices()
+
+    expect(fleet.hosts[0]!.label).toBe('Shed')
   })
 
   it('treats a host with no status payload yet as publishing nothing', async () => {

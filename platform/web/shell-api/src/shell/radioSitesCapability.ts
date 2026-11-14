@@ -33,6 +33,12 @@ export interface RadioSite {
   name: string | null
   address: string
   port: number
+  /**
+   * This Sentinel's own SDR Manager. Its position is this machine's, so it is
+   * named as this machine (`thisMachineLabel`) and, in a list that already
+   * offers this machine, merged into that one entry.
+   */
+  is_local?: boolean
   reachable: boolean
   latitude: number
   longitude: number

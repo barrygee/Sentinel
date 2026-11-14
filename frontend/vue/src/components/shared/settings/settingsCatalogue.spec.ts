@@ -28,6 +28,7 @@ import AprsLabelFieldsControl from '@sentinel/section-land/settings/AprsLabelFie
 import AprsSdrSourceControl from '@sentinel/section-land/settings/AprsSdrSourceControl.vue'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
+import MachineNameControl from './MachineNameControl.vue'
 import ExportAllControl from './ExportAllControl.vue'
 import HttpsControl from './HttpsControl.vue'
 import JsonDataControl from '@sentinel/shell-api/settings/JsonDataControl.vue'
@@ -88,6 +89,11 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'app',
     'notification-subscriptions',
     { component: NotificationSubscriptionsControl, emits: ['stage'] },
+  ],
+  [
+    'app',
+    'machine-name',
+    { component: MachineNameControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
   [
     'app',

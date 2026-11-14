@@ -480,6 +480,7 @@ class TestListHostLocations:
         updated_at: int | None = 4242,
         reachable: bool = True,
         name: str | None = "sentry-roof",
+        machine_name: str | None = None,
     ):
         from sentinel_sdr_manager_remote.services.host_poller import HostSnapshot
 
@@ -493,7 +494,7 @@ class TestListHostLocations:
         return HostSnapshot(
             host_id=host_id,
             reachable=reachable,
-            export_payload={"source": {"name": name, "location": location}},
+            export_payload={"source": {"name": name, "machine_name": machine_name, "location": location}},
         )
 
     def _patch_snapshots(self, monkeypatch, snapshots: dict) -> None:
@@ -521,6 +522,7 @@ class TestListHostLocations:
                 "name": "Roof Pi",
                 "address": "10.0.0.5",
                 "port": 8000,
+                "is_local": False,
                 "reachable": True,
                 "latitude": 51.5,
                 "longitude": -0.1,
@@ -528,8 +530,8 @@ class TestListHostLocations:
             }
         ]
 
-    def test_falls_back_to_the_name_the_sdr_manager_calls_itself(self, client, monkeypatch):
-        """A host registered without a label takes the SDR host's own name for itself."""
+    def test_falls_back_to_the_name_an_older_host_calls_itself(self, client, monkeypatch):
+        """A host registered without a label takes the name an older (Sentry) host reports for itself."""
         resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
         host_id = resp.json()["id"]
         self._patch_snapshots(
@@ -568,13 +570,46 @@ class TestListHostLocations:
 
         assert body[0]["name"] == "This machine"
 
-    async def test_a_label_given_to_this_machine_wins(self, client, monkeypatch, test_engine):
+    async def test_this_machine_ignores_an_old_label_and_is_marked_local(self, client, monkeypatch, test_engine):
+        """This machine is named by the machine name setting (the UI does it, from `is_local`), not a row label."""
         resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
         host_id = resp.json()["id"]
         await self._make_local(test_engine, host_id, "Mac mini")
+        self._patch_snapshots(
+            monkeypatch,
+            {host_id: self._snapshot_with_location(host_id, name="sdr-manager", machine_name="Home")},
+        )
+
+        site = client.get("/api/sdr-manager/remote/hosts/locations").json()[0]
+        assert site["name"] == "This machine"
+        assert site["is_local"] is True
+
+    def test_an_unlabelled_host_takes_the_name_its_own_operator_published(self, client, monkeypatch):
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
+        self._patch_snapshots(
+            monkeypatch,
+            {host_id: self._snapshot_with_location(host_id, name="sdr-manager", machine_name=" Shed ")},
+        )
+
+        assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] == "Shed"
+
+    def test_this_operators_label_wins_over_the_published_name(self, client, monkeypatch):
+        created = _create_host(client, name="Roof Pi")
+        self._patch_snapshots(
+            monkeypatch,
+            {created["id"]: self._snapshot_with_location(created["id"], machine_name="Shed")},
+        )
+
+        assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] == "Roof Pi"
+
+    def test_sdr_managers_own_kind_name_is_not_used_as_a_name(self, client, monkeypatch):
+        """`sdr-manager` names the service, not the machine: with nothing else, the UI shows the address."""
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
         self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id, name="sdr-manager")})
 
-        assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] == "Mac mini"
+        assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] is None
 
     def test_name_stays_null_when_neither_side_has_one(self, client, monkeypatch):
         resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
@@ -582,6 +617,22 @@ class TestListHostLocations:
         self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id, name=None)})
 
         assert client.get("/api/sdr-manager/remote/hosts/locations").json()[0]["name"] is None
+
+    def test_a_host_record_carries_the_name_its_own_operator_published(self, client, monkeypatch):
+        created = _create_host(client)
+        self._patch_snapshots(
+            monkeypatch,
+            {created["id"]: self._snapshot_with_location(created["id"], machine_name="  Shed  ")},
+        )
+
+        assert client.get(f"/api/sdr-manager/remote/hosts/{created['id']}").json()["machine_name"] == "Shed"
+        listed = client.get("/api/sdr-manager/remote/hosts").json()
+        assert [host["machine_name"] for host in listed] == ["Shed"]
+
+    def test_a_host_record_has_no_published_name_before_the_first_poll(self, client):
+        created = _create_host(client)
+
+        assert client.get(f"/api/sdr-manager/remote/hosts/{created['id']}").json()["machine_name"] is None
 
     def test_omits_a_host_that_reports_no_location(self, client, monkeypatch):
         created = _create_host(client)
@@ -888,6 +939,7 @@ class TestHostInfo:
                 "control_port_offset": "two",
                 "source": {
                     "name": 42,
+                    "machine_name": 7,
                     "version": None,
                     "host": ["10.0.0.5"],
                     "http_port": "8000",
@@ -900,11 +952,13 @@ class TestHostInfo:
 
         assert body["source"] == {
             "name": None,
+            "machine_name": None,
             "version": None,
             "host": None,
             "http_port": None,
             "location": None,
         }
+        assert body["machine_name"] is None
         assert body["location"] is None
         assert body["control_port_offset"] is None
 
@@ -1651,3 +1705,24 @@ class TestDeviceRecordsProxy:
         resp = client.get(f"/api/sdr-manager/remote/hosts/{created['id']}/devices/records")
 
         assert resp.status_code == 502
+
+
+class TestPublishedMachineName:
+    """`_published_machine_name` — the `source.machine_name` of a remote host's export, tolerating any shape."""
+
+    @pytest.mark.parametrize(
+        ("export_payload", "expected"),
+        [
+            pytest.param({"source": {"machine_name": "Shed"}}, "Shed", id="a-name"),
+            pytest.param({"source": {"machine_name": "  Shed "}}, "Shed", id="trimmed"),
+            pytest.param({"source": {"machine_name": "x" * 80}}, "x" * 64, id="cut-to-64"),
+            pytest.param({"source": {"machine_name": "   "}}, None, id="blank"),
+            pytest.param({"source": {"machine_name": 7}}, None, id="not-text"),
+            pytest.param({"source": {}}, None, id="older-host-without-the-key"),
+            pytest.param({"source": "sdr-manager"}, None, id="source-not-an-object"),
+            pytest.param({}, None, id="no-source"),
+            pytest.param(None, None, id="no-export-yet"),
+        ],
+    )
+    def test_reads_a_trimmed_name_or_none(self, export_payload, expected):
+        assert hosts_router._published_machine_name(export_payload) == expected

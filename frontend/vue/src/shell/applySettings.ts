@@ -52,6 +52,9 @@ export function applySettingsPayload(data: AllSettings): void {
   const soundOn = data.app?.notificationSound
   appStore.setNotificationSound(typeof soundOn === 'boolean' ? soundOn : false)
 
+  // This machine's name — every "This machine" label reads it from the store.
+  appStore.setMachineName(data.app?.machineName)
+
   // The shared base-map layers — adopt the config so a choice made in the
   // app-config JSON or on another device is what the maps draw from the
   // first frame.
