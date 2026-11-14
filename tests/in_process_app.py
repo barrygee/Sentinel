@@ -29,7 +29,7 @@ from sentinel_radio.routers import radios as radio_radios_router
 from sentinel_sdr import module as sdr_module
 from sentinel_sdr import router as sdr_router
 from sentinel_sdr_manager_remote import module as sdr_manager_remote_module
-from sentinel_sdr_manager_remote.routers import hosts as sdr_manager_remote_hosts_router
+from sentinel_sdr_manager_remote.routers import ROUTERS as SDR_MANAGER_REMOTE_ROUTERS
 from sentinel_sea import module as sea_module
 from sentinel_sea import router as sea_router
 from sentinel_space import module as space_module
@@ -118,7 +118,7 @@ def in_process_routers() -> list[APIRouter]:
         # The in-app documentation (its own `docs` service in a deployment).
         docs_router.router,
         # The remote SDR hosts (its own `sdr-manager-remote` service in a deployment).
-        sdr_manager_remote_hosts_router.router,
+        *SDR_MANAGER_REMOTE_ROUTERS,
     ]
 
 
