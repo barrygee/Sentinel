@@ -92,14 +92,17 @@ schemas, shared helpers and 26 routes across five concerns under one prefix, `/a
 | New module | Contents |
 |---|---|
 | `schemas/hosts.py` | every `*In` / `*Out` / `*Patch` model, `_validated_fingerprint` |
-| `routers/_host_lookup.py` | `_get_host_or_404`, `_host_to_out`, `_raise_for_host_error`, `_raise_for_unreachable` |
-| `routers/hosts.py` | host CRUD, `test`, `info`, `locations` (list/create/get/update/delete) |
-| `routers/host_certificates.py` | preview (new and existing host), trust, `_forget_pin`, `_tls_state`, authority helpers |
+| `routers/host_access.py` | `get_host_or_404`, `host_to_out`, `raise_for_host_error`, `raise_for_unreachable` |
+| `routers/hosts.py` | host CRUD, `test`, `info`, `locations`, and the certificate preview/trust routes with their helpers |
 | `routers/host_devices.py` | devices, device records, patch/delete device, serial flash |
 | `routers/host_wifi.py` | Wi-Fi config, enable/disable/confirm, interfaces, clients |
 
-- Each router keeps the same prefix and tags; `service.py` includes them in the original route order, so the route
-  inventory golden and first-match guard rules see the same table.
+The certificate routes stay in `hosts.py`: the route inventory golden pins route order, and they sit between the host
+CRUD routes (`POST /certificate` before `GET /{host_id}`, `…/{host_id}/certificate` before `DELETE /{host_id}`), so a
+separate router could not keep that order.
+
+- Each router keeps the same prefix and tags; `routers.ROUTERS` mounts them in the original order (hosts, devices,
+  Wi-Fi), so the route inventory golden and first-match guard rules see the same table.
 - No path, status code, response model or dependency changes. The goldens above are the proof.
 - Tests move only if a test file maps one-to-one onto a new module; otherwise they stay and keep importing the public
   names (re-exported from `routers/hosts.py` only if a test needs it, to be removed in the same PR by updating the
