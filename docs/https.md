@@ -28,10 +28,10 @@ docker compose restart gateway
 
 ## Trust it on each device
 
-1. On the device, open Sentinel at its plain address (`http://192.168.5.67:8080`), then **Settings › App Settings › HTTPS**.
+1. On the device, open Sentinel at its plain address (`http://192.168.5.67:8080`), then **Settings › App Settings › Certificate**.
 2. **DOWNLOAD CERTIFICATE**, and install it as below.
 3. **OPEN OVER HTTPS**, or go to `https://192.168.5.67:8444`.
-4. Check the certificate your browser shows: issued by **Sentinel event bus CA**, with the fingerprint shown under **HTTPS**.
+4. Check the certificate your browser shows: issued by **Sentinel event bus CA**, with the fingerprint shown under **Certificate**.
 
 | Device                     | Install the downloaded `sentinel-certificate-authority.crt`                                                                                                                                                                                                                                                                                        |
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,4 +56,4 @@ docker compose restart gateway
 | "Your connection is not private" / "Not secure"                                   | The certificate authority isn't installed on this device, or not trusted: see the table above                         |
 | The warning names the address, not the authority (`ERR_CERT_COMMON_NAME_INVALID`) | That address isn't in `SENTINEL_WEB_HOSTNAMES`. Add it, then `docker compose up -d && docker compose restart gateway` |
 | The HTTPS address doesn't answer                                                  | Port 8444 is blocked by a firewall, or the gateway is from before HTTPS: `docker compose up -d`                       |
-| **HTTPS** says "no certificate yet"                                               | Run `docker compose up -d`: it makes the certificate authority                                                        |
+| **Certificate** says "no certificate yet"                                         | Run `docker compose up -d`: it makes the certificate authority                                                        |

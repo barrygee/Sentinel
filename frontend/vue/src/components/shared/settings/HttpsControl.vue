@@ -21,6 +21,10 @@
         Install this certificate once on each device you open Sentinel on, then use the HTTPS
         address. Check the fingerprint your device shows matches this one.
       </p>
+      <p v-if="sharesSdrs" class="settings-https-note settings-https-pinning">
+        Other Sentinels show this fingerprint when they add this machine. Tell whoever adds it to
+        trust it only if theirs matches.
+      </p>
       <div class="settings-https-actions">
         <BaseButton
           variant="ghost"
@@ -46,17 +50,26 @@
 
 <script setup lang="ts">
 /**
- * `HttpsControl` — Settings › App Settings › HTTPS: whether this page is
- * encrypted, and what a device needs to trust the HTTPS one.
+ * `HttpsControl` — Settings › App Settings › SECURITY › Certificate: whether
+ * this page is encrypted, and this Sentinel's certificate authority.
  *
  * The gateway serves the page over HTTPS with a certificate this Sentinel's
  * own certificate authority issued, which no browser knows. So the card shows
  * that authority's fingerprint, downloads it (a plain link to the `.crt` file,
  * which phones open as "install this certificate") and, on plain HTTP, links
  * to the same page over HTTPS on the port core reports.
+ *
+ * The same authority signs the certificate this machine's SDR Manager serves,
+ * which other Sentinels pin when they add this machine (sdr-manager-local's
+ * public `GET /api/tls/certificate-authority` reads the same file). So where
+ * SDR Manager runs here, the card also says to compare that fingerprint: it is
+ * the one place this machine shows it.
  */
 import { computed, onMounted, ref } from 'vue'
+import { getCapability } from '@sentinel/shell-api/shell/capabilities'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import { fingerprintLines } from '@sentinel/shell-api/utils/fingerprintLines'
+import { getAppMode } from '@/shell/appMode'
 import { pageLocation } from './pageLocation'
 
 /** GET /api/app/certificate-authority. */
@@ -66,22 +79,21 @@ interface CertificateAuthority {
   https_port: number
 }
 
-/** A SHA-256 fingerprint's 32 pairs as two even lines, broken between pairs. */
-const PAIRS_PER_LINE = 16
-
 const authority = ref<CertificateAuthority | null>(null)
 const errorMessage = ref<string | null>(null)
 
 const encrypted = computed(() => pageLocation().protocol === 'https:')
 
-function fingerprintLines(fingerprint: string): string {
-  const pairs = fingerprint.split(':')
-  const lines: string[] = []
-  for (let index = 0; index < pairs.length; index += PAIRS_PER_LINE) {
-    lines.push(pairs.slice(index, index + PAIRS_PER_LINE).join(':'))
-  }
-  return lines.join('\n')
-}
+/**
+ * Whether this machine's SDR Manager runs here, so other Sentinels may pin
+ * this fingerprint. SDR Manager-only mode always runs it; in the full app it
+ * runs when its remote loaded, which provides `thisMachineSdrs`.
+ */
+const sharesSdrs = computed(
+  () =>
+    getAppMode().mode === 'sdr-manager-local-only' ||
+    getCapability('thisMachineSdrs') !== undefined,
+)
 
 /** This same page over HTTPS: same host and path, on the gateway's HTTPS port. */
 function httpsAddress(httpsPort: number): string {

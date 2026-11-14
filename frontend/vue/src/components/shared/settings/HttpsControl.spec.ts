@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
+import { provideCapability } from '@sentinel/shell-api/shell/capabilities'
 import HttpsControl from './HttpsControl.vue'
 import { pageLocation } from './pageLocation'
+import { FULL_APP_MODE, setAppMode } from '@/shell/appMode'
 
 vi.mock('./pageLocation', () => ({ pageLocation: vi.fn() }))
+
+const PINNING_NOTE = 'Other Sentinels show this fingerprint when they add this machine.'
+
+/** Loads this machine's SDR Manager the way its remote does: by providing `thisMachineSdrs`. */
+function withThisMachinesSdrManager(): () => void {
+  return provideCapability('thisMachineSdrs', { DevicesPanel: { name: 'DevicesPanel' } })
+}
 
 const PAIRS = Array.from({ length: 32 }, (_unused, index) =>
   index.toString(16).padStart(2, '0').toUpperCase(),
@@ -48,6 +57,7 @@ describe('HttpsControl', () => {
   })
   afterEach(() => {
     vi.unstubAllGlobals()
+    setAppMode(FULL_APP_MODE)
   })
 
   it('says a plain HTTP page is not encrypted, and what that exposes', async () => {
@@ -114,6 +124,57 @@ describe('HttpsControl', () => {
     answer(response)
     const wrapper = await mountControl()
     expect(wrapper.get('[role="alert"]').text()).toBe('Could not read this Sentinel’s certificate.')
+  })
+
+  describe('the fingerprint other Sentinels pin', () => {
+    it('is not mentioned in the full app without this machine’s SDR Manager', async () => {
+      const wrapper = await mountControl()
+      expect(wrapper.text()).not.toContain(PINNING_NOTE)
+    })
+
+    it('says to compare it when this machine’s SDR Manager runs in the full app', async () => {
+      const withdraw = withThisMachinesSdrManager()
+      try {
+        const wrapper = await mountControl()
+        expect(wrapper.get('.settings-https-pinning').text()).toContain(PINNING_NOTE)
+        expect(wrapper.get('.settings-https-pinning').text()).toContain(
+          'trust it only if theirs matches',
+        )
+      } finally {
+        withdraw()
+      }
+    })
+
+    it('says to compare it in SDR Manager-only mode, which always runs SDR Manager', async () => {
+      setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
+      const wrapper = await mountControl()
+      expect(wrapper.get('.settings-https-pinning').text()).toContain(PINNING_NOTE)
+    })
+
+    it('appears when SDR Manager’s remote loads after the card, and goes when it withdraws', async () => {
+      const wrapper = await mountControl()
+      const withdraw = withThisMachinesSdrManager()
+      await flushPromises()
+      expect(wrapper.text()).toContain(PINNING_NOTE)
+      withdraw()
+      await flushPromises()
+      expect(wrapper.text()).not.toContain(PINNING_NOTE)
+    })
+
+    it('is not shown while the certificate can’t be read', async () => {
+      setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
+      answer(json({}, 503))
+      const wrapper = await mountControl()
+      expect(wrapper.text()).not.toContain(PINNING_NOTE)
+    })
+
+    it('has no accessibility violations with the note shown', async () => {
+      setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
+      const wrapper = await mountControl()
+      expect(
+        await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
+      ).toHaveNoViolations()
+    })
   })
 
   it.each(['http:', 'https:'] as const)(

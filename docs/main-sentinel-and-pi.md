@@ -104,7 +104,7 @@ From any computer on your network, open **http://192.168.5.67:8080**. It opens o
     1. the pencil: a **NAME**, its **OUTPUT PORT** (the old port from part 3, or the one suggested), **VISIBILITY: PUBLIC**;
     2. **APPLY CHANGES**;
     3. switch its stream on, **APPLY CHANGES** again.
-4. **Certificate** (**App Settings › THIS MACHINE**): open the card and keep the **fingerprint** in view for part 6.
+4. **Certificate** (**App Settings › SECURITY**): keep its **fingerprint** in view for part 6.
 
 **You should see:** a green dot (**Streaming**) on each dongle.
 
@@ -125,7 +125,7 @@ On the main Sentinel (http://localhost:8080), **Settings › SDR › DEVICES**.
     | **ADD SDRS**         | **MANUALLY**, or **AUTOMATICALLY** to make every public dongle a radio |
 
 2. **ADD**. It shows the Pi's **FINGERPRINT**.
-3. Compare it with the Pi's Certificate card (its **App Settings › THIS MACHINE**). If they match, **TRUST AND ADD**. If not, stop: something else answers at that address.
+3. Compare it with the Pi's Certificate card (its **App Settings › SECURITY**). If they match, **TRUST AND ADD**. If not, stop: something else answers at that address.
 
 **If the Pi is already listed** (from Sentry):
 

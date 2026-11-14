@@ -11,8 +11,8 @@
 
     <template v-if="preview.tls_available">
       <p :id="descriptionId" class="sdr-devices-note remote-host-certificate-text">
-        Compare this fingerprint with the one the SDR host shows (its Settings › SDR Manager, or its
-        sdr-manager-local log). Trust it only if they match.
+        Compare this fingerprint with the one the SDR host shows (its Settings › App Settings ›
+        Certificate, or its sdr-manager-local log). Trust it only if they match.
       </p>
       <dl class="remote-host-certificate-facts">
         <div>
@@ -86,7 +86,7 @@
 import { computed, nextTick, onMounted, ref, useId } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import type { SdrManagerCertificatePreview } from '../api/sdrManagerRemoteApi'
-import { fingerprintLines } from '../fingerprintLines'
+import { fingerprintLines } from '@sentinel/shell-api/utils/fingerprintLines'
 
 const props = withDefaults(
   defineProps<{
