@@ -4,7 +4,7 @@ A lightweight Sentinel that only manages the dongles plugged into this computer 
 
 ## Features
 
-- **One page:** Settings › SDR Manager, with this computer's SDRs, and App Settings trimmed to **Sentinel Location**, **HTTPS** and **THIS MACHINE** (console password, certificate, private access, configuration, hotspot). Its settings file is **THIS MACHINE › Configuration**, edited in place the way the full app's Application Config is.
+- **One page:** Settings › SDR Manager, with this computer's SDRs, and App Settings trimmed to **Machine Name**, **Location**, **HTTPS** and **THIS MACHINE** (console password, certificate, private access, configuration, hotspot). Its settings file is **THIS MACHINE › Configuration**, edited in place the way the full app's Application Config is.
 - **Light:** four containers (credentials, core, gateway, SDR Manager). Map code and tiles are never downloaded.
 - **Same settings:** switching to or from the full app keeps your settings and data.
 - **Managed from your main Sentinel** as a Sentinel host.
@@ -30,7 +30,7 @@ First time on this computer? Prepare it first: [Linux and Pi](sdr-manager-linux.
 
 ## Use it from your main Sentinel
 
-1. Here: set up each dongle (**PUBLIC**, stream on), a **Console Password** and **Sentinel Location** ([how](use/sdr-manager.md#set-up-a-dongle)).
+1. Here: set up each dongle (**PUBLIC**, stream on), a **Console Password**, a **Machine Name** and a **Location** ([how](use/sdr-manager.md#set-up-a-dongle)).
 2. On the main Sentinel: **Settings › SDR › + ADD A NEW SENTINEL HOST**, this computer's address, port `8000`, the console password, **ADD**, then compare the certificate fingerprint ([Certificates](use/sdr-manager.md#certificates)) and **TRUST AND ADD**.
 3. On the main Sentinel: **Settings › SDR › DEVICES**, **ADD** each dongle you want to listen to.
 

@@ -179,7 +179,7 @@ A ✗ comes with a **Fix:** line under it: do what it says, then run `status` ag
 
 ## 15. Set Sentinel's location
 
-1. Go to **Settings › App Settings › Sentinel Location**.
+1. Go to **Settings › App Settings › Location**.
 2. Type your latitude and longitude, then **APPLY CHANGES**. To find them, right-click your home in Google Maps in your browser: the first line of the menu is the latitude, then the longitude.
 
 **You should see:** the "location is not set" notice gone from **Settings › SDR**.
