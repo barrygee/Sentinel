@@ -1,6 +1,7 @@
 {
   "app": {
     "connectivityMode": "online",
+    "machineName": "",
     "location": {
       "latitude": "",
       "longitude": ""

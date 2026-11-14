@@ -145,12 +145,16 @@ class TestServesBeforeCore:
 
 @pytest.fixture
 def core_location(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
-    """Core answers `app.location` with whatever the test sets."""
-    answer: dict[str, Any] = {"value": {"latitude": "54.95149", "longitude": "-1.53586"}}
+    """Core answers `app.location` (`value`) and `app.machineName` (`machine_name`) with whatever the test sets."""
+    answer: dict[str, Any] = {
+        "value": {"latitude": "54.95149", "longitude": "-1.53586"},
+        "machine_name": "Roof Pi",
+    }
 
     async def read_setting(_db: Any, namespace: str, key: str, default: Any = None) -> Any:
-        assert (namespace, key) == ("app", "location")
-        return answer["value"]
+        assert namespace == "app"
+        assert key in ("location", "machineName")
+        return answer["value"] if key == "location" else answer["machine_name"]
 
     monkeypatch.setattr(settings_client, "read_setting", read_setting)
     return answer
@@ -210,6 +214,28 @@ class TestPublishesSentinelsLocation:
 
         location = client.get("/api/v1/sdrs").json()["source"]["location"]
         assert (location["latitude"], location["longitude"]) == (None, None)
+
+
+class TestPublishesTheMachineName:
+    def test_on_the_export_source_on_both_mounts(self, core_location: dict[str, Any], client: TestClient) -> None:
+        _wait_for_location(client)
+
+        for route in ("/api/v1/sdrs", f"{GATEWAY_API_PREFIX}/v1/sdrs"):
+            source = client.get(route).json()["source"]
+            assert source["machine_name"] == "Roof Pi", route
+            # Still says what kind of service answered, beside the name.
+            assert source["name"] == "sdr-manager", route
+
+    def test_a_name_cleared_in_sentinel_stops_being_published(
+        self, core_location: dict[str, Any], client: TestClient
+    ) -> None:
+        _wait_for_location(client)
+        container = client.app.state.contract_app.state.container  # type: ignore[attr-defined]
+
+        core_location["machine_name"] = ""
+        client.portal.call(container.location_source.refresh)  # type: ignore[union-attr]
+
+        assert client.get("/api/v1/sdrs").json()["source"]["machine_name"] == ""
 
 
 class TestConfigWithoutAPosition:

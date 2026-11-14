@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import NoReturn
+from typing import Any, NoReturn
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +17,10 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerApiError,
     SdrManagerUnreachableError,
 )
+
+MACHINE_NAME_MAX_LENGTH = 64
+"""A host's published machine name is cut to this, as sdr-manager-local cuts its own."""
+
 
 # ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -40,6 +44,7 @@ def host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         enabled=host.enabled,
         auth_token_set=bool(host.auth_token),
         is_local=host.is_local,
+        machine_name=published_machine_name(snapshot.export_payload if snapshot is not None else None),
         may_use_private=host.is_local or (snapshot is not None and snapshot.may_use_private),
         auto_add_sdrs=host.auto_add_sdrs,
         created_at=host.created_at,
@@ -51,6 +56,15 @@ def host_to_out(host: RemoteSdrHost) -> RemoteSdrHostOut:
         tls_fingerprint=host.tls_fingerprint,
         tls_state=_tls_state(host, certificate_rejected=snapshot is not None and snapshot.certificate_rejected),
     )
+
+
+def published_machine_name(export_payload: dict[str, Any] | None) -> str | None:
+    """The `source.machine_name` a host's export carries, trimmed; None when absent, blank or not text."""
+    source = (export_payload or {}).get("source")
+    machine_name = source.get("machine_name") if isinstance(source, dict) else None
+    if not isinstance(machine_name, str):
+        return None
+    return machine_name.strip()[:MACHINE_NAME_MAX_LENGTH] or None
 
 
 def _tls_state(host: RemoteSdrHost, *, certificate_rejected: bool) -> TlsState:

@@ -26,6 +26,15 @@ class SdrExportSource(BaseModel):
     version: str
     host: str = Field(description="Never 0.0.0.0 or a container-internal address")
     http_port: int
+    machine_name: str = Field(
+        default="",
+        description="The operator's name for this machine (Sentinel's `app.machineName`); empty when unnamed",
+    )
+    """What other Sentinels call this machine unless their operator labels it.
+
+    Beside `name`, not in it: `name` is pinned to `"sdr-manager"` and says what
+    kind of service answered. Additive within api_version 1, like `location`.
+    """
     location: SdrManagerLocation = Field(
         default_factory=SdrManagerLocation,
         description="This SDR Manager's fixed position; both coordinates null when unset",
