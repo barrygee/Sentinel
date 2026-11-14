@@ -303,6 +303,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Serve the web page over HTTPS on :8444
 - Move THIS MACHINE to App Settings in both modes
 - Optional position for radios added by IP, shown on the maps
+- Draw range rings as even black dots with black labels
 
 ### Bug Fixes
 
@@ -758,6 +759,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the unused recordings subfolder code
 - Remove BaseListItem and dead rail CSS
 - Remove the unused sip-toggle and spp-filter-toggle CSS
+- Drop the Noto Sans Bold glyphs, no longer used
 
 ### Reverts
 
@@ -1914,6 +1916,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #647 from barrygee/chore/security-limits
 - Merge pull request #648 from barrygee/fix/uv-certifi-2026-11
 - Merge pull request #649 from barrygee/fix/npm-dependabot-2026-11
+- Merge pull request #654 from barrygee/feat/range-rings-black-dots
 
 ### Performance
 
@@ -2359,6 +2362,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild after merging main
 - Rebuild after merging main
 - Rebuild bundle with patched dompurify and markdown-it
+- Rebuild bundle for the black range rings
 
 ### Continuous Integration
 
