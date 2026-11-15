@@ -15,7 +15,7 @@ them up one extraction per PR, smallest risk first, so every PR lands green and 
 | 2 | C2 | Split `sdr-manager-remote` `routers/hosts.py` by concern | 1,237 | low (goldens pin it) |
 | 3 | C3 | Shared map-view composable, Air + Sea | AirMap 459, SeaMap 269 | medium |
 | 4 | C4 | The same composable for Land + Space | LandView 321, SpaceMap 275 | medium |
-| 5 | C5 | `SatelliteAccordion.css` / `SpacePasses.css` shared base | 420 + 414 | medium (cascade) |
+| 5 | C5 | One UPCOMING PASSES section for both Space accordions | 420 + 414 | medium (cascade) |
 | 6 | C6–C9 | `AdsbLiveControl.ts` into helpers | 3,060 | medium–high |
 | 7 | C10 | `SatelliteControl.ts` follow/label helpers | 1,020 | medium |
 | 8 | C11–C15 | `SdrWaterfall.vue` into composables | 3,406 + 700 CSS | high |
@@ -133,15 +133,23 @@ the map, start user location, add the location marker, attach the context menu),
   controls on the first style load instead, a timing change a refactor must not carry. Its `zoomIn`/`zoomOut`/
   `goToLocation` serve its own rail, which Air and Sea don't have, so they stay too.
 
-### C5. `SatelliteAccordion.css` / `SpacePasses.css` shared base
+### C5. One UPCOMING PASSES section for both Space accordions
 
-The two Space stylesheets (420 and 414 lines) style the same "Upcoming Passes" UI twice under two prefixes (`spp-`
-and the accordion's), which the memory note on the two pass components already warns about.
+The survey read this as two stylesheets styling the same UI twice. By now the styling was already shared: an
+earlier dedupe had moved the expanded-satellite accordion into `SatelliteAccordion.css`, and the PASSES pane's own
+`SpacePasses.css` styles only its pass rows, filters and messages, which the satellite list doesn't have. What was
+still duplicated was the **markup**: `SpaceFilter.vue` (the satellite list) and `SpacePasses.vue` (the PASSES pane)
+each rendered their own copy of the accordion's UPCOMING PASSES section.
 
-- Extract the shared pass-list rules into a small shared component's scoped styles (a `PassList` sub-component both
-  render), not a third global stylesheet.
-- Keep each variant's differences in its own component.
-- Highest cascade risk in the series: computed-style checks on every moved selector, both panes, both widths.
+- `UpcomingPassesSection.vue` renders that section (props `passes`, `loading`, `status`, `now`). Both accordions
+  render it. Its pass-list rules moved out of the global `SatelliteAccordion.css` into its scoped styles. The section
+  shell (`sat-acc-section`, `sat-acc-section-title`) stays global, shared with the accordion's other sections.
+- The satellite list now times countdowns and NOW from its `now` ref, which ticks every second, as the PASSES pane
+  already did, instead of reading `Date.now()` while rendering.
+- Dead code dropped: the never-displayed `.sat-acc-pass-num` rule and the satellite list's unused `data-aos-ms`/
+  `data-los-ms` attributes.
+- Cascade check: a throwaway Playwright spec (not committed) dumped computed styles, boxes and text of every element
+  in the section, in both panes at 390 and 1280 px, from the old and new bundles: no differences.
 
 ### C6–C9. `AdsbLiveControl.ts` (3,060 lines) into helpers
 
