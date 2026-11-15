@@ -1,40 +1,32 @@
 <template>
   <MapLibreMap
     ref="mapRef"
-    :style-url="styleUrl"
+    :style-url="sectionMap.styleUrl.value"
     region-label="Sea domain map — live vessels"
     region-description="Interactive map of live AIS vessels. The same vessels are also listed, with full details and keyboard access, in the Filter panel of the map sidebar."
     :center="seaStore.mapCenter ?? [-2, 54]"
     :zoom="seaStore.mapZoom ?? 6"
-    @map-created="onMapCreated"
-    @style-loaded="onStyleLoaded"
+    @map-created="sectionMap.onMapCreated"
+    @style-loaded="sectionMap.onStyleLoaded"
   />
 </template>
 
 <script setup lang="ts">
 // IMPORTANT: the map instance is stored in a plain variable — never in
 // ref/reactive — and every IControl receives Pinia stores, never window globals.
-// Mirrors AirMap.vue: the same style, connectivity restyle and control wiring,
-// so the Sea map reads and behaves exactly like the Air map.
+// Shares the style lifecycle with AirMap.vue (useSectionMapStyle), so the Sea
+// map reads and behaves exactly like the Air map.
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { basemapStyleUrl, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
-import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSeaStore } from './stores/sea'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
-import { useThemeStore } from '@sentinel/shell-api/stores/theme'
-import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
-import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { useSectionMapStyle } from '@sentinel/map-kit/composables/useSectionMapStyle'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
-import { useMapContextMenu } from '@sentinel/map-kit/composables/useMapContextMenu'
-import { useOfflineTierRefresh } from '@sentinel/map-kit/composables/useOfflineTierRefresh'
-import { useBasemapLayerSync } from '@sentinel/map-kit/composables/useBasemapLayerSync'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import MapLibreMap from '@sentinel/map-kit/MapLibreMap.vue'
-import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
 import { RoadsToggleControl } from '@sentinel/map-kit/controls/roads/RoadsToggleControl'
 import { TerrainToggleControl } from '@sentinel/map-kit/controls/terrain/TerrainToggleControl'
@@ -44,30 +36,16 @@ import { AisVesselsControl } from './controls/vessels/AisVesselsControl'
 import { FerryRoutesControl } from './controls/ferry-routes/FerryRoutesControl'
 import { PortsControl } from './controls/ports/PortsControl'
 
-const appStore = useAppStore()
 const seaStore = useSeaStore()
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 const sdrManagerSitesStore = useSdrManagerSitesStore()
-const themeStore = useThemeStore()
 const offlineMapsStore = useOfflineMapsStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
-
-// User location drives the "go to my location" button and the on-map marker.
-const { location: userLocation, start: startLocation } = useUserLocation()
-const getUserLocation = (): [number, number] | null =>
-  userLocation.value ? [userLocation.value.lon, userLocation.value.lat] : null
-const _locationMarker = new UserLocationMarker('user-location-marker')
-
 // Where the range rings are centred — shared app-wide with the Air/Land maps.
 const { origin: ringOrigin } = useRangeRingOrigin()
-const ctxMenu = useMapContextMenu()
-
-let _map: MapLibreGlMap | null = null
-let _currentStyleUrl: string | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded.
 let vesselsControl: AisVesselsControl | null = null
@@ -80,68 +58,35 @@ let terrainControl: TerrainToggleControl | null = null
 // SDR host sites are plotted on every domain map — no side-menu button.
 let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 
-// Borders have no rail button: Settings › Map is their only switch, and
-// this map follows it through the shared basemap store.
-const basemapLayerSync = useBasemapLayerSync(() => _map, ['borders'])
-
-// Reload the offline basemap/terrain tiles when a download job completes
-// while this map is showing the offline style — see the composable's doc.
-const offlineTierRefresh = useOfflineTierRefresh(
-  () => _map,
-  () => !appStore.isOnline,
-  () => terrainControl,
-)
+// The basemap, its reloads on connectivity and theme changes, the operator's
+// position marker and the context menu — shared with the Air map.
+const sectionMap = useSectionMapStyle({
+  initOverlays: addControls,
+  reinitOverlays: reinitAfterStyleLoad,
+  getTerrainControl: () => terrainControl,
+})
 
 defineExpose({
   getVesselsControl: () => vesselsControl,
   getFerryRoutes: () => ferryRoutesControl,
   getPorts: () => portsControl,
   getRangeRings: () => rangeRingsControl,
-  getMap: () => _map,
+  getMap: sectionMap.getMap,
 })
 
-function _reinitAfterStyle(): void {
+/** Re-add everything this map draws on top of the basemap after a style reload. */
+function reinitAfterStyleLoad(): void {
   roadsControl?.applyVisibility()
   namesControl?.applyVisibility()
-  basemapLayerSync.apply()
   terrainControl?.initLayers()
   rangeRingsControl?._initRings()
   vesselsControl?.initLayers()
   ferryRoutesControl?.initLayers()
   portsControl?.initLayers()
-  offlineTierRefresh.applyCurrentVersion()
 }
 
-/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after.
- *  Returns whether a reload was actually triggered. */
-function syncStyleToState(): boolean {
-  const m = _map
-  if (!m) return false
-  const targetStyle = styleUrl.value
-  if (_currentStyleUrl === targetStyle) return false
-  _currentStyleUrl = targetStyle
-  setMapStyle(m, targetStyle)
-  m.once('style.load', _reinitAfterStyle)
-  return true
-}
-
-useConnectivity(syncStyleToState)
-
-// A theme change swaps the basemap the same way a connectivity change does.
-watch(() => themeStore.mapTheme, syncStyleToState)
-
-function onMapCreated(m: MapLibreGlMap) {
-  _map = m
-  _currentStyleUrl = styleUrl.value
-  startLocation()
-  _locationMarker.addTo(m)
-  ctxMenu.attach(m)
-}
-
-function onStyleLoaded(m: MapLibreGlMap) {
-  basemapLayerSync.apply()
-  if (vesselsControl) return // already initialised (style reload handled above)
-
+/** Build and add this map's controls, once, on the first style load. */
+function addControls(m: MapLibreGlMap): void {
   vesselsControl = new AisVesselsControl(seaStore)
   ferryRoutesControl = new FerryRoutesControl(seaStore)
   portsControl = new PortsControl(seaStore)
@@ -150,8 +95,8 @@ function onStyleLoaded(m: MapLibreGlMap) {
   namesControl = new NamesToggleControl(basemapStore)
   terrainControl = new TerrainToggleControl(basemapStore, offlineMapsStore)
   sdrManagerSitesControl = new SdrManagerSitesControl(sdrManagerSitesStore, settingsStore, {
-    getUserLocation,
-    userMarker: _locationMarker,
+    getUserLocation: sectionMap.getUserLocation,
+    userMarker: sectionMap.locationMarker,
   })
 
   // onAdd wires each control to the map; the returned buttons are discarded —
@@ -171,14 +116,6 @@ function onStyleLoaded(m: MapLibreGlMap) {
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (nativeCtrl) nativeCtrl.style.display = 'none'
-
-  // The connectivity probe (or a theme change) may have landed before _map was
-  // set; correct the style now that the controls exist to re-init on it.
-  if (!syncStyleToState()) offlineTierRefresh.applyCurrentVersion()
-}
-
-function _clearLocationVisuals(): void {
-  _locationMarker.remove()
 }
 
 // Re-seed the default layers when the settings change under the app (APPLY
@@ -186,18 +123,6 @@ function _clearLocationVisuals(): void {
 useDocumentEvent('sentinel:config-uploaded', () => void seaStore.hydrateDefaultLayers())
 
 onMounted(() => {
-  window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  watch(
-    userLocation,
-    (loc) => {
-      if (!loc) {
-        _clearLocationVisuals()
-        return
-      }
-      _locationMarker.update(loc.lon, loc.lat)
-    },
-    { immediate: true },
-  )
   watch(ringOrigin, (origin) => rangeRingsControl?.setOrigin(origin), { immediate: true })
   // The store is the truth for every overlay, so a Settings toggle, the rail,
   // or a default-layers hydrate all reach the map the same way.
@@ -241,14 +166,11 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  window.removeEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  const m = _map
-  ctxMenu.detach(m)
+  const m = sectionMap.releaseMap()
   if (m) {
     const center = m.getCenter()
     seaStore.saveMapState([center.lng, center.lat], m.getZoom())
   }
-  _map = null
   vesselsControl?.onRemove()
   ferryRoutesControl?.onRemove()
   portsControl?.onRemove()
@@ -257,7 +179,7 @@ onBeforeUnmount(() => {
   namesControl?.onRemove()
   terrainControl?.onRemove()
   sdrManagerSitesControl?.onRemove()
-  _locationMarker.remove()
+  sectionMap.locationMarker.remove()
   vesselsControl = null
   ferryRoutesControl = null
   rangeRingsControl = null

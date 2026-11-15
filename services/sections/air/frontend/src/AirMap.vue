@@ -1,14 +1,14 @@
 <template>
   <MapLibreMap
     ref="mapRef"
-    :style-url="styleUrl"
+    :style-url="sectionMap.styleUrl.value"
     region-label="Air domain map — live aircraft"
     region-description="Interactive map of live aircraft. The same aircraft are also listed, with full details and keyboard access, in the Filter panel of the map sidebar."
     :center="airStore.mapCenter ?? [-2, 54]"
     :zoom="airStore.mapZoom ?? 6"
     :pitch="airStore.pitch"
-    @map-created="onMapCreated"
-    @style-loaded="onStyleLoaded"
+    @map-created="sectionMap.onMapCreated"
+    @style-loaded="sectionMap.onStyleLoaded"
   />
   <AircraftAltitudeLegend
     v-if="airStore.overlayStates.altitudeColouring"
@@ -19,10 +19,8 @@
 <script setup lang="ts">
 // IMPORTANT: Map instance is stored in a plain variable — never in ref/reactive.
 // All IControl subclasses receive Pinia store refs instead of window.* globals.
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
-import { basemapStyleUrl, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
-import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useAirStore } from './stores/air'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
@@ -35,16 +33,11 @@ import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
-import { useConnectivity } from '@sentinel/shell-api/composables/useConnectivity'
-import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { useSectionMapStyle } from '@sentinel/map-kit/composables/useSectionMapStyle'
 import { useRangeRingOrigin } from '@sentinel/map-kit/composables/useRangeRingOrigin'
 import { useOverheadAlertZones } from './composables/useOverheadAlertZones'
-import { useMapContextMenu } from '@sentinel/map-kit/composables/useMapContextMenu'
-import { useOfflineTierRefresh } from '@sentinel/map-kit/composables/useOfflineTierRefresh'
-import { useBasemapLayerSync } from '@sentinel/map-kit/composables/useBasemapLayerSync'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import MapLibreMap from '@sentinel/map-kit/MapLibreMap.vue'
-import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
 
 import { NamesToggleControl } from '@sentinel/map-kit/controls/names/NamesToggleControl'
 import { SdrManagerSitesControl } from '@sentinel/map-kit/controls/sdr-manager-sites/SdrManagerSitesControl'
@@ -61,7 +54,6 @@ import { AwacToggleControl } from './controls/awacs/AwacControl'
 import { AdsbLiveControl } from './controls/adsb/AdsbLiveControl'
 import AircraftAltitudeLegend from './AircraftAltitudeLegend.vue'
 
-const appStore = useAppStore()
 const airStore = useAirStore()
 const basemapStore = useBasemapStore()
 const notificationsStore = useNotificationsStore()
@@ -74,21 +66,12 @@ const offlineMapsStore = useOfflineMapsStore()
 
 const mapRef = ref<InstanceType<typeof MapLibreMap> | null>(null)
 
-const styleUrl = computed(() => basemapStyleUrl(appStore.isOnline, themeStore.mapTheme))
-
 // The 3D view was removed from the map options, so the map is always flat. The
 // two readers below (ADS-B labels, military-base extrusions) still ask, and a
 // previously-stored `sentinel_3d` flag is deliberately not honoured — without a
 // control to turn it off, a tilted map would be a state with no way out.
 const is3DActive = () => false
 const getTargetPitch = () => 0
-
-// User location
-const { location: userLocation, start: startLocation } = useUserLocation()
-const getUserLocation = (): [number, number] | null =>
-  userLocation.value ? [userLocation.value.lon, userLocation.value.lat] : null
-
-const _locationMarker = new UserLocationMarker('user-location-marker')
 
 // Where the range rings are centred — your own position by default, but equally
 // an SDR host site or a chosen point (see useRangeRingOrigin). Shared app-wide, so
@@ -97,12 +80,6 @@ const { origin: ringOrigin } = useRangeRingOrigin()
 // One shaded zone per watched place — the map's half of the same list the
 // alert service works from, so the rings and the alerts can never disagree.
 const { activeZones } = useOverheadAlertZones()
-
-const ctxMenu = useMapContextMenu()
-
-// Cached map instance — plain variable, never reactive
-let _map: MapLibreGlMap | null = null
-let _currentStyleUrl: string | null = null
 
 // Control instances — plain variables, initialised in onStyleLoaded
 let adsbControl: AdsbLiveControl | null = null
@@ -121,17 +98,16 @@ let clearControl: ClearOverlaysControl | null = null
 // SdrManagerSitesControl. No side-menu button: the sites are always shown.
 let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 
-// Borders have no rail button: Settings › Map is their only switch, and
-// this map follows it through the shared basemap store.
-const basemapLayerSync = useBasemapLayerSync(() => _map, ['borders'])
-
-// Reload the offline basemap/terrain tiles when a download job completes
-// while this map is showing the offline style — see the composable's doc.
-const offlineTierRefresh = useOfflineTierRefresh(
-  () => _map,
-  () => !appStore.isOnline,
-  () => terrainControl,
-)
+// The basemap, its reloads on connectivity and theme changes, the operator's
+// position marker and the context menu — shared with the Sea map.
+const sectionMap = useSectionMapStyle({
+  initOverlays: addControls,
+  reinitOverlays: reinitAfterStyleLoad,
+  getTerrainControl: () => terrainControl,
+  // A reload switches the ADS-B feed as part of re-adding the layers; when the
+  // style was already correct, that still has to happen on its own.
+  onConnectivityWithoutRestyle: () => adsbControl?.handleConnectivityChange(),
+})
 
 // Expose for AirSideMenu
 const getAdsbControl = () => adsbControl
@@ -158,18 +134,13 @@ defineExpose({
   getClearControl,
   is3DActive,
   getTargetPitch,
-  getMap: () => _map,
+  getMap: sectionMap.getMap,
 })
 
-/**
- * Re-add everything this map draws on top of the basemap. `setStyle` discards
- * every source and layer the controls added, so this runs after each style
- * reload — whether the swap came from connectivity or from a theme change.
- */
+/** Re-add everything this map draws on top of the basemap after a style reload. */
 function reinitAfterStyleLoad(): void {
   roadsControl?.applyVisibility()
   namesControl?.applyVisibility()
-  basemapLayerSync.apply()
   terrainControl?.initLayers()
   rangeRingsControl?._initRings()
   overheadZoneControl?.reinit()
@@ -179,43 +150,10 @@ function reinitAfterStyleLoad(): void {
   awacsControl?.initLayers()
   adsbControl?.initLayers()
   adsbControl?.handleConnectivityChange()
-  offlineTierRefresh.applyCurrentVersion()
 }
 
-/** Load `styleUrl` if it isn't already loaded, re-adding the overlays after. */
-function syncStyleToState(): boolean {
-  const m = _map
-  if (!m) return false
-  const targetStyle = styleUrl.value
-  if (_currentStyleUrl === targetStyle) return false
-  _currentStyleUrl = targetStyle
-  setMapStyle(m, targetStyle)
-  m.once('style.load', reinitAfterStyleLoad)
-  return true
-}
-
-useConnectivity(() => {
-  // A reload switches the ADS-B feed as part of re-adding the layers; when the
-  // style was already correct, that still has to happen on its own.
-  if (!syncStyleToState()) adsbControl?.handleConnectivityChange()
-})
-
-// A theme change is the same operation as a connectivity change: reload the
-// basemap, then put the overlays back.
-watch(() => themeStore.mapTheme, syncStyleToState)
-
-function onMapCreated(m: MapLibreGlMap) {
-  _map = m
-  _currentStyleUrl = styleUrl.value
-  startLocation()
-  _locationMarker.addTo(m)
-  ctxMenu.attach(m)
-}
-
-function onStyleLoaded(m: MapLibreGlMap) {
-  basemapLayerSync.apply()
-  if (adsbControl) return // already initialised (style reload handled by connectivity hook)
-
+/** Build and add this map's controls, once, on the first style load. */
+function addControls(m: MapLibreGlMap): void {
   adsbLabelsControl = new AdsbLabelsToggleControl(airStore, null)
 
   adsbControl = new AdsbLiveControl(
@@ -284,26 +222,10 @@ function onStyleLoaded(m: MapLibreGlMap) {
     // The operator's own position joins the grouping pass, so an SDR host sitting
     // on top of it collapses into a count instead of two marks smearing
     // together; the marker is handed over so the count can stand in for it.
-    getUserLocation,
-    userMarker: _locationMarker,
+    getUserLocation: sectionMap.getUserLocation,
+    userMarker: sectionMap.locationMarker,
   })
   sdrManagerSitesControl.onAdd(m)
-
-  // If connectivity mode or theme changed between map creation and style load
-  // (e.g. the offgrid probe fired before _map was set, so the callback was a
-  // no-op), the map has loaded the wrong style. Correct it now that the
-  // controls exist to be re-added.
-  if (!syncStyleToState()) offlineTierRefresh.applyCurrentVersion()
-}
-
-// Drop the marker. Bound both to the userLocation watcher (null transition) and
-// to sentinel:userLocationCleared so a config-clear is deterministic even if the
-// watcher already ran with a stale
-// localStorage seed on reload (ordering-independent). The range rings are not
-// handled here: they follow the ring origin, which only tracks the location
-// when that is what the operator chose to centre on.
-function _clearLocationVisuals(): void {
-  _locationMarker.remove()
 }
 
 // The sidebar's ALL / CIVIL / MILITARY tabs write the store; the control
@@ -319,22 +241,6 @@ watch(
 )
 
 onMounted(() => {
-  window.addEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  watch(
-    userLocation,
-    (loc) => {
-      if (!loc) {
-        // Location was cleared (e.g. config emptied). Drop the marker; the
-        // overhead zones follow the alert locations, and the operator's own
-        // entry disappears from that list with the fix.
-        _clearLocationVisuals()
-        return
-      }
-      _locationMarker.update(loc.lon, loc.lat)
-    },
-    { immediate: true },
-  )
-
   // The rings follow the chosen origin, not the operator. A null origin (no
   // location set, or a pinned SDR host with no position yet) hides them, which is
   // the same rule as before — it just now has three ways of being satisfied.
@@ -424,14 +330,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearAircraftClickHandler()
-  window.removeEventListener('sentinel:userLocationCleared', _clearLocationVisuals)
-  const m = _map
-  ctxMenu.detach(m)
+  const m = sectionMap.releaseMap()
   if (m) {
     const center = m.getCenter()
     airStore.saveMapState([center.lng, center.lat], m.getZoom(), m.getPitch())
   }
-  _map = null
   adsbControl?.onRemove()
   adsbLabelsControl?.onRemove()
   rangeRingsControl?.onRemove()
