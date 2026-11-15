@@ -213,21 +213,34 @@ describe('reanchor', () => {
 describe('isStale', () => {
   const heard: TrackedPosition = { lon: 0, lat: 0, gs: 0, track: null, lastSeen: 100_000 }
 
-  it('is fresh until DIM_AFTER_MS without a report, then stale', () => {
-    expect(isStale(heard, 100_000 + DIM_AFTER_MS - 1)).toBe(false)
-    expect(isStale(heard, 100_000 + DIM_AFTER_MS)).toBe(true)
+  it('dims once the feed has gone DIM_AFTER_MS past the report without a newer one', () => {
+    // The feed moved on (its newest snapshot is newer) but left the aircraft out.
+    const now = 200_000
+    expect(isStale(heard, 100_000 + DIM_AFTER_MS - 1, now, 60_000)).toBe(false)
+    expect(isStale(heard, 100_000 + DIM_AFTER_MS, now, 60_000)).toBe(true)
   })
 
-  it("waits out the snapshot's lifetime before counting DIM_AFTER_MS", () => {
-    // Online, a snapshot stands for the whole refresh interval: an aircraft in
-    // it isn't unheard while the next one is simply not due yet.
+  it('dims a report the feed itself only had an old position for', () => {
+    // Observed 50 s before the snapshot it arrived in: old the moment it landed.
+    expect(isStale(heard, 150_000, 150_000, 60_000)).toBe(true)
+  })
+
+  it('stays bright through a long online refresh, however old the report is by the wall clock', () => {
+    // The reported problem: a 40 s-old position in a 60 s online snapshot,
+    // 70 s later the next snapshot is only just due. Nothing has gone unheard.
+    const feedObservedAt = 140_000
+    expect(isStale(heard, feedObservedAt, feedObservedAt + 70_000, 60_000)).toBe(false)
+  })
+
+  it('dims everything once the next snapshot is DIM_AFTER_MS overdue', () => {
     const lifetime = 60_000
-    expect(isStale(heard, 100_000 + lifetime + DIM_AFTER_MS - 1, lifetime)).toBe(false)
-    expect(isStale(heard, 100_000 + lifetime + DIM_AFTER_MS, lifetime)).toBe(true)
+    expect(isStale(heard, 100_000, 100_000 + lifetime + DIM_AFTER_MS - 1, lifetime)).toBe(false)
+    expect(isStale(heard, 100_000, 100_000 + lifetime + DIM_AFTER_MS, lifetime)).toBe(true)
   })
 
-  it('treats a missing lifetime as none, the old fixed dimming', () => {
-    expect(isStale(heard, 100_000 + DIM_AFTER_MS, 0)).toBe(true)
+  it('treats a missing lifetime as none: the feed is overdue DIM_AFTER_MS after its snapshot', () => {
+    expect(isStale(heard, 100_000, 100_000 + DIM_AFTER_MS - 1)).toBe(false)
+    expect(isStale(heard, 100_000, 100_000 + DIM_AFTER_MS)).toBe(true)
   })
 })
 
