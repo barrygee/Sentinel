@@ -1922,6 +1922,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #655 from barrygee/docs/refactor-reuse-plan
 - Merge pull request #657 from barrygee/refactor/awacs-orbit-data
 - Merge pull request #658 from barrygee/refactor/sdr-manager-remote-hosts-routers
+- Merge pull request #659 from barrygee/refactor/section-map-style
 
 ### Performance
 
@@ -2056,6 +2057,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move TLE settings CSS into the Space controls
 - Move the AWACS orbit data out of AwacControl
 - Split the hosts router by concern
+- Share the Air and Sea map style lifecycle
 
 ### Documentation
 
@@ -2127,6 +2129,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Using this computer's dongles and another computer's together
 - Add the refactor and reuse series plan
 - Keep the certificate routes in hosts.py for C2
+- Format the map-kit README table
 
 ### Tests
 
@@ -2373,6 +2376,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle with patched dompurify and markdown-it
 - Rebuild bundle for the black range rings
 - Rebuild bundle for the feed-based aircraft dimming
+- Rebuild bundle for the shared map style lifecycle
 
 ### Continuous Integration
 
