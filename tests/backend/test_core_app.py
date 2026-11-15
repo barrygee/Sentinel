@@ -23,6 +23,7 @@ from sentinel_radio.routers import (
     radios,
 )
 from sentinel_sdr import router as sdr
+from sentinel_sdr_manager_remote.routers import host_devices, host_wifi
 from sentinel_sdr_manager_remote.routers import hosts as sdr_manager_remote_hosts
 from sentinel_sea import router as sea
 from sentinel_space import router as space
@@ -70,6 +71,8 @@ SECTION_AND_HUB_ROUTERS = [
     iq_captures.router,
     docs.router,
     sdr_manager_remote_hosts.router,
+    host_devices.router,
+    host_wifi.router,
 ]
 
 
@@ -105,6 +108,8 @@ class TestCoreRouters:
             settings_secrets.router,
             docs.router,
             sdr_manager_remote_hosts.router,
+            host_devices.router,
+            host_wifi.router,
         ]
 
 

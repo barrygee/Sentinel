@@ -28,11 +28,11 @@ from backend.platform.remote_files import remotes_dir
 from backend.platform.sdk import create_service
 
 from sentinel_sdr_manager_remote.module import lifecycle, manifest
-from sentinel_sdr_manager_remote.routers import hosts
+from sentinel_sdr_manager_remote.routers import ROUTERS
 
 app = create_service(
     manifest=manifest,
-    routers=[hosts.router],
+    routers=ROUTERS,
     lifecycles=[lifecycle],
     remote_dir=remotes_dir() / "sdr-manager-remote",
 )

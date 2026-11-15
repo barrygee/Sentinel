@@ -6,7 +6,7 @@ User guide: [SDR Manager](../../docs/use/sdr-manager.md#sentinel-hosts).
 
 | Folder | Holds |
 |---|---|
-| `backend/sentinel_sdr_manager_remote/` | `routers/hosts.py` (`/api/sdr-manager/remote/hosts`), `services/sdr_manager_client.py`, `host_certificates.py` (trust on first use: fetch, fingerprint and pin a host's certificate authority), `host_poller.py`, `local_link.py`, `reservations.py` (bus responders and claim events), `models.py` |
+| `backend/sentinel_sdr_manager_remote/` | `routers/` (`/api/sdr-manager/remote/hosts`: `hosts.py`, `host_devices.py`, `host_wifi.py`, shared `host_access.py`), `schemas/hosts.py`, `services/sdr_manager_client.py`, `host_certificates.py` (trust on first use: fetch, fingerprint and pin a host's certificate authority), `host_poller.py`, `local_link.py`, `reservations.py` (bus responders and claim events), `models.py` |
 | `backend/tests/` | Its tests, every file prefixed `test_sdr_manager_remote_` |
 | `frontend/` | `@sentinel/sdr-manager-remote`, its Module Federation remote (the `radioSites` capability, `RemoteHostHeader`, `RemoteHostAddForm`) |
 
