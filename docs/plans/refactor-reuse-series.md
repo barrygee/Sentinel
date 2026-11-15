@@ -1,0 +1,203 @@
+# Plan: refactor and reuse series (C)
+
+**Status:** proposed, waiting on the order's OK · **Date:** 2026-11-14 · **Cut against:** `main` @ `1cbab3ef`
+**Scope:** structure only. Every PR in this series is behaviour-preserving: no feature changes, no bug fixes, no
+settings, wire format, route or guard-policy changes. A bug found on the way gets its own `fix(...)` PR.
+
+## 0. Summary
+
+The largest files in the repo each mix several concerns, and a few UI pieces are written twice. This series breaks
+them up one extraction per PR, smallest risk first, so every PR lands green and the tree is never half-moved.
+
+| Order | PR | What | Size today | Risk |
+|---|---|---|---|---|
+| 1 | C1 | AWACS orbit data out of `AwacControl.ts` | 2,407 lines (2,335 are data) | very low |
+| 2 | C2 | Split `sdr-manager-remote` `routers/hosts.py` by concern | 1,237 | low (goldens pin it) |
+| 3 | C3 | Shared map-view composable, Air + Sea | AirMap 459, SeaMap 269 | medium |
+| 4 | C4 | The same composable for Land + Space | LandView 321, SpaceMap 275 | medium |
+| 5 | C5 | `SatelliteAccordion.css` / `SpacePasses.css` shared base | 420 + 414 | medium (cascade) |
+| 6 | C6–C9 | `AdsbLiveControl.ts` into helpers | 3,060 | medium–high |
+| 7 | C10 | `SatelliteControl.ts` follow/label helpers | 1,020 | medium |
+| 8 | C11–C15 | `SdrWaterfall.vue` into composables | 3,406 + 700 CSS | high |
+| 9 | C16–C18 | `SdrPanel.vue/.css`, `SdrRecordingsSection.vue`, `stores/sdr.ts` | 2,061 + 1,817, 1,248, 1,361 | high |
+| 10 | C19–C21 | Filter panels on `BaseFilterPanel` | Air 1,012, Space 748, Land 574 | medium |
+
+**Dropped from the brief:** a shared base for the three map-layers settings controls. They are already thin
+(`MapBasemapLayersControl` 59, Sea `SeaMapLayersControl` 58, Air `MapLayersControl` 93 lines) and all three already
+compose `LabelFieldsTable`; what differs is each one's rows and store. A base would add indirection without removing
+code. Revisit only if a fourth appears.
+
+The order puts the mechanical, golden-pinned moves first (C1, C2), then the reuse work that removes real duplication
+(C3–C5), then the big SDR and Air decompositions, which need the most care and benefit from the series' momentum.
+
+---
+
+## 1. Rules for every PR
+
+- One extraction per PR, one `refactor(<scope>): …` commit (plus `build(spa): …` when the bundle changes).
+- The parent shrinks to wiring. Extracted units take their styles (scoped) and specs with them.
+- Shared-package modules import their own package by name (`@sentinel/map-kit/…`), never relatively.
+- Existing specs stay green unchanged except for moved imports. New public units that lack coverage are covered at
+  commit time, on the user's yes (global testing rule).
+- Stacked work rebases onto the merged previous PR; `frontend/spa-dist/` is rebuilt after every rebase.
+
+## 2. Verification recipe (every PR)
+
+```bash
+# Frontend PRs, from the worktree root
+npm run web-packages -- lint && npm run web-packages -- typecheck && npm run web-packages -- test:coverage
+cd frontend/vue && npm run lint && npm run typecheck && npm run test:coverage
+cd frontend/vue && npm run build && npm run test:e2e        # --workers=1 if the machine is loaded
+
+# Backend PRs, from the worktree root
+uv run --project backend ruff check backend services/sections services/radio services/docs services/sdr-manager-local services/sdr-manager-remote
+uv run --project backend ruff format --check backend services/sections services/radio services/docs services/sdr-manager-local services/sdr-manager-remote
+uv run --project backend pytest
+uv run --project backend python -m backend.scripts.guard_policy_artifacts --check
+```
+
+Like-for-like checks, per kind of change:
+
+- **Data or logic moves:** the same output. C1 compares the GeoJSON before and after with a one-off script (deep
+  equal, not committed).
+- **Backend router splits:** `tests/backend/test_request_guard_route_inventory.py`, the parity goldens in
+  `tests/backend/parity/` (HTTP contract, OpenAPI) and the generated access matrix all unchanged. Any golden diff
+  means the split changed behaviour.
+- **UI moves:** screenshots of the affected view before and after at 1440 px and 390 px (Chrome), including hover,
+  open, selected and disabled states; e2e green.
+- **CSS moves:** the above, plus computed-style spot checks on the moved selectors (`getComputedStyle` on the same
+  elements before and after), because scoped styles change specificity.
+
+---
+
+## 3. The PRs
+
+### C1. AWACS orbit data out of `AwacControl.ts`
+
+`services/sections/air/frontend/src/controls/awacs/AwacControl.ts` is 2,407 lines, but lines 9–2,343 are one
+constant: `AWACS_ORBITS`, 49 pre-computed ~37-point lobe polygons. The control itself (`AwacToggleControl`) is about
+70 lines.
+
+- Move `AWACS_ORBITS` verbatim to `controls/awacs/awacsOrbits.ts`, exported, with its header comment.
+- `AwacControl.ts` imports it and keeps only the control.
+- Like-for-like: deep-equal the exported collection against the old constant.
+- Not in this PR: generating the lobes from centre and radius at runtime. It would shrink the data to 49 lines but
+  changes the coordinates' floating-point digits, so it is a behaviour change. Offer it separately if wanted.
+
+### C2. Split `routers/hosts.py` by concern
+
+`services/sdr-manager-remote/backend/sentinel_sdr_manager_remote/routers/hosts.py` (1,237 lines) holds 15 Pydantic
+schemas, shared helpers and 26 routes across five concerns under one prefix, `/api/sdr-manager/remote/hosts`.
+
+| New module | Contents |
+|---|---|
+| `schemas/hosts.py` | every `*In` / `*Out` / `*Patch` model, `_validated_fingerprint` |
+| `routers/host_access.py` | `get_host_or_404`, `host_to_out`, `raise_for_host_error`, `raise_for_unreachable` |
+| `routers/hosts.py` | host CRUD, `test`, `info`, `locations`, and the certificate preview/trust routes with their helpers |
+| `routers/host_devices.py` | devices, device records, patch/delete device, serial flash |
+| `routers/host_wifi.py` | Wi-Fi config, enable/disable/confirm, interfaces, clients |
+
+The certificate routes stay in `hosts.py`: the route inventory golden pins route order, and they sit between the host
+CRUD routes (`POST /certificate` before `GET /{host_id}`, `…/{host_id}/certificate` before `DELETE /{host_id}`), so a
+separate router could not keep that order.
+
+- Each router keeps the same prefix and tags; `routers.ROUTERS` mounts them in the original order (hosts, devices,
+  Wi-Fi), so the route inventory golden and first-match guard rules see the same table.
+- No path, status code, response model or dependency changes. The goldens above are the proof.
+- Tests move only if a test file maps one-to-one onto a new module; otherwise they stay and keep importing the public
+  names (re-exported from `routers/hosts.py` only if a test needs it, to be removed in the same PR by updating the
+  import).
+
+### C3. Shared map-view composable (Air + Sea)
+
+`AirMap.vue` and `SeaMap.vue` carry the same style lifecycle: `syncStyleToState` (load the target style once, re-add
+overlays after `style.load`), the connectivity and map-theme watchers that call it, the `onMapCreated` basics (keep
+the map, start user location, add the location marker, attach the context menu), and the post-reload re-init
+(re-run each control's `initLayers`, `offlineTierRefresh.applyCurrentVersion()`, `basemapLayerSync.apply()`).
+
+- New `platform/web/map-kit/src/composables/useSectionMapStyle.ts`: takes the style URL ref and a `reinitOverlays`
+  callback; returns `onMapCreated`, `syncStyleToState` and the current map. It owns the watchers.
+- Air and Sea keep their own control construction in `onStyleLoaded` (that part differs per section).
+- Like-for-like: switch connectivity and map theme on each map and confirm overlays (vessels, ports, ferry routes,
+  aircraft, range rings, SDR sites) come back after each restyle; e2e air/sea specs.
+
+### C4. The same composable for Land + Space
+
+- `LandView.vue` also has `zoomIn`/`zoomOut`/`goToLocation`; if Air and Sea do the same through `map-zoom`, fold those
+  into the composable too, otherwise leave them.
+- `SpaceMap.vue` uses the globe projection and its own `onGoToLocation`; it adopts the composable only for the style
+  lifecycle. If the globe needs a different reload path, Space stays out and the plan says so in the PR.
+
+### C5. `SatelliteAccordion.css` / `SpacePasses.css` shared base
+
+The two Space stylesheets (420 and 414 lines) style the same "Upcoming Passes" UI twice under two prefixes (`spp-`
+and the accordion's), which the memory note on the two pass components already warns about.
+
+- Extract the shared pass-list rules into a small shared component's scoped styles (a `PassList` sub-component both
+  render), not a third global stylesheet.
+- Keep each variant's differences in its own component.
+- Highest cascade risk in the series: computed-style checks on every moved selector, both panes, both widths.
+
+### C6–C9. `AdsbLiveControl.ts` (3,060 lines) into helpers
+
+The class mixes eight concerns. Each PR moves one into a focused helper class (or module of pure functions) that the
+control owns and calls, keeping the control's public API (`setTypeFilter`, `selectByHex`, `toggleFollowByHex`,
+`setIconStyle`, `setAltitudeColouring`, `setLabelsVisible`, `clearAircraft`, `handleConnectivityChange`, `toggle`)
+unchanged.
+
+| PR | Extract | Methods today |
+|---|---|---|
+| C6 | `adsbIconStyle.ts` (pure expressions) | `_registerIcons`, `_iconImageExpression`, `_iconSizeExpression`, `_silhouetteZoomScale`, `_iconRotateExpression`, `_iconLayerVisibility`, `_applyMapDimming` |
+| C7 | `AircraftTags` (hover + selected tag markers) | `_buildTagHTML`, `_wireTagButton`, `_rebuildTagForHex`, `_placeTagMarker`, `_show/_hideSelectedTag`, `_show/_hideHoverTag`, `_tagAnchor`, `_labelOffset` |
+| C8 | `CallsignLabels` | `_buildCallsignLabelEl`, `_restingLabelFields`, `_updateCallsignMarkers`, `_clearCallsignMarkers`, `_glyphMarkup`, `_arrowColour`, `_makeArrowSvg`, `_isLeftFacing` |
+| C9 | `AircraftTrails` + `AdsbTrackingPersistence` | `_rebuildTrails`, `_trailColour`, `_trailLineCoords`, `_refreshTrailLineHead`; `_saveTrackingState`, `_restore*`, `_doRestoreTracking` |
+
+Polling and fetch (`_fetch`, `_startPolling`, …) stay in the control: they drive everything else. The filter-restore
+timing rule (restore in the constructor, not later) is kept as is.
+
+### C10. `SatelliteControl.ts` (1,020 lines)
+
+- Extract follow and active-satellite persistence (`_saveFollowState`, `_readFollowState`, `_saveActiveSat`,
+  `_readActiveSat`) and the label element (`_buildLabelEl`, `_showLabel`, `_hideLabel`).
+- Both tracking status bars already share the tracking store; nothing to merge there.
+
+### C11–C15. `SdrWaterfall.vue` (3,406 lines + 700 CSS)
+
+One composable per interaction, each taking the refs it needs and returning handlers. The template and the draw loop
+stay in the component until the last PR.
+
+| PR | Composable | Functions today |
+|---|---|---|
+| C11 | `useKnownFrequencyMarkers` | `toggleKnownMarker`, `onKnownMarker*`, `isKnownPopoverShown`, `isKnownMarkerEvent`, `snapToKnownFreqHz`, `syncKnownFrequencies`, `applyMarker` |
+| C12 | `useSignalMarkers` | `computeSignalMarkerAtPoint`, `isPointWithinMarker`, `signalMarkersOverlap`, `toggleSignalMarkerPin`, `signalMarkerTimeLabels`, `rowIndexForTimeMs`, row-clock helpers |
+| C13 | `useFrequencyDrag` (tune by drag and wheel) | `onPlotMouseDown/Up`, `freqDragFlush`, `tryStart/commit/abortFreqDrag`, `wheelFlush`, `onPlotWheel`, `clientXToFreqHz` |
+| C14 | `useBandwidthBracketDrag` | `acc*` drag helpers, `nearAccEdge`, `nearAccGrabZone`, `dispatchBridgedMouseEvent`, `onPlotTouchStart`, `bracketGeomHz`, `carrierFromBracketHz` |
+| C15 | `useWaterfallPlots` + CSS split | `buildPipes`, `initPlots`, `drawLoop`, `computeDesiredBins`, `publishDesiredBins`, zoom/range; the 700-line CSS splits to the components that now own each part |
+
+The SDR audio engine sits outside `<RouterView>` and must keep playing through every step: each PR runs the SDR e2e
+specs (`sdr`, `sdr-radio-switch`, `sdr-engine-late-mount`, `sdr-css-cascade`, the P0 audio-survives-navigation spec).
+
+### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
+
+These had a full decomposition series in July (panel 5,548 → 1,872); they have grown back to 2,061. Each PR starts
+with a seam map of what grew back (written into the PR description), then:
+
+- C16 `SdrPanel.vue/.css`: move whatever sub-areas grew back into their own sub-components, with their CSS.
+- C17 `SdrRecordingsSection.vue`: split list, row and player/actions into sub-components.
+- C18 `stores/sdr.ts`: split by slice (radios, frequencies/groups, recordings) behind the same store API, or into
+  composable store modules if Pinia slicing would change the public shape.
+
+### C19–C21. Filter panels on `BaseFilterPanel`
+
+`AirFilter.vue` (1,012), `SpaceFilter.vue` (748) and `LandFilter.vue` (574) already render inside `BaseFilterPanel`
+(690) but still carry their own list rows, section headers and search plumbing; `SeaFilter.vue` (231) shows how thin
+they can be. One PR per panel, largest first: move the repeated row and section markup into `@sentinel/ui` base
+pieces (or into `BaseFilterPanel` slots), so each panel keeps only its own data and categories.
+
+---
+
+## 4. Not in this series
+
+- The ADS-B dim-by-feed fix (`fix/adsb-dim-by-feed`) is a behaviour change and ships on its own.
+- Generating AWACS lobes at runtime (see C1).
+- Anything in `docs/` beyond comments and code-map updates the moves require.
