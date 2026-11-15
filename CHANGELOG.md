@@ -1924,6 +1924,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #658 from barrygee/refactor/sdr-manager-remote-hosts-routers
 - Merge pull request #659 from barrygee/refactor/section-map-style
 - Merge pull request #660 from barrygee/refactor/space-map-style
+- Merge pull request #661 from barrygee/refactor/space-upcoming-passes
 
 ### Performance
 
@@ -2060,6 +2061,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split the hosts router by concern
 - Share the Air and Sea map style lifecycle
 - Put the Space map on the shared style lifecycle
+- Render UPCOMING PASSES from one component
 
 ### Documentation
 
@@ -2380,6 +2382,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the feed-based aircraft dimming
 - Rebuild bundle for the shared map style lifecycle
 - Rebuild bundle for the Space map on the shared style lifecycle
+- Rebuild bundle for the shared UPCOMING PASSES section
 
 ### Continuous Integration
 
