@@ -54,48 +54,12 @@
           {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
         </div>
       </div>
-      <div class="sat-acc-section sat-acc-section--passes">
-        <div class="sat-acc-section-title sat-acc-passes-title">
-          <span>UPCOMING PASSES</span>
-          <span class="sat-acc-status" :class="{ 'sat-acc-status-loading': accordionLoading }">{{
-            accordionStatus
-          }}</span>
-        </div>
-        <div class="sat-acc-pass-list">
-          <template v-if="accordionPasses.length === 0 && !accordionLoading">
-            <div v-if="accordionStatus.startsWith('NEXT')" class="sat-acc-no-passes">
-              No passes in the next 24 hours.
-            </div>
-          </template>
-          <div
-            v-for="(pass, i) in accordionPasses"
-            :key="i"
-            class="sat-acc-pass-card"
-            :data-aos-ms="pass.aos_unix_ms"
-            :data-los-ms="pass.los_unix_ms"
-          >
-            <div class="sat-acc-pass-times">
-              <div class="sat-acc-pass-aos-row">
-                <span class="sat-acc-pass-date">{{ formatPassDate(pass.aos_utc) }}</span>
-                <span class="sat-acc-pass-time">{{ formatPassTime(pass.aos_utc) }}</span>
-              </div>
-              <div class="sat-acc-pass-los">
-                LOS {{ formatPassTime(pass.los_utc) }} ·
-                {{ formatPassDuration(pass.duration_s) }}
-              </div>
-            </div>
-            <div class="sat-acc-pass-meta">
-              <div
-                class="sat-acc-pass-countdown"
-                :class="{ 'sat-acc-pass-countdown--live': isNow(pass) }"
-              >
-                {{ isNow(pass) ? 'NOW' : passCountdownText(pass) }}
-              </div>
-              <div class="sat-acc-pass-maxel">MAX {{ pass.max_elevation_deg.toFixed(1) }}°</div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <UpcomingPassesSection
+        :passes="accordionPasses"
+        :loading="accordionLoading"
+        :status="accordionStatus"
+        :now="now"
+      />
     </template>
   </BaseFilterPanel>
 </template>
@@ -124,12 +88,11 @@ import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
+import UpcomingPassesSection from './UpcomingPassesSection.vue'
 import './SatelliteAccordion.css'
 import {
   SATELLITE_CATEGORY_SHORT_LABELS,
   SATELLITE_CATEGORY_ORDER,
-  formatPassCountdown,
-  formatPassDuration,
   formatPassTime,
   formatPassDate,
 } from './utils/satelliteUtils'
@@ -684,9 +647,6 @@ function restoreExpandedAccordion(): void {
 function isNow(pass: SatPass): boolean {
   const now = Date.now()
   return now >= pass.aos_unix_ms && now <= pass.los_unix_ms
-}
-function passCountdownText(pass: SatPass): string {
-  return formatPassCountdown(pass.aos_unix_ms - Date.now())
 }
 
 function onSettingsPanelClosed(): void {

@@ -105,42 +105,12 @@
               {{ accLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
             </div>
           </div>
-          <div class="sat-acc-section sat-acc-section--passes">
-            <div class="sat-acc-section-title sat-acc-passes-title">
-              <span>UPCOMING PASSES</span>
-              <span class="sat-acc-status" :class="{ 'sat-acc-status-loading': accLoading }">{{
-                accStatus
-              }}</span>
-            </div>
-            <div class="sat-acc-pass-list">
-              <div
-                v-if="accPasses.length === 0 && !accLoading && accStatus.startsWith('NEXT')"
-                class="sat-acc-no-passes"
-              >
-                No passes in the next 24 hours.
-              </div>
-              <div v-for="(ap, i) in accPasses" :key="i" class="sat-acc-pass-card">
-                <div class="sat-acc-pass-times">
-                  <div class="sat-acc-pass-aos-row">
-                    <span class="sat-acc-pass-date">{{ formatPassDate(ap.aos_utc) }}</span>
-                    <span class="sat-acc-pass-time">{{ formatPassTime(ap.aos_utc) }}</span>
-                  </div>
-                  <div class="sat-acc-pass-los">
-                    LOS {{ formatPassTime(ap.los_utc) }} · {{ formatPassDuration(ap.duration_s) }}
-                  </div>
-                </div>
-                <div class="sat-acc-pass-meta">
-                  <div
-                    class="sat-acc-pass-countdown"
-                    :class="{ 'sat-acc-pass-countdown--live': accPassIsNow(ap, now) }"
-                  >
-                    {{ accPassIsNow(ap, now) ? 'NOW' : formatPassCountdown(ap.aos_unix_ms - now) }}
-                  </div>
-                  <div class="sat-acc-pass-maxel">MAX {{ ap.max_elevation_deg.toFixed(1) }}°</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <UpcomingPassesSection
+            :passes="accPasses"
+            :loading="accLoading"
+            :status="accStatus"
+            :now="now"
+          />
         </div>
       </div>
     </template>
@@ -162,6 +132,7 @@ import SatPolarPlot from './SatPolarPlot.vue'
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
 import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
 import SatRadioInfoSection from './SatRadioInfoSection.vue'
+import UpcomingPassesSection from './UpcomingPassesSection.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
@@ -169,7 +140,6 @@ import {
   formatPassDuration,
   formatPassTime,
   formatPassDate,
-  formatPassCountdown,
 } from './utils/satelliteUtils'
 import {
   passKey,

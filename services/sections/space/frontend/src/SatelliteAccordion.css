@@ -1,6 +1,6 @@
 /*
  * The expanded-satellite accordion — RADIO, TRACK / alert / auto-tune / record
- * buttons, POLAR PLOT and UPCOMING PASSES — shared by the satellite list
+ * buttons and POLAR PLOT — shared by the satellite list
  * (SpaceFilter) and the PASSES pane (SpacePasses), which used to carry a copy
  * each under their own class prefix.
  *
@@ -243,135 +243,7 @@
   text-transform: uppercase;
 }
 
-.sat-acc-section--passes {
-  padding-top: 6px;
-  padding-bottom: 4px;
-  gap: 6px;
-}
-
-.sat-acc-passes-title {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.sat-acc-status {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sat-acc-status.sat-acc-status-loading {
-  color: var(--accent-text);
-}
-
-.sat-acc-no-passes {
-  padding: 4px var(--ba-grid-section-padding-x, 24px) 8px var(--ba-grid-section-padding-x, 24px);
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 400;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sat-acc-pass-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0 calc(-1 * var(--ba-grid-section-padding-x, 24px));
-}
-
-.sat-acc-pass-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px var(--ba-grid-section-padding-x, 24px);
-}
-
-.sat-acc-pass-card:last-child {
-  padding-bottom: 16px;
-}
-
-.sat-acc-pass-num {
-  display: none;
-}
-
-.sat-acc-pass-times {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.sat-acc-pass-aos-row {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-}
-
-.sat-acc-pass-date {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-
-.sat-acc-pass-time {
-  font-family: var(--font-primary);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  color: var(--ink-strong);
-}
-
-.sat-acc-pass-los {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  color: rgba(var(--ink-rgb), 0.28);
-  text-transform: uppercase;
-}
-
-.sat-acc-pass-meta {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.sat-acc-pass-countdown {
-  font-family: var(--font-primary);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--accent-text);
-  white-space: nowrap;
-  text-transform: uppercase;
-}
-
-.sat-acc-pass-countdown.sat-acc-pass-countdown--live {
-  color: var(--sev-live);
-}
-
-.sat-acc-pass-maxel {
-  font-family: var(--font-primary);
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.07em;
-  color: rgba(var(--ink-rgb), 0.32);
-  white-space: nowrap;
-  text-transform: uppercase;
-}
+/* UPCOMING PASSES styles live (scoped) in UpcomingPassesSection.vue. */
 
 /* ---- RADIO section ---- */
 /* The grid itself and its "· MODE" suffix span now live in BaseDataGrid
