@@ -121,12 +121,17 @@ the map, start user location, add the location marker, attach the context menu),
 - Like-for-like: switch connectivity and map theme on each map and confirm overlays (vessels, ports, ferry routes,
   aircraft, range rings, SDR sites) come back after each restyle; e2e air/sea specs.
 
-### C4. The same composable for Land + Space
+### C4. The same composable for Space (Land stays out)
 
-- `LandView.vue` also has `zoomIn`/`zoomOut`/`goToLocation`; if Air and Sea do the same through `map-zoom`, fold those
-  into the composable too, otherwise leave them.
-- `SpaceMap.vue` uses the globe projection and its own `onGoToLocation`; it adopts the composable only for the style
-  lifecycle. If the globe needs a different reload path, Space stays out and the plan says so in the PR.
+- `SpaceMap.vue` adopts `useSectionMapStyle` for the style lifecycle. The composable gains three options for it:
+  `basemapLayerGroups` (Space follows roads and borders from Settings), `markerClassName` (its own marker style) and an
+  optional `getTerrainControl` (Space has no terrain). Its globe projection and `onGoToLocation` stay in the view.
+- One Space spec changed: it fired the connectivity callback with no mode change, which `useConnectivity` never does;
+  it now drives a real off grid → online change.
+- `LandView.vue` stays out. It builds its controls on `map-created`, before any style has loaded, and re-asserts its
+  layers inside `style-loaded` on every load, the first included. Moving it onto the composable means building its
+  controls on the first style load instead, a timing change a refactor must not carry. Its `zoomIn`/`zoomOut`/
+  `goToLocation` serve its own rail, which Air and Sea don't have, so they stay too.
 
 ### C5. `SatelliteAccordion.css` / `SpacePasses.css` shared base
 
