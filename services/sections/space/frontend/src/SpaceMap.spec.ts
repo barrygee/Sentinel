@@ -361,10 +361,15 @@ describe('SpaceMap', () => {
       expect(last('satellite').initLayers).toHaveBeenCalled()
     })
 
-    it('switches to the online style when connectivity comes back online', () => {
+    it('switches to the online style when connectivity comes back online', async () => {
+      const app = useAppStore()
+      app.connectivityMode = 'offgrid'
       const map = makeFakeMap()
       mountMap()
       bringUp(map)
+      expect(map.setStyle).not.toHaveBeenCalled()
+      app.connectivityMode = 'online'
+      await nextTick()
       shared.connectivityCb!(true)
       expect(map.setStyle).toHaveBeenCalledWith('/assets/fiord-online.json', STYLE_OPTIONS)
     })

@@ -175,6 +175,19 @@ describe('useSectionMapStyle', () => {
     })
   })
 
+  describe('per-map options', () => {
+    it('takes the map’s own layer groups, marker class and no terrain control', () => {
+      mountSectionMap({
+        basemapLayerGroups: ['roads', 'borders'],
+        markerClassName: 'space-user-location-marker',
+        getTerrainControl: undefined,
+      })
+      expect(doubles.basemapGroups).toEqual(['roads', 'borders'])
+      expect(doubles.markerClassName).toBe('space-user-location-marker')
+      expect(doubles.tierGetTerrain).toBeUndefined()
+    })
+  })
+
   describe('onStyleLoaded', () => {
     it('applies the borders and builds the overlays on the first load only', () => {
       const { sectionMap, options } = mountSectionMap()

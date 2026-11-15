@@ -9,6 +9,7 @@ import { useMapContextMenu } from '@sentinel/map-kit/composables/useMapContextMe
 import { useOfflineTierRefresh } from '@sentinel/map-kit/composables/useOfflineTierRefresh'
 import { useBasemapLayerSync } from '@sentinel/map-kit/composables/useBasemapLayerSync'
 import { UserLocationMarker } from '@sentinel/map-kit/UserLocationMarker'
+import type { BasemapLayerGroup } from '@sentinel/map-kit/utils/basemapLayers'
 import type { TerrainToggleControl } from '@sentinel/map-kit/controls/terrain/TerrainToggleControl'
 
 /** What a section map hands the shared style lifecycle. */
@@ -21,8 +22,18 @@ export interface SectionMapStyleOptions {
    * whether the swap came from connectivity or from a theme change.
    */
   reinitOverlays: () => void
-  /** The section's terrain control, whose tiles reload when an offline download completes. */
-  getTerrainControl: () => TerrainToggleControl | null
+  /**
+   * The section's terrain control, whose tiles reload when an offline download
+   * completes. Omitted by a map with no terrain layer.
+   */
+  getTerrainControl?: () => TerrainToggleControl | null
+  /**
+   * The base-style layer groups this map has no rail button for, kept in step
+   * with Settings › Map. Defaults to borders alone.
+   */
+  basemapLayerGroups?: readonly BasemapLayerGroup[]
+  /** The location marker's CSS class. Defaults to `user-location-marker`. */
+  markerClassName?: string
   /**
    * Called when connectivity changes but the basemap style is already the
    * right one, so no reload (and no `reinitOverlays`) follows.
@@ -52,7 +63,7 @@ export interface SectionMapStyle {
 }
 
 /**
- * The style lifecycle every flat section map (Air, Sea) shares: load the
+ * The style lifecycle the section maps (Air, Sea, Space) share: load the
  * basemap for the current connectivity and theme, reload it when either
  * changes and put the overlays back afterwards, show the operator's position
  * and attach the map's context menu.
@@ -73,13 +84,13 @@ export function useSectionMapStyle(options: SectionMapStyleOptions): SectionMapS
   const { location: userLocation, start: startLocation } = useUserLocation()
   const getUserLocation = (): [number, number] | null =>
     userLocation.value ? [userLocation.value.lon, userLocation.value.lat] : null
-  const locationMarker = new UserLocationMarker('user-location-marker')
+  const locationMarker = new UserLocationMarker(options.markerClassName ?? 'user-location-marker')
 
   const contextMenu = useMapContextMenu()
 
-  // Borders have no rail button: Settings › Map is their only switch, and
-  // the map follows it through the shared basemap store.
-  const basemapLayerSync = useBasemapLayerSync(() => map, ['borders'])
+  // Borders (and on some maps roads) have no rail button: Settings › Map is
+  // their only switch, and the map follows it through the shared basemap store.
+  const basemapLayerSync = useBasemapLayerSync(() => map, options.basemapLayerGroups ?? ['borders'])
 
   // Reload the offline basemap/terrain tiles when a download job completes
   // while the map is showing the offline style — see the composable's doc.

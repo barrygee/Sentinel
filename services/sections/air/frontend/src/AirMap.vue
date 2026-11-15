@@ -99,7 +99,7 @@ let clearControl: ClearOverlaysControl | null = null
 let sdrManagerSitesControl: SdrManagerSitesControl | null = null
 
 // The basemap, its reloads on connectivity and theme changes, the operator's
-// position marker and the context menu — shared with the Sea map.
+// position marker and the context menu — shared with the Sea and Space maps.
 const sectionMap = useSectionMapStyle({
   initOverlays: addControls,
   reinitOverlays: reinitAfterStyleLoad,
