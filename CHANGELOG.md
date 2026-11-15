@@ -690,6 +690,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bound alert streams, refuse secret deletes, keep exception text in the log
 - Bump certifi to 2026.10.23 for distrusted emSign roots
 - Patch dompurify, markdown-it, undici, vite and vitest advisories
+- Dim aircraft by the feed, not the wall clock
 
 ### Chores
 
@@ -1917,6 +1918,10 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #648 from barrygee/fix/uv-certifi-2026-11
 - Merge pull request #649 from barrygee/fix/npm-dependabot-2026-11
 - Merge pull request #654 from barrygee/feat/range-rings-black-dots
+- Merge pull request #656 from barrygee/fix/adsb-dim-by-feed
+- Merge pull request #655 from barrygee/docs/refactor-reuse-plan
+- Merge pull request #657 from barrygee/refactor/awacs-orbit-data
+- Merge pull request #658 from barrygee/refactor/sdr-manager-remote-hosts-routers
 
 ### Performance
 
@@ -2049,6 +2054,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the airfield dot-and-label layer into map-kit as SiteMarkers
 - Move shell chrome CSS out of template.css
 - Move TLE settings CSS into the Space controls
+- Move the AWACS orbit data out of AwacControl
+- Split the hosts router by concern
 
 ### Documentation
 
@@ -2118,6 +2125,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Close review gaps in the compose.dev.yaml split
 - Add a step-by-step guide to a main Sentinel plus a Raspberry Pi
 - Using this computer's dongles and another computer's together
+- Add the refactor and reuse series plan
+- Keep the certificate routes in hosts.py for C2
 
 ### Tests
 
@@ -2363,6 +2372,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild after merging main
 - Rebuild bundle with patched dompurify and markdown-it
 - Rebuild bundle for the black range rings
+- Rebuild bundle for the feed-based aircraft dimming
 
 ### Continuous Integration
 
