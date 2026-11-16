@@ -1929,6 +1929,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #663 from barrygee/refactor/aircraft-tags
 - Merge pull request #664 from barrygee/refactor/callsign-labels
 - Merge pull request #665 from barrygee/refactor/aircraft-trails
+- Merge pull request #666 from barrygee/perf/space-sgp4-off-loop
 
 ### Performance
 
@@ -1937,6 +1938,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge shared package modules into two chunks
 - Poll the config file status only from visible tabs
 - Cache core settings reads in section services
+- Run SGP4 propagation and pass prediction off the event loop
 
 ### Refactoring
 
@@ -2259,6 +2261,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover AircraftTags against a fake host
 - Cover CallsignLabels against a fake host
 - Cover AircraftTrails and AdsbTrackingPersistence against fake hosts
+- Prove SGP4 work runs in a worker thread and the loop stays free
 
 ### Build System
 
