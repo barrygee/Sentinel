@@ -438,3 +438,354 @@ class TestUnexpectedErrorsStayInTheLog:
 
     async def _async_explode(self, *args, **kwargs):
         raise OSError(self.LEAK)
+
+
+# ── SGP4 runs off the event loop ─────────────────────────────────────────────
+
+
+def _on_event_loop() -> bool:
+    """True when called from a thread that is running an asyncio event loop."""
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
+class TestSgp4RunsOffTheEventLoop:
+    """SGP4 propagation and pass prediction are CPU-bound: they must run in a worker
+    thread, so one request's satellite maths never stalls every other request."""
+
+    NOAA_20_TLE = TestDomainUrlsReachFetchTle.NOAA_20_TLE
+    LEAK = "sqlite3.OperationalError: /data/space.db is locked"
+
+    def _stub_tle(self, monkeypatch, *, database_empty: bool = False) -> None:
+        """Serve the NOAA 20 TLE for any NORAD id, without a network or a seeded cache."""
+        from sentinel_space import router as space_router
+
+        async def fake_resolve(domain, db, online_default=None):
+            return "https://primary.example/tle", None
+
+        async def fake_fetch_tle(norad_id, db, online_url=None, offline_url=None):
+            return self.NOAA_20_TLE
+
+        async def database_is_empty(db):
+            return database_empty
+
+        monkeypatch.setattr(space_router, "resolve_domain_urls", fake_resolve)
+        monkeypatch.setattr(space_router.tle_service, "fetch_tle", fake_fetch_tle)
+        monkeypatch.setattr(space_router, "_tle_database_is_empty", database_is_empty)
+
+    def _record_threads(self, monkeypatch, *names: str) -> dict[str, list[bool]]:
+        """Wrap these satellite-service functions (still calling the real ones) and
+        record, per call, whether it ran on the event loop."""
+        from sentinel_space import router as space_router
+
+        seen: dict[str, list[bool]] = {name: [] for name in names}
+        for name in names:
+            real = getattr(space_router.sat_service, name)
+
+            def recorder(*args, _real=real, _name=name, **kwargs):
+                seen[_name].append(_on_event_loop())
+                return _real(*args, **kwargs)
+
+            monkeypatch.setattr(space_router.sat_service, name, recorder)
+        return seen
+
+    def _seed_catalogue(self, client, *norad_ids: str) -> None:
+        from backend.database import get_db
+
+        from sentinel_space.models import SatelliteCatalogue
+
+        async def seed():
+            async for session in client.app.dependency_overrides[get_db]():
+                for norad_id in norad_ids:
+                    session.add(
+                        SatelliteCatalogue(
+                            norad_id=norad_id,
+                            name=f"SAT {norad_id}",
+                            category="weather",
+                            updated_at=0,
+                        )
+                    )
+                await session.commit()
+                break
+
+        _run(seed())
+
+    # -- satellite position --
+
+    def test_satellite_position_is_computed_in_a_worker_thread(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+        seen = self._record_threads(
+            monkeypatch,
+            "compute_position",
+            "compute_ground_track",
+            "compute_footprint",
+            "compute_look_angles",
+        )
+
+        response = client.get("/api/space/satellite/43013", params={"lat": 51.5, "lon": -0.1})
+
+        assert response.status_code == 200
+        assert seen == {
+            "compute_position": [False],
+            "compute_ground_track": [False],
+            "compute_footprint": [False],
+            "compute_look_angles": [False],
+        }
+
+    def test_the_iss_position_is_computed_in_a_worker_thread(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+        seen = self._record_threads(monkeypatch, "compute_position")
+
+        response = client.get("/api/space/iss")
+
+        assert response.status_code == 200
+        assert seen == {"compute_position": [False]}
+
+    def test_an_observer_location_adds_look_angles_to_the_position(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+
+        body = client.get("/api/space/satellite/43013", params={"lat": 51.5, "lon": -0.1}).json()
+
+        assert set(body) == {"position", "ground_track", "footprint"}
+        assert 0.0 <= body["position"]["az"] < 360.0
+        assert -90.0 <= body["position"]["el"] <= 90.0
+        assert len(body["ground_track"]) > 0
+
+    def test_look_angles_are_taken_from_this_position_for_this_observer(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+        calls: list[tuple] = []
+
+        def fake_look_angles(sat_lat, sat_lon, alt_km, obs_lat, obs_lon):
+            calls.append((sat_lat, sat_lon, alt_km, obs_lat, obs_lon))
+            return {"az": 123.4, "el": 56.7}
+
+        monkeypatch.setattr(space_router.sat_service, "compute_look_angles", fake_look_angles)
+
+        position = client.get("/api/space/satellite/43013", params={"lat": 51.5, "lon": -0.1}).json()["position"]
+
+        assert calls == [(position["lat"], position["lon"], position["alt_km"], 51.5, -0.1)]
+        assert (position["az"], position["el"]) == (123.4, 56.7)
+
+    def test_without_both_coordinates_there_are_no_look_angles(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+        seen = self._record_threads(monkeypatch, "compute_look_angles")
+
+        no_location = client.get("/api/space/satellite/43013").json()
+        latitude_only = client.get("/api/space/satellite/43013", params={"lat": 51.5}).json()
+        longitude_only = client.get("/api/space/satellite/43013", params={"lon": -0.1}).json()
+
+        for body in (no_location, latitude_only, longitude_only):
+            assert "az" not in body["position"]
+            assert "el" not in body["position"]
+        assert seen == {"compute_look_angles": []}
+
+    def test_an_empty_tle_database_answers_before_any_propagation(self, client, monkeypatch):
+        self._stub_tle(monkeypatch, database_empty=True)
+        seen = self._record_threads(monkeypatch, "compute_position")
+
+        response = client.get("/api/space/satellite/43013")
+
+        assert response.status_code == 503
+        assert response.json() == {"error": "No TLE data in database", "no_tle_data": True}
+        assert seen == {"compute_position": []}
+
+    # -- errors raised inside the worker thread --
+
+    def test_a_not_found_error_from_the_thread_is_a_404(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+
+        def not_found(*args, **kwargs):
+            raise RuntimeError("Satellite 43013 not found")
+
+        monkeypatch.setattr(space_router.sat_service, "compute_position", not_found)
+
+        response = client.get("/api/space/satellite/43013")
+
+        assert response.status_code == 404
+        assert response.json() == {"error": "Satellite 43013 not found"}
+
+    def test_another_runtime_error_from_the_thread_is_a_503(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+
+        def decayed(*args, **kwargs):
+            raise RuntimeError("SGP4 error 6: satellite has decayed")
+
+        monkeypatch.setattr(space_router.sat_service, "compute_ground_track", decayed)
+
+        response = client.get("/api/space/satellite/43013")
+
+        assert response.status_code == 503
+        assert response.json() == {"error": "SGP4 error 6: satellite has decayed"}
+
+    def test_an_unexpected_error_from_the_thread_stays_in_the_log(self, client, monkeypatch, caplog):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+
+        def explode(*args, **kwargs):
+            raise OSError(self.LEAK)
+
+        monkeypatch.setattr(space_router.sat_service, "compute_footprint", explode)
+
+        with caplog.at_level("ERROR"):
+            response = client.get("/api/space/satellite/43013")
+
+        assert response.status_code == 500
+        assert response.json() == {"error": "Unexpected error"}
+        assert self.LEAK not in response.text
+        assert self.LEAK in caplog.text
+
+    # -- single-satellite passes --
+
+    def test_satellite_passes_are_predicted_in_a_worker_thread_with_the_request_window(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+        calls: list[dict] = []
+
+        def fake_compute_passes(line1, line2, **kwargs):
+            calls.append({"on_loop": _on_event_loop(), "line1": line1, "line2": line2, **kwargs})
+            return [{"aos_unix_ms": 1, "max_el": 42.0}]
+
+        monkeypatch.setattr(space_router.sat_service, "compute_passes", fake_compute_passes)
+
+        response = client.get(
+            "/api/space/satellite/43013/passes",
+            params={"lat": 51.5, "lon": -0.1, "hours": 12, "min_el": 20},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["passes"] == [{"aos_unix_ms": 1, "max_el": 42.0}]
+        assert (body["obs_lat"], body["obs_lon"], body["lookahead_hours"]) == (51.5, -0.1, 12)
+        lines = self.NOAA_20_TLE.splitlines()
+        assert calls == [
+            {
+                "on_loop": False,
+                "line1": lines[1],
+                "line2": lines[2],
+                "obs_lat": 51.5,
+                "obs_lon": -0.1,
+                "lookahead_hours": 12,
+                "min_elevation_deg": 20.0,
+            }
+        ]
+
+    def test_iss_passes_are_predicted_in_a_worker_thread(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+        seen = self._record_threads(monkeypatch, "compute_passes")
+
+        response = client.get("/api/space/iss/passes", params={"lat": 51.5, "lon": -0.1})
+
+        assert response.status_code == 200
+        assert isinstance(response.json()["passes"], list)
+        assert seen == {"compute_passes": [False]}
+
+    def test_a_runtime_error_from_pass_prediction_is_a_503(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+
+        def decayed(*args, **kwargs):
+            raise RuntimeError("SGP4 error 6: satellite has decayed")
+
+        monkeypatch.setattr(space_router.sat_service, "compute_passes", decayed)
+
+        response = client.get("/api/space/satellite/43013/passes", params={"lat": 51.5, "lon": 0})
+
+        assert response.status_code == 503
+        assert response.json() == {"error": "SGP4 error 6: satellite has decayed"}
+
+    # -- multi-satellite passes --
+
+    def test_multi_satellite_passes_predict_each_satellite_in_a_worker_thread(self, client, monkeypatch):
+        self._stub_tle(monkeypatch)
+        self._seed_catalogue(client, "43013", "33591", "28654")
+        seen = self._record_threads(monkeypatch, "compute_passes")
+
+        response = client.get(
+            "/api/space/passes",
+            params={"lat": 51.5, "lon": -0.1, "categories": "weather", "min_el": 0},
+        )
+
+        assert response.status_code == 200
+        assert seen == {"compute_passes": [False, False, False]}
+        passes = response.json()["passes"]
+        assert passes, "the real SGP4 scan over 24 h finds passes for a polar orbiter"
+        assert all("sky_track" not in single_pass for single_pass in passes)
+
+    def test_a_satellite_whose_prediction_fails_in_the_thread_is_skipped(self, client, monkeypatch):
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+        self._seed_catalogue(client, "11111", "22222", "33333")
+        failures = iter([RuntimeError("decayed"), ValueError("bad TLE"), None])
+
+        def fake_compute_passes(line1, line2, **kwargs):
+            failure = next(failures)
+            if failure:
+                raise failure
+            return [{"aos_unix_ms": 5, "sky_track": [[0, 0]]}]
+
+        monkeypatch.setattr(space_router.sat_service, "compute_passes", fake_compute_passes)
+
+        response = client.get("/api/space/passes", params={"lat": 51.5, "lon": 0, "categories": "weather"})
+
+        assert response.status_code == 200
+        passes = response.json()["passes"]
+        assert [single_pass["norad_id"] for single_pass in passes] == ["33333"]
+        assert "sky_track" not in passes[0]
+
+    # -- the point of it: other requests are served meanwhile --
+
+    def test_other_requests_are_served_while_passes_are_computed(self, client, monkeypatch):
+        """While one request's pass prediction is still running, another request
+        completes. With the prediction on the event loop the second request could
+        not start until the first finished (the wait would time out first)."""
+        import asyncio
+        import threading
+
+        import httpx
+
+        from sentinel_space import router as space_router
+
+        self._stub_tle(monkeypatch)
+        prediction_started = threading.Event()
+        other_request_done = threading.Event()
+        order: list[str] = []
+
+        def slow_compute_passes(*args, **kwargs):
+            prediction_started.set()
+            finished_in_time = other_request_done.wait(timeout=5)
+            order.append("passes" if finished_in_time else "passes-timed-out")
+            return []
+
+        monkeypatch.setattr(space_router.sat_service, "compute_passes", slow_compute_passes)
+
+        async def scenario():
+            transport = httpx.ASGITransport(app=client.app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+                passes_request = asyncio.create_task(
+                    http.get("/api/space/satellite/43013/passes", params={"lat": 51.5, "lon": 0})
+                )
+                while not prediction_started.is_set():
+                    await asyncio.sleep(0.01)
+                daynight = await http.get("/api/space/daynight")
+                order.append("daynight")
+                other_request_done.set()
+                passes = await passes_request
+                return daynight.status_code, passes.status_code
+
+        assert _run(asyncio.wait_for(scenario(), timeout=15)) == (200, 200)
+        assert order == ["daynight", "passes"]
