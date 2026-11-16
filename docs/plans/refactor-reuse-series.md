@@ -168,6 +168,22 @@ unchanged.
 Polling and fetch (`_fetch`, `_startPolling`, …) stay in the control: they drive everything else. The filter-restore
 timing rule (restore in the constructor, not later) is kept as is.
 
+C7 as built:
+
+- `AircraftTags.ts` owns both tag markers and their state (which aircraft each belongs to, the side the selected
+  tag was placed on, the hover tag's hide timer and the label it covers). It builds the tag markup, places, refreshes
+  and removes the markers. The control still decides *when* a tag shows: selection, follow, the status bar and saving
+  tracking state stay in the control's `_showSelectedTag`/`_hideSelectedTag`/`_startFollowingHex`.
+- It reads the control through a small host object (`AircraftTagsHost`: icon style, selection, follow, tag fields,
+  alert opt-in, interpolated position, resting label, the arrow/category/altitude helpers C8 will move) and reports
+  UNTRACK and hover-tag clicks back through it.
+- The four placements that each built a tag element, wired it, removed the old marker and placed a new one are now
+  one `placeSelected`; the in-place poll refresh is `refreshSelected`.
+- `AircraftProperties`/`AircraftGeoFeature` moved to `adsbFeature.ts` so both files can name them.
+- The control keeps one-line delegates (`_buildTagHTML`, `_wireTagButton`, `_showHoverTag`, `_hideHoverTag(Now)`,
+  `_labelOffset`) and accessors (`_tagHex`, `_tagMarker`, `_hoverHex`, `_hoverHideTimer`), because the spec reaches
+  them through `priv()` and spies on `_rebuildTagForHex`/`_hideHoverTagNow`. The spec is unchanged.
+
 ### C10. `SatelliteControl.ts` (1,020 lines)
 
 - Extract follow and active-satellite persistence (`_saveFollowState`, `_readFollowState`, `_saveActiveSat`,

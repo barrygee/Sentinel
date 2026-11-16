@@ -16,7 +16,6 @@ import {
 } from './aircraftPosition'
 import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '../../constants/adsb'
 import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
-import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import {
   appendMirrored,
   createAccentBadge,
@@ -34,6 +33,8 @@ import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/res
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { trailLineGradient } from './trailLineGradient'
+import type { AircraftGeoFeature, AircraftProperties } from './adsbFeature'
+import { AircraftTags, SILHOUETTE_NAME_PADDING } from './AircraftTags'
 import {
   applyMapDimming,
   iconImageExpression,
@@ -43,7 +44,6 @@ import {
   MAP_DIM_LAYER_ID,
   MAP_DIM_OPACITY,
   registerAdsbIcons,
-  silhouetteZoomScale,
 } from './adsbIconStyle'
 import { AIRFIELD_LAYER_ORDER } from '../airfield-label/AirfieldMarkers'
 import {
@@ -53,9 +53,7 @@ import {
   SILHOUETTE_PALETTES,
   SILHOUETTE_PIXEL_RATIO,
   SILHOUETTE_PLAIN_COLOURS,
-  parseSilhouetteImageId,
   silhouetteIconSizePx,
-  silhouetteSideReachPx,
   silhouetteImageId,
   silhouetteRotatesWithTrack,
   SILHOUETTE_IMAGE_PREFIX,
@@ -70,54 +68,6 @@ interface TrailEntry {
   lat: number
   alt: number
 }
-
-interface AircraftProperties {
-  hex: string
-  flight: string
-  r: string
-  t: string
-  alt_baro: number
-  alt_geom: number | null
-  gs: number
-  ias: number | null
-  mach: number | null
-  track: number
-  baro_rate: number
-  nav_altitude: number | null
-  nav_heading: number | null
-  category: string
-  emergency: string
-  squawk: string
-  squawkEmerg: 0 | 1
-  rssi: number | null
-  military: boolean
-  stale: 0 | 1
-  /**
-   * Map image of this aircraft's silhouette in its colour, or '' when its type
-   * and category name no shape (it then keeps the arrow even in silhouette mode).
-   */
-  silhouetteImage: string
-  /** Half the silhouette icon's size in px: how far the label sits off the position. */
-  silhouetteRadiusPx: number
-  /** 1 when the silhouette turns with the track; 0 for a side-view shape (a balloon). */
-  silhouetteRotates: 0 | 1
-}
-
-/**
- * A callsign's padding beside a silhouette, with no arrow to balance. The right
- * side gives back the 1.68px of letter spacing (.12em at 14px) that trails the
- * last letter, so the gap measures the same on both sides.
- */
-const SILHOUETTE_NAME_PADDING = '3px 8.32px 3px 10px'
-
-/** Pixel gap between a silhouette's edge and its label. */
-const SILHOUETTE_LABEL_GAP_PX = 6
-
-/**
- * Horizontal offset that puts a label's glyph well (26px, centred) on the
- * aircraft's position in arrow mode — the label's own arrow marks the aircraft.
- */
-const ARROW_LABEL_OFFSET_PX = 13
 
 /**
  * The silhouette-related feature properties for one aircraft.
@@ -155,12 +105,6 @@ function silhouetteProperties(
 // The raw feed entry shape lives with the shared parser: a second copy here is
 // how the phantom `military` field outlived the feed that never sent it.
 type AircraftApiEntry = AdsbApiEntry
-
-interface AircraftGeoFeature {
-  type: 'Feature'
-  geometry: { type: 'Point'; coordinates: [number, number] }
-  properties: AircraftProperties
-}
 
 interface TrailGeoFeature {
   type: 'Feature'
@@ -233,23 +177,71 @@ export class AdsbLiveControl implements maplibregl.IControl {
       )
   }
 
-  /**
-   * Which way the selected tag faced when it was placed. Its anchor is fixed
-   * then (a MapLibre marker's can't change), so when the aircraft turns to
-   * face the other way the tag has to be placed again on its new side.
-   */
-  private _tagLeftFacing: boolean | null = null
   _isolatedHex: string | null = null
   private _eventsAdded = false
   _followEnabled = false
 
-  _tagMarker: maplibregl.Marker | null = null
-  _tagHex: string | null = null
-  private _hoverMarker: maplibregl.Marker | null = null
-  private _hoverHex: string | null = null
-  private _hoverFromLabel = false
-  private _hoverLabelEl: HTMLElement | null = null
-  private _hoverHideTimer: ReturnType<typeof setTimeout> | null = null
+  /** The hover and selected tag markers; this control decides when each shows. */
+  private _tags = new AircraftTags({
+    getMap: () => this.map,
+    iconStyle: () => this._iconStyle,
+    allHidden: () => this._allHidden,
+    selectedHex: () => this._selectedHex,
+    isFollowing: () => this._followEnabled,
+    tagFields: (military) => (military ? this._tagFields.mil : this._tagFields.civil),
+    isAlertEnabled: (hex) => this._notifEnabled.has(hex),
+    interpolatedCoords: (hex) => this._interpolatedCoords(hex),
+    restingLabel: (hex) => this._callsignMarkers[hex]?.getElement(),
+    categoryLabel: (code) => this._categoryLabel(code),
+    formatAltitude: (altitudeFeet) => this._formatAltBadge(altitudeFeet),
+    arrowColour: (props, isEmergency, isMilitary) =>
+      this._arrowColour(props, isEmergency, isMilitary),
+    arrowSvg: (colour, track, category, type) => this._makeArrowSvg(colour, track, category, type),
+    onUntrack: () => {
+      this._followEnabled = false
+      this._handleUntrack()
+    },
+    onHoverTagClick: (hex) => {
+      this._tagClickHandled = true
+      this._selectedHex = hex
+      this._hideHoverTagNow()
+      this._applySelection()
+      this._emitOpenInPanel(hex)
+    },
+  })
+
+  /** The aircraft whose selected (or tracked) tag is pinned, or null. */
+  get _tagHex(): string | null {
+    return this._tags.selectedHex
+  }
+
+  set _tagHex(hex: string | null) {
+    this._tags.selectedHex = hex
+  }
+
+  /** The pinned selected tag's marker, or null when none is pinned. */
+  get _tagMarker(): maplibregl.Marker | null {
+    return this._tags.selectedMarker
+  }
+
+  /** The aircraft the hover tag is showing for, or null. */
+  private get _hoverHex(): string | null {
+    return this._tags.hoverHex
+  }
+
+  private set _hoverHex(hex: string | null) {
+    this._tags.hoverHex = hex
+  }
+
+  /** The pending delayed hide of the hover tag, cleared when the map is reset. */
+  private get _hoverHideTimer(): ReturnType<typeof setTimeout> | null {
+    return this._tags.hoverHideTimer
+  }
+
+  private set _hoverHideTimer(timer: ReturnType<typeof setTimeout> | null) {
+    this._tags.hoverHideTimer = timer
+  }
+
   private _callsignMarkers: Record<string, maplibregl.Marker> = {}
 
   private _prevAlt: Record<string, number> = {}
@@ -370,7 +362,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const hasSelection = !!this._selectedHex
     const tagEl = this._tagMarker ? this._tagMarker.getElement() : null
     if (tagEl) tagEl.style.visibility = hidden && !isTracking && !hasSelection ? 'hidden' : ''
-    const hoverEl = this._hoverMarker ? this._hoverMarker.getElement() : null
+    const hoverEl = this._tags.hoverMarker ? this._tags.hoverMarker.getElement() : null
     if (hoverEl) hoverEl.style.visibility = hidden ? 'hidden' : ''
     const effectiveTrailHex = this._trailHex ?? this._selectedHex
     ;['adsb-trail-line', 'adsb-trail-dots'].forEach((id) => {
@@ -689,10 +681,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
     this._clearCallsignMarkers()
     this._hideHoverTagNow()
-    if (this._tagMarker) {
-      this._tagMarker.remove()
-      this._tagMarker = null
-    }
+    this._tags.removeSelected()
     this._tagHex = null
     this._hideStatusBar()
 
@@ -981,143 +970,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return desc ? `${code.toUpperCase()} – ${desc}` : code.toUpperCase()
   }
 
-  // ---- Data tag HTML builders ----
+  // ---- Data tags (built and placed by AircraftTags) ----
 
-  // Every value from the feed is escaped on its way into this markup: callsigns,
-  // registrations, squawks and types come off the air (anyone with a transponder
-  // or a feeder can send any text), and the tag is set with innerHTML.
   private _buildTagHTML(props: AircraftProperties, forceLeftFacing?: boolean): string {
-    const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
-    const callsign = escapeHtml(raw || 'UNKNOWN')
-    const isEmergency = props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none')
-    // Both tag styles sit on black, so the text is always light.
-    const callsignColor = isEmergency ? '#ff4040' : '#ffffff'
-    const isTracked = this._followEnabled && props.hex === this._tagHex
-    const isMilProps = !!props.military
-    const tfieldsProps = isMilProps ? this._tagFields.mil : this._tagFields.civil
-    const showCallsign = !!tfieldsProps.callsign
-    const notifOn = this._notifEnabled.has(props.hex)
-    const trkColor = isTracked ? (isMilProps ? '#c8ff00' : '#00aaff') : 'rgba(255,255,255,0.3)'
-    const trkBtnText = isTracked ? 'TRACKING' : 'TRACK'
-    const plainText = this._iconStyle === 'silhouette'
-    const trkBtn = `<button class="tag-follow-btn" style="background:none;border:none;cursor:pointer;padding:0 12px;color:${trkColor};font-family:'Barlow Condensed','Barlow',sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;line-height:1;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent">${trkBtnText}</button>`
-    const bellColor = notifOn ? '#c8ff00' : 'rgba(255,255,255,0.3)'
-    const bellHoverHandlers = notifOn
-      ? `onmouseenter="this.style.color='#c8ff00'" onmouseleave="this.style.color='#c8ff00'"`
-      : ''
-    const bellBtn =
-      `<button class="tag-notif-btn" data-hex="${escapeHtml(String(props.hex))}" ${bellHoverHandlers} style="background:none;border:none;cursor:pointer;padding:0 6px;color:${bellColor};display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent" aria-label="Toggle alerts">` +
-      `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">` +
-      `<path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/>` +
-      `<path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/>` +
-      (notifOn
-        ? ''
-        : `<line x1="1.5" y1="1.5" x2="11.5" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="square"/>`) +
-      `</svg></button>`
-
-    // One tag design for both icon styles.
-    const callsignPx = 14
-    const fieldPx = 12
-    const tagStyle = () =>
-      `background:#000000;color:#fff;font-family:'Barlow Condensed','Barlow',sans-serif;font-size:${callsignPx}px;font-weight:400;letter-spacing:.12em;text-transform:uppercase;display:flex;` +
-      'align-items:stretch;gap:0;min-height:26px;' +
-      'white-space:nowrap;user-select:none;cursor:pointer;'
-    const fieldPadding = '0 7px'
-    const fieldWeight = 700
-    const fieldLabelWeight = 600
-    const fieldAlignSelf = 'stretch'
-
-    const _dimBadge = (label: string, value: string, badgeColor: string) =>
-      `<span style="background:#000000;color:${badgeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;gap:4px;"><span style="opacity:0.45;font-weight:${fieldLabelWeight};font-size:10px;letter-spacing:.12em">${label}</span><span>${escapeHtml(value)}</span></span>`
-
-    const _buildDataBadges = (isEmerg: boolean, isMil: boolean, leftFacing: boolean): string => {
-      const tfields = isMil ? this._tagFields.mil : this._tagFields.civil
-      const has = (f: keyof typeof tfields) => !!tfields[f]
-      const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
-      const typeBg = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
-      const typeColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
-      const emergencySquawkColor = '#ff2222'
-      const catLbl = this._categoryLabel(props.category)
-      const altStr =
-        props.alt_baro && props.alt_baro !== 0 ? this._formatAltBadge(props.alt_baro) : null
-      const sqkBadge =
-        isEmerg && props.squawk
-          ? `<span style="background:#000;color:${emergencySquawkColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.squawk))}</span>`
-          : has('squawk') && props.squawk
-            ? _dimBadge('SQK', String(props.squawk), badgeColor)
-            : ''
-      const typeBadge =
-        has('aircraftType') && props.t
-          ? `<span style="background:${typeBg};color:${typeColor};font-size:${fieldPx}px;font-weight:${fieldWeight};padding:${fieldPadding};letter-spacing:.05em;align-self:${fieldAlignSelf};display:flex;align-items:center;">${escapeHtml(String(props.t).toUpperCase())}</span>`
-          : ''
-      const altBadge = has('altitude') && altStr ? _dimBadge('ALT', altStr, badgeColor) : ''
-      const hdgBadge =
-        has('heading') && props.track != null
-          ? _dimBadge('HDG', Math.round(props.track) + '°', badgeColor)
-          : ''
-      const spdBadge =
-        has('speed') && props.gs != null
-          ? _dimBadge('SPD', Math.round(props.gs) + 'kt', badgeColor)
-          : ''
-      const regBadge =
-        has('registration') && props.r ? _dimBadge('REG', String(props.r), badgeColor) : ''
-      const catBadge = has('category') && catLbl ? _dimBadge('CAT', catLbl, badgeColor) : ''
-      return leftFacing
-        ? `${catBadge}${regBadge}${spdBadge}${hdgBadge}${altBadge}${sqkBadge}${typeBadge}`
-        : `${typeBadge}${sqkBadge}${altBadge}${hdgBadge}${spdBadge}${regBadge}${catBadge}`
-    }
-
-    /**
-     * Assemble the tag: one row, mirrored for a left-facing aircraft so the
-     * callsign stays nearest it. Silhouette mode is the same tag without the
-     * arrow, since the map draws the aircraft.
-     */
-    const assembleTag = (
-      leftFacing: boolean,
-      arrowSvg: string,
-      callsignSpan: string,
-      isEmerg: boolean,
-      isMil: boolean,
-      actionButton: string,
-    ): string => {
-      const dataBadges = _buildDataBadges(isEmerg, isMil, leftFacing)
-      const inner = leftFacing
-        ? `${actionButton}${dataBadges}${callsignSpan}${arrowSvg}`
-        : `${arrowSvg}${callsignSpan}${dataBadges}${actionButton}`
-      return `<div style="${tagStyle()}">${inner}</div>`
-    }
-    // A stacked callsign lines up with the fields under it, so it has no padding.
-    const callsignPadding = (leftFacing: boolean) =>
-      plainText ? SILHOUETTE_NAME_PADDING : leftFacing ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
-
-    if (isTracked) {
-      const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
-      const isMil = !!props.military
-      const arrowColor = this._arrowColour(props, isEmerg, isMil)
-      const track = props.track ?? 0
-      const arrowSvg = this._makeArrowSvg(arrowColor, track, props.category, props.t)
-      const leftFacing = this._isLeftFacing(track)
-      const callsignSpan = showCallsign
-        ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPadding(leftFacing)};display:flex;align-items:center;">${callsign}</span>`
-        : ''
-      return assembleTag(leftFacing, arrowSvg, callsignSpan, isEmerg, isMil, trkBtn)
-    }
-
-    const isEmerg = !!(props.squawkEmerg === 1 || (props.emergency && props.emergency !== 'none'))
-    const isMil = !!props.military
-    const arrowColor = this._arrowColour(props, isEmerg, isMil)
-    const heading = props.track ?? 0
-    const leftFacing = forceLeftFacing !== undefined ? forceLeftFacing : this._isLeftFacing(heading)
-    const arrowSvg = this._makeArrowSvg(arrowColor, heading, props.category, props.t)
-    const callsignSpan = showCallsign
-      ? `<span class="adsb-label-name" style="color:${callsignColor};pointer-events:none;padding:${callsignPadding(leftFacing)};display:flex;align-items:center;">${callsign}</span>`
-      : ''
-    // Only the notification bell is shown on the untracked tag, and only when the
-    // aircraft is opted-in. The track button (and the bell on hover) live in the side
-    // panel now, so hover tags carry no action buttons. The tracked tag with its
-    // TRACKING/untrack button is built in the isTracked branch above.
-    const activeBell = notifOn ? bellBtn : ''
-    return assembleTag(leftFacing, arrowSvg, callsignSpan, isEmerg, isMil, activeBell)
+    return this._tags.buildTagHTML(props, forceLeftFacing)
   }
 
   private _buildTrackingFields(props: AircraftProperties): TrackingField[] {
@@ -1189,10 +1045,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       }
       this._notifEnabled.delete(this._tagHex)
     }
-    if (this._tagMarker) {
-      this._tagMarker.remove()
-      this._tagMarker = null
-    }
+    this._tags.removeSelected()
     this._tagHex = null
     this._selectedHex = null
     this._isolatedHex = null
@@ -1244,17 +1097,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         ...(is3D ? { pitch: 45 } : {}),
         duration: 600,
       })
-      const newEl = document.createElement('div')
-      newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
-      this._wireTagButton(newEl)
-      /* v8 ignore start -- defensive: _applySelection above always builds a
-         tag marker for the followed hex, so this guard is never false */
-      if (this._tagMarker) {
-        this._tagMarker.remove()
-        this._tagMarker = null
-      }
-      /* v8 ignore stop */
-      this._tagMarker = this._placeTagMarker(newEl, aircraftFeature.properties, coords)
+      this._tags.placeSelected(aircraftFeature.properties, coords)
     }
     this._saveTrackingState()
   }
@@ -1278,35 +1121,12 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return this._followEnabled && this._selectedHex === hex
   }
 
-  // ---- Tag button wiring ----
-
-  /**
-   * Wire the follow button on a tag element. The button only renders on the
-   * tracked tag (labelled TRACKING), so it always shows UNTRACK on hover and
-   * untracks on click. Starting or switching tracking is initiated from the side
-   * panel ({@link toggleFollowByHex}), not the map tag. No-op when the element has
-   * no follow button (e.g. an untracked tag or a hover tag).
-   */
-  private _wireTagButton(el: HTMLElement): void {
-    const btn = el.querySelector('.tag-follow-btn') as HTMLElement | null
-    if (!btn) return
-
-    btn.addEventListener('mousedown', (e) => {
-      e.stopPropagation()
-    })
-    el.addEventListener('mouseenter', () => {
-      btn.textContent = 'UNTRACK'
-    })
-    el.addEventListener('mouseleave', () => {
-      btn.textContent = 'TRACKING'
-    })
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this._followEnabled = false
-      this._handleUntrack()
-    })
+  /** Wire the tracked tag's UNTRACK button (see {@link AircraftTags.wireTagButton}). */
+  private _wireTagButton(tagElement: HTMLElement): void {
+    this._tags.wireTagButton(tagElement)
   }
 
+  /** Build the pinned tag again for `hex`, if it is the tagged aircraft still on the map. */
   _rebuildTagForHex(hex: string): void {
     if (!hex || hex !== this._tagHex) return
     const taggedFeature = this._geojson.features.find((f) => f.properties.hex === hex)
@@ -1315,35 +1135,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
        _interpolatedCoords always resolves; the || fallback never runs */
     const coords = this._interpolatedCoords(hex) || taggedFeature.geometry.coordinates
     /* v8 ignore stop */
-    const newEl = document.createElement('div')
-    newEl.innerHTML = this._buildTagHTML(taggedFeature.properties)
-    this._wireTagButton(newEl)
-    if (this._tagMarker) {
-      this._tagMarker.remove()
-      this._tagMarker = null
-    }
-    this._tagMarker = this._placeTagMarker(newEl, taggedFeature.properties, coords)
-  }
-
-  /**
-   * Pin the selected (or tracked) tag beside its aircraft on the side its text
-   * was built for, remembering that side for the next poll (see
-   * {@link _tagLeftFacing}).
-   */
-  private _placeTagMarker(
-    element: HTMLElement,
-    props: AircraftProperties,
-    coords: maplibregl.LngLatLike,
-  ): maplibregl.Marker {
-    const leftFacing = this._isLeftFacing(props.track ?? 0)
-    this._tagLeftFacing = leftFacing
-    return new maplibregl.Marker({
-      element,
-      anchor: this._tagAnchor(leftFacing),
-      offset: this._labelOffset(props, leftFacing),
-    })
-      .setLngLat(coords)
-      .addTo(this.map)
+    this._tags.placeSelected(taggedFeature.properties, coords)
   }
 
   // ---- Tag show/hide ----
@@ -1353,178 +1145,42 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._hideStatusBar()
     if (!feature || !this.map) return
     this._followEnabled = false
-    const el = document.createElement('div')
-    el.innerHTML = this._buildTagHTML(feature.properties)
-    this._wireTagButton(el)
     const coords = this._interpolatedCoords(feature.properties.hex) || feature.geometry.coordinates
-    this._tagMarker = this._placeTagMarker(el, feature.properties, coords)
-    if (this._allHidden && !this._selectedHex) el.style.visibility = 'hidden'
+    const tagElement = this._tags.placeSelected(feature.properties, coords)
+    if (this._allHidden && !this._selectedHex) tagElement.style.visibility = 'hidden'
     this._tagHex = feature.properties.hex
     this._showStatusBar(feature.properties)
   }
 
   private _hideSelectedTag(): void {
-    if (this._tagMarker) {
-      this._tagMarker.remove()
-      this._tagMarker = null
-    }
+    this._tags.removeSelected()
     if (this._tagHex && this._followEnabled) this._notifEnabled.delete(this._tagHex)
     this._tagHex = null
     this._saveTrackingState()
   }
 
-  // ---- Hover tag ----
-
   private _showHoverTag(
     feature: AircraftGeoFeature,
-    fromLabelArgument = false,
-    labelElArgument: HTMLElement | null = null,
-    labelDirArgument?: 'left' | 'right',
+    fromLabel = false,
+    labelElement: HTMLElement | null = null,
+    labelDirection?: 'left' | 'right',
   ): void {
-    if (!feature || !this.map) return
-    const hex = feature.properties.hex
-    if (hex === this._selectedHex) return
-    // A hover that starts on the aircraft's trail or hit area, not its label,
-    // still opens where the label sits. Otherwise the tag took the label-less
-    // below-right placement and jumped sideways off the resting label.
-    const restingLabel = fromLabelArgument ? null : this._callsignMarkers[hex]?.getElement()
-    const fromLabel = fromLabelArgument || !!restingLabel
-    const labelEl = restingLabel ?? labelElArgument
-    const labelDir = restingLabel
-      ? (restingLabel.dataset.dir as 'left' | 'right' | undefined)
-      : labelDirArgument
-    if (this._hoverHideTimer) {
-      clearTimeout(this._hoverHideTimer)
-      this._hoverHideTimer = null
-    }
-    const coords = this._interpolatedCoords(hex) || feature.geometry.coordinates
-    if (this._hoverHex === hex && this._hoverMarker) {
-      this._hoverMarker.setLngLat(coords)
-      if (fromLabel && labelEl && labelEl !== this._hoverLabelEl) {
-        if (this._hoverLabelEl) {
-          this._hoverLabelEl.style.visibility = this._allHidden ? 'hidden' : ''
-          this._hoverLabelEl.style.pointerEvents = ''
-        }
-        this._hoverLabelEl = labelEl
-        labelEl.style.visibility = 'hidden'
-        labelEl.style.pointerEvents = 'none'
-      }
-      return
-    }
-    this._hideHoverTagNow()
-    const wrapper = document.createElement('div')
-    // When showing hover tag from a label, use the label's rendered direction to avoid
-    // anchor/layout mismatch if the track crossed the left/right threshold since the
-    // label was last built (crossing threshold flips anchor and causes a visible jump).
-    const hoverLeftFacing =
-      fromLabel && labelDir
-        ? labelDir === 'left'
-        : this._isLeftFacing(feature.properties.track ?? 0)
-    // Silhouette mode has no resting labels, so the hover tag is the label: it
-    // sits beside the icon on the same side a label would, not below-right.
-    const besideIcon = fromLabel || this._iconStyle === 'silhouette'
-    wrapper.innerHTML = this._buildTagHTML(
-      feature.properties,
-      besideIcon ? hoverLeftFacing : undefined,
-    )
-    const el = wrapper.firstElementChild as HTMLElement
-    el.style.pointerEvents = 'auto'
-    el.addEventListener('mouseenter', () => {
-      if (this._hoverHideTimer) {
-        clearTimeout(this._hoverHideTimer)
-        this._hoverHideTimer = null
-      }
-    })
-    el.addEventListener('mouseleave', () => this._hideHoverTag())
-    el.addEventListener('click', (e) => {
-      /* v8 ignore start -- defensive: the action buttons stopPropagation, so a
-         click that lands on them never reaches this tag-level handler */
-      if ((e.target as HTMLElement).closest('.tag-follow-btn, .tag-notif-btn')) return
-      /* v8 ignore stop */
-      this._tagClickHandled = true
-      this._selectedHex = hex
-      this._hideHoverTagNow()
-      this._applySelection()
-      this._emitOpenInPanel(hex)
-    })
-    // Hover tags carry no action buttons (no follow/bell), so there is nothing to
-    // wire — those actions live in the side panel.
-    const hoverPlacement: { anchor: maplibregl.PositionAnchor; offset: [number, number] } =
-      besideIcon
-        ? {
-            anchor: this._tagAnchor(hoverLeftFacing),
-            offset: this._labelOffset(feature.properties, hoverLeftFacing),
-          }
-        : { anchor: 'top-left', offset: [14, -13] }
-    this._hoverMarker = new maplibregl.Marker({ element: el, ...hoverPlacement })
-      .setLngLat(coords)
-      .addTo(this.map)
-    this._hoverHex = hex
-    this._hoverFromLabel = fromLabel
-    this._hoverLabelEl = labelEl
-    if (labelEl) {
-      labelEl.style.visibility = 'hidden'
-      labelEl.style.pointerEvents = 'none'
-    }
+    this._tags.showHover(feature, fromLabel, labelElement, labelDirection)
   }
 
   private _hideHoverTag(): void {
-    if (this._hoverHideTimer) clearTimeout(this._hoverHideTimer)
-    this._hoverHideTimer = setTimeout(() => {
-      this._hoverHideTimer = null
-      this._hideHoverTagNow()
-    }, 80)
+    this._tags.hideHover()
   }
 
   private _hideHoverTagNow(): void {
-    if (this._hoverMarker) {
-      this._hoverMarker.remove()
-      this._hoverMarker = null
-    }
-    if (this._hoverLabelEl) {
-      this._hoverLabelEl.style.visibility = this._allHidden ? 'hidden' : ''
-      this._hoverLabelEl.style.pointerEvents = ''
-      this._hoverLabelEl = null
-    }
-    this._hoverHex = null
-    this._hoverFromLabel = false
+    this._tags.hideHoverNow()
   }
 
   // ---- Callsign label markers ----
 
-  /**
-   * How far a label sits from the aircraft's position in silhouette mode: the
-   * edge of its icon (at the current zoom's scale) plus a small gap. Aircraft
-   * with no silhouette keep their
-   * map symbol (the 24px radar blip, ground ring or tower dot), so they use
-   * that symbol's half-size instead.
-   */
-  private _silhouetteLabelDistance(props: AircraftProperties, leftFacing: boolean): number {
-    const shape = parseSilhouetteImageId(props.silhouetteImage)
-    if (!shape) return 12 + SILHOUETTE_LABEL_GAP_PX
-    const track = props.silhouetteRotates ? (props.track ?? 0) : 0
-    const reachPx = silhouetteSideReachPx(shape.shapeKey, track, leftFacing ? 'left' : 'right')
-    return reachPx * silhouetteZoomScale(this.map.getZoom()) + SILHOUETTE_LABEL_GAP_PX
-  }
-
-  /**
-   * Marker offset for a label anchored on the side facing away from `leftFacing`.
-   *
-   * Arrow mode pulls the label 13px back over the position so its glyph well —
-   * the arrow — sits exactly on the aircraft. Silhouette mode pushes it the
-   * other way, clear of the icon the map draws there.
-   */
+  /** Where a label or tag sits off its aircraft (see {@link AircraftTags.labelOffset}). */
   private _labelOffset(props: AircraftProperties, leftFacing: boolean): [number, number] {
-    if (this._iconStyle === 'silhouette') {
-      const distance = this._silhouetteLabelDistance(props, leftFacing)
-      return leftFacing ? [-distance, 0] : [distance, 0]
-    }
-    return leftFacing ? [ARROW_LABEL_OFFSET_PX, 0] : [-ARROW_LABEL_OFFSET_PX, 0]
-  }
-
-  /** Which side of a tag sits at the aircraft. */
-  private _tagAnchor(leftFacing: boolean): maplibregl.PositionAnchor {
-    return leftFacing ? 'right' : 'left'
+    return this._tags.labelOffset(props, leftFacing)
   }
 
   private _isLeftFacing(track: number): boolean {
@@ -1875,10 +1531,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
           })
             .setLngLat(lngLat)
             .addTo(this.map)
-          if (this._hoverHex === hex && this._hoverMarker) {
+          if (this._hoverHex === hex && this._tags.hoverMarker) {
             labelEl2.style.visibility = 'hidden'
             labelEl2.style.pointerEvents = 'none'
-            this._hoverLabelEl = labelEl2
+            this._tags.hoverLabelEl = labelEl2
           }
           continue
         }
@@ -2034,10 +1690,10 @@ export class AdsbLiveControl implements maplibregl.IControl {
           .setLngLat(lngLat)
           .addTo(this.map)
         this._callsignMarkers[hex] = marker
-        if (this._hoverHex === hex && this._hoverMarker) {
+        if (this._hoverHex === hex && this._tags.hoverMarker) {
           labelEl.style.visibility = 'hidden'
           labelEl.style.pointerEvents = 'none'
-          this._hoverLabelEl = labelEl
+          this._tags.hoverLabelEl = labelEl
         }
       }
     }
@@ -2289,8 +1945,8 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const hex = f.properties.hex
       if (hex && this._callsignMarkers[hex])
         this._callsignMarkers[hex].setLngLat(f.geometry.coordinates)
-      if (hex && hex === this._hoverHex && this._hoverMarker)
-        this._hoverMarker.setLngLat(f.geometry.coordinates)
+      if (hex && hex === this._hoverHex && this._tags.hoverMarker)
+        this._tags.hoverMarker.setLngLat(f.geometry.coordinates)
     }
   }
 
@@ -2528,18 +2184,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
         if (taggedFeature) {
           // A polled aircraft always has a track (the feed's, or 0), set above.
-          if (this._isLeftFacing(taggedFeature.properties.track) !== this._tagLeftFacing) {
+          if (
+            this._isLeftFacing(taggedFeature.properties.track) !== this._tags.selectedLeftFacing
+          ) {
             // Turned to face the other way: the text flips sides, so the tag
             // must be placed again on the aircraft's other side.
             this._rebuildTagForHex(this._tagHex)
           } else {
-            this._tagMarker.getElement().innerHTML = this._buildTagHTML(taggedFeature.properties)
-            if (this._iconStyle === 'silhouette') {
-              this._tagMarker.setOffset(
-                this._labelOffset(taggedFeature.properties, this._tagLeftFacing as boolean),
-              )
-            }
-            this._wireTagButton(this._tagMarker.getElement())
+            this._tags.refreshSelected(taggedFeature.properties)
           }
           this._updateStatusBar()
         } else {
@@ -2702,14 +2354,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
          _interpolatedCoords always resolves; the || fallback never runs */
       const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
       /* v8 ignore stop */
-      const newEl = document.createElement('div')
-      newEl.innerHTML = this._buildTagHTML(aircraftFeature.properties)
-      this._wireTagButton(newEl)
-      if (this._tagMarker) {
-        this._tagMarker.remove()
-        this._tagMarker = null
-      }
-      this._tagMarker = this._placeTagMarker(newEl, aircraftFeature.properties, coords)
+      this._tags.placeSelected(aircraftFeature.properties, coords)
       this._tagHex = hex
       this._showStatusBar(aircraftFeature.properties)
       const is3D = this._is3DActive()
@@ -2819,10 +2464,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._parkedTimers = {}
     this._clearCallsignMarkers()
     this._hideHoverTagNow()
-    if (this._tagMarker) {
-      this._tagMarker.remove()
-      this._tagMarker = null
-    }
+    this._tags.removeSelected()
     this._tagHex = null
     this._hideStatusBar()
     this._selectedHex = null
