@@ -16,6 +16,7 @@ Endpoints:
   DELETE /api/space/tle            — Clear TLE data, optionally by category (requires confirm=true)
 """
 
+import asyncio
 import logging
 from datetime import UTC, datetime
 from urllib.parse import urlparse
@@ -76,6 +77,22 @@ async def _get_satellite_data(
     tle_text = await tle_service.fetch_tle(norad_id, db, primary_url, fallback_url)
     _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
+    # SGP4 propagation is CPU-bound (the ground track alone is ~1,440
+    # propagations), so it runs in a worker thread to keep the event loop free
+    # for other requests. Only plain strings and floats cross the thread boundary.
+    return await asyncio.to_thread(_propagate_satellite, line1, line2, obs_lat, obs_lon)
+
+
+def _propagate_satellite(
+    line1: str,
+    line2: str,
+    obs_lat: float | None,
+    obs_lon: float | None,
+) -> dict:
+    """Compute position, ground track, footprint and optional look angles from TLE lines.
+
+    Synchronous and free of loop-bound state, so it is safe to run in a worker thread.
+    """
     position = sat_service.compute_position(line1, line2)
     ground_track = sat_service.compute_ground_track(line1, line2)
     footprint = sat_service.compute_footprint(position["lat"], position["lon"], position["alt_km"])
@@ -157,7 +174,10 @@ async def _compute_passes_response(
     tle_text = await tle_service.fetch_tle(norad_id, db, primary_url, fallback_url)
     _, line1, line2 = tle_service.parse_tle_lines(tle_text)
 
-    passes = sat_service.compute_passes(
+    # Pass prediction scans the whole lookahead window minute by minute with
+    # SGP4 — CPU-bound, so it runs in a worker thread rather than on the event loop.
+    passes = await asyncio.to_thread(
+        sat_service.compute_passes,
         line1,
         line2,
         obs_lat=lat,
@@ -280,7 +300,11 @@ async def get_multi_satellite_passes(
         try:
             tle_text = await tle_service.fetch_tle(norad_id, db, primary_url, fallback_url)
             _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-            passes = sat_service.compute_passes(
+            # One worker-thread hop per satellite: the TLE fetch above uses the
+            # request's DB session and must stay on the loop, while the SGP4 scan
+            # (up to 500 of them per request) must not block it.
+            passes = await asyncio.to_thread(
+                sat_service.compute_passes,
                 line1,
                 line2,
                 obs_lat=lat,
