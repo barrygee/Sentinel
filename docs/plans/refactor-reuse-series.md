@@ -200,6 +200,26 @@ C8 as built:
   `priv()`; its own refreshes go through `_updateCallsignMarkers` so those spies still see them. The spec is
   unchanged. `AdsbLiveControl.ts` 2,562 → 2,128 lines.
 
+C9 as built:
+
+- `AircraftTrails.ts` owns every aircraft's kept positions (`points`, capped at `maxPoints`), which aircraft's trail
+  is asked for (`hex`, the hovered one; null falls back to the selection), the dot and line GeoJSON, and the two
+  trail sources and layers: `record`/`forget` a position history, `addLayers` after a style load, `rebuild` (dots,
+  line and its altitude gradient), `refreshLineHead` each interpolation tick, `setVisibility`, `colour` and `clear`.
+  It reads the control through `AircraftTrailsHost` (map, features, selection, interpolated position, icon style,
+  altitude colouring, palette). The control still decides whose trail shows and when it is redrawn (hover,
+  selection, polls). The style-reload path no longer saves and restores the trail state around adding the layers:
+  `addLayers` starts the dots empty itself.
+- `AdsbTrackingPersistence.ts` owns the `adsbTracking` localStorage entry, the `/api/air/tracking` calls and the
+  restore-once flags: `save`, `restoreIsolation`, `restoreTracking` (the backend's record wins, then `applySaved`)
+  and `applySaved`, which retries on later polls until the aircraft is in the feed. Applying a restore stays the
+  control's, through `AdsbTrackingPersistenceHost`: `applyIsolation` and `applyTracking` (the control's
+  `_applyTrackingRestore`: select, follow, re-arm alerts, tag, status bar, camera).
+- The control keeps one-line delegates (`_rebuildTrails`, `_trailColour`, `_saveTrackingState`,
+  `_restoreTrackingState`, `_restoreIsolationState`, `_doRestoreTracking`) and accessors (`_trails`, `_trailHex`, a
+  `_MAX_TRAIL` setter, `_trackingRestored`/`_isolationRestored` getters), because the spec reaches them through
+  `priv()` and spies on `_rebuildTrails`. The spec is unchanged. `AdsbLiveControl.ts` 2,128 → 1,881 lines.
+
 ### C10. `SatelliteControl.ts` (1,020 lines)
 
 - Extract follow and active-satellite persistence (`_saveFollowState`, `_readFollowState`, `_saveActiveSat`,

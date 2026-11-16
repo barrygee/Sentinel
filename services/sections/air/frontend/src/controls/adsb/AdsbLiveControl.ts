@@ -19,8 +19,8 @@ import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
 import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
-import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
-import { trailLineGradient } from './trailLineGradient'
+import { AircraftTrails, TRAIL_LAYER_IDS } from './AircraftTrails'
+import { AdsbTrackingPersistence } from './AdsbTrackingPersistence'
 import type { AircraftGeoFeature, AircraftProperties } from './adsbFeature'
 import { AircraftTags } from './AircraftTags'
 import { CallsignLabels } from './CallsignLabels'
@@ -37,11 +37,8 @@ import {
 import { AIRFIELD_LAYER_ORDER } from '../airfield-label/AirfieldMarkers'
 import {
   altitudeColourKey,
-  ARROW_COLOURS,
   createSilhouetteImageData,
-  SILHOUETTE_PALETTES,
   SILHOUETTE_PIXEL_RATIO,
-  SILHOUETTE_PLAIN_COLOURS,
   silhouetteIconSizePx,
   silhouetteImageId,
   silhouetteRotatesWithTrack,
@@ -51,12 +48,6 @@ import {
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 
 // ---- Internal types ----
-
-interface TrailEntry {
-  lon: number
-  lat: number
-  alt: number
-}
 
 /**
  * The silhouette-related feature properties for one aircraft.
@@ -95,19 +86,6 @@ function silhouetteProperties(
 // how the phantom `military` field outlived the feed that never sent it.
 type AircraftApiEntry = AdsbApiEntry
 
-interface TrailGeoFeature {
-  type: 'Feature'
-  geometry: { type: 'Point'; coordinates: [number, number] }
-  properties: {
-    alt: number
-    colour: string
-    opacity: number
-    emerg: 0 | 1
-    military: 0 | 1
-    hex: string
-  }
-}
-
 export class AdsbLiveControl implements maplibregl.IControl {
   visible: boolean
   labelsVisible: boolean
@@ -130,15 +108,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _interpolateInterval: ReturnType<typeof setInterval> | null = null
 
   _geojson: { type: 'FeatureCollection'; features: AircraftGeoFeature[] }
-  private _trailsGeojson: { type: 'FeatureCollection'; features: TrailGeoFeature[] }
-  private _trailLineGeojson: {
-    type: 'FeatureCollection'
-    features: GeoJSON.Feature<GeoJSON.LineString, { emerg: 0 | 1; military: 0 | 1; hex: string }>[]
-  }
-
-  private _trails: Record<string, TrailEntry[]> = {}
-  _trailHex: string | null = null
-  private _MAX_TRAIL = 100
   private _lastPositions: Record<string, TrackedPosition> = {}
   // Observation time of the newest snapshot received: how far the feed has got.
   // Aircraft are removed by how much newer feed has left them out, not by age.
@@ -271,6 +240,58 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return this._labels.markers
   }
 
+  /** The kept positions and the drawn trail; this control decides whose trail shows and when. */
+  private _aircraftTrails = new AircraftTrails({
+    getMap: () => this.map,
+    features: () => this._geojson.features,
+    selectedHex: () => this._selectedHex,
+    interpolatedCoords: (hex) => this._interpolatedCoords(hex),
+    iconStyle: () => this._iconStyle,
+    altitudeColouring: () => this._altitudeColouring,
+    silhouettePalette: () => this._silhouettePalette,
+  })
+
+  // Accessors kept for the spec, which reaches the trail state through priv().
+  private get _trails(): Record<string, { lon: number; lat: number; alt: number }[]> {
+    return this._aircraftTrails.points
+  }
+
+  /** The aircraft whose trail is asked for (the hovered one); null falls back to the selection. */
+  get _trailHex(): string | null {
+    return this._aircraftTrails.hex
+  }
+
+  set _trailHex(hex: string | null) {
+    this._aircraftTrails.hex = hex
+  }
+
+  private set _MAX_TRAIL(maxPoints: number) {
+    this._aircraftTrails.maxPoints = maxPoints
+  }
+
+  /** Saves and restores the followed and isolated aircraft across visits. */
+  private _trackingPersistence = new AdsbTrackingPersistence({
+    taggedHex: () => this._tagHex,
+    selectedHex: () => this._selectedHex,
+    isFollowing: () => this._followEnabled,
+    features: () => this._geojson.features,
+    savedIsolatedHex: () => this._airStore.mapIsolatedHex,
+    applyIsolation: (hex) => {
+      this._selectedHex = hex
+      this._isolatedHex = hex
+      this._applySelection()
+    },
+    applyTracking: (feature) => this._applyTrackingRestore(feature),
+  })
+
+  private get _trackingRestored(): boolean {
+    return this._trackingPersistence.trackingRestored
+  }
+
+  private get _isolationRestored(): boolean {
+    return this._trackingPersistence.isolationRestored
+  }
+
   /** The aircraft whose selected (or tracked) tag is pinned, or null. */
   get _tagHex(): string | null {
     return this._tags.selectedHex
@@ -314,8 +335,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   _notifEnabled!: NotifEnabledAdapter
   private _airNotifStore!: AirNotifStore
   private _tagClickHandled = false
-  private _trackingRestored = false
-  private _isolationRestored = false
   _trackingNotifIds: Record<string, string> | null = null
 
   private _lastFetchTime = 0
@@ -377,8 +396,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     // labels hidden. `setLabelsVisible` likewise refuses to turn them off.
     this.labelsVisible = true
     this._geojson = { type: 'FeatureCollection', features: [] }
-    this._trailsGeojson = { type: 'FeatureCollection', features: [] }
-    this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
     this._tagFields = {
       civil: { ...airStore.adsbTagFields.civil },
       mil: { ...airStore.adsbTagFields.mil },
@@ -423,15 +440,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (tagEl) tagEl.style.visibility = hidden && !isTracking && !hasSelection ? 'hidden' : ''
     const hoverEl = this._tags.hoverMarker ? this._tags.hoverMarker.getElement() : null
     if (hoverEl) hoverEl.style.visibility = hidden ? 'hidden' : ''
-    const effectiveTrailHex = this._trailHex ?? this._selectedHex
-    ;['adsb-trail-line', 'adsb-trail-dots'].forEach((id) => {
-      if (this.map.getLayer(id))
-        this.map.setLayoutProperty(
-          id,
-          'visibility',
-          (!hidden || isTracking || hasSelection) && !!effectiveTrailHex ? 'visible' : 'none',
-        )
-    })
+    this._aircraftTrails.setVisibility(
+      (!hidden || !!isTracking || hasSelection) && this._aircraftTrails.hasShownAircraft(),
+    )
   }
 
   setHideGroundVehicles(hide: boolean): void {
@@ -714,16 +725,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
   initLayers(): void {
     const layerVisibility = this.visible ? 'visible' : 'none'
     this._silhouettePalette = isBrightBasemap() ? 'light' : 'dark'
-    ;[
-      'adsb-icons',
-      'adsb-hit',
-      'adsb-bracket',
-      'adsb-trail-dots',
-      'adsb-trail-line',
-      MAP_DIM_LAYER_ID,
-    ].forEach((id) => {
-      if (this.map.getLayer(id)) this.map.removeLayer(id)
-    })
+    ;['adsb-icons', 'adsb-hit', 'adsb-bracket', ...TRAIL_LAYER_IDS, MAP_DIM_LAYER_ID].forEach(
+      (id) => {
+        if (this.map.getLayer(id)) this.map.removeLayer(id)
+      },
+    )
     this.map.addLayer({
       id: MAP_DIM_LAYER_ID,
       type: 'background',
@@ -752,8 +758,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
 
     const _savedGeojson = this._geojson
-    const _savedTrailsGeojson = this._trailsGeojson
-    const _savedTrails = this._trails
     const _savedLastPositions = this._lastPositions
     const _savedInterpolated = this._interpolatedFeatures
     const _savedPrevAlt = this._prevAlt
@@ -761,8 +765,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     const _savedSeenOnGround = this._seenOnGround
     const _savedLandedAt = this._landedAt
     this._geojson = { type: 'FeatureCollection', features: [] }
-    this._trailsGeojson = { type: 'FeatureCollection', features: [] }
-    this._trails = {}
     this._lastPositions = {}
     this._interpolatedFeatures = []
     this._prevAlt = {}
@@ -770,38 +772,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._seenOnGround = {}
     this._landedAt = {}
 
-    this.map.addSource('adsb-trails-source', {
-      type: 'geojson',
-      data: this._trailsGeojson as GeoJSON.GeoJSON,
-    })
-    this.map.addSource('adsb-trail-line-source', {
-      type: 'geojson',
-      // The altitude gradient along the line needs the source's line metrics.
-      lineMetrics: true,
-      data: this._trailLineGeojson as GeoJSON.GeoJSON,
-    })
-    this.map.addLayer({
-      id: 'adsb-trail-line',
-      type: 'line',
-      source: 'adsb-trail-line-source',
-      layout: { visibility: 'none', 'line-join': 'round', 'line-cap': 'round' },
-      paint: {
-        'line-width': 4,
-        'line-opacity': 0.75,
-      },
-    })
-    this.map.addLayer({
-      id: 'adsb-trail-dots',
-      type: 'circle',
-      source: 'adsb-trails-source',
-      layout: { visibility: 'none' },
-      paint: {
-        'circle-radius': 2.5,
-        'circle-opacity': ['get', 'opacity'],
-        'circle-stroke-width': 0,
-        'circle-color': ['get', 'colour'],
-      },
-    })
+    this._aircraftTrails.addLayers(this.map)
 
     this._registerIcons()
 
@@ -861,8 +832,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     })
 
     this._geojson = _savedGeojson
-    this._trailsGeojson = _savedTrailsGeojson
-    this._trails = _savedTrails
     this._lastPositions = _savedLastPositions
     this._interpolatedFeatures = _savedInterpolated
     this._prevAlt = _savedPrevAlt
@@ -1147,7 +1116,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._showStatusBar(aircraftFeature.properties)
       const is3D = this._is3DActive()
       /* v8 ignore start -- defensive: aircraftFeature is in the collection so
-         _interpolatedCoords always resolves; the || fallback never runs */
+       _interpolatedCoords always resolves; the || fallback never runs */
       const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
       /* v8 ignore stop */
       this.map.easeTo({
@@ -1310,141 +1279,14 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._rebuildTrails()
   }
 
+  // Delegates kept for the spec, which calls and spies on them through priv();
+  // the control's own redraws go through _rebuildTrails so those spies see them.
   private _rebuildTrails(): void {
-    if (!this.map) return
-    const hex = this._trailHex ?? this._selectedHex
-    const trailFeatures: TrailGeoFeature[] = []
-    const lineFeatures: GeoJSON.Feature<
-      GeoJSON.LineString,
-      { emerg: 0 | 1; military: 0 | 1; hex: string }
-    >[] = []
-    const showTrail = !!(hex && this._trails[hex])
-    let lineGradient: maplibregl.ExpressionSpecification | null = null
-
-    if (showTrail && hex) {
-      const points = this._trails[hex]
-      const pointCount = points.length
-      const selFeature = this._geojson.features.find((f) => f.properties.hex === hex)
-      const isEmerg: 0 | 1 =
-        selFeature &&
-        (selFeature.properties.squawkEmerg === 1 ||
-          (selFeature.properties.emergency && selFeature.properties.emergency !== 'none'))
-          ? 1
-          : 0
-      const isMil: 0 | 1 = selFeature && selFeature.properties.military ? 1 : 0
-
-      // Build dot features (oldest → newest)
-      for (let i = 0; i < pointCount; i++) {
-        const tp = points[i]
-        trailFeatures.push({
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [tp.lon, tp.lat] },
-          properties: {
-            alt: tp.alt,
-            colour: this._trailColour(tp.alt, isEmerg, isMil),
-            opacity: (i + 1) / pointCount,
-            emerg: isEmerg,
-            military: isMil,
-            hex,
-          },
-        })
-      }
-
-      const dedupedCoords = this._trailLineCoords(hex, points)
-      if (dedupedCoords.length >= 2) {
-        const reported = points.map((point) => ({
-          lon: point.lon,
-          lat: point.lat,
-          colour: this._trailColour(point.alt, isEmerg, isMil),
-        }))
-        // The line runs on to the aircraft, in the colour of its latest report.
-        const [headLon, headLat] = dedupedCoords.at(-1)!
-        const head = { lon: headLon, lat: headLat, colour: reported.at(-1)!.colour }
-        lineGradient = trailLineGradient([...reported, head])
-        lineFeatures.push({
-          type: 'Feature',
-          geometry: { type: 'LineString', coordinates: dedupedCoords },
-          properties: { emerg: isEmerg, military: isMil, hex },
-        })
-      }
-    }
-
-    this._trailsGeojson = { type: 'FeatureCollection', features: trailFeatures }
-    this._trailLineGeojson = { type: 'FeatureCollection', features: lineFeatures }
-
-    // Toggle layer visibility based on whether we have trail data
-    const vis = showTrail ? 'visible' : 'none'
-    try {
-      if (this.map.getLayer('adsb-trail-line'))
-        this.map.setLayoutProperty('adsb-trail-line', 'visibility', vis)
-      if (this.map.getLayer('adsb-trail-dots'))
-        this.map.setLayoutProperty('adsb-trail-dots', 'visibility', vis)
-    } catch (_) {}
-    try {
-      if (this.map.getSource('adsb-trails-source'))
-        (this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource).setData(
-          this._trailsGeojson as GeoJSON.GeoJSON,
-        )
-      if (this.map.getSource('adsb-trail-line-source'))
-        (this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource).setData(
-          this._trailLineGeojson as GeoJSON.GeoJSON,
-        )
-      if (lineGradient && this.map.getLayer('adsb-trail-line'))
-        this.map.setPaintProperty('adsb-trail-line', 'line-gradient', lineGradient)
-    } catch (_) {}
+    this._aircraftTrails.rebuild()
   }
 
-  /**
-   * A trail's colour at a stored position, matching the aircraft: its altitude
-   * colour then, or red throughout for an emergency. With no altitude to go on,
-   * or altitude colouring off, it takes the aircraft's flat colour.
-   */
   private _trailColour(altitudeFeet: number, isEmergency: 0 | 1, isMilitary: 0 | 1): string {
-    if (isEmergency) return ARROW_COLOURS.emergency
-    if (this._altitudeColouring && altitudeFeet > 0) {
-      return altitudeColour(altitudeFeet, this._silhouettePalette)
-    }
-    if (isMilitary) return ARROW_COLOURS.military
-    if (this._iconStyle !== 'silhouette') return ARROW_COLOURS.civil
-    return this._altitudeColouring
-      ? SILHOUETTE_PALETTES[this._silhouettePalette].civil
-      : SILHOUETTE_PLAIN_COLOURS[this._silhouettePalette]
-  }
-
-  /** Trail line vertices: historical reported points, then the aircraft's current interpolated position. */
-  private _trailLineCoords(hex: string, points: TrailEntry[]): [number, number][] {
-    const lineCoords: [number, number][] = points.map((point) => [point.lon, point.lat])
-    const interpCoords = this._interpolatedCoords(hex)
-    if (interpCoords) lineCoords.push(interpCoords)
-    // Deduplicate consecutive identical coords to avoid zero-length segments
-    return lineCoords.filter(
-      (coord, index) =>
-        index === 0 ||
-        coord[0] !== lineCoords[index - 1][0] ||
-        coord[1] !== lineCoords[index - 1][1],
-    )
-  }
-
-  /**
-   * Keeps the trail line's leading vertex attached to the dead-reckoned icon.
-   * The icon moves every interpolation tick but _rebuildTrails only runs per
-   * fetch, so without this the line end lags behind the aircraft and then snaps
-   * forward on the next data reception. Only the single-feature line source is
-   * updated (not the dots) to keep the per-tick setData cost minimal.
-   */
-  private _refreshTrailLineHead(): void {
-    const hex = this._trailHex ?? this._selectedHex
-    const lineFeature = this._trailLineGeojson.features[0]
-    const points = hex ? this._trails[hex] : undefined
-    if (!hex || !lineFeature || lineFeature.properties.hex !== hex || !points) return
-    const lineCoords = this._trailLineCoords(hex, points)
-    if (lineCoords.length < 2) return
-    lineFeature.geometry.coordinates = lineCoords
-    try {
-      ;(
-        this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource | undefined
-      )?.setData(this._trailLineGeojson as GeoJSON.GeoJSON)
-    } catch (_) {}
+    return this._aircraftTrails.colour(altitudeFeet, isEmergency, isMilitary)
   }
 
   // ---- Position hold / stale removal ----
@@ -1490,7 +1332,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       }
     } catch (e) {}
 
-    this._refreshTrailLineHead()
+    this._aircraftTrails.refreshLineHead()
 
     if (this._tagMarker && this._tagHex) {
       const interpolatedFeature = this._interpolatedFeatures.find(
@@ -1621,15 +1463,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
           }
         }
 
-        if (hex) {
-          if (!this._trails[hex]) this._trails[hex] = []
-          const trail = this._trails[hex]
-          const last = trail[trail.length - 1]
-          if (!last || last.lon !== a.lon || last.lat !== a.lat) {
-            trail.push({ lon: a.lon!, lat: a.lat!, alt })
-            if (trail.length > this._MAX_TRAIL) trail.shift()
-          }
-        }
+        if (hex) this._aircraftTrails.record(hex, { lon: a.lon!, lat: a.lat!, alt })
 
         if (hex) {
           // Landing/departure *notifications* are handled by the app-level
@@ -1648,7 +1482,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
               delete this._parkedTimers[hex]
               delete this._prevAlt[hex]
               delete this._hasDeparted[hex]
-              delete this._trails[hex]
+              this._aircraftTrails.forget(hex)
               delete this._lastPositions[hex]
               this._geojson = {
                 type: 'FeatureCollection',
@@ -1797,8 +1631,9 @@ export class AdsbLiveControl implements maplibregl.IControl {
       for (const layerId of AIRFIELD_LAYER_ORDER) {
         if (this.map.getLayer(layerId)) this.map.moveLayer(layerId)
       }
-      if (this.map.getLayer('adsb-trail-line')) this.map.moveLayer('adsb-trail-line')
-      if (this.map.getLayer('adsb-trail-dots')) this.map.moveLayer('adsb-trail-dots')
+      for (const layerId of TRAIL_LAYER_IDS) {
+        if (this.map.getLayer(layerId)) this.map.moveLayer(layerId)
+      }
       if (this.map.getLayer('adsb-bracket')) this.map.moveLayer('adsb-bracket')
       if (this.map.getLayer('adsb-icons')) this.map.moveLayer('adsb-icons')
       if (this.map.getLayer('adsb-hit')) this.map.moveLayer('adsb-hit')
@@ -1807,133 +1642,68 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Tracking state persistence ----
 
+  // Delegates kept for the spec, which calls them through priv().
   private _saveTrackingState(): void {
-    try {
-      const activeHex = this._tagHex || (this._followEnabled ? this._selectedHex : null)
-      if (activeHex && this._followEnabled) {
-        const prevHex = (() => {
-          try {
-            return JSON.parse(localStorage.getItem('adsbTracking') || '{}').hex
-          } catch (e) {
-            return null
-          }
-        })()
-        if (prevHex && prevHex !== activeHex) {
-          fetch(`/api/air/tracking/${encodeURIComponent(prevHex)}`, { method: 'DELETE' }).catch(
-            () => {},
-          )
-        }
-        localStorage.setItem('adsbTracking', JSON.stringify({ hex: activeHex }))
-        const f = this._geojson.features.find((f) => f.properties.hex === activeHex)
-        const callsign = f
-          ? (f.properties.flight || '').trim() || (f.properties.r || '').trim() || ''
-          : ''
-        fetch('/api/air/tracking', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hex: activeHex, callsign, follow: true }),
-        }).catch(() => {})
-      } else {
-        const prevHex = (() => {
-          try {
-            return JSON.parse(localStorage.getItem('adsbTracking') || '{}').hex
-          } catch (e) {
-            return null
-          }
-        })()
-        localStorage.removeItem('adsbTracking')
-        if (prevHex)
-          fetch(`/api/air/tracking/${encodeURIComponent(prevHex)}`, { method: 'DELETE' }).catch(
-            () => {},
-          )
-      }
-    } catch (e) {}
+    this._trackingPersistence.save()
   }
 
-  // Re-isolate the aircraft the user had isolated on the map (map-click "show only
-  // this one") before leaving the Air section. Runs once per control instance, but
-  // waits until the aircraft is actually in the feed so the isolate filter has a
-  // feature to show — retrying on later polls until then. A following/tracked
-  // aircraft restores via its own path, so isolation defers to it.
   private _restoreIsolationState(): void {
-    if (this._isolationRestored) return
-    const hex = this._airStore.mapIsolatedHex
-    if (!hex || this._followEnabled) {
-      this._isolationRestored = true
-      return
-    }
-    const present = this._geojson.features.some((f) => f.properties.hex === hex)
-    if (!present) return
-    this._isolationRestored = true
-    this._selectedHex = hex
-    this._isolatedHex = hex
-    this._applySelection()
+    this._trackingPersistence.restoreIsolation()
   }
 
   private _restoreTrackingState(): void {
-    if (this._trackingRestored) return
-    this._trackingRestored = true
-    fetch('/api/air/tracking')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows: { hex: string; follow: boolean }[]) => {
-        const tracked = rows.find((r) => r.follow)
-        if (tracked) localStorage.setItem('adsbTracking', JSON.stringify({ hex: tracked.hex }))
-        if (!this._doRestoreTracking()) this._trackingRestored = false
-      })
-      .catch(() => {
-        if (!this._doRestoreTracking()) this._trackingRestored = false
-      })
+    this._trackingPersistence.restoreTracking()
   }
 
   private _doRestoreTracking(): boolean {
+    return this._trackingPersistence.applySaved()
+  }
+
+  /**
+   * Follow a restored aircraft again: select it, save it as followed, re-arm its
+   * alerts, pin its tag and status bar, and ease the map to it.
+   */
+  private _applyTrackingRestore(aircraftFeature: AircraftGeoFeature): void {
+    const hex = aircraftFeature.properties.hex
+    this._selectedHex = hex
+    this._applySelection()
+    this._followEnabled = true
+    this._saveTrackingState()
+    this._notifEnabled.add(hex)
     try {
-      const saved = localStorage.getItem('adsbTracking')
-      if (!saved) return true
-      const { hex } = JSON.parse(saved)
-      if (!hex) return true
-      const aircraftFeature = this._geojson.features.find((f) => f.properties.hex === hex)
-      if (!aircraftFeature) return false
-      this._selectedHex = hex
-      this._applySelection()
-      this._followEnabled = true
-      this._saveTrackingState()
-      this._notifEnabled.add(hex)
-      try {
-        const persisted = this._notificationsStore.items.filter((i) => i.type === 'tracking')
-        if (!this._trackingNotifIds) this._trackingNotifIds = {}
-        for (const item of persisted) {
-          this._trackingNotifIds[hex] = item.id
-          this._notificationsStore.update({
-            id: item.id,
-            action: {
-              label: 'DISABLE ALERTS',
-              callback: () => {
-                this._notifEnabled.delete(hex)
-                if (this._trackingNotifIds) delete this._trackingNotifIds[hex]
-                this._rebuildTagForHex(hex)
-              },
+      const persisted = this._notificationsStore.items.filter(
+        (notification) => notification.type === 'tracking',
+      )
+      if (!this._trackingNotifIds) this._trackingNotifIds = {}
+      for (const item of persisted) {
+        this._trackingNotifIds[hex] = item.id
+        this._notificationsStore.update({
+          id: item.id,
+          action: {
+            label: 'DISABLE ALERTS',
+            callback: () => {
+              this._notifEnabled.delete(hex)
+              if (this._trackingNotifIds) delete this._trackingNotifIds[hex]
+              this._rebuildTagForHex(hex)
             },
-          })
-        }
-      } catch (e) {}
-      /* v8 ignore start -- defensive: aircraftFeature is in the collection so
+          },
+        })
+      }
+    } catch {}
+    /* v8 ignore start -- defensive: aircraftFeature is in the collection so
          _interpolatedCoords always resolves; the || fallback never runs */
-      const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
-      /* v8 ignore stop */
-      this._tags.placeSelected(aircraftFeature.properties, coords)
-      this._tagHex = hex
-      this._showStatusBar(aircraftFeature.properties)
-      const is3D = this._is3DActive()
-      this.map.easeTo({
-        center: aircraftFeature.geometry.coordinates,
-        zoom: 16,
-        ...(is3D ? { pitch: 45 } : {}),
-        duration: 600,
-      })
-      return true
-    } catch (e) {
-      return false
-    }
+    const coords = this._interpolatedCoords(hex) || aircraftFeature.geometry.coordinates
+    /* v8 ignore stop */
+    this._tags.placeSelected(aircraftFeature.properties, coords)
+    this._tagHex = hex
+    this._showStatusBar(aircraftFeature.properties)
+    const is3D = this._is3DActive()
+    this.map.easeTo({
+      center: aircraftFeature.geometry.coordinates,
+      zoom: 16,
+      ...(is3D ? { pitch: 45 } : {}),
+      duration: 600,
+    })
   }
 
   /**
@@ -2037,10 +1807,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._isolatedHex = null
     this._followEnabled = false
     this._geojson = { type: 'FeatureCollection', features: [] }
-    this._trailsGeojson = { type: 'FeatureCollection', features: [] }
-    this._trailLineGeojson = { type: 'FeatureCollection', features: [] }
-    this._trailHex = null
-    this._trails = {}
     this._lastPositions = {}
     this._interpolatedFeatures = []
     this._prevAlt = {}
@@ -2052,16 +1818,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         this._geojson as GeoJSON.GeoJSON,
       )
     } catch (e) {}
-    try {
-      ;(this.map.getSource('adsb-trails-source') as maplibregl.GeoJSONSource)?.setData(
-        this._trailsGeojson as GeoJSON.GeoJSON,
-      )
-    } catch (e) {}
-    try {
-      ;(this.map.getSource('adsb-trail-line-source') as maplibregl.GeoJSONSource)?.setData(
-        this._trailLineGeojson as GeoJSON.GeoJSON,
-      )
-    } catch (e) {}
+    this._aircraftTrails.clear()
   }
 
   /**
@@ -2112,11 +1869,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       }
     }
     // Trail layers: hide when control is toggled off; when toggled on, _rebuildTrails will manage visibility
-    if (!this.visible) {
-      ;['adsb-trail-line', 'adsb-trail-dots'].forEach((id) => {
-        if (this.map.getLayer(id)) this.map.setLayoutProperty(id, 'visibility', 'none')
-      })
-    }
+    if (!this.visible) this._aircraftTrails.setVisibility(false)
     this._applyTypeFilter()
     if (this.button) {
       this.button.style.opacity = this.visible ? '1' : '0.3'
