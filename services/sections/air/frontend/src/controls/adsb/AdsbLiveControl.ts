@@ -18,14 +18,6 @@ import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '../../constants/ad
 import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
 import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
 import {
-  createRadarBlip,
-  createBracket,
-  createMilBracket,
-  createTowerBlip,
-  createGroundVehicleBlip,
-  createUAVBlip,
-} from '@sentinel/map-kit/sprites/adsbSprites'
-import {
   appendMirrored,
   createAccentBadge,
   createDimBadge,
@@ -42,6 +34,17 @@ import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/res
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { trailLineGradient } from './trailLineGradient'
+import {
+  applyMapDimming,
+  iconImageExpression,
+  iconLayerVisibility,
+  iconRotateExpression,
+  iconSizeExpression,
+  MAP_DIM_LAYER_ID,
+  MAP_DIM_OPACITY,
+  registerAdsbIcons,
+  silhouetteZoomScale,
+} from './adsbIconStyle'
 import { AIRFIELD_LAYER_ORDER } from '../airfield-label/AirfieldMarkers'
 import {
   altitudeColourKey,
@@ -56,10 +59,7 @@ import {
   silhouetteImageId,
   silhouetteRotatesWithTrack,
   SILHOUETTE_IMAGE_PREFIX,
-  SILHOUETTE_SELECTED_SUFFIX,
   type SilhouettePalette,
-  SILHOUETTE_ZOOMED_IN_SCALE,
-  SILHOUETTE_ZOOMED_IN_THRESHOLD,
   type SilhouetteColourKey,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
 
@@ -102,12 +102,6 @@ interface AircraftProperties {
   /** 1 when the silhouette turns with the track; 0 for a side-view shape (a balloon). */
   silhouetteRotates: 0 | 1
 }
-
-/** The layer that dims the dark map beneath airfields and aircraft (see `_applyMapDimming`). */
-const MAP_DIM_LAYER_ID = 'adsb-map-dim'
-
-/** Black at this opacity matches the stylesheet's `brightness(0.65)`. */
-const MAP_DIM_OPACITY = 0.35
 
 /**
  * A callsign's padding beside a silhouette, with no arrow to balance. The right
@@ -232,7 +226,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (hex === this._selectedHexValue) return
     this._selectedHexValue = hex
     if (this._iconStyle === 'silhouette' && this.map?.getLayer('adsb-icons'))
-      this.map.setLayoutProperty('adsb-icons', 'icon-image', this._iconImageExpression())
+      this.map.setLayoutProperty(
+        'adsb-icons',
+        'icon-image',
+        iconImageExpression(this._iconStyle, this._selectedHex, this._silhouettePalette),
+      )
   }
 
   /**
@@ -483,7 +481,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this.map.setFilter('adsb-icons', filter as maplibregl.FilterSpecification)
       // Labels are permanently on. In arrow mode their glyph wells replace the
       // symbol layer, so it stays hidden; in silhouette mode it draws the aircraft.
-      this.map.setLayoutProperty('adsb-icons', 'visibility', this._iconLayerVisibility())
+      this.map.setLayoutProperty('adsb-icons', 'visibility', iconLayerVisibility(this._iconStyle))
     }
   }
 
@@ -598,164 +596,16 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return String(Math.round(alt)) + 'ft'
   }
 
-  // ---- Canvas sprite factories ----
+  // ---- Icon style (expressions live in adsbIconStyle.ts) ----
 
-  // ---- Sprite registration ----
-
+  /** Register the sprite images for the current silhouette palette (every style load). */
   _registerIcons(): void {
-    const _addOrUpdate = (
-      name: string,
-      data: ImageData,
-      options: { pixelRatio: number; sdf: boolean },
-    ) => {
-      if (this.map.hasImage(name)) {
-        this.map.updateImage(name, data)
-      } else {
-        this.map.addImage(name, data, options)
-      }
-    }
-    _addOrUpdate('adsb-bracket', createBracket(), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-bracket-mil', createMilBracket(), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-bracket-emerg', createBracket('#ff2222'), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-bracket-emerg-gnd', createBracket('#ff2222'), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-blip', createRadarBlip('#00aaff', 1.1), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-blip-mil', createRadarBlip('#c8ff00', 1.1), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-blip-emerg', createRadarBlip('#ff2222', 1.1), { pixelRatio: 2, sdf: false })
-    _addOrUpdate('adsb-blip-uav', createUAVBlip('#ffffff', 1.1), { pixelRatio: 2, sdf: false })
-    // Ground vehicles are drawn on the map only in silhouette mode, beside the
-    // silhouettes, so they take the silhouettes' service and emergency colours
-    // for the basemap (initLayers sets the palette first, on every style load).
-    const vehicleColours = SILHOUETTE_PALETTES[this._silhouettePalette]
-    _addOrUpdate('adsb-blip-gnd', createGroundVehicleBlip(vehicleColours.civil), {
-      pixelRatio: 2,
-      sdf: false,
-    })
-    _addOrUpdate('adsb-blip-emerg-gnd', createGroundVehicleBlip(vehicleColours.emergency), {
-      pixelRatio: 2,
-      sdf: false,
-    })
-    _addOrUpdate('adsb-blip-tower', createTowerBlip(1.1), { pixelRatio: 2, sdf: false })
+    registerAdsbIcons(this.map, this._silhouettePalette)
   }
 
-  // ---- Icon layer expressions ----
-
-  /**
-   * In silhouette mode, prefer `silhouetteValue` for features that have a
-   * silhouette and fall back to `arrowValue` for the rest; in arrow mode, just
-   * `arrowValue`. Aircraft whose type and category name no shape, and surface
-   * traffic, keep their arrow-mode symbol either way.
-   */
-  private _preferSilhouette<LayoutValue extends maplibregl.ExpressionSpecification | number>(
-    silhouetteValue: LayoutValue,
-    arrowValue: LayoutValue,
-  ): LayoutValue | maplibregl.ExpressionSpecification {
-    if (this._iconStyle !== 'silhouette') return arrowValue
-    return ['case', ['!=', ['get', 'silhouetteImage'], ''], silhouetteValue, arrowValue]
-  }
-
-  /** Which map image each aircraft gets: its silhouette, or the arrow-mode symbol. */
-  private _iconImageExpression(): maplibregl.ExpressionSpecification {
-    return this._preferSilhouette<maplibregl.ExpressionSpecification>(
-      // The feature names its shape and colour; selection and the palette are the map's.
-      this._selectedHex
-        ? [
-            'concat',
-            ['get', 'silhouetteImage'],
-            ['case', ['==', ['get', 'hex'], this._selectedHex], SILHOUETTE_SELECTED_SUFFIX, ''],
-            `:${this._silhouettePalette}`,
-          ]
-        : ['concat', ['get', 'silhouetteImage'], `:${this._silhouettePalette}`],
-      [
-        'case',
-        ['==', ['get', 'category'], 'C1'],
-        'adsb-blip-emerg-gnd',
-        ['==', ['get', 'category'], 'C2'],
-        'adsb-blip-gnd',
-        ['==', ['get', 'category'], 'C3'],
-        'adsb-blip-tower',
-        ['==', ['get', 't'], 'TWR'],
-        'adsb-blip-tower',
-        ['==', ['get', 'squawkEmerg'], 1],
-        'adsb-blip-emerg',
-        ['boolean', ['get', 'military'], false],
-        'adsb-blip-mil',
-        ['==', ['get', 'category'], 'B6'],
-        'adsb-blip-uav',
-        'adsb-blip',
-      ],
-    )
-  }
-
-  /**
-   * Icon scale. Silhouette images are drawn at their zoomed-out size (already
-   * sized by the aircraft's real size) and grow by
-   * {@link SILHOUETTE_ZOOMED_IN_SCALE} once zoomed in, as ADS-B Exchange's do;
-   * the arrow-mode sprites are drawn larger and shown at 0.75, as they always
-   * have been. MapLibre only allows `zoom` at the top of an expression, so the
-   * zoom step wraps the per-feature choice rather than the other way round.
-   */
-  private _iconSizeExpression(): maplibregl.ExpressionSpecification | number {
-    if (this._iconStyle !== 'silhouette') return 0.75
-    return [
-      'step',
-      ['zoom'],
-      this._preferSilhouette(1, 0.75),
-      SILHOUETTE_ZOOMED_IN_THRESHOLD,
-      this._preferSilhouette(SILHOUETTE_ZOOMED_IN_SCALE, 0.75),
-    ]
-  }
-
-  /** The zoom scale silhouettes are drawn at right now (see {@link _iconSizeExpression}). */
-  private _silhouetteZoomScale(): number {
-    return this.map.getZoom() >= SILHOUETTE_ZOOMED_IN_THRESHOLD ? SILHOUETTE_ZOOMED_IN_SCALE : 1
-  }
-
-  /**
-   * Icon rotation. Aircraft turn to their track; surface traffic, towers and
-   * side-view silhouettes (a balloon) stay upright, since their reported track
-   * is not a heading worth showing.
-   */
-  private _iconRotateExpression(): maplibregl.ExpressionSpecification {
-    return this._preferSilhouette<maplibregl.ExpressionSpecification>(
-      ['case', ['==', ['get', 'silhouetteRotates'], 1], ['get', 'track'], 0],
-      [
-        'case',
-        ['match', ['get', 'category'], ['C1', 'C2', 'C3', 'C4', 'C5'], true, false],
-        0,
-        ['==', ['get', 't'], 'TWR'],
-        0,
-        ['get', 'track'],
-      ],
-    )
-  }
-
-  /**
-   * Keep aircraft and airfield labels at full brightness on the dark map.
-   * `MapLibreMap.vue` dims the whole canvas with a CSS filter, which would cap
-   * a white silhouette at mid grey and dull an open airfield label; here the
-   * same dimming comes from a layer just under the airfields and aircraft
-   * instead, so the basemap looks as it did. Both icon styles get it, so an
-   * airfield label looks the same in either. The light map keeps the
-   * stylesheet's behaviour (no dimming at all).
-   */
+  /** Dim the dark map beneath aircraft for the current palette (see {@link applyMapDimming}). */
   private _applyMapDimming(): void {
-    const dimBelowAircraft = this._silhouettePalette === 'dark'
-    this.map.getCanvas().style.filter = dimBelowAircraft ? 'none' : ''
-    if (this.map.getLayer(MAP_DIM_LAYER_ID))
-      this.map.setLayoutProperty(
-        MAP_DIM_LAYER_ID,
-        'visibility',
-        dimBelowAircraft ? 'visible' : 'none',
-      )
-  }
-
-  /**
-   * Whether the `adsb-icons` symbol layer is shown outside isolation mode.
-   * Arrow mode hides it — each label's own arrow marks the aircraft — while
-   * silhouette mode is drawn by it.
-   */
-  private _iconLayerVisibility(): 'visible' | 'none' {
-    return this._iconStyle === 'silhouette' ? 'visible' : 'none'
+    applyMapDimming(this.map, this._silhouettePalette)
   }
 
   /**
@@ -769,9 +619,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this._iconStyle = style
     if (!this.map) return
     if (this.map.getLayer('adsb-icons')) {
-      this.map.setLayoutProperty('adsb-icons', 'icon-image', this._iconImageExpression())
-      this.map.setLayoutProperty('adsb-icons', 'icon-size', this._iconSizeExpression())
-      this.map.setLayoutProperty('adsb-icons', 'icon-rotate', this._iconRotateExpression())
+      this.map.setLayoutProperty(
+        'adsb-icons',
+        'icon-image',
+        iconImageExpression(this._iconStyle, this._selectedHex, this._silhouettePalette),
+      )
+      this.map.setLayoutProperty('adsb-icons', 'icon-size', iconSizeExpression(this._iconStyle))
+      this.map.setLayoutProperty('adsb-icons', 'icon-rotate', iconRotateExpression(this._iconStyle))
     }
     this._applyTypeFilter()
     this._hideHoverTagNow()
@@ -925,9 +779,13 @@ export class AdsbLiveControl implements maplibregl.IControl {
       ] as maplibregl.FilterSpecification,
       layout: {
         visibility: layerVisibility,
-        'icon-image': this._iconImageExpression(),
-        'icon-size': this._iconSizeExpression(),
-        'icon-rotate': this._iconRotateExpression(),
+        'icon-image': iconImageExpression(
+          this._iconStyle,
+          this._selectedHex,
+          this._silhouettePalette,
+        ),
+        'icon-size': iconSizeExpression(this._iconStyle),
+        'icon-rotate': iconRotateExpression(this._iconStyle),
         'icon-rotation-alignment': 'map',
         'icon-pitch-alignment': 'map',
         'icon-allow-overlap': true,
@@ -1646,7 +1504,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     if (!shape) return 12 + SILHOUETTE_LABEL_GAP_PX
     const track = props.silhouetteRotates ? (props.track ?? 0) : 0
     const reachPx = silhouetteSideReachPx(shape.shapeKey, track, leftFacing ? 'left' : 'right')
-    return reachPx * this._silhouetteZoomScale() + SILHOUETTE_LABEL_GAP_PX
+    return reachPx * silhouetteZoomScale(this.map.getZoom()) + SILHOUETTE_LABEL_GAP_PX
   }
 
   /**
@@ -1886,7 +1744,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     this.labelsVisible = true
     this._updateCallsignMarkers()
     if (this.map?.getLayer('adsb-icons'))
-      this.map.setLayoutProperty('adsb-icons', 'visibility', this._iconLayerVisibility())
+      this.map.setLayoutProperty('adsb-icons', 'visibility', iconLayerVisibility(this._iconStyle))
   }
 
   private _updateCallsignMarkers(): void {
