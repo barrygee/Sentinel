@@ -1925,6 +1925,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #659 from barrygee/refactor/section-map-style
 - Merge pull request #660 from barrygee/refactor/space-map-style
 - Merge pull request #661 from barrygee/refactor/space-upcoming-passes
+- Merge pull request #662 from barrygee/refactor/adsb-icon-style
 
 ### Performance
 
@@ -2062,6 +2063,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Share the Air and Sea map style lifecycle
 - Put the Space map on the shared style lifecycle
 - Render UPCOMING PASSES from one component
+- Extract adsbIconStyle from AdsbLiveControl
 
 ### Documentation
 
@@ -2383,6 +2385,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the shared map style lifecycle
 - Rebuild bundle for the Space map on the shared style lifecycle
 - Rebuild bundle for the shared UPCOMING PASSES section
+- Rebuild bundle for the extracted ADS-B icon style
 
 ### Continuous Integration
 
