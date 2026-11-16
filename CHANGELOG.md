@@ -1927,6 +1927,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #661 from barrygee/refactor/space-upcoming-passes
 - Merge pull request #662 from barrygee/refactor/adsb-icon-style
 - Merge pull request #663 from barrygee/refactor/aircraft-tags
+- Merge pull request #664 from barrygee/refactor/callsign-labels
 
 ### Performance
 
@@ -2066,6 +2067,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Render UPCOMING PASSES from one component
 - Extract adsbIconStyle from AdsbLiveControl
 - Extract AircraftTags from AdsbLiveControl
+- Extract CallsignLabels from AdsbLiveControl
 
 ### Documentation
 
@@ -2253,6 +2255,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Give the This machine label test's device a name
 - Look for THIS MACHINE in App Settings in the full-stack smoke
 - Cover AircraftTags against a fake host
+- Cover CallsignLabels against a fake host
 
 ### Build System
 
@@ -2390,6 +2393,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the shared UPCOMING PASSES section
 - Rebuild bundle for the extracted ADS-B icon style
 - Rebuild bundle for the extracted aircraft tags
+- Rebuild bundle for the extracted callsign labels
 
 ### Continuous Integration
 
