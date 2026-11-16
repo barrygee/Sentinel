@@ -184,6 +184,22 @@ C7 as built:
   `_labelOffset`) and accessors (`_tagHex`, `_tagMarker`, `_hoverHex`, `_hoverHideTimer`), because the spec reaches
   them through `priv()` and spies on `_rebuildTagForHex`/`_hideHoverTagNow`. The spec is unchanged.
 
+C8 as built:
+
+- `CallsignLabels.ts` owns the resting label markers (`markers`, by hex) and everything that draws them: which
+  aircraft get a label (layer, type filter, ground vehicles/towers, selection, isolation), building the pill
+  (`buildLabelEl`), the in-place update and the rebuild when an aircraft turns (`update`), `clear`, and the glyph,
+  arrow colour, arrow markup and resting-field helpers C7's host borrowed.
+- It reads the control through `CallsignLabelsHost` (map, features, icon style, altitude colouring, field selection,
+  filters, selection/isolation/follow, alert opt-in, staleness, interpolated position, label offset, category and
+  altitude formatting) and reports back through it: a label placed while the hover tag is open over its aircraft,
+  the TRACKING button, and mouse enter/leave/click. The hover tag and trail stay the control's.
+- `_isLeftFacing` is gone (the control imports map-kit's `isLeftFacing`, as `AircraftTags` does).
+- The control keeps one-line delegates (`_updateCallsignMarkers`, `_clearCallsignMarkers`, `_buildCallsignLabelEl`,
+  `_makeArrowSvg`, `_arrowColour`) and a `_callsignMarkers` accessor, because the spec calls and spies on them through
+  `priv()`; its own refreshes go through `_updateCallsignMarkers` so those spies still see them. The spec is
+  unchanged. `AdsbLiveControl.ts` 2,562 → 2,128 lines.
+
 ### C10. `SatelliteControl.ts` (1,020 lines)
 
 - Extract follow and active-satellite persistence (`_saveFollowState`, `_readFollowState`, `_saveActiveSat`,

@@ -16,25 +16,14 @@ import {
 } from './aircraftPosition'
 import { ADSB_POLL_INTERVAL_MS, ADSB_REFETCH_GUARD_MS } from '../../constants/adsb'
 import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
-import {
-  appendMirrored,
-  createAccentBadge,
-  createDimBadge,
-  createDirectionArrowShape,
-  createFilledDotShape,
-  createGlyphSvg,
-  createGlyphWell,
-  createGroundVehicleShape,
-  createLabelPill,
-  createNameSegment,
-  isLeftFacing,
-} from '@sentinel/map-kit/map-label/mapLabelParts'
+import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { altitudeColour } from '@sentinel/map-kit/aircraft-silhouettes/altitudeColour'
 import { trailLineGradient } from './trailLineGradient'
 import type { AircraftGeoFeature, AircraftProperties } from './adsbFeature'
-import { AircraftTags, SILHOUETTE_NAME_PADDING } from './AircraftTags'
+import { AircraftTags } from './AircraftTags'
+import { CallsignLabels } from './CallsignLabels'
 import {
   applyMapDimming,
   iconImageExpression,
@@ -210,6 +199,78 @@ export class AdsbLiveControl implements maplibregl.IControl {
     },
   })
 
+  /** The resting callsign labels; this control decides when they refresh. */
+  private _labels = new CallsignLabels({
+    getMap: () => this.map,
+    labelsVisible: () => this.labelsVisible,
+    features: () => this._geojson.features,
+    iconStyle: () => this._iconStyle,
+    altitudeColouring: () => this._altitudeColouring,
+    labelFields: () => this._tagFields,
+    allHidden: () => this._allHidden,
+    selectedHex: () => this._selectedHex,
+    isolatedHex: () => this._isolatedHex,
+    typeFilter: () => this._typeFilter,
+    hideGroundVehicles: () => this._hideGroundVehicles,
+    hideTowers: () => this._hideTowers,
+    layerVisible: () => this.visible,
+    isFollowing: () => this._followEnabled,
+    taggedHex: () => this._tagHex,
+    isAlertEnabled: (hex) => this._notifEnabled.has(hex),
+    isStale: (hex) => {
+      const position = this._lastPositions[hex]
+      return position
+        ? isStale(position, this._feedObservedAt, Date.now(), this._snapshotLifetimeMs)
+        : false
+    },
+    interpolatedCoords: (hex) => this._interpolatedCoords(hex),
+    labelOffset: (props, leftFacing) => this._labelOffset(props, leftFacing),
+    categoryLabel: (code) => this._categoryLabel(code),
+    formatAltitude: (altitudeFeet) => this._formatAltBadge(altitudeFeet),
+    onLabelPlaced: (hex, labelEl) => {
+      // The hover tag hides the label it opened over; a label rebuilt under it stays hidden too.
+      if (this._hoverHex === hex && this._tags.hoverMarker) {
+        labelEl.style.visibility = 'hidden'
+        labelEl.style.pointerEvents = 'none'
+        this._tags.hoverLabelEl = labelEl
+      }
+    },
+    onLabelUntrack: (hex) => {
+      this._notifEnabled.delete(hex)
+      this._updateCallsignMarkers()
+    },
+    onLabelEnter: (hex, labelEl) => {
+      const feature = this._geojson.features.find((f) => f.properties.hex === hex)
+      if (feature)
+        this._showHoverTag(
+          feature,
+          true,
+          labelEl,
+          labelEl.dataset.dir as 'left' | 'right' | undefined,
+        )
+      if (hex) {
+        this._trailHex = hex
+        this._rebuildTrails()
+      }
+    },
+    onLabelLeave: () => {
+      this._hideHoverTag()
+      this._trailHex = this._selectedHex ?? null
+      this._rebuildTrails()
+    },
+    onLabelClick: (hex) => {
+      this._selectedHex = hex
+      this._hideHoverTag()
+      this._applySelection()
+      this._emitOpenInPanel(hex)
+    },
+  })
+
+  /** Each labelled aircraft's resting label marker, by hex. */
+  private get _callsignMarkers(): Record<string, maplibregl.Marker> {
+    return this._labels.markers
+  }
+
   /** The aircraft whose selected (or tracked) tag is pinned, or null. */
   get _tagHex(): string | null {
     return this._tags.selectedHex
@@ -241,8 +302,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private set _hoverHideTimer(timer: ReturnType<typeof setTimeout> | null) {
     this._tags.hoverHideTimer = timer
   }
-
-  private _callsignMarkers: Record<string, maplibregl.Marker> = {}
 
   private _prevAlt: Record<string, number> = {}
   private _hasDeparted: Record<string, boolean> = {}
@@ -1183,214 +1242,22 @@ export class AdsbLiveControl implements maplibregl.IControl {
     return this._tags.labelOffset(props, leftFacing)
   }
 
-  private _isLeftFacing(track: number): boolean {
-    return isLeftFacing(track)
-  }
-
-  /**
-   * The glyph drawn in a label's leading well: a rotated arrowhead for aircraft
-   * in flight, or an upright tug (ground vehicles) or dot (towers), whose
-   * ADS-B "track" is not a meaningful heading.
-   */
-  private _glyphMarkup(
-    props: { category?: string; t?: string },
-    color: string,
-    track: number,
+  /** An arrow's colour (see {@link CallsignLabels.arrowColour}). */
+  private _arrowColour(
+    props: AircraftProperties,
+    isEmergency: boolean,
+    isMilitary: boolean,
   ): string {
-    const cat = (props.category || '').toUpperCase()
-    const isTwr = (props.t || '').toUpperCase() === 'TWR'
-    if (cat === 'C1' || cat === 'C2') return createGlyphSvg(createGroundVehicleShape(color))
-    if (cat === 'C3' || cat === 'C4' || cat === 'C5' || isTwr)
-      return createGlyphSvg(createFilledDotShape(color))
-    return createGlyphSvg(createDirectionArrowShape(color), track)
+    return this._labels.arrowColour(props, isEmergency, isMilitary)
   }
 
-  /**
-   * An arrow's colour: red for an emergency, otherwise its altitude's. Always
-   * the dark ramp, because an arrow sits in a black well on either map. With no
-   * altitude it falls back to the military or civil colour.
-   */
-  private _arrowColour(props: AircraftProperties, isEmerg: boolean, isMil: boolean): string {
-    if (isEmerg) return ARROW_COLOURS.emergency
-    if (this._altitudeColouring && props.alt_baro > 0) {
-      return altitudeColour(props.alt_baro, 'dark')
-    }
-    return isMil ? ARROW_COLOURS.military : ARROW_COLOURS.civil
-  }
-
+  /** The glyph well markup a tag leads with (see {@link CallsignLabels.arrowSvg}). */
   private _makeArrowSvg(color: string, track: number, category?: string, type?: string): string {
-    // In silhouette mode the map draws the aircraft itself; the tag is text only.
-    if (this._iconStyle === 'silhouette') return ''
-    const well = createGlyphWell(this._glyphMarkup({ category, t: type }, color, track), '#000')
-    return well.outerHTML
-  }
-
-  /**
-   * The fields on a resting label: the civil or military selection, which in
-   * silhouette mode is narrowed to those also set to ALWAYS. Hover and click
-   * tags show the full selection in either mode.
-   */
-  private _restingLabelFields(isMil: boolean): Record<string, boolean> {
-    const fields = isMil ? this._tagFields.mil : this._tagFields.civil
-    if (this._iconStyle !== 'silhouette') return fields
-    return Object.fromEntries(
-      Object.entries(fields).map(([field, shown]) => [
-        field,
-        shown && !!this._tagFields.always[field],
-      ]),
-    )
+    return this._labels.arrowSvg(color, track, category, type)
   }
 
   private _buildCallsignLabelEl(props: AircraftProperties): HTMLElement {
-    const raw = (props.flight || '').trim() || (props.r || '').trim() || (props.hex || '').trim()
-    const callsign = raw || 'UNKNOWN'
-    const isEmerg = props.squawkEmerg === 1
-    const isMil = !!props.military
-    const arrowColor = this._arrowColour(props, isEmerg, isMil)
-    const track = props.track ?? 0
-    const fields = this._restingLabelFields(isMil)
-    const has = (f: keyof typeof fields) => !!fields[f]
-    const showCallsign = has('callsign')
-    const showType = has('aircraftType')
-    const showAlt = has('altitude')
-
-    const leftFacing = this._isLeftFacing(track)
-    const notifOn = this._notifEnabled.has(props.hex)
-
-    const el = createLabelPill(isEmerg ? 'rgba(180,0,0,0.85)' : '#000000')
-    el.dataset.dir = leftFacing ? 'left' : 'right'
-    el.dataset.notif = notifOn ? '1' : '0'
-
-    // Arrow mode leads a label with its arrow; in silhouette mode the map draws
-    // the aircraft itself.
-    const arrowWrap =
-      this._iconStyle === 'silhouette'
-        ? null
-        : createGlyphWell(this._glyphMarkup(props, arrowColor, track))
-    const badgeColor = isEmerg ? '#ff4040' : isMil ? '#c8ff00' : 'rgba(255,255,255,0.7)'
-    const nameColor = isEmerg ? '#ff4040' : '#ffffff'
-    const typeBg = isEmerg ? '#4d0000' : isMil ? '#4d6600' : '#002244'
-    const typeColor = isEmerg ? '#ff2222' : isMil ? '#c8ff00' : '#00aaff'
-    const catLbl = this._categoryLabel(props.category)
-    const isTracked = isMil && this._followEnabled && props.hex === this._tagHex
-
-    const dimBadge = (label: string, value: string) => createDimBadge(label, value, badgeColor)
-
-    const makeCallsign = (side: 'left' | 'right') => {
-      if (!showCallsign) return null
-      const name = createNameSegment(callsign, side, nameColor)
-      if (this._iconStyle === 'silhouette') name.style.padding = SILHOUETTE_NAME_PADDING
-      return name
-    }
-
-    const makeType = () => {
-      if (!showType || !props.t) return null
-      const b = createAccentBadge(props.t.toUpperCase(), typeBg, typeColor)
-      b.className = isMil ? 'mil-model-badge' : 'civil-model-badge'
-      return b
-    }
-
-    const makeAlt = () => {
-      if (!showAlt || !props.alt_baro || props.alt_baro === 0) return null
-      const b = dimBadge('ALT', this._formatAltBadge(props.alt_baro as number))
-      b.className = isMil ? 'mil-alt-badge' : 'civil-alt-badge'
-      return b
-    }
-
-    const makeSqk = () => {
-      if (!has('squawk') || !props.squawk) return null
-      return dimBadge('SQK', props.squawk)
-    }
-
-    const makeEmergSqk = () => {
-      const b = createAccentBadge(props.squawk, '#000', '#ff2222')
-      b.className = 'sqk-badge'
-      return b
-    }
-
-    const makeTrackBtn = () => {
-      if (!isTracked) return null
-      const btn = document.createElement('button')
-      btn.className = 'mil-trk-btn'
-      btn.textContent = 'TRACKING'
-      btn.style.cssText =
-        'background:none;border:none;cursor:pointer;padding:0 8px;color:#c8ff00;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
-      btn.addEventListener('mouseenter', () => {
-        btn.textContent = 'UNTRACK'
-      })
-      btn.addEventListener('mouseleave', () => {
-        btn.textContent = 'TRACKING'
-      })
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation()
-        this._notifEnabled.delete(props.hex)
-        this._updateCallsignMarkers()
-      })
-      return btn
-    }
-
-    const makeNotifBell = () => {
-      if (!notifOn || isTracked) return null
-      const btn = document.createElement('button')
-      btn.className = 'tag-notif-btn'
-      btn.dataset['hex'] = props.hex
-      btn.setAttribute('aria-label', 'Toggle alerts')
-      btn.style.cssText =
-        'background:none;border:none;cursor:pointer;padding:0 6px;color:#c8ff00;display:flex;align-items:center;align-self:stretch;touch-action:manipulation;-webkit-tap-highlight-color:transparent;'
-      btn.addEventListener('mouseenter', () => {
-        btn.style.color = '#c8ff00'
-      })
-      btn.addEventListener('mouseleave', () => {
-        btn.style.color = '#c8ff00'
-      })
-      btn.innerHTML = `<svg width="11" height="11" viewBox="0 0 13 13" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block"><path d="M6.5 1C4.015 1 2 3.015 2 5.5V9H1v1h11V9h-1V5.5C11 3.015 8.985 1 6.5 1Z" fill="currentColor"/><path d="M5 10.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1" fill="none"/></svg>`
-      return btn
-    }
-
-    // Segments in leading-edge order (arrow first, data trailing outward).
-    // `appendMirrored` reverses the whole list for a left-facing aircraft, which
-    // keeps the arrow on the nose and the data behind it.
-    appendMirrored(
-      el,
-      [
-        arrowWrap,
-        makeCallsign(leftFacing ? 'left' : 'right'),
-        makeType(),
-        isEmerg ? makeEmergSqk() : makeSqk(),
-        makeAlt(),
-        has('heading') && props.track != null
-          ? dimBadge('HDG', Math.round(props.track) + '°')
-          : null,
-        has('speed') && props.gs != null ? dimBadge('SPD', Math.round(props.gs) + 'kt') : null,
-        has('registration') && props.r ? dimBadge('REG', props.r) : null,
-        has('category') && catLbl ? dimBadge('CAT', catLbl) : null,
-        makeNotifBell(),
-        makeTrackBtn(),
-      ],
-      leftFacing,
-    )
-    el.addEventListener('mouseenter', () => {
-      const feature = this._geojson.features.find((f) => f.properties.hex === props.hex)
-      if (feature)
-        this._showHoverTag(feature, true, el, el.dataset.dir as 'left' | 'right' | undefined)
-      if (props.hex) {
-        this._trailHex = props.hex
-        this._rebuildTrails()
-      }
-    })
-    el.addEventListener('mouseleave', () => {
-      this._hideHoverTag()
-      this._trailHex = this._selectedHex ?? null
-      this._rebuildTrails()
-    })
-    el.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this._selectedHex = props.hex
-      this._hideHoverTag()
-      this._applySelection()
-      this._emitOpenInPanel(props.hex)
-    })
-    return el
+    return this._labels.buildLabelEl(props)
   }
 
   // Labels are permanently on (see the constructor). This only (re)asserts label
@@ -1404,310 +1271,11 @@ export class AdsbLiveControl implements maplibregl.IControl {
   }
 
   private _updateCallsignMarkers(): void {
-    if (!this.map || !this.labelsVisible) return
-    const features = this._geojson.features
-    const seen = new Set<string>()
-    for (const f of features) {
-      const hex = f.properties.hex
-      if (!hex) continue
-      // With no field set to ALWAYS, a silhouette has nothing to show at rest.
-      if (!Object.values(this._restingLabelFields(!!f.properties.military)).some(Boolean)) continue
-      seen.add(hex)
-      const zoom = this.map.getZoom()
-      const isMil = !!f.properties.military
-      const cat = (f.properties.category || '').toUpperCase()
-      const isGnd = ['C1', 'C2'].includes(cat)
-      const isTower =
-        ['C3', 'C4', 'C5'].includes(cat) || (f.properties.t || '').toUpperCase() === 'TWR'
-      const iconVisible = isGnd || isTower || f.properties.alt_baro > 0 || zoom >= 10
-      let typeVisible: boolean
-      if (this._allHidden && !this._selectedHex) {
-        typeVisible = false
-      } else if (isGnd) {
-        typeVisible = this._typeFilter === 'all' && !this._hideGroundVehicles
-      } else if (isTower) {
-        typeVisible = this._typeFilter === 'all' && !this._hideTowers
-      } else {
-        typeVisible =
-          this.visible &&
-          (this._typeFilter === 'all' ||
-            (this._typeFilter === 'civil' && !isMil) ||
-            (this._typeFilter === 'mil' && isMil))
-      }
-      if (!iconVisible || !typeVisible) {
-        if (this._callsignMarkers[hex]) {
-          this._callsignMarkers[hex].remove()
-          delete this._callsignMarkers[hex]
-        }
-        continue
-      }
-      if (hex === this._selectedHex) {
-        if (this._callsignMarkers[hex]) {
-          this._callsignMarkers[hex].remove()
-          delete this._callsignMarkers[hex]
-        }
-        continue
-      }
-      // Isolation mode: hide all markers except the isolated aircraft
-      if (this._isolatedHex && hex !== this._isolatedHex) {
-        if (this._callsignMarkers[hex]) {
-          this._callsignMarkers[hex].remove()
-          delete this._callsignMarkers[hex]
-        }
-        continue
-      }
-      /* v8 ignore start -- defensive: f is from the collection so
-         _interpolatedCoords always resolves; the || fallback never runs */
-      const lngLat = this._interpolatedCoords(hex) || f.geometry.coordinates
-      /* v8 ignore stop */
-      const pos2 = this._lastPositions[hex]
-      const isDim = pos2
-        ? isStale(pos2, this._feedObservedAt, Date.now(), this._snapshotLifetimeMs)
-        : false
-      if (this._callsignMarkers[hex]) {
-        this._callsignMarkers[hex].setLngLat(lngLat)
-        const labelEl = this._callsignMarkers[hex].getElement()
-        const box = labelEl
-        const raw =
-          (f.properties.flight || '').trim() ||
-          (f.properties.r || '').trim() ||
-          f.properties.hex ||
-          /* v8 ignore start -- defensive: hex is always set here (blank-hex skipped above) */
-          ''
-        /* v8 ignore stop */
-        const isEmerg = f.properties.squawkEmerg === 1
-        const isMil = !!f.properties.military
-        const lfields = this._restingLabelFields(isMil)
-        const showType = !!lfields.aircraftType
-        const showAlt = !!lfields.altitude
-        box.style.background = isEmerg ? 'rgba(180,0,0,0.85)' : '#000000'
-        labelEl.style.opacity = isDim ? '0.3' : '1'
-        // A turning silhouette reaches further or less far towards its label.
-        if (this._iconStyle === 'silhouette') {
-          const facingLeft = this._isLeftFacing(f.properties.track ?? 0)
-          this._callsignMarkers[hex].setOffset(this._labelOffset(f.properties, facingLeft))
-        }
-        const arrowSvg = box.querySelector('.adsb-arrow') as SVGElement | null
-        /* v8 ignore start -- defensive: a built label always contains its arrow svg */
-        if (arrowSvg) {
-          /* v8 ignore stop */
-          const arrowColor = this._arrowColour(f.properties, isEmerg, isMil)
-          const cat = (f.properties.category || '').toUpperCase()
-          const isTwr = (f.properties.t || '').toUpperCase() === 'TWR'
-          const isGndOrTower = ['C1', 'C2', 'C3', 'C4', 'C5'].includes(cat) || isTwr
-          arrowSvg.style.transform = `rotate(${isGndOrTower ? 0 : (f.properties.track ?? 0)}deg)`
-          // The first shape carries the colour: the vehicle's body or the tower's
-          // dot (filled), or the aircraft arrow (outlined).
-          const shape = arrowSvg.querySelector('path, polygon, rect, circle') as SVGElement | null
-          /* v8 ignore start -- defensive: the arrow svg always contains its shape node */
-          if (shape) {
-            /* v8 ignore stop */
-            if (isGndOrTower) {
-              shape.setAttribute('fill', arrowColor)
-            } else {
-              shape.setAttribute('stroke', arrowColor)
-            }
-          }
-        }
-        const newDir = this._isLeftFacing(f.properties.track ?? 0) ? 'left' : 'right'
-        const newNotif = this._notifEnabled.has(hex) ? '1' : '0'
-        if (box.dataset.dir !== newDir || box.dataset.notif !== newNotif) {
-          // Direction or notification state changed — recreate the marker
-          this._callsignMarkers[hex].remove()
-          delete this._callsignMarkers[hex]
-          const labelEl2 = this._buildCallsignLabelEl(f.properties)
-          if (isDim) {
-            labelEl2.style.opacity = '0.3'
-            const nameSpan2 = labelEl2.querySelector('.adsb-label-name') as HTMLElement | null
-            if (nameSpan2) nameSpan2.style.color = 'rgba(255,255,255,0.45)'
-          }
-          const isLeftFacing2 = this._isLeftFacing(f.properties.track ?? 0)
-          const anchor2 = (isLeftFacing2 ? 'right' : 'left') as 'right' | 'left'
-          const offset2 = this._labelOffset(f.properties, isLeftFacing2)
-          this._callsignMarkers[hex] = new maplibregl.Marker({
-            element: labelEl2,
-            anchor: anchor2,
-            offset: offset2,
-          })
-            .setLngLat(lngLat)
-            .addTo(this.map)
-          if (this._hoverHex === hex && this._tags.hoverMarker) {
-            labelEl2.style.visibility = 'hidden'
-            labelEl2.style.pointerEvents = 'none'
-            this._tags.hoverLabelEl = labelEl2
-          }
-          continue
-        }
-        const nameSpan = box.querySelector('.adsb-label-name') as HTMLElement | null
-        /* v8 ignore start -- defensive: raw is always truthy (hex present), so the || never runs */
-        if (nameSpan) nameSpan.textContent = raw || 'UNKNOWN'
-        /* v8 ignore stop */
-        const arrowNamePad = box.dataset.dir === 'left' ? '3px 6px 3px 12px' : '3px 12px 3px 6px'
-        const namePad = this._iconStyle === 'silhouette' ? SILHOUETTE_NAME_PADDING : arrowNamePad
-        if (isMil) {
-          const dimColor = isDim
-            ? 'color:rgba(255,255,255,0.45) !important'
-            : 'color:#ffffff !important'
-          if (nameSpan)
-            nameSpan.style.cssText =
-              dimColor + `;padding:${namePad};display:flex;align-items:center;`
-          const isTracked = this._followEnabled && hex === this._tagHex
-          const hasBadge = showType && !!f.properties.t
-          // alt badge
-          let altBadge = box.querySelector('.mil-alt-badge') as HTMLElement | null
-          if (showAlt && f.properties.alt_baro && f.properties.alt_baro !== 0) {
-            if (!altBadge) {
-              altBadge = document.createElement('span')
-              altBadge.className = 'mil-alt-badge'
-              altBadge.style.cssText =
-                'background:#000000;color:#c8ff00 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
-              altBadge.innerHTML =
-                '<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">ALT</span><span></span>'
-              box.insertBefore(
-                altBadge,
-                box.querySelector('.mil-trk-btn') || box.querySelector('.sqk-badge') || null,
-              )
-            }
-            ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent =
-              this._formatAltBadge(f.properties.alt_baro)
-          } else if (altBadge) {
-            altBadge.remove()
-          }
-          let modelBadge = box.querySelector('.mil-model-badge') as HTMLElement | null
-          if (hasBadge) {
-            if (!modelBadge) {
-              modelBadge = document.createElement('span')
-              modelBadge.className = 'mil-model-badge'
-              box.insertBefore(
-                modelBadge,
-                box.querySelector('.mil-alt-badge') ||
-                  box.querySelector('.mil-trk-btn') ||
-                  box.querySelector('.sqk-badge') ||
-                  null,
-              )
-            }
-            modelBadge.style.cssText = `background:${isEmerg ? '#4d0000' : '#4d6600'};color:${isEmerg ? '#ff2222' : '#c8ff00'} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
-            modelBadge.textContent = f.properties.t.toUpperCase()
-          } else if (modelBadge) {
-            modelBadge.remove()
-          }
-          let trkBtn = box.querySelector('.mil-trk-btn') as HTMLElement | null
-          if (isTracked && !trkBtn) {
-            trkBtn = document.createElement('button')
-            trkBtn.className = 'mil-trk-btn'
-            trkBtn.textContent = 'TRACKING'
-            trkBtn.style.cssText =
-              'background:none;border:none;cursor:pointer;padding:0 8px;color:#c8ff00;font-family:inherit;font-size:11px;font-weight:700;letter-spacing:.1em;align-self:stretch;display:flex;align-items:center;white-space:nowrap;'
-            trkBtn.addEventListener('mouseenter', () => {
-              ;(trkBtn as HTMLElement).textContent = 'UNTRACK'
-            })
-            trkBtn.addEventListener('mouseleave', () => {
-              ;(trkBtn as HTMLElement).textContent = 'TRACKING'
-            })
-            trkBtn.addEventListener('click', (e) => {
-              e.stopPropagation()
-              this._notifEnabled.delete(hex)
-              this._updateCallsignMarkers()
-            })
-            box.appendChild(trkBtn)
-          } else if (!isTracked && trkBtn) {
-            trkBtn.remove()
-          }
-        } else {
-          const dimColor = isDim
-            ? 'color:rgba(255,255,255,0.45) !important'
-            : 'color:#ffffff !important'
-          if (nameSpan)
-            nameSpan.style.cssText =
-              dimColor + `;padding:${namePad};display:flex;align-items:center;`
-          let civilBadge = box.querySelector('.civil-model-badge') as HTMLElement | null
-          if (showType && f.properties.t) {
-            if (!civilBadge) {
-              civilBadge = document.createElement('span')
-              civilBadge.className = 'civil-model-badge'
-              box.insertBefore(
-                civilBadge,
-                box.querySelector('.civil-alt-badge') || box.querySelector('.sqk-badge') || null,
-              )
-            }
-            civilBadge.style.cssText = `background:${isEmerg ? '#4d0000' : '#002244'};color:${isEmerg ? '#ff2222' : '#00aaff'} !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;`
-            civilBadge.textContent = f.properties.t.toUpperCase()
-          } else {
-            civilBadge?.remove()
-          }
-          let altBadge = box.querySelector('.civil-alt-badge') as HTMLElement | null
-          if (showAlt && f.properties.alt_baro && f.properties.alt_baro !== 0) {
-            if (!altBadge) {
-              altBadge = document.createElement('span')
-              altBadge.className = 'civil-alt-badge'
-              altBadge.style.cssText =
-                'background:rgba(0,0,0,0.5);color:rgba(255,255,255,0.7) !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;gap:4px;'
-              altBadge.innerHTML =
-                '<span style="opacity:0.45;font-weight:600;font-size:10px;letter-spacing:.12em">ALT</span><span></span>'
-              box.insertBefore(altBadge, box.querySelector('.sqk-badge') || null)
-            }
-            ;(altBadge.querySelector('span:last-child') as HTMLElement).textContent =
-              this._formatAltBadge(f.properties.alt_baro)
-          } else {
-            altBadge?.remove()
-          }
-        }
-        let badge = box.querySelector('.sqk-badge') as HTMLElement | null
-        if (isEmerg) {
-          box.style.gap = '0'
-          if (!badge) {
-            badge = document.createElement('span')
-            badge.className = 'sqk-badge'
-            badge.style.cssText =
-              'background:#000;color:#ff2222 !important;font-size:12px;font-weight:700;padding:0 7px;letter-spacing:.05em;align-self:stretch;display:flex;align-items:center;'
-            box.appendChild(badge)
-          }
-          badge.textContent = f.properties.squawk
-        } else if (badge) {
-          badge.remove()
-          box.style.gap = '5px'
-          if (
-            this._iconStyle !== 'silhouette' &&
-            !box.querySelector('.mil-model-badge') &&
-            !box.querySelector('.mil-trk-btn') &&
-            !box.querySelector('.mil-alt-badge') &&
-            !box.querySelector('.civil-alt-badge')
-          ) {
-            box.style.paddingRight = '8px'
-          }
-        }
-      } else {
-        const labelEl = this._buildCallsignLabelEl(f.properties)
-        if (isDim) {
-          labelEl.style.opacity = '0.3'
-          const nameSpan = labelEl.querySelector('.adsb-label-name') as HTMLElement | null
-          if (nameSpan) nameSpan.style.color = 'rgba(255,255,255,0.45)'
-        }
-        const isLeftFacing = this._isLeftFacing(f.properties.track ?? 0)
-        const anchor = (isLeftFacing ? 'right' : 'left') as 'right' | 'left'
-        const markerOffset = this._labelOffset(f.properties, isLeftFacing)
-        const marker = new maplibregl.Marker({ element: labelEl, anchor, offset: markerOffset })
-          .setLngLat(lngLat)
-          .addTo(this.map)
-        this._callsignMarkers[hex] = marker
-        if (this._hoverHex === hex && this._tags.hoverMarker) {
-          labelEl.style.visibility = 'hidden'
-          labelEl.style.pointerEvents = 'none'
-          this._tags.hoverLabelEl = labelEl
-        }
-      }
-    }
-    for (const hex of Object.keys(this._callsignMarkers)) {
-      if (!seen.has(hex)) {
-        this._callsignMarkers[hex].remove()
-        delete this._callsignMarkers[hex]
-      }
-    }
+    this._labels.update()
   }
 
   private _clearCallsignMarkers(): void {
-    for (const marker of Object.values(this._callsignMarkers)) marker.remove()
-    this._callsignMarkers = {}
+    this._labels.clear()
   }
 
   // ---- Selection helpers ----
@@ -2184,9 +1752,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
         if (taggedFeature) {
           // A polled aircraft always has a track (the feed's, or 0), set above.
-          if (
-            this._isLeftFacing(taggedFeature.properties.track) !== this._tags.selectedLeftFacing
-          ) {
+          if (isLeftFacing(taggedFeature.properties.track) !== this._tags.selectedLeftFacing) {
             // Turned to face the other way: the text flips sides, so the tag
             // must be placed again on the aircraft's other side.
             this._rebuildTagForHex(this._tagHex)
