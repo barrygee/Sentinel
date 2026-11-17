@@ -92,14 +92,14 @@ class TestStartOverTheBus:
 
     async def test_an_unavailable_device_is_a_reply(self, db, monkeypatch):
         async def unplugged(radio):
-            return False, "The dongle is unplugged."
+            return False, "SDR IS UNPLUGGED"
 
         monkeypatch.setattr(radio_registry, "device_availability", unplugged)
         reply = await bus.request("hub.decode.ais.start", {"radio_id": 2, "db": db})
         assert reply == {
             "ok": False,
             "reason": "unavailable",
-            "message": "AIS dongle is unavailable. The dongle is unplugged.",
+            "message": "AIS dongle is unavailable. SDR IS UNPLUGGED",
         }
 
     async def test_an_unreachable_dongle_is_a_reply_and_nothing_is_persisted(self, db, monkeypatch):

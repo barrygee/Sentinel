@@ -103,7 +103,7 @@ class TestCaching:
         available, reason = await radios.device_availability(MIRRORED_RADIO)
 
         assert len(fake.requests) == 2
-        assert (available, reason) == (False, "The dongle is unplugged.")
+        assert (available, reason) == (False, "SDR IS UNPLUGGED")
 
     async def test_a_missing_service_is_cached_too(self, install_bus, clock):
         fake = install_bus(error=TimeoutError())

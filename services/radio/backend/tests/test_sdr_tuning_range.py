@@ -219,13 +219,13 @@ class TestConnectToAnUnavailableRadio:
         monkeypatch.setattr(radio_control.radio_registry, "device_availability", device_availability)
 
     def test_says_so_when_the_device_is_gone(self, client, known_radio, monkeypatch):
-        self._device_availability(monkeypatch, False, "The dongle is unplugged.")
+        self._device_availability(monkeypatch, False, "SDR IS UNPLUGGED")
         response = client.post("/api/sdr/connect", json={"radio_id": 1})
         assert response.status_code == 200
         assert response.json() == {
             "status": "unavailable",
             "radio_id": 1,
-            "detail": "Roof dongle is unavailable. The dongle is unplugged.",
+            "detail": "Roof dongle is unavailable. SDR IS UNPLUGGED",
         }
 
     def test_falls_back_to_a_general_name(self, client, known_radio, monkeypatch):

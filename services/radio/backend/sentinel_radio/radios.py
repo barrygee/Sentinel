@@ -116,7 +116,7 @@ async def device_availability(radio: dict) -> tuple[bool, str]:
         if not isinstance(device, dict) or device.get("device_id") != device_id:
             continue
         if not device.get("present"):
-            return False, "The dongle is unplugged."
+            return False, "SDR IS UNPLUGGED"
         if not device.get("enabled"):
             return False, "The device is disabled on its SDR host."
         if (device.get("output") or {}).get("iq_port") is None:

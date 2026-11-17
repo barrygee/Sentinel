@@ -454,7 +454,7 @@ describe('SdrDeviceSelector — radios whose device is unavailable', () => {
     id: 4,
     name: 'RTL-SDR V4',
     device_available: false,
-    unavailable_reason: 'The dongle is unplugged.',
+    unavailable_reason: 'SDR IS UNPLUGGED',
   })
 
   async function openWith(radios: SdrRadio[]) {
@@ -471,7 +471,7 @@ describe('SdrDeviceSelector — radios whose device is unavailable', () => {
     expect(unplugged!.classList).toContain('base-select-menu-option--unavailable')
     expect(unplugged!.getAttribute('aria-disabled')).toBe('true')
     expect(unplugged!.querySelector('.base-select-menu-option-detail')!.textContent).toBe(
-      'The dongle is unplugged.',
+      'SDR IS UNPLUGGED',
     )
     expect(rooftop!.getAttribute('aria-disabled')).toBe('false')
   })

@@ -315,13 +315,13 @@ class TestStart:
         manifest_decode.register(_manifest())
 
         async def unplugged(radio):
-            return False, "The dongle is unplugged."
+            return False, "SDR IS UNPLUGGED"
 
         monkeypatch.setattr(radio_registry, "device_availability", unplugged)
         assert await manifest_decode.start_on_radio("pocsag", None, 3) == {
             "ok": False,
             "reason": "unavailable",
-            "message": "Roof is unavailable. The dongle is unplugged.",
+            "message": "Roof is unavailable. SDR IS UNPLUGGED",
         }
         assert manifest_decode.get_active_bridge("pocsag") is None
 
