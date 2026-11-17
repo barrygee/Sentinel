@@ -38,7 +38,7 @@
           v-if="sitePosition && appStore.isOnline"
           :latitude="sitePosition.latitude"
           :longitude="sitePosition.longitude"
-          :label="sdrHostLabel(host)"
+          :label="sdrHostLabel(host, appStore.thisMachineLabel)"
         />
       </div>
 

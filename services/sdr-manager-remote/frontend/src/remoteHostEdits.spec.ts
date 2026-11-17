@@ -114,17 +114,18 @@ describe('saveRemoteHostDraft for a remote host', () => {
 })
 
 describe("saveRemoteHostDraft for this machine's row", () => {
-  it('sends only the label and ADD SDRS', async () => {
+  it('sends only ADD SDRS: this machine is named by the machine name setting, not a label', async () => {
     await saveRemoteHostDraft(
       LOCAL_HOST,
-      draftOf({ name: ' Shack ', address: 'ignored', port: 1, authToken: 'ignored' }),
+      draftOf({
+        name: ' Shack ',
+        address: 'ignored',
+        port: 1,
+        authToken: 'ignored',
+        autoAddSdrs: true,
+      }),
     )
-    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: 'Shack', auto_add_sdrs: false })
-  })
-
-  it('clears a blank label to null', async () => {
-    await saveRemoteHostDraft(LOCAL_HOST, draftOf({ name: '  ' }))
-    expect(mockUpdateHost).toHaveBeenCalledWith(9, { name: null, auto_add_sdrs: false })
+    expect(mockUpdateHost).toHaveBeenCalledWith(9, { auto_add_sdrs: true })
   })
 
   it('does not require an address', async () => {

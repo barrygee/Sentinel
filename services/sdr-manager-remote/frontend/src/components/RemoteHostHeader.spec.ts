@@ -4,6 +4,7 @@ import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { axe } from 'jest-axe'
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import type { SdrManagerHost } from '@sentinel/shell-api/types/sdrManager'
 import RemoteHostHeader from './RemoteHostHeader.vue'
 import RemoteHostForm from './RemoteHostForm.vue'
@@ -110,9 +111,17 @@ describe('RemoteHostHeader', () => {
       expect(wrapper.text()).not.toContain('192.168.1.50')
     })
 
-    it("uses the operator's label for this machine when one is set", () => {
+    it('names this machine by the machine name, ignoring an old label on its row', () => {
+      useAppStore().setMachineName('Home')
       const wrapper = mountHeader({ host: { ...THIS_MACHINE, name: 'Shack' } })
-      expect(wrapper.find('.remote-host-header-name').text()).toBe('Shack')
+      expect(wrapper.find('.remote-host-header-name').text()).toBe('Home (This machine)')
+    })
+
+    it('follows a rename of this machine', async () => {
+      const wrapper = mountHeader({ host: THIS_MACHINE })
+      useAppStore().setMachineName('Shed')
+      await wrapper.vm.$nextTick()
+      expect(wrapper.find('.remote-host-header-name').text()).toBe('Shed (This machine)')
     })
 
     it('says this machine is not running when its row is disabled', () => {

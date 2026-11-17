@@ -1,11 +1,13 @@
-"""This machine's position, read from Sentinel's own Location setting (ADR 0007).
+"""This machine's position and name, read from Sentinel's own settings (ADR 0007).
 
 Sentry stored a fixed position of its own, typed into its console. SDR Manager
 does not: the machine running it already has a position, Sentinel's Location
 setting (`app.location`, in core), and a second copy would only drift from it.
 So `GET /api/status`, `GET /api/v1/sdrs` and the SSE snapshot publish core's
 value instead — in SDR Manager-only mode too, where the trimmed Settings keep
-the Location item for exactly this.
+the Location item for exactly this. Its name is read the same way, from
+`app.machineName` (Settings › App Settings › Machine Name), and published on
+`/api/v1/sdrs`'s `source` so other Sentinels can call this machine by it.
 
 Requests never wait on core. A background loop reads the setting every
 `location_refresh_s` and keeps the **last good value**: dongles keep streaming
@@ -31,6 +33,16 @@ logger = logging.getLogger(__name__)
 
 LOCATION_NAMESPACE = "app"
 LOCATION_KEY = "location"
+MACHINE_NAME_KEY = "machineName"
+MACHINE_NAME_MAX_LENGTH = 64
+"""Longer names are cut: the name is a label on other Sentinels' maps and lists."""
+
+
+def parse_machine_name_setting(value: Any) -> str:
+    """The `app.machineName` setting as a trimmed label, or `""` when it is unset or not text."""
+    if not isinstance(value, str):
+        return ""
+    return value.strip()[:MACHINE_NAME_MAX_LENGTH]
 
 
 def parse_location_setting(value: Any) -> tuple[float, float] | None:
@@ -62,12 +74,13 @@ def parse_location_setting(value: Any) -> tuple[float, float] | None:
 
 
 class CoreLocationSource:
-    """Serves the last position read from core, refreshed in the background."""
+    """Serves the last position and machine name read from core, refreshed in the background."""
 
     def __init__(self, clock: Clock, refresh_interval_s: float) -> None:
         self._clock = clock
         self._refresh_interval_s = refresh_interval_s
         self._location = SdrManagerLocation()
+        self._machine_name = ""
         # Logged once per outage, not on every failed refresh.
         self._core_unreachable_logged = False
 
@@ -75,8 +88,12 @@ class CoreLocationSource:
         """The last position read from core; unset until the first read succeeds."""
         return self._location
 
+    def get_machine_name(self) -> str:
+        """The operator's name for this machine, from core; `""` until read or when unnamed."""
+        return self._machine_name
+
     async def refresh(self) -> None:
-        """Read `app.location` from core once; on failure keep the last good value."""
+        """Read `app.location` and `app.machineName` from core once; on failure keep the last good values."""
         if not settings_client.settings_are_remote():
             # Only reachable outside a deployment (no SENTINEL_CORE_URL): there
             # is no core to ask, so the position simply stays unset.
@@ -100,6 +117,13 @@ class CoreLocationSource:
             logger.warning("location: Sentinel's Location setting is out of range; publishing no position")
             location = SdrManagerLocation(updated_at=self._clock.now_ms())
         self._location = location
+        # After the position is stored, so a name that can't be read never
+        # holds back the position other Sentinels plot this machine at.
+        try:
+            machine_name = await settings_client.read_setting(None, LOCATION_NAMESPACE, MACHINE_NAME_KEY)
+        except settings_client.SettingsUnavailable:
+            return
+        self._machine_name = parse_machine_name_setting(machine_name)
 
     async def run(self) -> None:
         """Refresh now, then every `refresh_interval_s`, until cancelled."""

@@ -892,7 +892,8 @@ describe('SettingsPanel', () => {
         'Range Ring Origin',
         'Offline Maps',
       ])
-      expect(titles.indexOf('Sentinel Location')).toBe(mapsStart - 1)
+      expect(titles.indexOf('Location')).toBe(mapsStart - 1)
+      expect(titles.indexOf('Machine Name')).toBe(mapsStart - 2)
     })
 
     it('shows Map Style and Map Layers with no description', async () => {
@@ -1052,7 +1053,7 @@ describe('SettingsPanel', () => {
       )
     })
 
-    it('offers only Sentinel Location and HTTPS of its own in SDR Manager-only mode', async () => {
+    it('offers only Machine Name, Location and HTTPS of its own in SDR Manager-only mode', async () => {
       setAppMode({ mode: 'sdr-manager-local-only', landingPath: '/settings/sdr-manager' })
 
       const wrapper = mountPanel()
@@ -1060,7 +1061,8 @@ describe('SettingsPanel', () => {
 
       // HTTPS too: an SDR Manager-only Pi is opened from other devices. No
       // Application Config: THIS MACHINE's Configuration edits that mode's settings.
-      expect(appItemIds(wrapper)).toEqual(['location', 'https'])
+      // Machine Name: other Sentinels call this machine's SDR Manager by it.
+      expect(appItemIds(wrapper)).toEqual(['machine-name', 'location', 'https'])
     })
 
     it("leaves a mode's hidden settings out of search too", async () => {

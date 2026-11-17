@@ -19,7 +19,7 @@ From another device, open it by this computer's IP address (`http://192.168.1.20
 
 In **Settings** (the gear, bottom right), then **APPLY CHANGES**:
 
-1. **App Settings › Sentinel Location**: your latitude and longitude.
+1. **App Settings › Machine Name** and **Location**: what to call this machine, and its latitude and longitude.
 2. **SPACE › Online Data Source**: pick a category, then **UPDATE TLE**.
 3. **SEA › AIS Data API Key**: a free key ([how](use/sea.md#add-your-aisstream-key)).
 4. **SDR Manager**: dongles plugged into this computer or another ([how](use/sdr-manager.md)), then **SDR › DEVICES** to listen to them ([how](use/sdr/add-a-radio.md)).

@@ -43,7 +43,7 @@ export const overheadAlertSubscriptions: NotificationSubscriptionSource = {
   order: 30,
   list() {
     return overheadAlertZones().locations.value.flatMap((location) => {
-      const place = location.isUser ? 'Sentinel location' : `SDR host: ${location.label}`
+      const place = location.isUser ? location.name : `SDR host: ${location.label}`
       return [
         ...(location.civil
           ? [{ id: `${location.id}:civil`, label: `${place} — civil aircraft overhead` }]

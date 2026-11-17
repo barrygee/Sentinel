@@ -20,9 +20,10 @@ export class RemoteHostSaveError extends Error {
 /**
  * Saves an existing host's staged edit (APPLY CHANGES).
  *
- * This machine's row (`is_local`) sends only its label and ADD SDRS: sdr-manager-remote
- * links it from core's registry and refuses any other change to it (409
- * `local_host_managed`). A blank label clears it. The console password is sent
+ * This machine's row (`is_local`) sends only ADD SDRS: sdr-manager-remote links
+ * it from core's registry and refuses any other change to it (409
+ * `local_host_managed`), and it is named by the machine name setting, not a
+ * label. Another host's blank label clears it. The console password is sent
  * only when one was typed, so a blank field keeps the stored one.
  *
  * @throws RemoteHostSaveError with the reason to show under the form
@@ -38,7 +39,7 @@ export async function saveRemoteHostDraft(
     await updateHost(
       host.id,
       host.is_local
-        ? { name, auto_add_sdrs: draft.autoAddSdrs }
+        ? { auto_add_sdrs: draft.autoAddSdrs }
         : {
             name,
             auto_add_sdrs: draft.autoAddSdrs,

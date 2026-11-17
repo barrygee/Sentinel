@@ -29,12 +29,13 @@
 |---|---|
 | **Core** | The `app` service: settings, alerts, offline maps, the service list |
 | **Gateway** | The one address a browser uses (port 8080) |
+| **Location** | This machine's position, set in Settings › App Settings |
+| **Machine Name** | One name for this machine, set in Settings › App Settings. Here it reads "&lt;name&gt; (This machine)" (or "This machine" when unnamed) wherever this machine shows: its position, its SDR Manager, range rings, overhead alerts; other Sentinels see the name |
 | **Off Grid** | Using only your radios, downloaded maps and stored data |
 | **Radio** | One dongle added to Sentinel |
 | **Radio host** | A second computer running the radio hub and decoders |
 | **Radio hub** | The `radio` service, the only part that talks to radios |
 | **Section** | AIR, SPACE, SEA, LAND or SDR |
-| **Sentinel Location** | Your position, set in Settings |
 
 ## Developer
 

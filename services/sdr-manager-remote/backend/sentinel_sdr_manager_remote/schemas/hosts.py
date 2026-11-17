@@ -187,6 +187,10 @@ class RemoteSdrHostOut(BaseModel):
     # This machine's own sdr-manager-local, linked from core's registry: it
     # signs in with the service bearer, so `auth_token_set` stays false.
     is_local: bool
+    # What the host's own operator named it (`source.machine_name` of its
+    # export), from the poller's last snapshot; null when it gives none. Shown
+    # when this Sentinel's operator hasn't labelled the host (`name`).
+    machine_name: str | None = None
     # The host lets this Sentinel use its private SDRs.
     may_use_private: bool
     auto_add_sdrs: bool
@@ -282,6 +286,8 @@ class HostSourceOut(BaseModel):
     """The `source` block of `/api/v1/sdrs` — the host's own description of itself."""
 
     name: str | None = None
+    # The operator's name for that machine, if its SDR Manager publishes one.
+    machine_name: str | None = None
     version: str | None = None
     host: str | None = None
     http_port: int | None = None
@@ -325,6 +331,9 @@ class HostSiteOut(BaseModel):
     name: str | None
     address: str
     port: int
+    # This Sentinel's own SDR Manager: its position is this machine's, so the UI
+    # names it as this machine and merges it with this machine's own entry.
+    is_local: bool = False
     reachable: bool
     latitude: float
     longitude: float

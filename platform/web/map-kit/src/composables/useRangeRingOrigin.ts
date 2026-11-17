@@ -3,6 +3,7 @@ import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 import { isValidLatLon } from '@sentinel/map-kit/utils/locationUtils'
 import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 
 /**
@@ -35,7 +36,7 @@ export interface RingOriginSetting {
 export interface ResolvedRingOrigin {
   longitude: number
   latitude: number
-  /** Display name for the map label and the picker, e.g. `MY LOCATION`. */
+  /** Display name for the map label and the picker, e.g. `HOME (THIS MACHINE)`. */
   label: string
   kind: RingOriginKind
   /**
@@ -150,6 +151,7 @@ function _initShared(): void {
   if (_origin) return
   _scope.run(() => {
     const { location } = useUserLocation()
+    const appStore = useAppStore()
     const sdrManagerSitesStore = useSdrManagerSitesStore()
 
     _origin = computed<ResolvedRingOrigin | null>(() => {
@@ -190,7 +192,8 @@ function _initShared(): void {
       return {
         longitude: userLocation.lon,
         latitude: userLocation.lat,
-        label: 'MY LOCATION',
+        // This machine, by its one name, as its SDR Manager's site reads too.
+        label: appStore.thisMachineLabel.toUpperCase(),
         kind: 'user',
         degraded: false,
       }

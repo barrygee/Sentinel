@@ -10,6 +10,7 @@ vi.mock('@sentinel/map-kit/composables/useUserLocation', () => ({
 
 import { useAirStore, USER_ALERT_LOCATION_ID, sdrManagerAlertLocationId } from '../stores/air'
 import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOverheadAlertZones } from './useOverheadAlertZones'
 
 function site(overrides: Partial<RadioSite> = {}): RadioSite {
@@ -34,16 +35,48 @@ describe('useOverheadAlertZones', () => {
   })
 
   describe('the list of places', () => {
-    it('puts the operator first, then each SDR host in fleet order', () => {
+    it('puts this machine first, then each SDR host in fleet order', () => {
       useSdrManagerSitesStore().sites = [site(), site({ id: 2, name: 'Coastal' })]
       const { locations } = useOverheadAlertZones()
       expect(locations.value.map((zone) => zone.label)).toEqual([
-        'MY LOCATION',
+        'THIS MACHINE',
         'GATESHEAD',
         'COASTAL',
       ])
       expect(locations.value[0]!.isUser).toBe(true)
       expect(locations.value[1]!.isUser).toBe(false)
+    })
+
+    it('names this machine by the machine name, in capitals for the map and as written for text', () => {
+      useAppStore().setMachineName('Home')
+      useSdrManagerSitesStore().sites = [site()]
+      const { locations } = useOverheadAlertZones()
+      expect(locations.value[0]).toMatchObject({
+        label: 'HOME (THIS MACHINE)',
+        name: 'Home (This machine)',
+      })
+      expect(locations.value[1]).toMatchObject({ label: 'GATESHEAD', name: 'Gateshead' })
+    })
+
+    it('does not list this machine’s own SDR Manager again beside this machine', () => {
+      useSdrManagerSitesStore().sites = [site({ id: 7, is_local: true }), site({ id: 2 })]
+      const { locations } = useOverheadAlertZones()
+      expect(locations.value.map((zone) => zone.id)).toEqual([
+        USER_ALERT_LOCATION_ID,
+        sdrManagerAlertLocationId(2),
+      ])
+    })
+
+    it('keeps this machine’s own SDR Manager when there is no fix to stand for it', () => {
+      locationRef.value = null
+      useSdrManagerSitesStore().sites = [site({ id: 7, is_local: true })]
+      const { locations } = useOverheadAlertZones()
+      expect(locations.value).toHaveLength(1)
+      expect(locations.value[0]).toMatchObject({
+        id: sdrManagerAlertLocationId(7),
+        label: 'THIS MACHINE',
+        isUser: false,
+      })
     })
 
     it('omits the operator when there is no fix', () => {
