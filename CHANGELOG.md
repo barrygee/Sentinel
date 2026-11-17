@@ -305,6 +305,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Optional position for radios added by IP, shown on the maps
 - Draw range rings as even black dots with black labels
 - Show this machine's certificate on one card
+- Publish this machine's name to other Sentinels
+- Give this machine one name across the app
 
 ### Bug Fixes
 
@@ -1936,6 +1938,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #651 from barrygee/fix/sdr-add-tooltip-left
 - Merge pull request #652 from barrygee/fix/sdr-settings-accordion-gap
 - Merge pull request #653 from barrygee/feat/single-certificate-card
+- Merge pull request #650 from barrygee/feat/machine-identity
 
 ### Performance
 
@@ -2150,6 +2153,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the refactor and reuse series plan
 - Keep the certificate routes in hosts.py for C2
 - Format the map-kit README table
+- Describe Machine Name and the renamed Location setting
 
 ### Tests
 
@@ -2410,6 +2414,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the add-frequency tooltip
 - Rebuild bundle for the SETTINGS accordion gap
 - Rebuild bundle for the single certificate card
+- Rebuild bundle for the machine name setting
 
 ### Continuous Integration
 
