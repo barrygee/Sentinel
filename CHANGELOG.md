@@ -304,6 +304,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move THIS MACHINE to App Settings in both modes
 - Optional position for radios added by IP, shown on the maps
 - Draw range rings as even black dots with black labels
+- Show this machine's certificate on one card
 
 ### Bug Fixes
 
@@ -1934,6 +1935,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #666 from barrygee/perf/space-sgp4-off-loop
 - Merge pull request #651 from barrygee/fix/sdr-add-tooltip-left
 - Merge pull request #652 from barrygee/fix/sdr-settings-accordion-gap
+- Merge pull request #653 from barrygee/feat/single-certificate-card
 
 ### Performance
 
@@ -2407,6 +2409,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the extracted aircraft trails
 - Rebuild bundle for the add-frequency tooltip
 - Rebuild bundle for the SETTINGS accordion gap
+- Rebuild bundle for the single certificate card
 
 ### Continuous Integration
 
