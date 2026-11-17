@@ -219,6 +219,51 @@ test.describe('SDR domain', () => {
       .toBe(true)
   })
 
+  test('a closed SETTINGS leaves the same gap down to FAVOURITES as between the other closed sections', async ({
+    page,
+  }) => {
+    // SETTINGS is nested at the foot of CONTROLS; closed, its wrapper and
+    // CONTROLS' own bottom padding once left a gap about three times the others.
+    await page.goto('/sdr/')
+    await waitForShellHydration(page)
+    await page.locator('#sdr-sidebar-rail [data-tab="radio"]').click()
+    await expect(page.locator('#msb-pane-radio')).toBeVisible()
+
+    const settingsToggle = page.locator('[aria-controls="sdr-settings-section"]')
+    await settingsToggle.click()
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'false')
+
+    const toggleBox = (title: string) =>
+      page
+        .locator('#msb-pane-radio button.base-accordion-toggle', { hasText: title })
+        .first()
+        .evaluate((toggle) => {
+          const box = toggle.getBoundingClientRect()
+          return { top: box.top, bottom: box.bottom }
+        })
+    const gaps = async () => {
+      const settings = await toggleBox('SETTINGS')
+      const favourites = await toggleBox('FAVOURITES')
+      const scanner = await toggleBox('SCANNER')
+      const search = await toggleBox('SEARCH')
+      return {
+        settingsToFavourites: Math.round(favourites.top - settings.bottom),
+        favouritesToScanner: Math.round(scanner.top - favourites.bottom),
+        scannerToSearch: Math.round(search.top - scanner.bottom),
+      }
+    }
+    // Polled, so a panel still animating in can't make a one-off reading.
+    await expect
+      .poll(async () => {
+        const measured = await gaps()
+        return (
+          measured.settingsToFavourites === measured.favouritesToScanner &&
+          measured.favouritesToScanner === measured.scannerToSearch
+        )
+      })
+      .toBe(true)
+  })
+
   test('Frequency Manager tab shows frequencies from stub', async ({ page }) => {
     await page.route('/api/sdr/frequencies', (route) => {
       void route.fulfill({

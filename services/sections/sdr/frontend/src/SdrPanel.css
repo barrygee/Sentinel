@@ -376,8 +376,26 @@
   background: transparent;
 }
 
+/* SETTINGS closed is the last row of CONTROLS: neither wrapper keeps its
+   bottom padding and the toggle keeps the 4px margin every closed section
+   has, so the gap down to FAVOURITES (4px + the 1px section margin) matches
+   the gaps between the other closed sections. */
+.sdr-scan-controls:has(
+  > div
+    .sdr-settings-controls
+    > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
+) {
+  padding-bottom: 0;
+}
+/* The id outranks `#sdr-mode-section .sdr-radio-section`'s 10px. */
+#sdr-mode-section
+  .sdr-settings-controls:has(
+    > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
+  ) {
+  padding-bottom: 0;
+}
 .sdr-settings-controls > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded) {
-  margin-bottom: 0;
+  margin-bottom: 4px;
 }
 
 .sdr-settings-controls .sdr-radio-section {
