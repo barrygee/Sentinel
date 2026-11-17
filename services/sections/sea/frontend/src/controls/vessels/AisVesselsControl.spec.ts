@@ -163,6 +163,12 @@ function makeFakeMap(options: { spanDeg?: number; zoom?: number } = {}) {
       layout[layer.id] = {}
     },
     getLayer: (id: string) => layers.get(id),
+    // Moves a layer to the top, as MapLibre's moveLayer does without a beforeId.
+    moveLayer: (id: string) => {
+      const layer = layers.get(id)!
+      layers.delete(id)
+      layers.set(id, layer)
+    },
     setLayoutProperty: (id: string, name: string, value: unknown) => {
       layout[id]![name] = value
     },
@@ -260,6 +266,8 @@ describe('AisVesselsControl', () => {
       'sea-vessel-track-dots',
     ])
     expect([...map._layers.keys()]).toEqual([
+      // The map dimming goes in first, beneath every vessel layer.
+      'sea-map-dim',
       'sea-vessel-track-line',
       'sea-vessel-track-dots',
       'sea-vessel-icons',
@@ -273,10 +281,65 @@ describe('AisVesselsControl', () => {
     expect(store.viewportBbox).not.toBeNull()
   })
 
+  // ── map dimming ──────────────────────────────────────────────────────────
+
+  it('dims the dark map with its layer instead of the canvas filter', () => {
+    const { map } = addControl()
+    expect(map._layers.get('sea-map-dim')).toMatchObject({
+      type: 'background',
+      paint: { 'background-color': '#000000', 'background-opacity': 0.35 },
+    })
+    expect(map.getCanvas().style.filter).toBe('none')
+    expect(map._layout['sea-map-dim']!.visibility).toBe('visible')
+  })
+
+  it('leaves the light map undimmed: the layer hidden and the canvas to the stylesheet', () => {
+    document.documentElement.setAttribute('data-map-theme', 'light')
+    try {
+      const { map } = addControl()
+      expect(map.getCanvas().style.filter).toBe('')
+      expect(map._layout['sea-map-dim']!.visibility).toBe('none')
+    } finally {
+      document.documentElement.removeAttribute('data-map-theme')
+    }
+  })
+
+  it('raises the dimming, then the given layers, then the vessels to the top, in that order', () => {
+    const { control, map } = addControl()
+    // Layers other controls added later, on top: rings over everything, the ports' pair.
+    map.addLayer({ id: 'sea-ports' })
+    map.addLayer({ id: 'sea-ports-open' })
+    map.addLayer({ id: 'range-rings' })
+
+    control.raiseAboveMapDimming(['sea-ports', 'sea-ports-open'])
+
+    expect([...map._layers.keys()]).toEqual([
+      'range-rings',
+      'sea-map-dim',
+      'sea-ports',
+      'sea-ports-open',
+      'sea-vessel-track-line',
+      'sea-vessel-track-dots',
+      'sea-vessel-icons',
+      'sea-vessel-bracket',
+      'sea-vessel-hit',
+    ])
+  })
+
+  it('skips any named layer the map does not have yet', () => {
+    const { control, map } = addControl()
+    map.addLayer({ id: 'range-rings' })
+
+    control.raiseAboveMapDimming(['sea-ports', 'sea-ports-open'])
+
+    expect([...map._layers.keys()].slice(0, 2)).toEqual(['range-rings', 'sea-map-dim'])
+    expect(map._layers.has('sea-ports')).toBe(false)
+  })
+
   it('re-running initLayers after a style reload keeps a single set and refreshes images', () => {
     const { control, map } = addControl()
     control.initLayers()
-    expect(map._layers.size).toBe(5)
+    expect(map._layers.size).toBe(6)
     expect(map.updateImage).toHaveBeenCalled()
   })
 
