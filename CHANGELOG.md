@@ -691,6 +691,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Bump certifi to 2026.10.23 for distrusted emSign roots
 - Patch dompurify, markdown-it, undici, vite and vitest advisories
 - Dim aircraft by the feed, not the wall clock
+- Open the add-frequency tooltip to the left of the + button
 
 ### Chores
 
@@ -1930,6 +1931,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #664 from barrygee/refactor/callsign-labels
 - Merge pull request #665 from barrygee/refactor/aircraft-trails
 - Merge pull request #666 from barrygee/perf/space-sgp4-off-loop
+- Merge pull request #651 from barrygee/fix/sdr-add-tooltip-left
 
 ### Performance
 
@@ -2401,6 +2403,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the extracted aircraft tags
 - Rebuild bundle for the extracted callsign labels
 - Rebuild bundle for the extracted aircraft trails
+- Rebuild bundle for the add-frequency tooltip
 
 ### Continuous Integration
 
