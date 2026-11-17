@@ -1939,6 +1939,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #652 from barrygee/fix/sdr-settings-accordion-gap
 - Merge pull request #653 from barrygee/feat/single-certificate-card
 - Merge pull request #650 from barrygee/feat/machine-identity
+- Merge pull request #667 from barrygee/refactor/satellite-follow-and-label
 
 ### Performance
 
@@ -2081,6 +2082,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract AircraftTags from AdsbLiveControl
 - Extract CallsignLabels from AdsbLiveControl
 - Extract AircraftTrails and AdsbTrackingPersistence from AdsbLiveControl
+- Extract satellite persistence and SatelliteLabel from SatelliteControl
 
 ### Documentation
 
@@ -2272,6 +2274,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover CallsignLabels against a fake host
 - Cover AircraftTrails and AdsbTrackingPersistence against fake hosts
 - Prove SGP4 work runs in a worker thread and the loop stays free
+- Cover satellite persistence and SatelliteLabel
 
 ### Build System
 
@@ -2415,6 +2418,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the SETTINGS accordion gap
 - Rebuild bundle for the single certificate card
 - Rebuild bundle for the machine name setting
+- Rebuild bundle for the extracted satellite label and persistence
 
 ### Continuous Integration
 
