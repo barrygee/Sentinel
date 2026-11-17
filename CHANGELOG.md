@@ -697,6 +697,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Open the add-frequency tooltip to the left of the + button
 - Even out the gap below a closed SETTINGS accordion
 - Fit the map to an airport clicked on the map
+- Say SDR IS UNPLUGGED for a radio whose device is unplugged
+- Show port labels at full brightness, as Air's airfield labels
 
 ### Chores
 
@@ -1942,6 +1944,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #650 from barrygee/feat/machine-identity
 - Merge pull request #667 from barrygee/refactor/satellite-follow-and-label
 - Merge pull request #669 from barrygee/fix/air-airport-click-zoom
+- Merge pull request #668 from barrygee/fix/sdr-unplugged-text
+- Merge pull request #670 from barrygee/fix/sea-port-label-brightness
 
 ### Performance
 
@@ -2278,6 +2282,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Prove SGP4 work runs in a worker thread and the loop stays free
 - Cover satellite persistence and SatelliteLabel
 - An airport map click fits the map to the airport
+- Expect the SDR IS UNPLUGGED reason exactly
+- Cover the map dimming and the port and vessel raise
 
 ### Build System
 
@@ -2423,6 +2429,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the machine name setting
 - Rebuild bundle for the extracted satellite label and persistence
 - Rebuild bundle for the airport click zoom
+- Rebuild bundle for the shared map dimming
 
 ### Continuous Integration
 
