@@ -692,6 +692,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Patch dompurify, markdown-it, undici, vite and vitest advisories
 - Dim aircraft by the feed, not the wall clock
 - Open the add-frequency tooltip to the left of the + button
+- Even out the gap below a closed SETTINGS accordion
 
 ### Chores
 
@@ -1932,6 +1933,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #665 from barrygee/refactor/aircraft-trails
 - Merge pull request #666 from barrygee/perf/space-sgp4-off-loop
 - Merge pull request #651 from barrygee/fix/sdr-add-tooltip-left
+- Merge pull request #652 from barrygee/fix/sdr-settings-accordion-gap
 
 ### Performance
 
@@ -2404,6 +2406,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the extracted callsign labels
 - Rebuild bundle for the extracted aircraft trails
 - Rebuild bundle for the add-frequency tooltip
+- Rebuild bundle for the SETTINGS accordion gap
 
 ### Continuous Integration
 
