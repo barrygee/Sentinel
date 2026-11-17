@@ -778,6 +778,24 @@ describe('SatelliteControl preview', () => {
     control.onRemove()
   })
 
+  it('labels a satellite previewed without a name by its NORAD id, then restores the name', async () => {
+    spaceStore.setOverlay('iss', true)
+    const { control } = await mounted()
+    await control._fetch() // shows the plain ISS label
+    const issLabel = markerRegistry.instances.find((marker) =>
+      marker.options.element.className.includes('iss-label'),
+    )!
+    net.satBody = makeIssData(makePosition({ lon: 3, lat: 4 }))
+
+    await control.previewSatellite('40000')
+
+    expect(issLabel.options.element.querySelector('span')!.textContent).toBe('40000')
+    expect(issLabel.lngLat).toEqual([3, 4])
+    control.clearPreview()
+    expect(issLabel.options.element.querySelector('span')!.textContent).toBe('ISS (ZARYA)')
+    control.onRemove()
+  })
+
   it('clearPreview is a no-op when nothing is previewed', async () => {
     const { control, map } = await mounted()
     map.setLayoutProperty.mockClear()
