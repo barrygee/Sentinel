@@ -82,7 +82,7 @@ class TestReportingAvailability:
         available, reason = await device_availability(mirrored_radio())
 
         assert available is False
-        assert "unplugged" in reason
+        assert reason == "SDR IS UNPLUGGED"
 
     async def test_a_disabled_device_says_so(self, snapshot_with: Any) -> None:
         snapshot_with(device(enabled=False))
