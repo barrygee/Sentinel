@@ -81,7 +81,13 @@ function makeAdsb(features: ReturnType<typeof planeFeature>[] = []) {
 }
 
 function makeMap() {
-  return { easeTo: vi.fn(), fitBounds: vi.fn(), getZoom: vi.fn(() => 8) }
+  return {
+    easeTo: vi.fn(),
+    fitBounds: vi.fn(),
+    getZoom: vi.fn(() => 8),
+    // The fit pads by the shell chrome over the map, measured against this.
+    getContainer: vi.fn(() => document.createElement('div')),
+  }
 }
 
 // Default fixture: one civil, one military, one ground, one tower aircraft.
@@ -143,7 +149,13 @@ describe('AirFilter', () => {
     document.body.innerHTML = ''
     // jsdom has no real scrollIntoView.
     Element.prototype.scrollIntoView = vi.fn()
+    // A map click fits the airport a frame later; run frames at once here.
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callback(0)
+      return 0
+    })
   })
+  afterEach(() => vi.unstubAllGlobals())
 
   // The FILTER rail sub-tabs are single-select: only the active category's flat
   // list renders (default 'aircraft'). Switch the store's category and re-render.
@@ -1328,6 +1340,52 @@ describe('AirFilter', () => {
         ],
         expect.objectContaining({ maxZoom: 13, duration: 800 }),
       )
+    })
+
+    it('centres the airport on the visible map, padding past the open panel and rails', async () => {
+      // The desktop shell over a 1440px map: 44px icon rail + 386px panel on
+      // the left, the 44px controls rail on the right.
+      const chrome: Array<[string, number, number]> = [
+        ['map-sidebar-rail', 0, 44],
+        ['map-sidebar', 44, 386],
+        ['side-menu', 1396, 44],
+      ]
+      for (const [id, offsetLeft, offsetWidth] of chrome) {
+        const element = document.createElement('div')
+        element.id = id
+        Object.defineProperty(element, 'offsetLeft', { value: offsetLeft })
+        Object.defineProperty(element, 'offsetWidth', { value: offsetWidth })
+        document.body.appendChild(element)
+      }
+      const container = document.createElement('div')
+      container.getBoundingClientRect = () =>
+        ({ left: 0, right: 1440, width: 1440, top: 0, bottom: 900, height: 900 }) as DOMRect
+      const map = { ...makeMap(), getContainer: vi.fn(() => container) }
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
+      await nextTick()
+      // 80px margin each side, plus 430px of chrome on the left, 44px on the right.
+      expect(map.fitBounds).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          padding: expect.objectContaining({ left: 80 + 430, right: 80 + 44 }),
+        }),
+      )
+    })
+
+    it('waits a frame before fitting, so the panel the click opens is laid out', async () => {
+      const queuedFrames: FrameRequestCallback[] = []
+      vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+        queuedFrames.push(callback)
+        return queuedFrames.length
+      })
+      const map = makeMap()
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
+      await nextTick()
+      expect(map.fitBounds).not.toHaveBeenCalled()
+      for (const frame of queuedFrames.splice(0)) frame(0)
+      expect(map.fitBounds).toHaveBeenCalledOnce()
     })
 
     it('leaves the map alone for an ICAO it does not know', async () => {

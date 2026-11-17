@@ -142,6 +142,7 @@ import { storeToRefs } from 'pinia'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useAirNotifStore } from './stores/airNotif'
 import { useRadio } from '@sentinel/shell-api/shell/useRadio'
+import { mapChromeInsets } from '@sentinel/shell-api/shell/mapChromeInsets'
 import { useAirStore } from './stores/air'
 
 interface PlaneResult {
@@ -629,6 +630,9 @@ function refreshExpandedPlane() {
 
 onUnmounted(clearSignalLostTimer)
 
+// Fit the map to a place, centred on the part of the map the operator can see:
+// the padding adds the width of the shell's rails and the open side panel
+// (mapChromeInsets), which sit over the full-window map.
 function fitBoundsWithPadding(bounds: [number, number, number, number]) {
   const m = props.getMap()
   if (!m) return
@@ -637,13 +641,19 @@ function fitBoundsWithPadding(bounds: [number, number, number, number]) {
   const ctrlH = ctrlPanel ? ctrlPanel.offsetHeight : 0
   const pad = 80
   const topExtra = Math.max(0, ctrlH / 2 - pad)
+  const chrome = mapChromeInsets(m.getContainer())
   m.fitBounds(
     [
       [bounds[0], bounds[1]],
       [bounds[2], bounds[3]],
     ],
     {
-      padding: { top: pad + topExtra, bottom: pad, left: pad, right: pad + ctrlW },
+      padding: {
+        top: pad + topExtra,
+        bottom: pad,
+        left: pad + chrome.left,
+        right: pad + ctrlW + chrome.right,
+      },
       maxZoom: 13,
       duration: 800,
     },
@@ -813,6 +823,8 @@ onMounted(() => {
 // map fits the airport, as opening its row in the list does: a military base
 // click flies to the base itself, but an airport click had nothing moving the
 // map, so clicking one only sometimes looked like it zoomed (when already near).
+// The fit waits a frame: the same click opens the side panel, which is laid out
+// only after Vue's next render, and the fit has to leave room for it.
 function expandAirport(icao: string) {
   const airport = AIRPORTS_DATA.features.find((feature) => feature.properties.icao === icao)
   if (!airport) return
@@ -820,7 +832,7 @@ function expandAirport(icao: string) {
   airStore.setAirFilterCategory('airports')
   expandedAirport.value = icao
   tuneNotice.value = null
-  fitBoundsWithPadding(airport.properties.bounds)
+  requestAnimationFrame(() => fitBoundsWithPadding(airport.properties.bounds))
 }
 
 // Expand a military base's accordion by name (driven by a map base click).

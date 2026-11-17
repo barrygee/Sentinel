@@ -1,5 +1,6 @@
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { mapChromeInsets } from '@sentinel/shell-api/shell/mapChromeInsets'
 import { AirfieldMarkers } from '../airfield-label/AirfieldMarkers'
 import type { AirStore } from '../types'
 
@@ -205,14 +206,22 @@ export class MilitaryBasesToggleControl extends SentinelControlBase {
                 detail: { name: feature.properties.name },
               }),
             )
-            const pitch = this._is3DActive() ? 45 : undefined
-            const easeOpts: maplibregl.EaseToOptions = {
-              center: coordinates,
-              zoom: 16,
-              duration: 800,
-            }
-            if (pitch !== undefined) easeOpts.pitch = pitch
-            this.map.easeTo(easeOpts)
+            // A frame later, once the side panel this click opens is laid out,
+            // so the base lands in the middle of the map the operator can see
+            // rather than behind the panel: the offset moves the target centre
+            // by half the difference between the chrome at the two sides.
+            requestAnimationFrame(() => {
+              const chrome = mapChromeInsets(this.map.getContainer())
+              const pitch = this._is3DActive() ? 45 : undefined
+              const easeOpts: maplibregl.EaseToOptions = {
+                center: coordinates,
+                zoom: 16,
+                duration: 800,
+                offset: [(chrome.left - chrome.right) / 2, 0],
+              }
+              if (pitch !== undefined) easeOpts.pitch = pitch
+              this.map.easeTo(easeOpts)
+            })
           },
         }
       })
