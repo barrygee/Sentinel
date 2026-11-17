@@ -226,6 +226,18 @@ C9 as built:
   `_readActiveSat`) and the label element (`_buildLabelEl`, `_showLabel`, `_hideLabel`).
 - Both tracking status bars already share the tracking store; nothing to merge there.
 
+C10 as built:
+
+- `satellitePersistence.ts` holds the two localStorage entries as plain functions (no state, so no class):
+  `saveFollowedSatellite` (null forgets it) / `readFollowedSatellite` for `sentinel_space_follow`, and
+  `saveActiveSatellite` / `readActiveSatellite` for `sentinel_space_activeSat`. The two readers share one parser
+  (bad JSON or no NORAD id → null; the id stands in for a missing name).
+- `SatelliteLabel.ts` owns the label marker: `show` (plain, or move the one shown), `replace` (TRACKING form when
+  given an `onUntrack`, which the badge's click calls), `moveTo`, `showPreview` / `restoreName` (the filter-hover name
+  swap and badge hide) and `hide`. The control replaces `_labelMarker` with it and still decides which form shows.
+- The spec reaches none of the moved members (it goes through localStorage and the DOM), so the control keeps no
+  delegates and the spec is unchanged. `SatelliteControl.ts` 1,020 → 888 lines.
+
 ### C11–C15. `SdrWaterfall.vue` (3,406 lines + 700 CSS)
 
 One composable per interaction, each taking the refs it needs and returning handlers. The template and the draw loop

@@ -7,18 +7,13 @@ import { createSatelliteIcon, createSatBracket, buildFootprintFeatures } from '.
 import { SatellitePassNotifier } from './SatellitePassNotifier'
 import { updatePassNotifName } from './passNotifStore'
 import { overlayAccentColor } from '@sentinel/map-kit/utils/mapTheme'
-
-// Persists the satellite the user is following so the follow survives a section
-// change (the Space map unmounts on navigation, destroying the control). On
-// remount the fresh control restores the follow from this key — mirrors AIR's
-// `adsbTracking`. Stores the active norad+name; cleared when the user untracks.
-const FOLLOW_LS_KEY = 'sentinel_space_follow'
-// Persists the satellite the map is showing (followed or not) so a remount
-// resumes on the same one instead of snapping back to the ISS. The side panes
-// consult this on their own restore: a persisted pane expansion may re-select
-// the satellite only when it is the one the map already shows, so two panes
-// restoring different satellites can no longer fight over the map.
-const ACTIVE_SAT_LS_KEY = 'sentinel_space_activeSat'
+import { SatelliteLabel } from './SatelliteLabel'
+import {
+  readActiveSatellite,
+  readFollowedSatellite,
+  saveActiveSatellite,
+  saveFollowedSatellite,
+} from './satellitePersistence'
 
 type SpaceStore = ReturnType<typeof useSpaceStore>
 type NotificationsStore = ReturnType<typeof useNotificationsStore>
@@ -54,10 +49,10 @@ export class SatelliteControl extends SentinelControlBase {
 
   private _pollInterval: ReturnType<typeof setInterval> | null = null
   _lastPosition: IssPosition | null = null
-  private _labelMarker: maplibregl.Marker | null = null
+  private _label = new SatelliteLabel(() => this.map)
   _followEnabled = false
   private _trackingRestored = false
-  // Set in onInit from FOLLOW_LS_KEY when a fresh control mounts with a
+  // Set in onInit from the remembered follow (satellitePersistence) when a fresh control mounts with a
   // previously-followed satellite; consumed once the first position arrives
   // to resume following (see _fetch). Survives section changes.
   private _pendingFollowRestore = false
@@ -124,7 +119,7 @@ export class SatelliteControl extends SentinelControlBase {
     // Resume a follow that was active before a section change unmounted the
     // map. Seed the active satellite now so the first poll fetches the right
     // one; _fetch resumes following once it has a position.
-    const persistedFollow = this._readFollowState()
+    const persistedFollow = readFollowedSatellite()
     if (persistedFollow) {
       this._activeNoradId = persistedFollow.noradId
       this._activeSatName = persistedFollow.name
@@ -134,7 +129,7 @@ export class SatelliteControl extends SentinelControlBase {
       this._spaceStore.setOverlay('iss', true)
     } else {
       // Not following: still resume on the satellite the map last showed.
-      const persistedActive = this._readActiveSat()
+      const persistedActive = readActiveSatellite()
       if (persistedActive) {
         this._activeNoradId = persistedActive.noradId
         this._activeSatName = persistedActive.name
@@ -182,7 +177,7 @@ export class SatelliteControl extends SentinelControlBase {
       this._followEnabled = false
       this._trackingStore.deactivate('space')
     }
-    this._hideLabel()
+    this._label.hide()
     this._passNotifier.stop()
     if (this._onShowTracksChanged) {
       window.removeEventListener('sentinel:showTracksChanged', this._onShowTracksChanged)
@@ -478,18 +473,18 @@ export class SatelliteControl extends SentinelControlBase {
 
       if (!this._previewNoradId) {
         if (this.issVisible && !this._followEnabled) {
-          this._showLabel(position.lon, position.lat)
-        } else if (this.issVisible && this._labelMarker) {
-          this._labelMarker.setLngLat([position.lon, position.lat])
+          this._label.show(position.lon, position.lat, this._activeSatName)
+        } else if (this.issVisible && this._label.isShown) {
+          this._label.moveTo(position.lon, position.lat)
         }
       }
       if (this._followEnabled && !this._previewNoradId) {
-        if (!this._labelMarker) {
+        if (!this._label.isShown) {
           // First position after a satellite switch — re-initialise the follow UI and tracking panel
           this._followEnabled = false
           this._startFollowing()
         } else {
-          this._labelMarker.setLngLat([position.lon, position.lat])
+          this._label.moveTo(position.lon, position.lat)
           this.map.easeTo({
             center: [position.lon, position.lat],
             duration: 150,
@@ -516,46 +511,6 @@ export class SatelliteControl extends SentinelControlBase {
     if (this._pollInterval) {
       clearInterval(this._pollInterval)
       this._pollInterval = null
-    }
-  }
-
-  // ---- Label ----
-  private _buildLabelEl(isTracking = false): HTMLDivElement {
-    const el = document.createElement('div')
-    el.className = 'iss-label' + (isTracking ? ' iss-label--tracking' : '')
-    const nameSpan = document.createElement('span')
-    nameSpan.textContent = this._activeSatName
-    el.appendChild(nameSpan)
-    if (isTracking) {
-      const trkSpan = document.createElement('span')
-      trkSpan.className = 'iss-tracking-badge'
-      trkSpan.textContent = 'TRACKING'
-      el.addEventListener('mouseenter', () => {
-        trkSpan.textContent = 'UNTRACK'
-      })
-      el.addEventListener('mouseleave', () => {
-        trkSpan.textContent = 'TRACKING'
-      })
-      el.appendChild(trkSpan)
-    }
-    return el
-  }
-
-  private _showLabel(lon: number, lat: number): void {
-    if (this._labelMarker) {
-      this._labelMarker.setLngLat([lon, lat])
-      return
-    }
-    const el = this._buildLabelEl(false)
-    this._labelMarker = new maplibregl.Marker({ element: el, anchor: 'left', offset: [26, 0] })
-      .setLngLat([lon, lat])
-      .addTo(this.map)
-  }
-
-  private _hideLabel(): void {
-    if (this._labelMarker) {
-      this._labelMarker.remove()
-      this._labelMarker = null
     }
   }
 
@@ -591,27 +546,10 @@ export class SatelliteControl extends SentinelControlBase {
     this._followEnabled = true
     const pos = this._lastPosition
     const coords: [number, number] = [pos.lon, pos.lat]
-    const newLabelEl = this._buildLabelEl(true)
-    newLabelEl.addEventListener('click', (e) => {
-      e.stopPropagation()
-      this._stopFollowing()
-    })
-    // Defensive: the live follow entry points all clear the label first
-    // (switchSatellite._hideLabel) or run before one is shown (pending restore),
-    // so no marker exists here in practice.
-    /* v8 ignore start */
-    if (this._labelMarker) this._labelMarker.remove()
-    /* v8 ignore stop */
-    this._labelMarker = new maplibregl.Marker({
-      element: newLabelEl,
-      anchor: 'left',
-      offset: [26, 0],
-    })
-      .setLngLat(coords)
-      .addTo(this.map)
+    this._label.replace(pos.lon, pos.lat, this._activeSatName, () => this._stopFollowing())
     this.map.easeTo({ center: coords, duration: 600 })
     this._showStatusBar(pos)
-    this._saveFollowState()
+    saveFollowedSatellite({ noradId: this._activeNoradId, name: this._activeSatName })
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
         detail: { noradId: this._activeNoradId, following: true },
@@ -621,75 +559,17 @@ export class SatelliteControl extends SentinelControlBase {
 
   private _stopFollowing(): void {
     this._followEnabled = false
-    if (this._labelMarker && this._lastPosition) {
-      const newLabelEl = this._buildLabelEl(false)
-      this._labelMarker.remove()
-      this._labelMarker = new maplibregl.Marker({
-        element: newLabelEl,
-        anchor: 'left',
-        offset: [26, 0],
-      })
-        .setLngLat([this._lastPosition.lon, this._lastPosition.lat])
-        .addTo(this.map)
+    if (this._label.isShown && this._lastPosition) {
+      this._label.replace(this._lastPosition.lon, this._lastPosition.lat, this._activeSatName)
     }
     this._hideStatusBar()
     this.map.easeTo({ center: [12, 20], zoom: 2, duration: 600 })
-    this._saveFollowState()
+    saveFollowedSatellite(null)
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
         detail: { noradId: this._activeNoradId, following: false },
       }),
     )
-  }
-
-  // ---- Follow persistence (survives section changes) ----
-  private _saveFollowState(): void {
-    try {
-      if (this._followEnabled) {
-        localStorage.setItem(
-          FOLLOW_LS_KEY,
-          JSON.stringify({ noradId: this._activeNoradId, name: this._activeSatName }),
-        )
-      } else {
-        localStorage.removeItem(FOLLOW_LS_KEY)
-      }
-    } catch {}
-  }
-
-  private _readFollowState(): { noradId: string; name: string } | null {
-    try {
-      const raw = localStorage.getItem(FOLLOW_LS_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as { noradId?: string; name?: string }
-      return parsed.noradId
-        ? { noradId: parsed.noradId, name: parsed.name || parsed.noradId }
-        : null
-    } catch {
-      return null
-    }
-  }
-
-  // ---- Active-satellite persistence (survives section changes) ----
-  private _saveActiveSat(): void {
-    try {
-      localStorage.setItem(
-        ACTIVE_SAT_LS_KEY,
-        JSON.stringify({ noradId: this._activeNoradId, name: this._activeSatName }),
-      )
-    } catch {}
-  }
-
-  private _readActiveSat(): { noradId: string; name: string } | null {
-    try {
-      const raw = localStorage.getItem(ACTIVE_SAT_LS_KEY)
-      if (!raw) return null
-      const parsed = JSON.parse(raw) as { noradId?: string; name?: string }
-      return parsed.noradId
-        ? { noradId: parsed.noradId, name: parsed.name || parsed.noradId }
-        : null
-    } catch {
-      return null
-    }
   }
 
   // ---- Status bar ----
@@ -791,15 +671,8 @@ export class SatelliteControl extends SentinelControlBase {
         this.map.setLayoutProperty('iss-footprint', 'visibility', fpVis)
       } catch {}
 
-      if (this._labelMarker) {
-        if (noradId !== this._activeNoradId) {
-          this._labelMarker.setLngLat([position.lon, position.lat])
-          const spans = this._labelMarker.getElement().querySelectorAll('span')
-          /* v8 ignore start -- spans[0] (the name span) is always present in a label */
-          if (spans[0]) spans[0].textContent = name || noradId
-          /* v8 ignore stop */
-          if (spans[1]) (spans[1] as HTMLElement).classList.add('iss-tracking-badge--hidden')
-        }
+      if (noradId !== this._activeNoradId) {
+        this._label.showPreview(position.lon, position.lat, name || noradId)
       }
 
       let hoverPreference = 'stay'
@@ -853,16 +726,11 @@ export class SatelliteControl extends SentinelControlBase {
       this.map.setLayoutProperty('iss-footprint', 'visibility', fpVis)
     } catch {}
 
-    if (this._labelMarker) {
-      const spans = this._labelMarker.getElement().querySelectorAll('span')
-      /* v8 ignore start -- the name span is always present on a label */
-      if (spans[0]) spans[0].textContent = this._activeSatName
-      /* v8 ignore stop */
-      if (spans[1]) (spans[1] as HTMLElement).classList.remove('iss-tracking-badge--hidden')
+    if (this._label.isShown) {
+      this._label.restoreName(this._activeSatName)
       // Defensive: a visible label always has a known last position.
       /* v8 ignore start */
-      if (this._lastPosition)
-        this._labelMarker.setLngLat([this._lastPosition.lon, this._lastPosition.lat])
+      if (this._lastPosition) this._label.moveTo(this._lastPosition.lon, this._lastPosition.lat)
       /* v8 ignore stop */
     }
 
@@ -889,13 +757,13 @@ export class SatelliteControl extends SentinelControlBase {
     // An explicit switch supersedes any pending restore-on-remount follow.
     this._pendingFollowRestore = false
     if (this._followEnabled) this._stopFollowing()
-    this._hideLabel()
+    this._label.hide()
     if (follow) this._followEnabled = true
 
     const isSameSat = this._activeNoradId === noradId
     this._activeNoradId = noradId
     this._activeSatName = name
-    this._saveActiveSat()
+    saveActiveSatellite({ noradId: this._activeNoradId, name: this._activeSatName })
     if (!isSameSat) this._lastPosition = this._previewPositions.get(noradId) ?? null
     this._trackingRestored = true
 
@@ -985,10 +853,10 @@ export class SatelliteControl extends SentinelControlBase {
     if (!this.issVisible) {
       this._stopPolling()
       this._stopFollowing()
-      this._hideLabel()
+      this._label.hide()
       this._activeNoradId = '25544'
       this._activeSatName = 'ISS (ZARYA)'
-      this._saveActiveSat()
+      saveActiveSatellite({ noradId: this._activeNoradId, name: this._activeSatName })
     } else {
       this._fetch()
       this._startPolling()
