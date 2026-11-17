@@ -282,13 +282,13 @@ describe('a radio whose SDR Manager device is unavailable', () => {
     })
 
   it('shows the reason it cannot be used', () => {
-    const wrapper = mountRow(unavailable('The dongle is unplugged.'))
+    const wrapper = mountRow(unavailable('SDR IS UNPLUGGED'))
 
-    expect(wrapper.find('.sdr-device-unavailable').text()).toBe('The dongle is unplugged.')
+    expect(wrapper.find('.sdr-device-unavailable').text()).toBe('SDR IS UNPLUGGED')
   })
 
   it('dims the row so it reads as out of service', () => {
-    const wrapper = mountRow(unavailable('The dongle is unplugged.'))
+    const wrapper = mountRow(unavailable('SDR IS UNPLUGGED'))
 
     expect(wrapper.find('.sdr-device-info--unavailable').exists()).toBe(true)
   })
@@ -323,7 +323,7 @@ describe('a radio whose SDR Manager device is unavailable', () => {
     // would be noise at the moment the operator is answering a question.
     const wrapper = mount(SdrRadioRow, {
       props: {
-        radio: unavailable('The dongle is unplugged.'),
+        radio: unavailable('SDR IS UNPLUGGED'),
         connected: false,
         open: false,
         confirming: true,
@@ -337,7 +337,7 @@ describe('a radio whose SDR Manager device is unavailable', () => {
     // `region` disabled as elsewhere in this file: a row mounted on its own is
     // not inside the settings panel's landmarks, which is a fact about the test
     // harness rather than the component.
-    const wrapper = mountRow(unavailable('The dongle is unplugged.'))
+    const wrapper = mountRow(unavailable('SDR IS UNPLUGGED'))
 
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
