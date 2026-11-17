@@ -696,6 +696,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Dim aircraft by the feed, not the wall clock
 - Open the add-frequency tooltip to the left of the + button
 - Even out the gap below a closed SETTINGS accordion
+- Fit the map to an airport clicked on the map
 
 ### Chores
 
@@ -1940,6 +1941,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #653 from barrygee/feat/single-certificate-card
 - Merge pull request #650 from barrygee/feat/machine-identity
 - Merge pull request #667 from barrygee/refactor/satellite-follow-and-label
+- Merge pull request #669 from barrygee/fix/air-airport-click-zoom
 
 ### Performance
 
@@ -2275,6 +2277,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover AircraftTrails and AdsbTrackingPersistence against fake hosts
 - Prove SGP4 work runs in a worker thread and the loop stays free
 - Cover satellite persistence and SatelliteLabel
+- An airport map click fits the map to the airport
 
 ### Build System
 
@@ -2419,6 +2422,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the single certificate card
 - Rebuild bundle for the machine name setting
 - Rebuild bundle for the extracted satellite label and persistence
+- Rebuild bundle for the airport click zoom
 
 ### Continuous Integration
 
