@@ -809,14 +809,18 @@ onMounted(() => {
 
 // Expand a specific airport's accordion by ICAO (driven by a map marker click).
 // Clears any active search and switches the FILTER category to airports so the
-// row is in the visible list; the shell scrolls the opened row into view.
+// row is in the visible list; the shell scrolls the opened row into view. The
+// map fits the airport, as opening its row in the list does: a military base
+// click flies to the base itself, but an airport click had nothing moving the
+// map, so clicking one only sometimes looked like it zoomed (when already near).
 function expandAirport(icao: string) {
-  const r = AIRPORTS_DATA.features.find((f) => f.properties.icao === icao)
-  if (!r) return
+  const airport = AIRPORTS_DATA.features.find((feature) => feature.properties.icao === icao)
+  if (!airport) return
   query.value = ''
   airStore.setAirFilterCategory('airports')
   expandedAirport.value = icao
   tuneNotice.value = null
+  fitBoundsWithPadding(airport.properties.bounds)
 }
 
 // Expand a military base's accordion by name (driven by a map base click).
