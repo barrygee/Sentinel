@@ -61,6 +61,8 @@ function fakeMap(options: { styleLoaded?: boolean } = {}): FakeMap {
     addSource,
     removeSource,
     easeTo,
+    // The fly-to offsets by the shell chrome over the map, measured against this.
+    getContainer: vi.fn(() => document.createElement('div')),
   } as unknown as maplibregl.Map
   return { map, addSource, removeSource, easeTo, styleLoadHandlers, sources }
 }
@@ -71,9 +73,15 @@ beforeEach(() => {
   fieldRegistry.instances.length = 0
   setActivePinia(createPinia())
   airStore = useAirStore()
+  // A base click flies there a frame later; run frames at once here.
+  vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+    callback(0)
+    return 0
+  })
 })
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('MILITARY_BASES_DATA', () => {
@@ -162,6 +170,58 @@ describe('MilitaryBasesToggleControl site click', () => {
     fieldRegistry.instances[0]!.sites[0]!.onClick()
     const easeArgs = map.easeTo.mock.calls[0]![0] as Record<string, unknown>
     expect(easeArgs).not.toHaveProperty('pitch')
+  })
+})
+
+describe('MilitaryBasesToggleControl site click centring', () => {
+  /** A 1440px map under the desktop shell: 430px of chrome left, 44px right. */
+  function mapUnderDesktopChrome() {
+    const chrome: Array<[string, number, number]> = [
+      ['map-sidebar-rail', 0, 44],
+      ['map-sidebar', 44, 386],
+      ['side-menu', 1396, 44],
+    ]
+    for (const [id, offsetLeft, offsetWidth] of chrome) {
+      const element = document.createElement('div')
+      element.id = id
+      Object.defineProperty(element, 'offsetLeft', { value: offsetLeft })
+      Object.defineProperty(element, 'offsetWidth', { value: offsetWidth })
+      document.body.appendChild(element)
+    }
+    const container = document.createElement('div')
+    container.getBoundingClientRect = () =>
+      ({ left: 0, right: 1440, width: 1440, top: 0, bottom: 900, height: 900 }) as DOMRect
+    const map = fakeMap()
+    ;(map.map as unknown as { getContainer: () => HTMLElement }).getContainer = () => container
+    return map
+  }
+
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('offsets the fly-to into the middle of the map left visible by the chrome', () => {
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    const map = mapUnderDesktopChrome()
+    control.onAdd(map.map)
+    fieldRegistry.instances[0]!.sites[0]!.onClick()
+    // Half of (430 left - 44 right): the visible map's centre is 193px right.
+    expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ offset: [193, 0] }))
+  })
+
+  it('flies a frame after the click, once the panel it opens is laid out', () => {
+    const queuedFrames: FrameRequestCallback[] = []
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      queuedFrames.push(callback)
+      return queuedFrames.length
+    })
+    const control = new MilitaryBasesToggleControl(airStore, () => false)
+    const map = fakeMap()
+    control.onAdd(map.map)
+    fieldRegistry.instances[0]!.sites[0]!.onClick()
+    expect(map.easeTo).not.toHaveBeenCalled()
+    for (const frame of queuedFrames.splice(0)) frame(0)
+    expect(map.easeTo).toHaveBeenCalledOnce()
   })
 })
 
