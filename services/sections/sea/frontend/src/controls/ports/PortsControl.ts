@@ -35,6 +35,9 @@ export class PortsControl extends SentinelControlBase {
   private readonly _seaStore: SeaStore
   private _markers: SiteMarkers | null = null
 
+  /** The ports' layers, bottom to top: the dots, then the labels open over them. */
+  readonly layerIds: readonly string[] = [PORT_LAYER_ID, PORT_OPEN_LABEL_LAYER_ID]
+
   constructor(seaStore: SeaStore) {
     super()
     this._seaStore = seaStore

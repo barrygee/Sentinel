@@ -24,12 +24,12 @@ import {
   SILHOUETTE_ZOOMED_IN_THRESHOLD,
   type SilhouettePalette,
 } from '@sentinel/map-kit/aircraft-silhouettes/silhouetteImage'
+import { MAP_DIM_OPACITY, setMapDimming } from '@sentinel/map-kit/map-dimming/mapDimming'
 
 /** The layer that dims the dark map beneath airfields and aircraft (see {@link applyMapDimming}). */
 export const MAP_DIM_LAYER_ID = 'adsb-map-dim'
 
-/** Black at this opacity matches the stylesheet's `brightness(0.65)`. */
-export const MAP_DIM_OPACITY = 0.35
+export { MAP_DIM_OPACITY }
 
 /** Arrow-mode sprites are drawn larger than shown, and always scaled to this. */
 const ARROW_ICON_SIZE = 0.75
@@ -186,8 +186,5 @@ export function iconLayerVisibility(iconStyle: AircraftIconStyle): 'visible' | '
  * stylesheet's behaviour (no dimming at all).
  */
 export function applyMapDimming(map: maplibregl.Map, palette: SilhouettePalette): void {
-  const dimBelowAircraft = palette === 'dark'
-  map.getCanvas().style.filter = dimBelowAircraft ? 'none' : ''
-  if (map.getLayer(MAP_DIM_LAYER_ID))
-    map.setLayoutProperty(MAP_DIM_LAYER_ID, 'visibility', dimBelowAircraft ? 'visible' : 'none')
+  setMapDimming(map, MAP_DIM_LAYER_ID, palette === 'dark')
 }

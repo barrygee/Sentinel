@@ -30,6 +30,11 @@ const controlMocks = vi.hoisted(() => {
       // TerrainToggleControl's own method, called by useOfflineTierRefresh
       // when the offline tiers version changes while showing the offline style.
       refreshTiles = vi.fn()
+      // AisVesselsControl's, run once the controls have added their layers.
+      raiseAboveMapDimming = vi.fn()
+      // PortsControl's, handed to raiseAboveMapDimming; named per control so a
+      // spec can tell whose ids were passed.
+      layerIds: string[] = [`${name}-dots`, `${name}-labels`]
       visible = false
       constructor(...args: unknown[]) {
         this.args = args
@@ -296,6 +301,19 @@ describe('SeaMap', () => {
     expect(controlMocks.instances.vessels).toHaveLength(1)
   })
 
+  it('raises the ports and vessels above the map dimming once every control is on the map', () => {
+    const map = makeFakeMap()
+    mountMap()
+    bringUp(map)
+    const raise = last('vessels').raiseAboveMapDimming
+    expect(raise).toHaveBeenCalledOnce()
+    expect(raise).toHaveBeenCalledWith(['ports-dots', 'ports-labels'])
+    // After every control has added its layers, the last of them the SDR host sites.
+    expect(raise.mock.invocationCallOrder[0]!).toBeGreaterThan(
+      last('sdrManagerSites').onAdd.mock.invocationCallOrder[0]!,
+    )
+  })
+
   it('hands the SDR host sites control the operator position and marker', () => {
     const map = makeFakeMap()
     mountMap()
@@ -376,6 +394,13 @@ describe('SeaMap', () => {
       expect(last('vessels').initLayers).toHaveBeenCalled()
       expect(last('ferries').initLayers).toHaveBeenCalled()
       expect(last('ports').initLayers).toHaveBeenCalled()
+      // Re-raised after the layers come back, with the ports' layers again.
+      const raise = last('vessels').raiseAboveMapDimming
+      expect(raise).toHaveBeenCalledTimes(2)
+      expect(raise).toHaveBeenLastCalledWith(['ports-dots', 'ports-labels'])
+      expect(raise.mock.invocationCallOrder[1]!).toBeGreaterThan(
+        last('ports').initLayers.mock.invocationCallOrder.at(-1)!,
+      )
       // The same style again is a no-op.
       shared.connectivityCb!(false)
       expect(map.setStyle).toHaveBeenCalledTimes(1)

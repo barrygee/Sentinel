@@ -51,6 +51,8 @@ const { origin: ringOrigin } = useRangeRingOrigin()
 let vesselsControl: AisVesselsControl | null = null
 let ferryRoutesControl: FerryRoutesControl | null = null
 let portsControl: PortsControl | null = null
+// The ports' layers, which go above the map dimming with the vessels.
+let portLayerIds: readonly string[] = []
 let rangeRingsControl: LandRangeRingsControl | null = null
 let roadsControl: RoadsToggleControl | null = null
 let namesControl: NamesToggleControl | null = null
@@ -83,6 +85,12 @@ function reinitAfterStyleLoad(): void {
   vesselsControl?.initLayers()
   ferryRoutesControl?.initLayers()
   portsControl?.initLayers()
+  raisePortsAndVessels()
+}
+
+/** Keep the ports and vessels above the map dimming (see AisVesselsControl). */
+function raisePortsAndVessels(): void {
+  vesselsControl?.raiseAboveMapDimming(portLayerIds)
 }
 
 /** Build and add this map's controls, once, on the first style load. */
@@ -90,6 +98,7 @@ function addControls(m: MapLibreGlMap): void {
   vesselsControl = new AisVesselsControl(seaStore)
   ferryRoutesControl = new FerryRoutesControl(seaStore)
   portsControl = new PortsControl(seaStore)
+  portLayerIds = portsControl.layerIds
   rangeRingsControl = new LandRangeRingsControl(ringOrigin.value)
   roadsControl = new RoadsToggleControl(basemapStore)
   namesControl = new NamesToggleControl(basemapStore)
@@ -113,6 +122,7 @@ function addControls(m: MapLibreGlMap): void {
   namesControl.setVisible(true)
   terrainControl.onAdd(m)
   sdrManagerSitesControl.onAdd(m)
+  raisePortsAndVessels()
 
   const nativeCtrl = m.getContainer().querySelector<HTMLElement>('.maplibregl-ctrl-top-right')
   if (nativeCtrl) nativeCtrl.style.display = 'none'

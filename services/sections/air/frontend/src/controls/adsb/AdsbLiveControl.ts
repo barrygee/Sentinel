@@ -19,6 +19,7 @@ import type { TrackingField } from '@sentinel/shell-api/stores/tracking'
 import { isLeftFacing } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/resolveAircraftShape'
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
+import { addMapDimLayer } from '@sentinel/map-kit/map-dimming/mapDimming'
 import { AircraftTrails, TRAIL_LAYER_IDS } from './AircraftTrails'
 import { AdsbTrackingPersistence } from './AdsbTrackingPersistence'
 import type { AircraftGeoFeature, AircraftProperties } from './adsbFeature'
@@ -31,7 +32,6 @@ import {
   iconRotateExpression,
   iconSizeExpression,
   MAP_DIM_LAYER_ID,
-  MAP_DIM_OPACITY,
   registerAdsbIcons,
 } from './adsbIconStyle'
 import { AIRFIELD_LAYER_ORDER } from '../airfield-label/AirfieldMarkers'
@@ -730,11 +730,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
         if (this.map.getLayer(id)) this.map.removeLayer(id)
       },
     )
-    this.map.addLayer({
-      id: MAP_DIM_LAYER_ID,
-      type: 'background',
-      paint: { 'background-color': '#000000', 'background-opacity': MAP_DIM_OPACITY },
-    })
+    addMapDimLayer(this.map, MAP_DIM_LAYER_ID)
     this._applyMapDimming()
 
     if (this._hoverHideTimer) {
