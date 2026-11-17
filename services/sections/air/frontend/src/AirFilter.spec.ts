@@ -1314,6 +1314,30 @@ describe('AirFilter', () => {
       expect(wrapper.find('.apt-acc-body').exists()).toBe(true)
     })
 
+    it('fits the map to the airport on a map click, as opening its row does', async () => {
+      const map = makeMap()
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
+      await nextTick()
+      expect(map.fitBounds).toHaveBeenCalledOnce()
+      // The fixture's Heathrow bounds, padded and capped like a list-row open.
+      expect(map.fitBounds).toHaveBeenCalledWith(
+        [
+          [-0.5, 51.4],
+          [-0.4, 51.5],
+        ],
+        expect.objectContaining({ maxZoom: 13, duration: 800 }),
+      )
+    })
+
+    it('leaves the map alone for an ICAO it does not know', async () => {
+      const map = makeMap()
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('XXXX')
+      await nextTick()
+      expect(map.fitBounds).not.toHaveBeenCalled()
+    })
+
     it('switches to the airports category when expanding an airport from another category', async () => {
       const wrapper = mountFilter(makeAdsb([]))
       // Start on a different category; expandAirport must switch to airports itself.
