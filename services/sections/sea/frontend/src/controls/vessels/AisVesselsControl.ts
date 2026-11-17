@@ -16,6 +16,8 @@ import {
 } from '@sentinel/map-kit/map-label/mapLabelParts'
 import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
 import { buildCountMarker } from '@sentinel/map-kit/map-cluster/mapCluster'
+import { addMapDimLayer, setMapDimming } from '@sentinel/map-kit/map-dimming/mapDimming'
+import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { planVesselLabels, vesselFacesLeft, type VesselCount } from './vesselLabelPlan'
 import {
   SEA_COUNT_FILL,
@@ -76,6 +78,15 @@ const LAYER_TRACK_DOTS = 'sea-vessel-track-dots'
 const LAYER_ICONS = 'sea-vessel-icons'
 const LAYER_BRACKET = 'sea-vessel-bracket'
 const LAYER_HIT = 'sea-vessel-hit'
+/** Every vessel layer, bottom to top: the order `raiseAboveMapDimming` restores. */
+const VESSEL_LAYER_ORDER = [LAYER_TRACK, LAYER_TRACK_DOTS, LAYER_ICONS, LAYER_BRACKET, LAYER_HIT]
+
+/**
+ * The layer that dims the dark basemap beneath the ports and vessels, in place
+ * of the canvas filter, so an open port label is as bright as the Air map's
+ * airfield labels (map-kit `mapDimming`).
+ */
+export const SEA_MAP_DIM_LAYER_ID = 'sea-map-dim'
 
 interface VesselFeatureProperties {
   mmsi: string
@@ -237,6 +248,9 @@ export class AisVesselsControl extends SentinelControlBase {
    */
   initLayers(): void {
     this._registerIcons()
+    // Added first, so the vessel layers below go on above it.
+    addMapDimLayer(this.map, SEA_MAP_DIM_LAYER_ID)
+    setMapDimming(this.map, SEA_MAP_DIM_LAYER_ID, !isBrightBasemap())
     if (!this.map.getSource(SOURCE_ID)) {
       this.map.addSource(SOURCE_ID, { type: 'geojson', data: this._collection() })
     }
@@ -340,6 +354,23 @@ export class AisVesselsControl extends SentinelControlBase {
     this._applyVisibility()
     this._applySelection()
     this._renderTrack(this._seaStore.selectedTrack)
+  }
+
+  /**
+   * Put the dimming layer on top of everything else the map draws, then the
+   * given layers (the ports) and the vessels above it, so they keep their full
+   * brightness while the basemap, routes and rings stay settled beneath. Run
+   * once every control has added its layers; a layer added later beneath the
+   * vessels (the ports, once their fonts load) still lands above the dimming.
+   */
+  raiseAboveMapDimming(layerIdsBeneathVessels: readonly string[]): void {
+    for (const layerId of [
+      SEA_MAP_DIM_LAYER_ID,
+      ...layerIdsBeneathVessels,
+      ...VESSEL_LAYER_ORDER,
+    ]) {
+      if (this.map.getLayer(layerId)) this.map.moveLayer(layerId)
+    }
   }
 
   /** Select a vessel (from its marker or a notification click). */

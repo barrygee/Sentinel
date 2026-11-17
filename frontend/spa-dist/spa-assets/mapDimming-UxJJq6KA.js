@@ -1,0 +1,1 @@
+var e=.35;function t(t,n){t.getLayer(n)||t.addLayer({id:n,type:`background`,paint:{"background-color":`#000000`,"background-opacity":e}})}function n(e,t,n){e.getCanvas().style.filter=n?`none`:``,e.getLayer(t)&&e.setLayoutProperty(t,`visibility`,n?`visible`:`none`)}export{e as MAP_DIM_OPACITY,t as addMapDimLayer,n as setMapDimming};
