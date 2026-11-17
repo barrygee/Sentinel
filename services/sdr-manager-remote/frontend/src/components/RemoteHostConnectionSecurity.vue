@@ -63,7 +63,7 @@ import {
 } from '../api/sdrManagerRemoteApi'
 import { announceHostsChanged } from '../hostsChanged'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
-import { fingerprintLines } from '../fingerprintLines'
+import { fingerprintLines } from '@sentinel/shell-api/utils/fingerprintLines'
 
 /** What each state says, and whether it is good news. */
 const STATES: Readonly<

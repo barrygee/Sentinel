@@ -24,7 +24,7 @@ const OfflineMapsSettings = defineAsyncComponent(
 /**
  * The App Settings that only mean something with the full app. SDR
  * Manager-only mode keeps the rest: Sentinel Location (the SDRs' location,
- * which other Sentinels show on their maps), HTTPS and THIS MACHINE.
+ * which other Sentinels show on their maps), Certificate and THIS MACHINE.
  */
 const FULL_APP_ONLY = ['full'] as const
 
@@ -138,7 +138,7 @@ registerSettingItems([
     id: 'config-current',
     // Full app only: SDR Manager-only mode's settings are THIS MACHINE's
     // Configuration (edited in place the same way); Sentinel Location and
-    // HTTPS keep their own cards.
+    // Certificate keep their own cards.
     modes: FULL_APP_ONLY,
     label: 'Application Config',
     desc: '',
@@ -161,10 +161,14 @@ registerSettingItems([
     // Both modes: an SDR Manager-only Pi is opened from other devices too.
     section: 'app',
     sectionLabel: 'App Settings',
+    // One card for this machine's certificate: what browsers install to open
+    // the page over HTTPS, and the fingerprint other Sentinels pin when they
+    // add this machine's SDR Manager. The id stays 'https' for old links.
     id: 'https',
-    label: 'HTTPS',
+    label: 'Certificate',
     desc: 'Open Sentinel over an encrypted connection, once each device trusts this Sentinel’s certificate.',
-    searchTerms: 'https tls ssl certificate encryption secure fingerprint trust install',
+    searchTerms:
+      'https tls ssl certificate encryption secure fingerprint sha-256 trust install pin sdr manager',
     control: { component: HttpsControl, layout: 'full', naturalHeight: true },
     groupLabel: 'SECURITY',
   },

@@ -10,7 +10,6 @@ import {
 import type { AppMode } from '@sentinel/shell-api/types/appMode'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue'
-import CertificateFingerprintControl from './components/certificate/CertificateFingerprintControl.vue'
 import ConfigTransferControl from './components/config/ConfigTransferControl.vue'
 import LocalDevicesControl from './components/devices/LocalDevicesControl.vue'
 import HotspotControl from './components/hotspot/HotspotControl.vue'
@@ -27,8 +26,9 @@ const DEVICES_GROUP = 'DEVICES'
 
 /**
  * sdr-manager-local's settings: this machine's RTL-SDRs, and its THIS MACHINE
- * group — console password, certificate, private access, configuration file
- * and Wi-Fi hotspot.
+ * group — console password, private access, configuration file and Wi-Fi
+ * hotspot. This machine's certificate fingerprint, which other Sentinels pin,
+ * is on core's Certificate card under App Settings › SECURITY (HttpsControl).
  *
  * THIS MACHINE is in App Settings, in both modes: it is about this computer,
  * not about radios, and the full app and SDR Manager-only mode keep it in the
@@ -87,20 +87,6 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
         naturalHeight: true,
         // Open while there is no password: setting one is what needs doing.
         collapsible: { openWhen: () => useLocalAuthStore().isUnprotected },
-      },
-    },
-    {
-      ...sharedFields,
-      id: 'sdr-manager-local-certificate',
-      label: 'Certificate',
-      desc: 'The fingerprint other Sentinels check before they trust this machine.',
-      searchTerms:
-        'certificate fingerprint tls https sha-256 trust security encryption sdr manager',
-      control: {
-        component: CertificateFingerprintControl,
-        layout: 'half',
-        naturalHeight: true,
-        collapsible: {},
       },
     },
     {

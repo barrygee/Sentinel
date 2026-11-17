@@ -6,7 +6,7 @@
 The gateway serves the page over HTTPS (:8444) with a certificate this
 deployment's own certificate authority issued (`service-credentials`). No
 browser knows that authority, so each device that opens the page installs it
-once: Settings › App Settings › HTTPS shows its fingerprint and downloads it,
+once: Settings › App Settings › Certificate shows its fingerprint and downloads it,
 and docs/https.md says how to install it on each kind of device.
 
 Served to browsers on the LAN without signing in, on purpose: a certificate

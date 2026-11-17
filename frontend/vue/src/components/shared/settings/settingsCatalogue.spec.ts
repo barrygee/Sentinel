@@ -52,7 +52,6 @@ import SeaCoverageAreaControl from '@sentinel/section-sea/settings/SeaCoverageAr
 import SeaLabelFieldsControl from '@sentinel/section-sea/settings/SeaLabelFieldsControl.vue'
 import SeaMapLayersControl from '@sentinel/section-sea/settings/SeaMapLayersControl.vue'
 import ConsolePasswordControl from '@sentinel/sdr-manager-local/components/auth/ConsolePasswordControl.vue'
-import CertificateFingerprintControl from '@sentinel/sdr-manager-local/components/certificate/CertificateFingerprintControl.vue'
 import PrivateAccessControl from '@sentinel/sdr-manager-local/components/privateAccess/PrivateAccessControl.vue'
 import ConfigTransferControl from '@sentinel/sdr-manager-local/components/config/ConfigTransferControl.vue'
 import HotspotControl from '@sentinel/sdr-manager-local/components/hotspot/HotspotControl.vue'
@@ -118,16 +117,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       layout: 'half',
       naturalHeight: true,
       collapsible: { openWhen: expect.any(Function) },
-    },
-  ],
-  [
-    'app',
-    'sdr-manager-local-certificate',
-    {
-      component: CertificateFingerprintControl,
-      layout: 'half',
-      naturalHeight: true,
-      collapsible: {},
     },
   ],
   [
@@ -397,6 +386,17 @@ describe('Settings catalogue', () => {
       'sea-ais-key': 'online',
       'sea-coverage-area': 'online',
     })
+  })
+
+  it('keeps this machine’s certificate in one Certificate card under SECURITY', () => {
+    const items = getSettingItems()
+    const certificate = items.find((item) => item.id === 'https')!
+    expect(certificate).toMatchObject({ label: 'Certificate', groupLabel: 'SECURITY' })
+    // The words the removed THIS MACHINE › Certificate card was found by.
+    for (const word of ['fingerprint', 'sha-256', 'sdr manager', 'https']) {
+      expect(certificate.searchTerms).toContain(word)
+    }
+    expect(items.filter((item) => item.label === 'Certificate')).toHaveLength(1)
   })
 
   it('labels every item with its section’s nav label', () => {

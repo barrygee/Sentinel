@@ -1,6 +1,6 @@
 # SDR Manager
 
-One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's console password, certificate, private access, configuration and hotspot are in **Settings › App Settings › THIS MACHINE**, in both modes. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer's dongles have a page of their own, **Settings › SDR Manager**.
+One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's console password, private access, configuration and hotspot are in **Settings › App Settings › THIS MACHINE**, in both modes; its certificate is **Settings › App Settings › Certificate**. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer's dongles have a page of their own, **Settings › SDR Manager**.
 
 ## Features
 
@@ -121,7 +121,7 @@ Only single addresses work, not ranges. Give each listed Sentinel a fixed addres
 
 Sentinel talks to a host over HTTPS, so the console password never crosses the network readable. The first time, you confirm that the host is the one you mean by its certificate fingerprint. The host shows its own:
 
-- in its **Settings › App Settings › THIS MACHINE › Certificate**;
+- in its **Settings › App Settings › Certificate**;
 - in its log when SDR Manager starts: `docker compose logs sdr-manager-local | grep fingerprint`;
 - on a Mac, in `uv run --project backend sdr-manager-local doctor`.
 
