@@ -183,6 +183,11 @@ import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { findSignalEdges, findTimeExtent } from './composables/useSdrSignalMarker'
+import {
+  useKnownFrequencyMarkers,
+  type KnownFrequencyAnnotationHost,
+  type KnownFrequencyAnnotationPlugin,
+} from './composables/useKnownFrequencyMarkers'
 import { fitBandLabel } from './bandLabel'
 
 const store = useSdrStore()
@@ -572,13 +577,6 @@ function carrierFromBracketHz(centerHz: number, _widthHz: number, _mode: SdrMode
   return centerHz
 }
 
-// Known-frequency labels (from the frequency manager). Sigplot AnnotationPlugin
-// renders text/images on the spectrum canvas with native Hz→pixel mapping and
-// auto-clipping at the data box. Each annotation's `value` is a pre-rendered
-// off-screen canvas with a vertical line + label text, so sigplot handles
-// positioning under zoom/tune for free.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let knownFreqPlugin: any = null
 let _lastCommittedFreqHz = 0
 let _lastCommittedBwHz = 0
 // Independent drag baseline, snapshotted on mousedown over an accordion. The
@@ -602,178 +600,27 @@ const nearEdge = ref(false)
 const MIN_BW_HZ = 200
 
 // ── Known-frequency markers ─────────────────────────────────────────────────
-// Saved frequencies (Frequency Manager) inside the visible window, projected to
-// a percentage across the data box. A marker is JUST a dot at the top of the
-// trace — no label over the signal; clicking it reveals the name (see the
-// template's .sdr-wf-known-marker-pop). Dots whose pixel positions land within
-// KNOWN_CLUSTER_PX of each other merge into ONE marker carrying every member, so
-// a dense band reads as a single dot with a count rather than a smear of dots.
-// `tunedLabel` is the member name to show as a persistent tag while the radio is
-// tuned to (near) that marker.
-// The marker's 24px button: dots closer than that would overlap each other's
-// targets (WCAG 2.5.8), so they merge into one marker instead.
-const KNOWN_CLUSTER_PX = 24 // dots closer than this on screen merge into one marker
-const KNOWN_TUNED_MATCH_HZ = 1500 // within this of the tuned freq ⇒ the marker reads as "tuned"
-
-interface KnownFreqMember {
-  id: string
-  label: string
-  frequencyHz: number
-}
-interface KnownFreqMarker {
-  key: string
-  leftPct: number
-  isCluster: boolean
-  count: number
-  label: string
-  members: KnownFreqMember[]
-  tunedLabel: string | null
-}
-
-const visibleKnownFreqs = computed<KnownFreqMarker[]>(() => {
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return []
-  const { winLo, winHi } = zoomWindowHz(lo, hi)
-  const w = winHi - winLo
-  // Clustering is a pixel question, so project onto the data box's width.
-  // Whenever a marker is in-window the spectrum has had a frame, and that same
-  // frame populated dataBoxWidthPx, so it is > 0 here.
-  const boxWidthPx = dataBoxWidthPx.value
-  const tunedHz = store.currentFreqHz
-
-  const inWindow = store.frequencies
-    .filter((f) => f.frequency_hz >= winLo && f.frequency_hz <= winHi)
-    .sort((a, b) => a.frequency_hz - b.frequency_hz)
-
-  // Walk left → right, opening a new group whenever the on-screen gap to the
-  // previous frequency exceeds the cluster threshold.
-  const groups: KnownFreqMember[][] = []
-  let lastLeftPx = Number.NEGATIVE_INFINITY
-  for (const f of inWindow) {
-    const leftPx = ((f.frequency_hz - winLo) / w) * boxWidthPx
-    const member: KnownFreqMember = {
-      id: String(f.id),
-      label: f.label,
-      frequencyHz: f.frequency_hz,
-    }
-    if (groups.length === 0 || leftPx - lastLeftPx > KNOWN_CLUSTER_PX) {
-      groups.push([member])
-    } else {
-      groups[groups.length - 1].push(member)
-    }
-    lastLeftPx = leftPx
-  }
-
-  return groups.map((members) => {
-    const first = members[0]
-    const last = members[members.length - 1]
-    const centreHz = (first.frequencyHz + last.frequencyHz) / 2
-    const tuned = members.find((m) => Math.abs(m.frequencyHz - tunedHz) <= KNOWN_TUNED_MATCH_HZ)
-    // Anchor a tuned cluster on the TUNED member's own stored frequency rather
-    // than the cluster's first/last midpoint — a cluster is only a display
-    // grouping (members merge on screen within KNOWN_CLUSTER_PX), and once one
-    // member is the tuned station the dot should sit exactly on it (matching
-    // the carrier line drawn at that same stored frequency) rather than at an
-    // average that can be a real, visible distance away from it. Still a real,
-    // stored known-frequency value (never store.currentFreqHz itself), so the
-    // marker's click/hit-box footprint stays anchored to actual DB data.
-    const positionHz = tuned ? tuned.frequencyHz : centreHz
-    return {
-      key: members.map((m) => m.id).join('-'),
-      // sigplot draws the carrier line at a whole pixel plus half
-      // (`Math.round(px) + 0.5`, sigplot.accordion.js / mx.real_to_pixel), so
-      // the dot snaps to that same column — at the raw fractional position it
-      // sat up to a pixel beside the line, which reads as off-centre on HiDPI.
-      leftPct: ((Math.round(((positionHz - winLo) / w) * boxWidthPx) + 0.5) / boxWidthPx) * 100,
-      isCluster: members.length > 1,
-      count: members.length,
-      label: first.label,
-      members,
-      tunedLabel: tuned ? tuned.label : null,
-    }
-  })
+// Saved frequencies drawn as dots along the top of the spectrum, their name
+// popovers and snap-to-known tuning (composables/useKnownFrequencyMarkers.ts).
+const {
+  visibleKnownFreqs,
+  openKnownKey,
+  toggleKnownMarker,
+  onKnownMarkerPointerEnter,
+  onKnownMarkerPointerLeave,
+  isKnownPopoverShown,
+  isKnownMarkerEvent,
+  snapToKnownFreqHz,
+  attachAnnotationPlugin,
+  detachAnnotationPlugin,
+} = useKnownFrequencyMarkers({
+  source: store,
+  spanStartHz,
+  spanEndHz,
+  zoom,
+  dataBoxWidthPx,
+  zoomWindowHz,
 })
-
-// The name popover open on a marker (by its `key`), or null. Toggled by a
-// click / tap on the dot; dismissed by an outside click or any pan / zoom / tune
-// that could move the markers out from under it.
-const openKnownKey = ref<string | null>(null)
-function toggleKnownMarker(key: string) {
-  openKnownKey.value = openKnownKey.value === key ? null : key
-}
-// The marker a mouse is hovering (by its `key`), or null. Hovering previews the
-// same name popover a click opens, and pointer-out hides it again — unless that
-// marker was clicked open, which keeps it until it's dismissed as above.
-const hoveredKnownKey = ref<string | null>(null)
-function onKnownMarkerPointerEnter(event: PointerEvent, key: string) {
-  // Mouse only: a touch tap also fires pointerenter, and its click already
-  // toggles the popover — a hover preview there would leave it stuck open.
-  if (event.pointerType === 'mouse') hoveredKnownKey.value = key
-}
-function onKnownMarkerPointerLeave(key: string) {
-  if (hoveredKnownKey.value === key) hoveredKnownKey.value = null
-}
-/** Whether a marker's name popover shows: clicked open, or being hovered. */
-function isKnownPopoverShown(key: string): boolean {
-  return openKnownKey.value === key || hoveredKnownKey.value === key
-}
-// True when an event originated on a known-frequency marker (its dot button or
-// popover). Used both to keep a marker press from also tuning the radio (the
-// plot mouse/touch handlers) and to keep an in-marker click from dismissing the
-// open popover (the outside-click handler below).
-function isKnownMarkerEvent(e: Event): boolean {
-  return e.target instanceof HTMLElement && e.target.closest('.sdr-wf-known-marker') !== null
-}
-useDocumentEvent('mousedown', (e: Event) => {
-  if (openKnownKey.value === null || isKnownMarkerEvent(e)) return
-  openKnownKey.value = null
-})
-watch([zoom, spanStartHz, spanEndHz, () => store.displayKnownFrequencies], () => {
-  openKnownKey.value = null
-  hoveredKnownKey.value = null
-})
-
-// Snap a target frequency to the nearest known (Frequency Manager) frequency when
-// it lands within a small pixel threshold of that marker — so a click near a known
-// freq jumps exactly to it, and a tuner-bar drag settles onto it. Pixel-based (via
-// the current visible window) so the snap distance feels the same at every zoom.
-// Gated by the Settings › SDR "Snap to Known Frequencies" toggle (store.snapToKnown).
-const SNAP_THRESHOLD_PX = 12
-function snapToKnownFreqHz(freqHz: number): number {
-  if (!store.snapToKnown) return freqHz
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return freqHz
-  const { winLo, winHi } = zoomWindowHz(lo, hi)
-  const boxWidthPx = dataBoxWidthPx.value
-  if (boxWidthPx <= 0 || winHi <= winLo) return freqHz
-  const thresholdHz = SNAP_THRESHOLD_PX * ((winHi - winLo) / boxWidthPx)
-  let best = freqHz
-  let bestDist = thresholdHz
-  for (const f of store.frequencies) {
-    const dist = Math.abs(f.frequency_hz - freqHz)
-    if (dist <= bestDist) {
-      bestDist = dist
-      best = f.frequency_hz
-    }
-  }
-  return best
-}
-
-// No-op kept for the existing watchers — the HTML overlay (visibleKnownFreqs)
-// drives all rendering now. The AnnotationPlugin was previously used for the
-// vertical canvas line, which has been replaced by the SVG dot on the HTML
-// marker. Leave the plugin attached but empty (cheap; harmless).
-function syncKnownFrequencies() {
-  if (!knownFreqPlugin) return
-  knownFreqPlugin.clear_annotations()
-  try {
-    specPlot?.redraw()
-  } catch {
-    /* noop */
-  }
-}
 
 // Push the store's tuned freq + demod bandwidth onto BOTH accordions, each in
 // its plot's x units (spectrum=MHz, waterfall=Hz). Also refreshes the drag
@@ -2648,17 +2495,17 @@ function initPlots() {
   wfPlot.add_plugin(wfCar, 1)
   applyMarker()
 
-  // Known-frequency labels on the spectrum. AnnotationPlugin draws each
-  // annotation's `value` (text OR a canvas image) at real-coordinate `x`,
-  // auto-clipped to the data box. Spectrum x is in MHz, so annotation.x is
-  // frequency_hz / 1e6. We rebuild the annotation list whenever store.frequencies
-  // changes; pan/zoom are handled natively by sigplot.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const AnnotationPlugin = (sigplot.plugins as unknown as { AnnotationPlugin: any })
-    .AnnotationPlugin
-  knownFreqPlugin = new AnnotationPlugin({ display: true })
-  specPlot.add_plugin(knownFreqPlugin, 2)
-  syncKnownFrequencies()
+  // The known-frequency AnnotationPlugin (kept attached but empty — the HTML
+  // marker overlay draws the markers; see useKnownFrequencyMarkers).
+  const AnnotationPlugin = (
+    sigplot.plugins as unknown as {
+      AnnotationPlugin: new (options: { display: boolean }) => KnownFrequencyAnnotationPlugin
+    }
+  ).AnnotationPlugin
+  attachAnnotationPlugin(
+    specPlot as unknown as KnownFrequencyAnnotationHost,
+    new AnnotationPlugin({ display: true }),
+  )
 
   // The axis/tick `fg` colour is also used by default for the grid lines.
   // Override the grid stroke independently so the grid stays dark while
@@ -3065,14 +2912,6 @@ watch(
   },
 )
 
-// Rebuild known-frequency annotations when the manager list changes. Pan/zoom
-// don't need a rebuild — sigplot re-runs the plugin's draw on every redraw and
-// maps annotation.x (MHz) through the live coordinate system. The watch on
-// spanStartHz keeps the stagger-row calculation in step with span/zoom changes
-// (so labels re-distribute across rows when the visible range changes).
-watch(() => store.frequencies, syncKnownFrequencies, { deep: true })
-watch([spanStartHz, spanEndHz], syncKnownFrequencies)
-
 onBeforeUnmount(() => {
   // rafId is assigned in onMounted and never reset to 0 (it holds the last init
   // rAF id), so it is always truthy at unmount — the null arm never runs.
@@ -3105,27 +2944,11 @@ onBeforeUnmount(() => {
   } catch {
     /* noop */
   }
-  // sigplot's AnnotationPlugin registers a document `mouseup` listener in init
-  // but never removes it in dispose() — after remove_plugin() zeroes its
-  // `annotations` array, the stale listener throws on the next mouseup. Detach
-  // it ourselves before disposing.
-  try {
-    if (knownFreqPlugin?.onmouseup) {
-      document.removeEventListener('mouseup', knownFreqPlugin.onmouseup, false)
-    }
-  } catch {
-    /* noop */
-  }
-  try {
-    if (knownFreqPlugin) specPlot?.remove_plugin(knownFreqPlugin)
-  } catch {
-    /* noop */
-  }
+  detachAnnotationPlugin()
   specAcc = null
   wfAcc = null
   specCar = null
   wfCar = null
-  knownFreqPlugin = null
   try {
     specPlot?.remove_layer(specUuid)
   } catch {
