@@ -547,7 +547,7 @@ function onExpandedKeyChange(key: string): void {
   if (!base) return
   /* v8 ignore stop */
   expandedMilBase.value = base.name
-  fitBoundsWithPadding(base.bounds)
+  fitBoundsWithPadding(base.bounds, base.coords)
 }
 
 // Opening an aircraft row selects it on the map (selected tag + trail, as a
@@ -630,12 +630,36 @@ function refreshExpandedPlane() {
 
 onUnmounted(clearSignalLostTimer)
 
-// Fit the map to a place, centred on the part of the map the operator can see:
-// the padding adds the width of the shell's rails and the open side panel
-// (mapChromeInsets), which sit over the full-window map.
-function fitBoundsWithPadding(bounds: [number, number, number, number]) {
+// The bounds grown to sit evenly around `centre`, so a fit to them centres on
+// that point. A place's stored box need not be centred on its marker (EGNT's
+// marker is on the top edge of its box), and the operator expects the marker
+// they clicked in the middle; the box still sets how far the map zooms in.
+function boundsCentredOn(
+  bounds: [number, number, number, number],
+  centre: [number, number],
+): [number, number, number, number] {
+  const [west, south, east, north] = bounds
+  const [longitude, latitude] = centre
+  const halfWidth = Math.max(longitude - west, east - longitude)
+  const halfHeight = Math.max(latitude - south, north - latitude)
+  return [
+    longitude - halfWidth,
+    latitude - halfHeight,
+    longitude + halfWidth,
+    latitude + halfHeight,
+  ]
+}
+
+// Fit the map to a place, its marker in the middle of the part of the map the
+// operator can see: the padding adds the width of the shell's rails and the
+// open side panel (mapChromeInsets), which sit over the full-window map.
+function fitBoundsWithPadding(
+  placeBounds: [number, number, number, number],
+  marker: [number, number],
+) {
   const m = props.getMap()
   if (!m) return
+  const bounds = boundsCentredOn(placeBounds, marker)
   const ctrlPanel = document.querySelector('.maplibregl-ctrl-top-right') as HTMLElement | null
   const ctrlW = ctrlPanel ? ctrlPanel.offsetWidth : 0
   const ctrlH = ctrlPanel ? ctrlPanel.offsetHeight : 0
@@ -665,7 +689,7 @@ function fitBoundsWithPadding(bounds: [number, number, number, number]) {
 function openAirport(r: AirportResult) {
   expandedAirport.value = r.icao
   tuneNotice.value = null
-  fitBoundsWithPadding(r.bounds)
+  fitBoundsWithPadding(r.bounds, r.coords)
 }
 
 interface AirportFreq {
@@ -832,7 +856,12 @@ function expandAirport(icao: string) {
   airStore.setAirFilterCategory('airports')
   expandedAirport.value = icao
   tuneNotice.value = null
-  requestAnimationFrame(() => fitBoundsWithPadding(airport.properties.bounds))
+  requestAnimationFrame(() =>
+    fitBoundsWithPadding(
+      airport.properties.bounds,
+      airport.geometry.coordinates as [number, number],
+    ),
+  )
 }
 
 // Expand a military base's accordion by name (driven by a map base click).

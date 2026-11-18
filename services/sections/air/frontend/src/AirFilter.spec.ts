@@ -80,6 +80,15 @@ function makeAdsb(features: ReturnType<typeof planeFeature>[] = []) {
   }
 }
 
+/** The centre [longitude, latitude] of the first fitBounds call's box. */
+function fittedCentre(fitBounds: ReturnType<typeof vi.fn>): [number, number] {
+  const [[west, south], [east, north]] = fitBounds.mock.calls[0]![0] as [
+    [number, number],
+    [number, number],
+  ]
+  return [(west + east) / 2, (south + north) / 2]
+}
+
 function makeMap() {
   return {
     easeTo: vi.fn(),
@@ -533,7 +542,10 @@ describe('AirFilter', () => {
       const wrapper = mountFilter(makeAdsb([]), () => map)
       await setCategory('airports')
       await wrapper.find('.bfp-result-option').trigger('click')
-      expect(map.fitBounds).toHaveBeenCalled()
+      // Centred on the Heathrow marker, as a map click is.
+      const [longitude, latitude] = fittedCentre(map.fitBounds)
+      expect(longitude).toBeCloseTo(-0.46)
+      expect(latitude).toBeCloseTo(51.47)
       // tower + atis valid; radar (non-numeric) and approach (0) skipped.
       const frequencyCells = wrapper.findAll('.apt-acc-freq')
       expect(frequencyCells).toHaveLength(2)
@@ -663,7 +675,10 @@ describe('AirFilter', () => {
       const wrapper = mountFilter(makeAdsb([]), () => map)
       await setCategory('mil')
       await wrapper.find('.bfp-result-option').trigger('click')
-      expect(map.fitBounds).toHaveBeenCalled()
+      // Centred on the RAF Fairford marker (-1.79, 51.68), not its box's middle.
+      const [longitude, latitude] = fittedCentre(map.fitBounds)
+      expect(longitude).toBeCloseTo(-1.79)
+      expect(latitude).toBeCloseTo(51.68)
     })
 
     it("opens a base's LOCATION accordion on selection and shuts it on a second click", async () => {
@@ -1332,14 +1347,31 @@ describe('AirFilter', () => {
       ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
       await nextTick()
       expect(map.fitBounds).toHaveBeenCalledOnce()
-      // The fixture's Heathrow bounds, padded and capped like a list-row open.
       expect(map.fitBounds).toHaveBeenCalledWith(
-        [
-          [-0.5, 51.4],
-          [-0.4, 51.5],
-        ],
+        expect.anything(),
         expect.objectContaining({ maxZoom: 13, duration: 800 }),
       )
+    })
+
+    it('centres the fit on the airport marker, not on the middle of its box', async () => {
+      // The fixture's Heathrow marker (-0.46, 51.47) is off-centre in its box
+      // (-0.5..-0.4, 51.4..51.5): nearer the west and the north edges.
+      const map = makeMap()
+      const wrapper = mountFilter(makeAdsb([]), () => map)
+      ;(wrapper.vm as unknown as { expandAirport: (icao: string) => void }).expandAirport('EGLL')
+      await nextTick()
+      const [[west, south], [east, north]] = map.fitBounds.mock.calls[0]![0] as [
+        [number, number],
+        [number, number],
+      ]
+      expect((west + east) / 2).toBeCloseTo(-0.46)
+      expect((south + north) / 2).toBeCloseTo(51.47)
+      // Grown, never shrunk: the whole box stays in view, its farther edge
+      // setting the reach on each axis.
+      expect(west).toBeCloseTo(-0.52)
+      expect(east).toBeCloseTo(-0.4)
+      expect(south).toBeCloseTo(51.4)
+      expect(north).toBeCloseTo(51.54)
     })
 
     it('centres the airport on the visible map, padding past the open panel and rails', async () => {
