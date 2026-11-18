@@ -1953,6 +1953,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #673 from barrygee/refactor/sdr-known-frequency-markers
 - Merge pull request #674 from barrygee/refactor/sdr-signal-markers
 - Merge pull request #675 from barrygee/refactor/sdr-frequency-drag
+- Merge pull request #676 from barrygee/refactor/sdr-bandwidth-bracket-drag
 
 ### Performance
 
@@ -2099,6 +2100,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract known-frequency markers from SdrWaterfall
 - Extract row clock and signal markers from SdrWaterfall
 - Extract frequency drag, wheel pan and click-to-tune from SdrWaterfall
+- Extract the bandwidth bracket drag from SdrWaterfall
 
 ### Documentation
 
@@ -2445,6 +2447,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for known-frequency marker extraction
 - Rebuild SDR remote for signal marker extraction
 - Rebuild SDR remote for frequency drag extraction
+- Rebuild SDR remote for bandwidth bracket extraction
 
 ### Continuous Integration
 
