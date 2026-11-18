@@ -276,6 +276,24 @@ C12 as built:
   for detection, never snapping. C13 keeps `onPlotMouseUp`'s own rect math, as before.
 - The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 3,229 → 2,826 lines.
 
+C13 as built:
+
+- `composables/useFrequencyDrag.ts` owns the gutter drag-to-pan (mouse and touch: `tryStart`/`commit`/`abortFreqDrag`,
+  the rAF flush and the five document listeners), the wheel pan (accumulate per tick, commit once 250 ms after the
+  burst) and click-to-tune (`tuneToClientX`: the click's frequency in the visible window, known-frequency snap, the
+  auto-centre / demod-offset choice). It takes the store as a narrow `FrequencyTuningSource`, the span refs, the three
+  gutter insets, `livePanOffsetHz`, `zoomWindowHz`, `snapToKnownFreqHz` and an `applyView` callback (`applyZoom` +
+  `applyMarker`); the spectrum element comes as a getter because its ref is declared further down the component, and
+  the call sits where the block used to be so the document listeners keep their order.
+- `onPlotMouseDown`/`onPlotMouseUp` stay in the component: they are the plots' pointer router (right-click
+  suppression, known-marker presses, bracket drags, Shift+Click signal pins, then pan or click-to-tune), so they call
+  `tryStartFreqDrag` and `tuneToClientX` rather than move. `livePanOffsetHz` stays too: `zoomWindowHz`, `applyZoom`,
+  `applyMarker` and the new-frame reset all read it; the reset asks `isFreqDragActive()`. The window `blur` →
+  `abortFreqDrag` hook stays beside the bracket drag's, keeping their order.
+- `onPlotWheel` is a one-line component function around the composable's handler: the template binds it on both
+  plots, and Vue wraps a destructured handler in a per-element arrow, which left the raster's copy uncovered.
+- The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 2,826 → 2,584 lines.
+
 ### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
 
 These had a full decomposition series in July (panel 5,548 → 1,872); they have grown back to 2,061. Each PR starts
