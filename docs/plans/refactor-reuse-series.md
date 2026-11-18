@@ -247,7 +247,7 @@ stay in the component until the last PR.
 |---|---|---|
 | C11 | `useKnownFrequencyMarkers` | `toggleKnownMarker`, `onKnownMarker*`, `isKnownPopoverShown`, `isKnownMarkerEvent`, `snapToKnownFreqHz`, `syncKnownFrequencies`, `applyMarker` |
 | C12 | `useSignalMarkers` | `computeSignalMarkerAtPoint`, `isPointWithinMarker`, `signalMarkersOverlap`, `toggleSignalMarkerPin`, `signalMarkerTimeLabels`, `rowIndexForTimeMs`, row-clock helpers |
-| C13 | `useFrequencyDrag` (tune by drag and wheel) | `onPlotMouseDown/Up`, `freqDragFlush`, `tryStart/commit/abortFreqDrag`, `wheelFlush`, `onPlotWheel`, `clientXToFreqHz` |
+| C13 | `useFrequencyDrag` (tune by drag and wheel) | `onPlotMouseDown/Up`, `freqDragFlush`, `tryStart/commit/abortFreqDrag`, `wheelFlush`, `onPlotWheel` |
 | C14 | `useBandwidthBracketDrag` | `acc*` drag helpers, `nearAccEdge`, `nearAccGrabZone`, `dispatchBridgedMouseEvent`, `onPlotTouchStart`, `bracketGeomHz`, `carrierFromBracketHz` |
 | C15 | `useWaterfallPlots` + CSS split | `buildPipes`, `initPlots`, `drawLoop`, `computeDesiredBins`, `publishDesiredBins`, zoom/range; the 700-line CSS splits to the components that now own each part |
 
@@ -264,6 +264,17 @@ C11 as built:
 - `applyMarker` stays in the component: it positions the tuning accordions, not the known-frequency dots, so it
   moves with the bracket drag in C14.
 - The spec reaches the markers only through the DOM, so it is unchanged. `SdrWaterfall.vue` 3,406 → 3,229 lines.
+
+C12 as built:
+
+- `composables/useSignalMarkers.ts` owns the row history (each raster row's push time and bins, newest first, capped at
+  the raster depth), the clock labels and second ticks down the raster's left edge, the raster data box refs the
+  component fills after a draw, and the signal marker (hover detection, Shift+Click pin/unpin, start/end labels). It
+  takes the store as a narrow `SignalMarkerSource`, the span/zoom refs, the raster element and the frequency scale as
+  getters (`firstBinHz`/`hzPerBin`), because a retune reassigns `xstartHz`/`xdeltaHz` in the component.
+- The hover version of `clientXToFreqHz` (the only one in the file) moved with it: it maps a point to a row and bin
+  for detection, never snapping. C13 keeps `onPlotMouseUp`'s own rect math, as before.
+- The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 3,229 → 2,826 lines.
 
 ### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
 
