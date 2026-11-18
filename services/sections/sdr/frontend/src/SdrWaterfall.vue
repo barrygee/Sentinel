@@ -183,6 +183,7 @@ import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { useSignalMarkers } from './composables/useSignalMarkers'
+import { useFrequencyDrag } from './composables/useFrequencyDrag'
 import {
   useKnownFrequencyMarkers,
   type KnownFrequencyAnnotationHost,
@@ -366,7 +367,7 @@ const ZOOM_MAX = 50
 const zoom = ref(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, store.viewZoom || ZOOM_MIN)))
 
 // Live drag-pan offset (Hz). While the user drags the freq gutter, this slides
-// the visible window WITHOUT retuning — see freqDragFlush(). Folded into
+// the visible window WITHOUT retuning — see useFrequencyDrag. Folded into
 // zoomWindowHz below so applyZoom + all overlay computeds shift together. 0 when
 // not panning. Declared before zoomWindowHz (its consumer) so the closure binds.
 const livePanOffsetHz = ref(0)
@@ -380,11 +381,11 @@ const livePanOffsetHz = ref(0)
 // the "grab and scroll" feel). At zoom <= 1 the base is the full span, so the
 // only way to move the window is the pan offset. Single source of truth for
 // applyZoom() AND every overlay computed (visibleBands / freqTicks /
-// visibleKnownFreqs / onPlotMouseUp) so the trace and overlays always agree on
+// visibleKnownFreqs / tuneToClientX) so the trace and overlays always agree on
 // what's on screen.
 function zoomWindowHz(lo: number, hi: number): { winLo: number; winHi: number } {
   /* v8 ignore start -- every caller already guards `hi <= lo` before calling
-     (visibleBands/freqTicks/visibleKnownFreqs/applyZoom/onPlotMouseUp/
+     (visibleBands/freqTicks/visibleKnownFreqs/applyZoom/tuneToClientX/
      tryStartFreqDrag), so this defensive early-out is never reached. */
   if (hi <= lo) return { winLo: lo, winHi: hi }
   /* v8 ignore stop */
@@ -688,7 +689,7 @@ function applyMarker() {
 // by the HTML band overlay in the template — coloured rectangles sit on the
 // bottom of the spectrum canvas with the band name centred inside.
 //
-// Zoom handling mirrors applyZoom() / onPlotMouseUp(): the visible window is
+// Zoom handling mirrors applyZoom() / tuneToClientX(): the visible window is
 // the full span / zoom, centred on the tuned centre. Mapping bands against
 // that window (not the full span) keeps the strip aligned with the trace at
 // every zoom level.
@@ -921,7 +922,7 @@ function onPlotMouseUp(e: MouseEvent) {
   if (dragActive || accIsDragging(specAcc) || accIsDragging(wfAcc)) return
   // A freq-axis pan started in the gutter (the parent capture handler still
   // recorded mdownEl); the pan handles tuning itself, so don't also click-tune.
-  if (freqDragActive) return
+  if (isFreqDragActive()) return
   // Moved more than the slop? It was a drag/pan, not a click.
   if (Math.abs(e.clientX - mdownX) > CLICK_SLOP_PX || Math.abs(e.clientY - mdownY) > CLICK_SLOP_PX)
     return
@@ -950,285 +951,43 @@ function onPlotMouseUp(e: MouseEvent) {
       return
     }
   }
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return
-  const rect = el.getBoundingClientRect()
-  const dataLeft = rect.left + bandInsetLeftPx.value
-  const dataWidth = rect.width - bandInsetLeftPx.value - bandInsetRightPx.value
-  if (dataWidth <= 0) return
-  let frac = (e.clientX - dataLeft) / dataWidth
-  frac = Math.min(1, Math.max(0, frac))
-  // Account for an active horizontal zoom: the visible window is the full span
-  // / zoom, centred on the selected frequency and clamped to the span. Map the
-  // fraction within that window, not the full span, so a click lands on what
-  // the user sees.
-  const { winLo, winHi } = zoomWindowHz(lo, hi)
-  // Snap to a known frequency when the click lands near its marker, so clicking a
-  // known freq jumps straight to it (no-op when snapping is off / none in range).
-  const freqHz = snapToKnownFreqHz(Math.round(winLo + frac * (winHi - winLo)))
-  // If a freq-axis pan is still held (livePanOffsetHz != 0, awaiting the new
-  // centred frame), a click commits a fresh tune INSIDE the displayed window.
-  // freqHz was already computed in the offset-shifted window, so clear the
-  // offset now: applyMarker must NOT add it again (that would draw the bar
-  // offset from the clicked pixel). The retune below fetches a frame centred on
-  // freqHz, which lands the window correctly.
-  if (livePanOffsetHz.value !== 0) livePanOffsetHz.value = 0
-  if (store.autoCenterWaterfallOnTune) {
-    // Auto-centre ON: retune the hardware so the clicked freq becomes the new
-    // span centre. Clear any prior demod offset — the bar returns to centre.
-    store.setTuningOffsetHz(0)
-  } else {
-    // Auto-centre OFF: keep the hardware where it is; the audio NCO offset
-    // (clicked − hardware centre) demodulates the clicked freq instead. The
-    // hardware centre is the live frame centre (midpoint of the full span),
-    // NOT currentFreqHz (the demod target, which may already be off-centre).
-    const hwCenter = (lo + hi) / 2
-    store.setTuningOffsetHz(Math.round(freqHz - hwCenter))
-  }
-  // Both paths go through requestTune so the panel updates the displayed freq
-  // (currentFreqHz / readout / input) and the marker follows. The panel skips
-  // the hardware retune when auto-centre is OFF (offset handles the audio).
-  store.requestTune(freqHz)
+  tuneToClientX(el, e.clientX)
 }
 
-// ── Drag-to-pan the frequency axis ───────────────────────────────────────────
-// Grabbing the freq-number gutter below the spectrum and dragging left/right
-// scrolls the visible window across the radio's tuning range — like dragging a
-// map. Dragging RIGHT slides the spectrum content RIGHT (the labels follow the
-// cursor); the tuning bar stays pinned at its screen position (span centre).
-//
-// The drag is a PURELY LOCAL viewport pan for instant feedback: each rAF tick
-// sets livePanOffsetHz (folded into zoomWindowHz) and re-windows the existing
-// raster via applyZoom() + re-pins the marker via applyMarker() — NO retune, no
-// currentFreqHz change, so the bar never jumps. The hardware retune is committed
-// ONCE on mouseup (move the hardware centre to the final panned frequency), and
-// the live offset is held until the new span frame lands so there's no snap-back
-// (it's reset in the lastSpectrum watch when frame.center_hz changes).
-let freqDragActive = false
-// Reactive mirror of freqDragActive — drives the grabbing-cursor class on the
-// spectrum so the user gets feedback while panning the frequency axis.
-const freqDragging = ref(false)
-let freqDragStartX = 0
-let freqDragStartCenterHz = 0
-let freqDragHzPerPx = 0
-// Last raw (unclamped) pointer dx, stashed by mousemove and consumed by the rAF
-// flush (live preview, clamped) and by mouseup (commit, unclamped).
-let freqDragDx = 0
-let freqDragRaf = 0
-
-function freqDragFlush() {
-  freqDragRaf = 0
-  // The document mouseup that ends a pan both clears freqDragActive AND cancels
-  // this rAF, so a flush can never run with the flag already false.
-  /* v8 ignore start */
-  if (!freqDragActive) return
-  /* v8 ignore stop */
-  // Drag right (dx > 0) → window freqs decrease → content moves right. The
-  // clamp to the loaded span lives inside zoomWindowHz, so the live preview
-  // never shows blank edges.
-  livePanOffsetHz.value = -freqDragDx * freqDragHzPerPx
-  applyZoom() // re-window the spectrum + waterfall raster in place
-  applyMarker() // re-pin the bar at screen centre (dispFHz += offset)
-}
-
-// A mouse/touch position, minimal — MouseEvent and Touch both satisfy this
-// structurally, so tryStartFreqDrag (and friends) work unchanged from either
-// input type's start handler.
-type DragPoint = { clientX: number; clientY: number }
-
-// Returns true (and arms the pan) when the mousedown/touchstart lands in the
-// bottom freq-label gutter of the spectrum element. Called from
-// onPlotMouseDown's/onPlotTouchStart's capture handler so it reliably
-// intercepts before sigplot's canvas listener.
-function tryStartFreqDrag(point: DragPoint): boolean {
-  // Followers mirror the owner's tuning — don't let a freq-axis pan retune here.
-  if (!store.playing || store.readOnly) return false
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return false
-  const el = specEl.value
-  // The capture handler that calls this only fires while the spectrum element is
-  // mounted, so specEl is always populated here.
-  /* v8 ignore start */
-  if (!el) return false
-  /* v8 ignore stop */
-  const rect = el.getBoundingClientRect()
-  // The grabbable strip is the freq-label gutter at the bottom of the spectrum
-  // element (height = bandInsetBottomPx). A mousedown above it is a normal
-  // click-to-tune / marker interaction.
-  const gutterTop = rect.bottom - bandInsetBottomPx.value
-  if (bandInsetBottomPx.value <= 0 || point.clientY < gutterTop) return false
-  const dataWidth = el.clientWidth - bandInsetLeftPx.value - bandInsetRightPx.value
-  if (dataWidth <= 0) return false
-  // Pixel→Hz uses the VISIBLE (zoom-aware) window so the drag tracks the
-  // on-screen scale, not the full hardware span. Capture BEFORE arming the
-  // drag so zoomWindowHz sees the pre-pan offset (still 0 at grab time).
-  const { winLo, winHi } = zoomWindowHz(lo, hi)
-  freqDragHzPerPx = (winHi - winLo) / dataWidth
-  freqDragStartX = point.clientX
-  freqDragStartCenterHz = (lo + hi) / 2
-  freqDragDx = 0
-  freqDragActive = true
-  freqDragging.value = true
-  return true
-}
-
-// Commit the hardware retune ONCE, to the final panned centre using the RAW
-// (unclamped) drag so a fling past the loaded span still retunes there. Shared
-// by the mouseup and touchend handlers below — a freq-axis pan means "move the
-// hardware centre", so force auto-centre semantics (clear the demod offset),
-// mirroring the click-to-tune ON path.
-function commitFreqDrag(): void {
-  freqDragActive = false
-  freqDragging.value = false
-  if (freqDragRaf) {
-    cancelAnimationFrame(freqDragRaf)
-    freqDragRaf = 0
-  }
-  const finalCenterHz = Math.round(freqDragStartCenterHz - freqDragDx * freqDragHzPerPx)
-  // Keep livePanOffsetHz in place (no snap-back); the lastSpectrum watch resets
-  // it to 0 when the new span frame (centred on finalCenterHz) arrives.
-  // center=true forces the hardware-centre retune even with auto-centre OFF —
-  // otherwise the panned view would stay stuck (no new frames ever arrive).
-  store.setTuningOffsetHz(0)
-  store.requestTune(finalCenterHz, true)
-}
-
-// Abort an in-progress freq-axis pan WITHOUT committing — for a cancelled
-// touch gesture (touchcancel, e.g. an OS interruption) or the window losing
-// focus mid-drag, where the last pointer position can't be trusted. Mirrors
-// abortAccDrag's "no commit, resync to source of truth" below.
-function abortFreqDrag(): void {
-  if (!freqDragActive) return
-  freqDragActive = false
-  freqDragging.value = false
-  if (freqDragRaf) {
-    cancelAnimationFrame(freqDragRaf)
-    freqDragRaf = 0
-  }
-  livePanOffsetHz.value = 0
-  applyZoom()
-  applyMarker()
-}
-
-useDocumentEvent('mousemove', (e: Event) => {
-  if (!freqDragActive) return
-  const me = e as MouseEvent
-  freqDragDx = me.clientX - freqDragStartX
-  // Throttle the viewport re-window to one per animation frame.
-  if (!freqDragRaf) freqDragRaf = requestAnimationFrame(freqDragFlush)
-})
-
-useDocumentEvent('mouseup', () => {
-  if (!freqDragActive) return
-  commitFreqDrag()
-})
-
-// Touch equivalents of the two listeners above. touchmove must be non-passive
-// so preventDefault() can stop the page from scrolling vertically while the
-// user is panning the frequency axis horizontally (see also `touch-action:
-// none` on .sdr-wf-spectrum in SdrWaterfall.css, which avoids the scroll ever
-// starting in the first place — this preventDefault is belt-and-braces for
-// browsers that still send the event before honouring touch-action).
-useDocumentEvent(
-  'touchmove',
-  (e: Event) => {
-    if (!freqDragActive) return
-    const te = e as TouchEvent
-    const touch = te.touches[0]
-    /* v8 ignore start -- a single-finger drag always has one active touch */
-    if (!touch) return
-    /* v8 ignore stop */
-    te.preventDefault()
-    freqDragDx = touch.clientX - freqDragStartX
-    if (!freqDragRaf) freqDragRaf = requestAnimationFrame(freqDragFlush)
+// Click-to-tune, drag-to-pan along the frequency gutter and scroll-to-pan
+// (refactor series C13). Called where its block used to be, so its document
+// listeners keep their order; the spectrum ref is declared further down, hence
+// the getter.
+const {
+  freqDragging,
+  isFreqDragActive,
+  tryStartFreqDrag,
+  abortFreqDrag,
+  onPlotWheel: panByWheel,
+  tuneToClientX,
+} = useFrequencyDrag({
+  source: store,
+  spectrumElement: () => specEl.value,
+  spanStartHz,
+  spanEndHz,
+  bandInsetLeftPx,
+  bandInsetRightPx,
+  bandInsetBottomPx,
+  livePanOffsetHz,
+  zoomWindowHz,
+  snapToKnownFreqHz,
+  applyView: () => {
+    applyZoom() // re-window the spectrum + waterfall raster in place
+    applyMarker() // re-pin the bar at screen centre (dispFHz += offset)
   },
-  { passive: false },
-)
-
-useDocumentEvent('touchend', () => {
-  if (!freqDragActive) return
-  commitFreqDrag()
 })
 
-// Interrupted gesture (e.g. the OS takes over for a system swipe) — abort
-// rather than commit, since the last touch position may not reflect user
-// intent.
-useDocumentEvent('touchcancel', () => {
-  abortFreqDrag()
-})
-
-// ── Mouse-wheel pan ──────────────────────────────────────────────────────────
-// Scrolling the wheel over the spectrum/waterfall pans the frequency window the
-// same way the gutter drag does — reusing the live-pan machinery (livePanOffsetHz
-// → applyZoom + applyMarker). Wheel events arrive in bursts with no "release",
-// so the running offset accumulates per tick (instant local feedback) and the
-// hardware retune is committed once, debounced ~250ms after the last tick.
-// Scroll UP → pan toward HIGHER frequency (window centre increases); scroll DOWN
-// → lower. (One notch ≈ a small fraction of the visible window.)
-let wheelPanCenterHz = 0 // running committed-centre target during a burst
-let wheelPanActive = false
-let wheelCommitTimer: ReturnType<typeof setTimeout> | null = null
-let wheelRaf = 0
-
-function wheelFlush() {
-  wheelRaf = 0
-  // The debounced commit clears wheelPanActive AND cancels this rAF, and
-  // onPlotWheel only schedules the flush once hi > lo — so neither guard's
-  // early-out is reachable from a live flush.
-  /* v8 ignore start */
-  if (!wheelPanActive) return
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return
-  /* v8 ignore stop */
-  // Offset relative to the live span centre (same basis as the drag).
-  livePanOffsetHz.value = wheelPanCenterHz - (lo + hi) / 2
-  applyZoom()
-  applyMarker()
-}
-
-function onPlotWheel(e: WheelEvent) {
-  // Followers mirror the owner's tuning — don't let the scroll-to-tune wheel retune.
-  if (!store.playing || store.readOnly) return
-  const lo = spanStartHz.value
-  const hi = spanEndHz.value
-  if (hi <= lo) return
-  // Take over the wheel from sigplot's own (window-level) handler.
-  e.preventDefault()
-  e.stopImmediatePropagation()
-  // Per-notch step ~12% of the visible (zoom-aware) window. A standard mouse
-  // notch is deltaY≈±100 (deltaMode 0, pixels) or ±1..3 (deltaMode 1, lines);
-  // normalise both to "notches" so a precision/trackpad scroll moves
-  // proportionally and a chunky mouse wheel moves one notch per click.
-  const { winLo, winHi } = zoomWindowHz(lo, hi)
-  const winW = winHi - winLo
-  const notches = e.deltaMode === 1 ? e.deltaY / 3 : e.deltaY / 100
-  const stepHz = winW * 0.12 * notches
-  // Scroll up (deltaY < 0) → higher freq → centre increases, so SUBTRACT stepHz.
-  if (!wheelPanActive) {
-    wheelPanActive = true
-    wheelPanCenterHz = (lo + hi) / 2 + livePanOffsetHz.value
-  }
-  wheelPanCenterHz -= stepHz
-  freqDragging.value = true // reuse the grabbing-cursor affordance
-  if (!wheelRaf) wheelRaf = requestAnimationFrame(wheelFlush)
-  // Debounced single hardware commit after the burst settles.
-  if (wheelCommitTimer) clearTimeout(wheelCommitTimer)
-  wheelCommitTimer = setTimeout(() => {
-    wheelCommitTimer = null
-    wheelPanActive = false
-    freqDragging.value = false
-    if (wheelRaf) {
-      cancelAnimationFrame(wheelRaf)
-      wheelRaf = 0
-    }
-    // Keep livePanOffsetHz held until the new centred frame lands (reset in the
-    // lastSpectrum watch), so no snap-back. center=true forces the retune.
-    store.setTuningOffsetHz(0)
-    store.requestTune(Math.round(wheelPanCenterHz), true)
-  }, 250)
+// A function declaration, not the destructured handler, because the template
+// binds it on both plots: Vue binds a declared function directly but wraps a
+// destructured value in a per-element arrow, which would leave the raster's
+// copy as an uncovered function in the coverage report.
+function onPlotWheel(event: WheelEvent) {
+  panByWheel(event)
 }
 
 // Read the spectrum plot's real data-area margins (Mx.l / Mx.r / Mx.b) and
@@ -2300,7 +2059,7 @@ watch(
     // the real span now carries the offset, so clear the live pan to avoid a
     // double-shift. Guard against an in-flight drag (a mid-drag backend retune
     // shouldn't yank the preview out from under the user).
-    if (frame.center_hz !== lastCenterHz && !freqDragActive && livePanOffsetHz.value !== 0) {
+    if (frame.center_hz !== lastCenterHz && !isFreqDragActive() && livePanOffsetHz.value !== 0) {
       livePanOffsetHz.value = 0
     }
     if (frame.bins.length !== subsize || scaleChanged) {
