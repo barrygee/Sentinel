@@ -700,6 +700,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Say SDR IS UNPLUGGED for a radio whose device is unplugged
 - Show port labels at full brightness, as Air's airfield labels
 - Centre airport and base zooms on the visible map
+- Centre airport and base fits on the clicked marker
 
 ### Chores
 
@@ -1948,6 +1949,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #668 from barrygee/fix/sdr-unplugged-text
 - Merge pull request #670 from barrygee/fix/sea-port-label-brightness
 - Merge pull request #671 from barrygee/fix/air-zoom-centre-visible-map
+- Merge pull request #672 from barrygee/fix/air-zoom-centre-on-marker
 
 ### Performance
 
@@ -2433,6 +2435,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the airport click zoom
 - Rebuild bundle for the shared map dimming
 - Rebuild bundle for the visible-map zoom centring
+- Rebuild bundle for marker-centred airport fits
 
 ### Continuous Integration
 
