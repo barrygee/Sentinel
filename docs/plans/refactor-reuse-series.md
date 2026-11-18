@@ -294,6 +294,22 @@ C13 as built:
   plots, and Vue wraps a destructured handler in a per-element arrow, which left the raster's copy uncovered.
 - The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 2,826 → 2,584 lines.
 
+C14 as built:
+
+- `composables/useBandwidthBracketDrag.ts` owns the four sigplot accordions (passband + carrier line on each plot) and
+  their styles (`attachAccordions(AccordionPluginClass, spectrumPlot, waterfallPlot)` from `initPlots`,
+  `detachAccordions()` on unmount), `applyMarker`, the drag mirror / commit / abort with its baseline and
+  `suppressAccEvents` guard, the resize cursor (`nearEdge`), the touch-to-mouse bridge (its three document listeners)
+  and the `pointercancel` safety net. It takes the store as a narrow `BracketTuningSource`, the span refs,
+  `livePanOffsetHz` and `snapToKnownFreqHz`; the plots and their elements come as getters (the component reassigns the
+  plots and declares the element refs further down). The call sits where the drag block used to be, so the document
+  listeners keep their order; the window `blur` hooks stay in the component beside C13's.
+- `onPlotTouchStart` stays in the component as the touch router, like `onPlotMouseDown`: it rules out pinch-zoom,
+  known-marker taps and gutter pans, then hands the touch to `tryStartBracketTouch`. `onPlotMouseUp` asks
+  `isBracketDragActive()`, and the store watcher asks `isWritingBracket()` instead of reading the flags directly.
+- `_lastCommittedFreqHz`/`_lastCommittedBwHz` were written but never read, so they were dropped.
+- The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 2,584 → 2,002 lines.
+
 ### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
 
 These had a full decomposition series in July (panel 5,548 → 1,872); they have grown back to 2,061. Each PR starts
