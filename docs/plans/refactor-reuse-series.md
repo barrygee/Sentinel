@@ -254,6 +254,17 @@ stay in the component until the last PR.
 The SDR audio engine sits outside `<RouterView>` and must keep playing through every step: each PR runs the SDR e2e
 specs (`sdr`, `sdr-radio-switch`, `sdr-engine-late-mount`, `sdr-css-cascade`, the P0 audio-survives-navigation spec).
 
+C11 as built:
+
+- `composables/useKnownFrequencyMarkers.ts` takes the store (as a narrow `KnownFrequencySource`), the span/zoom refs,
+  `dataBoxWidthPx` and `zoomWindowHz`, and returns the marker list, popover state/handlers, `isKnownMarkerEvent`,
+  `snapToKnownFreqHz` and `attach`/`detachAnnotationPlugin` (the empty sigplot AnnotationPlugin and its stale
+  document `mouseup` listener). Its document `mousedown` listener and watchers move with it; the component calls it
+  where the block used to be, so listener order is unchanged.
+- `applyMarker` stays in the component: it positions the tuning accordions, not the known-frequency dots, so it
+  moves with the bracket drag in C14.
+- The spec reaches the markers only through the DOM, so it is unchanged. `SdrWaterfall.vue` 3,406 → 3,229 lines.
+
 ### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
 
 These had a full decomposition series in July (panel 5,548 → 1,872); they have grown back to 2,061. Each PR starts
