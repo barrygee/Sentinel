@@ -1952,6 +1952,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #672 from barrygee/fix/air-zoom-centre-on-marker
 - Merge pull request #673 from barrygee/refactor/sdr-known-frequency-markers
 - Merge pull request #674 from barrygee/refactor/sdr-signal-markers
+- Merge pull request #675 from barrygee/refactor/sdr-frequency-drag
 
 ### Performance
 
@@ -2097,6 +2098,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract satellite persistence and SatelliteLabel from SatelliteControl
 - Extract known-frequency markers from SdrWaterfall
 - Extract row clock and signal markers from SdrWaterfall
+- Extract frequency drag, wheel pan and click-to-tune from SdrWaterfall
 
 ### Documentation
 
@@ -2442,6 +2444,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for marker-centred airport fits
 - Rebuild SDR remote for known-frequency marker extraction
 - Rebuild SDR remote for signal marker extraction
+- Rebuild SDR remote for frequency drag extraction
 
 ### Continuous Integration
 
