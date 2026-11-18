@@ -1951,6 +1951,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #671 from barrygee/fix/air-zoom-centre-visible-map
 - Merge pull request #672 from barrygee/fix/air-zoom-centre-on-marker
 - Merge pull request #673 from barrygee/refactor/sdr-known-frequency-markers
+- Merge pull request #674 from barrygee/refactor/sdr-signal-markers
 
 ### Performance
 
@@ -2095,6 +2096,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract AircraftTrails and AdsbTrackingPersistence from AdsbLiveControl
 - Extract satellite persistence and SatelliteLabel from SatelliteControl
 - Extract known-frequency markers from SdrWaterfall
+- Extract row clock and signal markers from SdrWaterfall
 
 ### Documentation
 
@@ -2439,6 +2441,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the visible-map zoom centring
 - Rebuild bundle for marker-centred airport fits
 - Rebuild SDR remote for known-frequency marker extraction
+- Rebuild SDR remote for signal marker extraction
 
 ### Continuous Integration
 
