@@ -462,7 +462,7 @@
 }
 
 /* Inline remove confirm — same colour language as the recordings list's
-   armed delete (SdrRecordingsSection): ✓ reads as a "go" lime, ✕ stays
+   armed delete (SdrRecordingRowActions): ✓ reads as a "go" lime, ✕ stays
    neutral until hovered, then red. */
 .sdr-freq-row-del--confirm {
   color: var(--accent-text);
@@ -641,7 +641,7 @@
 }
 
 /* Shared by the transport REC button (SdrTransportButtons.css) and the
-   RECORDINGS list's live dots (SdrRecordingsSection.vue). */
+   RECORDINGS list's live dot (SdrLiveRecordingRow.css). */
 @keyframes sdr-rec-pulse {
   0%,
   100% {
@@ -653,9 +653,10 @@
 }
 
 /* The recordings family (.sdr-recording-*, .sdr-recordings-* and the
-   #sdr-recordings-* id rules) lives with its sole renderer,
-   SdrRecordingsSection.vue (B10 CSS co-location). The @keyframes
-   sdr-rec-pulse it animates with stays above. */
+   #sdr-recordings-* id rules) lives with the RECORDINGS tab's components,
+   one file each (SdrRecordingsSection.css, SdrRecordingRow.css, …; B10 CSS
+   co-location, split in C17). The @keyframes sdr-rec-pulse it animates with
+   stays above. */
 
 .sdr-tab-panes {
   flex: 1;

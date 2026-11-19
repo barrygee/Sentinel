@@ -371,6 +371,39 @@ C16 as built:
   unchanged, SDR 2,303 tests at 100 %, e2e 202 passed. `SdrPanel.vue` 2,061 → 1,611 lines; `SdrPanel.css`
   1,835 → 842.
 
+C17 as built:
+
+- Seam map: `SdrRecordingsSection.vue` (1,248 lines) held the filter box, the list (live row + saved rows, scroll
+  hint), every row's markup inline (title, edit/delete confirm, name, meta, note, note editor, play/download pills,
+  progress bar, hidden `<audio>`), the list fetch with its IQ-pending re-list timer, the playback state and ~570
+  lines of unscoped CSS for all of it.
+- The tab now composes `SdrRecordingsFilter`, `SdrLiveRecordingRow` and `SdrRecordingRow`; both rows share
+  `SdrRecordingRowFrame` (hover/playing background, padded content, an `after-content` slot for the `<audio>`),
+  `SdrRecordingHeader` (frequency readout + a slot for the right side) and `SdrRecordingMeta`. A saved row adds
+  `SdrRecordingRowActions`, `SdrRecordingNote`, `SdrRecordingNoteEditor` (both use `SdrRecordingNoteLabel`),
+  `SdrRecordingPlaybackControls` and `SdrRecordingProgressBar`. Script moves: `useRecordingsList` (fetch, filter,
+  IQ-pending re-list), `useRecordingPlayback` (the single playing recording, its audio elements, seek), and
+  `sdrRecordings.ts` (types, formatters, download).
+- Which row is editing, which bin is armed and what plays stay one-at-a-time state in the tab. The note draft also
+  stays there (`v-model:note-draft`): if the editor owned it, filtering the row out and back would remount it, lose
+  the draft and steal focus from the filter box. The editor focuses only on the open that asked for it
+  (`focusOnMount` → `focused`).
+- CSS: each rule moved verbatim to its component's file, keeping the original order within each file. The live
+  STOP and the saved row's pills share `SdrRecordingPill.css`, which both import before their own file. In the
+  built CSS the rule set is the same (309 rules), but the recordings rules are reordered. Every class pair that
+  sits on one element (`-row`/`-playing`, `-edit`/`--active`, `-del`/`--confirm|--cancel`, `-seg`/`--on`,
+  `-live-dot`/`--waiting`) stays together in one file, so no equal-specificity override changed sides. Dead CSS
+  purged: `#sdr-recordings-list` (no renderer).
+- Verification: a throwaway vitest probe of main's original component against the new one gave identical rendered
+  HTML (comments aside), focus and emits in 10 states, including the live row. A filter-out-and-back probe gave the
+  same draft, focus and PATCH body. A throwaway Playwright pass dumped every computed property (pseudo-elements
+  included) of the radio pane at 1280 and 390 px (default, filtered, editor open, delete armed, playing): identical
+  to `main` once transitions settle. A first pass that dumped straight after each click raced the 0.12–0.15 s
+  colour transitions. The existing spec passes unchanged; new specs cover the 12 components (each with an axe
+  check), both composables and `sdrRecordings.ts`, and the section spec gained the filter-out-and-back, reseed and
+  trim cases. SDR 2,659 tests at 100 %; 41 of 42 mutants killed (the survivor, the progress bar's 100 % clamp, is
+  equivalent: a bar of 28 blocks shows the same with 42 lit). `SdrRecordingsSection.vue` 1,248 → 171 lines.
+
 ### C19–C21. Filter panels on `BaseFilterPanel`
 
 `AirFilter.vue` (1,012), `SpaceFilter.vue` (748) and `LandFilter.vue` (574) already render inside `BaseFilterPanel`

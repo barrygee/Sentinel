@@ -1,0 +1,61 @@
+/* The RECORDINGS filter box (SdrRecordingsFilter.vue). */
+
+.sdr-recordings-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Match the height of the SEARCH rail tab button (.msb-rail-btn). */
+  height: 40px;
+  flex: 0 0 auto;
+  padding: 0 20px 0 24px;
+  background: var(--surface-sunken);
+  box-sizing: border-box;
+  transition: background 0.12s;
+}
+
+/* Drop the green a11y focus ring (assets/a11y.css :focus-visible); the input row
+   keeps its own fill on focus. The accent text caret is the visible focus cue
+   for this text field (WCAG 2.4.7). */
+.sdr-recordings-search-input:focus-visible {
+  outline: none !important;
+}
+
+.sdr-recordings-search-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--ink-strong);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  caret-color: var(--accent-text);
+  min-width: 0;
+  padding: 0;
+}
+
+.sdr-recordings-search-input::placeholder {
+  color: rgba(var(--ink-rgb), 0.2);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.sdr-recordings-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.3);
+  font-family: 'Barlow', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0;
+  margin-right: 6px;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.sdr-recordings-search-clear:hover {
+  color: var(--ink-secondary);
+}

@@ -1,0 +1,58 @@
+/* The RECORDINGS tab body (SdrRecordingsSection.vue): the scrolling list and its
+   MORE hint. The :has() pane-layout rules that probe .sdr-recordings-body stay in
+   SdrPanel.css, as does the @keyframes sdr-rec-pulse the live dot uses. */
+
+/* The search box stays pinned; only the list below it scrolls — matching the
+   other list side panels (e.g. the Frequency Manager). */
+.sdr-recordings-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+#sdr-recordings-empty {
+  padding-top: 12px;
+}
+
+#sdr-recordings-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+#sdr-recordings-list-wrap::-webkit-scrollbar {
+  display: none;
+}
+
+#sdr-recordings-scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  color: rgba(var(--ink-rgb), 0.3);
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  visibility: hidden;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    visibility 0.2s ease;
+  pointer-events: none;
+}
+
+#sdr-recordings-scroll-arrow {
+  display: inline-block;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}

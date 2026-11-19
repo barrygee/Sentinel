@@ -686,7 +686,7 @@ describe('SdrRecordingsSection — IQ still copying from the radio hub', () => {
 
 // =============================================================================
 describe('SdrRecordingsSection — inline edit accordion', () => {
-  it('opens the edit panel seeded with the recording note and focuses the textarea', async () => {
+  it('opens the edit panel seeded with the recording note', async () => {
     const wrapper = await mountWithRecordings([makeRec({ notes: 'existing note' })])
     await wrapper.find('.sdr-recording-edit').trigger('click')
     await wrapper.vm.$nextTick()
@@ -770,6 +770,85 @@ describe('SdrRecordingsSection — inline edit accordion', () => {
     await flushPromises()
     // The panel stays open because the catch skipped closeEditAccordion.
     expect(wrapper.find('.sdr-recording-edit-panel').exists()).toBe(true)
+  })
+
+  // Mounted into the document: focus only moves between attached elements.
+  async function mountAttached(recs: Recording[]): Promise<VueWrapper> {
+    recordingsPayload = recs
+    const wrapper = mount(SdrRecordingsSection, {
+      props: { liveRecording: null, recSquelchOpen: false, liveElapsedS: 0 },
+      attachTo: document.body,
+    })
+    await (wrapper.vm as unknown as { reload: () => Promise<void> }).reload()
+    await flushPromises()
+    return wrapper
+  }
+
+  it('moves focus into the note when the pencil opens it', async () => {
+    const wrapper = await mountAttached([makeRec()])
+    await wrapper.find('.sdr-recording-edit').trigger('click')
+    expect(document.activeElement).toBe(wrapper.find('.sdr-recording-edit-note').element)
+  })
+
+  it('keeps the draft, and focus in the filter, when the edited row is filtered out and back', async () => {
+    const wrapper = await mountAttached([
+      makeRec({ id: 1, name: 'Tower', notes: 'saved note' }),
+      makeRec({ id: 2, name: 'Marine', mode: 'FM' }),
+    ])
+    await wrapper.find('.sdr-recording-edit').trigger('click')
+    await wrapper.find('.sdr-recording-edit-note').setValue('unsaved draft')
+    const filter = wrapper.find('.sdr-recordings-search-input')
+    ;(filter.element as HTMLInputElement).focus()
+    await filter.setValue('marine')
+    expect(wrapper.find('.sdr-recording-edit-note').exists()).toBe(false)
+    await filter.setValue('')
+    await flushPromises()
+    const note = wrapper.find('.sdr-recording-edit-note')
+    expect((note.element as HTMLTextAreaElement).value).toBe('unsaved draft')
+    expect(document.activeElement).toBe(filter.element)
+
+    fetchCalls.length = 0
+    await wrapper.find('.sdr-recording-edit-save').trigger('click')
+    await flushPromises()
+    const patch = fetchCalls.find((call) => call.opts?.method === 'PATCH')
+    expect(patch?.url).toBe('/api/sdr/recordings/1')
+    expect(patch?.opts?.body).toBe(JSON.stringify({ name: 'Tower', notes: 'unsaved draft' }))
+  })
+
+  it('reseeds the draft from the other row when its pencil is clicked', async () => {
+    const wrapper = await mountAttached([
+      makeRec({ id: 1, notes: 'first note' }),
+      makeRec({ id: 2, notes: 'second note' }),
+    ])
+    const pencils = wrapper.findAll('.sdr-recording-edit')
+    await pencils[0]!.trigger('click')
+    await wrapper.find('.sdr-recording-edit-note').setValue('half-typed')
+    await pencils[1]!.trigger('click')
+    const notes = wrapper.findAll('.sdr-recording-edit-note')
+    expect(notes).toHaveLength(1)
+    expect((notes[0]!.element as HTMLTextAreaElement).value).toBe('second note')
+    expect(document.activeElement).toBe(notes[0]!.element)
+  })
+
+  it('discards an unsaved draft when the editor is closed and reopened', async () => {
+    const wrapper = await mountAttached([makeRec({ notes: 'saved note' })])
+    await wrapper.find('.sdr-recording-edit').trigger('click')
+    await wrapper.find('.sdr-recording-edit-note').setValue('abandoned')
+    await wrapper.find('.sdr-recording-edit-cancel').trigger('click')
+    await wrapper.find('.sdr-recording-edit').trigger('click')
+    const note = wrapper.find('.sdr-recording-edit-note').element as HTMLTextAreaElement
+    expect(note.value).toBe('saved note')
+  })
+
+  it('trims the note it saves', async () => {
+    const wrapper = await mountWithRecordings([makeRec({ id: 9, name: '  rec9  ' })])
+    await wrapper.find('.sdr-recording-edit').trigger('click')
+    await wrapper.find('.sdr-recording-edit-note').setValue('  spaced  ')
+    fetchCalls.length = 0
+    await wrapper.find('.sdr-recording-edit-save').trigger('click')
+    await flushPromises()
+    const patch = fetchCalls.find((call) => call.opts?.method === 'PATCH')
+    expect(patch?.opts?.body).toBe(JSON.stringify({ name: 'rec9', notes: 'spaced' }))
   })
 })
 

@@ -1,0 +1,15 @@
+/* A saved recording row's own pieces (SdrRecordingRow.vue). */
+
+/* Custom name under the freq, mirroring .sdr-freq-name. */
+.sdr-recording-subname {
+  margin-top: 3px;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

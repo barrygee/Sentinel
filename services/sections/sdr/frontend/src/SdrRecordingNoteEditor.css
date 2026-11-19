@@ -1,0 +1,46 @@
+/* A saved recording's inline note editor (SdrRecordingNoteEditor.vue). */
+
+/* ── Inline edit accordion (note only) ── */
+.sdr-recording-edit-panel {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+}
+
+/* Flat note input — no box/border, just an underline that brightens on focus. */
+.sdr-recording-edit-note {
+  width: 100%;
+  box-sizing: border-box;
+  resize: none;
+  /* Exactly two lines (2 × 1.45em line-height) + the 4px top/bottom padding.
+       overflow:hidden removes the scrollbar; content past 2 lines scrolls
+       internally as you type but is never shown with a scrollbar. */
+  height: calc(2 * 1.45em + 8px);
+  overflow: hidden;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(var(--ink-rgb), 0.12);
+  border-radius: 0;
+  padding: 4px 0;
+  outline: none;
+  color: rgba(var(--ink-rgb), 0.85);
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 11px;
+  line-height: 1.45;
+  transition: border-color 0.15s;
+}
+
+.sdr-recording-edit-note:focus {
+  border-bottom-color: var(--accent-text);
+}
+
+.sdr-recording-edit-note::placeholder {
+  color: rgba(var(--ink-rgb), 0.2);
+}
+
+.sdr-recording-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}

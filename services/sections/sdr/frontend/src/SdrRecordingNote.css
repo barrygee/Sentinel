@@ -1,0 +1,21 @@
+/* A saved recording's read-only note (SdrRecordingNote.vue). */
+
+/* Saved note (read-only), shown under the meta when present. The "NOTES"
+   caption matches the DATE/DURATION/SIZE meta labels. */
+.sdr-recording-note {
+  margin-top: 12px;
+}
+
+/* Read-only note: clamp to 2 lines, then ellipsis. */
+.sdr-recording-note-text {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 11px;
+  line-height: 1.45;
+  color: rgba(var(--ink-rgb), 0.55);
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}

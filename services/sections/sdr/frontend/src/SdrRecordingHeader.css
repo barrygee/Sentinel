@@ -1,0 +1,52 @@
+/* A recording row's frequency title (SdrRecordingHeader.vue). */
+
+/* Title row: large frequency readout on the left, action glyphs on the right. */
+.sdr-recording-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sdr-recording-freq {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Mirrors .sdr-freq-input-large — the radio's big frequency readout. */
+.sdr-recording-freq-num {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 26px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-strong);
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mirrors .sdr-freq-unit. */
+.sdr-recording-freq-unit {
+  flex-shrink: 0;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: rgba(var(--ink-rgb), 0.6);
+}
+
+/* Mode (USB/AM/…) inline after the unit, separated by a dash. */
+.sdr-recording-freq-mode {
+  flex-shrink: 0;
+  margin-left: 5px;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.55);
+}

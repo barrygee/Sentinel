@@ -13,8 +13,8 @@ import sdrSearchRanges from './fixtures/sdr-search-ranges.json' with { type: 'js
  * The sdr remote's styles arrive as several CSS chunks (`./register`, the lazy
  * SDR view, the engine), injected when each chunk loads. Some of those rules
  * depend on cascade ORDER, not specificity: `SdrPanel.css` must come before the
- * unscoped families moved out of it into `SdrGroupsTab.vue` and
- * `SdrRecordingsSection.vue`, which override it at equal specificity. A change
+ * unscoped families moved out of it into `SdrGroupsTab.vue` and the
+ * RECORDINGS tab's per-component CSS files, which override it at equal specificity. A change
  * in how the chunks split or load can reverse that order with every unit test
  * still green — the panel just renders with the wrong padding or colour.
  *
