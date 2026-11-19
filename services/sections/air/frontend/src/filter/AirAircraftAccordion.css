@@ -1,0 +1,23 @@
+/* POSITION / IDENTIFICATION headings go red for an aircraft with an emergency
+   squawk, matching the red callsign and the map marker. */
+.acft-acc-body--emergency {
+  --ba-grid-title-color: var(--sev-critical);
+}
+
+/* When the aircraft drops out of the feed, dim the (last-known) values. */
+.acft-acc-body--stale {
+  --ba-cell-value-color: rgba(var(--ink-rgb), 0.4);
+}
+
+.acft-acc-signal-lost {
+  margin: 12px 24px 0 24px;
+  padding: 6px 10px;
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sev-critical);
+  background: rgba(var(--sev-critical-rgb), 0.1);
+  border-left: 2px solid var(--sev-critical);
+}

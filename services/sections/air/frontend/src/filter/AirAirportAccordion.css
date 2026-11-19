@@ -1,0 +1,12 @@
+/* Sits after the FREQUENCIES grid, 12px below its last row (the grid section's
+   bottom padding) with the same 12px under it — where it sat when it was inside
+   that section. */
+.apt-acc-notice {
+  padding: 0 24px 12px;
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(var(--ink-rgb), 0.45);
+  text-transform: uppercase;
+}
