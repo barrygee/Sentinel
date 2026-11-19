@@ -156,6 +156,72 @@ describe('BaseIconAction', () => {
     expect(document.activeElement).toBe(document.body)
   })
 
+  it('styles nothing itself by default: no row or accessory class', () => {
+    const wrapper = mount(BaseIconAction, {
+      props: { accessibleName: 'Clear' },
+      slots: { default: '✕' },
+    })
+    const classes = wrapper.get('button').classes()
+    expect(classes).not.toContain('ba-icon-action--row')
+    expect(classes).not.toContain('ba-icon-action--accessory')
+  })
+
+  it('renders the accessory variant with its own class and not the row class', () => {
+    const wrapper = mount(BaseIconAction, {
+      props: { accessibleName: 'Track aircraft', tooltip: 'Track aircraft', variant: 'accessory' },
+      slots: { default: '<svg aria-hidden="true"></svg>' },
+    })
+    const classes = wrapper.get('button').classes()
+    expect(classes).toContain('ba-icon-action--accessory')
+    expect(classes).not.toContain('ba-icon-action--row')
+    // The accessory rows' tooltips open above, left-aligned, like the default.
+    expect(classes).toContain('ba-icon-action--tip-top')
+  })
+
+  it('marks an accessory active and danger with the classes its red steps key on', async () => {
+    const wrapper = mount(BaseIconAction, {
+      props: { accessibleName: 'Record pass', variant: 'accessory', danger: true, active: false },
+      slots: { default: '●' },
+    })
+    expect(wrapper.get('button').classes()).toContain('ba-icon-action--danger')
+    expect(wrapper.get('button').classes()).not.toContain('ba-icon-action--active')
+    await wrapper.setProps({ active: true })
+    expect(wrapper.get('button').classes()).toEqual(
+      expect.arrayContaining([
+        'ba-icon-action--accessory',
+        'ba-icon-action--danger',
+        'ba-icon-action--active',
+      ]),
+    )
+  })
+
+  it('passes disabled through to the accessory button, which then ignores clicks', async () => {
+    const wrapper = mount(BaseIconAction, {
+      props: { accessibleName: 'Record pass', variant: 'accessory', danger: true },
+      attrs: { disabled: true },
+      slots: { default: '●' },
+      attachTo: document.body,
+    })
+    const action = wrapper.get('button')
+    expect(action.attributes('disabled')).toBeDefined()
+    ;(action.element as HTMLButtonElement).click()
+    expect(wrapper.emitted('click')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('has no axe violations as an active accessory with a tooltip', async () => {
+    const wrapper = mount(BaseIconAction, {
+      props: {
+        accessibleName: 'Untrack aircraft',
+        tooltip: 'Untrack aircraft',
+        variant: 'accessory',
+        active: true,
+      },
+      slots: { default: '<svg aria-hidden="true"></svg>' },
+    })
+    expect(await axe(wrapper.html())).toHaveNoViolations()
+  })
+
   it('has no axe violations as an active danger row action', async () => {
     const wrapper = mount(BaseIconAction, {
       props: { accessibleName: 'Remove host', variant: 'row', danger: true, active: true },
