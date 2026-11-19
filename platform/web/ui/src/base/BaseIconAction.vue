@@ -6,6 +6,7 @@
       tooltip ? `ba-icon-action--tip-${tooltipSide}` : undefined,
       {
         'ba-icon-action--row': variant === 'row',
+        'ba-icon-action--accessory': variant === 'accessory',
         'ba-icon-action--danger': danger,
         'ba-icon-action--active': active,
       },
@@ -48,12 +49,18 @@
  * CSS): `--ba-icon-action-tooltip-offset`, `-bg`, `-color`, `-font`,
  * `-padding`, `-height`, `-radius`, `-z`.
  *
- * `variant="row"` is the one look this component owns itself: the muted glyph
+ * `variant="row"` is one of the two looks this component owns itself: the muted glyph
  * at the end of a Settings list row (edit pencil, remove cross, dismiss) that
  * the SDR radios, SDR Manager hosts and devices, notices and offline-map areas
  * share across four packages. It brightens on hover, turns accent while
- * `active` (an open editor) and, with `danger`, red on hover. The other
- * families keep their chrome in their own sheets, as above.
+ * `active` (an open editor) and, with `danger`, red on hover.
+ *
+ * `variant="accessory"` is the other: the 36px square control in an expanded
+ * map-list accordion (the Air aircraft and Space satellite track / alert /
+ * auto-tune / record buttons), laid out in a `BaseIconActionRow`. It goes
+ * accent on hover and while `active`; with `danger` (record) it goes red
+ * instead, and a `disabled` one is dimmed. The other families keep their
+ * chrome in their own sheets, as above.
  *
  * The button is always `ba-icon-action--active` while `active`, alongside the
  * caller's `activeClass`, so callers that only need the row look can omit
@@ -80,10 +87,14 @@ withDefaults(
     activeClass?: string
     /**
      * `default` leaves the chrome to the caller's family CSS; `row` is the
-     * muted Settings row-action glyph this component styles itself.
+     * muted Settings row-action glyph and `accessory` the square accordion
+     * control, both styled by this component.
      */
-    variant?: 'default' | 'row'
-    /** A destructive action (remove, forget, delete): the `row` glyph turns red on hover. */
+    variant?: 'default' | 'row' | 'accessory'
+    /**
+     * A destructive or recording action: the `row` glyph turns red on hover,
+     * and an `accessory` control is red on hover and while active.
+     */
     danger?: boolean
   }>(),
   {
@@ -138,6 +149,64 @@ defineExpose({ focus })
 
 .ba-icon-action--row.ba-icon-action--danger:hover {
   color: var(--danger);
+}
+
+/* The accordion accessory control (variant="accessory"): a 36px square on the
+   sunken surface. `position: relative` anchors its tooltip; unlike the other
+   families, nothing lays these out absolutely. */
+.ba-icon-action--accessory {
+  position: relative;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  background: var(--surface-sunken);
+  border: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    color 0.12s,
+    background 0.12s;
+}
+
+.ba-icon-action--accessory:hover:not(:disabled) {
+  color: var(--accent-text);
+  background: var(--surface-sunken-hover);
+}
+
+.ba-icon-action--accessory.ba-icon-action--active {
+  color: var(--accent-text);
+  background: rgba(var(--accent-rgb), 0.12);
+}
+
+.ba-icon-action--accessory.ba-icon-action--active:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+/* Record: the same steps in the critical red. Declared after the accent rules,
+   which tie with these on specificity. */
+.ba-icon-action--accessory.ba-icon-action--danger:hover:not(:disabled) {
+  color: var(--sev-critical);
+}
+
+.ba-icon-action--accessory.ba-icon-action--danger.ba-icon-action--active {
+  color: var(--sev-critical);
+  background: rgba(var(--sev-critical-rgb), 0.12);
+}
+
+.ba-icon-action--accessory.ba-icon-action--danger.ba-icon-action--active:hover {
+  background: rgba(var(--sev-critical-rgb), 0.18);
+}
+
+/* Dimmed even while active: the danger pair matches the red rules' weight so a
+   disabled record button never shows red. */
+.ba-icon-action--accessory:disabled,
+.ba-icon-action--accessory.ba-icon-action--danger:disabled {
+  cursor: not-allowed;
+  color: rgba(var(--ink-rgb), 0.18);
 }
 
 /* Hover tooltip — defaults to the black pill shared by the Air/Space

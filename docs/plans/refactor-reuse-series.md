@@ -432,6 +432,29 @@ C18 as built:
 they can be. One PR per panel, largest first: move the repeated row and section markup into `@sentinel/ui` base
 pieces (or into `BaseFilterPanel` slots), so each panel keeps only its own data and categories.
 
+**C19 as built.** The panels were already on `BaseFilterPanel` for the list, rows and search; what was left to
+share was the accordion chrome. `BaseIconAction` gained `variant="accessory"` (the 36px square track / alert /
+auto-tune / record control that Air's `acft-acc-btn` and Space's four `sat-acc-*-btn` classes each restated;
+`danger` gives the record button's red, and a disabled one stays dim even while active) and `@sentinel/ui` gained
+`BaseIconActionRow` (the 8px-gap row they sit in). Space adopts both in C20. `AirFilter.vue` keeps the wiring
+(category, feed mirror, pinned aircraft, map and SDR actions); the rest moved into `src/filter/`:
+`AirAircraftAccordion` (+ `AirAircraftActions`), `AirAirportAccordion`, `AirMilitaryBaseAccordion`, a shared
+`AirLocationGrid`, the composables `useAirFilterResults`, `useExpandedAircraftTelemetry` (SIGNAL LOST grace timer)
+and `useAircraftAlertToggle`, and the plain modules `airFilterRows`, `aircraftTelemetryFormat`,
+`airportFrequencies`, `fitPlaceBounds` and `airFilterTypes`. The accordion CSS stays unscoped but moved into
+co-located sheets; `AirAccordionBody.css` holds the generic and aircraft body rules together so their order
+holds. Proof: a Playwright dump of every computed property (including `::before` tooltips), box and text in
+`#filter-results`, at 1280 and 390 px, in six states (aircraft idle, track hovered, alerts on, alerts on and
+hovered, airport with the no-SDR notice, military base): identical to `main`. The same dump differs by 72–150
+properties between states, so it can see a change. The spec changed only in its button helper, which now finds
+`.ba-icon-action--accessory` and `ba-icon-action--active`. New specs cover every `src/filter/` module (each at
+100 % from its own spec alone, the five components with an axe check), `BaseIconActionRow` and the accessory
+variant. 64 of 65 mutants killed; the survivor, dropping the `split('/')[0]` before `parseFloat`, is equivalent
+(`parseFloat` stops at the first non-numeric character anyway). The mutation pass caught two weak tests on the way:
+a "float error" frequency that was exact in floating point (128.010 is not), and a missing case where several lost
+polls before a return could leave a stacked removal timer behind. Air 1,747 tests at 100 %, `@sentinel/ui` 569 at
+100 %, SPA vitest 1,882, e2e 202. `AirFilter.vue` 1,057 → 463 lines.
+
 ---
 
 ## 4. Not in this series

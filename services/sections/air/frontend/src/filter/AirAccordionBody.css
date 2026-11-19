@@ -1,0 +1,18 @@
+/* The body of an expanded Air FILTER row (aircraft, airports, military bases).
+   Matches the space satellite detail panel. No background of its own: the
+   shell tints the whole expanded row, accordion included, and repeating the
+   tint here would layer it twice and lighten the accordion relative to the row
+   header it hangs from. Shared by every Air accordion, so the aircraft rule
+   below always follows the generic one it overrides. */
+.apt-acc-body {
+  display: flex;
+  flex-direction: column;
+  /* Extra breathing room before the next airport in the list. */
+  padding-bottom: 12px;
+}
+
+/* The aircraft accordion ends on the action row, so it needs less bottom
+   breathing room than the airport accordion (which ends on a data grid). */
+.acft-acc-body {
+  padding-bottom: 16px;
+}

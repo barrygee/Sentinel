@@ -145,7 +145,7 @@ function accordionButton(
   kind: 'track' | 'notify' | 'centre',
 ) {
   const index = { track: 0, notify: 1, centre: 2 }[kind]
-  return wrapper.findAll('.acft-acc-btn')[index]!
+  return wrapper.findAll('.ba-icon-action--accessory')[index]!
 }
 
 enableAutoUnmount(afterEach)
@@ -861,10 +861,10 @@ describe('AirFilter', () => {
       await openPlane(wrapper)
       // Off by default: the strike-through line is rendered and the control is inactive.
       expect(accordionButton(wrapper, 'notify').find('line').exists()).toBe(true)
-      expect(accordionButton(wrapper, 'notify').classes()).not.toContain('acft-acc-btn--active')
+      expect(accordionButton(wrapper, 'notify').classes()).not.toContain('ba-icon-action--active')
       await accordionButton(wrapper, 'notify').trigger('click')
       expect(accordionButton(wrapper, 'notify').find('line').exists()).toBe(false)
-      expect(accordionButton(wrapper, 'notify').classes()).toContain('acft-acc-btn--active')
+      expect(accordionButton(wrapper, 'notify').classes()).toContain('ba-icon-action--active')
     })
   })
 
@@ -881,7 +881,7 @@ describe('AirFilter', () => {
 
       expect(adsb.toggleFollowByHex).toHaveBeenCalledWith('aa1')
       expect(adsb.isFollowingHex).toHaveBeenCalledWith('aa1')
-      expect(accordionButton(wrapper, 'track').classes()).toContain('acft-acc-btn--active')
+      expect(accordionButton(wrapper, 'track').classes()).toContain('ba-icon-action--active')
       expect(accordionButton(wrapper, 'track').attributes('aria-label')).toBe('Untrack aircraft')
     })
 
@@ -894,7 +894,7 @@ describe('AirFilter', () => {
       await accordionButton(wrapper, 'track').trigger('click')
 
       expect(adsb.toggleFollowByHex).toHaveBeenCalledWith('aa1')
-      expect(accordionButton(wrapper, 'track').classes()).not.toContain('acft-acc-btn--active')
+      expect(accordionButton(wrapper, 'track').classes()).not.toContain('ba-icon-action--active')
       expect(accordionButton(wrapper, 'track').attributes('aria-label')).toBe('Track aircraft')
     })
 
@@ -913,7 +913,7 @@ describe('AirFilter', () => {
       await openPlane(wrapper)
       document.dispatchEvent(new CustomEvent('adsb-filter-change'))
       await wrapper.vm.$nextTick()
-      expect(accordionButton(wrapper, 'track').classes()).toContain('acft-acc-btn--active')
+      expect(accordionButton(wrapper, 'track').classes()).toContain('ba-icon-action--active')
     })
   })
 
