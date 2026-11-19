@@ -1,0 +1,69 @@
+/* The SEARCH accordion's LOW / HIGH / STEP row (SdrAdhocSearchRow.vue). */
+
+.sdr-search-adhoc-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 4px 0 14px;
+}
+
+.sdr-search-adhoc-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.sdr-search-adhoc-col .sdr-field-label {
+  margin-bottom: 6px;
+  color: var(--ink-strong);
+  font-size: 9px;
+}
+
+.sdr-panel-input.sdr-search-adhoc-input {
+  width: 100%;
+  height: 38px;
+  background: rgba(var(--ink-rgb), 0.06);
+  border: none;
+  color: var(--ink-strong);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+.sdr-panel-input.sdr-search-adhoc-input:focus {
+  border: none;
+  outline: none;
+}
+
+.sdr-search-adhoc-input::placeholder {
+  color: rgba(var(--ink-rgb), 0.4);
+}
+
+.sdr-search-adhoc-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sdr-search-adhoc-input[type='number']::-webkit-outer-spin-button,
+.sdr-search-adhoc-input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sdr-search-adhoc-input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+/* The STEP picker's trigger fills its column at the inputs' height. Higher
+   specificity than BaseSelectMenu's own rules, so it is order-immune. */
+.sdr-search-adhoc-col .base-select-menu {
+  width: 100%;
+  height: 38px;
+}
+
+.sdr-search-adhoc-col--play {
+  flex: 0 0 auto;
+  width: 38px;
+}

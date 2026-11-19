@@ -97,8 +97,8 @@
    menu and option rules) lives with BaseSelectMenu.vue, the primitive whose
    template and picker slots render it; the padlock lives with
    SdrDeviceSelector.vue (B10 CSS co-location). The
-   .sdr-search-adhoc-col contextual override further down stays with its
-   context — higher specificity, order-immune. */
+   .sdr-search-adhoc-col contextual override lives with its context in
+   SdrAdhocSearchRow.css — higher specificity, order-immune. */
 
 .sdr-mode-pills {
   display: flex;
@@ -155,166 +155,13 @@
   padding-top: 6px;
 }
 
-.sdr-freq-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 0;
-}
-
-.sdr-freq-input-large {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 0;
-  field-sizing: content;
-  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 36px;
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-strong);
-  /* Transparent (not the panel colour) so the input stays invisible against
-     whatever background the hosting side panel uses. */
-  background: transparent;
-  border: none;
-  border-radius: 2px;
-  padding: 0;
-  height: 48px;
-  text-align: left;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.sdr-freq-input-large:hover {
-  /* Hint that the field is scrollable to step the digit under the cursor. */
-  cursor: ns-resize;
-}
-
-.sdr-freq-input-large:focus {
-  background: transparent;
-  cursor: text;
-}
-
-/* The frequency readout is tuned by scrolling its digits, not by keyboard entry,
-   so it deliberately opts out of the global accent :focus-visible ring (a11y.css).
-   The override needs !important to beat that global rule's own !important. */
-.sdr-freq-input-large:focus-visible {
-  outline: none !important;
-}
-
-.sdr-freq-input-large::placeholder {
-  color: rgba(var(--ink-rgb), 0.2);
-}
-
-.sdr-freq-input-large:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
-}
-
-.sdr-freq-unit {
-  flex-shrink: 0;
-  margin-left: 2px;
-  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 18px;
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  color: rgba(var(--ink-rgb), 0.6);
-}
-
-.sdr-freq-add {
-  position: relative;
-  flex-shrink: 0;
-  /* The row aligns on the digits' baseline, which would sit the button low. */
-  align-self: center;
-  /* Pushed to the row's right edge, in line with the panel's other right-hand
-     actions (the SAVED RANGES play buttons), rather than trailing the unit. */
-  margin-left: auto;
-  /* The same 28px square button as the range play buttons. */
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: rgba(var(--ink-rgb), 0.08);
-  border: none;
-  border-radius: 2px;
-  cursor: pointer;
-  color: var(--accent-text);
-  opacity: 0;
-  transition:
-    opacity 0.15s,
-    background 0.12s;
-}
-
-/* Focus as well as hover: a tap into the input shows it on touch screens, and
-   tabbing to it shows it for keyboard users. */
-.sdr-freq-row:hover .sdr-freq-add,
-.sdr-freq-row:focus-within .sdr-freq-add {
-  opacity: 1;
-}
-
-.sdr-freq-add:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .sdr-freq-add {
-    transition: none;
-  }
-}
-
-.sdr-freq-name {
-  margin-top: 4px;
-  margin-bottom: 20px;
-  /* Nudge right so the first letter left-aligns with the first digit of the
-     frequency above — the large freq <input> sits ~4px in from the row edge. */
-  padding-left: 4px;
-  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
-  font-size: 14px;
-  font-weight: 400;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.7);
-}
-
-.sdr-tune-btn {
-  flex-shrink: 0;
-  color: var(--accent-text);
-  padding: 0;
-  width: 28px;
-}
-
-.sdr-tune-btn:hover {
-  color: var(--accent-text);
-}
-
-.sdr-stop-btn {
-  color: rgba(var(--sev-error-rgb), 0.75);
-}
-
-.sdr-stop-btn:hover {
-  background: rgba(var(--sev-error-rgb), 0.15) !important;
-  color: var(--sev-error);
-}
-
-.sdr-tune-btn:disabled {
-  opacity: 0.25;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.sdr-freq-actions-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-}
-
-.sdr-freq-actions-row .sdr-tune-btn {
-  flex: 1;
-  height: 28px;
-}
+/* The RADIO tab's sub-areas style themselves (C16 co-location): the readout in
+   SdrFrequencyEntry.css and SdrAddFrequencyButton.css, the transport row in
+   SdrTransportButtons.css, the meter in SdrSignalMeter.css, the DMR pill in
+   SdrDigitalModeToggle.css, and the SCANNER / SEARCH bodies in
+   SdrScannerSection.css, SdrAdhocSearchRow.css, SdrSavedRangesList.css,
+   SdrSweepPlayButton.css and SdrSweepStateIndicator.css. The side rail's
+   container lives in SdrSidebarRail.css. */
 
 /* The SAMPLE RATE header (.sdr-slider-header/-val) lives with
    SdrSettingsAccordion.vue, and the slider rows (.base-slider-row*) style
@@ -322,29 +169,6 @@
 
 /* The AGC checkbox family (.sdr-agc-row / .sdr-checkbox-*) lives with its sole
    renderer, SdrSettingsAccordion.vue (B10 CSS co-location). */
-
-.sdr-signal-segments {
-  display: flex;
-  gap: 3px;
-  width: 100%;
-  height: 10px;
-}
-
-.sdr-signal-seg {
-  flex: 1;
-  height: 100%;
-  border-radius: 1px;
-  background: rgba(var(--ink-rgb), 0.08);
-  transition: background 0.08s ease;
-}
-
-.sdr-signal-seg--on {
-  background: var(--accent);
-}
-
-.sdr-signal-segments--muted .sdr-signal-seg--on {
-  background: rgba(var(--ink-rgb), 0.25);
-}
 
 .sdr-scan-controls {
   padding: 0 20px 0;
@@ -421,6 +245,9 @@
   padding-bottom: 20px;
 }
 
+/* Chip rows: the SCANNER's groups (SdrScannerSection) and the Frequency
+   Manager's group filter (SdrFrequencyGroupFilter), which tightens the margin
+   below at equal specificity — so this must stay before that rule. */
 .sdr-scan-groups-row {
   display: flex;
   flex-wrap: wrap;
@@ -455,220 +282,6 @@
   margin-bottom: 4px;
 }
 
-.sdr-search-adhoc-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  padding: 4px 0 14px;
-}
-
-.sdr-search-adhoc-col {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-.sdr-search-adhoc-col .sdr-field-label {
-  margin-bottom: 6px;
-  color: var(--ink-strong);
-  font-size: 9px;
-}
-
-.sdr-panel-input.sdr-search-adhoc-input {
-  width: 100%;
-  height: 38px;
-  background: rgba(var(--ink-rgb), 0.06);
-  border: none;
-  color: var(--ink-strong);
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  padding: 0 14px;
-  box-sizing: border-box;
-}
-
-.sdr-panel-input.sdr-search-adhoc-input:focus {
-  border: none;
-  outline: none;
-}
-
-.sdr-search-adhoc-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.4);
-}
-
-.sdr-search-adhoc-input:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.sdr-search-adhoc-input[type='number']::-webkit-outer-spin-button,
-.sdr-search-adhoc-input[type='number']::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.sdr-search-adhoc-input[type='number'] {
-  -moz-appearance: textfield;
-}
-
-.sdr-search-adhoc-col .base-select-menu {
-  width: 100%;
-  height: 38px;
-}
-
-.sdr-search-adhoc-col--play {
-  flex: 0 0 auto;
-  width: 38px;
-}
-
-.sdr-search-adhoc-play {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  width: 38px;
-  height: 38px;
-  background: rgba(var(--ink-rgb), 0.08);
-  border: none;
-  color: var(--accent-text);
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-/* Scanner-row play button: 28px square, matching the saved-ranges play buttons. */
-.sdr-scan-btns-row--left .sdr-search-adhoc-play {
-  width: 28px;
-  height: 28px;
-}
-
-.sdr-search-adhoc-play:hover:not(:disabled) {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sdr-search-adhoc-play:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.sdr-search-adhoc-play--active {
-  background: rgba(var(--sev-error-rgb), 0.18);
-  color: var(--sev-error);
-}
-
-.sdr-search-adhoc-play--active:hover:not(:disabled) {
-  background: rgba(var(--sev-error-rgb), 0.28);
-}
-
-.sdr-search-range-list {
-  display: flex;
-  flex-direction: column;
-  margin: 0 -20px 12px;
-}
-
-.sdr-search-range-item {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  /* The list uses margin: 0 -20px to let the hover span full width; the matching
-     20px left/right padding pulls the row content (text + play button) back onto
-     the panel's content margin, so the play button aligns with the other panel
-     elements' right edge instead of overhanging it. */
-  padding: 0 20px;
-  background: none;
-  border: none;
-  text-align: left;
-  transition: background 0.12s;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  color: rgba(var(--ink-rgb), 0.7);
-}
-
-.sdr-search-range-item:hover:not(:disabled) {
-  background: rgba(var(--ink-rgb), 0.06);
-}
-
-.sdr-search-range-item-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
-  flex: 1 1 auto;
-  min-width: 0;
-  /* No left inset: the label/frequency text lines up with the "S" of the
-     SAVED RANGES heading (the panel content margin). */
-  padding: 13px 4px 13px 0;
-  background: none;
-  border: none;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.sdr-search-range-item-body:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.sdr-search-range-item-play {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 auto;
-  background: rgba(var(--ink-rgb), 0.08);
-  border: none;
-  border-radius: 2px;
-  color: var(--accent-text);
-  cursor: pointer;
-  transition:
-    background 0.12s,
-    color 0.12s;
-}
-
-.sdr-search-range-item-play:hover:not(:disabled) {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sdr-search-range-item-play:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.sdr-search-range-item-play--active {
-  background: rgba(var(--sev-error-rgb), 0.18);
-  color: var(--sev-error);
-}
-
-.sdr-search-range-item-play--active:hover:not(:disabled) {
-  background: rgba(var(--sev-error-rgb), 0.28);
-}
-
-.sdr-search-range-item:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.sdr-search-range-primary {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-strong);
-}
-
-.sdr-search-range-secondary {
-  font-size: 9px;
-  font-weight: 400;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.5);
-}
-
 /* The section-bar look lives in BaseAccordionSection. SDR's sections are padded
    20px, so the bars bleed 20px either side and keep their title on that edge. */
 .sdr-tab-pane {
@@ -677,50 +290,8 @@
   --ba-accordion-gap: 4px;
 }
 
-/* The SCANNER/SEARCH activity rows ride in the bar's #header-extra slot. */
-.base-accordion-toggle .sdr-scan-state-row {
-  margin-left: auto;
-}
-
-.sdr-scan-subsection-label {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--ink-strong);
-  /* Matches the .sdr-field-label title→content gap used across the other
-     panel sections (MODULATION, SIGNAL, etc.) so GROUPS lines up with them. */
-  margin-bottom: 8px;
-}
-
 .sdr-scan-groups-row + .sdr-scan-subsection-label {
   margin-top: 20px;
-}
-
-.sdr-scan-state-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sdr-scan-state-label {
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(var(--ink-rgb), 0.7);
-}
-
-.sdr-scan-btns-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 20px;
-}
-
-.sdr-scan-btns-row--left {
-  justify-content: flex-start;
 }
 
 .sdr-panel-btn.sdr-scan-btn {
@@ -1419,60 +990,8 @@
   opacity: 0.6;
 }
 
-.sdr-scan-indicator {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: rgba(var(--ink-rgb), 0.15);
-  flex-shrink: 0;
-}
-
-.sdr-scan-indicator.sdr-scan-running {
-  background: var(--accent);
-  animation: sdr-scan-pulse 0.8s ease-in-out infinite;
-}
-
-.sdr-scan-indicator.sdr-scan-holding {
-  background: var(--sev-warn);
-}
-
-@keyframes sdr-scan-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.sdr-rec-btn {
-  color: rgba(var(--sev-error-rgb), 0.75);
-}
-
-.sdr-rec-btn:hover:not(:disabled) {
-  background: rgba(var(--sev-error-rgb), 0.15) !important;
-  color: var(--sev-error);
-}
-
-.sdr-rec-btn--active {
-  background: rgba(var(--sev-error-rgb), 0.14) !important;
-  color: var(--sev-error) !important;
-  animation: sdr-rec-pulse 0.9s ease-in-out infinite;
-}
-
-/* Armed but waiting: recording is on while the squelch is closed, at the start
-   or mid-session, so nothing is being captured yet. Pulses bright yellow (the
-   same yellow as the RECORDINGS panel's "Waiting" dot) with a pause icon until
-   the squelch opens, then the rule drops and the button pulses red like
-   --active. Doubled class so it beats --active's !important colours, and its
-   hover keeps the yellow too. */
-.sdr-rec-btn--active.sdr-rec-btn--waiting,
-.sdr-rec-btn--waiting:hover:not(:disabled) {
-  background: rgba(255, 214, 0, 0.16) !important;
-  color: #ffd600 !important;
-}
-
+/* Shared by the transport REC button (SdrTransportButtons.css) and the
+   RECORDINGS list's live dots (SdrRecordingsSection.vue). */
 @keyframes sdr-rec-pulse {
   0%,
   100% {
@@ -1483,22 +1002,6 @@
   }
 }
 
-/* Digital-decode pill (DIGITAL MODES row) — idle/hover/active styling comes
-   from .sdr-mode-pill so it reads exactly like a demod mode button, but it is
-   content-sized rather than flex-stretched so a lone pill matches the
-   AM/FM/WFM pill size instead of filling the whole row. */
-.sdr-digital-btn {
-  flex: 0 1 auto;
-  padding: 0 14px;
-}
-
-/* !important so the active tint survives the higher-specificity
-   .sdr-mode-pill:hover rule, mirroring .sdr-mode-pill.active:hover. */
-.sdr-digital-btn--active {
-  background: rgba(var(--accent-rgb), 0.12) !important;
-  color: var(--accent-text) !important;
-}
-
 /* The trunk family (.sdr-trunk-* and the #sdr-trunk-section-body context
    rules) lives with its sole renderer, SdrTrunkSection.vue (B10 CSS
    co-location). */
@@ -1506,50 +1009,7 @@
 /* The recordings family (.sdr-recording-*, .sdr-recordings-* and the
    #sdr-recordings-* id rules) lives with its sole renderer,
    SdrRecordingsSection.vue (B10 CSS co-location). The @keyframes
-   sdr-rec-pulse it animates with stays above, shared with the transport
-   REC button. */
-
-/* ── SDR side rail (teleported, fixed to viewport — persists when panel hides) ── */
-
-#sdr-sidebar-rail {
-  position: fixed;
-  top: var(--nav-height);
-  bottom: var(--footer-height);
-  left: 0;
-  width: 44px;
-  background: var(--rail-bg);
-  z-index: 1003;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* ≤480px: the rail belongs to the drawer — shown only while it's open (mirrors
-   #map-sidebar-rail in air/space). When closed, the rail hides and the panel
-   slides off the left edge, leaving the footer bar clean over the waterfall. */
-@media (max-width: 480px) {
-  body[data-domain='sdr'] #sdr-sidebar-rail {
-    display: none;
-  }
-  body[data-domain='sdr'][data-sidebar-open] #sdr-sidebar-rail {
-    display: flex;
-  }
-}
-
-/* .sdr-rail-btn / .sdr-rail-btn-active button chrome (sizing, colour,
-   hover/active state) and its [data-tooltip]::before pill previously lived
-   here; both are now owned by the shared `BaseIconButton` atom (see
-   src/components/base/BaseIconButton.vue), which SdrPanel.vue's left rail
-   renders with a `--ba-icon-btn-tooltip-*` custom-property override
-   reproducing this rail's own tooltip look (translucent navy pill, white
-   text, 24px/3px-radius — distinct from the shared black-pill default used
-   by Air/Space/MapSidebar). `.sdr-rail-btn`/`.sdr-rail-btn-active` are kept
-   as inert passthrough classes only, for SdrPanel.spec.ts's existing
-   `.sdr-rail-btn[data-tab="…"]` queries — they carry no styling here
-   anymore. `#sdr-sidebar-rail`'s own container CSS above (position, sizing,
-   the ≤480px collapse) is unrelated to the buttons and is untouched. */
+   sdr-rec-pulse it animates with stays above. */
 
 .sdr-tab-panes {
   flex: 1;

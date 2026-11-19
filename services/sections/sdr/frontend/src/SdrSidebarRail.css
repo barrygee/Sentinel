@@ -1,0 +1,29 @@
+/* The SDR side rail (SdrSidebarRail.vue): teleported, fixed to the viewport, and
+   kept when the panel hides. Its buttons are styled by BaseIconButton. */
+
+#sdr-sidebar-rail {
+  position: fixed;
+  top: var(--nav-height);
+  bottom: var(--footer-height);
+  left: 0;
+  width: 44px;
+  background: var(--rail-bg);
+  z-index: 1003;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ≤480px: the rail belongs to the drawer — shown only while it's open (mirrors
+   #map-sidebar-rail in air/space). When closed, the rail hides and the panel
+   slides off the left edge, leaving the footer bar clean over the waterfall. */
+@media (max-width: 480px) {
+  body[data-domain='sdr'] #sdr-sidebar-rail {
+    display: none;
+  }
+  body[data-domain='sdr'][data-sidebar-open] #sdr-sidebar-rail {
+    display: flex;
+  }
+}

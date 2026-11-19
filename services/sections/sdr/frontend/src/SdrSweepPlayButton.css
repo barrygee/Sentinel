@@ -1,0 +1,37 @@
+/* The SCANNER / SEARCH start-stop button (SdrSweepPlayButton.vue): 38px square
+   beside the SEARCH inputs; the scanner row shrinks it to 28px
+   (SdrScannerSection.css). */
+
+.sdr-search-adhoc-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 38px;
+  height: 38px;
+  background: rgba(var(--ink-rgb), 0.08);
+  border: none;
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.sdr-search-adhoc-play:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.sdr-search-adhoc-play:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sdr-search-adhoc-play--active {
+  background: rgba(var(--sev-error-rgb), 0.18);
+  color: var(--sev-error);
+}
+
+.sdr-search-adhoc-play--active:hover:not(:disabled) {
+  background: rgba(var(--sev-error-rgb), 0.28);
+}

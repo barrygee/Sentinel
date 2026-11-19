@@ -32,7 +32,7 @@
 }
 
 /* Small screens (≤480px): the side rail is hidden while the drawer is closed
- * (see #sdr-sidebar-rail in SdrPanel.css — it only shows with the drawer open),
+ * (see #sdr-sidebar-rail in SdrSidebarRail.css — it only shows with the drawer open),
  * so the 44px left reserve leaves an empty gap to the LEFT of the spectrum/
  * waterfall. Drop it to 0 so the plots use the full left edge. (The right gutter
  * gap is handled by the base padding-right above.) */

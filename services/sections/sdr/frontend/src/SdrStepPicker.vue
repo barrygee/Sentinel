@@ -40,8 +40,8 @@
  * it — the pre-extraction ad-hoc dropdown only gated its click handler, and
  * this preserves that behaviour exactly.
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
- * the other extracted panel sections.
+ * Styling comes from BaseSelectMenu; the form that hosts it sizes the trigger
+ * (e.g. `.sdr-search-adhoc-col .base-select-menu` in SdrAdhocSearchRow.css).
  */
 import { ref, computed } from 'vue'
 import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'
