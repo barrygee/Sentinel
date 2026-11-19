@@ -31,17 +31,6 @@
   display: none;
 }
 
-#sdr-recordings-list {
-  overflow-y: auto;
-  overflow-x: hidden;
-  max-height: 480px;
-  scrollbar-width: none;
-}
-
-#sdr-recordings-list::-webkit-scrollbar {
-  display: none;
-}
-
 #sdr-recordings-scroll-hint {
   display: flex;
   align-items: center;
