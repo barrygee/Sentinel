@@ -1,0 +1,15 @@
+/* The DMR / P25 digital-decode pill (SdrDigitalModeToggle.vue). Idle/hover/active
+   styling comes from .sdr-mode-pill so it reads exactly like a demod mode button,
+   but it is content-sized rather than flex-stretched so a lone pill matches the
+   AM/FM/WFM pill size instead of filling the whole row. */
+.sdr-digital-btn {
+  flex: 0 1 auto;
+  padding: 0 14px;
+}
+
+/* !important so the active tint survives the higher-specificity
+   .sdr-mode-pill:hover rule, mirroring .sdr-mode-pill.active:hover. */
+.sdr-digital-btn--active {
+  background: rgba(var(--accent-rgb), 0.12) !important;
+  color: var(--accent-text) !important;
+}

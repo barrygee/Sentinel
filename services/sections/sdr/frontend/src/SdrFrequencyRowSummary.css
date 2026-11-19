@@ -1,0 +1,26 @@
+/* A saved frequency row's group chips (SdrFrequencyRowSummary.vue). The row's
+   own .sdr-freq-row-* chrome is shared with the SEARCH RANGES rows and stays in
+   SdrPanel.css. */
+
+.sdr-freq-row-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.sdr-freq-row-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 10px;
+  background: rgba(var(--accent-rgb), 0.12);
+  border-radius: 2px;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+}

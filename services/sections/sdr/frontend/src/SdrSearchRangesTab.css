@@ -1,0 +1,87 @@
+/* The SEARCH RANGES tab's layout (SdrSearchRangesTab.vue): the range list
+   scrolls, the Add Range row / add form stay pinned below it. Its rows reuse
+   the .sdr-freq-row-* chrome in SdrPanel.css. */
+
+/* Sub-section sits below the Frequencies body inside the Frequency Manager
+   tab pane. The parent pane is `display: flex; flex-direction: column` with
+   the Frequencies body claiming `flex: 1`, so this section needs its own
+   share of the height and its own scroll container — otherwise its inline
+   edit form gets recordingped at the bottom of the panel. */
+.sdr-search-ranges-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.sdr-search-ranges-body > .sdr-panel-empty,
+.sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
+  flex: 0 0 auto;
+}
+
+/* Spacer matches the .sdr-freq-row-play footprint (10px svg + 4px left/right
+   padding) so the delete X on Search Range rows lines up with the X on
+   Frequency rows, which sit beside an extra play button. */
+.sdr-freq-row-play-spacer {
+  display: inline-block;
+  width: 18px;
+  flex-shrink: 0;
+}
+
+#sdr-search-range-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
+}
+
+#sdr-search-range-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#sdr-search-range-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#sdr-search-range-list::-webkit-scrollbar-thumb {
+  background: rgba(var(--ink-rgb), 0.1);
+  border-radius: 3px;
+}
+
+#sdr-search-range-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb), 0.28);
+}
+
+.sdr-search-range-row-body {
+  cursor: pointer;
+}
+
+/* The range add-panel (when adding, not editing) needs its own scroll, same as
+   the frequency add-panel does. */
+.sdr-search-ranges-body > .sdr-editfreq-body.sdr-addfreq-body {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
+}
+
+/* The range editor has more fields than the frequency editor, so the shared
+   600px max-height recordings it. Allow it to grow. */
+.sdr-search-ranges-body .sdr-editfreq-body.expanded {
+  max-height: none;
+}
+
+/* Hide the native number-input spinner arrows in the Search Range editor. */
+.sdr-search-ranges-body input[type='number']::-webkit-outer-spin-button,
+.sdr-search-ranges-body input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sdr-search-ranges-body input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

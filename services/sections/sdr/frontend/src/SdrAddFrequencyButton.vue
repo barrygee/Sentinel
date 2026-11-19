@@ -20,8 +20,9 @@
  * Its tooltip opens to the left: the button sits at the panel's right edge,
  * where the default (left-aligned, running right) tooltip was cut off.
  *
- * Styling lives in SdrPanel.css with the rest of the frequency readout: it stays
- * hidden until the readout is hovered or focused, a rule that belongs to the row.
+ * It stays hidden until the readout row (`.sdr-freq-row`) is hovered or holds
+ * focus — see SdrAddFrequencyButton.css.
  */
+import './SdrAddFrequencyButton.css'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 </script>

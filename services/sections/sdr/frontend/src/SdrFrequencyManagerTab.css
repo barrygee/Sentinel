@@ -1,0 +1,81 @@
+/* The FREQUENCY MANAGER tab's layout (SdrFrequencyManagerTab.vue): the list
+   scrolls, the search and filter stay pinned above it and the Add Frequency
+   row / add form below. */
+
+/* Frequency manager pane: list scrolls inside the pane; the
+   Add Frequency / inline add form stay pinned below. */
+.sdr-frequency-manager-freqs-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
+.sdr-frequency-search {
+  flex: 0 0 auto;
+}
+
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
+.sdr-frequency-manager-freqs-body > .sdr-panel-empty {
+  flex: 0 0 auto;
+}
+
+/* Add Frequency button and inline add form stay pinned at the bottom
+   of the pane and never overflow past it. The add form scrolls
+   internally if its content exceeds available space. */
+.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-add-freq-row {
+  flex: 0 0 auto;
+  /* Tighter than the shared 18px below the button: here the GROUPS accordion
+     follows immediately, and its own top padding covers the separation.
+     Scoped to this body so the Search Ranges tab keeps the shared spacing. */
+  padding-bottom: 8px;
+}
+
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body {
+  flex: 0 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
+}
+
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb {
+  background: rgba(var(--ink-rgb), 0.1);
+  border-radius: 3px;
+}
+
+.sdr-frequency-manager-freqs-body
+  > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--accent-rgb), 0.28);
+}
+
+#sdr-freq-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+#sdr-freq-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+/* Read-only follower: dim the whole frequency-manager surface so it visibly
+   reads as "not in control" while another Sentinel owns the shared tuner. The
+   individual controls are also disabled (see :disabled rules above); this is the
+   ambient signal that the tab is inert. */
+.sdr-frequency-manager--readonly {
+  opacity: 0.6;
+}

@@ -1,94 +1,5 @@
 <template>
-  <!-- ── LEFT RAIL (teleported so it persists when the side panel hides) ── -->
-  <Teleport to="body">
-    <div v-show="isSdrRoute" id="sdr-sidebar-rail">
-      <BaseIconButton
-        v-for="tab in sdrTabs"
-        :key="tab.id"
-        class="sdr-rail-btn"
-        :class="{ 'sdr-rail-btn-active': activeSdrTab === tab.id && sidebarOpen }"
-        style="
-          --ba-icon-btn-tooltip-offset: 8px;
-          --ba-icon-btn-tooltip-bg: rgba(var(--rail-rgb), 0.96);
-          --ba-icon-btn-tooltip-color: var(--tooltip-ink);
-          --ba-icon-btn-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
-          --ba-icon-btn-tooltip-padding: 0 10px;
-          --ba-icon-btn-tooltip-height: 24px;
-          --ba-icon-btn-tooltip-radius: 3px;
-          --ba-rail-transition: color 0.15s ease;
-        "
-        :active="activeSdrTab === tab.id && sidebarOpen"
-        :data-tab="tab.id"
-        tooltip-side="right"
-        :tooltip="tab.label"
-        :accessible-name="tab.label"
-        @click="onSdrTabClick(tab.id)"
-      >
-        <!-- radio (receiver with antenna and dial) -->
-        <RadioIcon v-if="tab.id === 'radio'" />
-        <!-- frequency manager (bookmark) -->
-        <svg
-          v-else-if="tab.id === 'frequency-manager'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <path
-            d="M6 3h12v18l-6-4-6 4V3Z"
-            stroke="currentColor"
-            stroke-width="1.8"
-            stroke-linejoin="miter"
-            fill="none"
-          />
-        </svg>
-        <!-- search ranges (range brackets with sweep) -->
-        <svg
-          v-else-if="tab.id === 'search-ranges'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          stroke-linecap="round"
-        >
-          <path d="M5 7v10M5 7h3M5 17h3" stroke="currentColor" stroke-width="1.8" />
-          <path d="M19 7v10M19 7h-3M19 17h-3" stroke="currentColor" stroke-width="1.8" />
-          <line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" stroke-width="1.8" />
-        </svg>
-        <!-- groups (stacked tags) -->
-        <svg
-          v-else-if="tab.id === 'groups'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-          stroke-linejoin="miter"
-        >
-          <path d="M4 7h10l4 4-4 4H4V7Z" stroke="currentColor" stroke-width="1.8" fill="none" />
-          <circle cx="7" cy="11" r="1.1" fill="currentColor" />
-        </svg>
-        <!-- recordings -->
-        <svg
-          v-else-if="tab.id === 'recordings'"
-          width="19"
-          height="19"
-          viewBox="0 0 24 24"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
-          <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" />
-          <circle cx="12" cy="12" r="4" fill="currentColor" />
-        </svg>
-      </BaseIconButton>
-    </div>
-  </Teleport>
+  <SdrSidebarRail :tabs="SDR_PANEL_TABS" :active-tab="activeSdrTab" @select="switchSdrTab" />
 
   <div id="sdr-panel-panes">
     <!-- ── TAB PANES ── -->
@@ -126,104 +37,36 @@
 
         <!-- Frequency -->
         <div class="sdr-radio-section sdr-radio-section--freq">
-          <div class="sdr-freq-row">
-            <input
-              ref="freqInputRef"
-              v-model="freqInputVal"
-              class="sdr-freq-input-large"
-              type="text"
-              aria-label="Tuned frequency in MHz"
-              size="8"
-              placeholder=""
-              autocomplete="off"
-              spellcheck="false"
-              :disabled="tuningDisabled"
-              :readonly="scanActive"
-              @keydown.enter="tune"
-              @blur="formatFreqInput"
-              @wheel.prevent="onFreqWheel"
-            />
-            <span class="sdr-freq-unit">MHz</span>
-            <SdrAddFrequencyButton
-              v-if="unsavedInputHz !== null"
-              @click="frequencyManagerTabRef?.addFrequency(unsavedInputHz)"
-            />
-          </div>
-          <div v-if="currentFreqLabel" class="sdr-freq-name">{{ currentFreqLabel }}</div>
-          <div class="sdr-freq-actions-row">
-            <BasePillToggle
-              class="sdr-mode-pill sdr-tune-btn"
-              title="Tune"
-              aria-label="Tune"
-              :disabled="playDisabled || playing || scanActive || searchActive"
-              @click="tune"
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                <polygon points="2,1 11,6 2,11" fill="currentColor" />
-              </svg>
-            </BasePillToggle>
-            <BasePillToggle
-              class="sdr-mode-pill sdr-tune-btn sdr-stop-btn"
-              title="Stop audio"
-              aria-label="Stop audio"
-              :disabled="!playing && !scanActive && !searchActive"
-              @click="stop"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <rect x="1" y="1" width="8" height="8" rx="1" fill="currentColor" />
-              </svg>
-            </BasePillToggle>
-            <BasePillToggle
-              class="sdr-mode-pill sdr-tune-btn sdr-rec-btn"
-              :active="isRecording"
-              active-class="sdr-rec-btn--active"
-              :class="{ 'sdr-rec-btn--waiting': isRecording && !recSquelchOpen }"
-              :title="
-                isRecording
-                  ? recSquelchOpen
-                    ? 'Stop recording'
-                    : 'Stop recording (waiting for signal)'
-                  : 'Record'
-              "
-              :aria-label="isRecording ? 'Stop recording' : 'Record'"
-              :aria-pressed="isRecording"
-              :disabled="!playing && !scanActive && !searchActive"
-              @click="toggleRecording"
-            >
-              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <!-- Waiting on the squelch: nothing is being captured, so it
-                     reads as paused rather than as a stop button. -->
-                <template v-if="isRecording && !recSquelchOpen">
-                  <rect x="2" y="1.5" width="2.2" height="7" rx="0.6" fill="currentColor" />
-                  <rect x="5.8" y="1.5" width="2.2" height="7" rx="0.6" fill="currentColor" />
-                </template>
-                <template v-else-if="isRecording">
-                  <rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" />
-                </template>
-                <template v-else>
-                  <circle cx="5" cy="5" r="4" fill="currentColor" />
-                </template>
-              </svg>
-            </BasePillToggle>
-          </div>
+          <SdrFrequencyEntry
+            ref="frequencyEntryRef"
+            v-model="freqInputVal"
+            :disabled="tuningDisabled"
+            :readonly="scanActive"
+            :unsaved-hz="unsavedInputHz"
+            :label="currentFreqLabel"
+            @tune="tune"
+            @format="formatFreqInput"
+            @wheel="onFreqWheel"
+            @add="frequencyManagerTabRef?.addFrequency($event)"
+          />
+          <SdrTransportButtons
+            :tune-disabled="playDisabled || playing || scanActive || searchActive"
+            :idle="!playing && !scanActive && !searchActive"
+            :is-recording="isRecording"
+            :rec-squelch-open="recSquelchOpen"
+            @tune="tune"
+            @stop="stop"
+            @toggle-recording="toggleRecording"
+          />
         </div>
 
         <!-- Signal meter — sits below the play/stop/record buttons, outside the
              CONTROLS accordion so it stays visible when the accordion is collapsed. -->
-        <div class="sdr-radio-section">
-          <span class="sdr-field-label">SIGNAL</span>
-          <div
-            class="sdr-signal-segments"
-            :class="{ 'sdr-signal-segments--muted': !signalAudible }"
-          >
-            <div
-              v-for="i in SIGNAL_SEGS"
-              :key="i"
-              class="sdr-signal-seg"
-              :class="{ 'sdr-signal-seg--on': i <= signalLit }"
-            ></div>
-          </div>
-        </div>
+        <SdrSignalMeter
+          :segment-count="SIGNAL_METER_SEGMENTS"
+          :lit-segments="signalLit"
+          :audible="signalAudible"
+        />
 
         <!-- Controls accordion — MODULATION demod mode pills, the DMR / P25
              digital decode pill and the nested SETTINGS accordion (open by
@@ -234,52 +77,18 @@
             title="CONTROLS"
             body-id="sdr-mode-section"
           >
-            <div class="sdr-radio-section">
-              <label class="sdr-field-label">MODULATION</label>
-              <div class="sdr-mode-pills" role="radiogroup" aria-label="Demodulation mode">
-                <BasePillToggle
-                  v-for="(mode, modeIndex) in MODES"
-                  :key="mode"
-                  class="sdr-mode-pill"
-                  role="radio"
-                  :aria-checked="currentMode === mode"
-                  :tabindex="modeKeyboard.radioTabindex(modeIndex)"
-                  :active="currentMode === mode"
-                  active-class="active"
-                  :disabled="tuningDisabled"
-                  @click="setMode(mode)"
-                  @keydown="modeKeyboard.onRadioKeydown($event, modeIndex)"
-                >
-                  {{ mode }}
-                </BasePillToggle>
-              </div>
-            </div>
+            <SdrModulationPills
+              :modes="MODES"
+              :current-mode="currentMode"
+              :disabled="tuningDisabled"
+              @select="setMode"
+            />
 
-            <!-- Digital modes — the DMR / P25 pill toggles digital decoding AND
-             shows/hides the decoder dock below the waterfall (both driven by
-             digitalEnabled). -->
-            <div class="sdr-radio-section">
-              <label class="sdr-field-label">DIGITAL MODE</label>
-              <div class="sdr-mode-pills">
-                <BasePillToggle
-                  class="sdr-mode-pill sdr-digital-btn"
-                  :active="digitalEnabled"
-                  active-class="sdr-digital-btn--active"
-                  :title="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-                  :aria-label="digitalEnabled ? 'Hide decoder' : 'Decode digital voice'"
-                  :aria-pressed="digitalEnabled"
-                  :disabled="!playing || aprsEnabled"
-                  @click="toggleDigital"
-                >
-                  DMR
-                </BasePillToggle>
-                <!-- No APRS button here by design: the APRS receiver is chosen
-                     in Settings → LAND, which reserves that radio and locks it
-                     out of this panel (see `radioReservation` in the SDR store).
-                     A toggle here would have started decode on the radio being
-                     viewed and instantly locked the operator out of it. -->
-              </div>
-            </div>
+            <SdrDigitalModeToggle
+              :enabled="digitalEnabled"
+              :disabled="!playing || aprsEnabled"
+              @toggle="toggleDigital"
+            />
 
             <!-- Settings accordion, nested so the CONTROLS section carries the
                  full tuner control set. -->
@@ -319,231 +128,38 @@
           </BaseAccordionSection>
         </div>
 
-        <!-- Scan controls -->
-        <div class="sdr-radio-section sdr-scan-controls">
-          <BaseAccordionSection
-            v-model:expanded="scannerSectionExpanded"
-            title="SCANNER"
-            body-id="sdr-scanner-section"
-          >
-            <template #header-extra>
-              <div v-show="scanActive" class="sdr-scan-state-row">
-                <span class="sdr-scan-state-label">{{
-                  scanLocked ? 'SCANNING PAUSED' : 'SCANNING'
-                }}</span>
-                <div
-                  class="sdr-scan-indicator"
-                  :class="{
-                    'sdr-scan-running': scanActive && !scanLocked,
-                    'sdr-scan-holding': scanLocked,
-                  }"
-                ></div>
-              </div>
-            </template>
-            <div class="sdr-scan-groups-row">
-              <BaseChip :active="scanAllSelected" :disabled="tuningDisabled" @click="toggleScanAll">
-                All
-              </BaseChip>
-              <BaseChip
-                v-for="g in groupsWithFreqs"
-                :key="g.id"
-                :active="!scanAllSelected && scanSelectedGroupIds.includes(g.id)"
-                :disabled="tuningDisabled"
-                @click="toggleScanGroup(g.id)"
-              >
-                {{ g.name }}
-              </BaseChip>
-            </div>
-            <div class="sdr-scan-btns-row sdr-scan-btns-row--left">
-              <BaseIconAction
-                class="sdr-search-adhoc-play"
-                :active="scanActive"
-                active-class="sdr-search-adhoc-play--active"
-                :disabled="tuningDisabled"
-                :accessible-name="scanActive ? 'Stop scan' : 'Start scan'"
-                :title="scanActive ? 'Stop scan' : 'Start scan'"
-                @click="onScanPrimaryClick"
-              >
-                <svg
-                  v-if="scanActive"
-                  width="10"
-                  height="10"
-                  viewBox="0 0 10 10"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <rect x="1" y="1" width="8" height="8" fill="currentColor" />
-                </svg>
-                <svg
-                  v-else
-                  width="10"
-                  height="10"
-                  viewBox="0 0 12 12"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <polygon points="2,1 11,6 2,11" fill="currentColor" />
-                </svg>
-              </BaseIconAction>
-            </div>
-          </BaseAccordionSection>
-        </div>
+        <SdrScannerSection
+          v-model:expanded="scannerSectionExpanded"
+          :groups="groupsWithFreqs"
+          :all-groups-selected="scanAllSelected"
+          :selected-group-ids="scanSelectedGroupIds"
+          :scan-active="scanActive"
+          :scan-locked="scanLocked"
+          :disabled="tuningDisabled"
+          @toggle-all="toggleScanAll"
+          @toggle-group="toggleScanGroup"
+          @toggle-scan="onScanPrimaryClick"
+        />
 
-        <!-- Search controls (low/high range sweep) -->
-        <div class="sdr-radio-section sdr-scan-controls">
-          <BaseAccordionSection
-            v-model:expanded="searchSectionExpanded"
-            title="SEARCH"
-            body-id="sdr-search-section"
-          >
-            <template #header-extra>
-              <div v-show="searchActive" class="sdr-scan-state-row">
-                <span class="sdr-scan-state-label">{{
-                  searchLocked ? 'SEARCHING PAUSED' : 'SEARCHING'
-                }}</span>
-                <div
-                  class="sdr-scan-indicator"
-                  :class="{
-                    'sdr-scan-running': searchActive && !searchLocked,
-                    'sdr-scan-holding': searchLocked,
-                  }"
-                ></div>
-              </div>
-            </template>
-            <div class="sdr-search-adhoc-row">
-              <div class="sdr-search-adhoc-col">
-                <label class="sdr-field-label">LOW (MHz)</label>
-                <input
-                  v-model="adhocLowMhz"
-                  class="sdr-panel-input sdr-search-adhoc-input"
-                  aria-label="Search range low frequency in MHz"
-                  type="number"
-                  step="0.0001"
-                  required
-                  :disabled="controlsDisabled || searchActive"
-                />
-              </div>
-              <div class="sdr-search-adhoc-col">
-                <label class="sdr-field-label">HIGH (MHz)</label>
-                <input
-                  v-model="adhocHighMhz"
-                  class="sdr-panel-input sdr-search-adhoc-input"
-                  aria-label="Search range high frequency in MHz"
-                  type="number"
-                  step="0.0001"
-                  required
-                  :disabled="controlsDisabled || searchActive"
-                />
-              </div>
-              <div class="sdr-search-adhoc-col">
-                <label class="sdr-field-label">STEP</label>
-                <SdrStepPicker
-                  v-model="adhocStepKhz"
-                  :disabled="controlsDisabled || searchActive"
-                />
-              </div>
-              <div class="sdr-search-adhoc-col sdr-search-adhoc-col--play">
-                <BaseIconAction
-                  class="sdr-search-adhoc-play"
-                  :active="isAdhocSearching"
-                  active-class="sdr-search-adhoc-play--active"
-                  :disabled="tuningDisabled || (!adhocSearchValid && !isAdhocSearching)"
-                  :accessible-name="isAdhocSearching ? 'Stop search' : 'Start search'"
-                  :title="isAdhocSearching ? 'Stop search' : 'Start search'"
-                  @click="onAdhocPlayClick"
-                >
-                  <svg
-                    v-if="isAdhocSearching"
-                    width="10"
-                    height="10"
-                    viewBox="0 0 10 10"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <rect x="1" y="1" width="8" height="8" fill="currentColor" />
-                  </svg>
-                  <svg
-                    v-else
-                    width="10"
-                    height="10"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    aria-hidden="true"
-                  >
-                    <polygon points="2,1 11,6 2,11" fill="currentColor" />
-                  </svg>
-                </BaseIconAction>
-              </div>
-            </div>
-            <div class="sdr-search-saved-ranges">
-              <BaseAccordionSection
-                v-model:expanded="savedRangesExpanded"
-                title="SAVED RANGES"
-                body-id="sdr-saved-ranges-section"
-              >
-                <div v-if="searchRanges.length > 0" class="sdr-search-range-list">
-                  <div
-                    v-for="r in searchRanges"
-                    :key="r.id"
-                    class="sdr-search-range-item"
-                    :class="{ 'sdr-search-range-item-active': searchSelectedRangeId === r.id }"
-                    :title="`step ${(r.step_hz / 1000).toFixed(2)} kHz · ${r.mode}`"
-                  >
-                    <button
-                      type="button"
-                      class="sdr-search-range-item-body"
-                      :disabled="tuningDisabled"
-                      @click="selectSearchRange(r.id)"
-                    >
-                      <span class="sdr-search-range-primary">{{ r.label }}</span>
-                      <span class="sdr-search-range-secondary"
-                        >{{ (r.low_hz / 1e6).toFixed(3) }}–{{
-                          (r.high_hz / 1e6).toFixed(3)
-                        }}
-                        MHz</span
-                      >
-                    </button>
-                    <BaseIconAction
-                      class="sdr-search-range-item-play"
-                      :active="isSavedRangeSearching(r.id)"
-                      active-class="sdr-search-range-item-play--active"
-                      :disabled="tuningDisabled"
-                      :accessible-name="
-                        isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'
-                      "
-                      :title="isSavedRangeSearching(r.id) ? 'Stop search' : 'Start search'"
-                      @click.stop="onSavedRangePlayClick(r.id)"
-                    >
-                      <svg
-                        v-if="isSavedRangeSearching(r.id)"
-                        width="10"
-                        height="10"
-                        viewBox="0 0 10 10"
-                        fill="none"
-                        aria-hidden="true"
-                      >
-                        <rect x="1" y="1" width="8" height="8" fill="currentColor" />
-                      </svg>
-                      <svg
-                        v-else
-                        width="10"
-                        height="10"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        aria-hidden="true"
-                      >
-                        <polygon points="2,1 11,6 2,11" fill="currentColor" />
-                      </svg>
-                    </BaseIconAction>
-                  </div>
-                </div>
-                <div v-else class="sdr-scan-subsection-label" style="opacity: 0.6">
-                  No ranges defined — add some in Frequency Manager.
-                </div>
-              </BaseAccordionSection>
-            </div>
-          </BaseAccordionSection>
-        </div>
+        <SdrSearchSection
+          v-model:expanded="searchSectionExpanded"
+          v-model:saved-ranges-expanded="savedRangesExpanded"
+          v-model:low-mhz="adhocLowMhz"
+          v-model:high-mhz="adhocHighMhz"
+          v-model:step-khz="adhocStepKhz"
+          :search-active="searchActive"
+          :search-locked="searchLocked"
+          :adhoc-searching="isAdhocSearching"
+          :adhoc-valid="adhocSearchValid"
+          :controls-disabled="controlsDisabled"
+          :tuning-disabled="tuningDisabled"
+          :ranges="searchRanges"
+          :selected-range-id="searchSelectedRangeId"
+          :is-range-searching="isSavedRangeSearching"
+          @toggle-adhoc-search="onAdhocPlayClick"
+          @select-range="selectSearchRange"
+          @toggle-range-search="onSavedRangePlayClick"
+        />
       </div>
 
       <!-- ───────────── FREQUENCY MANAGER TAB (saved frequencies) ───────────── -->
@@ -589,10 +205,10 @@
 
 <script setup lang="ts">
 import './SdrPanel.css'
-import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
 import { useSdrAudio } from './composables/useSdrAudio'
+import { SDR_PANEL_TABS, useSdrActiveTab } from './composables/useSdrActiveTab'
+import { SIGNAL_METER_SEGMENTS, useSdrSignalMeter } from './composables/useSdrSignalMeter'
 import { useSdrDecode } from './composables/useSdrDecode'
 import { useSdrAutoTune } from './composables/useSdrAutoTune'
 import { useSdrControlSocket } from './composables/useSdrControlSocket'
@@ -602,12 +218,17 @@ import { useSdrRadioSelection } from './composables/useSdrRadioSelection'
 import { useSdrRecording } from './composables/useSdrRecording'
 import { useSdrSweepEngine } from './composables/useSdrSweepEngine'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
-import { useRadioGroupKeyboard } from '@sentinel/ui/composables/useRadioGroupKeyboard'
+import SdrSidebarRail from './SdrSidebarRail.vue'
+import SdrFrequencyEntry from './SdrFrequencyEntry.vue'
+import SdrTransportButtons from './SdrTransportButtons.vue'
+import SdrSignalMeter from './SdrSignalMeter.vue'
+import SdrModulationPills from './SdrModulationPills.vue'
+import SdrDigitalModeToggle from './SdrDigitalModeToggle.vue'
+import SdrScannerSection from './SdrScannerSection.vue'
+import SdrSearchSection from './SdrSearchSection.vue'
 import SdrRecordingsSection from './SdrRecordingsSection.vue'
 import SdrGroupsTab from './SdrGroupsTab.vue'
 import SdrSearchRangesTab from './SdrSearchRangesTab.vue'
-import SdrStepPicker from './SdrStepPicker.vue'
-import SdrAddFrequencyButton from './SdrAddFrequencyButton.vue'
 import SdrFrequencyManagerTab from './SdrFrequencyManagerTab.vue'
 import SdrFavouritesSection from './SdrFavouritesSection.vue'
 import SdrDeviceSelector from './SdrDeviceSelector.vue'
@@ -615,12 +236,8 @@ import SdrSettingsAccordion from './SdrSettingsAccordion.vue'
 import { attachRadioEngine } from './radioCapability'
 import type { SdrLiveTuneSeed } from './SdrFrequencyManagerTab.vue'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
-import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
-import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'
-import BaseChip from '@sentinel/ui/base/BaseChip.vue'
-import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import { useSdrStore } from './stores/sdr'
-import type { SdrMode, SdrTab, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
+import type { SdrMode, SdrRadio, SdrFrequencyGroup, SdrStoredFrequency } from './stores/sdr'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 
 // SdrRadio / SdrFrequencyGroup / SdrStoredFrequency now come from the SDR
@@ -678,59 +295,11 @@ const playDisabled = computed(() => controlsDisabled.value)
 // and LOS restore, lock-in priority, record-the-pass) lives in useSdrAutoTune,
 // instantiated below once its injected chokepoints exist.
 
-const SIGNAL_SEGS = 36
-
 // ── Active tab ────────────────────────────────────────────────────────────────
-const SDR_TAB_KEY = 'sentinel_sdr_tab'
-const sdrTabs: ReadonlyArray<{ id: SdrTab; label: string }> = [
-  { id: 'radio', label: 'RADIO' },
-  { id: 'frequency-manager', label: 'FREQUENCY MANAGER' },
-  { id: 'groups', label: 'GROUPS' },
-  { id: 'search-ranges', label: 'SEARCH RANGES' },
-  { id: 'recordings', label: 'RECORDINGS' },
-]
-function _restoreSdrTab(): SdrTab {
-  try {
-    const v = sessionStorage.getItem(SDR_TAB_KEY) as SdrTab | null
-    if (v && sdrTabs.some((t) => t.id === v)) return v
-  } catch {}
-  return 'radio'
-}
-const activeSdrTab = ref<SdrTab>(_restoreSdrTab())
-// Seed the store mirror so the footer indicator reflects the restored tab from
-// first paint (before any user tab switch).
-_sdrStore().setActiveTab(activeSdrTab.value)
-function switchSdrTab(tab: SdrTab) {
-  activeSdrTab.value = tab
-  _sdrStore().setActiveTab(tab)
-  try {
-    sessionStorage.setItem(SDR_TAB_KEY, tab)
-  } catch {}
-}
-
-const route = useRoute()
-const isSdrRoute = computed(() => route.path.startsWith('/sdr'))
-const sidebarOpen = ref<boolean>(_readSidebarOpen())
-function _readSidebarOpen(): boolean {
-  try {
-    return sessionStorage.getItem('sentinel_sidebar_open') === '1'
-  } catch {
-    return false
-  }
-}
-function onSdrTabClick(tab: SdrTab) {
-  if (activeSdrTab.value === tab && sidebarOpen.value) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-toggle-panel'))
-    return
-  }
-  switchSdrTab(tab)
-  if (!sidebarOpen.value) {
-    document.dispatchEvent(new CustomEvent('sentinel:sdr-open-panel'))
-  }
-}
-useDocumentEvent('sentinel:sidebar-state', (e: Event) => {
-  sidebarOpen.value = !!(e as CustomEvent<{ open: boolean }>).detail?.open
-})
+// The tab list, its sessionStorage memory and the store mirror live in
+// useSdrActiveTab; the rail (SdrSidebarRail) tracks whether the side panel is
+// open and emits `select` into switchSdrTab.
+const { activeSdrTab, switchSdrTab } = useSdrActiveTab((tab) => _sdrStore().setActiveTab(tab))
 
 // The config JSON editor (Settings → App Settings → Application Config) just
 // replaced the DB settings. Re-hydrate the sdr store's cached
@@ -805,7 +374,13 @@ const selectedRadioId = ref<number | null>(null)
 const knownRadios = computed<SdrRadio[]>(() => _sdrStore().radios)
 const currentMode = ref('AM')
 const freqInputVal = ref('')
-const freqInputRef = ref<HTMLInputElement | null>(null)
+const frequencyEntryRef = ref<InstanceType<typeof SdrFrequencyEntry> | null>(null)
+// The digit wheel measures the readout's text inside its <input>. The readout
+// is always rendered, so the null fallback only covers the pre-mount window no
+// wheel event can reach.
+/* v8 ignore start */
+const freqInputRef = computed(() => frequencyEntryRef.value?.inputElement ?? null)
+/* v8 ignore stop */
 const frequencyManagerTabRef = ref<InstanceType<typeof SdrFrequencyManagerTab> | null>(null)
 
 // The frequency in the input when it can be added: valid and not saved yet.
@@ -837,9 +412,6 @@ const sampleRateHz = ref<number>(2048000)
 // `resumeDelaySec.value` unchanged.
 const resumeDelaySec = computed<number>(() => _sdrStore().resumeDelaySec)
 const activeFreqDisplay = ref('')
-const signalSmoothed = ref(-120)
-const signalLit = ref(0)
-const worklestSquelchOpen = ref(true)
 
 // ── Store mirrors / marker bridge ─────────────────────────────────────────────
 // Passive mirrors so the spectrum/waterfall marker (SdrWaterfall, a sibling)
@@ -961,9 +533,13 @@ watch(
   },
 )
 
-const signalAudible = computed(
-  () => playing.value && (squelch.value <= -119 || worklestSquelchOpen.value),
-)
+// ── Signal meter ──────────────────────────────────────────────────────────────
+// The smoothed power reading, lit-segment count and squelch-muted state live in
+// useSdrSignalMeter; updateSignalBar is the audio engine's power callback.
+const { signalLit, signalAudible, updateSignalBar, resetSignalMeter } = useSdrSignalMeter({
+  playing,
+  squelch,
+})
 
 // ── Device dropdown ───────────────────────────────────────────────────────────
 // The combobox UI (listbox menu, keyboard nav, padlock rows) lives in
@@ -979,7 +555,6 @@ const signalAudible = computed(
 // here.
 const searchSectionExpanded = ref(false)
 const savedRangesExpanded = ref(false)
-const _rangesSectionExpanded = ref(false)
 
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 // Store-owned: the SDR store fetches/holds groups and frequencies
@@ -1551,8 +1126,7 @@ function stop() {
   if (searchActive.value) stopSearch()
   sdrAudio.stop()
   setPlayingState(false)
-  signalSmoothed.value = -120
-  signalLit.value = 0
+  resetSignalMeter()
   // Hand the shared tuner back when we stop listening, so another instance can
   // take over instead of us hogging it with nothing playing (the "won't release"
   // bug). Only meaningful while we actually own it over the relay control channel;
@@ -1674,31 +1248,8 @@ function setMode(m: string) {
   bwHz.value = bw
 }
 
-// Radio-group keyboard model (roving tabindex + arrow keys) for the MODE
-// pills; selecting via arrow key runs the exact same setMode path as a click.
-const modeKeyboard = useRadioGroupKeyboard({
-  optionCount: () => MODES.length,
-  selectedIndex: () => (MODES as readonly string[]).indexOf(currentMode.value),
-  select: (modeIndex) => setMode(MODES[modeIndex]!),
-})
-
-// ── Signal meter ──────────────────────────────────────────────────────────────
-
-function updateSignalBar(dbfs: number, squelchOpen?: boolean) {
-  if (squelchOpen !== undefined) worklestSquelchOpen.value = squelchOpen
-  if (squelchOpen === false) {
-    signalSmoothed.value = -120
-    signalLit.value = 0
-    return
-  }
-  /* v8 ignore start -- defensive default / fall-through for an always-present field (or jsdom-limited path) */
-  const alpha = dbfs > signalSmoothed.value ? 0.3 : 0.05
-  /* v8 ignore stop */
-  signalSmoothed.value += alpha * (dbfs - signalSmoothed.value)
-  signalLit.value = Math.round(
-    Math.max(0, Math.min(SIGNAL_SEGS, ((signalSmoothed.value + 120) / 120) * SIGNAL_SEGS)),
-  )
-}
+// The MODULATION pills' keyboard model (roving tabindex + arrow keys) lives in
+// SdrModulationPills; an arrow key emits the same `select` into setMode as a click.
 
 // ── Status ────────────────────────────────────────────────────────────────────
 
@@ -1714,8 +1265,7 @@ function setStatus(isConnected: boolean) {
     stopRecordingIfActive()
     controlsDisabled.value = true
     activeFreqDisplay.value = ''
-    signalSmoothed.value = -120
-    signalLit.value = 0
+    resetSignalMeter()
   }
 }
 

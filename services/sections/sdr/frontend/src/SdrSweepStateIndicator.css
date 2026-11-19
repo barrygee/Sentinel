@@ -1,0 +1,48 @@
+/* The SCANNER / SEARCH activity readout in the accordion bar (SdrSweepStateIndicator.vue). */
+
+/* It rides in the bar's #header-extra slot, pushed to the right edge. */
+.base-accordion-toggle .sdr-scan-state-row {
+  margin-left: auto;
+}
+
+.sdr-scan-state-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sdr-scan-state-label {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.7);
+}
+
+.sdr-scan-indicator {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(var(--ink-rgb), 0.15);
+  flex-shrink: 0;
+}
+
+.sdr-scan-indicator.sdr-scan-running {
+  background: var(--accent);
+  animation: sdr-scan-pulse 0.8s ease-in-out infinite;
+}
+
+.sdr-scan-indicator.sdr-scan-holding {
+  background: var(--sev-warn);
+}
+
+@keyframes sdr-scan-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}

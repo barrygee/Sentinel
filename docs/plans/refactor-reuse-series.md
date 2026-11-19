@@ -342,6 +342,35 @@ with a seam map of what grew back (written into the PR description), then:
 - C18 `stores/sdr.ts`: split by slice (radios, frequencies/groups, recordings) behind the same store API, or into
   composable store modules if Pinia slicing would change the public shape.
 
+C16 as built:
+
+- What grew back was the RADIO tab's template (≈ 450 lines of inline markup) and the CSS of tabs already extracted
+  in July, which never left `SdrPanel.css`. The RADIO tab now composes small components, each with its own CSS file:
+  `SdrSidebarRail` (+ `SdrRailTabIcon`; it tracks whether the side panel is open and emits `select`),
+  `SdrFrequencyEntry` (the MHz readout; exposes its `<input>` for the digit wheel), `SdrTransportButtons`,
+  `SdrSignalMeter`, `SdrModulationPills` (owns the radio-group keyboard model), `SdrDigitalModeToggle`,
+  `SdrScannerSection` and `SdrSearchSection` (→ `SdrAdhocSearchRow`, `SdrSavedRangesList`), sharing
+  `SdrSweepStateIndicator`, `SdrSweepPlayButton` and `SdrPlayStopIcon`. Each section component's root is the
+  `.sdr-radio-section` wrapper the pane's pinning rules (`.sdr-tab-pane--radio > …`) select, so the DOM is unchanged.
+  Script moves: `useSdrActiveTab` (tab list, sessionStorage memory, store mirror) and `useSdrSignalMeter`.
+- Sole-renderer families of the extracted tabs moved out of `SdrPanel.css` into `SdrFrequencyManagerTab.css`,
+  `SdrSearchRangesTab.css`, `SdrFrequencyForm.css`, `SdrRangeForm.css`, `SdrFrequencyGroupFilter.css`,
+  `SdrFrequencyRowSummary.css`, `SdrFavouritesSection.css` and `SdrFavouriteStar.css`. What stays is the pane layout
+  plus the chrome several components share (`.sdr-field-label`, `.sdr-mode-pill`, `.sdr-panel-input/-btn/-empty`,
+  `.sdr-editfreq-body`, the `.sdr-freq-row-*` rows and their action box, `.sdr-scan-groups-row`, `@keyframes
+  sdr-rec-pulse`).
+- Cascade trap found by the check: `.sdr-scan-groups-row` is also the Frequency Manager group filter's chip row, whose
+  `-row` rule overrides its margin at equal specificity, so it stays in `SdrPanel.css` (loaded first).
+- Dead CSS purged in its own commit: `#sdr-panel`, `.sdr-group-toggle/-body`, `.sdr-radio-section--tight`,
+  `.sdr-scan-btn`, `.sdr-scan-groups-row + .sdr-scan-subsection-label`, the never-shown adhoc placeholder and the
+  `:disabled` rule on a `div`, orphan comments (incl. the long-gone trunk section), all but one rule of
+  `SdrTabPanel.vue`'s style block, and the unused `_rangesSectionExpanded` ref.
+- Verification: a throwaway Playwright pass dumped the DOM and every computed property (pseudo-elements included) of
+  the rail and panes for all five tabs at 1280 and 390 px, collapsed, with every accordion expanded, and with the add
+  forms open: identical to `main` after each step. The built CSS holds the same rule set (minus the purge). Spec
+  unchanged, SDR 2,303 tests at 100 %, e2e 202 passed. `SdrPanel.vue` 2,061 → 1,611 lines; `SdrPanel.css`
+  1,835 → 842.
+
 ### C19–C21. Filter panels on `BaseFilterPanel`
 
 `AirFilter.vue` (1,012), `SpaceFilter.vue` (748) and `LandFilter.vue` (574) already render inside `BaseFilterPanel`

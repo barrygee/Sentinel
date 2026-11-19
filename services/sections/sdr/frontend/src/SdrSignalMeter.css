@@ -1,0 +1,24 @@
+/* The segmented SIGNAL meter (SdrSignalMeter.vue). */
+
+.sdr-signal-segments {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 10px;
+}
+
+.sdr-signal-seg {
+  flex: 1;
+  height: 100%;
+  border-radius: 1px;
+  background: rgba(var(--ink-rgb), 0.08);
+  transition: background 0.08s ease;
+}
+
+.sdr-signal-seg--on {
+  background: var(--accent);
+}
+
+.sdr-signal-segments--muted .sdr-signal-seg--on {
+  background: rgba(var(--ink-rgb), 0.25);
+}

@@ -48,6 +48,7 @@
  * `sdr-freq-manager-groups-section`; FAVOURITES uses
  * `sdr-favourites-groups-section`.
  */
+import './SdrFrequencyGroupFilter.css'
 import type { SdrFrequencyGroup } from './stores/sdr'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseChip from '@sentinel/ui/base/BaseChip.vue'

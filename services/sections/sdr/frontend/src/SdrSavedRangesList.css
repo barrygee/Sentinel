@@ -1,0 +1,117 @@
+/* The SAVED RANGES list nested in the SEARCH accordion (SdrSavedRangesList.vue). */
+
+.sdr-search-range-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -20px 12px;
+}
+
+.sdr-search-range-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  /* The list uses margin: 0 -20px to let the hover span full width; the matching
+     20px left/right padding pulls the row content (text + play button) back onto
+     the panel's content margin, so the play button aligns with the other panel
+     elements' right edge instead of overhanging it. */
+  padding: 0 20px;
+  background: none;
+  border: none;
+  text-align: left;
+  transition: background 0.12s;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  color: rgba(var(--ink-rgb), 0.7);
+}
+
+.sdr-search-range-item:hover:not(:disabled) {
+  background: rgba(var(--ink-rgb), 0.06);
+}
+
+.sdr-search-range-item-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  flex: 1 1 auto;
+  min-width: 0;
+  /* No left inset: the label/frequency text lines up with the "S" of the
+     SAVED RANGES heading (the panel content margin). */
+  padding: 13px 4px 13px 0;
+  background: none;
+  border: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.sdr-search-range-item-body:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.sdr-search-range-item-play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  background: rgba(var(--ink-rgb), 0.08);
+  border: none;
+  border-radius: 2px;
+  color: var(--accent-text);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.sdr-search-range-item-play:hover:not(:disabled) {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+.sdr-search-range-item-play:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sdr-search-range-item-play--active {
+  background: rgba(var(--sev-error-rgb), 0.18);
+  color: var(--sev-error);
+}
+
+.sdr-search-range-item-play--active:hover:not(:disabled) {
+  background: rgba(var(--sev-error-rgb), 0.28);
+}
+
+.sdr-search-range-primary {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+}
+
+.sdr-search-range-secondary {
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.5);
+}
+
+/* The "No ranges defined" line shown in place of an empty list. */
+.sdr-scan-subsection-label {
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+  /* Matches the .sdr-field-label title→content gap used across the other
+     panel sections (MODULATION, SIGNAL, etc.) so GROUPS lines up with them. */
+  margin-bottom: 8px;
+}

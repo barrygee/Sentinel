@@ -1,0 +1,69 @@
+/* Tune / Stop audio / Record under the frequency readout (SdrTransportButtons.vue).
+   The idle/hover chrome comes from .sdr-mode-pill (SdrPanel.css); the
+   @keyframes sdr-rec-pulse the REC button animates with stays there too,
+   shared with the RECORDINGS list's live dots. */
+
+.sdr-tune-btn {
+  flex-shrink: 0;
+  color: var(--accent-text);
+  padding: 0;
+  width: 28px;
+}
+
+.sdr-tune-btn:hover {
+  color: var(--accent-text);
+}
+
+.sdr-stop-btn {
+  color: rgba(var(--sev-error-rgb), 0.75);
+}
+
+.sdr-stop-btn:hover {
+  background: rgba(var(--sev-error-rgb), 0.15) !important;
+  color: var(--sev-error);
+}
+
+.sdr-tune-btn:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.sdr-freq-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.sdr-freq-actions-row .sdr-tune-btn {
+  flex: 1;
+  height: 28px;
+}
+
+.sdr-rec-btn {
+  color: rgba(var(--sev-error-rgb), 0.75);
+}
+
+.sdr-rec-btn:hover:not(:disabled) {
+  background: rgba(var(--sev-error-rgb), 0.15) !important;
+  color: var(--sev-error);
+}
+
+.sdr-rec-btn--active {
+  background: rgba(var(--sev-error-rgb), 0.14) !important;
+  color: var(--sev-error) !important;
+  animation: sdr-rec-pulse 0.9s ease-in-out infinite;
+}
+
+/* Armed but waiting: recording is on while the squelch is closed, at the start
+   or mid-session, so nothing is being captured yet. Pulses bright yellow (the
+   same yellow as the RECORDINGS panel's "Waiting" dot) with a pause icon until
+   the squelch opens, then the rule drops and the button pulses red like
+   --active. Doubled class so it beats --active's !important colours, and its
+   hover keeps the yellow too. */
+.sdr-rec-btn--active.sdr-rec-btn--waiting,
+.sdr-rec-btn--waiting:hover:not(:disabled) {
+  background: rgba(255, 214, 0, 0.16) !important;
+  color: #ffd600 !important;
+}

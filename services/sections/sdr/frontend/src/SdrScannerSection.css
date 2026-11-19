@@ -1,0 +1,19 @@
+/* The SCANNER accordion body (SdrScannerSection.vue). Its group chips row,
+   .sdr-scan-groups-row, stays in SdrPanel.css: the Frequency Manager's group
+   filter reuses it and overrides its margin there at equal specificity. */
+
+.sdr-scan-btns-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.sdr-scan-btns-row--left {
+  justify-content: flex-start;
+}
+
+/* Scanner-row play button: 28px square, matching the saved-ranges play buttons. */
+.sdr-scan-btns-row--left .sdr-search-adhoc-play {
+  width: 28px;
+  height: 28px;
+}

@@ -1,0 +1,30 @@
+/* The Frequency Manager's GROUPS filter accordion (SdrFrequencyGroupFilter.vue).
+   Its chip row also carries .sdr-scan-groups-row (SdrPanel.css), whose margin
+   the -row rule below tightens: it must load after SdrPanel.css. */
+
+/* Top and bottom padding both stay tight: the Add Frequency row above already
+   pads below its button, and the first frequency row below brings its own 11px
+   top padding, so larger values here read as dead gaps rather than separation —
+   most visibly when the filter is collapsed and the padding is all that stands
+   between the button, the GROUPS header and the start of the list. */
+.sdr-frequency-manager-groups-filter {
+  padding: 6px 24px 4px;
+}
+
+/* Match the Scanner GROUPS title→chips gap (8px) so both group pickers read
+   consistently. Scoped to this wrapper so other section accordions keep their
+   own header spacing. Collapsed, there are no chips to separate from the
+   title, so the gap would only push the frequency list further away. */
+.sdr-frequency-manager-groups-filter {
+  --ba-accordion-gap: 8px;
+}
+
+.sdr-frequency-manager-groups-filter:has(
+  .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
+) {
+  --ba-accordion-gap: 0px;
+}
+
+.sdr-frequency-manager-groups-filter-row {
+  margin-bottom: 4px;
+}

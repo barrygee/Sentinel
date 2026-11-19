@@ -1,0 +1,34 @@
+/* The FAVOURITES accordion body (SdrFavouritesSection.vue). */
+
+/* Inside the FAVOURITES accordion (#sdr-favourites-section) the wrapper
+   section already pads 20px, so the shared .sdr-freq-row-top /
+   .sdr-panel-empty pane-era 24/28px horizontal paddings (also used,
+   unmodified, by the Frequency Manager's own pane) would indent this
+   accordion's content past its title. Zero them here so text left-aligns with
+   the title, like the other accordion bodies. The Frequency Manager returned
+   to its own tab/pane (no longer an accordion), so its add/edit-form padding
+   no longer needs a similar override. */
+#sdr-favourites-section .sdr-freq-row-top {
+  padding: 11px 0;
+}
+
+#sdr-favourites-section .sdr-panel-empty {
+  padding: 28px 0;
+}
+
+/* FAVOURITES accordion body (SdrFavouritesSection). Reuses the Frequency
+   Manager's .sdr-frequency-manager-groups-filter / .sdr-freq-row-* /
+   .sdr-panel-empty chrome (see the #sdr-favourites-section overrides above)
+   rather than a parallel set of styles. */
+.sdr-favourites-body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A class, not an id: this component only renders once per SdrPanel mount, so
+   there is no live duplication risk today, but a class costs nothing and
+   avoids introducing one later. */
+.sdr-favourites-list {
+  display: flex;
+  flex-direction: column;
+}
