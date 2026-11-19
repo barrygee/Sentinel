@@ -1958,6 +1958,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #678 from barrygee/refactor/sdr-panel-subareas
 - Merge pull request #679 from barrygee/refactor/sdr-recordings-section
 - Merge pull request #680 from barrygee/refactor/sdr-store-slices
+- Merge pull request #681 from barrygee/refactor/air-filter-pieces
 
 ### Performance
 
@@ -2112,6 +2113,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split the RECORDINGS tab into list, row and player components
 - Purge the dead #sdr-recordings-list rules
 - Compose the SDR store from focused slices
+- Add the accessory icon action and its row
+- Split the FILTER pane into accordions, composables and helpers
 
 ### Documentation
 
@@ -2188,6 +2191,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C16 as built
 - Record C17 as built
 - Record C18 as built
+- Record C19 as built
 
 ### Tests
 
@@ -2315,6 +2319,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Point the RadioIcon guard at SdrRailTabIcon
 - Cover the RECORDINGS tab components and composables
 - Cover the SDR store slices on their own
+- Cover the FILTER pane pieces and the accessory icon action
 
 ### Build System
 
@@ -2471,6 +2476,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for the RADIO tab decomposition
 - Rebuild SDR remote for the RECORDINGS tab decomposition
 - Rebuild SDR remote for the SDR store slices
+- Rebuild the bundles for the shared accessory icon action
 
 ### Continuous Integration
 
