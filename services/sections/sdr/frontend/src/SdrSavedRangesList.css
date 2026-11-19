@@ -87,11 +87,6 @@
   background: rgba(var(--sev-error-rgb), 0.28);
 }
 
-.sdr-search-range-item:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .sdr-search-range-primary {
   font-size: 11px;
   font-weight: 600;

@@ -555,7 +555,6 @@ const { signalLit, signalAudible, updateSignalBar, resetSignalMeter } = useSdrSi
 // here.
 const searchSectionExpanded = ref(false)
 const savedRangesExpanded = ref(false)
-const _rangesSectionExpanded = ref(false)
 
 // ── Groups + frequencies ──────────────────────────────────────────────────────
 // Store-owned: the SDR store fetches/holds groups and frequencies

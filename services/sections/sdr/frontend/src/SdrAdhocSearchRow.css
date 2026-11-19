@@ -37,10 +37,6 @@
   outline: none;
 }
 
-.sdr-search-adhoc-input::placeholder {
-  color: rgba(var(--ink-rgb), 0.4);
-}
-
 .sdr-search-adhoc-input:disabled {
   opacity: 0.4;
   cursor: not-allowed;
