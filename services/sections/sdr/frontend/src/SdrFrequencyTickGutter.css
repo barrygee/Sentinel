@@ -1,0 +1,44 @@
+/* Frequency tick lines and labels under the spectrum (SdrFrequencyTickGutter.vue). */
+
+/* Vertical tick lines in the freq-label gutter — one line per 0.1 MHz, lined
+ * up with the labels sigplot draws below the data box. Sits over the gutter
+ * area (left/right/height pushed in from tickGutterStyle); pointer-events:none
+ * so click-to-tune still passes through. */
+/* The freq-label gutter strip below the FFT trace. pointer-events:none so the
+ * mousedown reaches .sdr-wf-spectrum's capture handler (onPlotMouseDown), which
+ * starts a frequency pan when the press lands in this strip. The grab-cursor
+ * affordance is driven from the spectrum element instead (see below). */
+.sdr-wf-tick-gutter {
+  position: absolute;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.sdr-wf-tick {
+  position: absolute;
+  /* Start just below the FFT axis line so the tick never overlaps the trace. */
+  top: 2px;
+  height: 25%;
+  width: 2px;
+  background: var(--ink-strong);
+  opacity: 0.55;
+  transform: translateX(-1px);
+}
+
+/* Per-tick frequency label rendered as an individual HTML element so each one
+ * gets its own opaque background box. Sits at the bottom of the freq-label
+ * gutter, centred horizontally on the tick. */
+.sdr-wf-freq-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  color: var(--ink-strong);
+  background: var(--instrument-bg);
+  padding: 5px 9px;
+  white-space: nowrap;
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
