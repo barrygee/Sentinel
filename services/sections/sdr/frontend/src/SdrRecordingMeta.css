@@ -1,0 +1,32 @@
+/* A recording row's Date / Duration / Size rows (SdrRecordingMeta.vue). */
+
+/* Labelled metadata rows: Date / Duration / Size. */
+.sdr-recording-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 12px 0 0;
+}
+
+.sdr-recording-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+}
+
+.sdr-recording-meta-row dt {
+  width: 64px;
+  color: var(--ink-secondary);
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.sdr-recording-meta-row dd {
+  margin: 0;
+  color: rgba(var(--ink-rgb), 0.6);
+  font-variant-numeric: tabular-nums;
+}

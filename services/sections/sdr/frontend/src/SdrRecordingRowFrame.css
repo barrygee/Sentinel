@@ -1,0 +1,27 @@
+/* The frame every recording row shares, live or saved (SdrRecordingRowFrame.vue). */
+
+/* Recording rows adopt the radio styling: a large Barlow-Condensed frequency readout
+   (mirroring .sdr-freq-input-large), a small uppercase name/mode sub-line, the
+   Date/Duration/Size meta, and — while playing — a SIGNAL-style block bar that
+   lights up to show position (click anywhere on it to seek). */
+.sdr-recording-row {
+  display: flex;
+  flex-direction: column;
+  transition: background 0.12s;
+}
+
+.sdr-recording-row:hover {
+  background: rgba(var(--ink-rgb), 0.04);
+}
+
+/* Subtle highlight on the whole row while playing. */
+.sdr-recording-playing {
+  background: rgba(var(--accent-rgb), 0.04);
+}
+
+.sdr-recording-content {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 20px 10px 24px;
+  min-width: 0;
+}

@@ -1,0 +1,12 @@
+/* The NOTES caption (SdrRecordingNoteLabel.vue), over a read-only note and the
+   note editor alike. */
+
+.sdr-recording-note-label {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+  margin-bottom: 5px;
+}

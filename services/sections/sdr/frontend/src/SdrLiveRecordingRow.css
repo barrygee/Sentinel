@@ -1,0 +1,53 @@
+/* The recording in progress (SdrLiveRecordingRow.vue): STOP pill and live status. */
+
+/* Stop recording — red pill with a square glyph + STOP label. */
+.sdr-recording-stop {
+  gap: 7px;
+  padding: 0 14px;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(var(--sev-error-rgb), 0.85);
+}
+
+.sdr-recording-stop svg {
+  display: block;
+}
+
+.sdr-recording-stop:hover {
+  background: rgba(var(--sev-error-rgb), 0.15);
+  color: var(--sev-error);
+}
+
+/* ── Live recording row ── */
+
+/* "Recording" / "Waiting" status pill on the right of the freq title. */
+.sdr-recording-live-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(var(--ink-rgb), 0.65);
+}
+
+.sdr-recording-live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: sdr-rec-pulse 1.2s ease-in-out infinite;
+}
+
+.sdr-recording-live-dot--waiting {
+  background: #ffd600;
+  animation: sdr-rec-pulse 2s ease-in-out infinite;
+}

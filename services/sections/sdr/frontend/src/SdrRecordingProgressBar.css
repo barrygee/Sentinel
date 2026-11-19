@@ -1,0 +1,42 @@
+/* The playing recording's block progress bar (SdrRecordingProgressBar.vue). */
+
+/* ── SIGNAL-style block progress bar (click to seek) ── */
+.sdr-recording-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.sdr-recording-segments {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+  height: 10px;
+  cursor: pointer;
+}
+
+/* Each block lights up as playback reaches it; the colour transition fades it
+   in cleanly so the bar animates block-by-block. */
+.sdr-recording-seg {
+  flex: 1;
+  height: 100%;
+  border-radius: 1px;
+  background: rgba(var(--ink-rgb), 0.08);
+  transition: background 0.15s ease;
+}
+
+.sdr-recording-seg--on {
+  background: var(--accent);
+}
+
+.sdr-recording-time {
+  font-family: 'Barlow Condensed', 'Barlow', sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: rgba(var(--ink-rgb), 0.5);
+  white-space: nowrap;
+  flex-shrink: 0;
+}

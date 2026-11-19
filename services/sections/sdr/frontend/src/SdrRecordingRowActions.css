@@ -1,0 +1,81 @@
+/* A saved recording's edit / delete glyphs (SdrRecordingRowActions.vue). */
+
+/* Pencil turns accent while its edit accordion is open. */
+.sdr-recording-edit--active {
+  color: var(--accent-text);
+}
+
+/* Edit / delete sit inline on the right of the title, borderless glyphs. */
+.sdr-recording-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.sdr-recording-edit,
+.sdr-recording-del {
+  position: relative;
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding: 0 2px;
+  color: rgba(var(--ink-rgb), 0.35);
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+  /* WCAG 2.5.8 Target Size (AA): keep a ≥24×24px hit area. The glyph stays the
+     same visual size — the extra is transparent, centred padding. */
+  min-width: 24px;
+  min-height: 24px;
+}
+
+/* Flat dark tooltip — matches .sdr-rail-btn. Drops below the
+   button (the actions sit at the top of each recording row). The pill itself
+   comes from BaseIconAction (tooltipSide="bottom"); these custom properties
+   restyle its default black pill to this family's flat-navy look. */
+.sdr-recording-edit,
+.sdr-recording-del {
+  --ba-icon-action-tooltip-offset: 8px;
+  --ba-icon-action-tooltip-bg: rgba(var(--rail-rgb), 0.96);
+  --ba-icon-action-tooltip-color: var(--tooltip-ink);
+  --ba-icon-action-tooltip-font: var(--font-primary, 'Barlow', sans-serif);
+  --ba-icon-action-tooltip-padding: 0 10px;
+  --ba-icon-action-tooltip-height: 24px;
+  --ba-icon-action-tooltip-radius: 3px;
+  --ba-icon-action-tooltip-z: 10001;
+}
+
+.sdr-recording-edit {
+  font-size: 15px;
+}
+
+.sdr-recording-edit:hover {
+  color: var(--accent-text);
+}
+
+.sdr-recording-del {
+  font-size: 14px;
+}
+
+.sdr-recording-del:hover {
+  color: rgba(var(--sev-error-rgb), 0.85);
+}
+
+/* Inline delete confirm: armed ✓ reads as a "go" colour, ✕ stays neutral/red. */
+.sdr-recording-del--confirm {
+  color: var(--accent-text);
+}
+.sdr-recording-del--confirm:hover {
+  color: var(--accent-text);
+}
+.sdr-recording-del--cancel {
+  color: rgba(var(--ink-rgb), 0.45);
+}
+.sdr-recording-del--cancel:hover {
+  color: rgba(var(--sev-error-rgb), 0.85);
+}

@@ -1,0 +1,34 @@
+/* The pill row and pill base the live row's STOP and a saved row's play /
+   download buttons share (SdrLiveRecordingRow.vue, SdrRecordingPlaybackControls.vue).
+   Both import it before their own file, whose single-class rules override it at
+   equal specificity. */
+
+/* Play + download pill row beneath the meta. Buttons match the radio controls
+   (.sdr-mode-pill): a dark background that brightens on hover, accent tints. */
+.sdr-recording-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 14px;
+}
+
+.sdr-recording-play,
+.sdr-recording-export,
+.sdr-recording-iq,
+.sdr-recording-stop {
+  height: 28px;
+  flex-shrink: 0;
+  background: rgba(var(--ink-rgb), 0.08);
+  border: none;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+  color: rgba(var(--ink-rgb), 0.5);
+  transition:
+    background 0.15s,
+    color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}

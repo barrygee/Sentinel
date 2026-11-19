@@ -1,0 +1,48 @@
+/* A saved recording's play / download pills (SdrRecordingPlaybackControls.vue). */
+
+.sdr-recording-play {
+  width: 40px;
+  padding: 0;
+}
+
+.sdr-recording-play svg {
+  display: block;
+}
+
+/* Download is a text pill ("DOWNLOAD"), no icon. Sized to match the FM/USB/LSB
+   mode pills (9px). The raw-IQ download ("DOWNLOAD IQ") is the same pill. */
+.sdr-recording-export,
+.sdr-recording-iq {
+  padding: 0 14px;
+  font-family: var(--font-primary, 'Barlow', sans-serif);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.sdr-recording-export:hover,
+.sdr-recording-iq:hover:not(:disabled) {
+  background: rgba(var(--ink-rgb), 0.15);
+  color: var(--ink-strong);
+}
+
+/* Play button carries the accent tint, like the radio's tune button. */
+.sdr-recording-play {
+  color: var(--accent-text);
+}
+
+.sdr-recording-play:hover {
+  background: rgba(var(--accent-rgb), 0.15);
+  color: var(--accent-text);
+}
+
+.sdr-recording-playing .sdr-recording-play {
+  background: rgba(var(--accent-rgb), 0.12);
+  color: var(--accent-text);
+}
+
+/* While the IQ is still copying from the radio hub ("COPYING IQ…"). */
+.sdr-recording-iq:disabled {
+  cursor: progress;
+}
