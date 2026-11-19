@@ -404,6 +404,27 @@ C17 as built:
   trim cases. SDR 2,659 tests at 100 %; 41 of 42 mutants killed (the survivor, the progress bar's 100 % clamp, is
   equivalent: a bar of 28 blocks shows the same with 42 lit). `SdrRecordingsSection.vue` 1,248 → 171 lines.
 
+C18 as built:
+
+- Seam map: `stores/sdr.ts` (1,361 lines) held the types, the radio list and tuning session (sessionStorage
+  restore, ownership, marker → panel request channels), ten copies of one "localStorage cache + `sdr` namespace
+  hydrate" preference block, the waterfall view sliders, APRS/AIS start/stop and domain reservations, the decoded
+  event/log buffers and the spectrum/search/scan overlay refs.
+- Pinia slicing into several stores would have changed the public shape (`useSdrStore().x` for 121 members), so the
+  store stays one `defineStore('sdr')` that spreads six setup slices from `stores/sdrSlices/`:
+  `useSdrTuningSession`, `useSdrPreferences` (takes the tuning refs: turning auto-centre on recentres),
+  `useSdrFrequencyLibrary`, `useSdrBackgroundDecoders` (takes `radios` for reservations), `useSdrDecodeFeed` (takes
+  `aprsEnabled` for the dock's stream kind) and `useSdrSpectrumOverlay`. Types moved to `sdrTypes.ts` and are
+  re-exported from `stores/sdr`, so no import changed. The repeated preference block became `persistedSetting.ts`
+  (`usePersistedFlag`, `usePersistedWholeNumber`); the APRS/AIS radio-id caches share one local helper.
+- Verification: a throwaway vitest probe built main's original store (renamed id) beside the new one: the same 121
+  members with the same initial values, the same state/getter split and the same functions, with empty and with
+  seeded localStorage/sessionStorage (including invalid values). The existing `sdr.spec.ts` passes unchanged and
+  covers every slice at 100 %; SPA vitest 1,882, e2e 202 passed. New specs test `persistedSetting.ts` and each slice
+  on its own (100 % each without the store spec; SDR 2,833 tests); 70 of 71 mutants killed (the survivor, the decode
+  batch's empty-input guard, is equivalent: an empty batch writes nothing either way). `stores/sdr.ts` 1,361 → 42
+  lines (largest slice 256).
+
 ### C19–C21. Filter panels on `BaseFilterPanel`
 
 `AirFilter.vue` (1,012), `SpaceFilter.vue` (748) and `LandFilter.vue` (574) already render inside `BaseFilterPanel`
