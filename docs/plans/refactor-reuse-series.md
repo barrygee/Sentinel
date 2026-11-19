@@ -310,6 +310,28 @@ C14 as built:
 - `_lastCommittedFreqHz`/`_lastCommittedBwHz` were written but never read, so they were dropped.
 - The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 2,584 → 2,002 lines.
 
+C15 as built:
+
+- The plots move to `composables/useWaterfallPlots.ts`: creating them after the double rAF, `buildPipes`, the
+  zoom-aware FFT bin request, the frame feed and draw loop, the stop blanking, the store / Min-Max / zoom /
+  tuned-frequency watchers, the data box reads and the teardown. The plots and their frequency scale live in one
+  plain, non-reactive object (`waterfallPlotHandles.ts`) the component creates first, so C11–C14 read it through
+  getters instead of component variables; the component calls `useWaterfallPlots` last, where the plot block used to
+  be, so its watchers and hooks keep their order.
+- Zoom, the live pan offset, the Min/Max dB range, `zoomWindowHz`, `applyZoom` and `applySpecRange` move to
+  `composables/useWaterfallViewRange.ts`, called before the other composables because they all map through
+  `zoomWindowHz`. Its `lastTouched` watchers are registered before the plots' combined `[zmin, zmax]` watcher, which
+  asks `clampSliderCollision` first, as the one watcher used to. The measured data box insets and the overlay styles
+  move to `composables/useWaterfallDataBox.ts`; the sigplot `mx` patches and the per-plot margin tweaks to
+  `sigplotAxisPatches.ts` (a side-effect import); the tick layout to the pure `waterfallFrequencyTicks.ts`.
+- The template splits into six sub-components, each with its own CSS file cut from `SdrWaterfall.css`:
+  `SdrWaterfallSearchOverlay`, `SdrWaterfallViewSliders` (it owns the negated slider proxies and the slider sizing),
+  `SdrBandPlanOverlay`, `SdrFrequencyTickGutter`, `SdrKnownFrequencyMarkers` and `SdrWaterfallTimeOverlay`. No
+  selector spans two of them, the built CSS holds the same rule set, and the `sdr-css-cascade` snapshot is unchanged.
+  The root file keeps the container, its state classes, the spectrum and the raster.
+- The spec reaches all of it through the DOM, so it is unchanged. `SdrWaterfall.vue` 2,002 → 516 lines;
+  `SdrWaterfall.css` 700 → 139.
+
 ### C16–C18. `SdrPanel`, `SdrRecordingsSection`, `stores/sdr.ts`
 
 These had a full decomposition series in July (panel 5,548 → 1,872); they have grown back to 2,061. Each PR starts

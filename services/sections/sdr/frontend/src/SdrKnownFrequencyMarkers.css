@@ -1,0 +1,149 @@
+/* Known-frequency dots, tags and popovers over the spectrum (SdrKnownFrequencyMarkers.vue). */
+
+/* Known-frequency markers — one dot per saved frequency at the top of the
+ * spectrum trace, with NO label over the signal. Click / tap a dot to reveal
+ * its name in a small borderless popover; the frequency the radio is tuned to
+ * keeps a persistent name tag. Dots that would overlap merge into a
+ * single dot with a count that lists its names on click. The overlay is anchored
+ * to the spectrum data box (knownFreqOverlayStyle) and takes no pointer events
+ * itself — only the dots and popovers do. It still clips its children so a
+ * marker near the right edge stops at the grid edge rather than overrunning into
+ * the Zoom/Max/Min control rail. */
+.sdr-wf-known-overlay {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.sdr-wf-known-marker {
+  position: absolute;
+  /* A fixed offset below the data-box top so the dot layers over the top of the
+   * trace with breathing room above. `left` is set inline (percent of the data
+   * box) — the frequency pixel — and the marker is centred on it. */
+  top: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: var(--ink-strong);
+}
+
+.sdr-wf-known-marker-dot {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  /* Re-enable pointer events on the interactive part only (the overlay is none). */
+  pointer-events: auto;
+}
+
+/* The carrier/tuning line is drawn by sigplot straight down the plot canvas,
+ * underneath this HTML overlay, so without a backdrop it runs straight through
+ * the dot. This opaque disc — matching the plot background, a little wider
+ * than the dot — masks that stretch so the line breaks with a small (~3px) gap
+ * above and below the dot instead of touching it. */
+.sdr-wf-known-marker-dot::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--instrument-bg);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.sdr-wf-known-marker-glyph {
+  position: relative;
+  display: block;
+}
+
+/* Count badge on a merged (clustered) dot. */
+.sdr-wf-known-marker-badge {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--instrument-bg);
+  font: 700 10px/14px var(--font-primary, 'Barlow', sans-serif);
+  text-align: center;
+}
+
+/* The tuned marker's persistent name tag. It is drawn as the very same box, in
+ * the very same place, as the name popover (hover / click) below — same offset
+ * under the dot, padding, caret and shadow — because the two take turns: the
+ * tag hides while the popover shows. Any difference between them reads as the
+ * name jumping each time the popover opens or closes (hover-out, or any click
+ * elsewhere). 9px/10px vertical padding = the popover's 6px/7px plus its name
+ * line's 3px, so the text sits on the same line too. */
+.sdr-wf-known-marker-tag {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  padding: 9px 10px 10px;
+  background: var(--instrument-bg);
+  box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.55);
+  color: var(--ink-strong);
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Name popover — name only, no border, revealed on click. */
+.sdr-wf-known-marker-pop {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 10px 7px;
+  background: var(--instrument-bg);
+  box-shadow: 0 6px 20px rgba(var(--shadow-rgb), 0.55);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: auto;
+}
+
+/* Caret pointing up to the dot (popover and tuned tag alike). */
+.sdr-wf-known-marker-pop::before,
+.sdr-wf-known-marker-tag::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: inherit;
+  transform: rotate(45deg);
+}
+
+.sdr-wf-known-marker-pop-line {
+  padding: 3px 0;
+  font: 700 11px/1 var(--font-primary, 'Barlow', sans-serif);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-strong);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
