@@ -1956,6 +1956,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #676 from barrygee/refactor/sdr-bandwidth-bracket-drag
 - Merge pull request #677 from barrygee/refactor/sdr-waterfall-plots
 - Merge pull request #678 from barrygee/refactor/sdr-panel-subareas
+- Merge pull request #679 from barrygee/refactor/sdr-recordings-section
 
 ### Performance
 
@@ -2107,6 +2108,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split the RADIO tab into sub-components
 - Co-locate the panel tabs' CSS with their components
 - Purge dead SDR panel CSS
+- Split the RECORDINGS tab into list, row and player components
+- Purge the dead #sdr-recordings-list rules
 
 ### Documentation
 
@@ -2181,6 +2184,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Format the map-kit README table
 - Describe Machine Name and the renamed Location setting
 - Record C16 as built
+- Record C17 as built
 
 ### Tests
 
@@ -2306,6 +2310,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the extracted waterfall modules and components
 - Cover the RADIO tab sub-components and composables
 - Point the RadioIcon guard at SdrRailTabIcon
+- Cover the RECORDINGS tab components and composables
 
 ### Build System
 
@@ -2460,6 +2465,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for bandwidth bracket extraction
 - Rebuild SDR remote for the waterfall plots extraction
 - Rebuild SDR remote for the RADIO tab decomposition
+- Rebuild SDR remote for the RECORDINGS tab decomposition
 
 ### Continuous Integration
 
