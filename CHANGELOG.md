@@ -1955,6 +1955,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #675 from barrygee/refactor/sdr-frequency-drag
 - Merge pull request #676 from barrygee/refactor/sdr-bandwidth-bracket-drag
 - Merge pull request #677 from barrygee/refactor/sdr-waterfall-plots
+- Merge pull request #678 from barrygee/refactor/sdr-panel-subareas
 
 ### Performance
 
@@ -2103,6 +2104,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract frequency drag, wheel pan and click-to-tune from SdrWaterfall
 - Extract the bandwidth bracket drag from SdrWaterfall
 - Extract the waterfall plots and split SdrWaterfall's CSS
+- Split the RADIO tab into sub-components
+- Co-locate the panel tabs' CSS with their components
+- Purge dead SDR panel CSS
 
 ### Documentation
 
@@ -2176,6 +2180,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Keep the certificate routes in hosts.py for C2
 - Format the map-kit README table
 - Describe Machine Name and the renamed Location setting
+- Record C16 as built
 
 ### Tests
 
@@ -2299,6 +2304,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Expect the SDR IS UNPLUGGED reason exactly
 - Cover the map dimming and the port and vessel raise
 - Cover the extracted waterfall modules and components
+- Cover the RADIO tab sub-components and composables
+- Point the RadioIcon guard at SdrRailTabIcon
 
 ### Build System
 
@@ -2452,6 +2459,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for frequency drag extraction
 - Rebuild SDR remote for bandwidth bracket extraction
 - Rebuild SDR remote for the waterfall plots extraction
+- Rebuild SDR remote for the RADIO tab decomposition
 
 ### Continuous Integration
 
