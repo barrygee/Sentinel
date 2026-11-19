@@ -1954,6 +1954,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #674 from barrygee/refactor/sdr-signal-markers
 - Merge pull request #675 from barrygee/refactor/sdr-frequency-drag
 - Merge pull request #676 from barrygee/refactor/sdr-bandwidth-bracket-drag
+- Merge pull request #677 from barrygee/refactor/sdr-waterfall-plots
 
 ### Performance
 
@@ -2101,6 +2102,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Extract row clock and signal markers from SdrWaterfall
 - Extract frequency drag, wheel pan and click-to-tune from SdrWaterfall
 - Extract the bandwidth bracket drag from SdrWaterfall
+- Extract the waterfall plots and split SdrWaterfall's CSS
 
 ### Documentation
 
@@ -2296,6 +2298,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - An airport map click fits the map to the airport
 - Expect the SDR IS UNPLUGGED reason exactly
 - Cover the map dimming and the port and vessel raise
+- Cover the extracted waterfall modules and components
 
 ### Build System
 
@@ -2448,6 +2451,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for signal marker extraction
 - Rebuild SDR remote for frequency drag extraction
 - Rebuild SDR remote for bandwidth bracket extraction
+- Rebuild SDR remote for the waterfall plots extraction
 
 ### Continuous Integration
 
