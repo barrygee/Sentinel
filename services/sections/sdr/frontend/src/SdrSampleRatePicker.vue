@@ -43,8 +43,8 @@
  * whose default keyboard model (Enter/Space toggles, Escape closes) matches
  * this picker; this component keeps the rate option model and rows.
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
- * the other extracted panel sections.
+ * Styling comes from BaseSelectMenu; the form that hosts it sizes the trigger
+ * (e.g. `.sdr-ef-settings-grid .sdr-ef-setting-dropdown` in SdrFrequencyForm.css).
  */
 import { ref } from 'vue'
 import BaseSelectMenu from '@sentinel/ui/base/BaseSelectMenu.vue'

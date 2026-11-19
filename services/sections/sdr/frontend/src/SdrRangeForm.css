@@ -1,0 +1,19 @@
+/* The add / edit search range form's own fields (SdrRangeForm.vue). */
+
+.sdr-editfreq-body .sdr-field-error {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--sev-error);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sdr-editfreq-body .sdr-range-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+}
+
+.sdr-editfreq-body .sdr-range-row .sdr-range-col {
+  flex: 1 1 0;
+}

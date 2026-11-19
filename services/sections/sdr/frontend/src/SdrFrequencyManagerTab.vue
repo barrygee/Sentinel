@@ -240,9 +240,10 @@
  * `changed` after every successful save/delete (parent runs its full data
  * reload).
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
- * the other extracted panel sections.
+ * Its layout lives in SdrFrequencyManagerTab.css; the row and form chrome it
+ * shares with the SEARCH RANGES tab stays in SdrPanel.css.
  */
+import './SdrFrequencyManagerTab.css'
 import { ref, computed, watch, nextTick } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import BaseSearchField from '@sentinel/ui/base/BaseSearchField.vue'

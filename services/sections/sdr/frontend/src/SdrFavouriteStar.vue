@@ -36,12 +36,13 @@
  * ratio ~0.35, tightly pointed). This star differs three ways: it FILLS solid
  * (`fill="currentColor"`) when favourited instead of staying an outline (the
  * fill state doubles as the toggle's own affordance), it turns the panel's
- * lime accent (see `.sdr-freq-row-fav-active` in SdrPanel.css) rather than the
+ * lime accent (see `.sdr-freq-row-fav-active` in SdrFavouriteStar.css) rather than the
  * row's muted
  * grey, and its points are fuller/fatter (inner/outer radius ratio ~0.48,
  * heavier 1.6 stroke) with a distinct hand-authored vertex set — never a
  * shared glyph, so there is no name collision or accidental restyle risk.
  */
+import './SdrFavouriteStar.css'
 import { computed, ref } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 

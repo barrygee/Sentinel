@@ -48,6 +48,7 @@
  * owns the cluster's wrapper, so the buttons group tightly regardless of who
  * fills the slot.
  */
+import './SdrFrequencyRowSummary.css'
 import { useSdrStore } from './stores/sdr'
 import type { SdrStoredFrequency } from './stores/sdr'
 

@@ -114,9 +114,10 @@
  * The Add panel and the inline row editor render the same `SdrRangeForm`;
  * this tab owns its state, validation and saving.
  *
- * Styling lives in SdrPanel.css (imported globally by SdrPanel.vue), same as
- * the other extracted panel sections.
+ * Its layout lives in SdrSearchRangesTab.css; the row and form chrome it
+ * shares with the FREQUENCY MANAGER tab stays in SdrPanel.css.
  */
+import './SdrSearchRangesTab.css'
 import { ref } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
 import SdrRangeForm from './SdrRangeForm.vue'

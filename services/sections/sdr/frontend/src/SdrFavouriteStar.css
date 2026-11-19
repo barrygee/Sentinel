@@ -1,0 +1,35 @@
+/* The favourite star's colours (SdrFavouriteStar.vue). Its 24px box is the
+   row-action rule it shares with play / edit / delete in SdrPanel.css. */
+
+/* Favourite star (SdrFavouriteStar) — muted grey outline that turns amber and
+   solid when favourited. Distinct from the military star (Air/Space filter
+   rails): fill state IS the toggle affordance here, not a fixed outline. */
+.sdr-freq-row-fav {
+  background: none;
+  border: none;
+  cursor: pointer;
+  /* WCAG 1.4.11 (AA, non-text contrast): 0.45 clears the 3:1 floor with margin
+     (0.35 only just cleared it at ~3.18:1). */
+  color: rgba(var(--ink-rgb), 0.45);
+  transition: color 0.15s;
+  /* Box/alignment come from the shared row-action rule above. */
+}
+
+.sdr-freq-row-fav:hover:not(:disabled) {
+  color: var(--accent-text);
+}
+
+/* Favourited: the panel's lime accent, matching the -play/-edit hover colour
+   and the Add Frequency button rather than introducing a second accent hue. */
+.sdr-freq-row-fav-active {
+  color: var(--accent-text);
+}
+
+.sdr-freq-row-fav-active:hover:not(:disabled) {
+  color: var(--accent-hover);
+}
+
+.sdr-freq-row-fav:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

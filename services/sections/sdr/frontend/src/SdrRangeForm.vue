@@ -93,6 +93,7 @@
  * It has several root elements on purpose, so the fields stay direct children
  * of the host's `.sdr-editfreq-body`, whose column gap spaces them.
  */
+import './SdrRangeForm.css'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
 import BaseFormField from '@sentinel/ui/base/BaseFormField.vue'
 import BasePillToggle from '@sentinel/ui/base/BasePillToggle.vue'

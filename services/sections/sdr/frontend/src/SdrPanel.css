@@ -210,8 +210,7 @@
     > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
 ) {
   padding-bottom: 0;
-}
-/* The id outranks `#sdr-mode-section .sdr-radio-section`'s 10px. */
+} /* The id outranks `#sdr-mode-section .sdr-radio-section`'s 10px. */
 #sdr-mode-section
   .sdr-settings-controls:has(
     > .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
@@ -253,33 +252,6 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 12px;
-}
-
-/* Top and bottom padding both stay tight: the Add Frequency row above already
-   pads below its button, and the first frequency row below brings its own 11px
-   top padding, so larger values here read as dead gaps rather than separation —
-   most visibly when the filter is collapsed and the padding is all that stands
-   between the button, the GROUPS header and the start of the list. */
-.sdr-frequency-manager-groups-filter {
-  padding: 6px 24px 4px;
-}
-
-/* Match the Scanner GROUPS title→chips gap (8px) so both group pickers read
-   consistently. Scoped to this wrapper so other section accordions keep their
-   own header spacing. Collapsed, there are no chips to separate from the
-   title, so the gap would only push the frequency list further away. */
-.sdr-frequency-manager-groups-filter {
-  --ba-accordion-gap: 8px;
-}
-
-.sdr-frequency-manager-groups-filter:has(
-  .base-accordion-toggle--section:not(.base-accordion-toggle--expanded)
-) {
-  --ba-accordion-gap: 0px;
-}
-
-.sdr-frequency-manager-groups-filter-row {
-  margin-bottom: 4px;
 }
 
 /* The section-bar look lives in BaseAccordionSection. SDR's sections are padded
@@ -351,29 +323,6 @@
    .sdr-panel-add-row) lives with its sole renderer, SdrGroupsTab.vue (B10
    CSS co-location). */
 
-.sdr-freq-row-groups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.sdr-freq-row-group-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 22px;
-  padding: 0 10px;
-  background: rgba(var(--accent-rgb), 0.12);
-  border-radius: 2px;
-  font-family: var(--font-primary, 'Barlow', sans-serif);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--accent-text);
-}
-
 .sdr-editfreq-body {
   flex-shrink: 0;
   display: flex;
@@ -396,57 +345,6 @@
   max-height: 1600px;
   opacity: 1;
   padding: 20px 28px 28px;
-}
-
-/* Per-frequency tuning settings (RF gain / bandwidth / squelch / volume /
-   sample rate / waterfall view) in the add & edit frequency forms. Two-column
-   grid of labelled compact inputs. */
-.sdr-ef-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  /* Match the 20px field-to-field rhythm of the form, and a 12px column gap. */
-  gap: 20px 12px;
-}
-
-/* SAMPLE RATE custom dropdown: match the 36px height of the sibling inputs (the
-   base device-dropdown is 34px). */
-.sdr-ef-settings-grid .sdr-ef-setting-dropdown {
-  height: 36px;
-}
-
-/* Gap between the header and the grid when the accordion is expanded. */
-.base-accordion-toggle--form + .sdr-ef-settings-grid {
-  margin-top: 4px;
-}
-
-/* Center the AUTO (AGC) switch (BaseToggleSwitch size="compact") vertically
-   against the RF GAIN input beside it: the wrapper matches the input's 36px
-   height so the shorter (18px) switch sits mid-input. */
-.sdr-ef-toggle-wrap {
-  display: flex;
-  align-items: center;
-  height: 36px;
-}
-
-/* Single column on the narrowest screens so the inputs stay usable. */
-@media (max-width: 360px) {
-  .sdr-ef-settings-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.sdr-editfreq-body .sdr-mode-pills.sdr-input-error {
-  box-shadow:
-    inset 0 0 0 1px var(--sev-error),
-    0 0 0 1px rgba(var(--sev-error-rgb), 0.35);
-}
-
-.sdr-editfreq-body .sdr-field-error {
-  margin-top: 4px;
-  font-size: 10px;
-  color: var(--sev-error);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .sdr-editfreq-body .sdr-mode-pill {
@@ -478,10 +376,6 @@
   gap: 4px;
 }
 
-.sdr-editfreq-body .sdr-fmod-groups {
-  gap: 4px;
-}
-
 .sdr-editfreq-body .sdr-editfreq-actions {
   margin-top: 8px;
 }
@@ -501,38 +395,6 @@
 
 .sdr-addfreq-title-row .sdr-scanner-section-label {
   color: rgba(var(--ink-rgb), 0.6);
-}
-
-.sdr-editfreq-body .sdr-ef-gpill {
-  height: 28px;
-  background: rgba(var(--ink-rgb), 0.06);
-  border-radius: 2px;
-  color: rgba(var(--ink-rgb), 0.85);
-  font-size: 9px;
-  letter-spacing: 0.14em;
-  flex: 0 0 auto;
-  padding: 0 14px;
-}
-
-.sdr-editfreq-body .sdr-ef-gpill:hover {
-  background: rgba(var(--ink-rgb), 0.12);
-  color: var(--ink-strong);
-}
-
-.sdr-editfreq-body .sdr-ef-gpill.active {
-  background: rgba(var(--accent-rgb), 0.12);
-  color: var(--accent-text);
-}
-
-.sdr-editfreq-body .sdr-ef-gpill.active:hover {
-  background: rgba(var(--accent-rgb), 0.12);
-  color: var(--accent-text);
-}
-
-.sdr-fmod-groups {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
 }
 
 .sdr-editfreq-actions {
@@ -627,86 +489,6 @@
   color: rgba(var(--ink-rgb), 0.35);
   text-transform: uppercase;
   transition: color 0.15s;
-}
-
-/* Frequency manager pane: list scrolls inside the pane; the
-   Add Frequency / inline add form stay pinned below. */
-.sdr-frequency-manager-freqs-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-/* Inside the FAVOURITES accordion (#sdr-favourites-section) the wrapper
-   section already pads 20px, so the shared .sdr-freq-row-top /
-   .sdr-panel-empty pane-era 24/28px horizontal paddings (also used,
-   unmodified, by the Frequency Manager's own pane) would indent this
-   accordion's content past its title. Zero them here so text left-aligns with
-   the title, like the other accordion bodies. The Frequency Manager returned
-   to its own tab/pane (no longer an accordion), so its add/edit-form padding
-   no longer needs a similar override. */
-#sdr-favourites-section .sdr-freq-row-top {
-  padding: 11px 0;
-}
-#sdr-favourites-section .sdr-panel-empty {
-  padding: 28px 0;
-}
-
-/* Header and filter chips stay pinned at the top — only #sdr-freq-list scrolls. */
-.sdr-frequency-search {
-  flex: 0 0 auto;
-}
-
-.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-groups-filter,
-.sdr-frequency-manager-freqs-body > .sdr-panel-empty {
-  flex: 0 0 auto;
-}
-
-/* Add Frequency button and inline add form stay pinned at the bottom
-   of the pane and never overflow past it. The add form scrolls
-   internally if its content exceeds available space. */
-.sdr-frequency-manager-freqs-body > .sdr-frequency-manager-add-freq-row {
-  flex: 0 0 auto;
-  /* Tighter than the shared 18px below the button: here the GROUPS accordion
-     follows immediately, and its own top padding covers the separation.
-     Scoped to this body so the Search Ranges tab keeps the shared spacing. */
-  padding-bottom: 8px;
-}
-.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body {
-  flex: 0 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
-}
-.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar {
-  width: 6px;
-}
-.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-track {
-  background: transparent;
-}
-.sdr-frequency-manager-freqs-body > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb {
-  background: rgba(var(--ink-rgb), 0.1);
-  border-radius: 3px;
-}
-.sdr-frequency-manager-freqs-body
-  > .sdr-editfreq-body.sdr-addfreq-body::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--accent-rgb), 0.28);
-}
-
-#sdr-freq-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-}
-
-#sdr-freq-list::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;
 }
 
 /* .sdr-favourites-row-item (FAVOURITES rows) always carries this class
@@ -932,64 +714,6 @@
   cursor: not-allowed;
 }
 
-/* Favourite star (SdrFavouriteStar) — muted grey outline that turns amber and
-   solid when favourited. Distinct from the military star (Air/Space filter
-   rails): fill state IS the toggle affordance here, not a fixed outline. */
-.sdr-freq-row-fav {
-  background: none;
-  border: none;
-  cursor: pointer;
-  /* WCAG 1.4.11 (AA, non-text contrast): 0.45 clears the 3:1 floor with margin
-     (0.35 only just cleared it at ~3.18:1). */
-  color: rgba(var(--ink-rgb), 0.45);
-  transition: color 0.15s;
-  /* Box/alignment come from the shared row-action rule above. */
-}
-
-.sdr-freq-row-fav:hover:not(:disabled) {
-  color: var(--accent-text);
-}
-
-/* Favourited: the panel's lime accent, matching the -play/-edit hover colour
-   and the Add Frequency button rather than introducing a second accent hue. */
-.sdr-freq-row-fav-active {
-  color: var(--accent-text);
-}
-
-.sdr-freq-row-fav-active:hover:not(:disabled) {
-  color: var(--accent-hover);
-}
-
-.sdr-freq-row-fav:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* FAVOURITES accordion body (SdrFavouritesSection). Reuses the Frequency
-   Manager's .sdr-frequency-manager-groups-filter / .sdr-freq-row-* /
-   .sdr-panel-empty chrome (see the #sdr-favourites-section overrides above)
-   rather than a parallel set of styles. */
-.sdr-favourites-body {
-  display: flex;
-  flex-direction: column;
-}
-
-/* A class, not an id: this component only renders once per SdrPanel mount, so
-   there is no live duplication risk today, but a class costs nothing and
-   avoids introducing one later. */
-.sdr-favourites-list {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Read-only follower: dim the whole frequency-manager surface so it visibly
-   reads as "not in control" while another Sentinel owns the shared tuner. The
-   individual controls are also disabled (see :disabled rules above); this is the
-   ambient signal that the tab is inert. */
-.sdr-frequency-manager--readonly {
-  opacity: 0.6;
-}
-
 /* Shared by the transport REC button (SdrTransportButtons.css) and the
    RECORDINGS list's live dots (SdrRecordingsSection.vue). */
 @keyframes sdr-rec-pulse {
@@ -1184,102 +908,12 @@
 
 /* ── Search Ranges sub-section (Frequency Manager tab) ────────────────────── */
 
-/* Sub-section sits below the Frequencies body inside the Frequency Manager
-   tab pane. The parent pane is `display: flex; flex-direction: column` with
-   the Frequencies body claiming `flex: 1`, so this section needs its own
-   share of the height and its own scroll container — otherwise its inline
-   edit form gets recordingped at the bottom of the panel. */
-.sdr-search-ranges-body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-.sdr-search-ranges-body > .sdr-panel-empty,
-.sdr-search-ranges-body > .sdr-frequency-manager-add-freq-row {
-  flex: 0 0 auto;
-}
-
 /* Shared search row — matches the AirFilter style. */
 
 /* Align the SEARCH RANGES header title with the list item title and the
    chevron with the row's delete X. The header bleeds to the panel edge
    (margin: 0 -20px), while rows sit inside the parent's 20px padding and add
    their own 24px — net 44px from the panel edge on both sides. */
-
-/* Spacer matches the .sdr-freq-row-play footprint (10px svg + 4px left/right
-   padding) so the delete X on Search Range rows lines up with the X on
-   Frequency rows, which sit beside an extra play button. */
-.sdr-freq-row-play-spacer {
-  display: inline-block;
-  width: 18px;
-  flex-shrink: 0;
-}
-
-#sdr-search-range-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
-}
-
-#sdr-search-range-list::-webkit-scrollbar {
-  width: 6px;
-}
-#sdr-search-range-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-#sdr-search-range-list::-webkit-scrollbar-thumb {
-  background: rgba(var(--ink-rgb), 0.1);
-  border-radius: 3px;
-}
-#sdr-search-range-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(var(--accent-rgb), 0.28);
-}
-
-.sdr-search-range-row-body {
-  cursor: pointer;
-}
-
-/* The range add-panel (when adding, not editing) needs its own scroll, same as
-   the frequency add-panel does. */
-.sdr-search-ranges-body > .sdr-editfreq-body.sdr-addfreq-body {
-  flex: 0 1 auto;
-  overflow-y: auto;
-  min-height: 0;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(var(--accent-rgb), 0.18) transparent;
-}
-
-/* The range editor has more fields than the frequency editor, so the shared
-   600px max-height recordings it. Allow it to grow. */
-.sdr-search-ranges-body .sdr-editfreq-body.expanded {
-  max-height: none;
-}
-
-.sdr-editfreq-body .sdr-range-row {
-  display: flex;
-  flex-direction: row;
-  gap: 10px;
-}
-
-.sdr-editfreq-body .sdr-range-row .sdr-range-col {
-  flex: 1 1 0;
-}
-
-/* Hide the native number-input spinner arrows in the Search Range editor. */
-.sdr-search-ranges-body input[type='number']::-webkit-outer-spin-button,
-.sdr-search-ranges-body input[type='number']::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.sdr-search-ranges-body input[type='number'] {
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
 
 /* Why the selected radio cannot be connected to — an unplugged dongle, a
    disabled device, one replugged into another socket. Sits under the selector

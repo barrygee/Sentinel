@@ -66,6 +66,7 @@
  * region and moves focus to the next row's star (or the section root when
  * the list empties) so focus is never dropped onto `document.body`.
  */
+import './SdrFavouritesSection.css'
 import { computed, nextTick, ref } from 'vue'
 import type { ComponentPublicInstance } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'

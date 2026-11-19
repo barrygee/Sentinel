@@ -1,0 +1,44 @@
+/* The `+` that saves the tuned frequency (SdrAddFrequencyButton.vue). */
+
+.sdr-freq-add {
+  position: relative;
+  flex-shrink: 0;
+  /* The row aligns on the digits' baseline, which would sit the button low. */
+  align-self: center;
+  /* Pushed to the row's right edge, in line with the panel's other right-hand
+     actions (the SAVED RANGES play buttons), rather than trailing the unit. */
+  margin-left: auto;
+  /* The same 28px square button as the range play buttons. */
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: rgba(var(--ink-rgb), 0.08);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  color: var(--accent-text);
+  opacity: 0;
+  transition:
+    opacity 0.15s,
+    background 0.12s;
+}
+
+/* Focus as well as hover: a tap into the input shows it on touch screens, and
+   tabbing to it shows it for keyboard users. */
+.sdr-freq-row:hover .sdr-freq-add,
+.sdr-freq-row:focus-within .sdr-freq-add {
+  opacity: 1;
+}
+
+.sdr-freq-add:hover {
+  background: rgba(var(--accent-rgb), 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sdr-freq-add {
+    transition: none;
+  }
+}
