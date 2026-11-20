@@ -184,8 +184,9 @@ async def get_aircraft_near_point(
       (Online, the stale window is adsb_stale_ms plus the online refresh interval.)
       - NEARBY: no row for this exact point and no fresh fetch → serve the nearest
                 recent row (the point tracks the map centre, so pans miss the cache)
-      - FALLBACK: the primary failed and the fallback answered with no
-                aircraft, and nothing cached could stand in — served, not cached
+      - FALLBACK: the primary failed or was throttled, the fallback (the
+                operator's own receiver) answered, and nothing cached could
+                stand in — served, not cached
       - NO-SETTINGS: core's settings couldn't be read, so no source is known
                 → serve the nearest row within adsb_stale_ms
       - 204:    nothing to serve (X-Cache: UNAVAILABLE, X-Unavailable-Reason says why)
@@ -241,7 +242,7 @@ async def get_aircraft_near_point(
         return _nothing_to_serve("no-source")
 
     data: dict | None = None
-    empty_fallback: dict | None = None
+    fallback_answer: dict | None = None
     rate_limited = False
     throttled = False
     fresh_for_ms = settings.adsb_ttl_ms
@@ -250,14 +251,18 @@ async def get_aircraft_near_point(
             data = await adsb_service.fetch_aircraft(lat, lon, radius, base_url, online_interval_seconds)
             if adsb_service.is_online_feed(base_url):
                 fresh_for_ms = online_interval_ms
-            if base_url != primary_url and not data.get("ac"):
+            if base_url != primary_url:
                 # The fallback (online only: off grid has none, see
                 # resolve_domain_urls) is the operator's own decoder, which
-                # often has nothing for the online map's area. An empty
-                # list from it says nothing about the sky, so it must not
-                # replace aircraft already cached; it is the answer only if
-                # there is nothing else (below).
-                empty_fallback, data = data, None
+                # hears only the few aircraft around its aerial — often none
+                # in the online map's area. Its answer, empty or not, is a
+                # sliver of the sky the online snapshot already covers, so it
+                # must not replace or outrank aircraft already cached (a page
+                # load inside the online refresh interval is throttled and
+                # lands here: caching the receiver's one or two aircraft
+                # showed those alone until the next online call). It is the
+                # answer only if nothing cached can stand in (below).
+                fallback_answer, data = data, None
             break
         except UpstreamThrottledError:
             # Our own limiter declined the call to stay inside the upstream's
@@ -333,11 +338,12 @@ async def get_aircraft_near_point(
     if row and is_within_stale(row.fetched_at, stale_ms):
         cache_state = "RATED" if rate_limited else "THROTTLED" if throttled else "STALE"
         return _cached_response(row, cache_state)
-    # Nothing cached to prefer: the fallback's empty list is a truthful
-    # answer, better than an outage. Not cached, so the next poll tries the
-    # primary again rather than serving it as a fresh HIT.
-    if empty_fallback is not None:
-        return _fresh_response(empty_fallback, "FALLBACK", settings.adsb_ttl_ms)
+    # Nothing cached to prefer: the fallback's answer is a truthful one,
+    # better than an outage. Not cached, so the next poll tries the primary
+    # again rather than serving it as a fresh HIT, and NEARBY never borrows
+    # it for a neighbouring point.
+    if fallback_answer is not None:
+        return _fresh_response(fallback_answer, "FALLBACK", settings.adsb_ttl_ms)
     if adsb_service.is_online_feed(primary_url):
         # The feed's own stated reset, not the next UTC midnight: it is when
         # calls are made again, and it can move on the feed's side.
