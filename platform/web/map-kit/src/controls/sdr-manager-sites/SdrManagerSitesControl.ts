@@ -1,7 +1,10 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
-import { buildLocationMarkerSvg } from '@sentinel/map-kit/UserLocationMarker'
+import {
+  buildLocationMarkerSvg,
+  type OperatorMarkerDetails,
+} from '@sentinel/map-kit/UserLocationMarker'
 import {
   DARK_COUNT_RING,
   buildCountMarker,
@@ -9,10 +12,12 @@ import {
   type ScreenPosition,
 } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
+import { buildMarkerDetailsPill } from '@sentinel/map-kit/map-label/markerDetailsPill'
 import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
-import { siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
+import { siteAddress, siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
 import { escapeHtml } from '@sentinel/ui/utils/escapeHtml'
+import { useAppStore } from '@sentinel/shell-api/stores/app'
 import type { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSites'
 import type { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 
@@ -59,7 +64,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
    *  number changes. */
   private _clusterCounts = new Map<string, number>()
   private readonly _getUserLocation: () => [number, number] | null
-  private readonly _userMarker: HideableMarker | null
+  private readonly _userMarker: OperatorMarker | null
   private _onMapMoveEnd: (() => void) | null = null
   private _stopWatch: WatchStopHandle | null = null
   private _a11yRegion: HTMLDivElement | null = null
@@ -78,7 +83,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     settingsStore: SettingsStore,
     options: {
       getUserLocation?: () => [number, number] | null
-      userMarker?: HideableMarker | null
+      userMarker?: OperatorMarker | null
     } = {},
   ) {
     super()
@@ -124,6 +129,8 @@ export class SdrManagerSitesControl extends SentinelControlBase {
           // This machine's site is named by the machine name setting, which can
           // change while the sites themselves don't.
           this._sitesStore.sites.map((site) => siteLabel(site)),
+          // …and so is the operator marker's tag, local SDR Manager or not.
+          useAppStore().thisMachineLabel,
         ] as const,
       () => this._render(),
       { immediate: true, deep: true },
@@ -164,6 +171,25 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     const sites = [...this._sitesStore.sites, ...this._sitesStore.radioSites]
     this._syncMarkers(this._visible ? this._sitesToPlot(sites) : [])
     this._renderA11yTable(sites)
+    this._userMarker?.setDetails(this._thisMachineDetails())
+  }
+
+  /**
+   * The tag for the operator's ⊙ marker, which stands for this machine: its
+   * name, and the address and status of this machine's own SDR Manager, the
+   * same values every other site's tag shows.
+   *
+   * Given even while the sites are toggled off: the marker is the view's, not a
+   * site. Without a local SDR Manager reporting, this machine has no address
+   * Sentinel knows, so the tag shows only the name and position.
+   */
+  private _thisMachineDetails(): OperatorMarkerDetails {
+    const localSite = this._sitesStore.sites.find((site) => site.is_local)
+    return {
+      name: useAppStore().thisMachineLabel,
+      address: localSite ? siteAddress(localSite) : null,
+      reachable: localSite ? localSite.reachable : null,
+    }
   }
 
   /**
@@ -319,7 +345,15 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     element.className = 'sdr-manager-map-marker'
     element.setAttribute('aria-label', siteMarkerLabel(site))
     element.appendChild(this._buildMark())
-    element.appendChild(this._buildDetails(site))
+    element.appendChild(
+      buildMarkerDetailsPill({
+        name: siteLabel(site),
+        latitude: site.latitude,
+        longitude: site.longitude,
+        address: siteAddress(site),
+        reachable: site.reachable,
+      }),
+    )
     element.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
       // A host opens on its own row; a radio added by IP is in Settings › SDR too.
@@ -335,51 +369,6 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     mark.className = 'sdr-manager-map-marker-mark'
     mark.innerHTML = buildLocationMarkerSvg(SDR_MANAGER_MARKER_DOT_COLOR)
     return mark
-  }
-
-  /**
-   * One site's details, drawn as the pill the map's own right-click menu uses:
-   * a black panel butted against the ⊙ mark, with a circle masked out of its
-   * leading edge so the mark stays whole and the two read as one object.
-   *
-   * Shown on hover and on keyboard focus. It is the operator's shorthand for
-   * the host — what it is called, whether it is up, where it answers, and where
-   * it is — while the action it offers belongs to the marker as a whole.
-   *
-   * `aria-hidden`, because the marker's own accessible name already carries
-   * every one of these values: a screen reader should hear them once, not
-   * twice.
-   */
-  private _buildDetails(site: RadioSite): HTMLElement {
-    const details = document.createElement('span')
-    details.className = 'sdr-manager-map-marker-info'
-    details.setAttribute('aria-hidden', 'true')
-
-    // The status dot leads the name, so whether a host is up is the first thing
-    // read rather than something noticed halfway down the panel.
-    const name = document.createElement('span')
-    name.className = 'sdr-manager-map-marker-name'
-    const statusDot = document.createElement('span')
-    statusDot.className = `sdr-manager-map-marker-status sdr-manager-map-marker-status--${
-      site.reachable ? 'online' : 'offair'
-    }`
-    name.appendChild(statusDot)
-    name.appendChild(document.createTextNode(siteLabel(site)))
-    details.appendChild(name)
-
-    // Position before address: where a site is says more about the mark the
-    // operator is looking at than how Sentinel reaches it.
-    const coordinates = document.createElement('span')
-    coordinates.className = 'sdr-manager-map-marker-coords'
-    coordinates.textContent = `${formatLatitude(site.latitude)}  ${formatLongitude(site.longitude)}`
-    details.appendChild(coordinates)
-
-    const meta = document.createElement('span')
-    meta.className = 'sdr-manager-map-marker-meta'
-    meta.textContent = `${site.address}:${site.port}`
-    details.appendChild(meta)
-
-    return details
   }
 
   /** Place (or move) the count standing for a group of sites, and zoom in on
@@ -452,7 +441,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       .map(
         (site) =>
           `<tr><td>${escapeHtml(siteLabel(site))}</td>` +
-          `<td>${escapeHtml(`${site.address}:${site.port}`)}</td>` +
+          `<td>${escapeHtml(siteAddress(site))}</td>` +
           `<td>${site.reachable ? 'Online' : 'Off air'}</td>` +
           `<td>${site.latitude.toFixed(4)}</td><td>${site.longitude.toFixed(4)}</td></tr>`,
       )
@@ -468,6 +457,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     // The view's own marker was only ever hidden by this control, so it is
     // handed back visible.
     this._userMarker?.setHidden(false)
+    this._userMarker?.setDetails(null)
     for (const marker of this._markers.values()) marker.remove()
     this._markers.clear()
     this._markerNames.clear()
@@ -477,10 +467,11 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   }
 }
 
-/** A marker whose visibility this control borrows — the view's own ⊙ for the
- *  operator's position, while a count stands for it. */
-export interface HideableMarker {
+/** The view's own ⊙ for the operator's position, which this control borrows:
+ *  it hides it while a count stands for it, and gives it this machine's tag. */
+export interface OperatorMarker {
   setHidden(hidden: boolean): void
+  setDetails(details: OperatorMarkerDetails | null): void
 }
 
 /** One point in the grouping pass: a site, or the operator's own position
@@ -542,7 +533,7 @@ function siteMarkerLabel(site: RadioSite): string {
   const status = site.reachable ? 'online' : 'off air'
   const position = `${formatLatitude(site.latitude)} ${formatLongitude(site.longitude)}`
   const kind = site.kind === 'radio' ? 'SDR radio' : 'SDR host'
-  return `${kind} ${siteLabel(site)}, ${site.address}:${site.port}, ${status}, at ${position} — open in Settings`
+  return `${kind} ${siteLabel(site)}, ${siteAddress(site)}, ${status}, at ${position} — open in Settings`
 }
 
 /** Identity of a site for clustering and markers — stable across polls, and

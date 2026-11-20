@@ -39,6 +39,12 @@ export interface RadioSite {
    * offers this machine, merged into that one entry.
    */
   is_local?: boolean
+  /**
+   * This machine's row only: the address other Sentinels add it by (from
+   * `SENTINEL_WEB_HOSTNAMES`), since its `address` is the host.docker.internal
+   * name only this Sentinel's containers can use. Absent or null otherwise.
+   */
+  connect_address?: string | null
   reachable: boolean
   latitude: number
   longitude: number

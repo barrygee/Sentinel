@@ -19,3 +19,13 @@ export function siteLabel(site: RadioSite): string {
   if (site.is_local) return useAppStore().thisMachineLabel
   return site.name?.trim() || `${site.address}:${site.port}`
 }
+
+/**
+ * Where a site answers, as `host:port`, the way another machine would dial it.
+ *
+ * For this machine's own SDR Manager that is its `connect_address` when it has
+ * one: its `address` is host.docker.internal, which means nothing off this host.
+ */
+export function siteAddress(site: RadioSite): string {
+  return `${site.connect_address ?? site.address}:${site.port}`
+}

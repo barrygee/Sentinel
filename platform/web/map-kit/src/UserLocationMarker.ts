@@ -1,4 +1,7 @@
 import * as maplibregl from 'maplibre-gl'
+import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
+import { buildMarkerDetailsPill } from '@sentinel/map-kit/map-label/markerDetailsPill'
+import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 
 /**
  * The dot colour of the operator's own position: the map palette's
@@ -44,10 +47,33 @@ function _buildElement(cssClass: string): HTMLElement {
   return wrapper
 }
 
+/**
+ * What the operator marker's tag says about this machine. The position is the
+ * marker's own, so it is not passed in.
+ */
+export interface OperatorMarkerDetails {
+  /** This machine's name, e.g. `Home (This machine)`. */
+  name: string
+  /** Where this machine's SDR Manager answers, as `host:port`, if one reports. */
+  address: string | null
+  /** Whether that SDR Manager is up; `null` when there is none to ask. */
+  reachable: boolean | null
+}
+
+/**
+ * The operator's own ⊙ on a map: where this machine is.
+ *
+ * Once given its details (`setDetails`, from `SdrManagerSitesControl`), it shows
+ * the same hover tag as every SDR site — name, position, address — with the
+ * position following the live fix, and carries those values as its accessible
+ * name.
+ */
 export class UserLocationMarker {
   private _marker: maplibregl.Marker | null = null
   private _map: maplibregl.Map | null = null
   private _cssClass: string
+  private _position: [number, number] | null = null
+  private _details: OperatorMarkerDetails | null = null
 
   constructor(cssClass = 'user-location-marker') {
     this._cssClass = cssClass
@@ -59,6 +85,7 @@ export class UserLocationMarker {
 
   update(lon: number, lat: number): void {
     if (!this._map) return
+    this._position = [lon, lat]
     if (!this._marker) {
       const el = _buildElement(this._cssClass)
       this._marker = new maplibregl.Marker({ element: el, anchor: 'center' })
@@ -67,6 +94,35 @@ export class UserLocationMarker {
     } else {
       this._marker.setLngLat([lon, lat])
     }
+    // After addTo, which overwrites the element's accessible name with its own.
+    this._renderDetails()
+  }
+
+  /**
+   * Give the marker this machine's tag, or take it away with `null`.
+   *
+   * Safe before the marker exists: the next `update()` builds it with the tag.
+   */
+  setDetails(details: OperatorMarkerDetails | null): void {
+    this._details = details
+    this._renderDetails()
+  }
+
+  /** Redraw the tag and accessible name from the details and live position. */
+  private _renderDetails(): void {
+    const marker = this._marker
+    const position = this._position
+    if (!marker || !position) return
+    const element = marker.getElement()
+    element.querySelector('.sdr-manager-map-marker-info')?.remove()
+    element.setAttribute('role', 'img')
+    const [longitude, latitude] = position
+    if (!this._details) {
+      setMarkerAccessibleName(marker, 'Your location')
+      return
+    }
+    element.appendChild(buildMarkerDetailsPill({ ...this._details, latitude, longitude }))
+    setMarkerAccessibleName(marker, operatorMarkerLabel(this._details, latitude, longitude))
   }
 
   /**
@@ -90,6 +146,7 @@ export class UserLocationMarker {
   remove(): void {
     this._marker?.remove()
     this._marker = null
+    this._position = null
   }
 
   /** Full teardown — removes the marker and releases the map reference. */
@@ -97,4 +154,16 @@ export class UserLocationMarker {
     this.remove()
     this._map = null
   }
+}
+
+/** Everything the operator marker's tag says, as its accessible name. */
+function operatorMarkerLabel(
+  details: OperatorMarkerDetails,
+  latitude: number,
+  longitude: number,
+): string {
+  const parts = [`${details.name}, your location`]
+  if (details.address !== null) parts.push(details.address)
+  if (details.reachable !== null) parts.push(details.reachable ? 'online' : 'off air')
+  return `${parts.join(', ')}, at ${formatLatitude(latitude)} ${formatLongitude(longitude)}`
 }
