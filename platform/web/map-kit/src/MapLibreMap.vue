@@ -228,6 +228,17 @@ defineExpose({ getMap })
   width: 60px;
   height: 60px;
   overflow: visible;
+  /* Above the passive label markers, like the SDR sites below, so the tag on
+     hover isn't swallowed by a nearby airport label. */
+  z-index: 1;
+  line-height: 0;
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+}
+
+/* This machine's tag — the same pill the SDR sites show (rules below). */
+.user-location-marker:hover .sdr-manager-map-marker-info,
+.space-user-location-marker:hover .sdr-manager-map-marker-info {
+  display: flex;
 }
 
 .user-location-marker svg,

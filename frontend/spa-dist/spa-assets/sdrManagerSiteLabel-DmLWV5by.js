@@ -1,1 +1,0 @@
-import{n as e}from"./rolldown-runtime-XKyaHtl9.js";import{Lt as t}from"./_virtual_mf___mfe_internal__sentinel_shell__mf_owner__100676512179738__loadShare__shared-DZLEyWnR.js";var n=e({siteLabel:()=>r});function r(e){return e.is_local?t().thisMachineLabel:e.name?.trim()||`${e.address}:${e.port}`}export{r as n,n as t};

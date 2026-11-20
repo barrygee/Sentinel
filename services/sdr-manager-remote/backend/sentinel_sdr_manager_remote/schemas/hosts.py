@@ -334,6 +334,10 @@ class HostSiteOut(BaseModel):
     # This Sentinel's own SDR Manager: its position is this machine's, so the UI
     # names it as this machine and merges it with this machine's own entry.
     is_local: bool = False
+    # This machine's row only: the address other Sentinels add it by (see
+    # services/this_machine_address.py), since `address` is host.docker.internal.
+    # None on every other row, and when SENTINEL_WEB_HOSTNAMES names none.
+    connect_address: str | None = None
     reachable: bool
     latitude: float
     longitude: float

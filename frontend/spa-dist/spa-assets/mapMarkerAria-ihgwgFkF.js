@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-XKyaHtl9.js";var t=e({setMarkerAccessibleName:()=>n});function n(e,t){e.getElement().setAttribute(`aria-label`,t)}export{n,t};

@@ -524,6 +524,7 @@ class TestListHostLocations:
                 "address": "10.0.0.5",
                 "port": 8000,
                 "is_local": False,
+                "connect_address": None,
                 "reachable": True,
                 "latitude": 51.5,
                 "longitude": -0.1,
@@ -584,6 +585,40 @@ class TestListHostLocations:
         site = client.get("/api/sdr-manager/remote/hosts/locations").json()[0]
         assert site["name"] == "This machine"
         assert site["is_local"] is True
+
+    async def test_this_machine_carries_the_address_other_sentinels_add_it_by(self, client, monkeypatch, test_engine):
+        """Its own address is how this Sentinel's containers reach it; another machine needs the LAN one."""
+        monkeypatch.setenv("SENTINEL_WEB_HOSTNAMES", "192.168.1.99,my-mac.local")
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
+        await self._make_local(test_engine, host_id, None)
+        self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id)})
+
+        site = client.get("/api/sdr-manager/remote/hosts/locations").json()[0]
+
+        assert site["connect_address"] == "192.168.1.99"
+        # The row's own address is untouched: this Sentinel still dials it that way.
+        assert site["address"] == "10.0.0.7"
+
+    def test_another_host_never_takes_this_machines_address(self, client, monkeypatch):
+        monkeypatch.setenv("SENTINEL_WEB_HOSTNAMES", "192.168.1.99")
+        created = _create_host(client, name="Roof Pi")
+        self._patch_snapshots(monkeypatch, {created["id"]: self._snapshot_with_location(created["id"])})
+
+        site = client.get("/api/sdr-manager/remote/hosts/locations").json()[0]
+
+        assert site["connect_address"] is None
+
+    async def test_this_machine_has_no_connect_address_when_none_is_configured(self, client, monkeypatch, test_engine):
+        monkeypatch.delenv("SENTINEL_WEB_HOSTNAMES", raising=False)
+        resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})
+        host_id = resp.json()["id"]
+        await self._make_local(test_engine, host_id, None)
+        self._patch_snapshots(monkeypatch, {host_id: self._snapshot_with_location(host_id)})
+
+        site = client.get("/api/sdr-manager/remote/hosts/locations").json()[0]
+
+        assert site["connect_address"] is None
 
     def test_an_unlabelled_host_takes_the_name_its_own_operator_published(self, client, monkeypatch):
         resp = client.post("/api/sdr-manager/remote/hosts", json={"transport": "http", "address": "10.0.0.7"})

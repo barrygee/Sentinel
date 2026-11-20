@@ -56,6 +56,7 @@ import { useSdrManagerSitesStore } from '@sentinel/shell-api/stores/sdrManagerSi
 import { useSettingsStore } from '@sentinel/shell-api/stores/settings'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
+import type { OperatorMarkerDetails } from '@sentinel/map-kit/UserLocationMarker'
 
 function site(overrides: Partial<RadioSite> = {}): RadioSite {
   return {
@@ -149,8 +150,12 @@ describe('SdrManagerSitesControl', () => {
   function fakeUserMarker() {
     return {
       hidden: false,
+      details: null as OperatorMarkerDetails | null,
       setHidden(hidden: boolean) {
         this.hidden = hidden
+      },
+      setDetails(details: OperatorMarkerDetails | null) {
+        this.details = details
       },
     }
   }
@@ -619,6 +624,92 @@ describe('SdrManagerSitesControl', () => {
         const rows = map._container.querySelectorAll('[role="region"] tbody tr')
         expect(rows).toHaveLength(1)
         expect(rows[0]!.textContent).toContain('This machine')
+      })
+
+      it('is listed and drawn at the address other Sentinels add it by', () => {
+        sitesStore.sites = [
+          thisMachine({ address: 'host.docker.internal', connect_address: '192.168.1.99' }),
+        ]
+        // No operator marker, so this machine's own site is drawn.
+        const { map } = addControl({ userMarker: null })
+        const mark = siteMarkers()[0]!.element
+        expect(mark.querySelector('.sdr-manager-map-marker-meta')!.textContent).toBe(
+          '192.168.1.99:8000',
+        )
+        expect(mark.getAttribute('aria-label')).toContain(', 192.168.1.99:8000,')
+        expect(map._container.querySelector('[role="region"] tbody tr')!.textContent).toContain(
+          '192.168.1.99:8000',
+        )
+        expect(map._container.querySelector('[role="region"]')!.textContent).not.toContain(
+          'host.docker.internal',
+        )
+      })
+    })
+
+    describe("the operator marker's tag", () => {
+      const thisMachine = (overrides: Partial<RadioSite> = {}) =>
+        site({
+          id: 7,
+          is_local: true,
+          address: 'host.docker.internal',
+          connect_address: '192.168.1.99',
+          ...overrides,
+        })
+
+      it("gives it this machine's name, connect address and status", () => {
+        sitesStore.sites = [thisMachine({ reachable: false }), site({ id: 2, name: 'Barn Pi' })]
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        expect(userMarker!.details).toEqual({
+          name: 'This machine',
+          address: '192.168.1.99:8000',
+          reachable: false,
+        })
+      })
+
+      it('falls back to the registered address when no connect address is known', () => {
+        sitesStore.sites = [thisMachine({ connect_address: null })]
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        expect(userMarker!.details!.address).toBe('host.docker.internal:8000')
+      })
+
+      it('names this machine with no address or status when its SDR Manager is not reporting', () => {
+        // Another machine's site is never taken for this one.
+        sitesStore.sites = [site({ id: 2, name: 'Barn Pi', is_local: false })]
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        expect(userMarker!.details).toEqual({
+          name: 'This machine',
+          address: null,
+          reachable: null,
+        })
+      })
+
+      it('follows the machine name as it is applied', async () => {
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        useAppStore().setMachineName('Home')
+        await nextTick()
+        expect(userMarker!.details!.name).toBe('Home (This machine)')
+      })
+
+      it('follows this machine’s SDR Manager as it starts reporting', async () => {
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        expect(userMarker!.details!.address).toBeNull()
+        sitesStore.sites = [thisMachine()]
+        await nextTick()
+        expect(userMarker!.details!.address).toBe('192.168.1.99:8000')
+      })
+
+      it('keeps the tag while the sites are toggled off — the marker is the view’s', () => {
+        sitesStore.sites = [thisMachine()]
+        const { control, userMarker } = addControl({ userLocation: CO_SITED })
+        control.setVisible(false)
+        expect(userMarker!.details!.address).toBe('192.168.1.99:8000')
+      })
+
+      it('takes the tag back on teardown, since the marker was only borrowed', () => {
+        sitesStore.sites = [thisMachine()]
+        const { control, userMarker } = addControl({ userLocation: CO_SITED })
+        control.onRemove()
+        expect(userMarker!.details).toBeNull()
       })
     })
   })

@@ -89,6 +89,7 @@ from sentinel_sdr_manager_remote.services.sdr_manager_client import (
     SdrManagerUnreachableError,
     client_for_host,
 )
+from sentinel_sdr_manager_remote.services.this_machine_address import this_machine_connect_address
 
 logger = logging.getLogger(__name__)
 
@@ -273,6 +274,7 @@ async def list_host_locations(db: AsyncSession = Depends(get_db)) -> list[HostSi
                 address=host.address,
                 port=host.port,
                 is_local=host.is_local,
+                connect_address=this_machine_connect_address() if host.is_local else None,
                 reachable=snapshot.reachable if snapshot is not None else False,
                 latitude=location.latitude,
                 longitude=location.longitude,
