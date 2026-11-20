@@ -308,6 +308,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Publish this machine's name to other Sentinels
 - Give this machine one name across the app
 - Keep every configuration file under App Settings › CONFIGURATION
+- Report the address other Sentinels add this machine by
+- Show this machine's details on the operator marker
 
 ### Bug Fixes
 
@@ -705,6 +707,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Restart a dev container whose uvicorn worker has died
 - Stop the local receiver's aircraft replacing the online snapshot
 - Stop drawing this machine twice on maps with the operator marker
+- Leave a marker that was never given this machine's tag untouched
 
 ### Chores
 
@@ -1969,6 +1972,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #685 from barrygee/fix/dev-reload-dead-worker
 - Merge pull request #686 from barrygee/fix/air-local-fallback-displaces-online
 - Merge pull request #687 from barrygee/fix/map-this-machine-drawn-twice
+- Merge pull request #688 from barrygee/fix/this-machine-marker-details
 
 ### Performance
 
@@ -2343,6 +2347,9 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the receiver's aircraft never displacing online data
 - Refresh the OpenAPI golden for the new FALLBACK docstring
 - Cover leaving this machine's SDR Manager off the map
+- Cover this machine's connect address
+- Cover this machine's tag on the operator marker
+- Cover untagged markers and give the section marker fakes setDetails
 
 ### Build System
 
@@ -2504,6 +2511,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the Land remote for the split FILTER pane
 - Rebuild the shell and the sdr-manager-local remote
 - Rebuild the shell for the local SDR Manager site change
+- Rebuild the shell for this machine's map tag
+- Rebuild the shell for the untagged marker fix
 
 ### Continuous Integration
 
