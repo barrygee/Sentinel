@@ -477,6 +477,30 @@ see a change. The specs changed only their button selectors (accessible names) a
 (`ba-icon-action--active`); every new module is covered at 100 % through the existing specs. Space 725 tests at
 100 %, SPA vitest 1,882, e2e 202. `SpaceFilter.vue` 708 → 292 lines, `SpacePasses.vue` 602 → 510.
 
+**C21 as built.** Land has no accessory row: its only icon action is the save bookmark inside a repeater frequency
+cell, which is not the 36px track/alert control, so `BaseIconAction variant="accessory"` does not apply. The RAW
+disclosure looks like Space's `SatRadioLinesAccordion` caption but differs in height and expanded colour, so making
+them one piece would change one of the two looks; it stays Land's own. `LandFilter.vue` keeps only the wiring (the
+`BaseFilterPanel`, the repeater-or-station accordion choice); the rest moved into `src/filter/`:
+`LandAprsStationAccordion` (the STATION/POSITION/MOVEMENT/PACKET grids) and its `LandStationRawFrame` (the RAW
+disclosure, with its own scoped styles), the composables `useLandFilterResults` (rows, search-box wording, empty
+message, row lookups), `useRepeaterFrequencyActions` (tune, save and remove a repeater frequency, locate, the
+connect-an-SDR hint) and `useLandExpandedRow` (the map-click listener and the two collapse watchers), and the plain
+module `landFilterSearch` (matching, row text, `joinSets`). The pane-wide `rawExpanded` flag and its watcher went:
+`BaseFilterPanel` mounts an accordion only while its row is expanded, so a flag inside `LandStationRawFrame`
+starts closed every time a station opens, as the watcher made it. The raw body's `text-transform` moved from a
+`.land-filter-station .land-filter-raw-body` rule onto `.land-filter-raw-body` itself, since the body now sits in
+the child's scope. Proof: the C19 Playwright dump of everything under `#land-filter-results` (every computed
+property including `::before`/`::after`, boxes, own text, ARIA attributes) in 8 APRS states at 1280 and 390 px
+(list, station open, RAW hovered, RAW open, RAW open and unhovered, a second station open with RAW folded again, its
+RAW open, a search) plus 3 repeater states at 1280 (list, GB3NR open, connect-an-SDR hint): identical to `main`.
+Two runs of `main` match each other exactly, and consecutive states differ by 172–66,160 lines, so the dump can
+see a change. `LandFilter.spec.ts` is unchanged and still covers every new module at 100 %. New specs cover each
+`src/filter/` module at 100 % from its own spec alone (the two components with an axe check); a mutation pass over
+them killed 33 of 33 mutants, including dropping the station watcher's `deep` (a station spliced out in place) and
+the RAW toggle's `.stop` (a click reaching the row would shut the accordion). Land 674 tests at 100 %, SPA vitest
+1,882, e2e 202. Only the Land remote was rebuilt. `LandFilter.vue` 574 → 118 lines.
+
 ---
 
 ## 4. Not in this series
