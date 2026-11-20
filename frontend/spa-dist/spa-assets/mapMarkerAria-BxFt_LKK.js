@@ -1,1 +1,0 @@
-function e(e,t){e.getElement().setAttribute(`aria-label`,t)}export{e as setMarkerAccessibleName};
