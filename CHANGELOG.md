@@ -702,6 +702,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show port labels at full brightness, as Air's airfield labels
 - Centre airport and base zooms on the visible map
 - Centre airport and base fits on the clicked marker
+- Restart a dev container whose uvicorn worker has died
 
 ### Chores
 
@@ -1963,6 +1964,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #682 from barrygee/refactor/space-filter-pieces
 - Merge pull request #683 from barrygee/refactor/land-filter-pieces
 - Merge pull request #684 from barrygee/feat/config-group-sdr-manager
+- Merge pull request #685 from barrygee/fix/dev-reload-dead-worker
 
 ### Performance
 
@@ -2201,6 +2203,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C20 as built
 - Record C21 as built
 - Describe the CONFIGURATION group and the SDR Manager config's new place
+- Describe the dev_reload launcher in the dev overlay
 
 ### Tests
 
@@ -2332,6 +2335,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the FILTER pane pieces and the shared accordion body
 - Cover the FILTER pane pieces
 - Cover the config export registry and Export All's extra files
+- Cover the dev_reload launcher and its compose commands
 
 ### Build System
 
