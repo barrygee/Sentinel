@@ -74,6 +74,9 @@ export class UserLocationMarker {
   private _cssClass: string
   private _position: [number, number] | null = null
   private _details: OperatorMarkerDetails | null = null
+  /** The element's accessible name before a tag replaced it, while one is shown
+   *  — `undefined` when no tag is shown, so a marker never tagged is untouched. */
+  private _untaggedName: string | null | undefined = undefined
 
   constructor(cssClass = 'user-location-marker') {
     this._cssClass = cssClass
@@ -113,14 +116,23 @@ export class UserLocationMarker {
     const marker = this._marker
     const position = this._position
     if (!marker || !position) return
+    // A marker that was never tagged is left exactly as built: the same class
+    // also plots other machines (RemoteHostSiteMap), which are not "this machine".
+    const untaggedName = this._untaggedName
+    if (!this._details && untaggedName === undefined) return
     const element = marker.getElement()
     element.querySelector('.sdr-manager-map-marker-info')?.remove()
-    element.setAttribute('role', 'img')
-    const [longitude, latitude] = position
     if (!this._details) {
-      setMarkerAccessibleName(marker, 'Your location')
+      // Tag taken away: give back the role and name the marker had before it.
+      element.removeAttribute('role')
+      if (untaggedName) element.setAttribute('aria-label', untaggedName)
+      else element.removeAttribute('aria-label')
+      this._untaggedName = undefined
       return
     }
+    if (this._untaggedName === undefined) this._untaggedName = element.getAttribute('aria-label')
+    const [longitude, latitude] = position
+    element.setAttribute('role', 'img')
     element.appendChild(buildMarkerDetailsPill({ ...this._details, latitude, longitude }))
     setMarkerAccessibleName(marker, operatorMarkerLabel(this._details, latitude, longitude))
   }
@@ -147,6 +159,8 @@ export class UserLocationMarker {
     this._marker?.remove()
     this._marker = null
     this._position = null
+    // The next marker is a fresh element, with nothing of the old tag on it.
+    this._untaggedName = undefined
   }
 
   /** Full teardown — removes the marker and releases the map reference. */
