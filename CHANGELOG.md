@@ -704,6 +704,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centre airport and base fits on the clicked marker
 - Restart a dev container whose uvicorn worker has died
 - Stop the local receiver's aircraft replacing the online snapshot
+- Stop drawing this machine twice on maps with the operator marker
 
 ### Chores
 
@@ -1967,6 +1968,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #684 from barrygee/feat/config-group-sdr-manager
 - Merge pull request #685 from barrygee/fix/dev-reload-dead-worker
 - Merge pull request #686 from barrygee/fix/air-local-fallback-displaces-online
+- Merge pull request #687 from barrygee/fix/map-this-machine-drawn-twice
 
 ### Performance
 
@@ -2340,6 +2342,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the dev_reload launcher and its compose commands
 - Cover the receiver's aircraft never displacing online data
 - Refresh the OpenAPI golden for the new FALLBACK docstring
+- Cover leaving this machine's SDR Manager off the map
 
 ### Build System
 
@@ -2500,6 +2503,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the Space remote for the split FILTER pane
 - Rebuild the Land remote for the split FILTER pane
 - Rebuild the shell and the sdr-manager-local remote
+- Rebuild the shell for the local SDR Manager site change
 
 ### Continuous Integration
 
