@@ -560,6 +560,67 @@ describe('SdrManagerSitesControl', () => {
       expect(() => addControl({ userLocation: CO_SITED, userMarker: null })).not.toThrow()
       expect(clusterMarkers()).toHaveLength(1)
     })
+
+    describe("this machine's own SDR Manager", () => {
+      /** This machine's SDR Manager, publishing the saved Location setting —
+       *  placed well clear of the operator's live fix, as the two drift apart. */
+      const thisMachine = (overrides: Partial<RadioSite> = {}) =>
+        site({
+          id: 7,
+          name: 'This machine',
+          is_local: true,
+          longitude: 9,
+          latitude: 9,
+          ...overrides,
+        })
+
+      it('is not drawn while the operator marker already marks this machine', () => {
+        sitesStore.sites = [thisMachine()]
+        const { userMarker } = addControl({ userLocation: CO_SITED })
+        expect(siteMarkers()).toHaveLength(0)
+        expect(clusterMarkers()).toHaveLength(0)
+        // The live marker is the one kept, so it is never hidden for it.
+        expect(userMarker!.hidden).toBe(false)
+      })
+
+      it('still draws the other machines beside it', () => {
+        sitesStore.sites = [thisMachine(), site({ id: 2, name: 'Barn Pi', is_local: false })]
+        addControl({ userLocation: CO_SITED })
+        expect(siteMarkers().map((marker) => marker.lngLat)).toEqual([[-0.1, 51.5]])
+      })
+
+      it('still draws a radio flagged local — only the SDR Manager host stands for this machine', () => {
+        sitesStore.radioSites = [
+          site({ kind: 'radio', id: 3, name: 'Shed', is_local: true, longitude: 9, latitude: 9 }),
+        ]
+        addControl({ userLocation: CO_SITED })
+        expect(siteMarkers()).toHaveLength(1)
+        // Named as a radio (a local site is labelled after this machine).
+        expect(siteMarkers()[0]!.element.getAttribute('aria-label')).toMatch(/^SDR radio /)
+      })
+
+      it('is drawn until the operator marker has a position', () => {
+        sitesStore.sites = [thisMachine()]
+        addControl({ userLocation: null })
+        expect(siteMarkers()).toHaveLength(1)
+        expect(siteMarkers()[0]!.lngLat).toEqual([9, 9])
+      })
+
+      it('is drawn on a view with no operator marker of its own', () => {
+        sitesStore.sites = [thisMachine()]
+        addControl({ userLocation: CO_SITED, userMarker: null })
+        expect(siteMarkers()).toHaveLength(1)
+      })
+
+      it('stays in the accessible table while it is left off the map', () => {
+        sitesStore.sites = [thisMachine()]
+        const { map } = addControl({ userLocation: CO_SITED })
+        expect(siteMarkers()).toHaveLength(0)
+        const rows = map._container.querySelectorAll('[role="region"] tbody tr')
+        expect(rows).toHaveLength(1)
+        expect(rows[0]!.textContent).toContain('This machine')
+      })
+    })
   })
 
   describe("a site's details", () => {
