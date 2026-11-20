@@ -307,6 +307,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show this machine's certificate on one card
 - Publish this machine's name to other Sentinels
 - Give this machine one name across the app
+- Keep every configuration file under App Settings › CONFIGURATION
 
 ### Bug Fixes
 
@@ -1961,6 +1962,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #681 from barrygee/refactor/air-filter-pieces
 - Merge pull request #682 from barrygee/refactor/space-filter-pieces
 - Merge pull request #683 from barrygee/refactor/land-filter-pieces
+- Merge pull request #684 from barrygee/feat/config-group-sdr-manager
 
 ### Performance
 
@@ -2198,6 +2200,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C19 as built
 - Record C20 as built
 - Record C21 as built
+- Describe the CONFIGURATION group and the SDR Manager config's new place
 
 ### Tests
 
@@ -2328,6 +2331,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the FILTER pane pieces and the accessory icon action
 - Cover the FILTER pane pieces and the shared accordion body
 - Cover the FILTER pane pieces
+- Cover the config export registry and Export All's extra files
 
 ### Build System
 
@@ -2487,6 +2491,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundles for the shared accessory icon action
 - Rebuild the Space remote for the split FILTER pane
 - Rebuild the Land remote for the split FILTER pane
+- Rebuild the shell and the sdr-manager-local remote
 
 ### Continuous Integration
 
