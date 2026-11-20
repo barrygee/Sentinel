@@ -13,23 +13,20 @@
     @update:expanded-key="onExpandedKeyChange"
     @clear="collapseExpanded"
     @row-enter="onRowEnter"
-    @row-leave="onMouseLeave"
+    @row-leave="schedulePreviewClear"
   >
     <template #accordion>
-      <BaseDataGrid title="POSITION DATA" :columns="3">
-        <BaseDataCell label="LATITUDE" :value="liveTelemetry['lat'] ?? '—'" />
-        <BaseDataCell label="LONGITUDE" :value="liveTelemetry['lon'] ?? '—'" />
-        <BaseDataCell label="HEADING" :value="liveTelemetry['hdg'] ?? '—'" />
-      </BaseDataGrid>
-      <BaseDataGrid title="ORBITAL DATA" :columns="3">
-        <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
-        <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
-      </BaseDataGrid>
-      <SatRadioInfoSection :radio="expandedSat!" />
-      <SatelliteActionRow
+      <SatelliteAccordionBody
+        :satellite="expandedSat!"
+        :telemetry="liveTelemetry"
+        :live-az-el="liveAzEl"
+        :passes="accordionPasses"
+        :loading="accordionLoading"
+        :status="accordionStatus"
+        :now="now"
+        :is-pass-active="isNow"
         :following="followedNoradId === expandedSat!.norad_id"
         :notifying="notifNoradId === expandedSat!.norad_id"
-        :has-downlink="!!expandedSat!.downlink_hz"
         :auto-tune-armed="isArmed(expandedSat!.norad_id)"
         :record-armed="isRecordArmed(expandedSat!.norad_id)"
         :conflict-text="autoTuneConflictText"
@@ -37,28 +34,6 @@
         @toggle-pass-notif="togglePassNotif(expandedSat!)"
         @toggle-auto-tune="toggleAutoTune(expandedSat!)"
         @toggle-record="toggleRecord(expandedSat!)"
-      />
-      <div class="sat-acc-section sat-acc-section--polar">
-        <div class="sat-acc-section-title sat-acc-polar-title">
-          <span>{{ polarTitle }}</span>
-          <span v-if="polarPass" class="sat-acc-polar-maxel"
-            >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
-          >
-        </div>
-        <SatPolarPlot
-          v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
-          :track="polarPass.sky_track"
-          :live="polarLive"
-        />
-        <div v-else class="sat-acc-polar-empty">
-          {{ accordionLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
-        </div>
-      </div>
-      <UpcomingPassesSection
-        :passes="accordionPasses"
-        :loading="accordionLoading"
-        :status="accordionStatus"
-        :now="now"
       />
     </template>
   </BaseFilterPanel>
@@ -70,65 +45,29 @@
  *
  * Supplies rows and expanded-row content to the shared BaseFilterPanel shell
  * (combobox, listbox/aria-owns wiring, roving keyboard navigation, focusable
- * scroll region, accordion); everything domain-specific stays here: the TLE
- * database and its category grouping, the expanded satellite's live telemetry,
- * pass predictions and polar plot, and the track / notify / auto-tune / record
- * arming an expanded row offers.
+ * scroll region, accordion). What stays here is the wiring: loading the TLE
+ * database, opening and closing the expanded satellite (and restoring it after
+ * navigation), and the map preview and actions a row offers. The search rules,
+ * pass predictions and lock-in check live in `./filter/`; the accordion body is
+ * `SatelliteAccordionBody`, shared with the PASSES pane.
  */
-import { ref, computed, watch, onMounted, onUnmounted, useTemplateRef } from 'vue'
+import { ref, computed, onMounted, onUnmounted, useTemplateRef } from 'vue'
 import { storeToRefs } from 'pinia'
-import BaseFilterPanel, { type FilterPanelItem } from '@sentinel/ui/base/BaseFilterPanel.vue'
+import BaseFilterPanel from '@sentinel/ui/base/BaseFilterPanel.vue'
+import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import { useSpaceStore } from './stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
-import { isAutoTuneEnabled, getAllPassNotifs } from './controls/satellite/passNotifStore'
-import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
+import { isAutoTuneEnabled } from './controls/satellite/passNotifStore'
 import { useSatelliteActions } from './composables/useSatelliteActions'
-import SatelliteActionRow from './SatelliteActionRow.vue'
-import SatPolarPlot from './SatPolarPlot.vue'
-import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
-import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
-import SatRadioInfoSection from './SatRadioInfoSection.vue'
-import UpcomingPassesSection from './UpcomingPassesSection.vue'
+import { useLiveSatelliteTelemetry } from './composables/useLiveSatelliteTelemetry'
+import { useSatellitePreviewHover } from './composables/useSatellitePreviewHover'
+import SatelliteAccordionBody from './SatelliteAccordionBody.vue'
+import type { AccPass } from './spacePassesUtils'
+import { useSatelliteFilterResults } from './filter/useSatelliteFilterResults'
+import { useSatelliteAccordionPasses } from './filter/useSatelliteAccordionPasses'
+import { useArmedPassConflict } from './filter/useArmedPassConflict'
+import type { SatEntry } from './filter/spaceFilterTypes'
 import './SatelliteAccordion.css'
-import {
-  SATELLITE_CATEGORY_SHORT_LABELS,
-  SATELLITE_CATEGORY_ORDER,
-  formatPassTime,
-  formatPassDate,
-} from './utils/satelliteUtils'
-
-interface SatEntry {
-  norad_id: string
-  name: string
-  category: string | null
-  updated_at: number | null
-  uplink_hz?: number | null
-  uplink_mode?: string | null
-  downlink_hz?: number | null
-  downlink_mode?: string | null
-  ctcss_hz?: number | null
-  transponder_type?: string | null
-  beacon_hz?: number | null
-  packet_info?: string | null
-  radio_status?: string | null
-  radio_notes?: string | null
-}
-
-interface SkyPoint {
-  az: number
-  el: number
-}
-
-interface SatPass {
-  aos_utc: string
-  los_utc: string
-  aos_unix_ms: number
-  los_unix_ms: number
-  duration_s: number
-  max_elevation_deg: number
-  max_el_utc: string
-  sky_track?: SkyPoint[]
-}
 
 const props = defineProps<{
   satelliteControl: SatelliteControl | null
@@ -153,10 +92,21 @@ const {
 const satellites = ref<SatEntry[]>([])
 const loaded = ref(false)
 
-const accordionLoading = ref(false)
-const accordionStatus = ref('COMPUTING PASSES…')
-const accordionPasses = ref<SatPass[]>([])
-const liveTelemetry = ref<Record<string, string>>({})
+const {
+  passes: accordionPasses,
+  loading: accordionLoading,
+  status: accordionStatus,
+  begin: beginAccordionPasses,
+  load: loadAccordionPasses,
+  stop: stopAccordionPasses,
+} = useSatelliteAccordionPasses(() => props.getUserLocation())
+const {
+  telemetry: liveTelemetry,
+  liveAzEl,
+  reset: resetLiveTelemetry,
+} = useLiveSatelliteTelemetry(
+  (noradId) => !!expandedNoradId.value && noradId === expandedNoradId.value,
+)
 const {
   followedNoradId,
   notifNoradId,
@@ -173,268 +123,34 @@ const {
   // Arming changes which other satellites' passes the conflict check needs.
   onAutoTuneToggled: (noradId) => void refreshArmedPasses(noradId),
 })
-
-// Passes of OTHER armed sats, fetched lazily so we can detect lock-in conflicts
-// for the expanded sat (SpaceFilter only loads one sat's passes at a time). Only
-// the fields the overlap test needs, tagged with the owning sat.
-interface ArmedPass {
-  norad_id: string
-  name: string
-  aos_unix_ms: number
-  los_unix_ms: number
-}
-const armedPasses = ref<ArmedPass[]>([])
+const {
+  conflictText: autoTuneConflictText,
+  refreshArmedPasses,
+  clearArmedPasses,
+} = useArmedPassConflict({
+  getUserLocation: () => props.getUserLocation(),
+  expandedNoradId,
+  expandedPasses: accordionPasses,
+  armedTick,
+})
+const { items, expandedSat } = useSatelliteFilterResults({
+  satellites,
+  query,
+  filterCategory,
+  expandedNoradId,
+  setAvailableCategories: (categories) => spaceStore.setSpaceAvailableCategories(categories),
+  setFilterCategory: (category) => spaceStore.setSpaceFilterCategory(category),
+})
+const { showPreview, schedulePreviewClear } = useSatellitePreviewHover(() => props.satelliteControl)
 
 const now = ref(Date.now())
-
-// Exact observer-relative look-angles for the live satellite, supplied by the
-// backend on each position poll. Null until the first annotated update arrives.
-const liveAzEl = ref<SkyPoint | null>(null)
-
-// The pass to plot: the active (in-progress) pass if there is one, else the next.
-const polarPass = computed<SatPass | null>(() => {
-  if (!accordionPasses.value.length) return null
-  const active = accordionPasses.value.find((p) => isNow(p))
-  if (active) return active
-  return accordionPasses.value.find((p) => p.aos_unix_ms > now.value) ?? null
-})
-
-const polarTitle = computed(() => {
-  const p = polarPass.value
-  if (!p) return 'NEXT PASS'
-  const label = isNow(p) ? 'CURRENT PASS' : 'NEXT PASS'
-  return `${label} · ${formatPassDate(p.aos_utc)} ${formatPassTime(p.aos_utc)}`
-})
-
-// Show the live marker only while the plotted pass is actually in progress.
-const polarLive = computed<SkyPoint | null>(() => {
-  const p = polarPass.value
-  if (!p || !isNow(p)) return null
-  return liveAzEl.value
-})
-
-// Lock-in conflict for the expanded accordion: which OTHER armed sat has a pass
-// overlapping this sat's loaded passes. SpaceFilter passes lack norad_id and only
-// the expanded sat is loaded, so we test raw time-overlap of `accordionPasses`
-// against the lazily-fetched `armedPasses` (passes of other armed sats).
-const autoTuneConflict = computed<{ name: string; aosMs: number } | null>(() => {
-  void armedTick.value
-  const exp = expandedNoradId.value
-  if (!exp || !isAutoTuneEnabled(exp)) return null
-  const now = Date.now()
-  const mine = accordionPasses.value.filter((p) => p.los_unix_ms > now)
-  let best: { name: string; aosMs: number } | null = null
-  for (const o of armedPasses.value) {
-    if (o.los_unix_ms <= now) continue
-    /* v8 ignore start -- defensive: refreshArmedPasses excludes the expanded sat and only
-       includes currently-armed ids, so neither condition can be true here. */
-    if (o.norad_id === exp || !isAutoTuneEnabled(o.norad_id)) continue
-    /* v8 ignore stop */
-    const overlaps = mine.some(
-      (m) => m.aos_unix_ms < o.los_unix_ms && o.aos_unix_ms < m.los_unix_ms,
-    )
-    if (!overlaps) continue
-    /* v8 ignore start -- o.name is set to the norad-id fallback in refreshArmedPasses, so it
-       is never empty here; the `|| o.norad_id` arm is unreachable. */
-    if (!best || o.aos_unix_ms < best.aosMs)
-      best = { name: o.name || o.norad_id, aosMs: o.aos_unix_ms }
-    /* v8 ignore stop */
-  }
-  return best
-})
-
-const autoTuneConflictText = computed<string>(() => {
-  const c = autoTuneConflict.value
-  if (!c) return ''
-  const t = new Date(c.aosMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio`
-})
-
-// Fetch upcoming passes for every armed sat except `excludeNoradId` (the one whose
-// own passes are already in accordionPasses), so the conflict check has data.
-async function refreshArmedPasses(excludeNoradId: string): Promise<void> {
-  const loc = props.getUserLocation()
-  if (!loc) {
-    armedPasses.value = []
-    return
-  }
-  const [lon, lat] = loc
-  const armed = Object.keys(getAllPassNotifs()).filter(
-    (id) => id !== excludeNoradId && isAutoTuneEnabled(id),
-  )
-  if (armed.length === 0) {
-    armedPasses.value = []
-    return
-  }
-  try {
-    const results = await Promise.all(
-      armed.map(async (id) => {
-        const url = `/api/space/satellite/${encodeURIComponent(id)}/passes?lat=${lat}&lon=${lon}&hours=24&min_el=0`
-        const resp = await fetch(url)
-        if (!resp.ok) return []
-        const data = (await resp.json()) as {
-          passes: Array<{ aos_unix_ms: number; los_unix_ms: number }>
-        }
-        /* v8 ignore start -- `id` comes from Object.keys(getAllPassNotifs()), so the entry is
-           always present; the optional-chain null arm is unreachable. */
-        const name = getAllPassNotifs()[id]?.name || id
-        /* v8 ignore stop */
-        return (data.passes || []).map((p) => ({
-          norad_id: id,
-          name,
-          aos_unix_ms: p.aos_unix_ms,
-          los_unix_ms: p.los_unix_ms,
-        }))
-      }),
-    )
-    armedPasses.value = results.flat()
-  } catch {
-    armedPasses.value = []
-  }
-}
-
-let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
-let itemFetchAbort: AbortController | null = null
-let itemTickInterval: ReturnType<typeof setInterval> | null = null
 let countdownTick: ReturnType<typeof setInterval> | null = null
 
-const CATEGORY_ALIASES: Record<string, string[]> = {
-  space_station: ['space station', 'station', 'iss'],
-  amateur: ['amateur', 'ham'],
-  weather: ['weather', 'met'],
-  military: ['military', 'mil', 'defense', 'defence'],
-  navigation: ['navigation', 'nav', 'gps', 'gnss'],
-  science: ['science', 'sci', 'research'],
-  cubesat: ['cubesat', 'cube', 'smallsat'],
-  active: ['active'],
-  unknown: ['unknown', 'unkn'],
+// This pane judges "in progress" against the wall clock (see SatPolarPassSection).
+function isNow(pass: AccPass): boolean {
+  const nowMs = Date.now()
+  return nowMs >= pass.aos_unix_ms && nowMs <= pass.los_unix_ms
 }
-
-function categoryForQuery(q: string): string | null {
-  const lq = q.toLowerCase().trim()
-  if (lq.length < 2) return null
-  for (const [cat, aliases] of Object.entries(CATEGORY_ALIASES)) {
-    if (aliases.some((a) => a === lq || a.startsWith(lq) || lq.startsWith(a))) return cat
-  }
-  return null
-}
-
-// Lower score = better match, so the most relevant satellites sort first
-// within their category group (e.g. "ISS (ZARYA)" floats above the other
-// space stations when the query is "iss").
-function matchScore(s: SatEntry, lq: string, matchedCat: string | null): number {
-  /* v8 ignore start -- s.name is typed non-null; the `?.`/`??` are defensive and the
-     empty-string fallback can't occur for well-formed data. */
-  const name = s.name?.toLowerCase() ?? ''
-  /* v8 ignore stop */
-  if (name === lq) return 0
-  if (name.startsWith(lq)) return 1
-  if (name.includes(lq)) return 2
-  if (s.norad_id.includes(lq)) return 3
-  /* v8 ignore start -- unreachable tail: a satellite reaching here failed the name and
-     norad checks above, so it must have passed the results filter via category — the
-     category test is therefore always true (score 4) and `return 5` is never reached. */
-  if (matchedCat !== null && s.category === matchedCat) return 4
-  return 5
-  /* v8 ignore stop */
-}
-
-const results = computed<SatEntry[]>(() => {
-  const q = query.value.trim()
-  if (!q) return satellites.value
-  const matchedCat = categoryForQuery(q)
-  const lq = q.toLowerCase()
-  return satellites.value
-    .filter(
-      (s) =>
-        s.name?.toLowerCase().includes(lq) ||
-        s.norad_id.includes(lq) ||
-        (matchedCat !== null && s.category === matchedCat),
-    )
-    .sort((a, b) => matchScore(a, lq, matchedCat) - matchScore(b, lq, matchedCat))
-})
-
-const groupedResults = computed(() => {
-  const CAP = 20
-  const groups = new Map<string, SatEntry[]>()
-  for (const cat of SATELLITE_CATEGORY_ORDER) groups.set(cat, [])
-  for (const sat of results.value) {
-    const key = sat.category || 'unknown'
-    if (!groups.has(key)) groups.set(key, [])
-    groups.get(key)!.push(sat)
-  }
-  const out: { cat: string; sats: SatEntry[] }[] = []
-  groups.forEach((sats, cat) => {
-    if (!sats.length) return
-    out.push({ cat, sats: sats.slice(0, CAP) })
-  })
-  return out
-})
-
-// The satellite categories that have data, in display order — computed from the
-// FULL loaded set (not the text-filtered results) so the rail sub-tab set stays
-// stable as you type. Published to the store so MapSidebar can render one rail
-// sub-tab per available category. Also default/repair the selected category so the
-// panel always shows a valid one (empty on first load, or a category that vanished).
-const availableCategories = computed<string[]>(() => {
-  const present = new Set<string>()
-  for (const sat of satellites.value) present.add(sat.category || 'unknown')
-  return SATELLITE_CATEGORY_ORDER.filter((cat) => present.has(cat))
-})
-watch(
-  availableCategories,
-  (cats) => {
-    spaceStore.setSpaceAvailableCategories(cats)
-    if (!cats.includes(filterCategory.value)) {
-      spaceStore.setSpaceFilterCategory(cats[0] ?? '')
-    }
-  },
-  { immediate: true },
-)
-
-// The single category group shown in the panel (the selected sub-tab). Null when
-// the selected category has no matching satellites (e.g. the text filter excludes
-// them all), which the template surfaces as a no-results message.
-const activeGroup = computed(
-  () => groupedResults.value.find((group) => group.cat === filterCategory.value) ?? null,
-)
-
-function satSecondary(sat: SatEntry): string {
-  const catLabel = sat.category
-    ? // defensive: a rendered row's category always came from either the rail
-      // sub-tab selection (gated to SATELLITE_CATEGORY_ORDER, whose keys are a
-      // 1:1 match with SATELLITE_CATEGORY_SHORT_LABELS) or
-      // restoreExpandedAccordion (which sets filterCategory, but the
-      // availableCategories watch immediately resets any category not in
-      // that same order back to the first available one) — so sat.category
-      // can never actually miss a short label at render time. Kept as a guard
-      // against the two lookup tables drifting out of sync.
-      /* v8 ignore start -- unreachable given the category-order/short-label key parity; see above */
-      SATELLITE_CATEGORY_SHORT_LABELS[sat.category] || sat.category.toUpperCase()
-    : /* v8 ignore stop */
-      ''
-  return catLabel ? `${catLabel} · NORAD ${sat.norad_id}` : `NORAD ${sat.norad_id}`
-}
-
-// Each result row is a role="option". An explicit aria-label keeps the option's
-// accessible name to the satellite identity (otherwise it would absorb the whole
-// expanded accordion); the open/closed state is announced too since an option
-// cannot carry aria-expanded.
-function satOptionLabel(sat: SatEntry): string {
-  const state = expandedNoradId.value === sat.norad_id ? 'expanded' : 'collapsed'
-  return `${sat.name || sat.norad_id}, ${satSecondary(sat)}, ${state}`
-}
-
-// The rows of the selected category, in display order. NORAD ids are digits, so
-// they serve as this pane's element-id tokens unchanged.
-const items = computed<FilterPanelItem[]>(() =>
-  (activeGroup.value?.sats ?? []).map((sat) => ({
-    key: sat.norad_id,
-    primary: sat.name || sat.norad_id,
-    secondary: satSecondary(sat),
-    optionLabel: satOptionLabel(sat),
-  })),
-)
 
 // What the pane says when it has no rows to show: still loading the database,
 // nothing matching anywhere, or nothing matching in the selected category.
@@ -443,33 +159,13 @@ const emptyMessage = computed<string>(() => {
   return 'No satellites found'
 })
 
-// The expanded satellite's record, for the accordion. Read only from inside the
-// accordion, which the shell renders only for the expanded row, so this always
-// resolves — taken from the full loaded set rather than the filtered group so it
-// holds regardless of how the list is currently narrowed.
-const expandedSat = computed<SatEntry | undefined>(() =>
-  satellites.value.find((sat) => sat.norad_id === expandedNoradId.value),
-)
-
 function onRowEnter(noradId: string): void {
   const sat = items.value.find((item) => item.key === noradId)
   /* v8 ignore start -- the key always comes from a rendered row, so the look-up
      above cannot miss. */
   if (!sat) return
   /* v8 ignore stop */
-  if (clearPreviewTimer) {
-    clearTimeout(clearPreviewTimer)
-    clearPreviewTimer = null
-  }
-  props.satelliteControl?.previewSatellite(noradId, sat.primary)
-}
-
-function onMouseLeave(): void {
-  if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
-  clearPreviewTimer = setTimeout(() => {
-    clearPreviewTimer = null
-    props.satelliteControl?.clearPreview()
-  }, 50)
+  showPreview(noradId, sat.primary)
 }
 
 // Open the accordion for a satellite: select it on the map and load its passes
@@ -485,19 +181,16 @@ function onMouseLeave(): void {
 // already showing re-selects it (to start polling); the other just re-opens.
 function openAccordion(sat: SatEntry, restoring = false): void {
   expandedNoradId.value = sat.norad_id
-  accordionPasses.value = []
-  accordionStatus.value = 'COMPUTING PASSES…'
-  accordionLoading.value = true
-  liveTelemetry.value = {}
-  liveAzEl.value = null
+  beginAccordionPasses()
+  resetLiveTelemetry()
   const ctrl = props.satelliteControl
   if (ctrl && (!restoring || ctrl.activeNoradId === sat.norad_id)) {
     ctrl.switchSatellite(sat.norad_id, sat.name || sat.norad_id)
   }
   syncPassNotifState(sat.norad_id)
-  void fetchAccordionPasses(sat.norad_id)
+  void loadAccordionPasses(sat.norad_id)
   if (isAutoTuneEnabled(sat.norad_id)) void refreshArmedPasses(sat.norad_id)
-  else armedPasses.value = []
+  else clearArmedPasses()
 }
 
 // The shell reports the row that should now be open ('' when the open row was
@@ -516,100 +209,7 @@ function onExpandedKeyChange(noradId: string): void {
 
 function collapseExpanded(): void {
   expandedNoradId.value = ''
-  accordionPasses.value = []
-  if (itemFetchAbort) {
-    itemFetchAbort.abort()
-    itemFetchAbort = null
-  }
-  if (itemTickInterval) {
-    clearInterval(itemTickInterval)
-    itemTickInterval = null
-  }
-}
-
-async function fetchAccordionPasses(noradId: string): Promise<void> {
-  /* v8 ignore start -- defensive: every openAccordion is preceded by collapseExpanded
-     (which aborts + nulls itemFetchAbort), and the restore path runs only once on load, so
-     itemFetchAbort is always null on entry. SpaceFilter has no periodic refresh that would
-     re-enter while a fetch is live. */
-  if (itemFetchAbort) {
-    itemFetchAbort.abort()
-  }
-  /* v8 ignore stop */
-  itemFetchAbort = new AbortController()
-  const abort = itemFetchAbort
-  const loc = props.getUserLocation()
-  if (!loc) {
-    accordionStatus.value = 'SET LOCATION TO CALCULATE PASSES'
-    accordionLoading.value = false
-    return
-  }
-  const [lon, lat] = loc
-  try {
-    const url = `/api/space/satellite/${encodeURIComponent(noradId)}/passes?lat=${lat}&lon=${lon}&hours=24&min_el=0`
-    const resp = await fetch(url, { signal: abort.signal })
-    if (abort.signal.aborted) return
-    if (!resp.ok) {
-      accordionStatus.value = 'COULD NOT LOAD PASSES'
-      accordionLoading.value = false
-      return
-    }
-    const data = (await resp.json()) as { passes: SatPass[]; computed_at: string }
-    const t = new Date(data.computed_at).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    })
-    accordionStatus.value = `NEXT 24H · UPDATED ${t}`
-    accordionPasses.value = data.passes || []
-    accordionLoading.value = false
-    startItemTick()
-  } catch (e: unknown) {
-    if (e instanceof Error && e.name === 'AbortError') return
-    accordionStatus.value = 'NETWORK ERROR'
-    accordionLoading.value = false
-  }
-}
-
-function startItemTick(): void {
-  /* v8 ignore start -- defensive: startItemTick only runs after a successful accordion
-     fetch, and collapseExpanded clears itemTickInterval before any subsequent open, so it is
-     always null here. */
-  if (itemTickInterval) clearInterval(itemTickInterval)
-  /* v8 ignore stop */
-  itemTickInterval = setInterval(() => {
-    accordionPasses.value = [...accordionPasses.value]
-  }, 1000)
-}
-
-// Live telemetry forwarding into expanded accordion
-function onSatPositionUpdate(e: Event): void {
-  if (!expandedNoradId.value) return
-  const { noradId, position } = (
-    e as CustomEvent<{
-      noradId: string
-      position: {
-        alt_km: number
-        velocity_kms: number
-        track_deg: number
-        lat: number
-        lon: number
-        az?: number
-        el?: number
-      }
-    }>
-  ).detail
-  if (noradId !== expandedNoradId.value) return
-  liveTelemetry.value = {
-    alt: `${position.alt_km} km`,
-    vel: `${position.velocity_kms} km/s`,
-    hdg: `${position.track_deg}°`,
-    lat: `${position.lat}°`,
-    lon: `${position.lon}°`,
-  }
-  // Use the backend-computed look-angles when present (exact); otherwise leave
-  // the live marker off rather than guessing.
-  liveAzEl.value =
-    position.az != null && position.el != null ? { az: position.az, el: position.el } : null
+  stopAccordionPasses()
 }
 
 async function loadSatellites(): Promise<void> {
@@ -644,11 +244,6 @@ function restoreExpandedAccordion(): void {
   } else expandedNoradId.value = ''
 }
 
-function isNow(pass: SatPass): boolean {
-  const now = Date.now()
-  return now >= pass.aos_unix_ms && now <= pass.los_unix_ms
-}
-
 function onSettingsPanelClosed(): void {
   if (!loaded.value) void loadSatellites()
 }
@@ -666,20 +261,9 @@ onUnmounted(() => {
      null here (this guard can't be false). */
   if (countdownTick) clearInterval(countdownTick)
   /* v8 ignore stop */
-  if (itemFetchAbort) itemFetchAbort.abort()
-  if (itemTickInterval) clearInterval(itemTickInterval)
-  if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
 })
 
-useDocumentEvent('sat-position-update', onSatPositionUpdate)
 useDocumentEvent('settings-panel-closed', onSettingsPanelClosed)
-useDocumentEvent('satellite-auto-tune-changed', () => {
-  // Arming changed somewhere (useSatelliteActions re-reads it); refresh the
-  // conflict data for whatever sat is expanded.
-  const exp = expandedNoradId.value
-  if (exp && isAutoTuneEnabled(exp)) void refreshArmedPasses(exp)
-  else armedPasses.value = []
-})
 
 defineExpose({ focus: () => panelRef.value?.focus() })
 </script>

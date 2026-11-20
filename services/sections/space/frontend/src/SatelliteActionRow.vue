@@ -1,10 +1,9 @@
 <template>
   <div class="sat-acc-section sat-acc-section--track">
-    <div class="sat-acc-track-row">
+    <BaseIconActionRow>
       <BaseIconAction
-        class="sat-acc-track-btn"
+        variant="accessory"
         :active="following"
-        active-class="sat-acc-track-btn--active"
         :accessible-name="trackLabel"
         :tooltip="trackLabel"
         @click.stop="emit('track')"
@@ -12,9 +11,8 @@
         <LocationPinIcon />
       </BaseIconAction>
       <BaseIconAction
-        class="sat-acc-notif-btn"
+        variant="accessory"
         :active="notifying"
-        active-class="sat-acc-notif-btn--active"
         :accessible-name="notifLabel"
         :tooltip="notifLabel"
         @click.stop="emit('toggle-pass-notif')"
@@ -23,9 +21,8 @@
       </BaseIconAction>
       <template v-if="hasDownlink">
         <BaseIconAction
-          class="sat-acc-autotune-btn"
+          variant="accessory"
           :active="autoTuneArmed"
-          active-class="sat-acc-autotune-btn--active"
           accessible-name="Auto-tune SDR"
           tooltip="Auto-tune SDR"
           @click.stop="emit('toggle-auto-tune')"
@@ -33,9 +30,9 @@
           <RadioIcon :size="16" />
         </BaseIconAction>
         <BaseIconAction
-          class="sat-acc-record-btn"
+          variant="accessory"
+          danger
           :active="recordArmed"
-          active-class="sat-acc-record-btn--active"
           :disabled="!autoTuneArmed"
           accessible-name="Record pass"
           tooltip="Record pass"
@@ -53,7 +50,7 @@
           </svg>
         </BaseIconAction>
       </template>
-    </div>
+    </BaseIconActionRow>
     <div v-if="autoTuneArmed && conflictText" class="sat-acc-autotune-warn">
       <svg
         width="12"
@@ -91,11 +88,15 @@
  * The row of satellite actions in an expanded Space accordion — track, pass
  * alerts, and (for a satellite with a downlink) auto-tune and record — plus the
  * warning shown when an armed auto-tune overlaps another armed satellite's pass.
+ * The buttons are BaseIconAction's accessory controls (record is the `danger`
+ * one, and stays disabled until auto-tune is armed — recording needs a live
+ * tune to capture).
  * Purely presentational: the pane owns the state (see useSatelliteActions) and
  * handles the events.
  */
 import { computed } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
+import BaseIconActionRow from '@sentinel/ui/base/BaseIconActionRow.vue'
 import LocationPinIcon from '@sentinel/ui/icons/LocationPinIcon.vue'
 import BellIcon from '@sentinel/ui/icons/BellIcon.vue'
 import RadioIcon from '@sentinel/ui/icons/RadioIcon.vue'
