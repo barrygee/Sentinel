@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
-import { siteLabel } from './sdrManagerSiteLabel'
+import { siteAddress, siteLabel } from './sdrManagerSiteLabel'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 
 function site(overrides: Partial<RadioSite> = {}): RadioSite {
@@ -50,5 +50,25 @@ describe('siteLabel', () => {
       useAppStore().setMachineName('Home')
       expect(siteLabel(site({ is_local: true, name: 'This machine' }))).toBe('Home (This machine)')
     })
+  })
+})
+
+describe('siteAddress', () => {
+  it('is address:port for any other site', () => {
+    expect(siteAddress(site())).toBe('192.168.1.60:8000')
+  })
+
+  it('is the address other Sentinels dial for this machine, not the in-Docker name', () => {
+    expect(
+      siteAddress(
+        site({ is_local: true, address: 'host.docker.internal', connect_address: '192.168.1.99' }),
+      ),
+    ).toBe('192.168.1.99:8000')
+  })
+
+  it('falls back to the registered address when no connect address is known', () => {
+    expect(
+      siteAddress(site({ is_local: true, address: 'host.docker.internal', connect_address: null })),
+    ).toBe('host.docker.internal:8000')
   })
 })
