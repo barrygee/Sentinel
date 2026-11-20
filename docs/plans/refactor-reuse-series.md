@@ -455,6 +455,28 @@ a "float error" frequency that was exact in floating point (128.010 is not), and
 polls before a return could leave a stacked removal timer behind. Air 1,747 tests at 100 %, `@sentinel/ui` 569 at
 100 %, SPA vitest 1,882, e2e 202. `AirFilter.vue` 1,057 → 463 lines.
 
+**C20 as built.** `SatelliteActionRow` moved onto `BaseIconAction variant="accessory"` in a `BaseIconActionRow`
+(record is the `danger` one, disabled until auto-tune is armed), and the four `sat-acc-*-btn` rule sets plus
+`.sat-acc-track-row` left `SatelliteAccordion.css` (292 → 150 lines). The expanded accordion was a copy in both
+`SpaceFilter` and `SpacePasses`, so it became one shared `SatelliteAccordionBody` (`SatTelemetryGrids`,
+`SatRadioInfoSection`, `SatelliteActionRow`, `SatPolarPassSection`, `UpcomingPassesSection`), fed by two shared
+composables both panes now use: `useLiveSatelliteTelemetry` (the 'sat-position-update' listener) and
+`useSatellitePreviewHover` (the hover preview and its 50 ms clear). `SatPolarPassSection` takes an `isPassActive`
+function because the panes have always judged "in progress" differently (the list against the wall clock, PASSES
+against its ticked `now`), and the split keeps both. `SpaceFilter.vue` keeps the wiring (TLE load, open/close and
+restore, row preview); the rest moved into `src/filter/`: `satelliteSearch` (aliases, matching, scoring, grouping,
+row text), `useSatelliteFilterResults` (rows, the rail's category sync and repair), `useSatelliteAccordionPasses`
+(the abortable fetch and its tick), `useArmedPassConflict` (the lazily fetched armed passes, the lock-in warning
+and its 'satellite-auto-tune-changed' refresh) and `spaceFilterTypes`. Proof: the C19 Playwright dump (every
+computed property including `::before`, boxes, text, `aria-label`, `disabled`) of `#space-filter-results` in 11
+states (idle with another satellite armed, track hover, disabled-record hover, armed with the overlap warning,
+record hover, record armed, record armed and hovered, alerts on, tracking, disarmed, no downlink) plus the
+expanded PASSES card, at 1280 and 390 px: identical to `main` once the old class names are masked. Two runs of
+`main` differ only in property order, so the dump is sorted. Consecutive states differ by 1–184 lines, so it can
+see a change. The specs changed only their button selectors (accessible names) and active class
+(`ba-icon-action--active`); every new module is covered at 100 % through the existing specs. Space 725 tests at
+100 %, SPA vitest 1,882, e2e 202. `SpaceFilter.vue` 708 → 292 lines, `SpacePasses.vue` 602 → 510.
+
 ---
 
 ## 4. Not in this series
