@@ -113,8 +113,20 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
   ['app', 'offline-maps', { component: OfflineMapsSettings, layout: 'full', naturalHeight: true }],
   ['app', 'config-current', { component: ConfigCurrentControl, emits: ['stage'], layout: 'full' }],
   ['app', 'export-all', { component: ExportAllControl }],
+  // This machine's SDR Manager config (sdr-manager-local's) joins CONFIGURATION.
+  [
+    'app',
+    'sdr-manager-local-configuration',
+    {
+      component: ConfigTransferControl,
+      emits: ['stage'],
+      layout: 'half',
+      naturalHeight: true,
+      collapsible: {},
+    },
+  ],
   ['app', 'https', { component: HttpsControl, layout: 'full', naturalHeight: true }],
-  // THIS MACHINE (sdr-manager-local's), after App Settings' own cards.
+  // THIS MACHINE (sdr-manager-local's), after App Settings' own cards and SECURITY.
   [
     'app',
     'sdr-manager-local-console-password',
@@ -129,17 +141,6 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'app',
     'sdr-manager-local-private-access',
     { component: PrivateAccessControl, layout: 'half', naturalHeight: true, collapsible: {} },
-  ],
-  [
-    'app',
-    'sdr-manager-local-configuration',
-    {
-      component: ConfigTransferControl,
-      emits: ['stage'],
-      layout: 'half',
-      naturalHeight: true,
-      collapsible: {},
-    },
   ],
   [
     'app',

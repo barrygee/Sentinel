@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import BaseButton from '@sentinel/ui/base/BaseButton.vue'
+import { getConfigExports } from '@sentinel/shell-api/shell/configExports'
 
 // Standalone "export everything" control. Writes the full Sentinel configuration
 // — the app config plus the two SDR data files that live outside it
-// (frequencies/groups and the band plan) — into a single user-chosen directory.
-// Lives in its own settings section so the descriptive copy can spell out
-// exactly which files are produced.
+// (frequencies/groups and the band plan) — into a single user-chosen directory,
+// plus any file another service registered (`registerConfigExport`: this
+// machine's SDR Manager config, while sdr-manager-local is deployed). Lives in
+// its own settings section so the descriptive copy can spell out exactly which
+// files are produced.
 
 // Every config EXPORT ALL writes into the chosen directory. Each entry pairs the
 // source endpoint with the filename written and a short description shown in the
@@ -65,6 +68,21 @@ async function exportAllConfigs(): Promise<void> {
     showStatus('Export failed: ' + (err as Error).message, true)
     return
   }
+  // Another service's file is a bonus, not a requirement: one that can't be
+  // read now (its service down, or its console signed out) is left out and
+  // named in the status line, rather than failing Sentinel's own files.
+  const skipped: string[] = []
+  for (const extra of getConfigExports()) {
+    try {
+      files.push({
+        filename: extra.filename,
+        content: JSON.stringify(await extra.read(), null, 2),
+      })
+    } catch (err) {
+      skipped.push(`skipped ${extra.filename}: ${(err as Error).message}`)
+    }
+  }
+  const skippedNote = skipped.length > 0 ? ` — ${skipped.join('; ')}` : ''
 
   if ('showDirectoryPicker' in window) {
     try {
@@ -81,7 +99,7 @@ async function exportAllConfigs(): Promise<void> {
         await writable.write(file.content)
         await writable.close()
       }
-      showStatus(`Exported ${files.length} files`, false)
+      showStatus(`Exported ${files.length} files${skippedNote}`, skipped.length > 0)
       return
     } catch (err) {
       // A user cancelling the directory picker is not an error — say nothing.
@@ -102,7 +120,7 @@ async function exportAllConfigs(): Promise<void> {
     anchor.click()
     URL.revokeObjectURL(url)
   }
-  showStatus(`Downloaded ${files.length} files`, false)
+  showStatus(`Downloaded ${files.length} files${skippedNote}`, skipped.length > 0)
 }
 </script>
 
