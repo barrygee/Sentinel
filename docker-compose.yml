@@ -532,6 +532,8 @@ services:
       GUARD_PROFILE: sdr_manager_remote
       DB_PATH: /app/data/sdr-manager-remote.db
       SERVICE_INTERNAL_URL: http://sdr-manager-remote:8000
+      # The address the maps show for this machine (services/this_machine_address.py).
+      SENTINEL_WEB_HOSTNAMES: ${SENTINEL_WEB_HOSTNAMES:-}
     command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
   # SDR Manager for the RTL-SDRs plugged into THIS machine (ADR 0007): Sentry,

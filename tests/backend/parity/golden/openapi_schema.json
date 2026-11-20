@@ -876,6 +876,17 @@
             "title": "Address",
             "type": "string"
           },
+          "connect_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Connect Address"
+          },
           "id": {
             "title": "Id",
             "type": "integer"
