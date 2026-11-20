@@ -162,8 +162,25 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   private _render(): void {
     // SDR hosts, then radios added by IP and port that were given a position.
     const sites = [...this._sitesStore.sites, ...this._sitesStore.radioSites]
-    this._syncMarkers(this._visible ? sites : [])
+    this._syncMarkers(this._visible ? this._sitesToPlot(sites) : [])
     this._renderA11yTable(sites)
+  }
+
+  /**
+   * The sites to draw on the map: all of them, except this machine's own SDR
+   * Manager on a view that already draws the operator's ⊙ marker.
+   *
+   * Both stand for this machine, but they rarely sit on the same spot. The
+   * operator's marker follows the browser's live GPS fix, while the local SDR
+   * Manager publishes the saved Location setting, which it re-reads on its own
+   * timer. So the two land a few metres apart, too far apart to merge into a
+   * count, and one machine shows up as two marks. The operator's marker is the
+   * live one, so it is the one kept. Until that marker has a position, the
+   * local site is still plotted. The accessible table keeps every site.
+   */
+  private _sitesToPlot(sites: RadioSite[]): RadioSite[] {
+    if (!this._userMarker || !this._getUserLocation()) return sites
+    return sites.filter((site) => !(site.kind !== 'radio' && site.is_local))
   }
 
   /** Add/update/remove markers so the on-map set matches `sites`. */
