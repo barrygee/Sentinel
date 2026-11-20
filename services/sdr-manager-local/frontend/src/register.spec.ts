@@ -58,6 +58,14 @@ describe('register (sdr-manager-local)', () => {
     expect(getCapability('thisMachineSdrs')).toBeUndefined()
   })
 
+  it("adds this machine's SDR Manager config to Export All", async () => {
+    await registerOnShellPinia('full')
+    const { getConfigExports } = await import('@sentinel/shell-api/shell/configExports')
+    const { sdrManagerLocalConfigExport } = await import('./components/config/configExport')
+
+    expect(getConfigExports()).toEqual([sdrManagerLocalConfigExport])
+  })
+
   it('marks the console signed out when a request comes back 401', async () => {
     const pinia = await registerOnShellPinia()
     const { useLocalAuthStore } = await import('./stores/localAuthStore')

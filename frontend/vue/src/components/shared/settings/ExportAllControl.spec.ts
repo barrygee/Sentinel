@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { axe } from 'jest-axe'
 import ExportAllControl from './ExportAllControl.vue'
+import {
+  registerConfigExport,
+  resetConfigExportsForTests,
+} from '@sentinel/shell-api/shell/configExports'
 
 const BUTTON = '.settings-config-btn'
 const STATUS = '.settings-export-all-status'
@@ -122,6 +126,115 @@ describe('ExportAllControl', () => {
     expect(clickSpy).not.toHaveBeenCalled()
     expect(wrapper.find(STATUS).text()).toContain('Export failed')
     clickSpy.mockRestore()
+  })
+
+  describe("with another service's file registered", () => {
+    const EXTRA_FILENAME = 'sdr-manager-local-config.json'
+    const EXTRA_CONFIG = { sdr_manager_version: '1', devices: [] }
+
+    /** A directory picker whose writes are recorded by file name. */
+    function stubDirectory(): Map<string, string> {
+      const written = new Map<string, string>()
+      const getFileHandle = vi.fn(async (filename: string) => ({
+        createWritable: vi.fn().mockResolvedValue({
+          write: vi.fn((content: string) => written.set(filename, content)),
+          close: vi.fn(),
+        }),
+      }))
+      ;(window as unknown as { showDirectoryPicker: unknown }).showDirectoryPicker = vi
+        .fn()
+        .mockResolvedValue({ getFileHandle })
+      return written
+    }
+
+    beforeEach(() => {
+      resetConfigExportsForTests()
+    })
+    afterEach(() => {
+      resetConfigExportsForTests()
+      vi.useRealTimers()
+    })
+
+    it('writes it after Sentinel’s own files, as pretty-printed JSON', async () => {
+      vi.useFakeTimers()
+      registerConfigExport({ filename: EXTRA_FILENAME, read: async () => EXTRA_CONFIG })
+      const written = stubDirectory()
+      const wrapper = mount(ExportAllControl)
+      await wrapper.find(BUTTON).trigger('click')
+      await flushPromises()
+      expect([...written.keys()]).toEqual([...EXPECTED_FILENAMES, EXTRA_FILENAME])
+      expect(written.get(EXTRA_FILENAME)).toBe(JSON.stringify(EXTRA_CONFIG, null, 2))
+      expect(wrapper.find(STATUS).text()).toBe('Exported 4 files')
+      // A clean export clears at the success timeout.
+      vi.advanceTimersByTime(3000)
+      await flushPromises()
+      expect(wrapper.find(STATUS).exists()).toBe(false)
+    })
+
+    it('skips a file it cannot read, saves the rest, and says why, held as long as an error', async () => {
+      vi.useFakeTimers()
+      registerConfigExport({
+        filename: EXTRA_FILENAME,
+        read: () => Promise.reject(new Error('sign in to this machine’s SDR Manager first')),
+      })
+      const written = stubDirectory()
+      const wrapper = mount(ExportAllControl)
+      await wrapper.find(BUTTON).trigger('click')
+      await flushPromises()
+      expect([...written.keys()]).toEqual(EXPECTED_FILENAMES)
+      const message = `Exported 3 files — skipped ${EXTRA_FILENAME}: sign in to this machine’s SDR Manager first`
+      expect(wrapper.find(STATUS).text()).toBe(message)
+      vi.advanceTimersByTime(3000)
+      await flushPromises()
+      expect(wrapper.find(STATUS).text()).toBe(message)
+      vi.advanceTimersByTime(3000)
+      await flushPromises()
+      expect(wrapper.find(STATUS).exists()).toBe(false)
+    })
+
+    it('names every file it skipped', async () => {
+      registerConfigExport({
+        filename: 'first.json',
+        read: () => Promise.reject(new Error('down')),
+      })
+      registerConfigExport({
+        filename: 'second.json',
+        read: () => Promise.reject(new Error('signed out')),
+      })
+      stubDirectory()
+      const wrapper = mount(ExportAllControl)
+      await wrapper.find(BUTTON).trigger('click')
+      await flushPromises()
+      expect(wrapper.find(STATUS).text()).toBe(
+        'Exported 3 files — skipped first.json: down; skipped second.json: signed out',
+      )
+    })
+
+    it('downloads it too when there is no directory picker, and reports a skip the same way', async () => {
+      const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+      registerConfigExport({ filename: EXTRA_FILENAME, read: async () => EXTRA_CONFIG })
+      registerConfigExport({
+        filename: 'unreadable.json',
+        read: () => Promise.reject(new Error('down')),
+      })
+      const wrapper = mount(ExportAllControl)
+      await wrapper.find(BUTTON).trigger('click')
+      await flushPromises()
+      expect(clickSpy).toHaveBeenCalledTimes(4)
+      expect(wrapper.find(STATUS).text()).toBe('Downloaded 4 files — skipped unreadable.json: down')
+      clickSpy.mockRestore()
+    })
+
+    it('does not read it when Sentinel’s own files fail', async () => {
+      stubFetch(false)
+      const read = vi.fn().mockResolvedValue(EXTRA_CONFIG)
+      registerConfigExport({ filename: EXTRA_FILENAME, read })
+      const wrapper = mount(ExportAllControl)
+      await wrapper.find(BUTTON).trigger('click')
+      await flushPromises()
+      expect(read).not.toHaveBeenCalled()
+      expect(wrapper.find(STATUS).text()).toContain('Export failed')
+    })
   })
 
   it('has no accessibility violations', async () => {
