@@ -703,6 +703,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Centre airport and base zooms on the visible map
 - Centre airport and base fits on the clicked marker
 - Restart a dev container whose uvicorn worker has died
+- Stop the local receiver's aircraft replacing the online snapshot
 
 ### Chores
 
@@ -1965,6 +1966,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #683 from barrygee/refactor/land-filter-pieces
 - Merge pull request #684 from barrygee/feat/config-group-sdr-manager
 - Merge pull request #685 from barrygee/fix/dev-reload-dead-worker
+- Merge pull request #686 from barrygee/fix/air-local-fallback-displaces-online
 
 ### Performance
 
@@ -2336,6 +2338,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the FILTER pane pieces
 - Cover the config export registry and Export All's extra files
 - Cover the dev_reload launcher and its compose commands
+- Cover the receiver's aircraft never displacing online data
+- Refresh the OpenAPI golden for the new FALLBACK docstring
 
 ### Build System
 
