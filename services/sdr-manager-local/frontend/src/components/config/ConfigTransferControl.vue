@@ -48,10 +48,8 @@ import LocalAuthGate from '../auth/LocalAuthGate.vue'
 import ConfigImportForm from './ConfigImportForm.vue'
 import ConfigInlineEditor from './ConfigInlineEditor.vue'
 import ConfigImportReport from './ConfigImportReport.vue'
+import { CONFIG_EXPORT_FILE_NAME } from './configExport'
 import '@sentinel/shell-api/settings/styles/deviceList.css'
-
-/** The name the API gives the same file at `/config/download`. */
-const EXPORT_FILE_NAME = 'sdr-manager-local-config.json'
 
 const emit = defineEmits<{ stage: [apply: () => Promise<void>] }>()
 
@@ -71,7 +69,7 @@ async function exportFile(): Promise<void> {
     const objectUrl = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = objectUrl
-    link.download = EXPORT_FILE_NAME
+    link.download = CONFIG_EXPORT_FILE_NAME
     link.click()
     URL.revokeObjectURL(objectUrl)
   } catch (error) {

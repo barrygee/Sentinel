@@ -7,6 +7,10 @@ import {
   SDR_SETTINGS_POSITIONS,
   SDR_SETTINGS_SECTION,
 } from '@sentinel/shell-api/shell/sdrSettingsSection'
+import {
+  APP_SETTINGS_CONFIGURATION_GROUP,
+  APP_SETTINGS_POSITIONS,
+} from '@sentinel/shell-api/shell/appSettingsSection'
 import type { AppMode } from '@sentinel/shell-api/types/appMode'
 import type { SettingItem } from '@sentinel/shell-api/types/settings'
 import ConsolePasswordControl from './components/auth/ConsolePasswordControl.vue'
@@ -21,14 +25,16 @@ const THIS_MACHINE_GROUP = 'THIS MACHINE'
 /** Core's App Settings section (frontend/vue's appSettings.ts registers it). */
 const APP_SETTINGS_SECTION_KEY = 'app'
 const APP_SETTINGS_SECTION_LABEL = 'App Settings'
-const AFTER_APP_SETTINGS_OWN_GROUPS = 1
 const DEVICES_GROUP = 'DEVICES'
 
 /**
- * sdr-manager-local's settings: this machine's RTL-SDRs, and its THIS MACHINE
- * group — console password, private access, configuration file and Wi-Fi
- * hotspot. This machine's certificate fingerprint, which other Sentinels pin,
- * is on core's Certificate card under App Settings › SECURITY (HttpsControl).
+ * sdr-manager-local's settings: this machine's RTL-SDRs, its THIS MACHINE
+ * group — console password, private access and Wi-Fi hotspot — and its
+ * configuration file, which sits under App Settings › CONFIGURATION beside
+ * core's Application Config and Export All, so every configuration file is in
+ * one place. This machine's certificate fingerprint, which other Sentinels
+ * pin, is on core's Certificate card under App Settings › SECURITY
+ * (HttpsControl).
  *
  * THIS MACHINE is in App Settings, in both modes: it is about this computer,
  * not about radios, and the full app and SDR Manager-only mode keep it in the
@@ -41,13 +47,17 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
   const sdrManagerOnly = appMode === 'sdr-manager-local-only'
   const section = sdrManagerOnly ? SDR_MANAGER_SETTINGS_SECTION : SDR_SETTINGS_SECTION
   registerSettingsSection({ ...section })
-  // What every THIS MACHINE item shares: App Settings, its group, and a place
-  // after App Settings' own groups (they sit at the default position, 0).
-  const sharedFields = {
+  // Where this remote's App Settings cards go.
+  const appSettingsFields = {
     section: APP_SETTINGS_SECTION_KEY,
     sectionLabel: APP_SETTINGS_SECTION_LABEL,
+  } as const
+  // What every THIS MACHINE item shares: App Settings, its group, and a place
+  // after App Settings' own groups.
+  const sharedFields = {
+    ...appSettingsFields,
     groupLabel: THIS_MACHINE_GROUP,
-    position: AFTER_APP_SETTINGS_OWN_GROUPS,
+    position: APP_SETTINGS_POSITIONS.thisMachine,
   } as const
   // SDR Manager-only mode's page lists this machine's SDRs as a card of their
   // own. The full app lists them in Settings › SDR's SENTINEL HOSTS › This
@@ -103,11 +113,18 @@ export function registerSdrManagerLocalSettings(appMode: AppMode = 'full'): void
       },
     },
     {
-      ...sharedFields,
+      // Under CONFIGURATION, straight after core's Export All, rather than in
+      // THIS MACHINE: it is a configuration file like Application Config, only
+      // kept by a different service (sdr-manager-local's own database, behind
+      // the console password). The id stays for old links.
+      ...appSettingsFields,
+      groupLabel: APP_SETTINGS_CONFIGURATION_GROUP,
+      position: APP_SETTINGS_POSITIONS.configurationExtras,
       id: 'sdr-manager-local-configuration',
-      label: 'Configuration',
-      desc: 'Back up this machine’s SDR settings to a file, or set it up from one.',
-      searchTerms: 'configuration export import backup restore file json sdr manager',
+      label: 'SDR Manager Config (This Machine)',
+      desc: 'The SDR Manager config for this computer’s dongles (device names, ports and tuning) and its Wi-Fi hotspot. Kept by this machine’s SDR Manager behind the console password; the file can also set up another SDR Manager the same way.',
+      searchTerms:
+        'configuration export import backup restore file json sdr manager this machine sdr-manager-local-config',
       control: {
         component: ConfigTransferControl,
         // Its inline JSON editor stages an import for APPLY CHANGES.

@@ -1,8 +1,10 @@
 import { getActivePinia } from 'pinia'
 import { provideCapability } from '@sentinel/shell-api/shell/capabilities'
+import { registerConfigExport } from '@sentinel/shell-api/shell/configExports'
 import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import LocalDevicesControl from './components/devices/LocalDevicesControl.vue'
 import { onUnauthorized } from './api/sdrManagerLocalApi'
+import { sdrManagerLocalConfigExport } from './components/config/configExport'
 import { registerSdrManagerLocalSettings } from './settings'
 import { useLocalAuthStore } from './stores/localAuthStore'
 
@@ -14,12 +16,14 @@ import { useLocalAuthStore } from './stores/localAuthStore'
  * Settings › SDR and provides the `thisMachineSdrs` capability, through which
  * the SDR section lists this machine's SDRs under SENTINEL HOSTS › This
  * machine. In SDR Manager-only mode its SDRs are a card of that mode's page,
- * Settings › SDR Manager. A request that comes back 401 (the session expired,
+ * Settings › SDR Manager. Its configuration file is also one of the files App
+ * Settings › Export All Configuration writes. A request that comes back 401 (the session expired,
  * or the password changed in another browser) brings back the sign-in form.
  */
 export default function register(shell: ShellContext): void {
   assertHostPinia(shell, getActivePinia(), 'sdr-manager-local')
   registerSdrManagerLocalSettings(shell.appMode)
+  registerConfigExport(sdrManagerLocalConfigExport)
   if (shell.appMode !== 'sdr-manager-local-only') {
     provideCapability('thisMachineSdrs', { DevicesPanel: LocalDevicesControl })
   }

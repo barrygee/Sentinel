@@ -3,6 +3,10 @@ import {
   registerSettingItems,
   registerSettingsSection,
 } from '@sentinel/shell-api/shell/settingsRegistry'
+import {
+  APP_SETTINGS_CONFIGURATION_GROUP,
+  APP_SETTINGS_POSITIONS,
+} from '@sentinel/shell-api/shell/appSettingsSection'
 import ConfigCurrentControl from './ConfigCurrentControl.vue'
 import ConnectivityToggle from './ConnectivityToggle.vue'
 import ExportAllControl from './ExportAllControl.vue'
@@ -159,12 +163,14 @@ registerSettingItems([
     // and Certificate keep their own cards.
     modes: FULL_APP_ONLY,
     label: 'Application Config',
-    desc: '',
-    searchTerms: 'settings currently stored in the database raw json',
+    desc: 'Sentinel’s own settings (sentinel_config.json): every section’s settings, connectivity mode, map, alerts and location.',
+    searchTerms: 'settings currently stored in the database raw json sentinel_config',
     control: { component: ConfigCurrentControl, emits: ['stage'], layout: 'full' },
     // Export All carries no groupLabel of its own, so it stays under this
-    // heading — the same way the AIR/SPACE sections continue a group.
-    groupLabel: 'CONFIGURATION',
+    // heading — the same way the AIR/SPACE sections continue a group. This
+    // machine's SDR Manager config (sdr-manager-local's card) joins it too,
+    // at APP_SETTINGS_POSITIONS.configurationExtras.
+    groupLabel: APP_SETTINGS_CONFIGURATION_GROUP,
   },
   {
     section: 'app',
@@ -172,7 +178,8 @@ registerSettingItems([
     id: 'export-all',
     modes: FULL_APP_ONLY,
     label: 'Export All Configuration',
-    desc: 'Back up your full configuration (sentinel_config.json, sdr_frequencies.json and sdr_bandplan.json) to a single folder you choose',
+    desc: 'Back up Sentinel’s settings (sentinel_config.json) and the SDR frequencies, groups and band plan kept outside it (sdr_frequencies.json, sdr_bandplan.json) to one folder you choose, plus this machine’s SDR Manager config (sdr-manager-local-config.json) when its SDR Manager is running and you are signed in.',
+    searchTerms: 'backup export all files folder sdr manager config',
     control: { component: ExportAllControl },
   },
   {
@@ -189,5 +196,8 @@ registerSettingItems([
       'https tls ssl certificate encryption secure fingerprint sha-256 trust install pin sdr manager',
     control: { component: HttpsControl, layout: 'full', naturalHeight: true },
     groupLabel: 'SECURITY',
+    // After CONFIGURATION, including the SDR Manager config card another
+    // service adds to it.
+    position: APP_SETTINGS_POSITIONS.security,
   },
 ])
