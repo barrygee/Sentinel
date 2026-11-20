@@ -33,7 +33,7 @@ Copy Space and rename. `git grep -n sentinel_space` and `git grep -n section-spa
 - `services/sections/<id>/backend/` and `frontend/`
 - `backend/pyproject.toml` (dependency, path source, import-linter), `backend/Dockerfile` (two `COPY`s)
 - `docker-compose.yml` (service, volume, credentials mount; never a code mount: it is the deployment)
-- `compose.dev.yaml` (a read-only mount of only its backend folder, and its `uvicorn` command with `--reload`)
+- `compose.dev.yaml` (a read-only mount of only its backend folder, and its `python -m backend.platform.dev_reload` command with `--reload`)
 - `service_access.py`, `nats_permissions.py`, `conftest.py`, `tests/in_process_app.py`
 - `frontend/vue/package.json`, `frontend/vue/src/shell/sections.ts`
 - `.github/workflows/ci.yml` (smoke job), `docs/use/<id>.md`, `docs/nav.json`
