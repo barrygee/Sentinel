@@ -1960,6 +1960,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #680 from barrygee/refactor/sdr-store-slices
 - Merge pull request #681 from barrygee/refactor/air-filter-pieces
 - Merge pull request #682 from barrygee/refactor/space-filter-pieces
+- Merge pull request #683 from barrygee/refactor/land-filter-pieces
 
 ### Performance
 
@@ -2117,6 +2118,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the accessory icon action and its row
 - Split the FILTER pane into accordions, composables and helpers
 - Split the FILTER pane and share the satellite accordion body
+- Split LandFilter into filter/ pieces
 
 ### Documentation
 
@@ -2195,6 +2197,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C18 as built
 - Record C19 as built
 - Record C20 as built
+- Record C21 as built
 
 ### Tests
 
@@ -2324,6 +2327,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the SDR store slices on their own
 - Cover the FILTER pane pieces and the accessory icon action
 - Cover the FILTER pane pieces and the shared accordion body
+- Cover the FILTER pane pieces
 
 ### Build System
 
@@ -2482,6 +2486,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for the SDR store slices
 - Rebuild the bundles for the shared accessory icon action
 - Rebuild the Space remote for the split FILTER pane
+- Rebuild the Land remote for the split FILTER pane
 
 ### Continuous Integration
 
