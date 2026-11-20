@@ -235,7 +235,7 @@ class TestAdsbUpstreamFailover:
         # Failed over rather than surfacing the error to the client.
         assert resp.status_code == 200
         assert resp.json() == payload
-        assert resp.headers["X-Cache"] == "MISS"
+        assert resp.headers["X-Cache"] == "FALLBACK"
         # Both sources were tried, online first.
         assert calls == [self.ONLINE, self.OFFGRID]
         # ...and the 403 named itself, with host and status.
@@ -770,7 +770,14 @@ class TestEmptyFallbackDoesNotHideCachedAircraft:
     The regression: adsb.lol answered 429, the decoder answered `{"ac": []}`,
     and that empty list was cached as a fresh MISS, so the map went blank for a
     whole TTL with good aircraft for the same area sitting in the cache.
+
+    The same holds when the decoder does hear something: a page load inside
+    the online refresh interval is throttled, the decoder answered with the one
+    or two aircraft around its aerial, and that was cached and shown alone
+    until the next online call replaced it.
     """
+
+    RECEIVER = {"ac": [{"hex": "local01"}], "total": 1, "msg": "readsb"}
 
     ONLINE = "https://online.example/v2"
     OFFGRID = "http://offgrid.example/data/aircraft.json"
@@ -870,15 +877,57 @@ class TestEmptyFallbackDoesNotHideCachedAircraft:
         assert again.headers["X-Cache"] == "MISS"
         assert again.json() == self.CACHED
 
-    def test_a_fallback_with_aircraft_is_still_served_and_cached(self, client, monkeypatch):
+    def test_with_nothing_cached_a_fallback_with_aircraft_is_served_but_not_cached(self, client, monkeypatch):
         self._configure_sources(client)
-        self._sources(monkeypatch, self._rate_limited(), fallback=self.CACHED)
+        self._sources(monkeypatch, self._rate_limited(), fallback=self.RECEIVER)
 
         resp = client.get(self.POINT)
 
-        assert resp.headers["X-Cache"] == "MISS"
+        assert resp.status_code == 200
+        assert resp.headers["X-Cache"] == "FALLBACK"
+        assert resp.json() == self.RECEIVER
+        # Not cached: the next poll asks the primary again instead of a HIT.
+        calls = self._sources(monkeypatch, self.CACHED)
+        again = client.get(self.POINT)
+        assert calls == [self.ONLINE]
+        assert again.headers["X-Cache"] == "MISS"
+        assert again.json() == self.CACHED
+
+    def test_throttled_primary_serves_the_cached_row_not_the_receivers_aircraft(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch)
+        calls = self._sources(monkeypatch, UpstreamThrottledError(), fallback=self.RECEIVER)
+
+        resp = client.get(self.POINT)
+
+        assert calls == [self.ONLINE, self.OFFGRID]
+        assert resp.headers["X-Cache"] == "THROTTLED"
         assert resp.json() == self.CACHED
-        assert client.get(self.POINT).headers["X-Cache"] == "HIT"
+
+    def test_throttled_primary_on_a_new_point_borrows_the_nearby_row_not_the_receivers_aircraft(
+        self, client, monkeypatch
+    ):
+        self._configure_sources(client)
+        self._prime_expired(client, monkeypatch, "/api/air/adsb/point/54.0/-1.5/100")
+        self._sources(monkeypatch, UpstreamThrottledError(), fallback=self.RECEIVER)
+
+        resp = client.get("/api/air/adsb/point/54.1/-1.5/100")
+
+        assert resp.headers["X-Cache"] == "NEARBY"
+        assert resp.json() == self.CACHED
+
+    def test_the_receivers_aircraft_never_become_a_nearby_row(self, client, monkeypatch):
+        self._configure_sources(client)
+        self._sources(monkeypatch, self._rate_limited(), fallback=self.RECEIVER)
+        assert client.get("/api/air/adsb/point/54.0/-1.5/100").headers["X-Cache"] == "FALLBACK"
+
+        # A pan to a neighbouring point with every source down must not borrow
+        # the receiver's answer as if it were a snapshot of the area.
+        self._sources(monkeypatch, httpx.ConnectError("down"), fallback=httpx.ConnectError("down"))
+        resp = client.get("/api/air/adsb/point/54.1/-1.5/100")
+
+        assert resp.status_code == 204
+        assert resp.headers["X-Cache"] == "UNAVAILABLE"
 
     def test_an_empty_answer_from_the_primary_is_the_truth_and_is_cached(self, client, monkeypatch):
         self._configure_sources(client)
