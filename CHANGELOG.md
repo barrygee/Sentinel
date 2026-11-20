@@ -1959,6 +1959,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #679 from barrygee/refactor/sdr-recordings-section
 - Merge pull request #680 from barrygee/refactor/sdr-store-slices
 - Merge pull request #681 from barrygee/refactor/air-filter-pieces
+- Merge pull request #682 from barrygee/refactor/space-filter-pieces
 
 ### Performance
 
@@ -2115,6 +2116,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Compose the SDR store from focused slices
 - Add the accessory icon action and its row
 - Split the FILTER pane into accordions, composables and helpers
+- Split the FILTER pane and share the satellite accordion body
 
 ### Documentation
 
@@ -2192,6 +2194,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C17 as built
 - Record C18 as built
 - Record C19 as built
+- Record C20 as built
 
 ### Tests
 
@@ -2320,6 +2323,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the RECORDINGS tab components and composables
 - Cover the SDR store slices on their own
 - Cover the FILTER pane pieces and the accessory icon action
+- Cover the FILTER pane pieces and the shared accordion body
 
 ### Build System
 
@@ -2477,6 +2481,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild SDR remote for the RECORDINGS tab decomposition
 - Rebuild SDR remote for the SDR store slices
 - Rebuild the bundles for the shared accessory icon action
+- Rebuild the Space remote for the split FILTER pane
 
 ### Continuous Integration
 
