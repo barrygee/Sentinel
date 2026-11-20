@@ -1,6 +1,6 @@
 # SDR Manager
 
-One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's console password, private access, configuration and hotspot are in **Settings › App Settings › THIS MACHINE**, in both modes; its certificate is **Settings › App Settings › Certificate**. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer's dongles have a page of their own, **Settings › SDR Manager**.
+One place to manage your RTL-SDR dongles: the ones plugged into this computer and the ones on other computers running Sentinel. Both are in **Settings › SDR › DEVICES**: under **SENTINEL HOSTS**, this computer first, as **This machine**, then the other computers. This computer's console password, private access and hotspot are in **Settings › App Settings › THIS MACHINE**, and its configuration file is **Settings › App Settings › CONFIGURATION › SDR Manager Config (This Machine)**, in both modes; its certificate is **Settings › App Settings › Certificate**. In [SDR Manager only](../sdr-manager-local-only.md) mode, this computer's dongles have a page of their own, **Settings › SDR Manager**.
 
 ## Features
 
@@ -9,7 +9,7 @@ One place to manage your RTL-SDR dongles: the ones plugged into this computer an
 - **Sentinel hosts**: add another computer running SDR Manager (a Raspberry Pi by the antenna, say), see its status, uptime, devices and position.
 - **FLASH SERIAL** gives a dongle a unique serial, so two identical dongles stay apart after a replug (marked **NEEDS ID**).
 - **Console password** protects this computer's SDR Manager, here and for every Sentinel that manages it.
-- **Configuration** to a file: back it up, or set up another SDR Manager the same way.
+- **SDR Manager Config** to a file: back it up, or set up another SDR Manager the same way. **Export All Configuration** saves it too.
 - **Hotspot** (Linux only): a Wi-Fi network this computer offers, so a phone can reach Sentinel where there is no other network.
 - **Host sites** on every map, usable as range-ring centres and overhead-alert places.
 - **SDR Manager only** mode for a small computer that just shares its dongles: [SDR Manager only](../sdr-manager-local-only.md).
@@ -60,13 +60,13 @@ A dongle you unplug stays listed as **NOT PLUGGED IN**, with its settings, until
 
 ### The other cards
 
-They are in **Settings › App Settings › THIS MACHINE**. They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
+They are in **Settings › App Settings**: **SDR Manager Config (This Machine)** under **CONFIGURATION**, beside Sentinel's own Application Config, and the rest under **THIS MACHINE**. They start folded: click a card's title to open it. **Console Password** opens itself while this machine has no password.
 
-| Card                 | For                                                                                                                                                                                                                                                                           |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Console Password** | Set or change it (8 characters or more); **SIGN OUT**. Changing it signs out every other browser                                                                                                                                                                              |
-| **Configuration**    | **EDIT** the configuration as JSON in place (**FORMAT** tidies it; **APPLY CHANGES** applies it, and the hotspot only if you changed it); **DOWNLOAD CONFIGURATION** saves names, ports, tuning and hotspot; **IMPORT** a file to apply them. Passwords are never in the file |
-| **Hotspot**          | **ALLOW CHANGES**, then a network name, password, band and channel; **START**, then confirm it within 2 minutes or it is undone                                                                                                                                               |
+| Card                                  | For                                                                                                                                                                                                                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Console Password**                  | Set or change it (8 characters or more); **SIGN OUT**. Changing it signs out every other browser                                                                                                                                                                              |
+| **SDR Manager Config (This Machine)** | **EDIT** the configuration as JSON in place (**FORMAT** tidies it; **APPLY CHANGES** applies it, and the hotspot only if you changed it); **DOWNLOAD CONFIGURATION** saves names, ports, tuning and hotspot; **IMPORT** a file to apply them. Passwords are never in the file |
+| **Hotspot**                           | **ALLOW CHANGES**, then a network name, password, band and channel; **START**, then confirm it within 2 minutes or it is undone                                                                                                                                               |
 
 This machine's position is **Settings › App Settings › Location**, and its name **Settings › App Settings › Machine Name**. Set the position, or other Sentinels can't show where your dongles are; set the name, and they call this machine by it rather than by its address (**SET LOCATION** in the notice takes you there).
 
