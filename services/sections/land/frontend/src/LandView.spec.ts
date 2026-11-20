@@ -65,6 +65,7 @@ const markerSpies = vi.hoisted(() => ({
   update: vi.fn(),
   remove: vi.fn(),
   setHidden: vi.fn(),
+  setDetails: vi.fn(),
 }))
 vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
   UserLocationMarker: class {
@@ -72,8 +73,9 @@ vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
     update = markerSpies.update
     remove = markerSpies.remove
     // Borrowed by SdrManagerSitesControl, which hides this marker while one of its
-    // counts stands for the operator's position.
+    // counts stands for the operator's position, and gives it this machine's tag.
     setHidden = markerSpies.setHidden
+    setDetails = markerSpies.setDetails
   },
 }))
 

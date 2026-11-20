@@ -216,21 +216,50 @@ describe('UserLocationMarker', () => {
       expect(pill(element)!.textContent).toContain('Shed (This machine)')
     })
 
-    it('is just "Your location", with no tag, without details', () => {
-      const { marker, element } = placed()
-      marker.setDetails(null)
-      expect(pill(element)).toBeNull()
-      expect(element.getAttribute('role')).toBe('img')
-      expect(element.getAttribute('aria-label')).toBe('Your location')
-    })
-
-    it('names a marker that was never given details too', () => {
+    it('gives back the role and name it had when the tag is taken away', () => {
       const marker = new UserLocationMarker()
       marker.addTo(fakeMap)
       marker.update(1, 1)
-      expect(markerRegistry.instances[0]!.options.element.getAttribute('aria-label')).toBe(
-        'Your location',
-      )
+      const element = markerRegistry.instances[0]!.options.element
+      // As MapLibre's own addTo leaves it.
+      element.setAttribute('aria-label', 'Map marker')
+
+      marker.setDetails(THIS_MACHINE)
+      expect(element.getAttribute('aria-label')).toContain('Home (This machine)')
+      marker.setDetails(null)
+
+      expect(pill(element)).toBeNull()
+      expect(element.hasAttribute('role')).toBe(false)
+      expect(element.getAttribute('aria-label')).toBe('Map marker')
+    })
+
+    it('drops the name it added when the marker had none before the tag', () => {
+      const { marker, element } = placed()
+      marker.setDetails(null)
+      expect(element.hasAttribute('aria-label')).toBe(false)
+      expect(element.hasAttribute('role')).toBe(false)
+    })
+
+    it('leaves a marker that was never tagged exactly as built — it also plots other machines', () => {
+      const marker = new UserLocationMarker('remote-host-site-marker')
+      marker.addTo(fakeMap)
+      marker.update(1, 1)
+      marker.setDetails(null)
+      marker.update(2, 2)
+      const element = markerRegistry.instances[0]!.options.element
+      expect(pill(element)).toBeNull()
+      expect(element.hasAttribute('role')).toBe(false)
+      expect(element.hasAttribute('aria-label')).toBe(false)
+    })
+
+    it('starts a rebuilt marker untagged when the tag was taken away while it was gone', () => {
+      const { marker } = placed()
+      marker.remove()
+      marker.setDetails(null)
+      marker.update(2, 2)
+      const rebuilt = markerRegistry.instances[1]!.options.element
+      expect(pill(rebuilt)).toBeNull()
+      expect(rebuilt.hasAttribute('role')).toBe(false)
     })
 
     it('is safe before any fix, and keeps the details for the marker the fix builds', () => {

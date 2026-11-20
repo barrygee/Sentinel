@@ -99,6 +99,7 @@ vi.mock('@sentinel/map-kit/UserLocationMarker', () => ({
     remove = vi.fn()
     update = vi.fn()
     setHidden = vi.fn()
+    setDetails = vi.fn()
     constructor() {
       shared.marker = this as unknown as Record<string, ReturnType<typeof vi.fn>>
     }
