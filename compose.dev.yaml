@@ -3,6 +3,9 @@
 # docker-compose.yml is the deployment: every service runs its image's code.
 # This file puts the checkout's code over the image's copy and starts each
 # uvicorn with --reload, so a backend edit reloads in place with no rebuild.
+# Each runs through backend.platform.dev_reload (same arguments as `uvicorn`),
+# whose reloader exits when its worker dies, so `restart: unless-stopped`
+# replaces the container instead of leaving it holding a port nothing answers.
 # Layer it per command or once in .env (Docker Compose reads COMPOSE_FILE
 # from there):
 #
@@ -24,55 +27,55 @@ services:
   app:
     volumes:
       - *backend-code
-    command: uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload backend.main:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   space:
     volumes:
       - *backend-code
       - ./services/sections/space/backend:/app/services/sections/space/backend:ro
-    command: uvicorn sentinel_space.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_space.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   land:
     volumes:
       - *backend-code
       - ./services/sections/land/backend:/app/services/sections/land/backend:ro
-    command: uvicorn sentinel_land.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_land.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   air:
     volumes:
       - *backend-code
       - ./services/sections/air/backend:/app/services/sections/air/backend:ro
-    command: uvicorn sentinel_air.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_air.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   sea:
     volumes:
       - *backend-code
       - ./services/sections/sea/backend:/app/services/sections/sea/backend:ro
-    command: uvicorn sentinel_sea.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_sea.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   radio:
     volumes:
       - *backend-code
       - ./services/radio/backend:/app/services/radio/backend:ro
-    command: uvicorn sentinel_radio.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_radio.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   sdr:
     volumes:
       - *backend-code
       - ./services/sections/sdr/backend:/app/services/sections/sdr/backend:ro
-    command: uvicorn sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_sdr.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   docs:
     volumes:
       - *backend-code
       - ./services/docs/backend:/app/services/docs/backend:ro
-    command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   sdr-manager-remote:
     volumes:
       - *backend-code
       - ./services/sdr-manager-remote/backend:/app/services/sdr-manager-remote/backend:ro
-    command: uvicorn sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+    command: python -m backend.platform.dev_reload sentinel_sdr_manager_remote.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
   # Its own folder only, and no reload: a reload would restart every dongle's
   # stream, so `docker compose restart sdr-manager-local` after an edit. It
