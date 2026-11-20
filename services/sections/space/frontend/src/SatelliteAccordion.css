@@ -1,8 +1,9 @@
 /*
- * The expanded-satellite accordion — RADIO, TRACK / alert / auto-tune / record
- * buttons and POLAR PLOT — shared by the satellite list
- * (SpaceFilter) and the PASSES pane (SpacePasses), which used to carry a copy
- * each under their own class prefix.
+ * The expanded-satellite accordion — RADIO, the action row and POLAR PLOT —
+ * shared by the satellite list (SpaceFilter) and the PASSES pane
+ * (SpacePasses), which used to carry a copy each under their own class prefix.
+ * The action buttons are BaseIconAction's accessory variant in a
+ * BaseIconActionRow, so their chrome lives in @sentinel/ui.
  *
  * Left/right inset: --ba-grid-section-padding-x, the variable BaseDataGrid
  * already reads, so the accordion's own sections and its data grids always
@@ -46,145 +47,6 @@
   padding-bottom: 24px;
 }
 
-.sat-acc-track-row {
-  display: flex;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.sat-acc-track-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  height: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sat-acc-track-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sat-acc-track-btn.sat-acc-track-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sat-acc-track-btn.sat-acc-track-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sat-acc-notif-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sat-acc-notif-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sat-acc-notif-btn.sat-acc-notif-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sat-acc-notif-btn.sat-acc-notif-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-.sat-acc-autotune-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sat-acc-autotune-btn:hover {
-  color: var(--accent-text);
-  background: var(--surface-sunken-hover);
-}
-
-.sat-acc-autotune-btn.sat-acc-autotune-btn--active {
-  color: var(--accent-text);
-  background: rgba(var(--accent-rgb), 0.12);
-}
-
-.sat-acc-autotune-btn.sat-acc-autotune-btn--active:hover {
-  background: rgba(var(--accent-rgb), 0.18);
-}
-
-/* Record-on-pass button — sits beside auto-tune and is only enabled once
-   auto-tune is armed (recording needs a live tune to capture). */
-.sat-acc-record-btn {
-  position: relative;
-  flex: 0 0 auto;
-  width: 36px;
-  background: var(--surface-sunken);
-  border: none;
-  cursor: pointer;
-  color: rgba(var(--ink-rgb), 0.5);
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    color 0.12s,
-    background 0.12s;
-}
-
-.sat-acc-record-btn:hover:not(:disabled) {
-  color: var(--sev-critical);
-  background: var(--surface-sunken-hover);
-}
-
-.sat-acc-record-btn.sat-acc-record-btn--active {
-  color: var(--sev-critical);
-  background: rgba(var(--sev-critical-rgb), 0.12);
-}
-
-.sat-acc-record-btn.sat-acc-record-btn--active:hover {
-  background: rgba(var(--sev-critical-rgb), 0.18);
-}
-
-.sat-acc-record-btn:disabled {
-  cursor: not-allowed;
-  color: rgba(var(--ink-rgb), 0.18);
-}
-
 /* Inline lock-in conflict warning: another armed sat overlaps this one, so only
    one of the two passes will actually be tuned. */
 .sat-acc-autotune-warn {
@@ -205,10 +67,6 @@
 .sat-acc-autotune-warn svg {
   flex: 0 0 auto;
 }
-
-/* The notif / auto-tune icon buttons' hover tooltip (black pill above the
-   button, left-anchored) comes from BaseIconAction's default
-   tooltipSide="top" look. */
 
 .sat-acc-section--polar {
   padding-top: 14px;

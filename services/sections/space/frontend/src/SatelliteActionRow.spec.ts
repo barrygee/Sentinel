@@ -45,19 +45,19 @@ describe('SatelliteActionRow', () => {
       autoTuneArmed: true,
       recordArmed: true,
     })
-    expect(button(wrapper, 'Untrack satellite').classes()).toContain('sat-acc-track-btn--active')
-    expect(button(wrapper, 'Disable pass alerts').classes()).toContain('sat-acc-notif-btn--active')
-    expect(button(wrapper, 'Auto-tune SDR').classes()).toContain('sat-acc-autotune-btn--active')
+    expect(button(wrapper, 'Untrack satellite').classes()).toContain('ba-icon-action--active')
+    expect(button(wrapper, 'Disable pass alerts').classes()).toContain('ba-icon-action--active')
+    expect(button(wrapper, 'Auto-tune SDR').classes()).toContain('ba-icon-action--active')
     const record = button(wrapper, 'Record pass')
-    expect(record.classes()).toContain('sat-acc-record-btn--active')
+    expect(record.classes()).toContain('ba-icon-action--active')
     expect(record.attributes('disabled')).toBeUndefined()
     wrapper.unmount()
   })
 
   it('leaves the inactive buttons unhighlighted', () => {
     const wrapper = mountRow()
-    expect(button(wrapper, 'Track satellite').classes()).not.toContain('sat-acc-track-btn--active')
-    expect(button(wrapper, 'Auto-tune SDR').classes()).not.toContain('sat-acc-autotune-btn--active')
+    expect(button(wrapper, 'Track satellite').classes()).not.toContain('ba-icon-action--active')
+    expect(button(wrapper, 'Auto-tune SDR').classes()).not.toContain('ba-icon-action--active')
     wrapper.unmount()
   })
 

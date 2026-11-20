@@ -959,7 +959,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const control = makeFakeControl()
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-track-btn').trigger('click')
+    await wrapper.find('button[aria-label$="rack satellite"]').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('25544', 'ISS (ZARYA)', true)
   })
 
@@ -967,9 +967,9 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const control = makeFakeControl({ followedNoradId: '25544' })
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    const trackBtn = wrapper.find('.sat-acc-track-btn')
+    const trackBtn = wrapper.find('button[aria-label$="rack satellite"]')
     expect(trackBtn.attributes('aria-label')).toBe('Untrack satellite')
-    expect(trackBtn.classes()).toContain('sat-acc-track-btn--active')
+    expect(trackBtn.classes()).toContain('ba-icon-action--active')
     await trackBtn.trigger('click')
     expect(control.stopFollowing).toHaveBeenCalled()
   })
@@ -983,21 +983,25 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sat-acc-track-btn').attributes('aria-label')).toBe('Untrack satellite')
+    expect(wrapper.find('button[aria-label$="rack satellite"]').attributes('aria-label')).toBe(
+      'Untrack satellite',
+    )
     document.dispatchEvent(
       new CustomEvent('satellite-follow-changed', {
         detail: { noradId: '25544', following: false },
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sat-acc-track-btn').attributes('aria-label')).toBe('Track satellite')
+    expect(wrapper.find('button[aria-label$="rack satellite"]').attributes('aria-label')).toBe(
+      'Track satellite',
+    )
   })
 
   it('toggles pass notifications, switching satellite first when not active', async () => {
     const control = makeFakeControl({ activeNoradId: '00000' })
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-notif-btn').trigger('click')
+    await wrapper.find('button[aria-label$="pass alerts"]').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('25544', 'ISS (ZARYA)')
     expect(control.togglePassNotifications).toHaveBeenCalled()
   })
@@ -1007,7 +1011,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     const wrapper = await mountReady({ control })
     await expandFirstItem(wrapper)
     control.switchSatellite.mockClear()
-    await wrapper.find('.sat-acc-notif-btn').trigger('click')
+    await wrapper.find('button[aria-label$="pass alerts"]').trigger('click')
     expect(control.switchSatellite).not.toHaveBeenCalled()
     expect(control.togglePassNotifications).toHaveBeenCalled()
   })
@@ -1015,7 +1019,7 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
   it('does nothing on notif toggle when no control is present', async () => {
     const wrapper = await mountReady({ control: null })
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-notif-btn').trigger('click')
+    await wrapper.find('button[aria-label$="pass alerts"]').trigger('click')
     expect(wrapper.exists()).toBe(true)
   })
 
@@ -1028,14 +1032,18 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
+    expect(wrapper.find('button[aria-label$="pass alerts"]').classes()).toContain(
+      'ba-icon-action--active',
+    )
     document.dispatchEvent(
       new CustomEvent('satellite-pass-notif-changed', {
         detail: { noradId: '25544', enabled: false },
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sat-acc-notif-btn').classes()).not.toContain('sat-acc-notif-btn--active')
+    expect(wrapper.find('button[aria-label$="pass alerts"]').classes()).not.toContain(
+      'ba-icon-action--active',
+    )
   })
 
   it('leaves notif state untouched when a disable event names a different sat', async () => {
@@ -1053,14 +1061,18 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
       }),
     )
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
+    expect(wrapper.find('button[aria-label$="pass alerts"]').classes()).toContain(
+      'ba-icon-action--active',
+    )
   })
 
   it('opens with notifications pre-armed when the store reports them enabled', async () => {
     vi.mocked(isPassNotifEnabled).mockReturnValue(true)
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sat-acc-notif-btn').classes()).toContain('sat-acc-notif-btn--active')
+    expect(wrapper.find('button[aria-label$="pass alerts"]').classes()).toContain(
+      'ba-icon-action--active',
+    )
   })
 
   it('seeds notif state from the control when pass notifications are already on at mount', async () => {
@@ -1078,10 +1090,10 @@ describe('SpaceFilter — track & pass-notification buttons', () => {
     expect(control.previewSatellite).toHaveBeenCalledWith('40069', '40069')
     await expandFirstItem(wrapper)
     expect(control.switchSatellite).toHaveBeenCalledWith('40069', '40069') // openAccordion
-    await wrapper.find('.sat-acc-track-btn').trigger('click')
+    await wrapper.find('button[aria-label$="rack satellite"]').trigger('click')
     expect(control.switchSatellite).toHaveBeenLastCalledWith('40069', '40069', true) // trackSat
     control.switchSatellite.mockClear()
-    await wrapper.find('.sat-acc-notif-btn').trigger('click')
+    await wrapper.find('button[aria-label$="pass alerts"]').trigger('click')
     expect(control.switchSatellite).toHaveBeenCalledWith('40069', '40069') // togglePassNotif
   })
 })
@@ -1157,7 +1169,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     downlinkSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
+    await wrapper.find('button[aria-label="Auto-tune SDR"]').trigger('click')
     expect(setAutoTuneEnabled).toHaveBeenCalledWith(
       '25544',
       true,
@@ -1175,7 +1187,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     }
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
+    await wrapper.find('button[aria-label="Auto-tune SDR"]').trigger('click')
     const call = vi.mocked(setAutoTuneEnabled).mock.calls[0]
     expect(call[2]).toMatchObject({ name: '40069', downlinkHz: 437_000_000 })
     expect(call[2]?.downlinkMode).toBeUndefined()
@@ -1194,7 +1206,7 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    await wrapper.find('.sat-acc-autotune-btn').trigger('click')
+    await wrapper.find('button[aria-label="Auto-tune SDR"]').trigger('click')
     expect(setAutoTuneEnabled).toHaveBeenCalledWith('25544', false, expect.anything())
     expect(store.items.some((item) => item.type === 'autotune' && item.noradId === '25544')).toBe(
       false,
@@ -1205,7 +1217,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     downlinkSat()
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sat-acc-record-btn').attributes('disabled')).toBeDefined()
+    expect(wrapper.find('button[aria-label="Record pass"]').attributes('disabled')).toBeDefined()
   })
 
   it('arms record while auto-tune is on, folding into the existing alert card', async () => {
@@ -1221,7 +1233,7 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    await wrapper.find('.sat-acc-record-btn').trigger('click')
+    await wrapper.find('button[aria-label="Record pass"]').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('25544', true, { name: 'ISS (ZARYA)' })
     expect(store.items.find((item) => item.id === existingId)!.detail).toBe(
       'Auto-tune and record on pass enabled',
@@ -1235,7 +1247,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     await expandFirstItem(wrapper)
     const store = useNotificationsStore()
     expect(store.items).toHaveLength(0)
-    await wrapper.find('.sat-acc-record-btn').trigger('click')
+    await wrapper.find('button[aria-label="Record pass"]').trigger('click')
     const card = store.items.find((item) => item.type === 'autotune' && item.noradId === '25544')!
     expect(card.detail).toBe('Auto-tune and record on pass enabled')
   })
@@ -1247,7 +1259,7 @@ describe('SpaceFilter — auto-tune & record', () => {
     vi.mocked(isAutoTuneEnabled).mockReturnValue(true)
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    await wrapper.find('.sat-acc-record-btn').trigger('click')
+    await wrapper.find('button[aria-label="Record pass"]').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('40069', true, { name: '40069' })
   })
 
@@ -1265,8 +1277,10 @@ describe('SpaceFilter — auto-tune & record', () => {
       noradId: '25544',
       satName: 'ISS (ZARYA)',
     })
-    expect(wrapper.find('.sat-acc-record-btn').classes()).toContain('sat-acc-record-btn--active')
-    await wrapper.find('.sat-acc-record-btn').trigger('click')
+    expect(wrapper.find('button[aria-label="Record pass"]').classes()).toContain(
+      'ba-icon-action--active',
+    )
+    await wrapper.find('button[aria-label="Record pass"]').trigger('click')
     expect(setRecordOnPassEnabled).toHaveBeenCalledWith('25544', false, expect.anything())
     expect(store.items.find((item) => item.id === id)!.detail).toBe('Auto-tune on pass enabled')
   })
@@ -1274,8 +1288,8 @@ describe('SpaceFilter — auto-tune & record', () => {
   it('does not render auto-tune/record buttons for a sat without a downlink', async () => {
     const wrapper = await mountReady()
     await expandFirstItem(wrapper)
-    expect(wrapper.find('.sat-acc-autotune-btn').exists()).toBe(false)
-    expect(wrapper.find('.sat-acc-record-btn').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="Auto-tune SDR"]').exists()).toBe(false)
+    expect(wrapper.find('button[aria-label="Record pass"]').exists()).toBe(false)
   })
 })
 

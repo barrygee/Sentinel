@@ -36,7 +36,7 @@
         :data-aos-ms="pass.aos_unix_ms"
         :data-los-ms="pass.los_unix_ms"
         @mouseenter="onMouseEnter(pass)"
-        @mouseleave="onMouseLeave"
+        @mouseleave="schedulePreviewClear"
       >
         <button
           type="button"
@@ -67,20 +67,17 @@
           :id="`spp-body-${passKey(pass)}`"
           class="spp-acc-body"
         >
-          <BaseDataGrid title="POSITION DATA" :columns="3">
-            <BaseDataCell label="LATITUDE" :value="liveTelemetry['lat'] ?? '—'" />
-            <BaseDataCell label="LONGITUDE" :value="liveTelemetry['lon'] ?? '—'" />
-            <BaseDataCell label="HEADING" :value="liveTelemetry['hdg'] ?? '—'" />
-          </BaseDataGrid>
-          <BaseDataGrid title="ORBITAL DATA" :columns="3">
-            <BaseDataCell label="ALTITUDE" :value="liveTelemetry['alt'] ?? '—'" />
-            <BaseDataCell label="VELOCITY" :value="liveTelemetry['vel'] ?? '—'" />
-          </BaseDataGrid>
-          <SatRadioInfoSection :radio="pass" />
-          <SatelliteActionRow
+          <SatelliteAccordionBody
+            :satellite="pass"
+            :telemetry="liveTelemetry"
+            :live-az-el="liveAzEl"
+            :passes="accPasses"
+            :loading="accLoading"
+            :status="accStatus"
+            :now="now"
+            :is-pass-active="isAccPassNow"
             :following="followedNoradId === pass.norad_id"
             :notifying="notifNoradId === pass.norad_id"
-            :has-downlink="!!pass.downlink_hz"
             :auto-tune-armed="isArmed(pass.norad_id)"
             :record-armed="isRecordArmed(pass.norad_id)"
             :conflict-text="conflictText(pass.norad_id)"
@@ -88,28 +85,6 @@
             @toggle-pass-notif="togglePassNotif(pass)"
             @toggle-auto-tune="toggleAutoTune(pass)"
             @toggle-record="toggleRecord(pass)"
-          />
-          <div class="sat-acc-section sat-acc-section--polar">
-            <div class="sat-acc-section-title sat-acc-polar-title">
-              <span>{{ polarTitle }}</span>
-              <span v-if="polarPass" class="sat-acc-polar-maxel"
-                >MAX {{ polarPass.max_elevation_deg.toFixed(0) }}°</span
-              >
-            </div>
-            <SatPolarPlot
-              v-if="polarPass && polarPass.sky_track && polarPass.sky_track.length > 1"
-              :track="polarPass.sky_track"
-              :live="polarLive"
-            />
-            <div v-else class="sat-acc-polar-empty">
-              {{ accLoading ? 'COMPUTING ARC…' : 'NO UPCOMING PASS TO PLOT' }}
-            </div>
-          </div>
-          <UpcomingPassesSection
-            :passes="accPasses"
-            :loading="accLoading"
-            :status="accStatus"
-            :now="now"
           />
         </div>
       </div>
@@ -124,22 +99,16 @@ import BaseChip from '@sentinel/ui/base/BaseChip.vue'
 import { useSpaceStore } from './stores/space'
 import type { SatelliteControl } from './controls/satellite/SatelliteControl'
 import { isAutoTuneEnabled } from './controls/satellite/passNotifStore'
-import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import ChevronIcon from '@sentinel/ui/icons/ChevronIcon.vue'
 import { useSatelliteActions } from './composables/useSatelliteActions'
-import SatelliteActionRow from './SatelliteActionRow.vue'
-import SatPolarPlot from './SatPolarPlot.vue'
-import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
-import BaseDataCell from '@sentinel/ui/base/BaseDataCell.vue'
-import SatRadioInfoSection from './SatRadioInfoSection.vue'
-import UpcomingPassesSection from './UpcomingPassesSection.vue'
+import { useLiveSatelliteTelemetry } from './composables/useLiveSatelliteTelemetry'
+import { useSatellitePreviewHover } from './composables/useSatellitePreviewHover'
+import SatelliteAccordionBody from './SatelliteAccordionBody.vue'
 import {
   SATELLITE_CATEGORY_ORDER,
   SATELLITE_CATEGORY_DISPLAY_NAMES,
   SATELLITE_CATEGORY_SECTION_LABELS,
   formatPassDuration,
-  formatPassTime,
-  formatPassDate,
 } from './utils/satelliteUtils'
 import {
   passKey,
@@ -150,7 +119,6 @@ import {
   findAutoTuneConflicts,
   type SatPass,
   type AccPass,
-  type SkyPoint,
 } from './spacePassesUtils'
 import './SatelliteAccordion.css'
 import './SpacePasses.css'
@@ -221,7 +189,13 @@ const visiblePasses = computed<SatPass[]>(() =>
 // past — at which point it simply matches no card and stays collapsed. Held on
 // the store so it survives navigation regardless of this pane's remount timing.
 const { passesExpandedKey: expandedKey } = storeToRefs(spaceStore)
-const liveTelemetry = ref<Record<string, string>>({})
+const {
+  telemetry: liveTelemetry,
+  liveAzEl,
+  reset: resetLiveTelemetry,
+} = useLiveSatelliteTelemetry(
+  (noradId) => !!expandedKey.value && expandedKey.value.startsWith(noradId),
+)
 
 const accLoading = ref(false)
 const accStatus = ref('COMPUTING PASSES…')
@@ -265,31 +239,10 @@ function conflictText(noradId: string): string {
   return `Overlaps ${c.name} @ ${t} — earlier pass keeps the radio${extra}`
 }
 
-// Exact observer-relative look-angles for the live satellite, supplied by the
-// backend on each position poll. Null until the first annotated update arrives.
-const liveAzEl = ref<SkyPoint | null>(null)
-
-// The pass to plot: the active (in-progress) pass if there is one, else the next.
-const polarPass = computed<AccPass | null>(() => {
-  if (!accPasses.value.length) return null
-  const active = accPasses.value.find((ap) => accPassIsNow(ap, now.value))
-  if (active) return active
-  return accPasses.value.find((ap) => ap.aos_unix_ms > now.value) ?? null
-})
-
-const polarTitle = computed(() => {
-  const p = polarPass.value
-  if (!p) return 'NEXT PASS'
-  const label = accPassIsNow(p, now.value) ? 'CURRENT PASS' : 'NEXT PASS'
-  return `${label} · ${formatPassDate(p.aos_utc)} ${formatPassTime(p.aos_utc)}`
-})
-
-// Show the live marker only while the plotted pass is actually in progress.
-const polarLive = computed<SkyPoint | null>(() => {
-  const p = polarPass.value
-  if (!p || !accPassIsNow(p, now.value)) return null
-  return liveAzEl.value
-})
+// This pane judges "in progress" against its ticked `now` (see SatPolarPassSection).
+function isAccPassNow(pass: AccPass): boolean {
+  return accPassIsNow(pass, now.value)
+}
 
 let fetchAbort: AbortController | null = null
 // The multi-satellite passes route walks every catalogued satellite on the
@@ -300,7 +253,7 @@ let accFetchAbort: AbortController | null = null
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 let tickInterval: ReturnType<typeof setInterval> | null = null
 let locationPoll: ReturnType<typeof setInterval> | null = null
-let clearPreviewTimer: ReturnType<typeof setTimeout> | null = null
+const { showPreview, schedulePreviewClear } = useSatellitePreviewHover(() => props.satelliteControl)
 // Set once the persisted expansion has been re-opened after mount. Later
 // pass refreshes must not re-select the satellite on the map (see
 // restoreExpandedAccordion).
@@ -420,8 +373,7 @@ function openAccordion(pass: SatPass, restoring = false): void {
   accPasses.value = []
   accStatus.value = 'COMPUTING PASSES…'
   accLoading.value = true
-  liveTelemetry.value = {}
-  liveAzEl.value = null
+  resetLiveTelemetry()
   const ctrl = props.satelliteControl
   if (ctrl && (!restoring || ctrl.activeNoradId === pass.norad_id)) {
     ctrl.switchSatellite(pass.norad_id, pass.name || pass.norad_id)
@@ -517,49 +469,7 @@ async function fetchAccordionPasses(noradId: string): Promise<void> {
 }
 
 function onMouseEnter(pass: SatPass): void {
-  if (clearPreviewTimer) {
-    clearTimeout(clearPreviewTimer)
-    clearPreviewTimer = null
-  }
-  props.satelliteControl?.previewSatellite(pass.norad_id, pass.name || pass.norad_id)
-}
-
-function onMouseLeave(): void {
-  if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
-  clearPreviewTimer = setTimeout(() => {
-    clearPreviewTimer = null
-    props.satelliteControl?.clearPreview()
-  }, 50)
-}
-
-function onSatPositionUpdate(e: Event): void {
-  if (!expandedKey.value) return
-  const { noradId, position } = (
-    e as CustomEvent<{
-      noradId: string
-      position: {
-        alt_km: number
-        velocity_kms: number
-        track_deg: number
-        lat: number
-        lon: number
-        az?: number
-        el?: number
-      }
-    }>
-  ).detail
-  if (!expandedKey.value.startsWith(noradId)) return
-  liveTelemetry.value = {
-    alt: `${position.alt_km} km`,
-    vel: `${position.velocity_kms} km/s`,
-    hdg: `${position.track_deg}°`,
-    lat: `${position.lat}°`,
-    lon: `${position.lon}°`,
-  }
-  // Use the backend-computed look-angles when present (exact); otherwise leave
-  // the live marker off rather than guessing.
-  liveAzEl.value =
-    position.az != null && position.el != null ? { az: position.az, el: position.el } : null
+  showPreview(pass.norad_id, pass.name || pass.norad_id)
 }
 
 onMounted(() => {
@@ -588,10 +498,8 @@ onUnmounted(() => {
   if (locationPoll) clearInterval(locationPoll)
   if (fetchAbort) fetchAbort.abort()
   if (accFetchAbort) accFetchAbort.abort()
-  if (clearPreviewTimer) clearTimeout(clearPreviewTimer)
 })
 
-useDocumentEvent('sat-position-update', onSatPositionUpdate)
 defineExpose({
   fetchPasses,
   minEl,
