@@ -2,6 +2,8 @@
   "air": {
     "aircraftIconStyle": "arrow",
     "enabled": true,
+    "historyEnabled": false,
+    "historyRetentionDays": 7,
     "labelDataPoints": {
       "civil": {
         "aircraftType": false,
@@ -77,6 +79,8 @@
       "repeaters"
     ],
     "enabled": false,
+    "historyEnabled": false,
+    "historyRetentionDays": 7,
     "labelDataPoints": {
       "altitude": false,
       "callsign": true,
@@ -159,6 +163,8 @@
       "ports"
     ],
     "enabled": true,
+    "historyEnabled": false,
+    "historyRetentionDays": 7,
     "labelDataPoints": {
       "course": false,
       "destination": false,
@@ -177,6 +183,8 @@
   "space": {
     "enabled": true,
     "filterHoverPreview": "stay",
+    "historyEnabled": false,
+    "historyRetentionDays": 7,
     "onlineUrl": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
     "onlineUrls": {
       "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",

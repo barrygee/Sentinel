@@ -211,6 +211,101 @@
       }
     ]
   },
+  "air_position_history": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "entity_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "t_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "lat",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "lon",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "alt",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "heading",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "speed",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "source_mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "extra",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "t_ms"
+        ],
+        "name": "ix_air_position_history_t_ms",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "entity_id",
+          "t_ms"
+        ],
+        "name": "uq_air_position_history_entity_t"
+      }
+    ]
+  },
   "air_tracking": {
     "columns": [
       {
@@ -508,6 +603,101 @@
       "id"
     ],
     "unique_constraints": []
+  },
+  "land_position_history": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "entity_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "t_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "lat",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "lon",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "alt",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "heading",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "speed",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "source_mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "extra",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "t_ms"
+        ],
+        "name": "ix_land_position_history_t_ms",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "entity_id",
+          "t_ms"
+        ],
+        "name": "uq_land_position_history_entity_t"
+      }
+    ]
   },
   "offline_map_region": {
     "columns": [
@@ -1691,6 +1881,101 @@
     ],
     "unique_constraints": []
   },
+  "sea_position_history": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "entity_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "t_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "lat",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "lon",
+        "nullable": false,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "alt",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "heading",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "speed",
+        "nullable": true,
+        "primary_key": false,
+        "type": "FLOAT"
+      },
+      {
+        "default": null,
+        "name": "source_mode",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "extra",
+        "nullable": true,
+        "primary_key": false,
+        "type": "TEXT"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "t_ms"
+        ],
+        "name": "ix_sea_position_history_t_ms",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "entity_id",
+          "t_ms"
+        ],
+        "name": "uq_sea_position_history_entity_t"
+      }
+    ]
+  },
   "sea_vessel_cache": {
     "columns": [
       {
@@ -1811,6 +2096,73 @@
           "mmsi"
         ],
         "name": null
+      }
+    ]
+  },
+  "space_tle_history": {
+    "columns": [
+      {
+        "default": null,
+        "name": "id",
+        "nullable": false,
+        "primary_key": true,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "norad_id",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "epoch_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      },
+      {
+        "default": null,
+        "name": "line1",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "line2",
+        "nullable": false,
+        "primary_key": false,
+        "type": "TEXT"
+      },
+      {
+        "default": null,
+        "name": "recorded_ms",
+        "nullable": false,
+        "primary_key": false,
+        "type": "INTEGER"
+      }
+    ],
+    "indexes": [
+      {
+        "column_names": [
+          "recorded_ms"
+        ],
+        "name": "ix_space_tle_history_recorded_ms",
+        "unique": false
+      }
+    ],
+    "primary_key_columns": [
+      "id"
+    ],
+    "unique_constraints": [
+      {
+        "column_names": [
+          "norad_id",
+          "epoch_ms"
+        ],
+        "name": "uq_space_tle_history_norad_epoch"
       }
     ]
   },
