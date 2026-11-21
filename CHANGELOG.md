@@ -311,6 +311,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Report the address other Sentinels add this machine by
 - Show this machine's details on the operator marker
 - Fan out overlapping SDR sites from town zoom instead of counting them
+- List a count's sites in its hover tag
 
 ### Bug Fixes
 
@@ -1975,6 +1976,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #687 from barrygee/fix/map-this-machine-drawn-twice
 - Merge pull request #688 from barrygee/fix/this-machine-marker-details
 - Merge pull request #689 from barrygee/feat/fan-out-crowded-sites
+- Merge pull request #690 from barrygee/feat/count-tag-lists-sites
 
 ### Performance
 
@@ -2353,6 +2355,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover this machine's tag on the operator marker
 - Cover untagged markers and give the section marker fakes setDetails
 - Cover fanning out overlapping SDR sites
+- Cover the count's hover tag
+- Read a count's number, and show its tag on hover
 
 ### Build System
 
@@ -2517,6 +2521,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the shell for this machine's map tag
 - Rebuild the shell for the untagged marker fix
 - Rebuild the shell for fanned-out SDR sites
+- Rebuild bundle for the count's hover tag
 
 ### Continuous Integration
 
