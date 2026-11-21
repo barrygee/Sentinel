@@ -1,3 +1,4 @@
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { useSpaceStore } from '../../stores/space'
@@ -48,6 +49,8 @@ export class SatelliteControl extends SentinelControlBase {
   private _onSwitchSat: ((noradId: string, name: string) => void) | null
 
   private _pollInterval: ReturnType<typeof setInterval> | null = null
+  private _replaying = false
+  private readonly _playback = usePlaybackStore()
   _lastPosition: IssPosition | null = null
   private _label = new SatelliteLabel(() => this.map)
   _followEnabled = false
@@ -378,10 +381,31 @@ export class SatelliteControl extends SentinelControlBase {
   /** `?lat=&lon=` for the observer location, or '' when unknown. Lets the
    *  backend annotate the live position with exact look-angles (az/el). */
   private _obsQuery(): string {
+    const query = new URLSearchParams()
     const loc = this._getUserLocation()
-    if (!loc) return ''
-    const [lon, lat] = loc
-    return `?lat=${lat}&lon=${lon}`
+    if (loc) {
+      const [lon, lat] = loc
+      query.set('lat', String(lat))
+      query.set('lon', String(lon))
+    }
+    // Replay: the backend recomputes position, track and footprint for the
+    // replayed moment from the orbital elements stored then.
+    if (this._playback.isReplaying('space'))
+      query.set('at', String(Math.floor(this._playback.now('space'))))
+    const text = query.toString()
+    return text ? `?${text}` : ''
+  }
+
+  /**
+   * Follow replay: poll every second while replaying (a satellite covers ~450 km
+   * of orbit per second of 60× playback) and every 5 s live, starting with an
+   * immediate fetch so a seek or the switch shows at once.
+   */
+  setReplaying(replaying: boolean): void {
+    this._replaying = replaying
+    this._stopPolling()
+    this._startPolling()
+    void this._fetch()
   }
 
   async _fetch(): Promise<void> {
@@ -505,7 +529,7 @@ export class SatelliteControl extends SentinelControlBase {
 
   _startPolling(): void {
     if (this._pollInterval) return
-    this._pollInterval = setInterval(() => this._fetch(), 5000)
+    this._pollInterval = setInterval(() => this._fetch(), this._replaying ? 1000 : 5000)
   }
   private _stopPolling(): void {
     if (this._pollInterval) {

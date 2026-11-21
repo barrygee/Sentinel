@@ -1,3 +1,4 @@
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { useLandStore, type AprsLabelFieldMap } from './stores/land'
 import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 
@@ -8,6 +9,7 @@ import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
  * never been written.
  */
 export function hydrateLandFromSettings(settings: AllSettings): void {
+  usePlaybackStore().applyHistorySettings('land', settings.land)
   const landStore = useLandStore()
   const remoteAprsFields = settings.land?.labelDataPoints as Partial<AprsLabelFieldMap> | undefined
   if (

@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { flushPromises } from '@vue/test-utils'
 import type * as maplibregl from 'maplibre-gl'
 
@@ -402,6 +403,43 @@ describe('SatelliteControl._obsQuery', () => {
     expect(
       fetchMock.mock.calls.some((call) => String(call[0]) === '/api/space/iss?lat=34&lon=12'),
     ).toBe(true)
+    control.onRemove()
+  })
+})
+
+describe('SatelliteControl replay', () => {
+  const NOW = Date.UTC(2026, 10, 20, 12, 0, 0)
+
+  it('asks for the replayed moment, with the observer, and polls every second', async () => {
+    userLocation = [12, 34]
+    net.tleTotal = 5
+    const { control } = await mounted()
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    usePlaybackStore().enterReplay('space', NOW - 3_600_000)
+    control.setReplaying(true)
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toBe(
+      `/api/space/iss?lat=34&lon=12&at=${NOW - 3_600_000}`,
+    )
+    fetchMock.mockClear()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(
+      fetchMock.mock.calls.filter((call) => String(call[0]).startsWith('/api/space/iss')).length,
+    ).toBe(3)
+    usePlaybackStore().exitReplay('space')
+    control.setReplaying(false)
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toBe('/api/space/iss?lat=34&lon=12')
+    control.onRemove()
+    vi.useRealTimers()
+  })
+
+  it('without a location asks for just the moment', async () => {
+    userLocation = null
+    net.tleTotal = 5
+    const { control } = await mounted()
+    usePlaybackStore().enterReplay('space', NOW)
+    control.setReplaying(true)
+    expect(String(fetchMock.mock.calls.at(-1)![0])).toMatch(/^\/api\/space\/iss\?at=\d+$/)
     control.onRemove()
   })
 })

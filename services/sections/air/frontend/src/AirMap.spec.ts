@@ -1,3 +1,4 @@
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
@@ -62,6 +63,10 @@ const controlMocks = vi.hoisted(() => {
       // TerrainToggleControl's own method, called by useOfflineTierRefresh
       // when the offline tiers version changes while showing the offline style.
       refreshTiles = vi.fn()
+      // AdsbLiveControl's replay hooks, driven by useSectionReplay.
+      enterReplay = vi.fn()
+      exitReplay = vi.fn()
+      refreshReplay = vi.fn()
       constructor(...args: unknown[]) {
         this.args = args
         ;(instances[name] ||= []).push(this as unknown as Record<string, unknown>)
@@ -887,6 +892,40 @@ describe('AirMap', () => {
       wrapper.unmount()
       expect(saveSpy).not.toHaveBeenCalled()
       expect(shared.ctx!.detach).toHaveBeenCalledWith(null)
+    })
+  })
+
+  describe('replay', () => {
+    it('swaps the ADS-B feed in and out of replay and redraws on a jump', async () => {
+      const wrapper = mountMap()
+      bringUp(makeFakeMap())
+      const playback = usePlaybackStore()
+      playback.enterReplay('air')
+      await wrapper.vm.$nextTick()
+      expect(last('adsb').enterReplay).toHaveBeenCalledTimes(1)
+      playback.seek('air', Date.now() - 60_000)
+      await wrapper.vm.$nextTick()
+      expect(last('adsb').refreshReplay).toHaveBeenCalled()
+      playback.exitReplay('air')
+      await wrapper.vm.$nextTick()
+      expect(last('adsb').exitReplay).toHaveBeenCalledTimes(1)
+    })
+
+    it('opened mid-replay, starts the new control on the recording', () => {
+      usePlaybackStore().enterReplay('air')
+      mountMap()
+      bringUp(makeFakeMap())
+      expect(last('adsb').enterReplay).toHaveBeenCalledTimes(1)
+    })
+
+    it('a replay change before the map is up is harmless', async () => {
+      const wrapper = mountMap()
+      const playback = usePlaybackStore()
+      playback.enterReplay('air')
+      playback.seek('air', Date.now() - 1000)
+      playback.exitReplay('air')
+      await wrapper.vm.$nextTick()
+      expect(controlMocks.instances.adsb).toBeUndefined()
     })
   })
 })

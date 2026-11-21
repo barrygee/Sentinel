@@ -11,6 +11,7 @@
       :location-active="locationActive"
     />
     <NoUrlOverlay domain="sea" />
+    <SectionPlaybackBar section-id="sea" section-label="Sea" />
     <SeaSourceNotice :feed="seaStore.feed" />
     <!-- msb-pane-search lives in MapSidebar, a sibling of <RouterView> in
          App.vue — see useSidebarPaneTarget for why this waits rather than
@@ -22,6 +23,7 @@
 </template>
 
 <script setup lang="ts">
+import SectionPlaybackBar from '@sentinel/shell-api/playback/SectionPlaybackBar.vue'
 import { ref, computed } from 'vue'
 import SeaMap from './SeaMap.vue'
 import SeaSideMenu from './SeaSideMenu.vue'

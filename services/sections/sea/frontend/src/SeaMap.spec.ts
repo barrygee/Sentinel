@@ -149,6 +149,7 @@ import SeaMap from './SeaMap.vue'
 import { absoluteSpriteTransform } from '@sentinel/map-kit/utils/mapStyle'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useSeaStore } from './stores/sea'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
@@ -551,5 +552,30 @@ describe('SeaMap', () => {
     const wrapper = mountMap()
     expect(() => wrapper.unmount()).not.toThrow()
     expect(useSeaStore().mapCenter).toBeNull()
+  })
+
+  describe('replay', () => {
+    it('swaps the store in and out of replay, redraws on a jump and stops on unmount', async () => {
+      const store = useSeaStore()
+      const start = vi.spyOn(store, 'startReplay').mockImplementation(() => {})
+      const stop = vi.spyOn(store, 'stopReplay').mockImplementation(() => {})
+      const refresh = vi.spyOn(store, 'refreshReplay').mockImplementation(() => {})
+      const wrapper = mountMap()
+      const playback = usePlaybackStore()
+      playback.enterReplay('sea')
+      await wrapper.vm.$nextTick()
+      expect(start).toHaveBeenCalledTimes(1)
+      playback.seek('sea', Date.now() - 60_000)
+      await wrapper.vm.$nextTick()
+      expect(refresh).toHaveBeenCalled()
+      playback.exitReplay('sea')
+      await wrapper.vm.$nextTick()
+      expect(stop).toHaveBeenCalledTimes(1)
+      playback.enterReplay('sea')
+      await wrapper.vm.$nextTick()
+      wrapper.unmount()
+      // Left mid-replay: the store's replay timer must not outlive the map.
+      expect(stop).toHaveBeenCalledTimes(2)
+    })
   })
 })

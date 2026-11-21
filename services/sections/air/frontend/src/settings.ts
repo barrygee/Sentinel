@@ -1,3 +1,4 @@
+import { historySettingItem } from '@sentinel/shell-api/playback/historySettingItem'
 import {
   registerSettingItems,
   registerSettingsSection,
@@ -167,4 +168,7 @@ export function registerAirSettings(): void {
       groupLabel: 'ALERTS',
     },
   ])
+
+  // History & Replay (REPLAY group): record on/off, days kept, what is stored.
+  registerSettingItems([historySettingItem('air', 'AIR', 'aircraft positions')])
 }

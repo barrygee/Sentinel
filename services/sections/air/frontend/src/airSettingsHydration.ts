@@ -1,3 +1,4 @@
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { AIRCRAFT_ICON_STYLE_SETTING, useAirStore, type AdsbTagFields } from './stores/air'
 import type { AllSettings } from '@sentinel/shell-api/shell/settingsHydration'
 
@@ -33,6 +34,7 @@ const DEFAULT_LABEL_DATA_POINTS = {
  * what the map draws from the first frame.
  */
 export function hydrateAirFromSettings(settings: AllSettings): void {
+  usePlaybackStore().applyHistorySettings('air', settings.air)
   const airStore = useAirStore()
   airStore.hydrateMapLayers(settings.air?.mapLayers)
   airStore.hydrateAircraftIconStyle(settings.air?.[AIRCRAFT_ICON_STYLE_SETTING])
