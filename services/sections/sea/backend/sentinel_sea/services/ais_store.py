@@ -34,6 +34,7 @@ from sqlalchemy import delete, or_, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from sentinel_sea.models import SeaVesselCache, SeaVesselStatic
+from sentinel_sea.services import sea_history
 
 logger = logging.getLogger(__name__)
 
@@ -251,12 +252,18 @@ class AisVesselStore:
 
     # ── ingest ────────────────────────────────────────────────────────────────
 
-    def ingest_envelope(self, envelope: dict[str, Any], received_ms: int | None = None) -> bool:
+    def ingest_envelope(
+        self, envelope: dict[str, Any], received_ms: int | None = None, source_mode: str | None = None
+    ) -> bool:
         """Store one parsed AISStream envelope.
 
         Returns True only when the envelope carried a recognisable AIS record
         with an MMSI — that is the feed's liveness proof, so a well-formed JSON
         frame that says nothing about a vessel must not count.
+
+        `source_mode` ('online' | 'offgrid') names the feed that heard it, for
+        replay history; each caller knows its own, which stays right even in
+        the seconds before the reader's tick notices a source switch.
         """
         if not isinstance(envelope, dict):
             return False
@@ -331,6 +338,7 @@ class AisVesselStore:
         if self.newest_position_ms is None or position_ms > self.newest_position_ms:
             self.newest_position_ms = position_ms
         self._append_track_sample(mmsi, latitude, longitude, position_ms // 1000)
+        sea_history.record_vessel(record, source_mode or self.source_mode or "online")
         self._mark_dirty(mmsi)
         # Expiry is swept by the reader's watchdog tick, not here: a full pass
         # over tens of thousands of vessels on every message (hundreds a second

@@ -392,7 +392,7 @@ class AisStreamReader:
             self.error = error_text
             logger.warning("Sea: AISStream error envelope: %s", error_text)
             return
-        if self.store.ingest_envelope(envelope, self._now()):
+        if self.store.ingest_envelope(envelope, self._now(), source_mode="online"):
             self.last_message_at = self._now()
             if self.status != "live":
                 self.status = "live"

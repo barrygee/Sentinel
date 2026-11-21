@@ -150,7 +150,7 @@ def ingest_event(event: dict[str, Any]) -> bool:
     envelope = envelope_from_event(event)
     if envelope is None:
         return False
-    return ais_store.store.ingest_envelope(envelope)
+    return ais_store.store.ingest_envelope(envelope, source_mode="offgrid")
 
 
 async def _on_decode_event(payload: dict) -> None:

@@ -58,7 +58,11 @@ class TestCreateSeaTables:
         await sea_database.create_sea_tables()
 
         # No user_settings: the AISStream key is a setting, kept in core.
-        assert set(await table_columns(sea_engine)) == {"sea_vessel_cache", "sea_vessel_static"}
+        assert set(await table_columns(sea_engine)) == {
+            "sea_vessel_cache",
+            "sea_vessel_static",
+            "sea_position_history",
+        }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, sea_engine):
         await sea_database.create_sea_tables()
@@ -81,7 +85,9 @@ class TestCreateSeaTables:
         await sea_database.create_sea_tables()
         await sea_database.create_sea_tables()
 
-        assert set(await table_columns(sea_engine)) == set(sea_database.SEA_TABLES)
+        assert set(await table_columns(sea_engine)) == set(
+            sea_database.SEA_TABLES + sea_database.SEA_SERVICE_ONLY_TABLES
+        )
 
 
 class FakeCore:
