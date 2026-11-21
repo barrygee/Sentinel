@@ -337,6 +337,23 @@ defineExpose({ getMap })
   display: flex;
 }
 
+/* A count's tag: the same pill, listing the marks it stands for. The count is
+   32px across, not 60, so the pill starts at its centre — 16px in — and the
+   pill's 16px masked circle is exactly the count's ring. The count's own
+   styles centre its digits; the tag's lines read from the left. */
+.sdr-manager-cluster-marker {
+  font-family: 'Barlow', 'Helvetica Neue', Arial, sans-serif;
+}
+
+.sdr-manager-cluster-marker .sdr-manager-map-marker-info {
+  left: 16px;
+}
+
+.sdr-manager-cluster-marker:hover .sdr-manager-map-marker-info,
+.sdr-manager-cluster-marker:focus-visible .sdr-manager-map-marker-info {
+  display: flex;
+}
+
 .sdr-manager-map-marker-name {
   display: flex;
   align-items: center;

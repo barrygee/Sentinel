@@ -194,12 +194,29 @@ test.describe('SDR host sites on the map', () => {
     })
     const counts = page.locator('.sdr-manager-cluster-marker')
     await expect(counts).toHaveCount(1)
-    await expect(counts.first()).toHaveText('2')
+    // The number itself — the button also carries the tag listing the sites.
+    await expect(counts.first().locator('.sdr-manager-cluster-count')).toHaveText('2')
     await expect(page.locator('.sdr-manager-map-marker')).toHaveCount(0)
 
     // One click on the count is enough to take the group apart.
     await counts.first().click()
     await expect(page.locator('.sdr-manager-map-marker')).toHaveCount(2)
     await expect(counts).toHaveCount(0)
+  })
+
+  test('hovering a count shows a tag naming the sites in it', async ({ page }) => {
+    await openMapWithSites(page)
+    await page.evaluate(() => {
+      const map = (window as unknown as { map: maplibregl.Map }).map
+      map.jumpTo({ center: [-1.7, 53.7], zoom: 2 })
+    })
+    const count = page.locator('.sdr-manager-cluster-marker')
+    await expect(count).toHaveCount(1)
+    const tag = count.locator('.sdr-manager-map-marker-info')
+    // Hidden until asked for, so a count stays a small circle on the map.
+    await expect(tag).toBeHidden()
+    await count.hover()
+    await expect(tag).toBeVisible()
+    await expect(tag.locator('.sdr-manager-map-marker-name')).toHaveText(['Gateshead', 'Barn Pi'])
   })
 })

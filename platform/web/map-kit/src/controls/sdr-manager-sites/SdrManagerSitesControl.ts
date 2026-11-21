@@ -12,7 +12,11 @@ import {
   type ScreenPosition,
 } from '@sentinel/map-kit/map-cluster/mapCluster'
 import { setMarkerAccessibleName } from '@sentinel/map-kit/map-label/mapMarkerAria'
-import { buildMarkerDetailsPill } from '@sentinel/map-kit/map-label/markerDetailsPill'
+import {
+  buildCountDetailsPill,
+  buildMarkerDetailsPill,
+  type CountedMarkerEntry,
+} from '@sentinel/map-kit/map-label/markerDetailsPill'
 import { formatLatitude, formatLongitude } from '@sentinel/map-kit/utils/locationUtils'
 import type { RadioSite } from '@sentinel/shell-api/shell/radioSitesCapability'
 import { siteAddress, siteLabel } from '@sentinel/map-kit/utils/sdrManagerSiteLabel'
@@ -61,9 +65,9 @@ export class SdrManagerSitesControl extends SentinelControlBase {
   /** Each marker's site name when it was built, so a renamed site is rebuilt. */
   private _markerNames = new Map<string, string>()
   private _clusterMarkers = new Map<string, maplibregl.Marker>()
-  /** How many sites each count stands for, so it is only rebuilt when that
-   *  number changes. */
-  private _clusterCounts = new Map<string, number>()
+  /** What each count lists, so it is only rebuilt when that changes — its
+   *  number, or which marks it stands for. */
+  private _clusterSignatures = new Map<string, string>()
   private readonly _getUserLocation: () => [number, number] | null
   private readonly _userMarker: OperatorMarker | null
   private _onMapMoveEnd: (() => void) | null = null
@@ -242,7 +246,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       if (seenClusters.has(key)) continue
       marker.remove()
       this._clusterMarkers.delete(key)
-      this._clusterCounts.delete(key)
+      this._clusterSignatures.delete(key)
     }
   }
 
@@ -430,13 +434,17 @@ export class SdrManagerSitesControl extends SentinelControlBase {
    *  the group when it is clicked. */
   private _syncClusterMarker(cluster: SdrManagerCluster): void {
     const coords: [number, number] = [cluster.longitude, cluster.latitude]
+    const entries = this._countedEntries(cluster)
+    const signature = JSON.stringify(entries)
     const existing = this._clusterMarkers.get(cluster.key)
-    if (existing && this._clusterCounts.get(cluster.key) === cluster.memberCount) {
+    if (existing && this._clusterSignatures.get(cluster.key) === signature) {
       existing.setLngLat(coords)
       return
     }
+    // Built afresh when what it lists changes: its tag and accessible name are
+    // fixed when it is made, like a site marker's.
     existing?.remove()
-    const countLabel = clusterLabel(cluster)
+    const countLabel = clusterLabel(cluster, entries)
     const element = buildCountMarker({
       count: cluster.memberCount,
       ariaLabel: countLabel,
@@ -446,6 +454,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       fillColor: SDR_MANAGER_COUNT_FILL,
       textColor: SDR_MANAGER_COUNT_TEXT,
     })
+    element.appendChild(buildCountDetailsPill(entries))
     element.addEventListener('click', (domEvent: Event) => {
       domEvent.stopPropagation()
       // Far enough in to take the group apart, wherever the operator started
@@ -464,7 +473,20 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       .addTo(this.map)
     setMarkerAccessibleName(marker, countLabel)
     this._clusterMarkers.set(cluster.key, marker)
-    this._clusterCounts.set(cluster.key, cluster.memberCount)
+    this._clusterSignatures.set(cluster.key, signature)
+  }
+
+  /** The marks a count stands for, as its tag lists them: this machine first
+   *  when the operator's own ⊙ is among them, under the name its own tag uses,
+   *  then each site. */
+  private _countedEntries(cluster: SdrManagerCluster): CountedMarkerEntry[] {
+    const siteEntries = cluster.sites.map((site) => ({
+      name: siteLabel(site),
+      reachable: site.reachable,
+    }))
+    if (!cluster.holdsUserLocation) return siteEntries
+    const { name, reachable } = this._thisMachineDetails()
+    return [{ name, reachable }, ...siteEntries]
   }
 
   // ── accessibility ──────────────────────────────────────────────────────────
@@ -520,7 +542,7 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     this._markerNames.clear()
     for (const marker of this._clusterMarkers.values()) marker.remove()
     this._clusterMarkers.clear()
-    this._clusterCounts.clear()
+    this._clusterSignatures.clear()
   }
 }
 
@@ -600,13 +622,15 @@ const USER_LOCATION_KEY = 'user-location'
  *
  * Names the operator's own position when it is one of the marks counted:
  * otherwise the number would be one higher than the sites it appears to
- * summarise, which reads as a miscount.
+ * summarise, which reads as a miscount. Then lists every mark by name, as the
+ * count's tag does, so a screen reader hears what is here without zooming.
  */
-function clusterLabel(cluster: SdrManagerCluster): string {
+function clusterLabel(cluster: SdrManagerCluster, entries: CountedMarkerEntry[]): string {
   const subject = cluster.holdsUserLocation
-    ? `${cluster.memberCount} markers here, including your location,`
+    ? `${cluster.memberCount} markers here, including your location`
     : `${cluster.memberCount} SDR sites here`
-  return `${subject} — zoom in to see them`
+  const names = entries.map((entry) => entry.name).join(', ')
+  return `${subject}: ${names} — zoom in to see them`
 }
 
 /** Everything a site marker says, as its accessible name — the same values its

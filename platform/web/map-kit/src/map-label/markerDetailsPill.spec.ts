@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { buildMarkerDetailsPill, type MarkerDetails } from './markerDetailsPill'
+import {
+  buildCountDetailsPill,
+  buildMarkerDetailsPill,
+  type MarkerDetails,
+} from './markerDetailsPill'
 
 function details(overrides: Partial<MarkerDetails> = {}): MarkerDetails {
   return {
@@ -75,5 +79,63 @@ describe('buildMarkerDetailsPill', () => {
 
   it('is hidden from assistive tech, which hears the marker name instead', () => {
     expect(buildMarkerDetailsPill(details()).getAttribute('aria-hidden')).toBe('true')
+  })
+})
+
+describe('buildCountDetailsPill', () => {
+  it('gives one name line per counted mark, in the order given', () => {
+    const pill = buildCountDetailsPill([
+      { name: 'This machine', reachable: true },
+      { name: 'Roof Pi', reachable: false },
+      { name: 'Shed', reachable: null },
+    ])
+    expect(pill.className).toBe('sdr-manager-map-marker-info')
+    expect([...pill.children].map((child) => child.className)).toEqual([
+      'sdr-manager-map-marker-name',
+      'sdr-manager-map-marker-name',
+      'sdr-manager-map-marker-name',
+    ])
+    expect([...pill.children].map((child) => child.textContent)).toEqual([
+      'This machine',
+      'Roof Pi',
+      'Shed',
+    ])
+  })
+
+  it('leads each name with its own status dot: online, off air, or unknown grey', () => {
+    const pill = buildCountDetailsPill([
+      { name: 'Up', reachable: true },
+      { name: 'Down', reachable: false },
+      { name: 'Unknown', reachable: null },
+    ])
+    expect([...pill.children].map((line) => line.firstElementChild!.className)).toEqual([
+      'sdr-manager-map-marker-status sdr-manager-map-marker-status--online',
+      'sdr-manager-map-marker-status sdr-manager-map-marker-status--offair',
+      'sdr-manager-map-marker-status',
+    ])
+  })
+
+  it('carries names only — no position or address lines', () => {
+    const pill = buildCountDetailsPill([{ name: 'Roof Pi', reachable: true }])
+    expect(pill.querySelector('.sdr-manager-map-marker-coords')).toBeNull()
+    expect(pill.querySelector('.sdr-manager-map-marker-meta')).toBeNull()
+  })
+
+  it('is hidden from screen readers, since the count names the same marks', () => {
+    expect(
+      buildCountDetailsPill([{ name: 'A', reachable: true }]).getAttribute('aria-hidden'),
+    ).toBe('true')
+  })
+
+  it('is an empty tag when given nothing to list', () => {
+    expect(buildCountDetailsPill([]).children).toHaveLength(0)
+  })
+
+  it('keeps names as text, never markup', () => {
+    const pill = buildCountDetailsPill([
+      { name: '<img src=x onerror="alert(1)">', reachable: true },
+    ])
+    expect(pill.querySelector('img')).toBeNull()
+    expect(pill.textContent).toBe('<img src=x onerror="alert(1)">')
   })
 })
