@@ -1,0 +1,33 @@
+/* The pill look shared by the replay timeline's buttons (transport, speed, GO, LIVE). */
+.playback-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0 8px;
+  font-family: var(--font-primary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--rail-ink);
+  background: var(--rail-surface);
+  border: 1px solid var(--rail-border);
+  cursor: pointer;
+}
+.playback-pill:hover {
+  background: var(--hover-surface);
+}
+.playback-pill:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.playback-pill--primary,
+.playback-pill--active {
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.playback-pill--live {
+  letter-spacing: 0.14em;
+}
