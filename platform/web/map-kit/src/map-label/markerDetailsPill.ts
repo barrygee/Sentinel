@@ -30,13 +30,7 @@ export function buildMarkerDetailsPill(details: MarkerDetails): HTMLElement {
 
   // The status dot leads the name, so whether a site is up is the first thing
   // read rather than something noticed halfway down the panel.
-  const name = document.createElement('span')
-  name.className = 'sdr-manager-map-marker-name'
-  const statusDot = document.createElement('span')
-  statusDot.className = statusDotClass(details.reachable)
-  name.appendChild(statusDot)
-  name.appendChild(document.createTextNode(details.name))
-  pill.appendChild(name)
+  pill.appendChild(buildNameLine(details.name, details.reachable))
 
   // Position before address: where a site is says more about the mark the
   // operator is looking at than how Sentinel reaches it.
@@ -53,6 +47,42 @@ export function buildMarkerDetailsPill(details: MarkerDetails): HTMLElement {
   }
 
   return pill
+}
+
+/** One line of a count's tag: a mark the count stands for. */
+export interface CountedMarkerEntry {
+  name: string
+  /** Whether it is up; `null` draws the status dot grey, as an unknown. */
+  reachable: boolean | null
+}
+
+/**
+ * The tag that hangs off a count on hover: one line per mark it stands for, each
+ * with the same status dot and name a single ⊙ marker's pill leads with.
+ *
+ * Built from the same pieces as `buildMarkerDetailsPill`, so a count's tag reads
+ * as the stacked first lines of the tags it is hiding. Names only — positions
+ * and addresses would make a long count's tag a wall of figures, and one click
+ * on the count shows each mark with its own full tag. `aria-hidden` for the
+ * same reason as that pill: the count's accessible name lists the same names.
+ */
+export function buildCountDetailsPill(entries: CountedMarkerEntry[]): HTMLElement {
+  const pill = document.createElement('span')
+  pill.className = 'sdr-manager-map-marker-info'
+  pill.setAttribute('aria-hidden', 'true')
+  for (const entry of entries) pill.appendChild(buildNameLine(entry.name, entry.reachable))
+  return pill
+}
+
+/** A status dot followed by a name — the line every ⊙ tag leads with. */
+function buildNameLine(markerName: string, reachable: boolean | null): HTMLElement {
+  const line = document.createElement('span')
+  line.className = 'sdr-manager-map-marker-name'
+  const statusDot = document.createElement('span')
+  statusDot.className = statusDotClass(reachable)
+  line.appendChild(statusDot)
+  line.appendChild(document.createTextNode(markerName))
+  return line
 }
 
 /** The status dot's classes: green online, red off air, plain grey unknown. */
