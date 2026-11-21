@@ -396,7 +396,7 @@ describe('SdrManagerSitesControl', () => {
       expect(siteMarkers()).toHaveLength(1) // the one clear of the others
       const count = clusterMarkers()[0]!.element
       expect(count.querySelector('.sdr-manager-cluster-count')!.textContent).toBe('2')
-      expect(count.getAttribute('aria-label')).toBe('2 SDR sites here — zoom in to see them')
+      expect(count.getAttribute('aria-label')).toBe('2 SDR sites here: A, B — zoom in to see them')
     })
 
     it('rings the count in the shared dark ring', () => {
@@ -647,6 +647,130 @@ describe('SdrManagerSitesControl', () => {
     })
   })
 
+  describe("a count's tag", () => {
+    /** Two sites close enough to share a count. */
+    function pairedSites(overrides: Partial<RadioSite> = {}): RadioSite[] {
+      return [
+        site({ id: 1, name: 'A', longitude: 0, latitude: 0 }),
+        site({ id: 2, name: 'B', longitude: 0.000_01, latitude: 0, ...overrides }),
+      ]
+    }
+
+    /** The tag hanging off the one count on the map. */
+    function countTag(): HTMLElement {
+      return details(clusterMarkers()[0]!)
+    }
+
+    /** Each line of that tag, as name and status-dot class. */
+    function tagLines(): { name: string; status: string }[] {
+      return [...countTag().querySelectorAll('.sdr-manager-map-marker-name')].map((line) => ({
+        name: line.textContent!,
+        status: line.querySelector('.sdr-manager-map-marker-status')!.className,
+      }))
+    }
+
+    const ONLINE = 'sdr-manager-map-marker-status sdr-manager-map-marker-status--online'
+    const OFF_AIR = 'sdr-manager-map-marker-status sdr-manager-map-marker-status--offair'
+
+    it('lists every site the count stands for, each with its status', () => {
+      sitesStore.sites = pairedSites({ reachable: false })
+      addControl()
+      expect(tagLines()).toEqual([
+        { name: 'A', status: ONLINE },
+        { name: 'B', status: OFF_AIR },
+      ])
+    })
+
+    it('shows names only — no positions or addresses to wade through', () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      expect(countTag().querySelector('.sdr-manager-map-marker-coords')).toBeNull()
+      expect(countTag().querySelector('.sdr-manager-map-marker-meta')).toBeNull()
+    })
+
+    it('is hidden from screen readers, which hear the names in the count’s own name', () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      expect(countTag().getAttribute('aria-hidden')).toBe('true')
+    })
+
+    it('leaves the count’s face as the bare number', () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      expect(
+        clusterMarkers()[0]!.element.querySelector('.sdr-manager-cluster-count')!.textContent,
+      ).toBe('2')
+    })
+
+    it('lists this machine first, under its own tag’s name and status, when the operator is counted', () => {
+      sitesStore.sites = [
+        site({ id: 7, name: 'Local', is_local: true, reachable: false, longitude: 0, latitude: 0 }),
+        site({ id: 2, name: 'Roof Pi', longitude: 0.000_01, latitude: 0 }),
+      ]
+      addControl({ userLocation: [0, 0] })
+      // This machine's own site is never drawn as a site, so it appears once:
+      // as the operator's line, not again under its site name.
+      expect(tagLines()).toEqual([
+        { name: 'This machine', status: OFF_AIR },
+        { name: 'Roof Pi', status: ONLINE },
+      ])
+    })
+
+    it('draws this machine’s status grey when its SDR Manager is not reporting', () => {
+      sitesStore.sites = [site({ id: 2, name: 'Roof Pi', longitude: 0.000_01, latitude: 0 })]
+      addControl({ userLocation: [0, 0] })
+      expect(tagLines()[0]).toEqual({
+        name: 'This machine',
+        status: 'sdr-manager-map-marker-status',
+      })
+    })
+
+    it('follows the machine name as it is applied', async () => {
+      sitesStore.sites = [site({ id: 2, name: 'Roof Pi', longitude: 0.000_01, latitude: 0 })]
+      addControl({ userLocation: [0, 0] })
+      useAppStore().setMachineName('Home')
+      await nextTick()
+      expect(tagLines()[0]!.name).toBe('Home (This machine)')
+      expect(clusterMarkers()[0]!.element.getAttribute('aria-label')).toContain(
+        'Home (This machine), Roof Pi',
+      )
+    })
+
+    it('is rebuilt when a different site takes a place in the count, though the number holds', async () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      const firstCount = clusterMarkers()[0]!
+      sitesStore.sites = [
+        site({ id: 1, name: 'A', longitude: 0, latitude: 0 }),
+        site({ id: 3, name: 'D', longitude: 0.000_01, latitude: 0 }),
+      ]
+      await nextTick()
+      expect(firstCount.removed).toBe(true)
+      expect(tagLines().map((line) => line.name)).toEqual(['A', 'D'])
+      expect(clusterMarkers()[0]!.element.getAttribute('aria-label')).toBe(
+        '2 SDR sites here: A, D — zoom in to see them',
+      )
+    })
+
+    it('is rebuilt when a counted site goes off air', async () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      const firstCount = clusterMarkers()[0]!
+      sitesStore.sites = pairedSites({ reachable: false })
+      await nextTick()
+      expect(firstCount.removed).toBe(true)
+      expect(tagLines()[1]!.status).toBe(OFF_AIR)
+    })
+
+    it('is rebuilt when a counted site is renamed', async () => {
+      sitesStore.sites = pairedSites()
+      addControl()
+      sitesStore.sites = pairedSites({ name: 'Barn' })
+      await nextTick()
+      expect(tagLines().map((line) => line.name)).toEqual(['A', 'Barn'])
+    })
+  })
+
   describe("the operator's own position", () => {
     /** A site at the same spot the operator is standing. */
     const CO_SITED: [number, number] = [0, 0]
@@ -657,7 +781,9 @@ describe('SdrManagerSitesControl', () => {
       expect(siteMarkers()).toHaveLength(0)
       expect(clusterMarkers()).toHaveLength(1)
       // Two marks, not one: the count stands for the site AND the operator.
-      expect(clusterMarkers()[0]!.element.textContent).toBe('2')
+      expect(
+        clusterMarkers()[0]!.element.querySelector('.sdr-manager-cluster-count')!.textContent,
+      ).toBe('2')
       // …so the view's own marker is hidden, or the position shows twice.
       expect(userMarker!.hidden).toBe(true)
     })
@@ -666,7 +792,7 @@ describe('SdrManagerSitesControl', () => {
       sitesStore.sites = [site({ id: 1, longitude: 0.000_01, latitude: 0 })]
       addControl({ userLocation: CO_SITED })
       expect(clusterMarkers()[0]!.element.getAttribute('aria-label')).toBe(
-        '2 markers here, including your location, — zoom in to see them',
+        '2 markers here, including your location: This machine, Roof Pi — zoom in to see them',
       )
     })
 
@@ -710,7 +836,9 @@ describe('SdrManagerSitesControl', () => {
       // group: one site plus the operator is still a group of two.
       sitesStore.sites = [site({ id: 1, longitude: 0, latitude: 0 })]
       addControl({ userLocation: CO_SITED })
-      expect(clusterMarkers()[0]!.element.textContent).toBe('2')
+      expect(
+        clusterMarkers()[0]!.element.querySelector('.sdr-manager-cluster-count')!.textContent,
+      ).toBe('2')
     })
 
     it('works on a view that draws no marker of its own', () => {
