@@ -37,8 +37,8 @@ def _solar_position(dt: datetime) -> tuple[float, float]:
     return declination_deg, subsolar_lon
 
 
-def compute_terminator() -> dict:
-    """Return a GeoJSON Feature covering the night side of the Earth.
+def compute_terminator(at: datetime | None = None) -> dict:
+    """Return a GeoJSON Feature covering the night side of the Earth, now or at `at` (UTC; replay).
 
     Algorithm
     ---------
@@ -80,7 +80,7 @@ def compute_terminator() -> dict:
 
     clamped to ±180° and split at the antimeridian if needed.
     """
-    now = datetime.now(UTC)
+    now = at if at is not None else datetime.now(UTC)
     sun_lat, sun_lon = _solar_position(now)
 
     EQUINOX_THRESH = 0.001  # degrees — treat as equinox below this declination

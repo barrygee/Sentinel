@@ -6,7 +6,7 @@ the rest of the schema once this module is imported.
 """
 
 from backend.database import Base
-from sqlalchemy import Column, Float, Integer, Text
+from sqlalchemy import Column, Float, Index, Integer, Text, UniqueConstraint
 
 
 class TleCache(Base):
@@ -63,3 +63,26 @@ class SatelliteCatalogue(Base):
         Text, nullable=True
     )  # 'active'|'inactive'|'silent'|'reentered'|'partial' — operational status of the radio payload
     radio_notes = Column(Text, nullable=True)  # free-form notes / description for the radio payload
+
+
+class SpaceTleHistory(Base):
+    """Every distinct TLE version stored while `space.historyEnabled` is on, for replay.
+
+    Space replays by recomputing positions (SGP4 is exact for a TLE and a
+    time), so it keeps orbital elements rather than positions: for a past
+    moment it uses the newest version whose epoch is not after that moment.
+    Rows age out by ``recorded_ms`` with the section's retention window.
+    """
+
+    __tablename__ = "space_tle_history"
+    __table_args__ = (
+        UniqueConstraint("norad_id", "epoch_ms", name="uq_space_tle_history_norad_epoch"),
+        Index("ix_space_tle_history_recorded_ms", "recorded_ms"),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    norad_id = Column(Text, nullable=False)
+    epoch_ms = Column(Integer, nullable=False)  # TLE epoch (line 1, cols 19–32) as Unix ms
+    line1 = Column(Text, nullable=False)
+    line2 = Column(Text, nullable=False)
+    recorded_ms = Column(Integer, nullable=False)  # when this version was first stored
