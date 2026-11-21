@@ -38,8 +38,9 @@ type SettingsStore = ReturnType<typeof useSettingsStore>
  * sites too close together to tell apart collapse into
  * one numbered count that zooms in when clicked — the same treatment crowded
  * APRS stations get on the Land map, from the same shared clustering module.
- * A count holds until the marks it stands for genuinely clear each other, at
- * whatever zoom that happens. The operator's own position is counted alongside
+ * Zoomed out, a count holds until the marks it stands for clear each other; from
+ * town level in, a group that still overlaps is fanned out into a ring of marks
+ * instead, so sites metres apart don't stay a count until building level. The operator's own position is counted alongside
  * the sites, so an SDR host standing where the operator is standing collapses into
  * a count rather than the two marks smearing into one.
  * Hovering a site (or giving it keyboard focus) shows its details alongside the
@@ -215,9 +216,9 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     const seenSites = new Set<string>()
     const seenClusters = new Set<string>()
 
-    for (const site of plotted) {
-      seenSites.add(siteKey(site))
-      this._syncSiteMarker(site)
+    for (const placement of plotted) {
+      seenSites.add(siteKey(placement.site))
+      this._syncSiteMarker(placement)
     }
     for (const cluster of clusters) {
       seenClusters.add(cluster.key)
@@ -249,17 +250,19 @@ export class SdrManagerSitesControl extends SentinelControlBase {
    * Split what is on the map into marks drawn as themselves and groups shown as
    * one count, by how close together they land on screen at this zoom.
    *
-   * A count holds for as long as the marks it stands for would overlap — at any
-   * zoom, not up to a fixed one. Zooming in pulls a group apart the moment its
-   * marks clear each other, and until then the number is the honest answer:
-   * superimposed ⊙ marks look like one site, and would hide how many are there.
-   * (This is deliberately stricter than the Land map's APRS counts, which give
-   * way to their labels at a set zoom whether they overlap or not.)
+   * Below `FAN_OUT_MIN_ZOOM`, a count holds for as long as the marks it stands
+   * for would overlap: zooming in pulls a group apart the moment its marks clear
+   * each other, and until then the number is the honest answer — superimposed ⊙
+   * marks look like one site, and would hide how many are there.
    *
    * The operator's own position takes part as an ordinary point — an SDR host
    * standing where the operator is standing is exactly the overlap that needs
    * collapsing — but it is not a site, so it is reported back separately rather
    * than plotted by this control.
+   *
+   * From `FAN_OUT_MIN_ZOOM` in, a group is fanned out instead of counted: sites
+   * metres apart (a Pi on the same roof as this machine) would otherwise stay a
+   * count until building level. See `_fanOut`.
    */
   private _planMarkers(sites: RadioSite[]): MarkerPlan {
     const positions = new Map<string, ScreenPosition>()
@@ -273,18 +276,25 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       points.push({ key: USER_LOCATION_KEY, site: null })
     }
 
-    const plotted: RadioSite[] = []
+    const plotted: SitePlacement[] = []
     const clusters: SdrManagerCluster[] = []
     let userLocationCounted = false
+    const fanOut = this.map.getZoom() >= FAN_OUT_MIN_ZOOM
     for (const group of groupByProximity(points, positions, SITE_GROUP_RADIUS_PX)) {
       const groupSites = group.members.map((point) => point.site).filter(isSite)
       // A group of one is never a count: a "1" says less than the mark it would
       // replace, and that mark is the one an operator can actually open.
       if (group.members.length === 1) {
-        if (groupSites[0]) plotted.push(groupSites[0])
+        if (groupSites[0]) plotted.push(placedAt(groupSites[0]))
         continue
       }
       const holdsUserLocation = groupSites.length < group.members.length
+      if (fanOut) {
+        plotted.push(
+          ...this._fanOut(groupSites, positions, holdsUserLocation ? userLocation : null),
+        )
+        continue
+      }
       if (holdsUserLocation) userLocationCounted = true
       // A counted group always holds at least one site: the only point that is
       // not a site is the operator's own position, and on its own that is a
@@ -303,14 +313,58 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     return { plotted, clusters, userLocationCounted }
   }
 
-  /** Add or move one site's marker. */
-  private _syncSiteMarker(site: RadioSite): void {
-    const coords: [number, number] = [site.longitude, site.latitude]
+  /**
+   * Spread a group's sites in a ring, so each is its own mark, with its own
+   * tag, at a zoom where they would otherwise overlap.
+   *
+   * The ring centres on the operator's ⊙ when it is in the group (it stays put,
+   * where it is: the view's marker, which this control never moves), otherwise
+   * on the first site. Each mark sits on the ring by a pixel offset from that
+   * centre, so the ring keeps its shape while the map zooms, and is regrouped
+   * when the movement settles. The first site keeps its own side of the centre
+   * and the rest follow evenly round, and the ring is wide enough that
+   * neighbouring marks clear each other and the ⊙ in the middle. A mark's tag
+   * and accessible name still give its true position.
+   */
+  private _fanOut(
+    sites: RadioSite[],
+    positions: Map<string, ScreenPosition>,
+    userLocation: [number, number] | null,
+  ): SitePlacement[] {
+    const first = sites[0]!
+    const centre: [number, number] = userLocation ?? [first.longitude, first.latitude]
+    const centreOnScreen = userLocation
+      ? positions.get(USER_LOCATION_KEY)!
+      : positions.get(siteKey(first))!
+    const radius = fanOutRadius(sites.length, userLocation !== null)
+    const firstOnScreen = positions.get(siteKey(first))!
+    const towardsFirst = Math.atan2(
+      firstOnScreen.y - centreOnScreen.y,
+      firstOnScreen.x - centreOnScreen.x,
+    )
+    // On top of the centre (the first site itself, or sitting on the ⊙): start
+    // straight up, the one direction that reads as "this one first".
+    const startAngle =
+      Math.hypot(firstOnScreen.x - centreOnScreen.x, firstOnScreen.y - centreOnScreen.y) < 1
+        ? -Math.PI / 2
+        : towardsFirst
+    return sites.map((site, index) => {
+      const angle = startAngle + (2 * Math.PI * index) / sites.length
+      return {
+        site,
+        anchor: centre,
+        offset: [Math.round(radius * Math.cos(angle)), Math.round(radius * Math.sin(angle))],
+      }
+    })
+  }
+
+  /** Add or move one site's marker, at its own position or on a fanned-out ring. */
+  private _syncSiteMarker({ site, anchor, offset }: SitePlacement): void {
     const key = siteKey(site)
     const name = siteLabel(site)
     const existing = this._markers.get(key)
     if (existing && this._markerNames.get(key) === name) {
-      existing.setLngLat(coords)
+      existing.setLngLat(anchor).setOffset(offset)
       return
     }
     // A site whose name changed (this machine renamed) is built afresh: its
@@ -319,8 +373,9 @@ export class SdrManagerSitesControl extends SentinelControlBase {
     const marker = new maplibregl.Marker({
       element: this._buildSiteElement(site),
       anchor: 'center',
+      offset,
     })
-      .setLngLat(coords)
+      .setLngLat(anchor)
       .addTo(this.map)
     // After addTo: MapLibre replaces the element's aria-label with its own
     // generic "Map marker" as it adds one, so the site's is put back.
@@ -398,7 +453,9 @@ export class SdrManagerSitesControl extends SentinelControlBase {
       // so one click should show what.
       this.map.easeTo({
         center: coords,
-        zoom: Math.min(this.map.getZoom() + CLUSTER_ZOOM_STEP, CLUSTER_ZOOM_MAX),
+        // No further than the zoom where groups fan out: there, every site in
+        // it is already its own mark, so going deeper only empties the view.
+        zoom: Math.min(this.map.getZoom() + CLUSTER_ZOOM_STEP, FAN_OUT_MIN_ZOOM),
         duration: 300,
       })
     })
@@ -495,9 +552,34 @@ interface SdrManagerCluster {
   latitude: number
 }
 
+/** Where one site's mark goes: a point on the map, plus a pixel offset from it
+ *  — none for a site drawn where it is, a ring position when fanned out. */
+interface SitePlacement {
+  site: RadioSite
+  anchor: [number, number]
+  offset: [number, number]
+}
+
+/** A site drawn where it is. */
+function placedAt(site: RadioSite): SitePlacement {
+  return { site, anchor: [site.longitude, site.latitude], offset: [0, 0] }
+}
+
+/**
+ * How far from the centre a fanned-out group's marks sit, in pixels: far enough
+ * that neighbours on the ring are a mark's width apart, and — when the
+ * operator's ⊙ is in the middle — that every mark clears it too.
+ */
+function fanOutRadius(siteCount: number, aroundUserLocation: boolean): number {
+  // The chord between neighbours on a ring of n points is 2·r·sin(π/n).
+  const clearOfNeighbours =
+    siteCount > 1 ? SITE_GROUP_RADIUS_PX / (2 * Math.sin(Math.PI / siteCount)) : 0
+  return Math.max(clearOfNeighbours, aroundUserLocation ? SITE_GROUP_RADIUS_PX : 0)
+}
+
 /** How the marks in view are split between drawn and counted. */
 interface MarkerPlan {
-  plotted: RadioSite[]
+  plotted: SitePlacement[]
   clusters: SdrManagerCluster[]
   /** Whether a count now stands for the operator's own position, so the view's
    *  marker for it must be hidden. */
@@ -560,20 +642,18 @@ const SDR_MANAGER_MARKER_DOT_COLOR = 'var(--map-sdr-manager-dot)'
  *  ring diameter, so sites are grouped exactly when their marks would overlap. */
 const SITE_GROUP_RADIUS_PX = 30
 
+/**
+ * From this zoom in (town level), sites that would overlap are fanned out into
+ * a ring rather than counted. Counting holds further out, where a ring of marks
+ * would crowd the map more than it tells; nearer in, a count would hide sites
+ * that can be metres apart until building level.
+ */
+const FAN_OUT_MIN_ZOOM = 13
+
 /** How far in one click on a count goes, in zoom levels. Three steps splits a
  *  typical huddle in one go; a group that is tighter than that survives the
  *  click as a smaller count, and another click takes it further in. */
 const CLUSTER_ZOOM_STEP = 3
-
-/**
- * Ceiling for that zoom.
- *
- * Two Sentries at the same address never separate however far the map goes in,
- * so without a ceiling their count would keep answering clicks by zooming into
- * an emptier and emptier view. Street level is as far as it is worth taking an
- * operator to answer "how many are here".
- */
-const CLUSTER_ZOOM_MAX = 17
 
 /** Fill of an SDR Manager count marker's centre. */
 const SDR_MANAGER_COUNT_FILL = '#000000'
