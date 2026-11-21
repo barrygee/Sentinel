@@ -15,11 +15,13 @@ live waterfall panels use the existing per-radio decode WebSocket instead.
 
 from backend.cache import now_ms
 from backend.database import get_db
+from backend.platform.history.router import build_history_router
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sentinel_land.services import aprs_store, repeaters
+from sentinel_land.models import LandPositionHistory
+from sentinel_land.services import aprs_store, land_history, repeaters
 
 router = APIRouter(prefix="/api/land", tags=["land"])
 
@@ -79,3 +81,11 @@ async def set_repeaters_file(body: dict = Body(...), db: AsyncSession = Depends(
     except repeaters.RepeaterDataInvalid as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return JSONResponse({"status": "ok", "stations": count})
+
+
+# Replay history: GET /api/land/history/{status,coverage,samples}, read from land.db only.
+router.include_router(
+    build_history_router(
+        "", land_history.NAMESPACE, LandPositionHistory, land_history.REPLAY_LOOKBACK_MS, tags=["land"]
+    )
+)

@@ -23,6 +23,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_land.models import AprsStation
+from sentinel_land.services import land_history
 
 
 async def _retention_ms(db: AsyncSession) -> int:
@@ -93,7 +94,10 @@ async def upsert_station(station: dict, now_ms: int, db: AsyncSession | None = N
     ``station`` is a dict as returned by :func:`station_from_event`. An existing
     row for the callsign is overwritten with the new fix; otherwise a new row is
     created. A session may be injected (tests); otherwise one is opened here.
+    Every fix is also offered to replay history (``land_history``), which
+    keeps the route this table overwrites.
     """
+    land_history.record_station(station, now_ms)
     if db is not None:
         await _upsert_station(db, station, now_ms)
         return
