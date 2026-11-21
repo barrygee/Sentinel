@@ -7,7 +7,7 @@
     :accessible-name="label"
     :title="label"
   >
-    <SdrPlayStopIcon :stop="running" />
+    <PlayStopIcon :stop="running" />
   </BaseIconAction>
 </template>
 
@@ -20,7 +20,7 @@
 import './SdrSweepPlayButton.css'
 import { computed } from 'vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
-import SdrPlayStopIcon from './SdrPlayStopIcon.vue'
+import PlayStopIcon from '@sentinel/ui/icons/PlayStopIcon.vue'
 
 const props = defineProps<{
   /** What the button starts, for its name: "Start scan" / "Stop scan". */
