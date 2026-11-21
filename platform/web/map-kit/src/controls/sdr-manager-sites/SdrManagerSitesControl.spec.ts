@@ -10,6 +10,7 @@ interface RecordedMarker {
   element: HTMLElement
   anchor: string | undefined
   lngLat: [number, number] | null
+  offset: [number, number]
   removed: boolean
 }
 const mocks = vi.hoisted(() => {
@@ -18,14 +19,20 @@ const mocks = vi.hoisted(() => {
     element: HTMLElement
     anchor: string | undefined
     lngLat: [number, number] | null = null
+    offset: [number, number]
     removed = false
-    constructor(options: { element: HTMLElement; anchor?: string }) {
+    constructor(options: { element: HTMLElement; anchor?: string; offset?: [number, number] }) {
       this.element = options.element
       this.anchor = options.anchor
+      this.offset = options.offset ?? [0, 0]
       created.markers.push(this)
     }
     setLngLat(coords: [number, number]): this {
       this.lngLat = coords
+      return this
+    }
+    setOffset(offset: [number, number]): this {
+      this.offset = offset
       return this
     }
     getElement(): HTMLElement {
@@ -416,24 +423,24 @@ describe('SdrManagerSitesControl', () => {
       })
     })
 
-    it('never zooms past the ceiling, however far in the map already is', () => {
+    it('never zooms past the zoom where groups fan out', () => {
       sitesStore.sites = crowdedSites()
       const { map } = addControl()
-      map.zoom = 16
+      map.zoom = 12
       map._emit('moveend')
       clusterMarkers()[0]!.element.dispatchEvent(new Event('click'))
-      // Two hosts at one address never separate, so the click stops at street
-      // level rather than zooming into an emptier and emptier view.
-      expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 17 }))
+      // At 13 every site in the group is already its own mark, so the click
+      // stops there rather than zooming into an emptier view.
+      expect(map.easeTo).toHaveBeenCalledWith(expect.objectContaining({ zoom: 13 }))
     })
 
-    it('keeps the count while the marks still overlap, however far in the map is', () => {
+    it('keeps the count while the marks still overlap, up to the zoom where groups fan out', () => {
       sitesStore.sites = crowdedSites()
       const { map } = addControl()
       expect(clusterMarkers()).toHaveLength(1)
-      // Zoom alone does not release a group — the map's projection is what
-      // decides, and this fixture's two sites stay on top of each other.
-      map.zoom = 15
+      // Below the fan-out zoom, zoom alone does not release a group — the map's
+      // projection decides, and this fixture's two sites stay on top of each other.
+      map.zoom = 12.9
       map._emit('moveend')
       expect(clusterMarkers()).toHaveLength(1)
       expect(siteMarkers()).toHaveLength(1) // still just the one clear of them
@@ -490,6 +497,153 @@ describe('SdrManagerSitesControl', () => {
       await nextTick()
       expect(clusterMarkers()).toHaveLength(0)
       expect(siteMarkers()).toHaveLength(3)
+    })
+  })
+
+  describe('fanning out from town zoom', () => {
+    /** The marker for one site, by the name on its tag. */
+    function markerFor(name: string): RecordedMarker {
+      return siteMarkers().find(
+        (marker) =>
+          details(marker).querySelector('.sdr-manager-map-marker-name')!.textContent === name,
+      )!
+    }
+
+    /** Distance between two markers' drawn positions, in pixels. */
+    function drawnGap(
+      map: ReturnType<typeof makeFakeMap>,
+      from: RecordedMarker,
+      to: RecordedMarker,
+    ): number {
+      const fromPoint = map.project(from.lngLat!)
+      const toPoint = map.project(to.lngLat!)
+      return Math.hypot(
+        fromPoint.x + from.offset[0] - (toPoint.x + to.offset[0]),
+        fromPoint.y + from.offset[1] - (toPoint.y + to.offset[1]),
+      )
+    }
+
+    /** Two sites 10 px apart at the fake map's scale: a count below zoom 13. */
+    const overlappingPair = () => [
+      site({ id: 1, name: 'A', longitude: 0, latitude: 0 }),
+      site({ id: 2, name: 'B', longitude: 0.000_01, latitude: 0 }),
+    ]
+
+    function addAtZoom(zoom: number, options: Parameters<typeof addControl>[0] = {}) {
+      const added = addControl(options)
+      added.map.zoom = zoom
+      added.map._emit('moveend')
+      return added
+    }
+
+    it('draws overlapping sites as their own marks from zoom 13, not a count', () => {
+      sitesStore.sites = overlappingPair()
+      const { map } = addAtZoom(13)
+      expect(clusterMarkers()).toHaveLength(0)
+      expect(siteMarkers()).toHaveLength(2)
+      // Far enough apart on screen that the marks clear each other.
+      expect(drawnGap(map, markerFor('A'), markerFor('B'))).toBeGreaterThanOrEqual(30)
+    })
+
+    it('counts them again when the map zooms back out', () => {
+      sitesStore.sites = overlappingPair()
+      const { map } = addAtZoom(13)
+      map.zoom = 12
+      map._emit('moveend')
+      expect(siteMarkers()).toHaveLength(0)
+      expect(clusterMarkers()).toHaveLength(1)
+    })
+
+    it('centres a pair on the first site, one straight above and one below', () => {
+      sitesStore.sites = overlappingPair()
+      addAtZoom(14)
+      const first = markerFor('A')
+      const second = markerFor('B')
+      // Both hang off the first site's position…
+      expect(first.lngLat).toEqual([0, 0])
+      expect(second.lngLat).toEqual([0, 0])
+      // …the first, which sits on the centre, starting straight up.
+      expect(first.offset).toEqual([0, -15])
+      expect(second.offset).toEqual([0, 15])
+    })
+
+    it('spaces a bigger group evenly, every neighbour a mark apart', () => {
+      sitesStore.sites = [
+        site({ id: 1, name: 'A', longitude: 0, latitude: 0 }),
+        site({ id: 2, name: 'B', longitude: 0.000_01, latitude: 0 }),
+        site({ id: 3, name: 'C', longitude: 0, latitude: 0.000_01 }),
+      ]
+      const { map } = addAtZoom(14)
+      const [first, second, third] = ['A', 'B', 'C'].map(markerFor) as [
+        RecordedMarker,
+        RecordedMarker,
+        RecordedMarker,
+      ]
+      for (const [from, to] of [
+        [first, second],
+        [second, third],
+        [third, first],
+      ] as const) {
+        // 30 px apart, give or take the rounding to whole pixels.
+        expect(drawnGap(map, from, to)).toBeGreaterThanOrEqual(29)
+      }
+    })
+
+    it("rings the sites around the operator's ⊙, which stays put and on show", () => {
+      // East of the operator, 10 px away: inside the grouping radius.
+      sitesStore.sites = [site({ id: 1, name: 'A', longitude: 0.000_01, latitude: 0 })]
+      const { userMarker } = addAtZoom(13, { userLocation: [0, 0] })
+      expect(clusterMarkers()).toHaveLength(0)
+      expect(userMarker!.hidden).toBe(false)
+      const mark = markerFor('A')
+      // Centred on the operator, on the site's own side of it, clear of the ⊙.
+      expect(mark.lngLat).toEqual([0, 0])
+      expect(mark.offset).toEqual([30, 0])
+    })
+
+    it('starts straight up from the ⊙ when a site sits exactly on it', () => {
+      sitesStore.sites = [site({ id: 1, name: 'A', longitude: 0, latitude: 0 })]
+      addAtZoom(13, { userLocation: [0, 0] })
+      expect(markerFor('A').offset).toEqual([0, -30])
+    })
+
+    it("keeps each site's true position in its tag and name", () => {
+      // 10 px apart at the fake map's scale, at a real latitude.
+      sitesStore.sites = [
+        site({ id: 1, name: 'A', longitude: -1.5358, latitude: 54.9516 }),
+        site({ id: 2, name: 'B', longitude: -1.53581, latitude: 54.9516 }),
+      ]
+      addAtZoom(13)
+      const second = markerFor('B')
+      expect(second.lngLat).toEqual([-1.5358, 54.9516]) // drawn off A's spot…
+      expect(details(second).querySelector('.sdr-manager-map-marker-coords')!.textContent).toBe(
+        '54.95160° N  1.53581° W', // …but says where B really is
+      )
+      expect(second.element.getAttribute('aria-label')).toContain('1.53581° W')
+    })
+
+    it('moves marks between their own spot and the ring without rebuilding them', () => {
+      sitesStore.sites = overlappingPair()
+      const { map } = addAtZoom(13)
+      const before = created.markers.length
+      const lone = markerFor('A')
+      // The pair drifts apart: each goes back to being drawn where it is.
+      sitesStore.sites = [
+        site({ id: 1, name: 'A', longitude: 0, latitude: 0 }),
+        site({ id: 2, name: 'B', longitude: 9, latitude: 9 }),
+      ]
+      map._emit('moveend')
+      expect(created.markers).toHaveLength(before)
+      expect(markerFor('A')).toBe(lone)
+      expect(lone.offset).toEqual([0, 0])
+      expect(markerFor('B').lngLat).toEqual([9, 9])
+    })
+
+    it('draws a lone site where it is, with no offset', () => {
+      sitesStore.sites = [site()]
+      addAtZoom(15)
+      expect(siteMarkers()[0]!.lngLat).toEqual([-0.1, 51.5])
+      expect(siteMarkers()[0]!.offset).toEqual([0, 0])
     })
   })
 
