@@ -165,7 +165,12 @@ class TestTleLinesAt:
         assert await tle_history.tle_lines_at(db, "25544", ISS_EPOCH_MS) is None
 
 
-async def test_history_status(db):
+async def test_history_status(db, monkeypatch):
+    async def fake_table_size(session, table_name):
+        assert table_name == "space_tle_history"
+        return 8192
+
+    monkeypatch.setattr(tle_history, "table_size_bytes", fake_table_size)
     await enable_history(db)
     await upsert_setting(db, "space", "historyRetentionDays", 3)
     db.add(SpaceTleHistory(norad_id="25544", epoch_ms=1, line1=ISS_LINE1, line2=ISS_LINE2, recorded_ms=500))
@@ -174,6 +179,7 @@ async def test_history_status(db):
     assert status["enabled"] is True
     assert status["retentionDays"] == 3
     assert (status["oldestMs"], status["newestMs"], status["tleVersions"], status["satellites"]) == (500, 500, 1, 1)
+    assert status["historyBytes"] == 8192
     assert status["databaseBytes"] > 0
 
 

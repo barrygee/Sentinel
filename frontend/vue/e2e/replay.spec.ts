@@ -76,6 +76,7 @@ async function recordAirHistory(page: Page, enabled: boolean): Promise<string[]>
         oldestMs: now - 3 * 86_400_000,
         newestMs: now,
         samples: 1200,
+        historyBytes: 12 * 1024 * 1024,
         databaseBytes: 50 * 1024 * 1024,
       },
     }
@@ -183,6 +184,8 @@ test.describe('History & replay', () => {
     await expect(
       page.getByRole('textbox', { name: 'Air history: days to keep, 1 to 7' }),
     ).toBeVisible()
-    await expect(page.getByText(/Recording · 3\.0 days kept · 50 MB on disk/)).toBeVisible()
+    await expect(
+      page.getByText(/Recording · 3\.0 days kept · 12 MB of history \(50 MB database\)/),
+    ).toBeVisible()
   })
 })

@@ -14,6 +14,7 @@ from typing import Any
 
 from backend.platform.history.retention import retention_cutoff_ms
 from sqlalchemy import and_, func, or_, select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 MAX_WINDOW_MS = 30 * 60 * 1000
@@ -157,14 +158,36 @@ async def fetch_coverage(db: AsyncSession, model: type, from_ms: int, to_ms: int
 
 
 async def database_size_bytes(db: AsyncSession) -> int:
-    """Size of the section's whole database file (history is nearly all of it once recording runs)."""
+    """Size of the section's whole database file: history plus everything else the section keeps (Air's ADS-B cache)."""
     page_count = (await db.execute(text("PRAGMA page_count"))).scalar() or 0
     page_size = (await db.execute(text("PRAGMA page_size"))).scalar() or 0
     return int(page_count) * int(page_size)
 
 
+async def table_size_bytes(db: AsyncSession, table_name: str) -> int | None:
+    """Bytes one table and its indexes take on disk, or None when SQLite can't say.
+
+    Reads the ``dbstat`` virtual table, which the backend image's SQLite has
+    but not every build does (macOS's system Python, for one). Rather than
+    guess, None tells the caller to show only the whole database's size.
+    """
+    try:
+        size = (
+            await db.execute(
+                text(
+                    "SELECT SUM(pgsize) FROM dbstat WHERE name IN "
+                    "(SELECT name FROM sqlite_master WHERE tbl_name = :table)"
+                ),
+                {"table": table_name},
+            )
+        ).scalar()
+    except OperationalError:
+        return None
+    return int(size or 0)
+
+
 async def fetch_status(db: AsyncSession, model: type) -> dict[str, Any]:
-    """Oldest/newest sample, row and entity counts, and database size: the Settings status line."""
+    """Oldest/newest sample, row count, and the history's and whole database's sizes: the Settings status line."""
     oldest, newest, rows = (
         await db.execute(select(func.min(model.t_ms), func.max(model.t_ms), func.count()).select_from(model))
     ).one()
@@ -172,5 +195,6 @@ async def fetch_status(db: AsyncSession, model: type) -> dict[str, Any]:
         "oldestMs": oldest,
         "newestMs": newest,
         "samples": int(rows or 0),
+        "historyBytes": await table_size_bytes(db, model.__tablename__),
         "databaseBytes": await database_size_bytes(db),
     }

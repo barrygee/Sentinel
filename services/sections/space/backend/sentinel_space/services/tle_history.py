@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from backend.database import AsyncSessionLocal
-from backend.platform.history.queries import database_size_bytes
+from backend.platform.history.queries import database_size_bytes, table_size_bytes
 from backend.platform.history.recorder import ENABLED_SETTING_KEY
 from backend.platform.history.retention import PruneTarget, RetentionLoop, read_retention_days
 from backend.platform.settings_client import read_setting
@@ -122,5 +122,6 @@ async def history_status(db: AsyncSession) -> dict[str, Any]:
         "newestMs": newest,
         "tleVersions": int(versions or 0),
         "satellites": int(satellites or 0),
+        "historyBytes": await table_size_bytes(db, SpaceTleHistory.__tablename__),
         "databaseBytes": await database_size_bytes(db),
     }
