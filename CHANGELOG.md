@@ -322,6 +322,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Replay movement on the Air, Sea, Land and Space maps
 - Move the replay controls into the left side panel
 - Show the time frames recorded and the file size in Settings
+- Remove movement history and replay **(breaking change)**
 
 ### Bug Fixes
 
@@ -1991,6 +1992,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #691 from barrygee/feat/movement-history-replay
 - Merge pull request #692 from barrygee/fix/history-status-size
 - Merge pull request #693 from barrygee/feat/replay-side-panel
+- Merge pull request #694 from barrygee/feat/remove-movement-history-replay
 
 ### Performance
 
