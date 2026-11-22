@@ -11,7 +11,7 @@ Recording is off until you turn it on, separately for each section.
 3. **KEEP**: how many days to keep, 1 to 7. Anything older is deleted every hour.
 4. **APPLY CHANGES**.
 
-The line under the switch shows what is stored: days kept, and the space it takes on disk.
+The line under the switch shows what is stored: days kept, how much space the history takes, and the size of the section's whole database beside it (Air's also holds its ADS-B cache, so it is larger than the history alone).
 
 ## What is recorded
 
@@ -48,7 +48,7 @@ Replay reads only the Sentinel computer's own database. It works with no interne
 
 ## Disk space
 
-Air and Sea use the most. As a rough guide, 7 days of a busy area takes a few hundred MB per section. Land and Space take very little. On a Raspberry Pi, watch the size under **History & Replay** and lower **KEEP** if needed.
+Air and Sea use the most. As a rough guide, 7 days of a busy area takes a few hundred MB per section. Land and Space take very little. On a Raspberry Pi, watch the history size under **History & Replay** and lower **KEEP** if needed.
 
 ## The computer's clock
 

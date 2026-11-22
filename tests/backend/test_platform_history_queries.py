@@ -462,3 +462,63 @@ class TestRouter:
 def test_now_ms_is_the_wall_clock_in_milliseconds(monkeypatch):
     monkeypatch.setattr(router_module.time, "time", lambda: 1_700_000_000.123)
     assert router_module._now_ms() == 1_700_000_000_123
+
+
+# ── table_size_bytes ─────────────────────────────────────────────────────────
+
+
+class _FakeResult:
+    def __init__(self, value):
+        self.value = value
+
+    def scalar(self):
+        return self.value
+
+
+class _FakeDb:
+    """Answers the dbstat query (or refuses it), recording what was asked."""
+
+    def __init__(self, value=None, error=None):
+        self.value, self.error, self.calls = value, error, []
+
+    async def execute(self, statement, params=None):
+        self.calls.append((str(statement), params))
+        if self.error is not None:
+            raise self.error
+        return _FakeResult(self.value)
+
+
+class TestTableSizeBytes:
+    async def test_sums_the_table_and_its_indexes_from_dbstat(self):
+        db = _FakeDb(value=12_288)
+        assert await queries.table_size_bytes(db, "air_position_history") == 12_288
+        sql, params = db.calls[0]
+        assert "FROM dbstat" in sql and "tbl_name = :table" in sql
+        assert params == {"table": "air_position_history"}
+
+    async def test_an_empty_table_is_zero(self):
+        assert await queries.table_size_bytes(_FakeDb(value=None), "t") == 0
+
+    async def test_a_sqlite_without_dbstat_is_none_not_a_guess(self):
+        from sqlalchemy.exc import OperationalError
+
+        db = _FakeDb(
+            error=OperationalError("SELECT", {}, Exception("no such table: dbstat"))
+        )
+        assert await queries.table_size_bytes(db, "t") is None
+
+    async def test_status_reports_the_history_size_beside_the_database(
+        self, session_factory, monkeypatch
+    ):
+        seen = []
+
+        async def fake_table_size(db, table_name):
+            seen.append(table_name)
+            return 4096
+
+        monkeypatch.setattr(queries, "table_size_bytes", fake_table_size)
+        async with session_factory() as db:
+            status = await queries.fetch_status(db, QueryTestHistory)
+        assert status["historyBytes"] == 4096
+        assert status["databaseBytes"] > 0
+        assert seen == ["query_test_history"]

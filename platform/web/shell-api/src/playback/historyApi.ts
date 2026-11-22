@@ -49,6 +49,9 @@ export interface HistoryStatus {
   samples?: number
   tleVersions?: number
   satellites?: number
+  /** The history table and its indexes on disk; null when the database can't measure one table. */
+  historyBytes?: number | null
+  /** The section's whole database file: history plus everything else it keeps (Air's ADS-B cache). */
   databaseBytes: number
 }
 

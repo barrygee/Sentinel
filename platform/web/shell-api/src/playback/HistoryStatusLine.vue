@@ -4,7 +4,8 @@
 
 <script setup lang="ts">
 /**
- * What a section has recorded for replay: "Recording · 3.2 days kept · 412 MB".
+ * What a section has recorded for replay:
+ * "Recording · 3.2 days kept · 412 MB of history (790 MB database)".
  * Read when shown and again after APPLY CHANGES or a config-file edit, so it
  * follows the toggle.
  */
@@ -27,6 +28,7 @@ onMounted(load)
 useDocumentEvent('sentinel:config-uploaded', load)
 
 function formatBytes(bytes: number): string {
+  if (bytes === 0) return '0 KB'
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`
   if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`
   return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -44,7 +46,14 @@ const text = computed(() => {
     parts.push('nothing kept yet')
   }
   if (current.tleVersions !== undefined) parts.push(`${current.tleVersions} orbit versions`)
-  parts.push(`${formatBytes(current.databaseBytes)} on disk`)
+  // The history's own size is what recording costs; the whole database is
+  // shown beside it because a section's other tables can dwarf it (Air's
+  // ADS-B cache), and without the split that size reads as history.
+  parts.push(
+    typeof current.historyBytes === 'number'
+      ? `${formatBytes(current.historyBytes)} of history (${formatBytes(current.databaseBytes)} database)`
+      : `${formatBytes(current.databaseBytes)} database`,
+  )
   return parts.join(' · ')
 })
 </script>

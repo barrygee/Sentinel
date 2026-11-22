@@ -18,7 +18,8 @@ function status(overrides: Partial<HistoryStatus> = {}): HistoryStatus {
     oldestMs: 0,
     newestMs: 3.2 * DAY,
     samples: 100,
-    databaseBytes: 412 * 1024 * 1024,
+    historyBytes: 412 * 1024 * 1024,
+    databaseBytes: 790 * 1024 * 1024,
     ...overrides,
   }
 }
@@ -42,24 +43,32 @@ describe('HistoryStatusLine', () => {
 
   it('summarises recording, days kept and size', async () => {
     vi.mocked(fetchHistoryStatus).mockResolvedValue(status())
-    expect((await mountLine()).text()).toBe('Recording · 3.2 days kept · 412 MB on disk')
+    expect((await mountLine()).text()).toBe(
+      'Recording · 3.2 days kept · 412 MB of history (790 MB database)',
+    )
     expect(fetchHistoryStatus).toHaveBeenCalledWith('air')
   })
 
   it.each([
     [
-      { enabled: false, oldestMs: null, newestMs: null, databaseBytes: 2048 },
-      'Not recording · nothing kept yet · 2 KB on disk',
+      { enabled: false, oldestMs: null, newestMs: null, historyBytes: 0, databaseBytes: 2048 },
+      'Not recording · nothing kept yet · 0 KB of history (2 KB database)',
     ],
     [
-      { oldestMs: 0, newestMs: 60 * 60 * 1000, databaseBytes: 100 },
-      'Recording · under 2 hours kept · 1 KB on disk',
+      { oldestMs: 0, newestMs: 60 * 60 * 1000, historyBytes: 100, databaseBytes: 100 },
+      'Recording · under 2 hours kept · 1 KB of history (1 KB database)',
     ],
-    [{ databaseBytes: 3.5 * 1024 ** 3 }, 'Recording · 3.2 days kept · 3.5 GB on disk'],
     [
-      { tleVersions: 12, samples: undefined },
-      'Recording · 3.2 days kept · 12 orbit versions · 412 MB on disk',
+      { historyBytes: 1.2 * 1024 ** 3, databaseBytes: 3.5 * 1024 ** 3 },
+      'Recording · 3.2 days kept · 1.2 GB of history (3.5 GB database)',
     ],
+    [
+      { tleVersions: 12, samples: undefined, historyBytes: 8192, databaseBytes: 94_208 },
+      'Recording · 3.2 days kept · 12 orbit versions · 8 KB of history (92 KB database)',
+    ],
+    // The database can't measure one table: show only what it can.
+    [{ historyBytes: null }, 'Recording · 3.2 days kept · 790 MB database'],
+    [{ historyBytes: undefined }, 'Recording · 3.2 days kept · 790 MB database'],
   ])('reads %j as %j', async (overrides, expected) => {
     vi.mocked(fetchHistoryStatus).mockResolvedValue(status(overrides as Partial<HistoryStatus>))
     expect((await mountLine()).text()).toBe(expected)
