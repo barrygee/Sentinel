@@ -792,6 +792,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove BaseListItem and dead rail CSS
 - Remove the unused sip-toggle and spp-filter-toggle CSS
 - Drop the Noto Sans Bold glyphs, no longer used
+- Remove dead notification and tracking toggle-button CSS
 
 ### Reverts
 
@@ -1993,6 +1994,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #692 from barrygee/fix/history-status-size
 - Merge pull request #693 from barrygee/feat/replay-side-panel
 - Merge pull request #694 from barrygee/feat/remove-movement-history-replay
+- Merge pull request #695 from barrygee/chore/remove-dead-panel-toggle-css
 
 ### Performance
 
@@ -2546,6 +2548,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the history size split
 - Rebuild the bundle for the replay side panel
 - Rebuild the bundle for the history settings summary
+- Rebuild the bundle without the dead toggle-button CSS
 
 ### Continuous Integration
 
