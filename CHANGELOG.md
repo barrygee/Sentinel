@@ -312,6 +312,14 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show this machine's details on the operator marker
 - Fan out overlapping SDR sites from town zoom instead of counting them
 - List a count's sites in its hover tag
+- Add the shared position-history kit
+- Record ADS-B movement history for replay
+- Record vessel movement history for replay
+- Record APRS station history for replay
+- Keep TLE history and replay positions at a past moment
+- Add per-section history settings and regenerate contract goldens
+- Add the replay playback kit
+- Replay movement on the Air, Sea, Land and Space maps
 
 ### Bug Fixes
 
@@ -1977,6 +1985,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #688 from barrygee/fix/this-machine-marker-details
 - Merge pull request #689 from barrygee/feat/fan-out-crowded-sites
 - Merge pull request #690 from barrygee/feat/count-tag-lists-sites
+- Merge pull request #691 from barrygee/feat/movement-history-replay
 
 ### Performance
 
@@ -2135,6 +2144,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Split the FILTER pane into accordions, composables and helpers
 - Split the FILTER pane and share the satellite accordion body
 - Split LandFilter into filter/ pieces
+- Use the shared PlayStopIcon
 
 ### Documentation
 
@@ -2216,6 +2226,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Record C21 as built
 - Describe the CONFIGURATION group and the SDR Manager config's new place
 - Describe the dev_reload launcher in the dev overlay
+- Document movement history and replay
 
 ### Tests
 
@@ -2357,6 +2368,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover fanning out overlapping SDR sites
 - Cover the count's hover tag
 - Read a count's number, and show its tag on hover
+- Cover the replay rail button, timeline and settings item
 
 ### Build System
 
@@ -2522,6 +2534,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the shell for the untagged marker fix
 - Rebuild the shell for fanned-out SDR sites
 - Rebuild bundle for the count's hover tag
+- Rebuild the bundle for movement history and replay
 
 ### Continuous Integration
 
