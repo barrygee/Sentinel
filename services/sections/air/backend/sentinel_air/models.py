@@ -7,6 +7,7 @@ Air's: notifications are core's, despite the path.
 """
 
 from backend.database import Base
+from backend.platform.history.schema import PositionHistoryMixin
 from sqlalchemy import Boolean, Column, Float, Integer, Text
 
 
@@ -69,3 +70,14 @@ class AirTracking(Base):
     callsign = Column(Text, nullable=False, default="")
     follow = Column(Boolean, nullable=False, default=False)  # camera-follow mode active
     added_at = Column(Integer, nullable=False)  # Unix ms when tracking began
+
+
+class AirPositionHistory(PositionHistoryMixin, Base):
+    """Recorded aircraft positions for replay (rolling window, `air.historyEnabled`).
+
+    ``entity_id`` is the ICAO hex. Not ``air_snapshots``/``air_flights``/
+    ``air_aircraft``: those are the removed flight-replay tables that core
+    still drops on startup (backend/database.py ``_REMOVED_TABLES``).
+    """
+
+    __tablename__ = "air_position_history"

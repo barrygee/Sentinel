@@ -6,6 +6,7 @@ the rest of the schema once this module is imported.
 """
 
 from backend.database import Base
+from backend.platform.history.schema import PositionHistoryMixin
 from sqlalchemy import Column, Float, Integer, Text
 
 
@@ -49,3 +50,13 @@ class RepeaterCache(Base):
     payload = Column(Text, nullable=False)  # JSON list of normalised repeater stations
     fetched_at = Column(Integer, nullable=False)  # Unix ms when the upstream CSV was fetched
     expires_at = Column(Integer, nullable=False)  # fetched_at + repeaters_ttl_ms
+
+
+class LandPositionHistory(PositionHistoryMixin, Base):
+    """Recorded APRS station positions for replay (rolling window, `land.historyEnabled`).
+
+    ``entity_id`` is the callsign. Unlike ``aprs_stations`` (newest fix only),
+    every fix the gate keeps is a row, so a mobile station's route can be replayed.
+    """
+
+    __tablename__ = "land_position_history"

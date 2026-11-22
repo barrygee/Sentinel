@@ -3,6 +3,7 @@
        terrain. The aircraft filter is the left sidebar's sub-tabs (MapSidebar). -->
   <MapSideRail
     container-id="side-menu"
+    replay-section="air"
     accessible-name="Air map controls"
     layers-button-id="sm-layers-btn"
     layers-panel-id="layers-panel"

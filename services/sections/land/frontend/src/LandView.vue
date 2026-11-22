@@ -2,6 +2,7 @@
   <div id="map-wrap" data-domain="land">
     <h1 class="sr-only">Land domain</h1>
     <NoUrlOverlay domain="land" />
+    <SectionPlaybackBar section-id="land" section-label="Land" />
     <MapLibreMap
       ref="mapRef"
       :style-url="styleUrl"
@@ -30,6 +31,8 @@
 </template>
 
 <script setup lang="ts">
+import SectionPlaybackBar from '@sentinel/shell-api/playback/SectionPlaybackBar.vue'
+import { useSectionReplay } from '@sentinel/shell-api/playback/useSectionReplay'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'
 import { basemapStyleUrl, setMapStyle } from '@sentinel/map-kit/utils/mapStyle'
@@ -71,6 +74,15 @@ const appStore = useAppStore()
 const themeStore = useThemeStore()
 const offlineMapsStore = useOfflineMapsStore()
 const landStore = useLandStore()
+
+// Replay (Settings › LAND › History & Replay): the store swaps its live list
+// for the recording; markers, labels, search and the station table read it unchanged.
+useSectionReplay('land', {
+  enter: () => landStore.startReplay(),
+  exit: () => landStore.stopReplay(),
+  jumped: () => landStore.refreshReplay(),
+  dispose: () => landStore.stopReplay(),
+})
 const repeatersStore = useRepeatersStore()
 const basemapStore = useBasemapStore()
 const sdrManagerSitesStore = useSdrManagerSitesStore()

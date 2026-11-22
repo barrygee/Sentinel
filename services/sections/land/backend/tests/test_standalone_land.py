@@ -53,7 +53,11 @@ class TestCreateLandTables:
     async def test_creates_only_the_land_tables(self, land_engine):
         await land_database.create_land_tables()
 
-        assert set(await table_columns(land_engine)) == {"aprs_stations", "repeater_cache"}
+        assert set(await table_columns(land_engine)) == {
+            "aprs_stations",
+            "repeater_cache",
+            "land_position_history",
+        }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, land_engine):
         await land_database.create_land_tables()

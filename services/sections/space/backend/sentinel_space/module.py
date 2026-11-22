@@ -4,6 +4,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_space.database import backfill_satellite_radio_store, create_space_tables
+from sentinel_space.services import tle_history
 
 
 async def prepare() -> None:
@@ -16,6 +17,16 @@ async def prepare() -> None:
     await backfill_satellite_radio_store()
 
 
-lifecycle = ModuleLifecycle(name="space", prepare=prepare)
+async def _start() -> None:
+    # Ages out TLE versions kept for replay (space.historyRetentionDays),
+    # whether recording is on or off.
+    await tle_history.retention.start()
+
+
+async def _stop() -> None:
+    await tle_history.retention.stop()
+
+
+lifecycle = ModuleLifecycle(name="space", prepare=prepare, start=_start, stop=_stop)
 
 manifest = section_manifest("space", display_name="SPACE", nav_order=20, routes=["/api/space/"])

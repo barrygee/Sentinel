@@ -12,6 +12,7 @@
 </template>
 
 <script setup lang="ts">
+import { useSectionReplay } from '@sentinel/shell-api/playback/useSectionReplay'
 // IMPORTANT: the map instance is stored in a plain variable — never in
 // ref/reactive — and every IControl receives Pinia stores, never window globals.
 // Shares the style lifecycle with AirMap.vue (useSectionMapStyle), so the Sea
@@ -37,6 +38,15 @@ import { FerryRoutesControl } from './controls/ferry-routes/FerryRoutesControl'
 import { PortsControl } from './controls/ports/PortsControl'
 
 const seaStore = useSeaStore()
+
+// Replay (Settings › SEA › History & Replay): the store swaps its live
+// snapshot for the recording; the map, filters and search read it unchanged.
+useSectionReplay('sea', {
+  enter: () => seaStore.startReplay(),
+  exit: () => seaStore.stopReplay(),
+  jumped: () => seaStore.refreshReplay(),
+  dispose: () => seaStore.stopReplay(),
+})
 const basemapStore = useBasemapStore()
 const settingsStore = useSettingsStore()
 const sdrManagerSitesStore = useSdrManagerSitesStore()

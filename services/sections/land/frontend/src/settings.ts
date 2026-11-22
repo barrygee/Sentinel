@@ -1,3 +1,4 @@
+import { historySettingItem } from '@sentinel/shell-api/playback/historySettingItem'
 import {
   registerSettingItems,
   registerSettingsSection,
@@ -84,4 +85,7 @@ export function registerLandSettings(): void {
       groupLabel: 'REPEATERS',
     },
   ])
+
+  // History & Replay (REPLAY group): record on/off, days kept, what is stored.
+  registerSettingItems([historySettingItem('land', 'LAND', 'APRS station positions')])
 }

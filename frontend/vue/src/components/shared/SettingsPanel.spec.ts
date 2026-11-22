@@ -484,12 +484,12 @@ describe('SettingsPanel', () => {
       return wrapper.findAll('.settings-group-label').map((node) => node.text())
     }
 
-    it('groups the Land rows under APRS and REPEATERS', async () => {
+    it('groups the Land rows under APRS, REPEATERS and REPLAY', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'LAND')
       // An exact list also proves no group is split in two: a heading renders
       // wherever the group changes, so a stray row would repeat one.
-      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS'])
+      expect(groupLabels(wrapper)).toEqual(['APRS', 'REPEATERS', 'REPLAY'])
       expect(renderedItemIds(wrapper)).toEqual([
         'land-aprs-sdr-source',
         'land-aprs-channel',
@@ -497,13 +497,14 @@ describe('SettingsPanel', () => {
         'land-aprs-retention',
         'land-repeater-label-fields',
         'land-repeaters-file',
+        'land-history',
       ])
     })
 
-    it('leads SEA with its data sources, Source Override included, then MAP and LABELS', async () => {
+    it('leads SEA with its data sources, Source Override included, then MAP, LABELS and REPLAY', async () => {
       const wrapper = mountPanel()
       await openSection(wrapper, 'SEA')
-      expect(groupLabels(wrapper)).toEqual(['DATA SOURCES', 'MAP', 'LABELS'])
+      expect(groupLabels(wrapper)).toEqual(['DATA SOURCES', 'MAP', 'LABELS', 'REPLAY'])
       expect(renderedItemIds(wrapper)).toEqual([
         'sea-source-override',
         'sea-ais-sdr-source',
@@ -512,6 +513,7 @@ describe('SettingsPanel', () => {
         'sea-coverage-area',
         'sea-map-layers',
         'sea-label-fields',
+        'sea-history',
       ])
     })
 
@@ -913,7 +915,7 @@ describe('SettingsPanel', () => {
   })
 
   describe('AIR data sources', () => {
-    it('leads AIR with its data sources, then map layers, labels and alerts', async () => {
+    it('leads AIR with its data sources, then map layers, labels, alerts and replay', async () => {
       const wrapper = mountPanel()
       await wrapper
         .findAll('.settings-nav-item')
@@ -938,12 +940,14 @@ describe('SettingsPanel', () => {
         'air-aircraft-icon-style',
         'air-tag-fields',
         'air-overhead-alerts',
+        'air-history',
       ])
       expect(wrapper.findAll('.settings-group-label').map((node) => node.text())).toEqual([
         'DATA SOURCES',
         'MAP',
         'LABELS',
         'ALERTS',
+        'REPLAY',
       ])
       expect(airItems.find((item) => item.id === 'air-offgrid-sdr-source')!.label).toBe(
         'Off Grid ADS-B SDR',

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { defineComponent, h, nextTick } from 'vue'
 
 // ---- Shared mock state ----------------------------------------------------
@@ -25,6 +26,9 @@ const controlMocks = vi.hoisted(() => {
       applyVisibility = vi.fn()
       toggleDaynight = vi.fn()
       focusSatellite = vi.fn()
+      // Satellite/daynight replay hooks, driven by useSectionReplay.
+      setReplaying = vi.fn()
+      _fetch = vi.fn()
       constructor(...args: unknown[]) {
         this.args = args
         ;(instances[name] ||= []).push(this as unknown as Record<string, unknown>)
@@ -466,6 +470,44 @@ describe('SpaceMap', () => {
       expect(vm.getDaynightControl()).not.toBeNull()
       expect(vm.getNamesControl()).not.toBeNull()
       expect(vm.getMap()).toBe(map)
+    })
+  })
+
+  describe('replay', () => {
+    it('switches both time-driven controls in and out of replay and refetches on a jump', async () => {
+      const wrapper = mountMap()
+      bringUp(makeFakeMap())
+      const playback = usePlaybackStore()
+      playback.enterReplay('space')
+      await wrapper.vm.$nextTick()
+      expect(last('satellite').setReplaying).toHaveBeenLastCalledWith(true)
+      expect(last('daynight').setReplaying).toHaveBeenLastCalledWith(true)
+      playback.seek('space', Date.now() - 60_000)
+      await wrapper.vm.$nextTick()
+      expect(last('satellite')._fetch).toHaveBeenCalled()
+      expect(last('daynight')._fetch).toHaveBeenCalled()
+      playback.exitReplay('space')
+      await wrapper.vm.$nextTick()
+      expect(last('satellite').setReplaying).toHaveBeenLastCalledWith(false)
+      expect(last('daynight').setReplaying).toHaveBeenLastCalledWith(false)
+    })
+
+    it('opened mid-replay, starts both controls on the replayed moment', () => {
+      usePlaybackStore().enterReplay('space')
+      mountMap()
+      bringUp(makeFakeMap())
+      expect(last('satellite').setReplaying).toHaveBeenCalledWith(true)
+      expect(last('daynight').setReplaying).toHaveBeenCalledWith(true)
+    })
+
+    it('replay changes before the map is up are harmless', async () => {
+      const wrapper = mountMap()
+      const playback = usePlaybackStore()
+      playback.enterReplay('space')
+      playback.seek('space', Date.now() - 1000)
+      playback.exitReplay('space')
+      await wrapper.vm.$nextTick()
+      expect(controlMocks.instances.satellite).toBeUndefined()
     })
   })
 })

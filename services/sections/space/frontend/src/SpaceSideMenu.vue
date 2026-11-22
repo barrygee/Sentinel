@@ -2,6 +2,7 @@
   <!-- The satellite overlays: ground track, footprint, day/night and place names. -->
   <MapSideRail
     container-id="space-side-menu"
+    replay-section="space"
     accessible-name="Space map controls"
     layers-button-id="space-layers-btn"
     layers-panel-id="space-layers-panel"

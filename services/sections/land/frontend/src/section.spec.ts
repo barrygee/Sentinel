@@ -53,6 +53,10 @@ describe('components/land/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('land')
     expect(getSettingItems().some((item) => item.section === 'land')).toBe(true)
+    // History & Replay, in the REPLAY group.
+    const history = getSettingItems().find((item) => item.id === 'land-history')
+    expect(history?.section).toBe('land')
+    expect(history?.groupLabel).toBe('REPLAY')
   })
 
   it('hydrates its stores from the boot settings', async () => {

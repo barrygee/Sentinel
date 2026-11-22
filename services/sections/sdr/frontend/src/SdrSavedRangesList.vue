@@ -36,7 +36,7 @@
             :title="isRangeSearching(range.id) ? 'Stop search' : 'Start search'"
             @click.stop="emit('toggleSearch', range.id)"
           >
-            <SdrPlayStopIcon :stop="isRangeSearching(range.id)" />
+            <PlayStopIcon :stop="isRangeSearching(range.id)" />
           </BaseIconAction>
         </div>
       </div>
@@ -56,7 +56,7 @@
 import './SdrSavedRangesList.css'
 import BaseAccordionSection from '@sentinel/ui/base/BaseAccordionSection.vue'
 import BaseIconAction from '@sentinel/ui/base/BaseIconAction.vue'
-import SdrPlayStopIcon from './SdrPlayStopIcon.vue'
+import PlayStopIcon from '@sentinel/ui/icons/PlayStopIcon.vue'
 import type { SdrSearchRange } from './services/sdrSearchApi'
 
 /** The accordion is open. */

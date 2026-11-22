@@ -4,6 +4,7 @@
     <SpaceMap ref="spaceMapRef" />
     <SpaceSideMenu :map-ref="spaceMapProxy" />
     <NoUrlOverlay domain="space" />
+    <SectionPlaybackBar section-id="space" section-label="Space" :has-coverage="false" />
     <SatInfoPanel :satellite-control="satelliteControl" />
     <Teleport v-if="searchPaneReady" :to="sidebarPaneSelector('search')">
       <SpaceFilter
@@ -24,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import SectionPlaybackBar from '@sentinel/shell-api/playback/SectionPlaybackBar.vue'
 import { ref, shallowRef, markRaw, watch, onBeforeUnmount } from 'vue'
 import { useUserLocation } from '@sentinel/map-kit/composables/useUserLocation'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'

@@ -1,6 +1,7 @@
 import * as maplibregl from 'maplibre-gl'
 import { watch, type WatchStopHandle } from 'vue'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { createBracket } from '@sentinel/map-kit/sprites/adsbSprites'
 import { createVesselArrow, createVesselArrowShape, createVesselDot } from './vesselSprites'
 import { createFlagBadge } from './vesselFlagBadge'
@@ -130,6 +131,7 @@ export class AisVesselsControl extends SentinelControlBase {
   private _onMapClick: ((event: maplibregl.MapMouseEvent) => void) | null = null
   private _a11yRegion: HTMLDivElement | null = null
   private _layersReady = false
+  private readonly _playback = usePlaybackStore()
 
   constructor(seaStore: SeaStore) {
     super()
@@ -415,7 +417,8 @@ export class AisVesselsControl extends SentinelControlBase {
 
   private _rebuildFeatures(): void {
     const category = this._seaStore.seaFilterCategory
-    const now = Date.now()
+    // The playback clock: the wall clock live, the replayed moment in replay.
+    const now = this._playback.now('sea')
     this._features = this._seaStore.vessels
       .filter((vessel) => familyMatchesCategory(vessel.family, category))
       .map((vessel) => this._featureFor(vessel, now))
@@ -457,7 +460,8 @@ export class AisVesselsControl extends SentinelControlBase {
     // previous data would be thrown away unrendered and the worker kept busy.
     const source = this.map.getSource(SOURCE_ID) as maplibregl.GeoJSONSource | undefined
     if (!source || !source.loaded()) return
-    const now = Date.now()
+    // The playback clock: the wall clock live, the replayed moment in replay.
+    const now = this._playback.now('sea')
     const byMmsi = new Map(this._seaStore.vessels.map((vessel) => [vessel.mmsi, vessel]))
     let moved = false
     for (const feature of this._features) {

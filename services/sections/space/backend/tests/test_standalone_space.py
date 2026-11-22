@@ -43,7 +43,11 @@ class TestCreateSpaceTables:
     async def test_creates_only_the_space_tables(self, space_engine):
         await space_database.create_space_tables()
 
-        assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
+        assert set(await table_columns(space_engine)) == {
+            "tle_cache",
+            "satellite_catalogue",
+            "space_tle_history",
+        }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, space_engine):
         await space_database.create_space_tables()
@@ -75,7 +79,11 @@ class TestCreateSpaceTables:
         await space_database.create_space_tables()
         await space_database.create_space_tables()
 
-        assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
+        assert set(await table_columns(space_engine)) == {
+            "tle_cache",
+            "satellite_catalogue",
+            "space_tle_history",
+        }
 
 
 class TestBackfillSatelliteRadioStore:

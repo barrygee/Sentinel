@@ -20,6 +20,7 @@ import httpx
 from backend.cache import is_fresh, is_within_stale, now_ms
 from backend.config import settings
 from backend.database import get_db
+from backend.platform.history.router import build_history_router
 from backend.platform.settings_client import SettingsUnavailable
 from backend.services.upstream_rate_limit import UpstreamThrottledError
 from backend.utils import resolve_domain_urls, resolve_effective_mode
@@ -30,9 +31,9 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sentinel_air.models import AdsbCache, AirTracking
+from sentinel_air.models import AdsbCache, AirPositionHistory, AirTracking
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_cache, adsb_source, online_quota
+from sentinel_air.services import adsb_cache, adsb_source, air_history, online_quota
 from sentinel_air.services.adsb_squawk import tracker as squawk_tracker
 
 logger = logging.getLogger(__name__)
@@ -307,6 +308,9 @@ async def get_aircraft_near_point(
         # request's cache write.
         async with AsyncSession(db.bind, expire_on_commit=False) as alert_db:
             await squawk_tracker.observe(data, alert_db)
+        # The same snapshot feeds replay history, tagged with the source that
+        # answered so a switch between online and off grid shows on the timeline.
+        air_history.record_snapshot(data, "online" if adsb_service.is_online_feed(base_url) else "offgrid", now_ms())
         adsb_cache.store_snapshot(db, row, lat, lon, radius, data, now_ms(), fresh_for_ms)
         # Best-effort cache write: if SQLite is locked beyond busy_timeout we
         # still have fresh upstream data, so serve it rather than 500.
@@ -422,3 +426,9 @@ async def remove_tracked_aircraft(hex: str, db: AsyncSession = Depends(get_db)):
     await db.delete(row)
     await db.commit()
     return JSONResponse({"status": "removed"})
+
+
+# Replay history: GET /api/air/history/{status,coverage,samples}, read from air.db only.
+router.include_router(
+    build_history_router("", air_history.NAMESPACE, AirPositionHistory, air_history.REPLAY_LOOKBACK_MS, tags=["air"])
+)

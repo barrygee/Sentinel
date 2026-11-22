@@ -9,6 +9,7 @@ vi.mock('./offline-maps/OfflineMapsSettings.vue', () => ({
 }))
 
 import type { SettingControl } from '@sentinel/shell-api/types/settings'
+import HistoryRecordingControl from '@sentinel/shell-api/settings/HistoryRecordingControl.vue'
 import { getSettingItems, getSettingsSections } from '@sentinel/shell-api/shell/settingsRegistry'
 import './appSettings'
 import { registerAirSettings } from '@sentinel/section-air/settings'
@@ -208,6 +209,16 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     { component: OverheadAlertsControl, emits: ['stage'], layout: 'half', naturalHeight: true },
   ],
   [
+    'air',
+    'air-history',
+    {
+      component: HistoryRecordingControl,
+      props: { sectionId: 'air', sectionLabel: 'Air' },
+      emits: ['stage'],
+      naturalHeight: true,
+    },
+  ],
+  [
     'space',
     'space-source-override',
     { component: SourceOverrideControl, props: { ns: 'space' }, emits: ['stage'] },
@@ -233,6 +244,16 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'space',
     'space-filter-hover-preview',
     { component: SpaceHoverPreviewControl, emits: ['stage'], layout: 'half' },
+  ],
+  [
+    'space',
+    'space-history',
+    {
+      component: HistoryRecordingControl,
+      props: { sectionId: 'space', sectionLabel: 'Space' },
+      emits: ['stage'],
+      naturalHeight: true,
+    },
   ],
   [
     'sea',
@@ -274,6 +295,16 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
     'sea-label-fields',
     { component: SeaLabelFieldsControl, emits: ['stage'], layout: 'half' },
   ],
+  [
+    'sea',
+    'sea-history',
+    {
+      component: HistoryRecordingControl,
+      props: { sectionId: 'sea', sectionLabel: 'Sea' },
+      emits: ['stage'],
+      naturalHeight: true,
+    },
+  ],
   ['land', 'land-aprs-sdr-source', { component: AprsSdrSourceControl, emits: ['stage'] }],
   ['land', 'land-aprs-channel', { component: LandAprsChannelControl, emits: ['stage', 'commit'] }],
   [
@@ -303,6 +334,16 @@ const EXPECTED: Array<[section: string, id: string, control: SettingControl]> = 
       },
       emits: ['stage'],
       layout: 'full',
+    },
+  ],
+  [
+    'land',
+    'land-history',
+    {
+      component: HistoryRecordingControl,
+      props: { sectionId: 'land', sectionLabel: 'Land' },
+      emits: ['stage'],
+      naturalHeight: true,
     },
   ],
   ['sdr', 'sdr-devices', { component: SdrDevicesControl, emits: ['stage'], layout: 'half' }],

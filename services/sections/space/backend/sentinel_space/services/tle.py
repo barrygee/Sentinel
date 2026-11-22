@@ -24,7 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_space.models import SatelliteCatalogue, TleCache
-from sentinel_space.services import sat_radio
+from sentinel_space.services import sat_radio, tle_history
 
 # Well-known NORAD IDs → (category, category_source) for auto-classification
 # when a satellite is fetched individually rather than via a categorised group feed.
@@ -296,7 +296,12 @@ async def store_tle_bulk(
     if radio_map:
         sat_radio.apply_radio_to_rows(list(existing_cat.values()), radio_map)
 
+    # Every TLE enters Space here, whatever its source, so replay history
+    # (space.historyEnabled) records it here too, in the same transaction.
+    await tle_history.record_tle_versions(db, entries)
+
     await db.commit()
+
     return {"inserted": inserted, "updated": updated}
 
 

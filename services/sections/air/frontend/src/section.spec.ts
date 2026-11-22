@@ -83,6 +83,10 @@ describe('components/air/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('air')
     expect(getSettingItems().some((item) => item.section === 'air')).toBe(true)
+    // History & Replay, in the REPLAY group.
+    const history = getSettingItems().find((item) => item.id === 'air-history')
+    expect(history?.section).toBe('air')
+    expect(history?.groupLabel).toBe('REPLAY')
   })
 
   it('lists its landing/departure bells and overhead alerts in Settings › Alerts', async () => {

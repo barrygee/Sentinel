@@ -69,7 +69,9 @@
             "civil": false,
             "mil": false,
             "radiusNm": 10
-        }
+        },
+        "historyEnabled": false,
+        "historyRetentionDays": 7
     },
     "space": {
         "enabled": true,
@@ -86,7 +88,9 @@
             "cubesat": "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle",
             "active": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
             "unknown": "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
-        }
+        },
+        "historyEnabled": false,
+        "historyRetentionDays": 7
     },
     "sea": {
         "enabled": true,
@@ -111,7 +115,9 @@
             "course": false
         },
         "defaultLayers": ["vessels", "vesselLabels", "ferryRoutes", "ports"],
-        "aisSdrRadioId": null
+        "aisSdrRadioId": null,
+        "historyEnabled": false,
+        "historyRetentionDays": 7
     },
     "land": {
         "enabled": false,
@@ -149,7 +155,9 @@
             "locator": false,
             "keeper": false,
             "status": false
-        }
+        },
+        "historyEnabled": false,
+        "historyRetentionDays": 7
     },
     "sdr": {
         "enabled": true,

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useLandStore, isLandLayer, LAND_LAYERS } from './land'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import * as settingsApi from '@sentinel/shell-api/services/settingsApi'
 
 vi.mock('@sentinel/shell-api/services/settingsApi', () => ({
@@ -374,5 +375,131 @@ describe('land store', () => {
       expect(store.searchQuery).toBe('MB7')
       expect(store.searchExpandedCallsign).toBe('MB7UMS')
     })
+  })
+})
+
+describe('land store — replay', () => {
+  const NOW = Date.UTC(2026, 10, 20, 12, 0, 0)
+  const AT = NOW - 3_600_000
+
+  function fix(t: number, lat = 51.5) {
+    return {
+      t,
+      lat,
+      lon: -0.1,
+      alt: null,
+      heading: null,
+      speed: null,
+      source: 'offgrid',
+      extra: { symbol: '/>' },
+    }
+  }
+
+  function historyFetch(entities: Record<string, unknown[]>) {
+    return vi.fn(async (url: string) => {
+      if (String(url).startsWith('/api/land/history/samples')) {
+        return { ok: true, json: async () => ({ from: 0, to: 0, truncated: false, entities }) }
+      }
+      return { ok: true, json: async () => ({ stations: [{ callsign: 'LIVE' }] }) }
+    })
+  }
+
+  async function settle() {
+    for (let index = 0; index < 6; index++) await Promise.resolve()
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    usePlaybackStore().enterReplay('land', AT)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('fills stations from the recording, newest first, within the retention', async () => {
+    vi.stubGlobal(
+      'fetch',
+      historyFetch({
+        OLD: [fix(AT - 4 * 60_000)],
+        NEW: [fix(AT - 60_000)],
+        GONE: [fix(AT - 6 * 60_000)], // beyond the 5-minute retention
+      }),
+    )
+    const store = useLandStore()
+    store.startReplay()
+    await settle()
+    expect(store.aprsStations.map((station) => station.callsign)).toEqual(['NEW', 'OLD'])
+  })
+
+  it('pauses polling while replaying and resumes for counted consumers after', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useLandStore()
+    store.startAprsPolling()
+    store.startReplay()
+    store.startAprsPolling()
+    await settle()
+    fetchMock.mockClear()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/land/aprs/stations')).toBe(false)
+    store.stopReplay()
+    await settle()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/land/aprs/stations')).toBe(true)
+    expect(store.aprsStations.map((station) => station.callsign)).toEqual(['LIVE'])
+    store.stopAprsPolling()
+    store.stopAprsPolling()
+  })
+
+  it('a fetch while replaying redraws the recording instead', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useLandStore()
+    store.startReplay()
+    await settle()
+    await store.fetchAprsStations()
+    expect(fetchMock.mock.calls.some(([url]) => url === '/api/land/aprs/stations')).toBe(false)
+  })
+
+  it('redraws on a jump and each second, never two frames at once', async () => {
+    const fetchMock = historyFetch({ A: [fix(AT - 60_000)] })
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useLandStore()
+    store.startReplay()
+    store.refreshReplay() // in flight: skipped
+    await settle()
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(store.aprsStations).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a frame finishing after replay ended is dropped', async () => {
+    let release!: (value: unknown) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise((resolve) => (release = resolve))),
+    )
+    const store = useLandStore()
+    store.startReplay()
+    store.stopReplay()
+    release({ ok: true, json: async () => ({ entities: { A: [fix(AT - 1000)] } }) })
+    await settle()
+    expect(store.aprsStations).toEqual([])
+  })
+
+  it('starting twice, stopping twice and refreshing while live are harmless', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useLandStore()
+    store.startReplay()
+    store.startReplay()
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    store.stopReplay()
+    store.stopReplay()
+    store.refreshReplay()
+    expect(store.aprsStations).toEqual([])
   })
 })

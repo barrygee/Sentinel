@@ -14,6 +14,9 @@ from sentinel_space.services import sat_radio
 
 SPACE_TABLES: tuple[str, ...] = ("tle_cache", "satellite_catalogue")
 
+# Added after the split: nothing in the legacy database to import, so only created.
+SPACE_SERVICE_ONLY_TABLES: tuple[str, ...] = ("space_tle_history",)
+
 # Columns added to satellite_catalogue after its first release. SQLite's
 # create_all never adds a column to an existing table, so each is ALTERed in
 # (a duplicate is an OperationalError, ignored).
@@ -34,7 +37,7 @@ SATELLITE_CATALOGUE_ADDED_COLUMNS: tuple[str, ...] = (
 
 async def create_space_tables() -> None:
     """Create Space's tables, and ALTER in columns added since their first release."""
-    await create_section_tables(SPACE_TABLES, SATELLITE_CATALOGUE_ADDED_COLUMNS)
+    await create_section_tables(SPACE_TABLES + SPACE_SERVICE_ONLY_TABLES, SATELLITE_CATALOGUE_ADDED_COLUMNS)
 
 
 async def backfill_satellite_radio_store() -> None:

@@ -51,6 +51,28 @@ vi.mock('@sentinel/map-kit/sprites/adsbSprites', () => {
   }
 })
 
+const replayFrames = vi.hoisted(() => ({
+  frames: [] as Array<Record<string, unknown>>,
+  pending: null as null | Promise<unknown>,
+  resets: 0,
+  frameAtCalls: [] as number[],
+}))
+vi.mock('./adsbReplayFrames', async (importOriginal) => {
+  const original = await importOriginal<typeof import('./adsbReplayFrames')>()
+  return {
+    ...original,
+    createAirReplayPlayer: () => ({
+      frameAt: async (atMs: number) => {
+        replayFrames.frameAtCalls.push(atMs)
+        if (replayFrames.pending) await replayFrames.pending
+        return replayFrames.frames
+      },
+      reset: () => {
+        replayFrames.resets += 1
+      },
+    }),
+  }
+})
 import { AdsbLiveControl } from './AdsbLiveControl'
 import { createGroundVehicleBlip } from '@sentinel/map-kit/sprites/adsbSprites'
 import { CORRECTION_MS, deadReckon } from './aircraftPosition'
@@ -60,6 +82,7 @@ import { useAirStore } from '../../stores/air'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
 import { useTrackingStore } from '@sentinel/shell-api/stores/tracking'
 import { useAirNotifStore } from '../../stores/airNotif'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import type { AirStore, NotificationsStore, TrackingStore, AirNotifStore } from '../types'
 
 // ---- Aircraft API entry factory ----
@@ -5803,5 +5826,244 @@ describe('AdsbLiveControl aircraft silhouettes', () => {
       map.fire('zoomend', undefined)
       expect(rebuildTag).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('AdsbLiveControl replay', () => {
+  const NOW = Date.UTC(2026, 10, 20, 12, 0, 0)
+
+  function frame(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'abc123',
+      t: NOW - 3_600_000,
+      lat: 51.5,
+      lon: -0.1,
+      alt: 30000,
+      heading: 90,
+      speed: 400,
+      source: 'online',
+      extra: { flight: 'BAW1', alt_baro: 30000, category: 'A3' },
+      ...overrides,
+    }
+  }
+
+  async function settle() {
+    for (let index = 0; index < 5; index++) await Promise.resolve()
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    replayFrames.frames = []
+    replayFrames.pending = null
+    replayFrames.resets = 0
+    replayFrames.frameAtCalls = []
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('stops polling and draws the recorded aircraft at the replayed moment', async () => {
+    const { control, map } = mounted()
+    const playback = usePlaybackStore()
+    playback.enterReplay('air', NOW - 3_600_000)
+    replayFrames.frames = [frame()]
+    priv(control)._pollInterval = setInterval(() => {}, 10_000)
+    control.enterReplay()
+    await settle()
+    expect(control.isReplaying).toBe(true)
+    expect(priv(control)._pollInterval).toBeNull()
+    expect(replayFrames.frameAtCalls).toEqual([NOW - 3_600_000])
+    expect(control._geojson.features.map((feature) => feature.properties.hex)).toEqual(['abc123'])
+    expect(control._geojson.features[0]!.properties.flight).toBe('BAW1')
+    expect(map.sources.has('adsb-live')).toBe(true)
+  })
+
+  it('ages recorded aircraft by the replay clock, not the wall clock', async () => {
+    const { control } = mounted()
+    const playback = usePlaybackStore()
+    playback.enterReplay('air', NOW - 3_600_000)
+    replayFrames.frames = [frame()]
+    control.enterReplay()
+    await settle()
+    // An hour old by the wall clock, but fresh at the replayed moment: kept, and not dimmed.
+    priv(control)._interpolate()
+    expect(control._geojson.features).toHaveLength(1)
+    expect(priv(control)._interpolatedFeatures[0].properties.stale).toBe(0)
+  })
+
+  it('draws a new frame every second of wall time', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air', NOW - 3_600_000)
+    control.enterReplay()
+    await settle()
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(replayFrames.frameAtCalls.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('a jump starts the picture afresh instead of refusing older reports', async () => {
+    const { control } = mounted()
+    const playback = usePlaybackStore()
+    playback.enterReplay('air', NOW - 3_600_000)
+    replayFrames.frames = [frame()]
+    control.enterReplay()
+    await settle()
+    playback.seek('air', NOW - 7_200_000)
+    replayFrames.frames = [frame({ t: NOW - 7_200_000, lat: 52.5 })]
+    control.refreshReplay()
+    await settle()
+    expect(control._geojson.features).toHaveLength(1)
+    expect(control._geojson.features[0]!.geometry.coordinates[1]).toBe(52.5)
+  })
+
+  it('drops a frame that loaded after another jump or after replay ended', async () => {
+    const { control } = mounted()
+    const playback = usePlaybackStore()
+    playback.enterReplay('air', NOW - 3_600_000)
+    let release!: () => void
+    replayFrames.pending = new Promise<void>((resolve) => (release = resolve))
+    replayFrames.frames = [frame()]
+    control.enterReplay()
+    playback.seek('air', NOW - 7_200_000) // jumped while the chunk loaded
+    release()
+    await settle()
+    expect(control._geojson.features).toHaveLength(0)
+  })
+
+  it('does not overlap frames while one is loading', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air', NOW - 3_600_000)
+    replayFrames.pending = new Promise(() => {})
+    control.enterReplay()
+    control.refreshReplay()
+    control.refreshReplay()
+    await settle()
+    expect(replayFrames.frameAtCalls).toHaveLength(1)
+  })
+
+  it('entering twice, leaving twice and refreshing while live do nothing extra', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    control.enterReplay()
+    await settle()
+    expect(replayFrames.frameAtCalls).toHaveLength(1)
+    control.exitReplay()
+    control.exitReplay()
+    control.refreshReplay()
+    expect(replayFrames.resets).toBe(1)
+  })
+
+  it('leaving clears the recorded picture and resumes polling when visible', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    replayFrames.frames = [frame()]
+    control.enterReplay()
+    await settle()
+    const startPolling = vi.spyOn(priv(control), '_startPolling')
+    control.exitReplay()
+    expect(control.isReplaying).toBe(false)
+    expect(control._geojson.features).toHaveLength(0)
+    expect(replayFrames.resets).toBe(1)
+    expect(startPolling).toHaveBeenCalled()
+  })
+
+  it('leaving while the layer is hidden does not start polling', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    airStore.overlayStates.adsb = false
+    priv(control).visible = false
+    const startPolling = vi.spyOn(priv(control), '_startPolling')
+    control.exitReplay()
+    expect(startPolling).not.toHaveBeenCalled()
+  })
+
+  it('showing the layer again in replay brings back only the interpolation', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    priv(control)._stopPolling()
+    expect(priv(control)._interpolateInterval).toBeNull()
+    priv(control)._startPolling()
+    expect(priv(control)._interpolateInterval).not.toBeNull()
+    expect(priv(control)._pollInterval).toBeNull()
+    const interpolate = vi.spyOn(priv(control), '_interpolate')
+    await vi.advanceTimersByTimeAsync(250)
+    expect(interpolate).toHaveBeenCalled()
+    // Already running: kept as it is.
+    const running = priv(control)._interpolateInterval
+    priv(control)._startPolling()
+    expect(priv(control)._interpolateInterval).toBe(running)
+  })
+
+  it('a connectivity change while replaying only remembers the mode', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    const clear = vi.spyOn(control, 'clearAircraft')
+    priv(control)._lastFeedMode = 'online'
+    vi.spyOn(priv(control), '_effectiveMode').mockReturnValue('offgrid')
+    control.handleConnectivityChange()
+    expect(priv(control)._lastFeedMode).toBe('offgrid')
+    expect(clear).not.toHaveBeenCalled()
+    expect(priv(control)._pollInterval).toBeNull()
+  })
+
+  it('a frame with no map is not drawn', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    priv(control).map = null
+    replayFrames.frameAtCalls = []
+    control.refreshReplay()
+    await settle()
+    expect(replayFrames.frameAtCalls).toEqual([])
+  })
+
+  it('a replay reset clears parked-aircraft timers', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    priv(control)._parkedTimers = { abc123: setTimeout(() => {}, 60_000) }
+    control.enterReplay()
+    await settle()
+    expect(priv(control)._parkedTimers).toEqual({})
+  })
+
+  it('a reset survives a map whose source is gone', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    priv(control).map.getSource = () => {
+      throw new Error('style reloading')
+    }
+    expect(() => control.enterReplay()).not.toThrow()
+  })
+
+  it('leaving replay copes with a timer already cleared', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    clearInterval(priv(control)._replayTimer)
+    priv(control)._replayTimer = null
+    control.exitReplay()
+    expect(control.isReplaying).toBe(false)
+  })
+
+  it('removing the control mid-replay stops the replay timer', async () => {
+    const { control } = mounted()
+    usePlaybackStore().enterReplay('air')
+    control.enterReplay()
+    await settle()
+    control.onRemove()
+    expect(control.isReplaying).toBe(false)
+    expect(replayFrames.resets).toBe(1)
+    replayFrames.frameAtCalls = []
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(replayFrames.frameAtCalls).toEqual([])
   })
 })

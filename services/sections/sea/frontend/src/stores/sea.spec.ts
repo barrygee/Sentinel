@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useSeaStore, type SeaVessel } from './sea'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { SEA_POLL_INTERVAL_MS } from '../constants/sea'
 
 const VESSEL: SeaVessel = {
@@ -387,5 +388,208 @@ describe('sea store', () => {
       store.setOverlay('ferryRoutes', false)
       expect(store.currentDefaultLayers()).toEqual(['vessels'])
     })
+  })
+})
+
+describe('sea store — replay', () => {
+  const NOW = Date.UTC(2026, 10, 20, 12, 0, 0)
+  const AT = NOW - 3_600_000
+
+  function sample(t: number, lat = 51, overrides: Record<string, unknown> = {}) {
+    return {
+      t,
+      lat,
+      lon: 1,
+      alt: null,
+      heading: 90,
+      speed: 10,
+      source: 'online',
+      extra: { name: 'PRIDE OF KENT', family: 'passenger', cog: 90 },
+      ...overrides,
+    }
+  }
+
+  function historyFetch(entities: Record<string, unknown[]>) {
+    return vi.fn(async (url: string) => {
+      if (String(url).startsWith('/api/sea/history/samples')) {
+        return { ok: true, json: async () => ({ from: 0, to: 0, truncated: false, entities }) }
+      }
+      return { ok: true, json: async () => ({ vessels: [{ mmsi: 'live' }], status: 'live' }) }
+    })
+  }
+
+  async function settle() {
+    for (let index = 0; index < 6; index++) await Promise.resolve()
+  }
+
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.useFakeTimers()
+    vi.setSystemTime(NOW)
+    usePlaybackStore().enterReplay('sea', AT)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('fills vessels from the recording at the replayed moment, with no source warnings', async () => {
+    const fetchMock = historyFetch({ '232012345': [sample(AT - 60_000)] })
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    expect(store.vessels.map((vessel) => vessel.mmsi)).toEqual(['232012345'])
+    expect(store.feed).toMatchObject({
+      status: 'live',
+      mode: 'online',
+      source: 'Recorded history',
+      vesselCount: 1,
+    })
+    expect(fetchMock.mock.calls.every(([url]) => String(url).startsWith('/api/sea/history/'))).toBe(
+      true,
+    )
+  })
+
+  it('reports off grid when only the off-grid decoder was heard', async () => {
+    vi.stubGlobal('fetch', historyFetch({ a: [sample(AT - 1000, 51, { source: 'offgrid' })] }))
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    expect(store.feed.mode).toBe('offgrid')
+  })
+
+  it('pauses polling while replaying and resumes for the consumers counted meanwhile', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startPolling() // a live consumer before replay
+    store.startReplay()
+    store.startPolling() // another joins during replay: counted, not polling
+    await settle()
+    fetchMock.mockClear()
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/sea/vessels'))).toBe(
+      false,
+    )
+    store.stopReplay()
+    await settle()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/sea/vessels'))).toBe(
+      true,
+    )
+    expect(store.feed.status).toBe('live')
+    store.stopPolling()
+    store.stopPolling()
+  })
+
+  it('a fetch while replaying redraws the recording instead (a pan)', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    await store.fetchVessels()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/sea/vessels'))).toBe(
+      false,
+    )
+  })
+
+  it("the selected vessel's track comes from the recording up to the moment", async () => {
+    vi.stubGlobal(
+      'fetch',
+      historyFetch({
+        a: [sample(AT - 120_000, 50), sample(AT - 60_000, 50.5), sample(AT + 60_000, 51)],
+      }),
+    )
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    store.selectVessel('a')
+    expect(store.selectedTrack).toEqual([
+      { lat: 50, lon: 1, t: Math.floor((AT - 120_000) / 1000) },
+      { lat: 50.5, lon: 1, t: Math.floor((AT - 60_000) / 1000) },
+    ])
+    // Each frame refreshes the selected track as the moment moves on.
+    usePlaybackStore().seek('sea', AT + 120_000)
+    store.refreshReplay()
+    await settle()
+    expect(store.selectedTrack).toHaveLength(3)
+  })
+
+  it('draws a frame each second, never two at once', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    store.refreshReplay() // in flight: skipped
+    await settle()
+    await vi.advanceTimersByTimeAsync(2000)
+    // One chunk fetch serves every frame (cached).
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('a frame finishing after replay ended is dropped', async () => {
+    let release!: (value: unknown) => void
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise((resolve) => (release = resolve))),
+    )
+    const store = useSeaStore()
+    store.startReplay()
+    store.stopReplay()
+    release({ ok: true, json: async () => ({ entities: { a: [sample(AT - 1000)] } }) })
+    await settle()
+    expect(store.vessels).toEqual([])
+  })
+
+  it('leaving replay restores the live feed and the live track', async () => {
+    const fetchMock = historyFetch({ a: [sample(AT - 1000)] })
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    store.selectVessel('a')
+    store.stopReplay()
+    await settle()
+    expect(store.vessels).toEqual([])
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === '/api/sea/vessels/a/track')).toBe(
+      true,
+    )
+  })
+
+  it('leaving with nothing selected and nobody polling just clears', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    await settle()
+    fetchMock.mockClear()
+    store.stopReplay()
+    await settle()
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(store.feed.status).toBe('connecting')
+  })
+
+  it('starting twice, stopping twice and refreshing while live are harmless', async () => {
+    const fetchMock = historyFetch({})
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.startReplay()
+    store.startReplay()
+    await settle()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    store.stopReplay()
+    store.stopReplay()
+    store.refreshReplay()
+    expect(store.selectedTrack).toEqual([])
+  })
+
+  it('a track asked for while live comes from the network as before', async () => {
+    const fetchMock = okFetch({ samples: [{ lat: 1, lon: 2, t: 3 }] })
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useSeaStore()
+    store.selectVessel('x')
+    await settle()
+    expect(store.selectedTrack).toEqual([{ lat: 1, lon: 2, t: 3 }])
   })
 })

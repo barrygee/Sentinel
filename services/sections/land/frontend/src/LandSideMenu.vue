@@ -5,6 +5,7 @@
        annotation. Buttons drive the map via handlers passed from LandView. -->
   <MapSideRail
     container-id="land-side-menu"
+    replay-section="land"
     accessible-name="Land map controls"
     layers-button-id="land-layers-btn"
     layers-panel-id="land-layers-panel"

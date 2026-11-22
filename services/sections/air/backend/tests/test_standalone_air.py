@@ -57,6 +57,7 @@ class TestCreateAirTables:
             "air_tracking",
             "adsb_online_call",
             "adsb_online_refusal",
+            "air_position_history",
         }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, air_engine):

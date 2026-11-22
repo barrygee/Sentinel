@@ -6,6 +6,8 @@ import {
   registerNotificationTarget,
 } from '@sentinel/shell-api/shell/notificationRegistry'
 import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
+import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydration'
+import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import {
   registerSidebarFilterSubTabs,
@@ -56,4 +58,9 @@ export default function register(shell: ShellContext): void {
   // Its pass bells, listed and cancelled in Settings › Alerts.
   registerNotificationSubscriptionSource(satellitePassSubscriptions)
   registerBackgroundService({ id: 'space-alerts', start: () => useSpaceAlertsService().start() })
+
+  // Replay: whether SPACE records history, and how many days the timeline reaches.
+  registerSettingsHydrator('space', (settings) =>
+    usePlaybackStore().applyHistorySettings('space', settings.space),
+  )
 }
