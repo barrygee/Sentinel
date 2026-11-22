@@ -28,20 +28,21 @@
         @stage="emit('stage', $event)"
       />
     </div>
-    <HistoryStatusLine :section-id="sectionId" />
+    <HistoryRecordedSummary :section-id="sectionId" />
   </div>
 </template>
 
 <script setup lang="ts">
 /**
  * A section's replay-history settings: record on/off, how many days to keep
- * (1–7), and what is stored now. One component for every section, which
- * passes only its id and name; the values live in the playback store.
+ * (1–7), and what is stored now — the time frames recorded and the file size.
+ * One component for every section, which passes only its id and name; the
+ * values live in the playback store.
  */
 import { computed } from 'vue'
 import BaseNumberSetting from '@sentinel/shell-api/settings/BaseNumberSetting.vue'
 import BaseToggleSetting from '@sentinel/shell-api/settings/BaseToggleSetting.vue'
-import HistoryStatusLine from '@sentinel/shell-api/playback/HistoryStatusLine.vue'
+import HistoryRecordedSummary from '@sentinel/shell-api/playback/HistoryRecordedSummary.vue'
 import {
   clampRetentionDays,
   type PlaybackSectionId,

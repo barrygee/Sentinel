@@ -30,17 +30,16 @@ Each point is tagged with the source that heard it. An aircraft or vessel heard 
 
 ## Replay
 
-1. Select **REPLAY** at the bottom of the map's right-hand rail. It appears only while that section records.
-2. The timeline opens above the footer, an hour back and paused.
-3. Move through time:
-   - **Play / pause**, or **Space** while the timeline has focus.
+1. Open the left side panel's **REPLAY** tab (the clock with a back-arrow). It appears only while that section records.
+2. The panel says **LIVE** until you go back in time. Any of these starts replay:
+   - **Drag the TIMELINE** back. The shaded parts hold recorded data: lime for online, yellow for off grid. The readout beside it says which (**ONLINE**, **OFF GRID** or **NO DATA**). From the keyboard: arrows move a second, **Page Up / Page Down** an hour, **Home / End** to either end.
    - **Back / forward** steps a minute.
-   - **1× 10× 60× 300×**: playback speed.
-   - **Drag the timeline**. The shaded parts hold recorded data: lime for online, yellow for off grid. From the keyboard: arrows move a second, **Page Up / Page Down** an hour, **Home / End** to either end.
+   - **Play** starts an hour back and plays; press again to pause.
    - **GO TO (UTC)**: type a date and time, then **GO**.
-4. **LIVE**, **Esc**, or playing into the present returns to the live map.
+3. **SPEED**: 1×, 10×, 60× or 300×.
+4. **LIVE**, or playing into the present, returns to the live map.
 
-Times on the timeline are UTC.
+Replay keeps playing with the side panel closed. Times are UTC.
 
 Everything else on the map keeps working while you replay: filters, search, selecting and labelling, trails, tracking, range rings and layers. Each section replays on its own, so replaying Air leaves Sea live. Alerts keep coming from live data, never from the replay.
 

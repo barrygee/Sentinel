@@ -11,7 +11,10 @@ vi.mock('../services/settingsApi', () => ({
   del: vi.fn(),
   getAll: vi.fn(),
 }))
-vi.mock('../playback/historyApi', () => ({ fetchHistoryStatus: vi.fn(async () => null) }))
+vi.mock('../playback/historyApi', () => ({
+  fetchHistoryStatus: vi.fn(async () => null),
+  fetchHistoryCoverage: vi.fn(async () => null),
+}))
 import * as settingsApi from '../services/settingsApi'
 
 enableAutoUnmount(afterEach)
@@ -84,10 +87,10 @@ describe('HistoryRecordingControl', () => {
     expect(settingsApi.put).toHaveBeenLastCalledWith('sea', 'historyRetentionDays', 2)
   })
 
-  it('shows the status line', async () => {
+  it('shows what is recorded under the settings', async () => {
     vi.mocked(settingsApi.getNamespace).mockResolvedValue({})
     const wrapper = await mountControl()
-    expect(wrapper.find('.history-status-line').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Recording status unavailable')
   })
 
   it('has no axe violations', async () => {

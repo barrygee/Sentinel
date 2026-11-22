@@ -25,7 +25,6 @@ export function historySettingItem(
     desc: `Records ${what} for up to 7 rolling days, kept across restarts, so the map can replay them. Works online and off grid`,
     searchTerms:
       'history replay playback record recording timeline rewind scrub past movement days storage',
-    docPath: 'use/replay',
     control: {
       component: HistoryRecordingControl,
       props: { sectionId, sectionLabel: sectionName },

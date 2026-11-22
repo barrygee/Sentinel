@@ -11,13 +11,14 @@ describe('historySettingItem', () => {
       id: 'air-history',
       label: 'History & Replay',
       groupLabel: 'REPLAY',
-      docPath: 'use/replay',
     })
     expect(item.desc).toContain('Records aircraft positions for up to 7 rolling days')
     expect(item.searchTerms).toContain('replay')
     expect(item.control.component).toBe(HistoryRecordingControl)
     expect(item.control.props).toEqual({ sectionId: 'air', sectionLabel: 'Air' })
     expect(item.control.emits).toEqual(['stage'])
+    // No LEARN MORE link on this row.
+    expect(item.docPath).toBeUndefined()
   })
 
   it('names the section in sentence case for the control', () => {

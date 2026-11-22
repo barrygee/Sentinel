@@ -88,94 +88,108 @@ async function recordAirHistory(page: Page, enabled: boolean): Promise<string[]>
   return historyRequests
 }
 
+/** Open the left side panel's REPLAY tab. */
+async function openReplayTab(page: Page) {
+  const tab = page.locator('#map-sidebar-rail [data-tab="replay"]')
+  await tab.click()
+  return page.getByRole('region', { name: 'Air replay' })
+}
+
 test.describe('History & replay', () => {
   test.beforeEach(async ({ page }) => {
     await clearPersistedState(page)
     await installDefaultMocks(page)
   })
 
-  test('no REPLAY button while the section does not record', async ({ page }) => {
+  test('no REPLAY tab while the section does not record', async ({ page }) => {
     await recordAirHistory(page, false)
     await page.goto('/air/')
     await waitForShellHydration(page)
-    await expect(page.getByRole('button', { name: /map layers/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Replay', exact: true })).toHaveCount(0)
+    await expect(page.locator('#map-sidebar-rail [data-tab="tracking"]')).toBeVisible()
+    await expect(page.locator('#map-sidebar-rail [data-tab="replay"]')).toHaveCount(0)
   })
 
-  test('REPLAY opens the timeline on recorded data, and Esc returns to live', async ({ page }) => {
+  test('the REPLAY tab opens the controls; going back in time replays, LIVE returns', async ({
+    page,
+  }) => {
     const historyRequests = await recordAirHistory(page, true)
     await page.goto('/air/')
     await waitForShellHydration(page)
+    const panel = await openReplayTab(page)
+    await expect(panel).toBeVisible()
+    await expect(panel.getByText('LIVE', { exact: true }).first()).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Back to live' })).toBeDisabled()
+    await expect(panel.getByRole('slider', { name: 'Air replay time' })).toHaveAttribute(
+      'aria-valuetext',
+      'Live',
+    )
+    await expect.poll(() => historyRequests.includes('/api/air/history/coverage')).toBe(true)
 
-    const replayButton = page.getByRole('button', { name: 'Replay', exact: true })
-    await expect(replayButton).toHaveAttribute('aria-pressed', 'false')
-    await replayButton.click()
-    await expect(replayButton).toHaveAttribute('aria-pressed', 'true')
-
-    const bar = page.getByRole('region', { name: 'Air replay' })
-    await expect(bar).toBeVisible()
-    await expect(bar.getByText('REPLAY', { exact: true })).toBeVisible()
-    await expect(bar.getByRole('slider', { name: 'Air replay time' })).toHaveAttribute(
+    // Stepping back from live starts replay.
+    await panel.getByRole('button', { name: 'Back 1 minute' }).click()
+    await expect(panel.getByText('REPLAY', { exact: true })).toBeVisible()
+    await expect(panel.getByRole('slider', { name: 'Air replay time' })).toHaveAttribute(
       'aria-valuetext',
       /UTC/,
     )
-    await expect(bar.getByRole('radiogroup', { name: 'Replay speed' })).toBeVisible()
-    // The recording is read, not the live feed.
     await expect
       .poll(() => historyRequests.some((path) => path.startsWith('/api/air/history/samples')))
       .toBe(true)
-    await expect.poll(() => historyRequests.includes('/api/air/history/coverage')).toBe(true)
 
-    // Play and pause from the keyboard and the button.
-    await bar.getByRole('button', { name: 'Play replay' }).click()
-    await expect(bar.getByRole('button', { name: 'Pause replay' })).toBeVisible()
-    await bar.getByRole('slider', { name: 'Air replay time' }).focus()
-    await page.keyboard.press('Space')
-    await expect(bar.getByRole('button', { name: 'Play replay' })).toBeVisible()
-
-    await page.keyboard.press('Escape')
-    await expect(bar).toBeHidden()
-    await expect(replayButton).toHaveAttribute('aria-pressed', 'false')
+    await panel.getByRole('button', { name: 'Play replay' }).click()
+    await expect(panel.getByRole('button', { name: 'Pause replay' })).toBeVisible()
+    await panel.getByRole('radio', { name: '60 times speed' }).click()
+    await expect(panel.getByRole('radio', { name: '60 times speed' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await panel.getByRole('button', { name: 'Back to live' }).click()
+    await expect(panel.getByRole('button', { name: 'Back to live' })).toBeDisabled()
   })
 
-  test('LIVE leaves replay', async ({ page }) => {
+  test('replay keeps playing with the side panel closed', async ({ page }) => {
     await recordAirHistory(page, true)
     await page.goto('/air/')
     await waitForShellHydration(page)
-    await page.getByRole('button', { name: 'Replay', exact: true }).click()
-    const bar = page.getByRole('region', { name: 'Air replay' })
-    await bar.getByRole('button', { name: 'Back to live' }).click()
-    await expect(bar).toBeHidden()
+    const panel = await openReplayTab(page)
+    await panel.getByRole('button', { name: 'Play replay' }).click()
+    await page.locator('#map-sidebar-rail [data-tab="replay"]').click() // closes the panel
+    await page.waitForTimeout(1500)
+    await page.locator('#map-sidebar-rail [data-tab="replay"]').click()
+    await expect(panel.getByRole('button', { name: 'Pause replay' })).toBeVisible()
   })
 
-  test('the timeline bar meets WCAG 2.2 AA', async ({ page }) => {
+  test('the replay panel meets WCAG 2.2 AA', async ({ page }) => {
     await recordAirHistory(page, true)
     await page.goto('/air/')
     await waitForShellHydration(page)
-    await page.getByRole('button', { name: 'Replay', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Air replay' })).toBeVisible()
+    const panel = await openReplayTab(page)
+    await panel.getByRole('button', { name: 'Back 1 minute' }).click()
     const results = await new AxeBuilder({ page })
       .withTags(WCAG_AA_TAGS)
-      .include('.section-playback-bar')
+      .include('#msb-pane-replay')
       .analyze()
     expect(results.violations).toEqual([])
   })
 
-  test('the timeline fits a 375px screen', async ({ page }) => {
+  test('the replay panel fits a 375px screen', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 740 })
     await recordAirHistory(page, true)
     await page.goto('/air/')
     await waitForShellHydration(page)
-    // The map rail stays on screen on phones, so REPLAY is reachable there too.
-    await page.getByRole('button', { name: 'Replay', exact: true }).click()
-    const bar = page.getByRole('region', { name: 'Air replay' })
-    await expect(bar).toBeVisible()
-    const box = (await bar.boundingBox())!
-    expect(box.x).toBeGreaterThanOrEqual(0)
-    expect(box.x + box.width).toBeLessThanOrEqual(375)
+    await page.getByRole('button', { name: 'Toggle map sidebar' }).click()
+    const panel = await openReplayTab(page)
+    await expect(panel).toBeVisible()
+    // Measured once the drawer has finished sliding in.
+    await expect
+      .poll(async () => {
+        const box = await panel.boundingBox()
+        return box !== null && box.x >= 0 && box.x + box.width <= 375
+      })
+      .toBe(true)
   })
 
-  test('Settings › AIR offers History & Replay with its status', async ({ page }) => {
+  test('Settings › AIR offers History & Replay with what is recorded', async ({ page }) => {
     await recordAirHistory(page, true)
     await page.goto('/settings/air')
     await waitForShellHydration(page)
@@ -184,8 +198,11 @@ test.describe('History & replay', () => {
     await expect(
       page.getByRole('textbox', { name: 'Air history: days to keep, 1 to 7' }),
     ).toBeVisible()
-    await expect(
-      page.getByText(/Recording · 3\.0 days kept · 12 MB of history \(50 MB database\)/),
-    ).toBeVisible()
+    // What is recorded: status, the time frames so far, and the file size.
+    const summary = page.locator('.history-summary')
+    await expect(summary.getByText('Recording', { exact: true })).toBeVisible()
+    await expect(summary.locator('.history-period-range').first()).toHaveText(/ – .* UTC$/)
+    await expect(summary.locator('.history-period-source').first()).toHaveText('ONLINE')
+    await expect(summary.getByText('12 MB history · 50 MB database')).toBeVisible()
   })
 })

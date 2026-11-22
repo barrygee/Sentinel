@@ -79,8 +79,6 @@
         <slot name="layers" />
       </template>
     </IconRailAccordion>
-
-    <MapRailReplayButton v-if="replaySection" :section-id="replaySection" />
   </IconRail>
 </template>
 
@@ -92,16 +90,13 @@
  * or a location fly means stays with the section.
  *
  * The rail's mechanics live in `IconRail` / `IconRailAccordion`, and the button
- * chrome in `BaseIconButton`. A section that records movement history passes
- * `replaySection`, which adds the REPLAY button at the rail's end.
+ * chrome in `BaseIconButton`.
  */
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 import IconRail from '@sentinel/ui/base/IconRail.vue'
 import IconRailAccordion from '@sentinel/ui/base/IconRailAccordion.vue'
 import MyLocationIcon from '@sentinel/ui/icons/MyLocationIcon.vue'
-import MapRailReplayButton from '@sentinel/map-kit/controls/map-rail/MapRailReplayButton.vue'
-import type { PlaybackSectionId } from '@sentinel/shell-api/playback/playbackSections'
 
 defineProps<{
   /** The rail's `id`, which each section's CSS and e2e tests address. */
@@ -113,8 +108,6 @@ defineProps<{
   layersPanelId: string
   /** A location is known, so the button shows as active. */
   locationActive: boolean
-  /** The section whose replay the REPLAY button drives; omit for no button. */
-  replaySection?: PlaybackSectionId
 }>()
 
 const emit = defineEmits<{ 'zoom-in': []; 'zoom-out': []; 'go-to-location': [] }>()

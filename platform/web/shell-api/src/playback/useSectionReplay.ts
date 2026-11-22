@@ -22,7 +22,7 @@ export interface SectionReplayHandlers {
  * Connects a section's map to its replay state: calls `enter`/`exit` as the
  * section goes in and out of replay — straight away too when the map mounts
  * mid-replay (the section was left and reopened) — `jumped` on each seek, and
- * `dispose` if the map unmounts while replaying.
+ * `dispose` if the map unmounts while replaying. It also runs the playback loop.
  * Call from the map component's setup; the watchers end with it.
  */
 export function useSectionReplay(
@@ -44,7 +44,42 @@ export function useSectionReplay(
       if (playback.sections[sectionId].mode === 'replay') handlers.jumped?.()
     },
   )
+  usePlaybackLoop(sectionId)
   onScopeDispose(() => {
     if (playback.sections[sectionId].mode === 'replay') handlers.dispose?.()
   })
+}
+
+/**
+ * While the section plays, move its cursor on every animation frame by the
+ * elapsed wall time × speed (`playback.advance`, which returns to live on
+ * reaching the present). It runs with the map, not the panel, so playback
+ * carries on with the side panel closed.
+ */
+function usePlaybackLoop(sectionId: PlaybackSectionId): void {
+  const playback = usePlaybackStore()
+  let animationFrame: number | null = null
+  let lastFrameAt: number | null = null
+
+  function stop(): void {
+    if (animationFrame !== null) cancelAnimationFrame(animationFrame)
+    animationFrame = null
+    lastFrameAt = null
+  }
+
+  function onFrame(timestamp: number): void {
+    if (lastFrameAt !== null) playback.advance(sectionId, timestamp - lastFrameAt)
+    lastFrameAt = timestamp
+    animationFrame = playback.sections[sectionId].playing ? requestAnimationFrame(onFrame) : null
+  }
+
+  watch(
+    () => playback.sections[sectionId].playing,
+    (playing) => {
+      stop()
+      if (playing) animationFrame = requestAnimationFrame(onFrame)
+    },
+    { immediate: true },
+  )
+  onScopeDispose(stop)
 }

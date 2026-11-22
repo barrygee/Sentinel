@@ -15,6 +15,7 @@ describe('sidebarPaneSelector', () => {
       tracking: 'msb-pane-tracking',
       passes: 'msb-pane-passes',
       radio: 'msb-pane-radio',
+      replay: 'msb-pane-replay',
     })
   })
 })

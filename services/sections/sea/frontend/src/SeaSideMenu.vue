@@ -5,7 +5,6 @@
        FILTER tab. Buttons drive the map via handlers passed from SeaView. -->
   <MapSideRail
     container-id="sea-side-menu"
-    replay-section="sea"
     accessible-name="Sea map controls"
     layers-button-id="sea-sm-layers-btn"
     layers-panel-id="sea-layers-panel"
