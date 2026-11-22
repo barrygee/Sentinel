@@ -12,7 +12,11 @@ from fastapi import APIRouter, Query
 from backend.config import settings
 from backend.platform import sdk as sdk_module
 from backend.platform.lifecycle import ModuleLifecycle
-from backend.platform.sdk import ServiceMisconfigured, advertised_manifest, create_service
+from backend.platform.sdk import (
+    ServiceMisconfigured,
+    advertised_manifest,
+    create_service,
+)
 from backend.platform.sdk.registration import ServiceRegistrar
 from backend.platform.service_manifest import ServiceManifest
 
@@ -25,7 +29,10 @@ def make_manifest(**overrides) -> ServiceManifest:
         "displayName": "SPACE",
         "internalUrl": "http://app:8000",
         "routes": ["/api/space/"],
-        "ui": {"remoteEntry": "/remotes/space/remoteEntry.js", "exposes": ["./register"]},
+        "ui": {
+            "remoteEntry": "/remotes/space/remoteEntry.js",
+            "exposes": ["./register"],
+        },
     }
     body.update(overrides)
     return ServiceManifest.model_validate(body)
@@ -49,7 +56,9 @@ def service_settings(monkeypatch):
 
 
 def client_for(app) -> httpx.AsyncClient:
-    return httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://space:8000")
+    return httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://space:8000"
+    )
 
 
 class TestAdvertisedManifest:
@@ -81,7 +90,9 @@ class TestAdvertisedManifest:
 
 class TestServedRoutes:
     async def test_serves_the_sections_routers(self):
-        app = create_service(manifest=make_manifest(), routers=[make_router()], lifecycles=[])
+        app = create_service(
+            manifest=make_manifest(), routers=[make_router()], lifecycles=[]
+        )
 
         async with client_for(app) as client:
             response = await client.get("/api/space/echo", params={"count": 3})
@@ -89,7 +100,9 @@ class TestServedRoutes:
         assert response.json() == {"count": 3}
 
     async def test_validation_errors_use_the_apps_error_shape(self):
-        app = create_service(manifest=make_manifest(), routers=[make_router()], lifecycles=[])
+        app = create_service(
+            manifest=make_manifest(), routers=[make_router()], lifecycles=[]
+        )
 
         async with client_for(app) as client:
             response = await client.get("/api/space/echo", params={"count": "many"})
@@ -112,7 +125,9 @@ class TestServedRoutes:
         assert after["registered"] is True
 
     async def test_health_is_served_on_the_manifests_path(self):
-        app = create_service(manifest=make_manifest(health="/healthz"), routers=[], lifecycles=[])
+        app = create_service(
+            manifest=make_manifest(health="/healthz"), routers=[], lifecycles=[]
+        )
 
         async with client_for(app) as client:
             assert (await client.get("/healthz")).status_code == 200
@@ -124,11 +139,17 @@ class TestServedRoutes:
             for path in ("/docs", "/redoc", "/openapi.json", "/api/docs"):
                 assert (await client.get(path)).status_code == 404
 
-    async def test_serves_its_own_remote_entry_uncached_and_its_chunks_immutable(self, tmp_path):
+    async def test_serves_its_own_remote_entry_uncached_and_its_chunks_immutable(
+        self, tmp_path
+    ):
         (tmp_path / "remoteEntry.js").write_text("export const entry = 1")
         (tmp_path / "spa-assets").mkdir()
-        (tmp_path / "spa-assets" / "chunk-Ab12Cd34.js").write_text("export const chunk = 1")
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[], remote_dir=tmp_path)
+        (tmp_path / "spa-assets" / "chunk-Ab12Cd34.js").write_text(
+            "export const chunk = 1"
+        )
+        app = create_service(
+            manifest=make_manifest(), routers=[], lifecycles=[], remote_dir=tmp_path
+        )
 
         async with client_for(app) as client:
             entry = await client.get("/remotes/space/remoteEntry.js")
@@ -140,18 +161,31 @@ class TestServedRoutes:
         assert chunk.headers["cache-control"] == "public, max-age=31536000, immutable"
 
     async def test_a_remote_that_is_not_built_yet_is_a_404(self, tmp_path):
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[], remote_dir=tmp_path / "missing")
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[],
+            remote_dir=tmp_path / "missing",
+        )
 
         async with client_for(app) as client:
-            assert (await client.get("/remotes/space/remoteEntry.js")).status_code == 404
+            assert (
+                await client.get("/remotes/space/remoteEntry.js")
+            ).status_code == 404
 
     async def test_a_service_without_ui_serves_no_remote(self, tmp_path):
         (tmp_path / "remoteEntry.js").write_text("export const entry = 1")
-        manifest = make_manifest(id="radio", kind="radio", ui=None, routes=["/api/sdr/radios"])
-        app = create_service(manifest=manifest, routers=[], lifecycles=[], remote_dir=tmp_path)
+        manifest = make_manifest(
+            id="radio", kind="radio", ui=None, routes=["/api/sdr/radios"]
+        )
+        app = create_service(
+            manifest=manifest, routers=[], lifecycles=[], remote_dir=tmp_path
+        )
 
         async with client_for(app) as client:
-            assert (await client.get("/remotes/radio/remoteEntry.js")).status_code == 404
+            assert (
+                await client.get("/remotes/radio/remoteEntry.js")
+            ).status_code == 404
 
     def test_registers_the_advertised_manifest(self):
         app = create_service(manifest=make_manifest(), routers=[], lifecycles=[])
@@ -167,7 +201,9 @@ class TestLifespan:
         async def stop(self):
             calls.append("registration.stop")
 
-        monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
+        monkeypatch.setattr(
+            ServiceRegistrar, "start", lambda self: calls.append("registration.start")
+        )
         monkeypatch.setattr(ServiceRegistrar, "stop", stop)
         return calls
 
@@ -184,19 +220,29 @@ class TestLifespan:
         return ModuleLifecycle(name="space", prepare=prepare, start=start, stop=stop)
 
     async def test_the_section_runs_before_registration_and_stops_after_it(self, calls):
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.section_lifecycle(calls)])
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.section_lifecycle(calls)],
+        )
 
         async with app.router.lifespan_context(app):
             assert calls == ["section.prepare", "section.start", "registration.start"]
 
         assert calls[3:] == ["registration.stop", "section.stop"]
 
-    async def test_closes_the_core_client_after_every_module_stops(self, calls, monkeypatch):
+    async def test_closes_the_core_client_after_every_module_stops(
+        self, calls, monkeypatch
+    ):
         async def close_core_client():
             calls.append("core-client.close")
 
         monkeypatch.setattr(sdk_module, "close_core_client", close_core_client)
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.section_lifecycle(calls)])
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.section_lifecycle(calls)],
+        )
 
         async with app.router.lifespan_context(app):
             assert "core-client.close" not in calls
@@ -264,7 +310,9 @@ class TestLifespan:
                 started.set()
 
         service = asyncio.create_task(run_service())
-        await asyncio.wait_for(waiting.wait(), timeout=5)  # fails, not hangs, if it never waits
+        await asyncio.wait_for(
+            waiting.wait(), timeout=5
+        )  # fails, not hangs, if it never waits
         await asyncio.sleep(0.05)
         assert calls == []  # no prepare, no start, no registration
         assert not started.is_set()
@@ -289,7 +337,11 @@ class TestLifespan:
 
         monkeypatch.setattr(settings, "nats_url", "nats://nats:4222")
         monkeypatch.setattr(sdk_module, "NatsTransport", FakeTransport)
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.section_lifecycle(calls)])
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.section_lifecycle(calls)],
+        )
 
         async with app.router.lifespan_context(app):
             pass
@@ -332,7 +384,9 @@ class TestServeBeforeCore:
         async def stop(self):
             calls.append("registration.stop")
 
-        monkeypatch.setattr(ServiceRegistrar, "start", lambda self: calls.append("registration.start"))
+        monkeypatch.setattr(
+            ServiceRegistrar, "start", lambda self: calls.append("registration.start")
+        )
         monkeypatch.setattr(ServiceRegistrar, "stop", stop)
         return calls
 
@@ -352,7 +406,9 @@ class TestServeBeforeCore:
         monkeypatch.setattr(sdk_module, "wait_for_core", wait_for_core)
         return answered
 
-    def lifecycle(self, calls: list[str], name: str, *, failing_prepare: bool = False) -> ModuleLifecycle:
+    def lifecycle(
+        self, calls: list[str], name: str, *, failing_prepare: bool = False
+    ) -> ModuleLifecycle:
         async def prepare():
             calls.append(f"{name}.prepare")
             if failing_prepare:
@@ -405,8 +461,14 @@ class TestServeBeforeCore:
                 core_independent_lifecycles=[self.lifecycle(calls, "local")],
             )
 
-    async def test_off_by_default_nothing_serves_before_core(self, calls, core_answered):
-        app = create_service(manifest=make_manifest(), routers=[], lifecycles=[self.lifecycle(calls, "section")])
+    async def test_off_by_default_nothing_serves_before_core(
+        self, calls, core_answered
+    ):
+        app = create_service(
+            manifest=make_manifest(),
+            routers=[],
+            lifecycles=[self.lifecycle(calls, "section")],
+        )
         started = asyncio.Event()
 
         async def run_service():
@@ -421,7 +483,9 @@ class TestServeBeforeCore:
         core_answered.set()
         await asyncio.wait_for(service, timeout=5)
 
-    async def test_serves_and_runs_its_core_independent_work_while_core_is_down(self, calls, core_answered):
+    async def test_serves_and_runs_its_core_independent_work_while_core_is_down(
+        self, calls, core_answered
+    ):
         app = self.build(calls)
 
         async with self.serving(app):
@@ -470,7 +534,9 @@ class TestServeBeforeCore:
         # Registration stops first, the core-independent work last.
         assert calls[5:] == ["registration.stop", "section.stop", "local.stop"]
 
-    async def test_stopping_while_waiting_for_core_cancels_the_wait(self, calls, core_answered):
+    async def test_stopping_while_waiting_for_core_cancels_the_wait(
+        self, calls, core_answered
+    ):
         app = self.build(calls)
 
         async with self.serving(app):
@@ -481,21 +547,40 @@ class TestServeBeforeCore:
         assert time.monotonic() - stopping < 1
         # Core never answered: the wait is cancelled, and only the
         # core-independent work started, so only it stops.
-        assert calls == ["local.prepare", "local.start", "core-wait.cancelled", "local.stop"]
+        assert calls == [
+            "local.prepare",
+            "local.start",
+            "core-wait.cancelled",
+            "local.stop",
+        ]
 
-    async def test_a_failed_startup_after_core_is_logged_and_it_keeps_serving(self, calls, core_answered, caplog):
-        app = self.build(calls, lifecycles=[self.lifecycle(calls, "section", failing_prepare=True)])
+    async def test_a_failed_startup_after_core_is_logged_and_it_keeps_serving(
+        self, calls, core_answered, caplog
+    ):
+        app = self.build(
+            calls, lifecycles=[self.lifecycle(calls, "section", failing_prepare=True)]
+        )
 
         async with self.serving(app):
             core_answered.set()
             await self.until(calls, "section.prepare")
             await asyncio.sleep(0.05)
             async with client_for(app) as client:
-                assert (await client.get("/api/space/echo", params={"count": 2})).json() == {"count": 2}
+                assert (
+                    await client.get("/api/space/echo", params={"count": 2})
+                ).json() == {"count": 2}
 
-        assert "space: startup after core answered failed; serving without it" in caplog.messages
+        assert (
+            "space: startup after core answered failed; serving without it"
+            in caplog.messages
+        )
         # Never started, so never registered or stopped; the core-independent work still stops.
-        assert calls == ["local.prepare", "local.start", "section.prepare", "local.stop"]
+        assert calls == [
+            "local.prepare",
+            "local.start",
+            "section.prepare",
+            "local.stop",
+        ]
 
     async def test_needs_no_core_independent_lifecycles(self, calls, core_answered):
         app = self.build(calls, core_independent_lifecycles=[])
@@ -513,7 +598,9 @@ class TestServeBeforeCore:
             "section.stop",
         ]
 
-    async def test_the_bus_connects_only_after_core_answers(self, calls, core_answered, monkeypatch):
+    async def test_the_bus_connects_only_after_core_answers(
+        self, calls, core_answered, monkeypatch
+    ):
         class FakeTransport:
             def __init__(self, bus, url, *, client_name, open_session):
                 pass

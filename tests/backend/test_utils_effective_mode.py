@@ -90,14 +90,19 @@ class TestDerivingFromOneRead:
     def test_effective_mode_prefers_the_sections_override(self):
         from backend.utils import effective_mode_of
 
-        settings_map = {"sea.sourceOverride": "offgrid", "app.connectivityMode": "online"}
+        settings_map = {
+            "sea.sourceOverride": "offgrid",
+            "app.connectivityMode": "online",
+        }
 
         assert effective_mode_of("sea", settings_map) == "offgrid"
 
     def test_effective_mode_falls_back_to_the_app_mode_then_online(self):
         from backend.utils import effective_mode_of
 
-        assert effective_mode_of("sea", {"app.connectivityMode": "offgrid"}) == "offgrid"
+        assert (
+            effective_mode_of("sea", {"app.connectivityMode": "offgrid"}) == "offgrid"
+        )
         assert effective_mode_of("sea", {}) == "online"
 
     def test_effective_mode_ignores_another_sections_override(self):
@@ -113,9 +118,14 @@ class TestDerivingFromOneRead:
             "sea.offgridSource": {"url": "http://box.test/ais"},
         }
 
-        assert domain_urls_of("sea", settings_map) == ("wss://online.test/stream", "http://box.test/ais")
+        assert domain_urls_of("sea", settings_map) == (
+            "wss://online.test/stream",
+            "http://box.test/ais",
+        )
         # Off grid never falls back to the online source.
-        assert domain_urls_of("sea", {**settings_map, "sea.sourceOverride": "offgrid"}) == (
+        assert domain_urls_of(
+            "sea", {**settings_map, "sea.sourceOverride": "offgrid"}
+        ) == (
             "http://box.test/ais",
             None,
         )
@@ -123,8 +133,13 @@ class TestDerivingFromOneRead:
     def test_urls_use_the_defaults_when_unset(self):
         from backend.utils import domain_urls_of
 
-        assert domain_urls_of("sea", {}, online_default="wss://default.test") == ("wss://default.test", None)
-        assert domain_urls_of("sea", {"sea.sourceOverride": "offgrid"}, offgrid_default="http://d.test") == (
+        assert domain_urls_of("sea", {}, online_default="wss://default.test") == (
+            "wss://default.test",
+            None,
+        )
+        assert domain_urls_of(
+            "sea", {"sea.sourceOverride": "offgrid"}, offgrid_default="http://d.test"
+        ) == (
             "http://d.test",
             None,
         )
@@ -138,4 +153,7 @@ class TestDerivingFromOneRead:
         await upsert_setting(db, "app", "location", {"latitude": 1, "longitude": 2})
         await upsert_setting(db, "air", "sourceOverride", "online")
 
-        assert await domain_settings_map("sea", db) == {"sea.enabled": True, "app.connectivityMode": "offgrid"}
+        assert await domain_settings_map("sea", db) == {
+            "sea.enabled": True,
+            "app.connectivityMode": "offgrid",
+        }

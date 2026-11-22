@@ -70,7 +70,9 @@ class TestCoerceAprsChannelHz:
 class TestReadAprsChannelHz:
     async def test_defaults_to_settings_when_unset(self, session_factory):
         async with session_factory() as db:
-            assert await aprs_channel.read_aprs_channel_hz(db) == settings.aprs_channel_hz
+            assert (
+                await aprs_channel.read_aprs_channel_hz(db) == settings.aprs_channel_hz
+            )
 
     async def test_reads_a_valid_user_override(self, session_factory):
         async with session_factory() as db:
@@ -80,4 +82,6 @@ class TestReadAprsChannelHz:
     async def test_falls_back_on_an_invalid_override(self, session_factory):
         async with session_factory() as db:
             await upsert_setting(db, "land", "aprsChannelHz", "nope")
-            assert await aprs_channel.read_aprs_channel_hz(db) == settings.aprs_channel_hz
+            assert (
+                await aprs_channel.read_aprs_channel_hz(db) == settings.aprs_channel_hz
+            )

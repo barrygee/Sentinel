@@ -21,9 +21,6 @@ import { resolveAircraftShape } from '@sentinel/map-kit/aircraft-silhouettes/res
 import { isBrightBasemap } from '@sentinel/map-kit/utils/mapTheme'
 import { addMapDimLayer } from '@sentinel/map-kit/map-dimming/mapDimming'
 import { AircraftTrails, TRAIL_LAYER_IDS } from './AircraftTrails'
-import { createAirReplayPlayer, replayEntryFromFrame } from './adsbReplayFrames'
-import type { HistoryFramePlayer } from '@sentinel/shell-api/playback/HistoryFramePlayer'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { AdsbTrackingPersistence } from './AdsbTrackingPersistence'
 import type { AircraftGeoFeature, AircraftProperties } from './adsbFeature'
 import { AircraftTags } from './AircraftTags'
@@ -192,7 +189,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
     isStale: (hex) => {
       const position = this._lastPositions[hex]
       return position
-        ? isStale(position, this._feedObservedAt, this._now(), this._snapshotLifetimeMs)
+        ? isStale(position, this._feedObservedAt, Date.now(), this._snapshotLifetimeMs)
         : false
     },
     interpolatedCoords: (hex) => this._interpolatedCoords(hex),
@@ -342,14 +339,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   private _lastFetchTime = 0
   private _isFetching = false
-  // ---- Replay (Settings › AIR › History & Replay) ----
-  // The shared playback clock: the wall clock while live, the replayed moment
-  // in replay. Every age/staleness/dead-reckoning calculation reads it.
-  private readonly _playback = usePlaybackStore()
-  private _replayPlayer: HistoryFramePlayer | null = null
-  private _replayTimer: ReturnType<typeof setInterval> | null = null
-  private _replaySeekVersion = -1
-  private _replayFrameInFlight = false
   private _fetchAbort: AbortController | null = null
   private _fetchFailCount = 0
   // Resumes polling once the online feed's spent daily limit resets.
@@ -637,10 +626,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   onRemove(): void {
     this._stopPolling()
-    if (this._replayTimer) clearInterval(this._replayTimer)
-    this._replayTimer = null
-    this._replayPlayer?.reset()
-    this._replayPlayer = null
     // Back to the stylesheet's filter, for whatever uses this map next.
     if (this.map) this.map.getCanvas().style.filter = ''
     // Don't deactivate — keep the onUntrack callback so untracking from another
@@ -1305,7 +1290,7 @@ export class AdsbLiveControl implements maplibregl.IControl {
   private _interpolate(): void {
     if (!this.map) return
     if (!this._geojson.features.length) return
-    const now = this._now()
+    const now = Date.now()
 
     this._geojson.features = this._geojson.features.filter((f) => {
       const pos = this._lastPositions[f.properties.hex]
@@ -1440,7 +1425,179 @@ export class AdsbLiveControl implements maplibregl.IControl {
       const data = await resp.json()
       if (!this.map) return
       const aircraft = (data.ac || []) as AircraftApiEntry[]
-      this._ingestSnapshot(aircraft, receivedAt, snapshotAge)
+      const seen = new Set<string>()
+
+      const existingByHex = new Map<string, AircraftGeoFeature>()
+      for (const f of this._geojson.features) {
+        if (f.properties.hex) existingByHex.set(f.properties.hex, f)
+      }
+
+      const newFeatures: AircraftGeoFeature[] = []
+
+      for (const a of aircraft.filter(
+        (a) =>
+          a.lat != null &&
+          a.lon != null &&
+          !['A0', 'B0', 'C0'].includes((a.category || '').toUpperCase()),
+      )) {
+        const alt = this._parseAlt(a.alt_baro ?? null)
+        const hex = a.hex || ''
+        seen.add(hex)
+
+        if (hex) {
+          const report = { lon: a.lon!, lat: a.lat!, gs: a.gs, track: a.track }
+          const reportObservedAt = observedAt(receivedAt, snapshotAge, a.seen_pos)
+          const existing = this._lastPositions[hex]
+          if (existing) {
+            const next = reanchor(existing, report, reportObservedAt, Date.now())
+            // Nothing newer than what is held (a cached snapshot served again):
+            // keep the aircraft as it is — its age, position, trail and details.
+            if (!next) continue
+            this._lastPositions[hex] = next
+          } else {
+            this._lastPositions[hex] = startTracking(report, reportObservedAt)
+          }
+        }
+
+        if (hex) this._aircraftTrails.record(hex, { lon: a.lon!, lat: a.lat!, alt })
+
+        if (hex) {
+          // Landing/departure *notifications* are handled by the app-level
+          // AircraftEventDetector (see useAirAlertsService) so they fire from
+          // any section. The control keeps a minimal landing check purely to
+          // drive its own post-landing render cleanup (the parked-aircraft
+          // removal timer below) for opted-in aircraft.
+          const prevAlt = this._prevAlt[hex]
+          const justLanded = prevAlt !== undefined && prevAlt > 0 && alt === 0
+          if (justLanded) this._landedAt[hex] = Date.now()
+          this._prevAlt[hex] = alt
+
+          if (justLanded && this._notifEnabled.has(hex)) {
+            if (this._parkedTimers[hex]) clearTimeout(this._parkedTimers[hex])
+            this._parkedTimers[hex] = setTimeout(() => {
+              delete this._parkedTimers[hex]
+              delete this._prevAlt[hex]
+              delete this._hasDeparted[hex]
+              this._aircraftTrails.forget(hex)
+              delete this._lastPositions[hex]
+              this._geojson = {
+                type: 'FeatureCollection',
+                features: this._geojson.features.filter((f) => f.properties.hex !== hex),
+              }
+              if (this._interpolatedFeatures)
+                this._interpolatedFeatures = this._interpolatedFeatures.filter(
+                  (f) => f.properties.hex !== hex,
+                )
+              if (this._callsignMarkers[hex]) {
+                this._callsignMarkers[hex].remove()
+                delete this._callsignMarkers[hex]
+              }
+              if (this._selectedHex === hex) {
+                this._selectedHex = null
+                this._isolatedHex = null
+                this._followEnabled = false
+                // The isolated aircraft is gone — drop the persisted isolation so
+                // it isn't re-applied to a vanished hex on the next visit.
+                this._airStore.mapIsolatedHex = ''
+                this._hideSelectedTag()
+                this._hideStatusBar()
+              }
+              if (this.map) {
+                this._rebuildTrails()
+                this._interpolate()
+              }
+            }, 60 * 1000)
+          }
+          if (alt > 0 && this._parkedTimers[hex]) {
+            clearTimeout(this._parkedTimers[hex])
+            delete this._parkedTimers[hex]
+          }
+        }
+
+        const gs = a.gs ?? 0
+        const military = isMilitary(hex, a.dbFlags)
+
+        const coords = [a.lon!, a.lat!] as [number, number]
+
+        newFeatures.push({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: coords },
+          properties: {
+            hex,
+            flight: (a.flight || '').trim(),
+            r: a.r || '',
+            t: a.t || '',
+            alt_baro: alt,
+            alt_geom: a.alt_geom ?? null,
+            gs,
+            ias: a.ias ?? null,
+            mach: a.mach ?? null,
+            track: a.track ?? 0,
+            baro_rate: a.baro_rate ?? 0,
+            nav_altitude: a.nav_altitude_mcp ?? a.nav_altitude_fms ?? null,
+            nav_heading: a.nav_heading ?? null,
+            category: (a.category || '').toUpperCase(),
+            emergency: a.emergency || '',
+            squawk: a.squawk || '',
+            squawkEmerg: this._emergencySquawks.has(a.squawk || '') ? 1 : 0,
+            rssi: a.rssi ?? null,
+            military,
+            stale: 0,
+            ...silhouetteProperties(
+              a.t || '',
+              a.category || '',
+              military,
+              this._emergencySquawks.has(a.squawk || ''),
+              this._parseAlt(a.alt_baro ?? null),
+              this._altitudeColouring,
+            ),
+          } as AircraftProperties,
+        })
+        existingByHex.delete(hex)
+      }
+
+      for (const [, f] of existingByHex) {
+        if (this._lastPositions[f.properties.hex]) newFeatures.push(f)
+      }
+
+      this._geojson = { type: 'FeatureCollection', features: newFeatures }
+      document.dispatchEvent(new CustomEvent('adsb-data-update'))
+
+      for (const hex of Object.keys(this._prevAlt)) {
+        if (!seen.has(hex) && !this._parkedTimers[hex] && !this._lastPositions[hex])
+          delete this._prevAlt[hex]
+      }
+      for (const hex of Object.keys(this._hasDeparted)) {
+        if (!seen.has(hex) && !this._lastPositions[hex]) delete this._hasDeparted[hex]
+      }
+      // Emergency-squawk alerts are raised by the server, which notices them
+      // with or without this page open (docs/plans/adsb-server-alerts.md); the
+      // map still highlights the aircraft (squawkEmerg above).
+
+      this._lastFetchTime = Date.now()
+      this._restoreTrackingState()
+      this._restoreIsolationState()
+      this._rebuildTrails()
+      if (this._tagHex && this._tagMarker) {
+        const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
+        if (taggedFeature) {
+          // A polled aircraft always has a track (the feed's, or 0), set above.
+          if (isLeftFacing(taggedFeature.properties.track) !== this._tags.selectedLeftFacing) {
+            // Turned to face the other way: the text flips sides, so the tag
+            // must be placed again on the aircraft's other side.
+            this._rebuildTagForHex(this._tagHex)
+          } else {
+            this._tags.refreshSelected(taggedFeature.properties)
+          }
+          this._updateStatusBar()
+        } else {
+          this._hideSelectedTag()
+          this._hideStatusBar()
+        }
+      }
+      this._updateCallsignMarkers()
+      this._interpolate()
+      this._raiseLayers()
       this._fetchFailCount = 0
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return
@@ -1458,194 +1615,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
       this._fetchAbort = null
       this._isFetching = false
     }
-  }
-
-  /**
-   * Draw one snapshot of aircraft — the live feed's, or a replayed moment's
-   * (`_drawReplayFrame`), which reach the map through this one path so every
-   * feature (filters, tags, trails, selection, tracking panel) behaves the same.
-   *
-   * @param receivedAt  When the snapshot arrived (replay: the replayed moment).
-   * @param snapshotAge How old the server's snapshot already was on arrival.
-   */
-  private _ingestSnapshot(
-    aircraft: AircraftApiEntry[],
-    receivedAt: number,
-    snapshotAge: number,
-  ): void {
-    const seen = new Set<string>()
-
-    const existingByHex = new Map<string, AircraftGeoFeature>()
-    for (const f of this._geojson.features) {
-      if (f.properties.hex) existingByHex.set(f.properties.hex, f)
-    }
-
-    const newFeatures: AircraftGeoFeature[] = []
-
-    for (const a of aircraft.filter(
-      (a) =>
-        a.lat != null &&
-        a.lon != null &&
-        !['A0', 'B0', 'C0'].includes((a.category || '').toUpperCase()),
-    )) {
-      const alt = this._parseAlt(a.alt_baro ?? null)
-      const hex = a.hex || ''
-      seen.add(hex)
-
-      if (hex) {
-        const report = { lon: a.lon!, lat: a.lat!, gs: a.gs, track: a.track }
-        const reportObservedAt = observedAt(receivedAt, snapshotAge, a.seen_pos)
-        const existing = this._lastPositions[hex]
-        if (existing) {
-          const next = reanchor(existing, report, reportObservedAt, this._now())
-          // Nothing newer than what is held (a cached snapshot served again):
-          // keep the aircraft as it is — its age, position, trail and details.
-          if (!next) continue
-          this._lastPositions[hex] = next
-        } else {
-          this._lastPositions[hex] = startTracking(report, reportObservedAt)
-        }
-      }
-
-      if (hex) this._aircraftTrails.record(hex, { lon: a.lon!, lat: a.lat!, alt })
-
-      if (hex) {
-        // Landing/departure *notifications* are handled by the app-level
-        // AircraftEventDetector (see useAirAlertsService) so they fire from
-        // any section. The control keeps a minimal landing check purely to
-        // drive its own post-landing render cleanup (the parked-aircraft
-        // removal timer below) for opted-in aircraft.
-        const prevAlt = this._prevAlt[hex]
-        const justLanded = prevAlt !== undefined && prevAlt > 0 && alt === 0
-        if (justLanded) this._landedAt[hex] = this._now()
-        this._prevAlt[hex] = alt
-
-        if (justLanded && this._notifEnabled.has(hex)) {
-          if (this._parkedTimers[hex]) clearTimeout(this._parkedTimers[hex])
-          this._parkedTimers[hex] = setTimeout(() => {
-            delete this._parkedTimers[hex]
-            delete this._prevAlt[hex]
-            delete this._hasDeparted[hex]
-            this._aircraftTrails.forget(hex)
-            delete this._lastPositions[hex]
-            this._geojson = {
-              type: 'FeatureCollection',
-              features: this._geojson.features.filter((f) => f.properties.hex !== hex),
-            }
-            if (this._interpolatedFeatures)
-              this._interpolatedFeatures = this._interpolatedFeatures.filter(
-                (f) => f.properties.hex !== hex,
-              )
-            if (this._callsignMarkers[hex]) {
-              this._callsignMarkers[hex].remove()
-              delete this._callsignMarkers[hex]
-            }
-            if (this._selectedHex === hex) {
-              this._selectedHex = null
-              this._isolatedHex = null
-              this._followEnabled = false
-              // The isolated aircraft is gone — drop the persisted isolation so
-              // it isn't re-applied to a vanished hex on the next visit.
-              this._airStore.mapIsolatedHex = ''
-              this._hideSelectedTag()
-              this._hideStatusBar()
-            }
-            if (this.map) {
-              this._rebuildTrails()
-              this._interpolate()
-            }
-          }, 60 * 1000)
-        }
-        if (alt > 0 && this._parkedTimers[hex]) {
-          clearTimeout(this._parkedTimers[hex])
-          delete this._parkedTimers[hex]
-        }
-      }
-
-      const gs = a.gs ?? 0
-      const military = isMilitary(hex, a.dbFlags)
-
-      const coords = [a.lon!, a.lat!] as [number, number]
-
-      newFeatures.push({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: coords },
-        properties: {
-          hex,
-          flight: (a.flight || '').trim(),
-          r: a.r || '',
-          t: a.t || '',
-          alt_baro: alt,
-          alt_geom: a.alt_geom ?? null,
-          gs,
-          ias: a.ias ?? null,
-          mach: a.mach ?? null,
-          track: a.track ?? 0,
-          baro_rate: a.baro_rate ?? 0,
-          nav_altitude: a.nav_altitude_mcp ?? a.nav_altitude_fms ?? null,
-          nav_heading: a.nav_heading ?? null,
-          category: (a.category || '').toUpperCase(),
-          emergency: a.emergency || '',
-          squawk: a.squawk || '',
-          squawkEmerg: this._emergencySquawks.has(a.squawk || '') ? 1 : 0,
-          rssi: a.rssi ?? null,
-          military,
-          stale: 0,
-          ...silhouetteProperties(
-            a.t || '',
-            a.category || '',
-            military,
-            this._emergencySquawks.has(a.squawk || ''),
-            this._parseAlt(a.alt_baro ?? null),
-            this._altitudeColouring,
-          ),
-        } as AircraftProperties,
-      })
-      existingByHex.delete(hex)
-    }
-
-    for (const [, f] of existingByHex) {
-      if (this._lastPositions[f.properties.hex]) newFeatures.push(f)
-    }
-
-    this._geojson = { type: 'FeatureCollection', features: newFeatures }
-    document.dispatchEvent(new CustomEvent('adsb-data-update'))
-
-    for (const hex of Object.keys(this._prevAlt)) {
-      if (!seen.has(hex) && !this._parkedTimers[hex] && !this._lastPositions[hex])
-        delete this._prevAlt[hex]
-    }
-    for (const hex of Object.keys(this._hasDeparted)) {
-      if (!seen.has(hex) && !this._lastPositions[hex]) delete this._hasDeparted[hex]
-    }
-    // Emergency-squawk alerts are raised by the server, which notices them
-    // with or without this page open (docs/plans/adsb-server-alerts.md); the
-    // map still highlights the aircraft (squawkEmerg above).
-
-    this._lastFetchTime = Date.now()
-    this._restoreTrackingState()
-    this._restoreIsolationState()
-    this._rebuildTrails()
-    if (this._tagHex && this._tagMarker) {
-      const taggedFeature = this._geojson.features.find((f) => f.properties.hex === this._tagHex)
-      if (taggedFeature) {
-        // A polled aircraft always has a track (the feed's, or 0), set above.
-        if (isLeftFacing(taggedFeature.properties.track) !== this._tags.selectedLeftFacing) {
-          // Turned to face the other way: the text flips sides, so the tag
-          // must be placed again on the aircraft's other side.
-          this._rebuildTagForHex(this._tagHex)
-        } else {
-          this._tags.refreshSelected(taggedFeature.properties)
-        }
-        this._updateStatusBar()
-      } else {
-        this._hideSelectedTag()
-        this._hideStatusBar()
-      }
-    }
-    this._updateCallsignMarkers()
-    this._interpolate()
-    this._raiseLayers()
   }
 
   // ---- Layer z-order ----
@@ -1757,12 +1726,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
   // ---- Polling control ----
 
   private _startPolling(): void {
-    // In replay the feed is the recording (`_drawReplayFrame`), not the network;
-    // only the interpolation (stopped while the layer was hidden) comes back.
-    if (this._replayPlayer) {
-      this._interpolateInterval ??= setInterval(() => this._interpolate(), 100)
-      return
-    }
     // Hidden: the visibilitychange listener starts polling when the tab returns.
     if (this._pollInterval || document.hidden) return
     if (Date.now() - this._lastFetchTime > ADSB_REFETCH_GUARD_MS) this._fetch()
@@ -1820,108 +1783,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
 
   // ---- Public clear method (called by AirMap.vue on connectivity change) ----
 
-  // ---- Replay ----
-
-  /** The clock aircraft are aged and moved by: the wall clock live, the replayed moment in replay. */
-  private _now(): number {
-    return this._playback.now('air')
-  }
-
-  /** Whether the map is showing recorded aircraft instead of the live feed. */
-  get isReplaying(): boolean {
-    return this._replayPlayer !== null
-  }
-
-  /**
-   * Swap the live feed for the recording. Polling stops (no online quota is
-   * spent while replaying); the 100 ms interpolation keeps running, driven by
-   * the replay clock, so recorded aircraft glide between frames as live ones do.
-   */
-  enterReplay(): void {
-    if (this._replayPlayer) return
-    this._stopPolling()
-    this._fetchAbort?.abort()
-    this._replayPlayer = createAirReplayPlayer()
-    this._replaySeekVersion = -1
-    this._resetFeedState()
-    // A frame a second of wall time: at 60× that is a recorded minute, which
-    // the interpolation fills in between.
-    this._replayTimer = setInterval(() => void this._drawReplayFrame(), 1000)
-    this._interpolateInterval ??= setInterval(() => this._interpolate(), 100)
-    void this._drawReplayFrame()
-  }
-
-  /** Back to the live feed: the recorded picture is cleared, then polling resumes. */
-  exitReplay(): void {
-    if (!this._replayPlayer) return
-    if (this._replayTimer) clearInterval(this._replayTimer)
-    this._replayTimer = null
-    this._replayPlayer.reset()
-    this._replayPlayer = null
-    this._resetFeedState()
-    this._feedObservedAt = 0
-    this._lastFetchTime = 0
-    if (this.visible) this._startPolling()
-  }
-
-  /** Draw the replayed moment now (after a seek or step), rather than at the next tick. */
-  refreshReplay(): void {
-    if (this._replayPlayer) void this._drawReplayFrame()
-  }
-
-  private async _drawReplayFrame(): Promise<void> {
-    const player = this._replayPlayer
-    if (!player || !this.map || this._replayFrameInFlight) return
-    this._replayFrameInFlight = true
-    try {
-      const section = this._playback.sections.air
-      const replayedAt = section.cursorMs
-      // A jump (seek, step, entering replay): start the picture afresh, or
-      // every aircraft would be refused as "older than what is held" after a
-      // jump back, and glide across the map after a jump forward.
-      if (section.seekVersion !== this._replaySeekVersion) {
-        this._replaySeekVersion = section.seekVersion
-        this._resetFeedState()
-      }
-      const frame = await player.frameAt(replayedAt)
-      // Replay ended, or another jump happened, while the chunk loaded.
-      if (this._replayPlayer !== player || section.seekVersion !== this._replaySeekVersion) return
-      this._feedObservedAt = replayedAt
-      this._snapshotLifetimeMs = 0
-      this._ingestSnapshot(
-        frame.map((entity) => replayEntryFromFrame(entity, replayedAt)),
-        replayedAt,
-        0,
-      )
-    } finally {
-      this._replayFrameInFlight = false
-    }
-  }
-
-  /**
-   * Forget every aircraft's position, trail and landing state, keeping what the
-   * operator chose (selection, isolation, follow, filters): a selected aircraft
-   * that is in the new picture stays selected.
-   */
-  private _resetFeedState(): void {
-    for (const timer of Object.values(this._parkedTimers)) clearTimeout(timer)
-    this._parkedTimers = {}
-    this._clearCallsignMarkers()
-    this._geojson = { type: 'FeatureCollection', features: [] }
-    this._lastPositions = {}
-    this._interpolatedFeatures = []
-    this._prevAlt = {}
-    this._hasDeparted = {}
-    this._seenOnGround = {}
-    this._landedAt = {}
-    this._aircraftTrails.clear()
-    try {
-      ;(this.map?.getSource('adsb-live') as maplibregl.GeoJSONSource | undefined)?.setData(
-        this._geojson as GeoJSON.GeoJSON,
-      )
-    } catch (e) {}
-  }
-
   clearAircraft(): void {
     this._fetchAbort?.abort()
     this._fetchAbort = null
@@ -1967,12 +1828,6 @@ export class AdsbLiveControl implements maplibregl.IControl {
    */
   handleConnectivityChange(): void {
     const mode = this._effectiveMode()
-    // Replaying: the recording holds both sources, so nothing to switch now;
-    // returning to live (`exitReplay`) starts polling under the new mode.
-    if (this._replayPlayer) {
-      this._lastFeedMode = mode
-      return
-    }
     if (mode === this._lastFeedMode) {
       if (this.visible && !this._pollInterval) this._startPolling()
       return

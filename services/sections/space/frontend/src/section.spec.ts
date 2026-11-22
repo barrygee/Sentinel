@@ -100,17 +100,6 @@ describe('components/space/section', () => {
     expect(startSpaceAlerts).toHaveBeenCalledOnce()
   })
 
-  it('hydrates its replay settings from the boot payload', async () => {
-    await registerOnce()
-    const { runSettingsHydrators } = await import('@sentinel/shell-api/shell/settingsHydration')
-    const { usePlaybackStore } = await import('@sentinel/shell-api/stores/playback')
-    runSettingsHydrators({ space: { historyEnabled: true, historyRetentionDays: 2 } })
-    expect(usePlaybackStore().sections.space).toMatchObject({
-      historyEnabled: true,
-      retentionDays: 2,
-    })
-  })
-
   it('registers its Settings section and items', async () => {
     await registerOnce()
     const { getSettingItems, getSettingsSections } =
@@ -118,10 +107,6 @@ describe('components/space/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('space')
     expect(getSettingItems().some((item) => item.section === 'space')).toBe(true)
-    // History & Replay, in the REPLAY group.
-    const history = getSettingItems().find((item) => item.id === 'space-history')
-    expect(history?.section).toBe('space')
-    expect(history?.groupLabel).toBe('REPLAY')
   })
 
   it('lists its pass bells in Settings › Alerts', async () => {

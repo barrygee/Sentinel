@@ -23,7 +23,10 @@ from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from backend.platform.security import install as install_module
-from backend.platform.security.access_middleware import AccessControlMiddleware, ServedRoutes
+from backend.platform.security.access_middleware import (
+    AccessControlMiddleware,
+    ServedRoutes,
+)
 from backend.platform.security.install import STATUS_PATH, install_request_guard
 from backend.platform.security.route_groups import RouteClassificationError
 from backend.platform.security.route_inventory import RouteEntry
@@ -108,13 +111,21 @@ def client_from() -> Iterator[Any]:
 
 class TestBrowser:
     def test_the_spa_on_the_lan_gets_its_api(self, client_from: Any) -> None:
-        response = client_from(LAN_BROWSER_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+        response = client_from(LAN_BROWSER_ADDRESS).get(
+            "/api/things/7", headers=SAME_ORIGIN_FETCH
+        )
 
         assert (response.status_code, response.json()) == (200, {"thing": "7"})
 
-    def test_over_plain_http_no_coop_or_coep_but_the_other_security_headers(self, client_from: Any) -> None:
-        served = client_from(LAN_BROWSER_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH)
-        refused = client_from(INTERNET_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+    def test_over_plain_http_no_coop_or_coep_but_the_other_security_headers(
+        self, client_from: Any
+    ) -> None:
+        served = client_from(LAN_BROWSER_ADDRESS).get(
+            "/api/things/7", headers=SAME_ORIGIN_FETCH
+        )
+        refused = client_from(INTERNET_ADDRESS).get(
+            "/api/things/7", headers=SAME_ORIGIN_FETCH
+        )
 
         for response in (served, refused):
             assert "cross-origin-opener-policy" not in response.headers
@@ -123,11 +134,17 @@ class TestBrowser:
             assert response.headers["x-content-type-options"] == "nosniff"
         assert (served.status_code, refused.status_code) == (200, 404)
 
-    def test_over_https_coop_and_coep_are_sent(self, monkeypatch: pytest.MonkeyPatch, policy_file: Path) -> None:
-        pin_guard_settings(monkeypatch, guard_policy_file=str(policy_file), guard_enforce_https=True)
+    def test_over_https_coop_and_coep_are_sent(
+        self, monkeypatch: pytest.MonkeyPatch, policy_file: Path
+    ) -> None:
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(policy_file), guard_enforce_https=True
+        )
         app = build_app()
         install_request_guard(app, service_name="core")
-        with TestClient(app, base_url="https://testserver", client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+        with TestClient(
+            app, base_url="https://testserver", client=(LAN_BROWSER_ADDRESS, 50000)
+        ) as client:
             response = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
         assert response.status_code == 200
@@ -140,39 +157,67 @@ class TestBrowser:
 
         assert (response.status_code, response.json()) == (200, {"thing": "7"})
 
-    def test_the_spa_over_plain_http_changes_things_with_its_origin(self, client_from: Any) -> None:
-        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"origin": "http://testserver"})
+    def test_the_spa_over_plain_http_changes_things_with_its_origin(
+        self, client_from: Any
+    ) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).put(
+            "/api/things/7", headers={"origin": "http://testserver"}
+        )
 
         assert response.status_code == 200
 
-    def test_a_change_without_fetch_metadata_or_origin_gets_a_404(self, client_from: Any) -> None:
+    def test_a_change_without_fetch_metadata_or_origin_gets_a_404(
+        self, client_from: Any
+    ) -> None:
         response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7")
 
         assert (response.status_code, response.json()) == (404, {"detail": "Not Found"})
         assert response.headers["cache-control"] == "no-store"
 
     def test_another_site_over_plain_http_gets_a_404(self, client_from: Any) -> None:
-        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"origin": "http://evil.example"})
+        response = client_from(LAN_BROWSER_ADDRESS).put(
+            "/api/things/7", headers={"origin": "http://evil.example"}
+        )
 
         assert response.status_code == 404
 
-    def test_another_site_driving_the_browser_gets_a_404(self, client_from: Any) -> None:
-        response = client_from(LAN_BROWSER_ADDRESS).put("/api/things/7", headers={"sec-fetch-site": "cross-site"})
+    def test_another_site_driving_the_browser_gets_a_404(
+        self, client_from: Any
+    ) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).put(
+            "/api/things/7", headers={"sec-fetch-site": "cross-site"}
+        )
 
         assert response.status_code == 404
 
-    def test_the_internet_gets_a_404_even_with_browser_headers(self, client_from: Any) -> None:
-        assert client_from(INTERNET_ADDRESS).get("/api/things/7", headers=SAME_ORIGIN_FETCH).status_code == 404
+    def test_the_internet_gets_a_404_even_with_browser_headers(
+        self, client_from: Any
+    ) -> None:
+        assert (
+            client_from(INTERNET_ADDRESS)
+            .get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+            .status_code
+            == 404
+        )
 
     def test_the_internet_cant_open_the_page_either(self, client_from: Any) -> None:
         assert client_from(INTERNET_ADDRESS).get("/").status_code == 404
 
     def test_a_lan_visitor_opens_the_page(self, client_from: Any) -> None:
-        assert client_from(LAN_BROWSER_ADDRESS).get("/settings/app").json() == {"page": "settings/app"}
+        assert client_from(LAN_BROWSER_ADDRESS).get("/settings/app").json() == {
+            "page": "settings/app"
+        }
 
-    def test_a_method_no_rule_names_gets_a_404_not_a_405(self, client_from: Any) -> None:
+    def test_a_method_no_rule_names_gets_a_404_not_a_405(
+        self, client_from: Any
+    ) -> None:
         # Probing can't tell a refused route from a missing one.
-        assert client_from(LAN_BROWSER_ADDRESS).delete("/api/things/7", headers=SAME_ORIGIN_FETCH).status_code == 404
+        assert (
+            client_from(LAN_BROWSER_ADDRESS)
+            .delete("/api/things/7", headers=SAME_ORIGIN_FETCH)
+            .status_code
+            == 404
+        )
 
 
 class TestInternalAndOperator:
@@ -183,35 +228,62 @@ class TestInternalAndOperator:
         assert client_from(OPERATOR_ADDRESS).get("/health").status_code == 200
 
     def test_health_refused_to_a_browser(self, client_from: Any) -> None:
-        assert client_from(LAN_BROWSER_ADDRESS).get("/health", headers=SAME_ORIGIN_FETCH).status_code == 404
+        assert (
+            client_from(LAN_BROWSER_ADDRESS)
+            .get("/health", headers=SAME_ORIGIN_FETCH)
+            .status_code
+            == 404
+        )
 
-    def test_an_internal_route_needs_the_credential_header(self, client_from: Any) -> None:
+    def test_an_internal_route_needs_the_credential_header(
+        self, client_from: Any
+    ) -> None:
         internal = client_from(INTERNAL_ADDRESS)
 
         assert internal.get("/internal/ping").status_code == 404
-        assert internal.get("/internal/ping", headers={"Authorization": "Bearer anything"}).status_code == 200
+        assert (
+            internal.get(
+                "/internal/ping", headers={"Authorization": "Bearer anything"}
+            ).status_code
+            == 200
+        )
 
-    def test_a_credential_header_from_the_lan_gets_a_404(self, client_from: Any) -> None:
-        response = client_from(LAN_BROWSER_ADDRESS).get("/internal/ping", headers={"Authorization": "Bearer x"})
+    def test_a_credential_header_from_the_lan_gets_a_404(
+        self, client_from: Any
+    ) -> None:
+        response = client_from(LAN_BROWSER_ADDRESS).get(
+            "/internal/ping", headers={"Authorization": "Bearer x"}
+        )
 
         assert response.status_code == 404
 
     def test_a_client_cant_claim_an_internal_address(self, client_from: Any) -> None:
         # No proxy is trusted here, so X-Forwarded-For is ignored.
-        response = client_from(LAN_BROWSER_ADDRESS).get("/health", headers={"X-Forwarded-For": INTERNAL_ADDRESS})
+        response = client_from(LAN_BROWSER_ADDRESS).get(
+            "/health", headers={"X-Forwarded-For": INTERNAL_ADDRESS}
+        )
 
         assert response.status_code == 404
 
-    def test_only_the_trusted_gateway_may_say_who_the_client_is(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_only_the_trusted_gateway_may_say_who_the_client_is(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         gateway = "172.28.0.2"
-        pin_guard_settings(monkeypatch, guard_policy_file=str(Path(str(install_module.settings.guard_policy_file))))
+        pin_guard_settings(
+            monkeypatch,
+            guard_policy_file=str(Path(str(install_module.settings.guard_policy_file))),
+        )
         monkeypatch.setattr(install_module.settings, "guard_trusted_proxies", gateway)
-        with TestClient(guarded_app(), client=(gateway, 50000), raise_server_exceptions=False) as through_gateway:
+        with TestClient(
+            guarded_app(), client=(gateway, 50000), raise_server_exceptions=False
+        ) as through_gateway:
             browser = through_gateway.get(
-                "/api/things/1", headers={**SAME_ORIGIN_FETCH, "X-Forwarded-For": LAN_BROWSER_ADDRESS}
+                "/api/things/1",
+                headers={**SAME_ORIGIN_FETCH, "X-Forwarded-For": LAN_BROWSER_ADDRESS},
             )
             internet = through_gateway.get(
-                "/api/things/1", headers={**SAME_ORIGIN_FETCH, "X-Forwarded-For": INTERNET_ADDRESS}
+                "/api/things/1",
+                headers={**SAME_ORIGIN_FETCH, "X-Forwarded-For": INTERNET_ADDRESS},
             )
 
         assert (browser.status_code, internet.status_code) == (200, 404)
@@ -229,20 +301,29 @@ class TestRefusalModes:
             response = client.get("/health")
 
         assert response.status_code == 200
-        assert "guard access would refuse: GET /health from 192.168.1.50 (route is for internal, operator)" in (
-            caplog.messages
+        assert (
+            "guard access would refuse: GET /health from 192.168.1.50 (route is for internal, operator)"
+            in (caplog.messages)
         )
 
-    def test_passive_mode_refuses_nothing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_passive_mode_refuses_nothing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(install_module.settings, "guard_passive_mode", True)
         with TestClient(guarded_app(), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
             assert client.get("/health").status_code == 200
 
-    def test_a_refusal_with_no_rule_says_so(self, client_from: Any, caplog: pytest.LogCaptureFixture) -> None:
+    def test_a_refusal_with_no_rule_says_so(
+        self, client_from: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
         with caplog.at_level(logging.WARNING, logger="sentinel.guard"):
-            client_from(LAN_BROWSER_ADDRESS).delete("/api/things/7", headers=SAME_ORIGIN_FETCH)
+            client_from(LAN_BROWSER_ADDRESS).delete(
+                "/api/things/7", headers=SAME_ORIGIN_FETCH
+            )
 
-        assert any("no rule covers this route" in message for message in caplog.messages)
+        assert any(
+            "no rule covers this route" in message for message in caplog.messages
+        )
 
 
 class TestFastapiGuardChecks:
@@ -261,20 +342,26 @@ class TestFastapiGuardChecks:
         assert "detail" in responses[-1].json()
         assert responses[-1].headers["retry-after"]
 
-    def test_sentinels_own_processes_are_exempt_from_limits(self, client_from: Any) -> None:
+    def test_sentinels_own_processes_are_exempt_from_limits(
+        self, client_from: Any
+    ) -> None:
         internal = client_from(INTERNAL_ADDRESS)
 
         assert {internal.get("/health").status_code for _ in range(8)} == {200}
 
     def test_an_injection_attempt_is_refused(self, client_from: Any) -> None:
         response = client_from(LAN_BROWSER_ADDRESS).get(
-            "/api/things/7", params={"q": "1' UNION SELECT password FROM users--"}, headers=SAME_ORIGIN_FETCH
+            "/api/things/7",
+            params={"q": "1' UNION SELECT password FROM users--"},
+            headers=SAME_ORIGIN_FETCH,
         )
 
         assert response.status_code == 400
         assert "detail" in response.json()
 
-    def test_a_lan_address_in_a_settings_write_is_not_an_attack(self, client_from: Any) -> None:
+    def test_a_lan_address_in_a_settings_write_is_not_an_attack(
+        self, client_from: Any
+    ) -> None:
         # Sentinel's settings hold LAN URLs; SSRF scanning would refuse them.
         response = client_from(LAN_BROWSER_ADDRESS).put(
             "/api/things/7",
@@ -284,8 +371,12 @@ class TestFastapiGuardChecks:
 
         assert response.status_code == 200
 
-    def test_a_blocklisted_address_is_refused_before_access(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS)
+    def test_a_blocklisted_address_is_refused_before_access(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS
+        )
         with TestClient(guarded_app(), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
             response = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
@@ -295,10 +386,14 @@ class TestFastapiGuardChecks:
 
 class TestWebSockets:
     def test_the_spa_opens_its_socket(self, client_from: Any) -> None:
-        with client_from(LAN_BROWSER_ADDRESS).websocket_connect("/ws/live", headers=SAME_ORIGIN_FETCH) as socket:
+        with client_from(LAN_BROWSER_ADDRESS).websocket_connect(
+            "/ws/live", headers=SAME_ORIGIN_FETCH
+        ) as socket:
             assert socket.receive_text() == "hello"
 
-    def test_a_refused_handshake_is_closed_before_accept(self, client_from: Any) -> None:
+    def test_a_refused_handshake_is_closed_before_accept(
+        self, client_from: Any
+    ) -> None:
         with pytest.raises(WebSocketDisconnect) as closed:
             with client_from(LAN_BROWSER_ADDRESS).websocket_connect("/ws/live"):
                 pass
@@ -308,12 +403,17 @@ class TestWebSockets:
     def test_another_site_cant_open_it(self, client_from: Any) -> None:
         with pytest.raises(WebSocketDisconnect):
             with client_from(LAN_BROWSER_ADDRESS).websocket_connect(
-                "/ws/live", headers={"origin": "http://evil.example", "host": "sentinel.lan"}
+                "/ws/live",
+                headers={"origin": "http://evil.example", "host": "sentinel.lan"},
             ):
                 pass
 
-    def test_fastapi_guards_own_checks_run_on_the_handshake(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS)
+    def test_fastapi_guards_own_checks_run_on_the_handshake(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS
+        )
         with TestClient(guarded_app(), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
             with pytest.raises(WebSocketDisconnect):
                 with client.websocket_connect("/ws/live", headers=SAME_ORIGIN_FETCH):
@@ -322,7 +422,9 @@ class TestWebSockets:
     def test_passive_mode_logs_a_handshake_it_would_close(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
-        monkeypatch.setattr(install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS)
+        monkeypatch.setattr(
+            install_module.settings, "guard_ip_blocklist", LAN_BROWSER_ADDRESS
+        )
         monkeypatch.setattr(install_module.settings, "guard_passive_mode", True)
         with (
             caplog.at_level(logging.WARNING, logger="sentinel.guard"),
@@ -331,7 +433,10 @@ class TestWebSockets:
         ):
             assert socket.receive_text() == "hello"
 
-        assert any(message.startswith("guard would close websocket /ws/live") for message in caplog.messages)
+        assert any(
+            message.startswith("guard would close websocket /ws/live")
+            for message in caplog.messages
+        )
 
 
 class TestStatusRoute:
@@ -340,7 +445,9 @@ class TestStatusRoute:
     ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
-        response = client_from(INTERNAL_ADDRESS).get(STATUS_PATH, headers=bearer("space"))
+        response = client_from(INTERNAL_ADDRESS).get(
+            STATUS_PATH, headers=bearer("space")
+        )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -359,7 +466,9 @@ class TestStatusRoute:
     ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
-        response = client_from(INTERNAL_ADDRESS).get(STATUS_PATH, headers={"Authorization": "Bearer wrong"})
+        response = client_from(INTERNAL_ADDRESS).get(
+            STATUS_PATH, headers={"Authorization": "Bearer wrong"}
+        )
 
         assert response.status_code == 401
 
@@ -369,23 +478,36 @@ class TestStatusRoute:
         accept_callers(monkeypatch, tmp_path)
         token = bearer("space")["Authorization"].removeprefix("Bearer ")
 
-        assert client_from(INTERNAL_ADDRESS).get(STATUS_PATH, headers={"Authorization": token}).status_code == 401
+        assert (
+            client_from(INTERNAL_ADDRESS)
+            .get(STATUS_PATH, headers={"Authorization": token})
+            .status_code
+            == 401
+        )
 
     def test_is_off_where_no_callers_are_accepted(self, client_from: Any) -> None:
-        response = client_from(INTERNAL_ADDRESS).get(STATUS_PATH, headers=bearer("space"))
+        response = client_from(INTERNAL_ADDRESS).get(
+            STATUS_PATH, headers=bearer("space")
+        )
 
         assert response.status_code == 503
 
-    def test_is_a_404_to_a_browser(self, client_from: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_is_a_404_to_a_browser(
+        self, client_from: Any, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
-        response = client_from(LAN_BROWSER_ADDRESS).get(STATUS_PATH, headers={**bearer("space"), **SAME_ORIGIN_FETCH})
+        response = client_from(LAN_BROWSER_ADDRESS).get(
+            STATUS_PATH, headers={**bearer("space"), **SAME_ORIGIN_FETCH}
+        )
 
         assert response.status_code == 404
 
 
 class TestInstall:
-    def test_disabled_adds_nothing(self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    def test_disabled_adds_nothing(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
         monkeypatch.setattr(install_module.settings, "guard_enabled", False)
         app = build_app()
 
@@ -400,7 +522,10 @@ class TestInstall:
         # Starlette runs the last-added middleware first.
         app = guarded_app()
 
-        assert [middleware.cls for middleware in app.user_middleware] == [SecurityMiddleware, AccessControlMiddleware]
+        assert [middleware.cls for middleware in app.user_middleware] == [
+            SecurityMiddleware,
+            AccessControlMiddleware,
+        ]
         assert app.state.guard_decorator is not None
 
     def test_the_streaming_middleware_when_the_profile_asks(
@@ -408,24 +533,36 @@ class TestInstall:
     ) -> None:
         data = minimal_policy_data()
         data["defaults"]["middleware"] = "pure_asgi"
-        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)))
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data))
+        )
 
         assert guarded_app().user_middleware[0].cls is PureASGISecurityMiddleware
 
-    def test_behaviour_tracking_is_made_fail_open(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_behaviour_tracking_is_made_fail_open(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         wrapped: list[Any] = []
-        monkeypatch.setattr(install_module, "make_behavior_tracking_fail_open", wrapped.append)
+        monkeypatch.setattr(
+            install_module, "make_behavior_tracking_fail_open", wrapped.append
+        )
 
         app = guarded_app()
 
         assert wrapped == [app.state.guard_decorator.behavior_tracker]
 
-    def test_not_when_redis_failures_should_refuse(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_not_when_redis_failures_should_refuse(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         data = minimal_policy_data()
         data["defaults"]["redis_fail_open"] = False
-        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)))
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data))
+        )
         wrapped: list[Any] = []
-        monkeypatch.setattr(install_module, "make_behavior_tracking_fail_open", wrapped.append)
+        monkeypatch.setattr(
+            install_module, "make_behavior_tracking_fail_open", wrapped.append
+        )
 
         guarded_app()
 
@@ -459,7 +596,9 @@ class TestInstall:
             with TestClient(app):
                 pass
 
-    def test_an_unknown_profile_stops_install(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_an_unknown_profile_stops_install(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(install_module.settings, "guard_profile", "nowhere")
 
         with pytest.raises(KeyError, match="nowhere"):
@@ -496,7 +635,9 @@ def no_bans() -> Iterator[None]:
     ip_ban_manager.banned_networks = []
 
 
-def scanner_rule_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, serve_puts: bool = True) -> FastAPI:
+def scanner_rule_app(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, serve_puts: bool = True
+) -> FastAPI:
     """The test app under a strict scanner rule: 3 404s in a minute bans for an hour.
 
     Sentinel's own network isn't exempt here, so only the ban rules can keep it unbanned.
@@ -512,17 +653,27 @@ def scanner_rule_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, serve_p
             "ban_duration_seconds": 3600,
         }
     ]
-    pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), guard_exempt_ips="192.0.2.1")
+    pin_guard_settings(
+        monkeypatch,
+        guard_policy_file=str(write_policy(tmp_path, data)),
+        guard_exempt_ips="192.0.2.1",
+    )
     app = build_app()
     if not serve_puts:
-        app.router.routes = [route for route in app.router.routes if "PUT" not in getattr(route, "methods", set())]
+        app.router.routes = [
+            route
+            for route in app.router.routes
+            if "PUT" not in getattr(route, "methods", set())
+        ]
     install_request_guard(app, service_name="core")
     return app
 
 
 @pytest.mark.usefixtures("no_bans")
 class TestRestartsBanNobody:
-    def test_a_route_served_by_another_service_is_a_503(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_a_route_served_by_another_service_is_a_503(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         # While the gateway catches up after core restarts, a request can land
         # on a service that doesn't serve it.
         app = scanner_rule_app(monkeypatch, tmp_path, serve_puts=False)
@@ -530,15 +681,23 @@ class TestRestartsBanNobody:
             response = client.put("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
         assert response.status_code == 503
-        assert response.json() == {"detail": "This route's service is unavailable; try again shortly"}
-        assert (response.headers["retry-after"], response.headers["cache-control"]) == ("5", "no-store")
+        assert response.json() == {
+            "detail": "This route's service is unavailable; try again shortly"
+        }
+        assert (response.headers["retry-after"], response.headers["cache-control"]) == (
+            "5",
+            "no-store",
+        )
 
     def test_a_browser_polling_through_a_route_gap_is_not_banned(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         app = scanner_rule_app(monkeypatch, tmp_path, serve_puts=False)
         with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as client:
-            statuses = {client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).status_code for _ in range(10)}
+            statuses = {
+                client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).status_code
+                for _ in range(10)
+            }
             afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
         assert statuses == {503}
@@ -547,7 +706,9 @@ class TestRestartsBanNobody:
     def test_sentinels_own_process_is_never_banned_even_for_real_404s(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)) as client:
+        with TestClient(
+            scanner_rule_app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)
+        ) as client:
             statuses = {client.post("/no-such-route").status_code for _ in range(10)}
             afterwards = client.get("/health")
 
@@ -555,8 +716,12 @@ class TestRestartsBanNobody:
         assert afterwards.status_code == 200
         assert INTERNAL_ADDRESS not in ip_ban_manager.banned_ips
 
-    def test_a_client_repeating_404s_is_still_banned(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+    def test_a_client_repeating_404s_is_still_banned(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)
+        ) as client:
             probes = [client.post("/no-such-route").status_code for _ in range(4)]
             afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
@@ -568,7 +733,9 @@ class TestRestartsBanNobody:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         # fastapi-guard alone counts per path, so these would never add up.
-        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
+        with TestClient(
+            scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)
+        ) as client:
             probes = [client.post(f"/probe-{index}").status_code for index in range(4)]
             afterwards = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
@@ -585,10 +752,18 @@ class TestRestartsBanNobody:
             TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as scanner,
             TestClient(app, client=(other_lan_address, 50000)) as neighbour,
         ):
-            scanner_probes = [scanner.post(f"/probe-{index}").status_code for index in range(2)]
-            neighbour_probes = [neighbour.post(f"/neighbour-{index}").status_code for index in range(3)]
-            scanner_probes += [scanner.post(f"/probe-late-{index}").status_code for index in range(2)]
-            neighbour_afterwards = neighbour.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
+            scanner_probes = [
+                scanner.post(f"/probe-{index}").status_code for index in range(2)
+            ]
+            neighbour_probes = [
+                neighbour.post(f"/neighbour-{index}").status_code for index in range(3)
+            ]
+            scanner_probes += [
+                scanner.post(f"/probe-late-{index}").status_code for index in range(2)
+            ]
+            neighbour_afterwards = neighbour.get(
+                "/api/things/7", headers=SAME_ORIGIN_FETCH
+            )
 
         # Seven 404s between them, but only the scanner went over three.
         assert neighbour_probes == [404, 404, 404]
@@ -600,10 +775,16 @@ class TestRestartsBanNobody:
     def test_a_route_the_app_serves_still_answers_normally(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        with TestClient(scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)) as client:
-            assert client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).json() == {"saved": "7"}
+        with TestClient(
+            scanner_rule_app(monkeypatch, tmp_path), client=(LAN_BROWSER_ADDRESS, 50000)
+        ) as client:
+            assert client.put("/api/things/7", headers=SAME_ORIGIN_FETCH).json() == {
+                "saved": "7"
+            }
 
-    def test_a_catch_all_serves_whatever_it_matches(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_a_catch_all_serves_whatever_it_matches(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         # Core's SPA catch-all answers any GET, so core never says 503 for one.
         app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -620,7 +801,10 @@ class TestRestartsBanNobody:
         with TestClient(app, client=(LAN_BROWSER_ADDRESS, 50000)) as client:
             response = client.get("/api/things/7", headers=SAME_ORIGIN_FETCH)
 
-        assert (response.status_code, response.json()) == (200, {"page": "api/things/7"})
+        assert (response.status_code, response.json()) == (
+            200,
+            {"page": "api/things/7"},
+        )
 
 
 class TestServedRoutes:
@@ -650,27 +834,53 @@ class TestStaticFilesArentRateLimited:
         data = minimal_policy_data()
         data["defaults"]["rate_limit"] = {"requests": 5, "window_seconds": 60}
         data["defaults"]["auto_ban"] = {"count_rate_limit_violations": False}
-        data["route_groups"]["spa_shell"] = {"description": "the bundle", "bypass": ["rate_limit"]}
+        data["route_groups"]["spa_shell"] = {
+            "description": "the bundle",
+            "bypass": ["rate_limit"],
+        }
         data["route_rules"].insert(
-            0, {"paths": ["/spa-assets/**"], "methods": ["GET"], "access": ["page"], "group": "spa_shell"}
+            0,
+            {
+                "paths": ["/spa-assets/**"],
+                "methods": ["GET"],
+                "access": ["page"],
+                "group": "spa_shell",
+            },
         )
         pin_guard_settings(
-            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), guard_exempt_ips="192.0.2.1"
+            monkeypatch,
+            guard_policy_file=str(write_policy(tmp_path, data)),
+            guard_exempt_ips="192.0.2.1",
         )
         app = build_app()
-        app.router.routes.insert(0, Mount("/spa-assets", StaticFiles(directory=tmp_path / "files")))
+        app.router.routes.insert(
+            0, Mount("/spa-assets", StaticFiles(directory=tmp_path / "files"))
+        )
         install_request_guard(app, service_name="core")
         return app
 
-    def test_the_bundle_isnt_counted(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.static_app(monkeypatch, tmp_path), client=("192.168.77.10", 50000)) as client:
-            statuses = {client.get("/spa-assets/bundle.js").status_code for _ in range(20)}
+    def test_the_bundle_isnt_counted(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.static_app(monkeypatch, tmp_path), client=("192.168.77.10", 50000)
+        ) as client:
+            statuses = {
+                client.get("/spa-assets/bundle.js").status_code for _ in range(20)
+            }
 
         assert statuses == {200}
 
-    def test_the_api_still_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.static_app(monkeypatch, tmp_path), client=("192.168.77.11", 50000)) as client:
-            statuses = [client.get("/api/things/1", headers=SAME_ORIGIN_FETCH).status_code for _ in range(8)]
+    def test_the_api_still_is(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.static_app(monkeypatch, tmp_path), client=("192.168.77.11", 50000)
+        ) as client:
+            statuses = [
+                client.get("/api/things/1", headers=SAME_ORIGIN_FETCH).status_code
+                for _ in range(8)
+            ]
 
         assert statuses[0] == 200
         assert statuses[-1] == 429
@@ -683,20 +893,34 @@ class TestScanningOnlyWhereInputEnters:
         data = minimal_policy_data()
         data["defaults"]["detection"] = {"enabled": False}
         data["route_groups"]["settings_write"]["detection"] = {"enabled": True}
-        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)))
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data))
+        )
         return guarded_app()
 
     injection = {"q": "1' UNION SELECT password FROM users--"}
 
-    def test_a_read_isnt_scanned(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.78.10", 50000)) as client:
-            response = client.get("/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH)
+    def test_a_read_isnt_scanned(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=("192.168.78.10", 50000)
+        ) as client:
+            response = client.get(
+                "/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH
+            )
 
         assert response.status_code == 200
 
-    def test_a_write_in_a_scanned_group_is(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.78.11", 50000)) as client:
-            response = client.put("/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH)
+    def test_a_write_in_a_scanned_group_is(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=("192.168.78.11", 50000)
+        ) as client:
+            response = client.put(
+                "/api/things/7", params=self.injection, headers=SAME_ORIGIN_FETCH
+            )
 
         assert response.status_code == 400
 
@@ -705,56 +929,93 @@ class TestScanningOnlyWhereInputEnters:
 class TestScannerUserAgents:
     """Sentinel's access layer refuses scanning tools by a word in their User-Agent."""
 
-    def app(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, **settings: object) -> FastAPI:
+    def app(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, **settings: object
+    ) -> FastAPI:
         data = minimal_policy_data()
         data["defaults"]["blocked_user_agents"] = ["sqlmap", "nikto"]
-        pin_guard_settings(monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), **settings)
+        pin_guard_settings(
+            monkeypatch, guard_policy_file=str(write_policy(tmp_path, data)), **settings
+        )
         return guarded_app()
 
-    @pytest.mark.parametrize("user_agent", ["sqlmap/1.7.2#stable (https://sqlmap.org)", "Mozilla/5.00 (Nikto/2.5.0)"])
+    @pytest.mark.parametrize(
+        "user_agent",
+        ["sqlmap/1.7.2#stable (https://sqlmap.org)", "Mozilla/5.00 (Nikto/2.5.0)"],
+    )
     def test_a_scanner_is_refused_whatever_the_case(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, user_agent: str
     ) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.10", 50000)) as client:
-            response = client.get("/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": user_agent})
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=("192.168.79.10", 50000)
+        ) as client:
+            response = client.get(
+                "/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": user_agent}
+            )
 
         assert (response.status_code, response.json()) == (403, {"detail": "Forbidden"})
         assert response.headers["cache-control"] == "no-store"
 
-    def test_a_browser_is_not(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.11", 50000)) as client:
+    def test_a_browser_is_not(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=("192.168.79.11", 50000)
+        ) as client:
             response = client.get(
-                "/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": "Mozilla/5.0 (Macintosh) Chrome/154.0"}
+                "/api/things/7",
+                headers={
+                    **SAME_ORIGIN_FETCH,
+                    "User-Agent": "Mozilla/5.0 (Macintosh) Chrome/154.0",
+                },
             )
 
         assert response.status_code == 200
 
-    def test_sentinels_own_network_is_exempt(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)) as client:
+    def test_sentinels_own_network_is_exempt(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=(INTERNAL_ADDRESS, 50000)
+        ) as client:
             response = client.get("/health", headers={"User-Agent": "sqlmap/1.7"})
 
         assert response.status_code == 200
 
     def test_passive_mode_logs_and_lets_it_through(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         with (
             caplog.at_level(logging.WARNING, logger="sentinel.guard"),
             TestClient(
-                self.app(monkeypatch, tmp_path, guard_passive_mode=True), client=("192.168.79.12", 50000)
+                self.app(monkeypatch, tmp_path, guard_passive_mode=True),
+                client=("192.168.79.12", 50000),
             ) as client,
         ):
-            response = client.get("/api/things/7", headers={**SAME_ORIGIN_FETCH, "User-Agent": "sqlmap/1.7"})
+            response = client.get(
+                "/api/things/7",
+                headers={**SAME_ORIGIN_FETCH, "User-Agent": "sqlmap/1.7"},
+            )
 
         assert response.status_code == 200
         assert (
-            "guard would block: GET /api/things/7 from 192.168.79.12 (user_agent: a scanning tool)" in caplog.messages
+            "guard would block: GET /api/things/7 from 192.168.79.12 (user_agent: a scanning tool)"
+            in caplog.messages
         )
 
-    def test_a_scanners_websocket_is_closed(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        with TestClient(self.app(monkeypatch, tmp_path), client=("192.168.79.13", 50000)) as client:
+    def test_a_scanners_websocket_is_closed(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        with TestClient(
+            self.app(monkeypatch, tmp_path), client=("192.168.79.13", 50000)
+        ) as client:
             with pytest.raises(WebSocketDisconnect) as closed:
-                with client.websocket_connect("/ws/live", headers={**SAME_ORIGIN_FETCH, "User-Agent": "nikto"}):
+                with client.websocket_connect(
+                    "/ws/live", headers={**SAME_ORIGIN_FETCH, "User-Agent": "nikto"}
+                ):
                     pass
 
         assert closed.value.code == 1008

@@ -49,7 +49,9 @@ def test_registers_every_hosted_service_as_core_in_manifest_order(fresh_registry
     assert all(service.in_process for service in registered)
 
 
-def test_builds_core_with_every_router_lifecycle_and_the_section_remotes(fresh_registry, monkeypatch):
+def test_builds_core_with_every_router_lifecycle_and_the_section_remotes(
+    fresh_registry, monkeypatch
+):
     built_with: dict = {}
 
     def spy(**options):
@@ -71,7 +73,9 @@ def test_serves_every_hosted_route_and_the_section_remotes(fresh_registry):
     app = create_in_process_app()
 
     paths = {getattr(route, "path", "") for route in app.routes}
-    assert {route.path for router in in_process_routers() for route in router.routes} <= paths
+    assert {
+        route.path for router in in_process_routers() for route in router.routes
+    } <= paths
     assert "/remotes" in paths
 
 
@@ -80,7 +84,9 @@ def test_runs_core_first_then_every_section_and_the_hub():
     assert sdr_module.lifecycle in IN_PROCESS_LIFECYCLES
     assert radio_module.lifecycle in IN_PROCESS_LIFECYCLES
     # Air asks the hub where the receiver is, so the hub starts first.
-    assert IN_PROCESS_LIFECYCLES.index(radio_module.lifecycle) < IN_PROCESS_LIFECYCLES.index(air_module.lifecycle)
+    assert IN_PROCESS_LIFECYCLES.index(
+        radio_module.lifecycle
+    ) < IN_PROCESS_LIFECYCLES.index(air_module.lifecycle)
 
 
 def test_hosts_one_manifest_per_service():

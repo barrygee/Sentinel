@@ -27,11 +27,19 @@ def test_sections_are_in_the_shell_registration_order():
 
     ordered = sorted(sections, key=lambda manifest: manifest.nav_order)
 
-    assert [manifest.id for manifest in ordered] == ["air", "space", "sea", "land", "sdr"]
+    assert [manifest.id for manifest in ordered] == [
+        "air",
+        "space",
+        "sea",
+        "land",
+        "sdr",
+    ]
 
 
 def test_every_manifest_points_at_this_process():
-    assert {manifest.internal_url for manifest in MANIFESTS} == {settings.core_internal_url}
+    assert {manifest.internal_url for manifest in MANIFESTS} == {
+        settings.core_internal_url
+    }
     assert {manifest.version for manifest in MANIFESTS} == {SENTINEL_VERSION}
 
 
@@ -69,7 +77,10 @@ def test_every_api_route_is_claimed_by_some_manifest():
         path = getattr(route, "path", "")
         if not path.startswith(("/api/", "/ws/")) or route_is_reserved(path):
             continue
-        assert any(path == prefix.rstrip("/") or path.startswith(prefix.rstrip("/") + "/") for prefix in claimed), path
+        assert any(
+            path == prefix.rstrip("/") or path.startswith(prefix.rstrip("/") + "/")
+            for prefix in claimed
+        ), path
 
 
 def test_the_app_registers_them_in_process_at_import():
@@ -81,7 +92,9 @@ def test_the_app_registers_them_in_process_at_import():
 
 
 def test_section_manifest_builds_a_section_served_here():
-    manifest = section_manifest("weather", display_name="WX", nav_order=60, routes=["/api/weather/"])
+    manifest = section_manifest(
+        "weather", display_name="WX", nav_order=60, routes=["/api/weather/"]
+    )
 
     assert manifest.kind == "section"
     assert manifest.display_name == "WX"

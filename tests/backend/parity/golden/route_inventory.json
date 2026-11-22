@@ -76,30 +76,6 @@
     ]
   },
   {
-    "path": "/api/air/history/status",
-    "type": "Route",
-    "name": "history_status",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/history/coverage",
-    "type": "Route",
-    "name": "history_coverage",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/air/history/samples",
-    "type": "Route",
-    "name": "history_samples",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
     "path": "/api/air/messages",
     "type": "Route",
     "name": "list_air_messages",
@@ -268,14 +244,6 @@
     ]
   },
   {
-    "path": "/api/space/history/status",
-    "type": "Route",
-    "name": "get_history_status",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
     "path": "/api/land/aprs/stations",
     "type": "Route",
     "name": "list_aprs_stations",
@@ -305,30 +273,6 @@
     "name": "set_repeaters_file",
     "methods": [
       "POST"
-    ]
-  },
-  {
-    "path": "/api/land/history/status",
-    "type": "Route",
-    "name": "history_status",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/land/history/coverage",
-    "type": "Route",
-    "name": "history_coverage",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/land/history/samples",
-    "type": "Route",
-    "name": "history_samples",
-    "methods": [
-      "GET"
     ]
   },
   {
@@ -377,30 +321,6 @@
     "name": "delete_ais_key",
     "methods": [
       "DELETE"
-    ]
-  },
-  {
-    "path": "/api/sea/history/status",
-    "type": "Route",
-    "name": "history_status",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sea/history/coverage",
-    "type": "Route",
-    "name": "history_coverage",
-    "methods": [
-      "GET"
-    ]
-  },
-  {
-    "path": "/api/sea/history/samples",
-    "type": "Route",
-    "name": "history_samples",
-    "methods": [
-      "GET"
     ]
   },
   {

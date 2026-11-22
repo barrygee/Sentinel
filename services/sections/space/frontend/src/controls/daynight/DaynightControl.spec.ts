@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import * as maplibregl from 'maplibre-gl'
 import { DaynightControl } from './DaynightControl'
 import { useSpaceStore } from '../../stores/space'
@@ -333,63 +332,5 @@ describe('DaynightControl.onRemove', () => {
     const control = new DaynightControl(spaceStore)
     // onRemove without onAdd: _pollInterval is null, super.onRemove tolerates it.
     expect(() => control.onRemove()).not.toThrow()
-  })
-})
-
-describe('DaynightControl replay', () => {
-  const NOW = Date.UTC(2026, 10, 20, 12, 0, 0)
-  const feature: GeoJSON.Feature = {
-    type: 'Feature',
-    geometry: { type: 'Polygon', coordinates: [[]] },
-    properties: {},
-  }
-
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.setSystemTime(NOW)
-  })
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('asks for the terminator at the replayed moment, every 2 s, and live again every minute', async () => {
-    const fetchSpy = vi.fn((_url: string) =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(feature) } as unknown as Response),
-    )
-    vi.stubGlobal('fetch', fetchSpy)
-    const control = new DaynightControl(spaceStore)
-    const map = fakeMap({ styleLoaded: true, sourcePresentForFetch: true })
-    control.onAdd(map.map)
-    expect(fetchSpy).toHaveBeenLastCalledWith('/api/space/daynight')
-
-    usePlaybackStore().enterReplay('space', NOW - 3_600_000)
-    control.setReplaying(true)
-    expect(fetchSpy).toHaveBeenLastCalledWith(`/api/space/daynight?at=${NOW - 3_600_000}`)
-    fetchSpy.mockClear()
-    await vi.advanceTimersByTimeAsync(4000)
-    expect(fetchSpy).toHaveBeenCalledTimes(2)
-
-    usePlaybackStore().exitReplay('space')
-    control.setReplaying(false)
-    expect(fetchSpy).toHaveBeenLastCalledWith('/api/space/daynight')
-    fetchSpy.mockClear()
-    await vi.advanceTimersByTimeAsync(59_000)
-    expect(fetchSpy).not.toHaveBeenCalled()
-    await vi.advanceTimersByTimeAsync(1000)
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    control.onRemove()
-  })
-
-  it('setting replay before any poll was running still starts one', async () => {
-    const fetchSpy = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(feature) } as unknown as Response),
-    )
-    vi.stubGlobal('fetch', fetchSpy)
-    const control = new DaynightControl(spaceStore)
-    control.setReplaying(true)
-    fetchSpy.mockClear()
-    await vi.advanceTimersByTimeAsync(2000)
-    expect(fetchSpy).toHaveBeenCalledTimes(1)
-    control.onRemove()
   })
 })

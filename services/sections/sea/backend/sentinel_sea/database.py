@@ -6,12 +6,14 @@ from sentinel_sea import models  # noqa: F401 — registers Sea's tables with Ba
 
 SEA_TABLES: tuple[str, ...] = ("sea_vessel_cache", "sea_vessel_static")
 
-# Added after the split: nothing in the legacy database to import, so only created.
-SEA_SERVICE_ONLY_TABLES: tuple[str, ...] = ("sea_position_history",)
-
 # Columns added after a table's first release (each ALTER is skipped where the
 # column already exists).
 SEA_ADDED_COLUMNS: tuple[str, ...] = ("ALTER TABLE sea_vessel_cache ADD COLUMN source_mode TEXT",)
+
+
+# Movement history & replay (removed 2026-11-22) recorded into this table; it is
+# dropped on startup so the history doesn't linger on disk.
+REMOVED_HISTORY_TABLES: tuple[str, ...] = ("sea_position_history",)
 
 
 async def create_sea_tables() -> None:
@@ -20,4 +22,4 @@ async def create_sea_tables() -> None:
     The snapshot gained ``source_mode`` (which feed heard each vessel). The
     AISStream key is not Sea's to store: it is a setting, kept in core (secret).
     """
-    await create_section_tables(SEA_TABLES + SEA_SERVICE_ONLY_TABLES, SEA_ADDED_COLUMNS)
+    await create_section_tables(SEA_TABLES, SEA_ADDED_COLUMNS, REMOVED_HISTORY_TABLES)

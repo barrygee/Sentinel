@@ -102,20 +102,31 @@ class TestRemoteSettings:
         monkeypatch.setattr(
             settings_client_module.httpx,
             "AsyncClient",
-            lambda **options: real_client(transport=httpx.MockTransport(answer), **options),
+            lambda **options: real_client(
+                transport=httpx.MockTransport(answer), **options
+            ),
         )
         namespaces["requested"] = requested  # type: ignore[assignment]  # test-only record
         return namespaces
 
     async def test_online_mode_puts_the_online_url_first(self, core_settings):
-        core_settings["space"] = {"onlineUrl": "https://online.test/tle", "offgridSource": {"url": "http://box.test/tle"}}
+        core_settings["space"] = {
+            "onlineUrl": "https://online.test/tle",
+            "offgridSource": {"url": "http://box.test/tle"},
+        }
         core_settings["app"] = {"connectivityMode": "online"}
 
-        assert await resolve_domain_urls("space", None) == ("https://online.test/tle", "http://box.test/tle")
+        assert await resolve_domain_urls("space", None) == (
+            "https://online.test/tle",
+            "http://box.test/tle",
+        )
         assert core_settings["requested"] == ["space", "app"]
 
     async def test_the_app_mode_applies_without_a_section_override(self, core_settings):
-        core_settings["space"] = {"onlineUrl": "https://online.test/tle", "offgridSource": {"url": "http://box.test/tle"}}
+        core_settings["space"] = {
+            "onlineUrl": "https://online.test/tle",
+            "offgridSource": {"url": "http://box.test/tle"},
+        }
         core_settings["app"] = {"connectivityMode": "offgrid"}
 
         # Off grid never falls back to the online source.
@@ -129,10 +140,15 @@ class TestRemoteSettings:
         }
         core_settings["app"] = {"connectivityMode": "offgrid"}
 
-        assert await resolve_domain_urls("space", None) == ("https://online.test/tle", "http://box.test/tle")
+        assert await resolve_domain_urls("space", None) == (
+            "https://online.test/tle",
+            "http://box.test/tle",
+        )
 
     async def test_unset_settings_fall_back_to_the_defaults(self, core_settings):
-        assert await resolve_domain_urls("space", None, online_default="https://default.test/tle") == (
+        assert await resolve_domain_urls(
+            "space", None, online_default="https://default.test/tle"
+        ) == (
             "https://default.test/tle",
             None,
         )
@@ -143,7 +159,14 @@ class TestLocalSettingsRows:
         # Rows written before every value was JSON-encoded hold the bare URL.
         from backend.models import UserSettings
 
-        db.add(UserSettings(namespace="space", key="onlineUrl", value="https://bare.test/tle", updated_at=0))
+        db.add(
+            UserSettings(
+                namespace="space",
+                key="onlineUrl",
+                value="https://bare.test/tle",
+                updated_at=0,
+            )
+        )
         await db.commit()
 
         primary, _ = await resolve_domain_urls("space", db)

@@ -37,17 +37,28 @@ class TestSplitSetting:
 
 
 class TestContainerNetworksToken:
-    def test_reads_the_container_range_setting(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        pin_guard_settings(monkeypatch, guard_container_networks="172.28.0.128/25, 172.29.0.128/25")
-        assert expand_network_tokens(["$container_networks"]) == ["172.28.0.128/25", "172.29.0.128/25"]
+    def test_reads_the_container_range_setting(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pin_guard_settings(
+            monkeypatch, guard_container_networks="172.28.0.128/25, 172.29.0.128/25"
+        )
+        assert expand_network_tokens(["$container_networks"]) == [
+            "172.28.0.128/25",
+            "172.29.0.128/25",
+        ]
 
     def test_unset_means_no_addresses(self) -> None:
         assert expand_network_tokens(["$container_networks"]) == []
 
 
 class TestExpandNetworkTokens:
-    def test_replaces_each_token_with_its_settings_addresses(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        pin_guard_settings(monkeypatch, guard_service_hosts="192.168.1.20, 192.168.1.21")
+    def test_replaces_each_token_with_its_settings_addresses(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pin_guard_settings(
+            monkeypatch, guard_service_hosts="192.168.1.20, 192.168.1.21"
+        )
 
         assert expand_network_tokens(["$service_hosts", "10.9.9.9"]) == [
             "192.168.1.20",
@@ -58,12 +69,18 @@ class TestExpandNetworkTokens:
     def test_loopback_is_fixed(self) -> None:
         assert expand_network_tokens(["$loopback"]) == list(LOOPBACK_NETWORKS)
 
-    def test_drops_duplicates_keeping_the_first(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_drops_duplicates_keeping_the_first(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         pin_guard_settings(monkeypatch, guard_internal_networks="127.0.0.0/8")
 
-        assert expand_network_tokens(["$loopback", "$internal_networks"]) == list(LOOPBACK_NETWORKS)
+        assert expand_network_tokens(["$loopback", "$internal_networks"]) == list(
+            LOOPBACK_NETWORKS
+        )
 
-    def test_reads_settings_when_called_not_when_imported(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_reads_settings_when_called_not_when_imported(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         pin_guard_settings(monkeypatch, guard_decoder_hosts="10.0.0.7")
         first = expand_network_tokens(["$decoder_hosts"])
         pin_guard_settings(monkeypatch, guard_decoder_hosts="10.0.0.8")
@@ -83,12 +100,18 @@ class TestExpandNetworkTokens:
 
 
 class TestTokenFallbacks:
-    def test_peer_networks_default_to_the_client_networks(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        pin_guard_settings(monkeypatch, guard_peer_networks="", guard_client_networks="10.0.0.0/8")
+    def test_peer_networks_default_to_the_client_networks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pin_guard_settings(
+            monkeypatch, guard_peer_networks="", guard_client_networks="10.0.0.0/8"
+        )
 
         assert expand_network_tokens(["$peer_networks"]) == ["10.0.0.0/8"]
 
-    def test_peer_networks_when_set_replace_the_client_networks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_peer_networks_when_set_replace_the_client_networks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         pin_guard_settings(
             monkeypatch,
             guard_peer_networks="192.168.7.0/24",
@@ -97,12 +120,18 @@ class TestTokenFallbacks:
 
         assert expand_network_tokens(["$peer_networks"]) == ["192.168.7.0/24"]
 
-    def test_exempt_ips_default_to_sentinels_own_network(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        pin_guard_settings(monkeypatch, guard_exempt_ips="", guard_internal_networks="172.28.0.0/24")
+    def test_exempt_ips_default_to_sentinels_own_network(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pin_guard_settings(
+            monkeypatch, guard_exempt_ips="", guard_internal_networks="172.28.0.0/24"
+        )
 
         assert expand_network_tokens(["$exempt_ips"]) == ["172.28.0.0/24"]
 
-    def test_exempt_ips_when_set_replace_the_internal_networks(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_exempt_ips_when_set_replace_the_internal_networks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         pin_guard_settings(
             monkeypatch,
             guard_exempt_ips="10.1.1.1",
@@ -120,10 +149,14 @@ class TestParseNetworks:
         )
 
     def test_host_bits_in_a_cidr_are_tolerated(self) -> None:
-        assert parse_networks(["192.168.1.5/24"]) == (ipaddress.ip_network("192.168.1.0/24"),)
+        assert parse_networks(["192.168.1.5/24"]) == (
+            ipaddress.ip_network("192.168.1.0/24"),
+        )
 
     def test_names_the_entry_that_isnt_an_address(self) -> None:
-        with pytest.raises(ValueError, match="not an IP address or network: 'sentinel.lan'"):
+        with pytest.raises(
+            ValueError, match="not an IP address or network: 'sentinel.lan'"
+        ):
             parse_networks(["10.0.0.0/8", "sentinel.lan"])
 
 

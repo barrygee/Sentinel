@@ -111,6 +111,34 @@ class TestPruneRemovedSettings:
         await db.prune_removed_settings()
         assert await _stored_keys(session_factory) == [("sdr", "displayBandPlan")]
 
+    async def test_deletes_every_movement_history_setting(self, session_factory):
+        # Movement history & replay was removed: each section's switch and
+        # retention go, its other settings stay.
+        await _add_settings(
+            session_factory,
+            [
+                *[
+                    (namespace, key, True if key == "historyEnabled" else 7)
+                    for namespace in ("air", "sea", "land", "space")
+                    for key in ("historyEnabled", "historyRetentionDays")
+                ],
+                ("air", "enabled", True),
+                ("space", "sourceOverride", "online"),
+            ],
+        )
+        await db.prune_removed_settings()
+        assert await _stored_keys(session_factory) == [
+            ("air", "enabled"),
+            ("space", "sourceOverride"),
+        ]
+
+    async def test_history_settings_are_listed_for_all_four_sections(self):
+        for namespace in ("air", "sea", "land", "space"):
+            for key in ("historyEnabled", "historyRetentionDays"):
+                assert (namespace, key) in db._REMOVED_SETTING_KEYS
+        # Only those sections had replay.
+        assert ("sdr", "historyEnabled") not in db._REMOVED_SETTING_KEYS
+
     async def test_no_op_on_a_fresh_database(self, session_factory):
         # A fresh install has no such rows — the early return path.
         await db.prune_removed_settings()

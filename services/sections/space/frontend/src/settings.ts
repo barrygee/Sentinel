@@ -1,4 +1,3 @@
-import { historySettingItem } from '@sentinel/shell-api/playback/historySettingItem'
 import {
   registerSettingItems,
   registerSettingsSection,
@@ -84,7 +83,4 @@ export function registerSpaceSettings(): void {
       groupLabel: 'FILTER HOVER',
     },
   ])
-
-  // History & Replay (REPLAY group): record on/off, days kept, what is stored.
-  registerSettingItems([historySettingItem('space', 'SPACE', 'satellite orbit versions (TLEs)')])
 }

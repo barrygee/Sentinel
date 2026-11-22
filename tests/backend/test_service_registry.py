@@ -57,12 +57,17 @@ class TestRegisterInProcess:
     def test_registers_each_manifest_as_in_process_and_available(self):
         registry = ServiceRegistry()
 
-        registry.register_in_process([make_manifest("air"), make_manifest("sea")], instance_id="core")
+        registry.register_in_process(
+            [make_manifest("air"), make_manifest("sea")], instance_id="core"
+        )
 
         air = registry.get("air")
         assert air is not None and air.in_process and air.available
         assert air.instance_id == "core"
-        assert [registration.manifest.id for registration in registry.services()] == ["air", "sea"]
+        assert [registration.manifest.id for registration in registry.services()] == [
+            "air",
+            "sea",
+        ]
 
     def test_publishes_nothing(self, announced):
         ServiceRegistry().register_in_process([make_manifest()], instance_id="core")
@@ -72,7 +77,9 @@ class TestRegisterInProcess:
     def test_two_manifests_sharing_a_route_fail_loudly(self):
         registry = ServiceRegistry()
 
-        with pytest.raises(RegistrationConflict, match="already registered by service 'air'"):
+        with pytest.raises(
+            RegistrationConflict, match="already registered by service 'air'"
+        ):
             registry.register_in_process(
                 [make_manifest("air"), make_manifest("sea", routes=["/api/air/"])],
                 instance_id="core",
@@ -80,7 +87,9 @@ class TestRegisterInProcess:
 
 
 class TestRegister:
-    async def test_registers_an_out_of_process_service_and_announces_it(self, announced):
+    async def test_registers_an_out_of_process_service_and_announces_it(
+        self, announced
+    ):
         registry = ServiceRegistry()
 
         registration = await registry.register(make_manifest(), "instance-1")
@@ -103,18 +112,24 @@ class TestRegister:
         registry = ServiceRegistry()
         await registry.register(make_manifest(), "instance-1")
 
-        with pytest.raises(RegistrationConflict, match="already registered by a live instance"):
+        with pytest.raises(
+            RegistrationConflict, match="already registered by a live instance"
+        ):
             await registry.register(make_manifest(), "instance-2")
         assert registry.get("weather").instance_id == "instance-1"
 
-    async def test_a_service_takes_its_id_over_from_the_monoliths_in_process_copy(self, announced):
+    async def test_a_service_takes_its_id_over_from_the_monoliths_in_process_copy(
+        self, announced
+    ):
         """P6: starting a section's own container is the whole switch — the
         monolith's in-process copy yields rather than refusing it."""
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("air")], instance_id="core")
         announced.clear()
 
-        registration = await registry.register(make_manifest("air", internalUrl="http://air-svc:8000"), "air-1")
+        registration = await registry.register(
+            make_manifest("air", internalUrl="http://air-svc:8000"), "air-1"
+        )
 
         assert registry.get("air") is registration
         assert registration.in_process is False
@@ -143,7 +158,9 @@ class TestRegister:
         assert again.consecutive_probe_failures == 2
         assert announced == []
 
-    async def test_a_re_registration_with_a_changed_manifest_replaces_and_announces(self, announced):
+    async def test_a_re_registration_with_a_changed_manifest_replaces_and_announces(
+        self, announced
+    ):
         registry = ServiceRegistry()
         first = await registry.register(make_manifest(), "instance-1")
         announced.clear()
@@ -154,7 +171,9 @@ class TestRegister:
         assert again.manifest.version == "0.2.0"
         assert announced == [{"id": "weather", "change": "registered"}]
 
-    async def test_a_re_registration_of_an_unavailable_service_revives_and_announces(self, announced):
+    async def test_a_re_registration_of_an_unavailable_service_revives_and_announces(
+        self, announced
+    ):
         registry = ServiceRegistry()
         first = await registry.register(make_manifest(), "instance-1")
         first.available = False
@@ -180,8 +199,14 @@ class TestRegister:
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("sea")], instance_id="core")
 
-        with pytest.raises(RegistrationConflict, match="route '/api/sea/' is already registered by service 'sea'"):
-            await registry.register(make_manifest("weather", routes=["/api/weather/", "/api/sea/"]), "instance-1")
+        with pytest.raises(
+            RegistrationConflict,
+            match="route '/api/sea/' is already registered by service 'sea'",
+        ):
+            await registry.register(
+                make_manifest("weather", routes=["/api/weather/", "/api/sea/"]),
+                "instance-1",
+            )
         assert registry.get("weather") is None
 
     async def test_a_longer_prefix_inside_another_services_route_is_allowed(self):
@@ -189,7 +214,9 @@ class TestRegister:
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("sdr")], instance_id="core")
 
-        await registry.register(make_manifest("radio", kind="radio", routes=["/api/sdr/radios"]), "hub-1")
+        await registry.register(
+            make_manifest("radio", kind="radio", routes=["/api/sdr/radios"]), "hub-1"
+        )
 
         assert registry.get("radio") is not None
 
@@ -214,7 +241,11 @@ class TestReads:
             instance_id="core",
         )
 
-        assert [registration.manifest.id for registration in registry.services()] == ["air", "zulu", "sdr"]
+        assert [registration.manifest.id for registration in registry.services()] == [
+            "air",
+            "zulu",
+            "sdr",
+        ]
 
     def test_get_of_an_unknown_id_is_none(self):
         assert ServiceRegistry().get("nope") is None
@@ -224,7 +255,9 @@ class TestProbes:
     async def test_probes_only_out_of_process_services_at_their_health_url(self):
         registry = ServiceRegistry()
         registry.register_in_process([make_manifest("air")], instance_id="core")
-        await registry.register(make_manifest("weather", health="/healthz"), "instance-1")
+        await registry.register(
+            make_manifest("weather", health="/healthz"), "instance-1"
+        )
 
         async with health_client({"weather": 200}) as client:
             await registry.probe_once(client)
@@ -244,7 +277,9 @@ class TestProbes:
         "failure",
         [500, 404, httpx.ConnectError("refused"), httpx.ReadTimeout("slow")],
     )
-    async def test_marks_unavailable_only_after_the_configured_failures_in_a_row(self, failure, announced):
+    async def test_marks_unavailable_only_after_the_configured_failures_in_a_row(
+        self, failure, announced
+    ):
         registry = ServiceRegistry()
         await registry.register(make_manifest(), "instance-1")
         announced.clear()
@@ -268,7 +303,10 @@ class TestProbes:
             for _ in range(settings.registry_probe_failures + 2):
                 await registry.probe_once(client)
 
-        assert registry.get("weather").consecutive_probe_failures == settings.registry_probe_failures + 2
+        assert (
+            registry.get("weather").consecutive_probe_failures
+            == settings.registry_probe_failures + 2
+        )
         assert announced == [{"id": "weather", "change": "unavailable"}]
 
     async def test_a_good_probe_resets_the_failure_count(self):
@@ -321,7 +359,9 @@ class TestProbes:
         original.consecutive_probe_failures = settings.registry_probe_failures - 1
         announced.clear()
 
-        async def answer_after_re_registration(request: httpx.Request) -> httpx.Response:
+        async def answer_after_re_registration(
+            request: httpx.Request,
+        ) -> httpx.Response:
             # A changed manifest (a restart with a new version), so the
             # registration really is replaced rather than refreshed in place.
             await registry.register(make_manifest(version="0.2.0"), "instance-1")
@@ -335,7 +375,9 @@ class TestProbes:
         assert replacement is not original
         assert replacement.available is True
         assert replacement.consecutive_probe_failures == 0
-        assert original.consecutive_probe_failures == settings.registry_probe_failures - 1
+        assert (
+            original.consecutive_probe_failures == settings.registry_probe_failures - 1
+        )
         assert original.available is True
         assert announced == [{"id": "weather", "change": "registered"}]
 

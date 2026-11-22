@@ -118,6 +118,7 @@ class TestAisStart:
     def test_unavailable_device_returns_503_with_a_reason(self, client, monkeypatch):
         # A bare connection refusal tells the operator nothing about what to do.
         radio_id = _add_radio(client)
+
         async def unplugged(radio):
             return False, "Dongle unplugged."
 

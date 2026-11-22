@@ -14,17 +14,11 @@ from sgp4.api import Satrec, jday
 _RE_KM = 6371.0
 
 
-def _jday_at(moment: datetime) -> tuple[int, float]:
-    """Return the Julian date of a UTC datetime as (jd_int, jd_frac)."""
-    jd, fr = jday(
-        moment.year, moment.month, moment.day, moment.hour, moment.minute, moment.second + moment.microsecond / 1e6
-    )
-    return jd, fr
-
-
 def _jday_now() -> tuple[int, float]:
     """Return the current Julian date as (jd_int, jd_frac)."""
-    return _jday_at(datetime.now(UTC))
+    now = datetime.now(UTC)
+    jd, fr = jday(now.year, now.month, now.day, now.hour, now.minute, now.second + now.microsecond / 1e6)
+    return jd, fr
 
 
 def _eci_to_geodetic(r_km: list[float], t: datetime | None = None) -> tuple[float, float, float]:
@@ -65,8 +59,8 @@ def _propagate_at(sat: Satrec, jd: int, fr: float) -> tuple[list[float], list[fl
     return list(r), list(v)
 
 
-def compute_position(tle_line1: str, tle_line2: str, at: datetime | None = None) -> dict:
-    """Compute the position of a satellite from its TLE lines, now or at `at` (UTC; replay).
+def compute_position(tle_line1: str, tle_line2: str) -> dict:
+    """Compute the current position of a satellite from its TLE lines.
 
     Returns:
       lat          — latitude in degrees
@@ -76,14 +70,14 @@ def compute_position(tle_line1: str, tle_line2: str, at: datetime | None = None)
       track_deg    — heading in degrees (0=north, clockwise)
     """
     sat = Satrec.twoline2rv(tle_line1, tle_line2)
-    now = at if at is not None else datetime.now(UTC)
-    jd, fr = _jday_at(now)
+    jd, fr = _jday_now()
 
     result = _propagate_at(sat, jd, fr)
     if result is None:
-        raise RuntimeError("SGP4 propagation error at the requested time")
+        raise RuntimeError("SGP4 propagation error at current time")
 
     r, v = result
+    now = datetime.now(UTC)
     lat, lon, alt_km = _eci_to_geodetic(r, now)
     velocity_kms = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
 
@@ -112,10 +106,8 @@ def compute_position(tle_line1: str, tle_line2: str, at: datetime | None = None)
     }
 
 
-def compute_ground_track(tle_line1: str, tle_line2: str, at: datetime | None = None) -> dict:
+def compute_ground_track(tle_line1: str, tle_line2: str) -> dict:
     """Compute previous, current, and next two orbits as a GeoJSON FeatureCollection.
-
-    "Current" is now, or `at` (UTC) when replaying a past moment.
 
     The orbital period is derived from the TLE mean motion so the track length
     adapts to each satellite — LEO (~92 min), GPS (~720 min), GEO (~1436 min),
@@ -134,8 +126,8 @@ def compute_ground_track(tle_line1: str, tle_line2: str, at: datetime | None = N
     are all handled without special-case threshold logic.
     """
     sat = Satrec.twoline2rv(tle_line1, tle_line2)
-    now = at if at is not None else datetime.now(UTC)
-    jd, fr = _jday_at(now)
+    jd, fr = _jday_now()
+    now = datetime.now(UTC)
 
     # Orbital period (minutes) from SGP4 mean motion (rad/min). Fall back to
     # ~92 min for degenerate TLEs where no_kozai is non-positive.

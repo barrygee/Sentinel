@@ -368,9 +368,10 @@ class TestPcmFeedAddress:
     def test_reads_host_and_port(self, decoder):
         _, module, _ = decoder
         parse = _socket_parser(module)
-        assert parse(
-            {"active": True, "pcmFeed": {"host": "radio", "port": 7357}}
-        ) == ("radio", 7357)
+        assert parse({"active": True, "pcmFeed": {"host": "radio", "port": 7357}}) == (
+            "radio",
+            7357,
+        )
 
     @pytest.mark.parametrize(
         "config",

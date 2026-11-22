@@ -21,7 +21,10 @@ def manifest_body(**overrides) -> dict:
         "version": "0.1.0",
         "internalUrl": "http://weather:8000",
         "routes": ["/api/weather/"],
-        "ui": {"remoteEntry": "/remotes/weather/remoteEntry.js", "exposes": ["./register"]},
+        "ui": {
+            "remoteEntry": "/remotes/weather/remoteEntry.js",
+            "exposes": ["./register"],
+        },
     }
     body.update(overrides)
     return body
@@ -66,9 +69,22 @@ class TestValidManifest:
         assert "display_name" not in wire
 
     def test_strips_a_trailing_slash_from_the_internal_url(self):
-        assert validate(internalUrl="https://wx.lan:9000/").internal_url == "https://wx.lan:9000"
+        assert (
+            validate(internalUrl="https://wx.lan:9000/").internal_url
+            == "https://wx.lan:9000"
+        )
 
-    @pytest.mark.parametrize("kind", ["section", "radio", "decoder", "docs", "sdr-manager-local", "sdr-manager-remote"])
+    @pytest.mark.parametrize(
+        "kind",
+        [
+            "section",
+            "radio",
+            "decoder",
+            "docs",
+            "sdr-manager-local",
+            "sdr-manager-remote",
+        ],
+    )
     def test_accepts_each_service_kind(self, kind: str):
         assert validate(kind=kind).kind == kind
 
@@ -78,7 +94,13 @@ class TestValidManifest:
 
     @pytest.mark.parametrize(
         "route",
-        ["/api/weather/", "/api/weather", "/ws/weather/", "/api/sdr/radios", "/api/a/b/c/d/"],
+        [
+            "/api/weather/",
+            "/api/weather",
+            "/ws/weather/",
+            "/api/sdr/radios",
+            "/api/a/b/c/d/",
+        ],
     )
     def test_accepts_prefixes_under_api_and_ws(self, route: str):
         assert validate(routes=[route]).routes == [route]
@@ -88,7 +110,9 @@ class TestValidManifest:
 
 
 class TestRejectedManifest:
-    @pytest.mark.parametrize("bad_id", ["", "Air", "1air", "-air", "air_2", "a ir", "a" * 33])
+    @pytest.mark.parametrize(
+        "bad_id", ["", "Air", "1air", "-air", "air_2", "a ir", "a" * 33]
+    )
     def test_rejects_an_id_that_cannot_be_a_url_segment(self, bad_id: str):
         with pytest.raises(ValidationError, match="id must be"):
             validate(id=bad_id, ui=None)
@@ -144,7 +168,13 @@ class TestRejectedManifest:
 
     @pytest.mark.parametrize(
         "route",
-        ["/api/app/", "/api/app/sections", "/api/settings/", "/api/offline-map/x/", "/api/air/messages"],
+        [
+            "/api/app/",
+            "/api/app/sections",
+            "/api/settings/",
+            "/api/offline-map/x/",
+            "/api/air/messages",
+        ],
     )
     def test_rejects_a_route_core_keeps(self, route: str):
         with pytest.raises(ValidationError, match="reserved for core"):
@@ -159,7 +189,9 @@ class TestRejectedManifest:
             validate(routes=[f"/api/weather/r{index}/" for index in range(33)])
 
     @pytest.mark.parametrize("health", ["health", "//evil.example/health"])
-    def test_rejects_a_health_check_that_is_not_a_path_on_the_service(self, health: str):
+    def test_rejects_a_health_check_that_is_not_a_path_on_the_service(
+        self, health: str
+    ):
         with pytest.raises(ValidationError, match="health must be a path"):
             validate(health=health)
 
@@ -171,8 +203,13 @@ class TestRejectedManifest:
             "/remotes/weather/other.js",
         ],
     )
-    def test_rejects_a_remote_entry_outside_its_own_remotes_directory(self, remote_entry: str):
-        with pytest.raises(ValidationError, match="ui.remoteEntry must be /remotes/weather/remoteEntry.js"):
+    def test_rejects_a_remote_entry_outside_its_own_remotes_directory(
+        self, remote_entry: str
+    ):
+        with pytest.raises(
+            ValidationError,
+            match="ui.remoteEntry must be /remotes/weather/remoteEntry.js",
+        ):
             validate(ui={"remoteEntry": remote_entry})
 
 
@@ -190,7 +227,9 @@ class TestHelpers:
             ("/api/openapi.json", True),
         ],
     )
-    def test_route_is_reserved_compares_whole_segments(self, route: str, reserved: bool):
+    def test_route_is_reserved_compares_whole_segments(
+        self, route: str, reserved: bool
+    ):
         assert route_is_reserved(route) is reserved
 
     def test_remote_entry_path_is_under_the_service_id(self):

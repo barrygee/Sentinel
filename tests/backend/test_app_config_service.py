@@ -260,6 +260,25 @@ class TestApplyConfig:
         assert await _row(session_factory, "land", "feedCredential:7") is None
         assert await _value(session_factory, "app", "notificationSound") is True
 
+    async def test_does_not_resurrect_movement_history_settings(self, session_factory):
+        # An export or live config file from before replay was removed.
+        async with session_factory() as session:
+            await apply_config(
+                session,
+                {
+                    "air": {
+                        "historyEnabled": True,
+                        "historyRetentionDays": 7,
+                        "enabled": True,
+                    },
+                    "space": {"historyEnabled": True},
+                },
+            )
+        assert await _row(session_factory, "air", "historyEnabled") is None
+        assert await _row(session_factory, "air", "historyRetentionDays") is None
+        assert await _row(session_factory, "space", "historyEnabled") is None
+        assert await _value(session_factory, "air", "enabled") is True
+
     async def test_leaves_an_unchanged_value_untouched(self, session_factory):
         await _add(session_factory, [("app", "notificationSound", True)])
         async with session_factory() as session:
@@ -300,7 +319,9 @@ class TestRenamedSettingsInADocument:
         assert await _value(session_factory, "sdr", "displayBandPlan") is False
         assert await _value(session_factory, "sdr", "showBandPlan") is None
 
-    async def test_an_old_known_frequencies_key_lands_on_the_new_one(self, session_factory):
+    async def test_an_old_known_frequencies_key_lands_on_the_new_one(
+        self, session_factory
+    ):
         async with session_factory() as session:
             await apply_config(session, {"sdr": {"showKnownFreqs": False}})
         assert await _value(session_factory, "sdr", "displayKnownFrequencies") is False

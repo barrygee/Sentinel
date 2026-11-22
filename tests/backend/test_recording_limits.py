@@ -49,7 +49,9 @@ async def test_accepts_a_fractional_number_of_minutes(monkeypatch):
 async def test_defaults_to_six_hours_when_unset(monkeypatch):
     serve_setting(monkeypatch, ...)
 
-    assert await recording_limits.recording_max_duration_seconds(None) == DEFAULT_SECONDS
+    assert (
+        await recording_limits.recording_max_duration_seconds(None) == DEFAULT_SECONDS
+    )
 
 
 @pytest.mark.parametrize(
@@ -60,24 +62,38 @@ async def test_defaults_to_six_hours_when_unset(monkeypatch):
 async def test_an_invalid_value_falls_back_to_the_default(monkeypatch, stored):
     serve_setting(monkeypatch, stored)
 
-    assert await recording_limits.recording_max_duration_seconds(None) == DEFAULT_SECONDS
+    assert (
+        await recording_limits.recording_max_duration_seconds(None) == DEFAULT_SECONDS
+    )
 
 
-async def test_an_unreadable_setting_falls_back_to_the_default_and_says_so(monkeypatch, caplog):
+async def test_an_unreadable_setting_falls_back_to_the_default_and_says_so(
+    monkeypatch, caplog
+):
     async def read_setting(db, namespace, key, default=None):
         raise ConnectionError("core unreachable")
 
     monkeypatch.setattr(settings_client, "read_setting", read_setting)
 
     with caplog.at_level(logging.WARNING, logger=recording_limits.__name__):
-        assert await recording_limits.recording_max_duration_seconds(None) == DEFAULT_SECONDS
+        assert (
+            await recording_limits.recording_max_duration_seconds(None)
+            == DEFAULT_SECONDS
+        )
 
-    assert "Could not read sdr.recordingMaxDurationMinutes, using the default: core unreachable" in caplog.text
+    assert (
+        "Could not read sdr.recordingMaxDurationMinutes, using the default: core unreachable"
+        in caplog.text
+    )
 
 
 async def test_reads_the_real_setting_from_the_database(test_engine, db_setup):
-    session_factory = sessionmaker(bind=test_engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = sessionmaker(
+        bind=test_engine, class_=AsyncSession, expire_on_commit=False
+    )
     async with session_factory() as session:
-        await settings_client.write_setting(session, "sdr", "recordingMaxDurationMinutes", 15)
+        await settings_client.write_setting(
+            session, "sdr", "recordingMaxDurationMinutes", 15
+        )
 
         assert await recording_limits.recording_max_duration_seconds(session) == 900.0

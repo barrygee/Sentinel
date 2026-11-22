@@ -8,7 +8,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_land.database import create_land_tables
-from sentinel_land.services import aprs_store, land_history
+from sentinel_land.services import aprs_store
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +38,12 @@ async def _daily_cleanup_loop() -> None:
 async def _start() -> None:
     global _cleanup_task
     _cleanup_task = asyncio.create_task(_daily_cleanup_loop())
-    await land_history.recorder.start()
-    await land_history.retention.start()
 
 
 async def _stop() -> None:
     # Cancel and await the loop so uvicorn's graceful shutdown doesn't hang
     # waiting on a still-cancelling task.
     global _cleanup_task
-    await land_history.retention.stop()
-    await land_history.recorder.stop()
     if _cleanup_task is None:
         return
     _cleanup_task.cancel()

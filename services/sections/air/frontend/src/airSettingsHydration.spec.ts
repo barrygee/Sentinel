@@ -76,16 +76,3 @@ describe('hydrateAirFromSettings', () => {
     await Promise.resolve()
   })
 })
-
-describe('hydrateAirFromSettings — replay', () => {
-  it("adopts the section's history settings into the playback store", async () => {
-    const { usePlaybackStore } = await import('@sentinel/shell-api/stores/playback')
-    hydrateAirFromSettings({ air: { historyEnabled: true, historyRetentionDays: 4 } })
-    expect(usePlaybackStore().sections.air).toMatchObject({
-      historyEnabled: true,
-      retentionDays: 4,
-    })
-    hydrateAirFromSettings({})
-    expect(usePlaybackStore().sections.air.historyEnabled).toBe(false)
-  })
-})

@@ -74,34 +74,54 @@ class TestKindAndRoutes:
     """
 
     def space(self, **overrides) -> dict:
-        manifest = {"id": "space", "routes": ["/api/space/"], "internalUrl": "http://space:8000", "ui": None}
+        manifest = {
+            "id": "space",
+            "routes": ["/api/space/"],
+            "internalUrl": "http://space:8000",
+            "ui": None,
+        }
         return registration("space-1", **{**manifest, **overrides})
 
     def test_its_own_kind_and_routes_register(self, isolated_registry, client):
-        assert client.post(REGISTER_URL, json=self.space(), headers=bearer("space")).status_code == 200
+        assert (
+            client.post(
+                REGISTER_URL, json=self.space(), headers=bearer("space")
+            ).status_code
+            == 200
+        )
 
-    def test_another_services_route_is_refused_even_with_its_owner_down(self, isolated_registry, client):
+    def test_another_services_route_is_refused_even_with_its_owner_down(
+        self, isolated_registry, client
+    ):
         """Nothing holds /api/land/ (Land isn't registered here), yet Space still may not take it."""
         assert isolated_registry.get("land") is None
 
         response = client.post(
-            REGISTER_URL, json=self.space(routes=["/api/space/", "/api/land/"]), headers=bearer("space")
+            REGISTER_URL,
+            json=self.space(routes=["/api/space/", "/api/land/"]),
+            headers=bearer("space"),
         )
 
         assert response.status_code == 403
         assert "/api/land/" in response.json()["detail"]
         assert isolated_registry.get("space") is None
 
-    def test_a_route_inside_its_own_prefix_but_not_declared_is_refused(self, isolated_registry, client):
+    def test_a_route_inside_its_own_prefix_but_not_declared_is_refused(
+        self, isolated_registry, client
+    ):
         response = client.post(
-            REGISTER_URL, json=self.space(routes=["/api/space/admin/"]), headers=bearer("space")
+            REGISTER_URL,
+            json=self.space(routes=["/api/space/admin/"]),
+            headers=bearer("space"),
         )
 
         assert response.status_code == 403
 
     @pytest.mark.parametrize("kind", ["docs", "sdr-manager-local", "radio"])
     def test_another_kind_is_refused(self, isolated_registry, client, kind):
-        response = client.post(REGISTER_URL, json=self.space(kind=kind), headers=bearer("space"))
+        response = client.post(
+            REGISTER_URL, json=self.space(kind=kind), headers=bearer("space")
+        )
 
         assert response.status_code == 403
         assert f"not {kind!r}" in response.json()["detail"]
@@ -111,14 +131,22 @@ class TestKindAndRoutes:
         """Claiming a subset (an older build, a trimmed manifest) takes nothing that isn't its own."""
         response = client.post(
             REGISTER_URL,
-            json=registration("air-1", id="air", routes=["/api/air/"], internalUrl="http://air:8000", ui=None),
+            json=registration(
+                "air-1",
+                id="air",
+                routes=["/api/air/"],
+                internalUrl="http://air:8000",
+                ui=None,
+            ),
             headers=bearer("air"),
         )
 
         assert response.status_code == 200
 
     def test_core_may_register_any_kind_and_routes(self, isolated_registry, client):
-        response = client.post(REGISTER_URL, json=registration(kind="docs"), headers=AUTHORIZED)
+        response = client.post(
+            REGISTER_URL, json=registration(kind="docs"), headers=AUTHORIZED
+        )
 
         assert response.status_code == 200
 
@@ -209,7 +237,9 @@ class TestCredential:
 
 
 class TestRegister:
-    def test_registers_a_service_and_returns_what_was_recorded(self, isolated_registry, client):
+    def test_registers_a_service_and_returns_what_was_recorded(
+        self, isolated_registry, client
+    ):
         response = client.post(REGISTER_URL, json=registration(), headers=AUTHORIZED)
 
         assert response.status_code == 200
@@ -223,26 +253,42 @@ class TestRegister:
         assert recorded.manifest.internal_url == "http://weather:8000"
 
     def test_the_same_instance_may_register_again(self, isolated_registry, client):
-        client.post(REGISTER_URL, json=registration(version="1.0.0"), headers=AUTHORIZED)
+        client.post(
+            REGISTER_URL, json=registration(version="1.0.0"), headers=AUTHORIZED
+        )
 
-        response = client.post(REGISTER_URL, json=registration(version="1.1.0"), headers=AUTHORIZED)
+        response = client.post(
+            REGISTER_URL, json=registration(version="1.1.0"), headers=AUTHORIZED
+        )
 
         assert response.status_code == 200
         assert isolated_registry.get("weather").manifest.version == "1.1.0"
 
-    def test_a_live_id_from_another_instance_is_a_conflict(self, isolated_registry, client):
+    def test_a_live_id_from_another_instance_is_a_conflict(
+        self, isolated_registry, client
+    ):
         client.post(REGISTER_URL, json=registration("weather-1"), headers=AUTHORIZED)
 
-        response = client.post(REGISTER_URL, json=registration("weather-2"), headers=AUTHORIZED)
+        response = client.post(
+            REGISTER_URL, json=registration("weather-2"), headers=AUTHORIZED
+        )
 
         assert response.status_code == 409
         assert "already registered by a live instance" in response.json()["detail"]
         assert isolated_registry.get("weather").instance_id == "weather-1"
 
-    def test_a_service_takes_its_section_over_from_the_monolith(self, isolated_registry, client):
+    def test_a_service_takes_its_section_over_from_the_monolith(
+        self, isolated_registry, client
+    ):
         response = client.post(
             REGISTER_URL,
-            json=registration("sea-1", id="sea", routes=["/api/sea/"], internalUrl="http://sea:8000", ui=None),
+            json=registration(
+                "sea-1",
+                id="sea",
+                routes=["/api/sea/"],
+                internalUrl="http://sea:8000",
+                ui=None,
+            ),
             headers=AUTHORIZED,
         )
 
@@ -251,13 +297,20 @@ class TestRegister:
         assert taken_over.in_process is False
         assert taken_over.manifest.internal_url == "http://sea:8000"
 
-    def test_a_route_another_service_holds_is_a_conflict(self, isolated_registry, client):
+    def test_a_route_another_service_holds_is_a_conflict(
+        self, isolated_registry, client
+    ):
         response = client.post(
-            REGISTER_URL, json=registration(routes=["/api/weather/", "/api/sea/"]), headers=AUTHORIZED
+            REGISTER_URL,
+            json=registration(routes=["/api/weather/", "/api/sea/"]),
+            headers=AUTHORIZED,
         )
 
         assert response.status_code == 409
-        assert response.json()["detail"] == "route '/api/sea/' is already registered by service 'sea'"
+        assert (
+            response.json()["detail"]
+            == "route '/api/sea/' is already registered by service 'sea'"
+        )
         assert isolated_registry.get("weather") is None
 
     @pytest.mark.parametrize(
@@ -285,7 +338,6 @@ def test_the_endpoint_is_not_in_the_public_api_schema(client):
     assert REGISTER_URL not in client.get("/api/openapi.json").json()["paths"]
 
 
-
 # ── GET /internal/registry/services ───────────────────────────────────────────
 
 LIST_URL = "/internal/registry/services"
@@ -306,10 +358,16 @@ def register_sdr_manager_local(client: TestClient, **manifest_overrides) -> None
 
 
 class TestListServicesCredential:
-    def test_disabled_when_core_accepts_no_callers(self, isolated_registry, client, monkeypatch):
+    def test_disabled_when_core_accepts_no_callers(
+        self, isolated_registry, client, monkeypatch
+    ):
         monkeypatch.setattr(settings, "accepted_callers_file", "")
 
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+        response = client.get(
+            LIST_URL,
+            params={"kind": "sdr-manager-local"},
+            headers=bearer("sdr-manager-remote"),
+        )
 
         assert response.status_code == 503
 
@@ -322,34 +380,54 @@ class TestListServicesCredential:
             {"Authorization": f"Bearer {TOKENS['sdr-manager-remote']}x"},
         ],
     )
-    def test_refuses_a_missing_or_wrong_credential(self, isolated_registry, client, headers):
+    def test_refuses_a_missing_or_wrong_credential(
+        self, isolated_registry, client, headers
+    ):
         register_sdr_manager_local(client)
 
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=headers)
+        response = client.get(
+            LIST_URL, params={"kind": "sdr-manager-local"}, headers=headers
+        )
 
         assert response.status_code == 401
         assert "host.docker.internal" not in response.text
 
-    @pytest.mark.parametrize("caller", ["air", "sdr", "radio", "sdr-manager-local", "docs", "stub-decoder"])
-    def test_a_caller_without_the_grant_is_forbidden(self, isolated_registry, client, caller):
+    @pytest.mark.parametrize(
+        "caller", ["air", "sdr", "radio", "sdr-manager-local", "docs", "stub-decoder"]
+    )
+    def test_a_caller_without_the_grant_is_forbidden(
+        self, isolated_registry, client, caller
+    ):
         register_sdr_manager_local(client)
 
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer(caller))
+        response = client.get(
+            LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer(caller)
+        )
 
         assert response.status_code == 403
         assert "host.docker.internal" not in response.text
 
-    @pytest.mark.parametrize("kind", ["section", "radio", "sdr-manager-remote", "no-such-kind"])
-    def test_sdr_manager_remote_may_list_no_other_kind(self, isolated_registry, client, kind):
-        response = client.get(LIST_URL, params={"kind": kind}, headers=bearer("sdr-manager-remote"))
+    @pytest.mark.parametrize(
+        "kind", ["section", "radio", "sdr-manager-remote", "no-such-kind"]
+    )
+    def test_sdr_manager_remote_may_list_no_other_kind(
+        self, isolated_registry, client, kind
+    ):
+        response = client.get(
+            LIST_URL, params={"kind": kind}, headers=bearer("sdr-manager-remote")
+        )
 
         # A known and an unknown kind answer alike, so nothing is learned from the refusal.
         assert response.status_code == 403
         assert response.json() == {"detail": "This service may not do that"}
 
     @pytest.mark.parametrize("params", [{}, {"kind": ""}, {"kind": "x" * 33}])
-    def test_a_missing_or_unbounded_kind_is_unprocessable(self, isolated_registry, client, params):
-        response = client.get(LIST_URL, params=params, headers=bearer("sdr-manager-remote"))
+    def test_a_missing_or_unbounded_kind_is_unprocessable(
+        self, isolated_registry, client, params
+    ):
+        response = client.get(
+            LIST_URL, params=params, headers=bearer("sdr-manager-remote")
+        )
 
         assert response.status_code == 422
 
@@ -358,7 +436,11 @@ class TestListServices:
     def test_lists_the_registered_services_of_the_kind(self, isolated_registry, client):
         register_sdr_manager_local(client)
 
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+        response = client.get(
+            LIST_URL,
+            params={"kind": "sdr-manager-local"},
+            headers=bearer("sdr-manager-remote"),
+        )
 
         assert response.status_code == 200
         assert response.json() == {
@@ -373,7 +455,11 @@ class TestListServices:
         }
 
     def test_an_empty_list_when_none_is_registered(self, isolated_registry, client):
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+        response = client.get(
+            LIST_URL,
+            params={"kind": "sdr-manager-local"},
+            headers=bearer("sdr-manager-remote"),
+        )
 
         assert response.status_code == 200
         assert response.json() == {"services": []}
@@ -390,7 +476,11 @@ class TestListServices:
         register_sdr_manager_local(client)
         isolated_registry.get("sdr-manager-local").available = False
 
-        response = client.get(LIST_URL, params={"kind": "sdr-manager-local"}, headers=bearer("sdr-manager-remote"))
+        response = client.get(
+            LIST_URL,
+            params={"kind": "sdr-manager-local"},
+            headers=bearer("sdr-manager-remote"),
+        )
 
         assert response.json()["services"][0]["available"] is False
 

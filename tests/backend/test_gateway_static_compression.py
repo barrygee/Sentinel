@@ -23,7 +23,9 @@ def browser_routes() -> list[dict]:
 
 
 def compression_route() -> dict:
-    (route,) = [route for route in browser_routes() if route.get("@id") == "static_compression"]
+    (route,) = [
+        route for route in browser_routes() if route.get("@id") == "static_compression"
+    ]
     return route
 
 
@@ -32,7 +34,9 @@ def is_compressed(request_path: str) -> bool:
     (matcher,) = compression_route()["match"]
     included = any(fnmatchcase(request_path, pattern) for pattern in matcher["path"])
     excluded = any(
-        fnmatchcase(request_path, pattern) for negated in matcher.get("not", []) for pattern in negated["path"]
+        fnmatchcase(request_path, pattern)
+        for negated in matcher.get("not", [])
+        for pattern in negated["path"]
     )
     return included and not excluded
 
@@ -78,7 +82,9 @@ def test_is_compression_only_and_does_not_end_the_route_chain():
 
 
 def test_wraps_the_section_routes_and_the_app_by_coming_before_them():
-    route_ids = [route.get("@id") or route["handle"][0].get("@id") for route in browser_routes()]
+    route_ids = [
+        route.get("@id") or route["handle"][0].get("@id") for route in browser_routes()
+    ]
 
     compression_index = route_ids.index("static_compression")
     assert compression_index < route_ids.index("registry_routes")

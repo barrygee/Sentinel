@@ -49,7 +49,9 @@ class TestPipelineCommand:
     ):
         launched = []
         monkeypatch.setattr(
-            adsb.subprocess, "Popen", lambda command, **_options: launched.append(command)
+            adsb.subprocess,
+            "Popen",
+            lambda command, **_options: launched.append(command),
         )
         adsb.build_pipeline("192.168.5.67", 4444, "/run/adsb/data")
         bash, pipefail_flag, pipefail, dash_c, pipeline = launched[0]
@@ -174,7 +176,9 @@ class TestStopPipeline:
         assert not _group_is_alive(process.pid)
 
     def test_a_pipeline_that_already_exited_is_not_an_error(self):
-        process = subprocess.Popen(["/bin/bash", "-c", "exit 0"], start_new_session=True)
+        process = subprocess.Popen(
+            ["/bin/bash", "-c", "exit 0"], start_new_session=True
+        )
         process.wait()
 
         adsb.stop_pipeline(process)  # must not raise ProcessLookupError
@@ -253,7 +257,10 @@ class TestFollowingTheSource:
 
         harness.run()
 
-        assert [pipeline.source for pipeline in harness.started][:2] == [self.OLD, self.NEW]
+        assert [pipeline.source for pipeline in harness.started][:2] == [
+            self.OLD,
+            self.NEW,
+        ]
         assert harness.stopped[0] is harness.started[0]
 
     def test_an_unchanged_source_leaves_the_pipeline_alone(self, monkeypatch):

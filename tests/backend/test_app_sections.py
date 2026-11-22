@@ -54,7 +54,9 @@ def make_manifest(
     return ServiceManifest.model_validate(body)
 
 
-def listed(service_registry: ServiceRegistry, remotes_dir: Path) -> list[tuple[str, bool]]:
+def listed(
+    service_registry: ServiceRegistry, remotes_dir: Path
+) -> list[tuple[str, bool]]:
     return [
         (section.id, section.available)
         for section in deployed_sections(service_registry, remotes_dir)
@@ -74,13 +76,25 @@ class TestDeployedSections:
 
         build_remote(tmp_path, "sea")
 
-        assert [section.model_dump() for section in deployed_sections(service_registry, tmp_path)] == [
-            {"id": "sea", "kind": "section", "remoteEntry": "/remotes/sea/remoteEntry.js", "available": True}
+        assert [
+            section.model_dump()
+            for section in deployed_sections(service_registry, tmp_path)
+        ] == [
+            {
+                "id": "sea",
+                "kind": "section",
+                "remoteEntry": "/remotes/sea/remoteEntry.js",
+                "available": True,
+            }
         ]
 
-    def test_an_in_process_section_needs_its_entry_not_just_a_directory(self, tmp_path: Path):
+    def test_an_in_process_section_needs_its_entry_not_just_a_directory(
+        self, tmp_path: Path
+    ):
         service_registry = ServiceRegistry()
-        service_registry.register_in_process([make_manifest("air"), make_manifest("space")], "core")
+        service_registry.register_in_process(
+            [make_manifest("air"), make_manifest("space")], "core"
+        )
         build_remote(tmp_path, "air")
         (tmp_path / "space" / "spa-assets").mkdir(parents=True)
 
@@ -101,14 +115,18 @@ class TestDeployedSections:
 
         assert listed(service_registry, tmp_path) == [("air", True)]
 
-    async def test_an_out_of_process_section_is_listed_without_a_local_build(self, tmp_path: Path):
+    async def test_an_out_of_process_section_is_listed_without_a_local_build(
+        self, tmp_path: Path
+    ):
         """Its own container serves its remote, so nothing is built here."""
         service_registry = ServiceRegistry()
         await service_registry.register(make_manifest("weather"), "weather-1")
 
         assert listed(service_registry, tmp_path) == [("weather", True)]
 
-    async def test_an_unavailable_section_is_listed_as_unavailable(self, tmp_path: Path):
+    async def test_an_unavailable_section_is_listed_as_unavailable(
+        self, tmp_path: Path
+    ):
         service_registry = ServiceRegistry()
         await service_registry.register(make_manifest("weather"), "weather-1")
         service_registry.get("weather").available = False
@@ -117,8 +135,12 @@ class TestDeployedSections:
 
     async def test_skips_services_that_are_not_sections_with_a_ui(self, tmp_path: Path):
         service_registry = ServiceRegistry()
-        await service_registry.register(make_manifest("radio", kind="radio", with_ui=False), "hub-1")
-        await service_registry.register(make_manifest("headless", with_ui=False), "headless-1")
+        await service_registry.register(
+            make_manifest("radio", kind="radio", with_ui=False), "hub-1"
+        )
+        await service_registry.register(
+            make_manifest("headless", with_ui=False), "headless-1"
+        )
         await service_registry.register(make_manifest("ais", kind="decoder"), "ais-1")
 
         assert listed(service_registry, tmp_path) == []
@@ -126,23 +148,32 @@ class TestDeployedSections:
     async def test_skips_the_docs_service_even_with_a_ui(self, tmp_path: Path):
         service_registry = ServiceRegistry()
         # Not id "docs": /api/docs/ is reserved for core's OpenAPI page.
-        await service_registry.register(make_manifest("documentation", kind="docs"), "docs-1")
+        await service_registry.register(
+            make_manifest("documentation", kind="docs"), "docs-1"
+        )
 
         assert listed(service_registry, tmp_path) == []
 
     async def test_lists_both_sdr_manager_kinds_with_their_kind(self, tmp_path: Path):
         """Not map sections, but each adds a group to Settings › SDR Manager (ADR 0007)."""
         service_registry = ServiceRegistry()
-        await service_registry.register(make_manifest("weather", nav_order=60), "weather-1")
         await service_registry.register(
-            make_manifest("sdr-manager-local", nav_order=70, kind="sdr-manager-local"), "local-1"
+            make_manifest("weather", nav_order=60), "weather-1"
         )
         await service_registry.register(
-            make_manifest("sdr-manager-remote", nav_order=80, kind="sdr-manager-remote"), "remote-1"
+            make_manifest("sdr-manager-local", nav_order=70, kind="sdr-manager-local"),
+            "local-1",
+        )
+        await service_registry.register(
+            make_manifest(
+                "sdr-manager-remote", nav_order=80, kind="sdr-manager-remote"
+            ),
+            "remote-1",
         )
 
         assert [
-            (section.id, section.kind) for section in deployed_sections(service_registry, tmp_path)
+            (section.id, section.kind)
+            for section in deployed_sections(service_registry, tmp_path)
         ] == [
             ("weather", "section"),
             ("sdr-manager-local", "sdr-manager-local"),
@@ -152,17 +183,26 @@ class TestDeployedSections:
     async def test_skips_an_sdr_manager_service_without_a_ui(self, tmp_path: Path):
         service_registry = ServiceRegistry()
         await service_registry.register(
-            make_manifest("sdr-manager-remote", kind="sdr-manager-remote", with_ui=False), "remote-1"
+            make_manifest(
+                "sdr-manager-remote", kind="sdr-manager-remote", with_ui=False
+            ),
+            "remote-1",
         )
 
         assert listed(service_registry, tmp_path) == []
 
     def test_the_ui_remote_kinds_leave_out_the_radio_hub_decoders_and_docs(self):
-        assert app_sections.UI_REMOTE_KINDS == {"section", "sdr-manager-local", "sdr-manager-remote"}
+        assert app_sections.UI_REMOTE_KINDS == {
+            "section",
+            "sdr-manager-local",
+            "sdr-manager-remote",
+        }
 
     async def test_lists_in_nav_order_whoever_registered_first(self, tmp_path: Path):
         service_registry = ServiceRegistry()
-        await service_registry.register(make_manifest("weather", nav_order=60), "weather-1")
+        await service_registry.register(
+            make_manifest("weather", nav_order=60), "weather-1"
+        )
         service_registry.register_in_process(
             [make_manifest("sdr", 50), make_manifest("air", 10)], "core"
         )
@@ -211,7 +251,12 @@ class TestListSectionsEndpoint:
 
         assert client.get("/api/app/sections").json() == {
             "sections": [
-                {"id": "sdr", "kind": "section", "remoteEntry": "/remotes/sdr/remoteEntry.js", "available": True}
+                {
+                    "id": "sdr",
+                    "kind": "section",
+                    "remoteEntry": "/remotes/sdr/remoteEntry.js",
+                    "available": True,
+                }
             ]
         }
 
@@ -237,7 +282,12 @@ class TestListSectionsEndpoint:
 
         assert response.json() == {
             "sections": [
-                {"id": "weather", "kind": "section", "remoteEntry": "/remotes/weather/remoteEntry.js", "available": True}
+                {
+                    "id": "weather",
+                    "kind": "section",
+                    "remoteEntry": "/remotes/weather/remoteEntry.js",
+                    "available": True,
+                }
             ]
         }
 

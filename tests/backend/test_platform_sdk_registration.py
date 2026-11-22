@@ -55,7 +55,9 @@ class TestRegisterOnce:
 
         def answer(request: httpx.Request) -> httpx.Response:
             received.append(request)
-            return httpx.Response(200, json={"id": "space", "available": True, "registeredAt": 1})
+            return httpx.Response(
+                200, json={"id": "space", "available": True, "registeredAt": 1}
+            )
 
         registrar = ServiceRegistrar(make_manifest())
         async with core_client(answer) as client:
@@ -75,7 +77,9 @@ class TestRegisterOnce:
         calls: list[httpx.Request] = []
 
         registrar = ServiceRegistrar(make_manifest())
-        async with core_client(lambda request: calls.append(request) or httpx.Response(200)) as client:
+        async with core_client(
+            lambda request: calls.append(request) or httpx.Response(200)
+        ) as client:
             assert await registrar.register_once(client) is False
 
         assert calls == []
@@ -83,7 +87,9 @@ class TestRegisterOnce:
     @pytest.mark.parametrize("status", [401, 409, 422, 503])
     async def test_a_refusal_is_not_a_registration(self, status):
         registrar = ServiceRegistrar(make_manifest())
-        async with core_client(lambda request: httpx.Response(status, json={"detail": "no"})) as client:
+        async with core_client(
+            lambda request: httpx.Response(status, json={"detail": "no"})
+        ) as client:
             assert await registrar.register_once(client) is False
 
     async def test_an_unreachable_core_is_not_a_registration(self):
@@ -124,12 +130,16 @@ class TestRegistrationLoop:
             attempts.append(1)
             if isinstance(outcome, Exception):
                 raise outcome
-            return httpx.Response(outcome, json={"id": "space", "available": True, "registeredAt": 1})
+            return httpx.Response(
+                outcome, json={"id": "space", "available": True, "registeredAt": 1}
+            )
 
         monkeypatch.setattr(
             registration_module.httpx,
             "AsyncClient",
-            lambda **options: real_client(transport=httpx.MockTransport(answer), **options),
+            lambda **options: real_client(
+                transport=httpx.MockTransport(answer), **options
+            ),
         )
         return outcomes, attempts
 
@@ -142,7 +152,9 @@ class TestRegistrationLoop:
 
         assert len(attempts) >= 3
 
-    async def test_keeps_re_registering_after_success(self, fast_intervals, scripted_core):
+    async def test_keeps_re_registering_after_success(
+        self, fast_intervals, scripted_core
+    ):
         """Core's registry is in memory: the repeat is how a restarted core relearns us."""
         outcomes, attempts = scripted_core
         outcomes.append(200)
@@ -157,9 +169,13 @@ class TestRegistrationLoop:
         outcomes.extend([200, 503])
         registrar = ServiceRegistrar(make_manifest())
 
-        await self.run_until(registrar, lambda: len(attempts) >= 2 and not registrar.registered)
+        await self.run_until(
+            registrar, lambda: len(attempts) >= 2 and not registrar.registered
+        )
 
-    async def test_a_crashing_attempt_does_not_end_the_loop(self, fast_intervals, monkeypatch):
+    async def test_a_crashing_attempt_does_not_end_the_loop(
+        self, fast_intervals, monkeypatch
+    ):
         attempts: list[int] = []
 
         async def flaky(self, client):
@@ -175,7 +191,9 @@ class TestRegistrationLoop:
 
         assert len(attempts) >= 2
 
-    async def test_start_is_idempotent_and_stop_ends_the_task(self, fast_intervals, scripted_core):
+    async def test_start_is_idempotent_and_stop_ends_the_task(
+        self, fast_intervals, scripted_core
+    ):
         outcomes, _ = scripted_core
         outcomes.append(200)
         registrar = ServiceRegistrar(make_manifest())

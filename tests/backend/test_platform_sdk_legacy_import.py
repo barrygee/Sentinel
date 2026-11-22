@@ -10,7 +10,9 @@ from backend.platform.sdk import legacy_import
 from backend.platform.sdk.legacy_import import import_legacy_files, import_legacy_tables
 
 
-def make_db(path: Path, schema: list[str], rows: dict[str, list[tuple]] | None = None) -> Path:
+def make_db(
+    path: Path, schema: list[str], rows: dict[str, list[tuple]] | None = None
+) -> Path:
     connection = sqlite3.connect(path)
     for statement in schema:
         connection.execute(statement)
@@ -58,7 +60,10 @@ class TestImportLegacyTables:
         copied = import_legacy_tables(str(target), str(legacy), ["tle", "catalogue"])
 
         assert copied == {"tle": 2, "catalogue": 1}
-        assert rows(target, "tle") == [("25544", "1 25544", "2 25544"), ("40069", "1 40069", "2 40069")]
+        assert rows(target, "tle") == [
+            ("25544", "1 25544", "2 25544"),
+            ("40069", "1 40069", "2 40069"),
+        ]
         assert rows(target, "catalogue") == [("25544", "ISS")]
 
     def test_only_listed_tables_are_copied(self, legacy, target):
@@ -95,9 +100,13 @@ class TestImportLegacyTables:
         assert rows(target, "tle") == [("25544", "1 25544", None)]
 
     def test_a_table_missing_from_the_legacy_file_is_skipped(self, tmp_path, target):
-        partial = make_db(tmp_path / "partial.db", [TLE_SCHEMA], {"tle": [("25544", "a", "b")]})
+        partial = make_db(
+            tmp_path / "partial.db", [TLE_SCHEMA], {"tle": [("25544", "a", "b")]}
+        )
 
-        assert import_legacy_tables(str(target), str(partial), ["tle", "catalogue"]) == {"tle": 1}
+        assert import_legacy_tables(
+            str(target), str(partial), ["tle", "catalogue"]
+        ) == {"tle": 1}
 
     def test_never_writes_to_the_legacy_database(self, legacy, target):
         before = legacy.read_bytes()
@@ -107,7 +116,9 @@ class TestImportLegacyTables:
         assert legacy.read_bytes() == before
 
     @pytest.mark.parametrize("legacy_path", ["", "does-not-exist.db"])
-    def test_no_legacy_file_means_nothing_to_import(self, tmp_path, target, legacy_path):
+    def test_no_legacy_file_means_nothing_to_import(
+        self, tmp_path, target, legacy_path
+    ):
         path = str(tmp_path / legacy_path) if legacy_path else ""
 
         assert import_legacy_tables(str(target), path, ["tle"]) == {}
@@ -115,7 +126,9 @@ class TestImportLegacyTables:
     def test_a_database_is_never_imported_into_itself(self, legacy):
         assert import_legacy_tables(str(legacy), str(legacy), ["tle"]) == {}
 
-    def test_an_unreadable_legacy_file_imports_nothing_and_rolls_back(self, tmp_path, target):
+    def test_an_unreadable_legacy_file_imports_nothing_and_rolls_back(
+        self, tmp_path, target
+    ):
         corrupt = tmp_path / "corrupt.db"
         corrupt.write_bytes(b"this is not a sqlite database" * 100)
 
@@ -130,12 +143,17 @@ class TestImportLegacyTables:
             [TLE_SCHEMA, "CREATE TABLE strict (id TEXT)"],
             {"tle": [("25544", "a", "b")], "strict": [(None,)]},
         )
-        target = make_db(tmp_path / "service.db", [TLE_SCHEMA, "CREATE TABLE strict (id TEXT NOT NULL)"])
+        target = make_db(
+            tmp_path / "service.db",
+            [TLE_SCHEMA, "CREATE TABLE strict (id TEXT NOT NULL)"],
+        )
 
         assert import_legacy_tables(str(target), str(legacy), ["tle", "strict"]) == {}
         assert rows(target, "tle") == []
 
-    def test_the_legacy_database_is_attached_read_only(self, legacy, target, monkeypatch):
+    def test_the_legacy_database_is_attached_read_only(
+        self, legacy, target, monkeypatch
+    ):
         """Even a bug that tried to write to the monolith's database could not."""
         from backend.platform.sdk import legacy_import
 
@@ -209,7 +227,9 @@ def legacy_files(tmp_path) -> Path:
 
 
 class TestImportLegacyFiles:
-    def test_copies_each_named_file_into_a_folder_it_makes(self, legacy_files, tmp_path):
+    def test_copies_each_named_file_into_a_folder_it_makes(
+        self, legacy_files, tmp_path
+    ):
         target_dir = tmp_path / "service" / "recordings"
 
         copied = import_legacy_files(legacy_files, target_dir, ["1.wav", "1.u8"])
@@ -249,11 +269,15 @@ class TestImportLegacyFiles:
 
         assert import_legacy_files(legacy_files, tmp_path / "target", ["4.wav"]) == 0
 
-    def test_takes_only_the_bare_file_name_so_nothing_outside_either_folder_is_touched(self, legacy_files, tmp_path):
+    def test_takes_only_the_bare_file_name_so_nothing_outside_either_folder_is_touched(
+        self, legacy_files, tmp_path
+    ):
         (tmp_path / "secret.wav").write_bytes(b"outside")
         target_dir = tmp_path / "service" / "recordings"
 
-        copied = import_legacy_files(legacy_files, target_dir, ["../secret.wav", "../../1.wav"])
+        copied = import_legacy_files(
+            legacy_files, target_dir, ["../secret.wav", "../../1.wav"]
+        )
 
         # "../secret.wav" is looked up as legacy_files/secret.wav, which doesn't exist.
         assert copied == 1
@@ -286,7 +310,9 @@ class TestImportLegacyFiles:
         assert f"could not copy {legacy_files / '1.wav'}" in caplog.text
         assert "No space left on device" in caplog.text
 
-    def test_a_failed_copy_that_left_nothing_behind_is_still_skipped(self, legacy_files, tmp_path, monkeypatch):
+    def test_a_failed_copy_that_left_nothing_behind_is_still_skipped(
+        self, legacy_files, tmp_path, monkeypatch
+    ):
         def refuse(source, destination):
             raise PermissionError("Permission denied")
 
@@ -296,14 +322,19 @@ class TestImportLegacyFiles:
 
 
 class TestLegacyFileImportLogging:
-    def test_reports_how_many_files_and_megabytes_it_copied_and_where(self, legacy_files, tmp_path, caplog):
+    def test_reports_how_many_files_and_megabytes_it_copied_and_where(
+        self, legacy_files, tmp_path, caplog
+    ):
         (legacy_files / "big.u8").write_bytes(b"\0" * 2_500_000)
         target_dir = tmp_path / "target"
 
         with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):
             import_legacy_files(legacy_files, target_dir, ["big.u8", "2.wav"])
 
-        assert f"copied 2 files (2.5 MB) from {legacy_files} into {target_dir}" in caplog.text
+        assert (
+            f"copied 2 files (2.5 MB) from {legacy_files} into {target_dir}"
+            in caplog.text
+        )
 
     def test_says_nothing_when_it_copied_nothing(self, legacy_files, tmp_path, caplog):
         with caplog.at_level("INFO", logger="backend.platform.sdk.legacy_import"):

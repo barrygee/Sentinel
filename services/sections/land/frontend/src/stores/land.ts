@@ -1,6 +1,3 @@
-import type { HistoryFramePlayer } from '@sentinel/shell-api/playback/HistoryFramePlayer'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
-import { createLandReplayPlayer, stationFromFrame } from './landReplayFrames'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
@@ -224,10 +221,6 @@ export const useLandStore = defineStore('land', () => {
   /** Fetch the current station snapshot, replacing the held list. Silent on
    *  transient/offline failures — the last-known list simply persists. */
   async function fetchAprsStations(): Promise<void> {
-    if (replayPlayer) {
-      await drawReplayFrame()
-      return
-    }
     try {
       const res = await fetch('/api/land/aprs/stations')
       if (!res.ok) return
@@ -242,7 +235,7 @@ export const useLandStore = defineStore('land', () => {
    *  immediately and starts the interval; later callers just increment the count. */
   function startAprsPolling(): void {
     pollers += 1
-    if (pollTimer !== null || replayPlayer) return
+    if (pollTimer !== null) return
     void fetchAprsStations()
     pollTimer = setInterval(() => void fetchAprsStations(), APRS_POLL_INTERVAL_MS)
   }
@@ -255,64 +248,7 @@ export const useLandStore = defineStore('land', () => {
     pollTimer = null
   }
 
-  // ── replay (Settings › LAND › History & Replay) ──────────────────────────
-  // While replaying, `aprsStations` holds the recorded stations at the
-  // replayed moment instead of the live list.
-  const playback = usePlaybackStore()
-  let replayPlayer: HistoryFramePlayer | null = null
-  let replayTimer: ReturnType<typeof setInterval> | undefined
-  let replayFrameInFlight = false
-
-  async function drawReplayFrame(): Promise<void> {
-    const player = replayPlayer
-    if (!player || replayFrameInFlight) return
-    replayFrameInFlight = true
-    try {
-      const frame = await player.frameAt(playback.sections.land.cursorMs)
-      if (replayPlayer !== player) return
-      // Newest first, like the live list.
-      aprsStations.value = frame
-        .map(stationFromFrame)
-        .sort((left, right) => right.last_heard_ms - left.last_heard_ms)
-    } finally {
-      replayFrameInFlight = false
-    }
-  }
-
-  /** Swap the live list for the recording (polling pauses; its consumers stay counted). */
-  function startReplay(): void {
-    if (replayPlayer) return
-    if (pollTimer !== null) clearInterval(pollTimer)
-    pollTimer = null
-    replayPlayer = createLandReplayPlayer(aprsRetentionMinutes.value)
-    aprsStations.value = []
-    replayTimer = setInterval(() => void drawReplayFrame(), 1000)
-    void drawReplayFrame()
-  }
-
-  /** Back to the live list: polling resumes if anything is watching. */
-  function stopReplay(): void {
-    if (!replayPlayer) return
-    clearInterval(replayTimer)
-    replayTimer = undefined
-    replayPlayer.reset()
-    replayPlayer = null
-    aprsStations.value = []
-    if (pollers > 0) {
-      pollers -= 1
-      startAprsPolling()
-    }
-  }
-
-  /** Draw the replayed moment now (after a seek or step). */
-  function refreshReplay(): void {
-    if (replayPlayer) void drawReplayFrame()
-  }
-
   return {
-    startReplay,
-    stopReplay,
-    refreshReplay,
     aprsStations,
     aprsRetentionMinutes,
     setAprsRetentionMinutes,

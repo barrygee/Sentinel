@@ -7,8 +7,13 @@ from sentinel_air import models  # noqa: F401 — registers Air's tables with Ba
 AIR_TABLES: tuple[str, ...] = ("adsb_cache", "air_tracking")
 """The tables copied from the legacy shared database on first boot."""
 
-AIR_SERVICE_ONLY_TABLES: tuple[str, ...] = ("adsb_online_call", "adsb_online_refusal", "air_position_history")
+AIR_SERVICE_ONLY_TABLES: tuple[str, ...] = ("adsb_online_call", "adsb_online_refusal")
 """Tables added after the split: nothing to import, so only created."""
+
+
+# Movement history & replay (removed 2026-11-22) recorded into this table; it is
+# dropped on startup so the history doesn't linger on disk.
+REMOVED_HISTORY_TABLES: tuple[str, ...] = ("air_position_history",)
 
 
 async def create_air_tables() -> None:
@@ -16,4 +21,4 @@ async def create_air_tables() -> None:
 
     `air_messages` is not Air's: notifications are core's, despite the path.
     """
-    await create_section_tables(AIR_TABLES + AIR_SERVICE_ONLY_TABLES)
+    await create_section_tables(AIR_TABLES + AIR_SERVICE_ONLY_TABLES, removed_tables=REMOVED_HISTORY_TABLES)

@@ -27,12 +27,17 @@ def _test_policy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 
 
 class TestCheckPolicy:
-    def test_validates_every_profile(self, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    def test_validates_every_profile(
+        self, capsys: pytest.CaptureFixture[str], tmp_path: Path
+    ) -> None:
         assert cli.check_policy([]) == 0
 
         output = capsys.readouterr().out
         assert f"policy: {tmp_path / 'guard-policy.json'}" in output
-        assert "  core: 6 route rules, 1000/60s per address, in-memory state, classic middleware" in output
+        assert (
+            "  core: 6 route rules, 1000/60s per address, in-memory state, classic middleware"
+            in output
+        )
         assert "  other: 7 route rules" in output
         assert output.rstrip().endswith("ok")
 
@@ -71,7 +76,9 @@ class TestListRoutes:
         line = capsys.readouterr().out.strip()
         assert line.split() == ["GET", "/api/things/{thing_id}", "browser", "default"]
 
-    def test_json(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_json(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         monkeypatch.setattr(cli.importlib, "import_module", lambda name: app_module())
 
         cli.list_routes("some.module:other_app", "core", as_json=True)
@@ -86,9 +93,15 @@ class TestListRoutes:
             }
         ]
 
-    def test_the_attribute_defaults_to_app(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_the_attribute_defaults_to_app(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         imported: list[str] = []
-        monkeypatch.setattr(cli.importlib, "import_module", lambda name: imported.append(name) or app_module())
+        monkeypatch.setattr(
+            cli.importlib,
+            "import_module",
+            lambda name: imported.append(name) or app_module(),
+        )
 
         assert cli.list_routes("some.module", "core", as_json=False) == 0
         assert imported == ["some.module"]
@@ -96,7 +109,9 @@ class TestListRoutes:
     def test_an_unclassified_route_fails_the_command(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr(cli.importlib, "import_module", lambda name: app_module("/api/brand-new"))
+        monkeypatch.setattr(
+            cli.importlib, "import_module", lambda name: app_module("/api/brand-new")
+        )
 
         assert cli.list_routes("some.module:app", "core", as_json=False) == 1
 
@@ -107,7 +122,9 @@ class TestListRoutes:
 
 class FakeConnection:
     async def ttl(self, key: str) -> int:
-        return {"banned_ips:192.168.1.50": 1200, "banned_networks:10.9.0.0/16": 300}[key]
+        return {"banned_ips:192.168.1.50": 1200, "banned_networks:10.9.0.0/16": 300}[
+            key
+        ]
 
 
 class FakeRedisManager:
@@ -157,7 +174,9 @@ class FakeBanManager:
 def shared_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> FakeBanManager:
     """The CLI pointed at fake Redis and a fake ban manager, with GUARD_REDIS_URL set."""
     pin_guard_settings(
-        monkeypatch, guard_policy_file=str(write_policy(tmp_path)), guard_redis_url="redis://redis:6379/0"
+        monkeypatch,
+        guard_policy_file=str(write_policy(tmp_path)),
+        guard_redis_url="redis://redis:6379/0",
     )
     FakeRedisManager.instances = []
     ban_manager = FakeBanManager()
@@ -177,10 +196,15 @@ class TestBans:
         assert cli.main(["bans"]) == 0
 
         lines = [line.split() for line in capsys.readouterr().out.splitlines()]
-        assert lines == [["192.168.1.50", "1200", "s", "left"], ["10.9.0.0/16", "300", "s", "left"]]
+        assert lines == [
+            ["192.168.1.50", "1200", "s", "left"],
+            ["10.9.0.0/16", "300", "s", "left"],
+        ]
         assert FakeRedisManager.instances[0].closed
 
-    def test_ban(self, shared_state: FakeBanManager, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_ban(
+        self, shared_state: FakeBanManager, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         assert cli.main(["ban", "192.168.1.66", "--seconds", "86400"]) == 0
 
         assert ("ban_ip", "192.168.1.66", 86400, "operator") in shared_state.calls
@@ -200,17 +224,24 @@ class TestBans:
         assert cli.main(["ban", "127.0.0.1"]) == 1
         assert "refused to ban 127.0.0.1" in capsys.readouterr().out
 
-    def test_unban(self, shared_state: FakeBanManager, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_unban(
+        self, shared_state: FakeBanManager, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         assert cli.main(["unban", "192.168.1.66"]) == 0
 
         assert ("unban_ip", "192.168.1.66") in shared_state.calls
         assert capsys.readouterr().out.strip() == "unbanned 192.168.1.66"
         assert FakeRedisManager.instances[0].closed
 
-    def test_the_ban_manager_uses_the_shared_state(self, shared_state: FakeBanManager) -> None:
+    def test_the_ban_manager_uses_the_shared_state(
+        self, shared_state: FakeBanManager
+    ) -> None:
         cli.main(["unban", "192.168.1.66"])
 
-        assert shared_state.calls[0] == ("initialize_redis", FakeRedisManager.instances[0])
+        assert shared_state.calls[0] == (
+            "initialize_redis",
+            FakeRedisManager.instances[0],
+        )
 
 
 class TestMain:
@@ -220,14 +251,23 @@ class TestMain:
 
     def test_routes(self, monkeypatch: pytest.MonkeyPatch) -> None:
         received: list[tuple[str, str, bool]] = []
-        monkeypatch.setattr(cli, "list_routes", lambda *arguments: received.append(arguments) or 0)
+        monkeypatch.setattr(
+            cli, "list_routes", lambda *arguments: received.append(arguments) or 0
+        )
 
-        assert cli.main(["routes", "backend.main:app", "--profile", "section", "--json"]) == 0
+        assert (
+            cli.main(["routes", "backend.main:app", "--profile", "section", "--json"])
+            == 0
+        )
         assert received == [("backend.main:app", "section", True)]
 
-    def test_routes_default_to_this_processs_profile(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_routes_default_to_this_processs_profile(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         received: list[tuple[str, str, bool]] = []
-        monkeypatch.setattr(cli, "list_routes", lambda *arguments: received.append(arguments) or 0)
+        monkeypatch.setattr(
+            cli, "list_routes", lambda *arguments: received.append(arguments) or 0
+        )
 
         cli.main(["routes", "backend.main:app"])
 
@@ -239,7 +279,9 @@ class TestMain:
 
 
 class TestModuleEntryPoint:
-    def test_python_dash_m_runs_main_and_exits_with_its_code(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_python_dash_m_runs_main_and_exits_with_its_code(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         monkeypatch.setattr(sys, "argv", ["cli", "check-policy", "core"])
 
         with pytest.raises(SystemExit) as exited:

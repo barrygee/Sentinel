@@ -36,7 +36,7 @@ withDefaults(
     /** The input's id, for callers whose specs or CSS address it. Generated when omitted. */
     inputId?: string | undefined
     /** The native input type. Ignored when `multiline`. */
-    inputType?: 'text' | 'number' | 'url' | 'password' | 'search' | 'datetime-local'
+    inputType?: 'text' | 'number' | 'url' | 'password' | 'search'
     /** Renders a textarea instead of an input. */
     multiline?: boolean
     /**

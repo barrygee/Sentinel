@@ -40,14 +40,25 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 
 class TestCreateSpaceTables:
+    async def test_drops_the_removed_movement_history_table(self, space_engine):
+        """Movement history & replay was removed: an install that recorded keeps no history on disk."""
+        async with space_engine.begin() as connection:
+            await connection.execute(
+                sa_text("CREATE TABLE space_tle_history (id INTEGER PRIMARY KEY, entity_id TEXT, t_ms INTEGER)")
+            )
+            await connection.execute(sa_text("INSERT INTO space_tle_history (entity_id, t_ms) VALUES ('x', 1)"))
+
+        await space_database.create_space_tables()
+
+        tables = set(await table_columns(space_engine))
+        assert "space_tle_history" not in tables
+        assert tables  # the section's own tables are still created
+        assert space_database.REMOVED_HISTORY_TABLES == ("space_tle_history",)
+
     async def test_creates_only_the_space_tables(self, space_engine):
         await space_database.create_space_tables()
 
-        assert set(await table_columns(space_engine)) == {
-            "tle_cache",
-            "satellite_catalogue",
-            "space_tle_history",
-        }
+        assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, space_engine):
         await space_database.create_space_tables()
@@ -79,11 +90,7 @@ class TestCreateSpaceTables:
         await space_database.create_space_tables()
         await space_database.create_space_tables()
 
-        assert set(await table_columns(space_engine)) == {
-            "tle_cache",
-            "satellite_catalogue",
-            "space_tle_history",
-        }
+        assert set(await table_columns(space_engine)) == {"tle_cache", "satellite_catalogue"}
 
 
 class TestBackfillSatelliteRadioStore:

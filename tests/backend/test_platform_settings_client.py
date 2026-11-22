@@ -157,7 +157,9 @@ class FakeCore:
         if request.url.path.startswith("/internal/settings/secrets/"):
             secret_path = request.url.path.removeprefix("/internal/settings/secrets/")
             if request.method == "GET":
-                return httpx.Response(200, json={"value": self.secrets.get(secret_path, "")})
+                return httpx.Response(
+                    200, json={"value": self.secrets.get(secret_path, "")}
+                )
             if request.method == "PUT":
                 self.secrets[secret_path] = json.loads(request.content)["value"]
             else:
@@ -177,7 +179,9 @@ def fake_core(monkeypatch) -> FakeCore:
     monkeypatch.setattr(
         settings_client_module.httpx,
         "AsyncClient",
-        lambda **options: real_client(transport=httpx.MockTransport(core.answer), **options),
+        lambda **options: real_client(
+            transport=httpx.MockTransport(core.answer), **options
+        ),
     )
     return core
 
@@ -212,10 +216,12 @@ class TestRemoteReads:
     async def test_read_namespace_gets_cores_settings_api(self, fake_core):
         fake_core.namespaces["space"] = {"onlineUrl": "https://example.test/tle"}
 
-        assert await read_namespace(None, "space") == {"onlineUrl": "https://example.test/tle"}
-        assert [(request.method, str(request.url)) for request in fake_core.requests] == [
-            ("GET", f"{CORE_URL}/api/settings/space")
-        ]
+        assert await read_namespace(None, "space") == {
+            "onlineUrl": "https://example.test/tle"
+        }
+        assert [
+            (request.method, str(request.url)) for request in fake_core.requests
+        ] == [("GET", f"{CORE_URL}/api/settings/space")]
 
     async def test_a_non_object_body_reads_as_empty(self, fake_core):
         fake_core.namespaces["space"] = ["not", "an", "object"]
@@ -223,10 +229,17 @@ class TestRemoteReads:
         assert await read_namespace(None, "space") == {}
 
     async def test_read_setting_picks_the_key_or_the_default(self, fake_core):
-        fake_core.namespaces["space"] = {"satelliteRadio": {"25544": {"downlink_hz": 145800000}}}
+        fake_core.namespaces["space"] = {
+            "satelliteRadio": {"25544": {"downlink_hz": 145800000}}
+        }
 
-        assert await read_setting(None, "space", "satelliteRadio") == {"25544": {"downlink_hz": 145800000}}
-        assert await read_setting(None, "space", "missing", default="fallback") == "fallback"
+        assert await read_setting(None, "space", "satelliteRadio") == {
+            "25544": {"downlink_hz": 145800000}
+        }
+        assert (
+            await read_setting(None, "space", "missing", default="fallback")
+            == "fallback"
+        )
 
     async def test_an_error_status_raises_settings_unavailable(self, fake_core):
         fake_core.status = 500
@@ -242,7 +255,9 @@ class TestRemoteReads:
 
 
 class TestRemoteWrites:
-    async def test_write_puts_the_value_to_core_and_skips_the_local_bus(self, fake_core, announcements):
+    async def test_write_puts_the_value_to_core_and_skips_the_local_bus(
+        self, fake_core, announcements
+    ):
         await write_setting(None, "radiotest", "radios", [{"id": 1}])
 
         (request,) = fake_core.requests
@@ -361,7 +376,9 @@ class TestSecretsRemotely:
         await read_secret(None, "sea", "aisstreamApiKey")
         await delete_secret(None, "sea", "aisstreamApiKey")
 
-        assert not any("/api/settings" in str(request.url) for request in fake_core.requests)
+        assert not any(
+            "/api/settings" in str(request.url) for request in fake_core.requests
+        )
 
     @pytest.mark.parametrize(
         "call",
@@ -451,11 +468,15 @@ class TestRemoteReadCache:
         monkeypatch.setattr(
             settings_client_module.httpx,
             "AsyncClient",
-            lambda **options: real_client(transport=httpx.MockTransport(core.answer), **options),
+            lambda **options: real_client(
+                transport=httpx.MockTransport(core.answer), **options
+            ),
         )
         return core
 
-    async def test_a_read_inside_the_ttl_is_served_from_the_cache(self, fake_core, clock):
+    async def test_a_read_inside_the_ttl_is_served_from_the_cache(
+        self, fake_core, clock
+    ):
         fake_core.namespaces["air"] = {"refresh": 30}
 
         assert await read_namespace(None, "air") == {"refresh": 30}
@@ -482,7 +503,9 @@ class TestRemoteReadCache:
         assert await read_setting(None, "air", "a") == 1
         assert gets(fake_core) == [AIR_URL, f"{CORE_URL}/api/settings/app"]
 
-    async def test_a_caller_mutating_its_answer_does_not_change_the_next(self, fake_core, clock):
+    async def test_a_caller_mutating_its_answer_does_not_change_the_next(
+        self, fake_core, clock
+    ):
         fake_core.namespaces["air"] = {"sources": ["adsb.lol"]}
 
         first = await read_namespace(None, "air")
@@ -511,7 +534,9 @@ class TestRemoteReadCache:
         assert await asyncio.gather(*readers) == [{"refresh": 30}] * 3
         assert gets(held_core) == [AIR_URL]
 
-    async def test_one_reader_giving_up_does_not_cancel_the_shared_read(self, held_core, clock):
+    async def test_one_reader_giving_up_does_not_cancel_the_shared_read(
+        self, held_core, clock
+    ):
         held_core.namespaces["air"] = {"refresh": 30}
         quitter = asyncio.create_task(read_namespace(None, "air"))
         stayer = asyncio.create_task(read_namespace(None, "air"))
@@ -538,7 +563,9 @@ class TestRemoteReadCache:
         assert await read_namespace(None, "air") == {"refresh": 30}
         assert settings_client_module._reads_in_flight == {}
 
-    async def test_a_read_nobody_waits_for_any_more_still_settles(self, held_core, clock):
+    async def test_a_read_nobody_waits_for_any_more_still_settles(
+        self, held_core, clock
+    ):
         held_core.unreachable = True
         quitter = asyncio.create_task(read_namespace(None, "air"))
         await asyncio.sleep(0.01)
@@ -584,7 +611,9 @@ class TestRemoteReadCache:
 
         assert gets(fake_core) == [f"{CORE_URL}/api/settings/app"]
 
-    async def test_a_failed_write_still_drops_the_cached_namespace(self, fake_core, clock):
+    async def test_a_failed_write_still_drops_the_cached_namespace(
+        self, fake_core, clock
+    ):
         fake_core.namespaces["air"] = {"refresh": 30}
         await read_namespace(None, "air")
         fake_core.status = 503
@@ -596,7 +625,9 @@ class TestRemoteReadCache:
         fake_core.namespaces["air"] = {"refresh": 60}
         assert await read_namespace(None, "air") == {"refresh": 60}
 
-    async def test_a_read_in_flight_during_a_write_is_not_cached(self, held_core, clock):
+    async def test_a_read_in_flight_during_a_write_is_not_cached(
+        self, held_core, clock
+    ):
         held_core.namespaces["air"] = {"refresh": 30}
         reader = asyncio.create_task(read_namespace(None, "air"))
         await asyncio.sleep(0.01)
@@ -611,25 +642,37 @@ class TestRemoteReadCache:
         assert await read_namespace(None, "air") == {"refresh": 60}
         assert gets(held_core) == [AIR_URL, AIR_URL]
 
-    async def test_the_last_good_answer_stands_in_while_core_is_down(self, fake_core, clock, caplog):
+    async def test_the_last_good_answer_stands_in_while_core_is_down(
+        self, fake_core, clock, caplog
+    ):
         fake_core.namespaces["air"] = {"refresh": 30}
         await read_namespace(None, "air")
         clock.advance(SETTINGS_STALE_IF_ERROR_S - 1)
         fake_core.unreachable = True
 
-        with caplog.at_level(logging.WARNING, logger=settings_client_module.logger.name):
+        with caplog.at_level(
+            logging.WARNING, logger=settings_client_module.logger.name
+        ):
             assert await read_namespace(None, "air") == {"refresh": 30}
             assert await read_namespace(None, "air") == {"refresh": 30}
 
-        stale_warnings = [record for record in caplog.records if "serving cached settings" in record.message]
+        stale_warnings = [
+            record
+            for record in caplog.records
+            if "serving cached settings" in record.message
+        ]
         assert len(stale_warnings) == 1
         assert gets(fake_core) == [AIR_URL, AIR_URL, AIR_URL]
 
-    async def test_a_new_outage_after_recovery_is_logged_again(self, fake_core, clock, caplog):
+    async def test_a_new_outage_after_recovery_is_logged_again(
+        self, fake_core, clock, caplog
+    ):
         fake_core.namespaces["air"] = {"refresh": 30}
         await read_namespace(None, "air")
 
-        with caplog.at_level(logging.WARNING, logger=settings_client_module.logger.name):
+        with caplog.at_level(
+            logging.WARNING, logger=settings_client_module.logger.name
+        ):
             for _outage in range(2):
                 clock.advance(SETTINGS_CACHE_TTL_S)
                 fake_core.unreachable = True
@@ -638,7 +681,11 @@ class TestRemoteReadCache:
                 fake_core.unreachable = False
                 await read_namespace(None, "air")
 
-        stale_warnings = [record for record in caplog.records if "serving cached settings" in record.message]
+        stale_warnings = [
+            record
+            for record in caplog.records
+            if "serving cached settings" in record.message
+        ]
         assert len(stale_warnings) == 2
 
     async def test_an_answer_too_old_to_stand_in_raises(self, fake_core, clock):
@@ -650,7 +697,9 @@ class TestRemoteReadCache:
         with pytest.raises(SettingsUnavailable, match="unreachable"):
             await read_namespace(None, "air")
 
-    async def test_a_refusal_also_falls_back_to_the_last_good_answer(self, fake_core, clock):
+    async def test_a_refusal_also_falls_back_to_the_last_good_answer(
+        self, fake_core, clock
+    ):
         fake_core.namespaces["air"] = {"refresh": 30}
         await read_namespace(None, "air")
         clock.advance(SETTINGS_CACHE_TTL_S)
@@ -670,7 +719,9 @@ class TestRemoteSecretCache:
         monkeypatch.setattr(settings_client_module, "time", fake_clock)
         return fake_clock
 
-    async def test_a_secret_read_inside_the_ttl_is_served_from_the_cache(self, fake_core):
+    async def test_a_secret_read_inside_the_ttl_is_served_from_the_cache(
+        self, fake_core
+    ):
         fake_core.secrets["sea/aisstreamApiKey"] = "first-key-0123456"
 
         assert await read_secret(None, "sea", "aisstreamApiKey") == "first-key-0123456"
@@ -713,7 +764,9 @@ class TestRemoteSecretCache:
         ],
         ids=["write", "delete"],
     )
-    async def test_a_failed_change_still_drops_the_cached_secret(self, fake_core, change):
+    async def test_a_failed_change_still_drops_the_cached_secret(
+        self, fake_core, change
+    ):
         fake_core.secrets["sea/aisstreamApiKey"] = "first-key-0123456"
         await read_secret(None, "sea", "aisstreamApiKey")
         fake_core.status = 503
@@ -792,12 +845,14 @@ class TestWaitForCore:
     async def test_returns_once_core_answers(self, fake_core, sleeps):
         await wait_for_core("Land APRS station cleanup")
 
-        assert [(request.method, str(request.url)) for request in fake_core.requests] == [
-            ("GET", f"{CORE_URL}/api/settings/app")
-        ]
+        assert [
+            (request.method, str(request.url)) for request in fake_core.requests
+        ] == [("GET", f"{CORE_URL}/api/settings/app")]
         assert sleeps == []
 
-    async def test_retries_while_core_is_unreachable_or_refusing(self, fake_core, sleeps, monkeypatch, caplog):
+    async def test_retries_while_core_is_unreachable_or_refusing(
+        self, fake_core, sleeps, monkeypatch, caplog
+    ):
         replies = iter(["unreachable", 503, 200])
 
         def answer(request):
@@ -815,10 +870,18 @@ class TestWaitForCore:
         assert len(fake_core.requests) == 3
         assert sleeps == [settings_client_module.CORE_WAIT_RETRY_S] * 2
         # One line while waiting, naming the work held up — not one per attempt.
-        waiting_lines = [record for record in caplog.records if "waiting for core" in record.getMessage()]
+        waiting_lines = [
+            record
+            for record in caplog.records
+            if "waiting for core" in record.getMessage()
+        ]
         assert len(waiting_lines) == 1
         assert waiting_lines[0].levelname == "INFO"
-        assert waiting_lines[0].getMessage().startswith("Land APRS station cleanup: waiting for core to answer")
+        assert (
+            waiting_lines[0]
+            .getMessage()
+            .startswith("Land APRS station cleanup: waiting for core to answer")
+        )
 
     def core_lines(self, caplog) -> list[tuple[str, str]]:
         return [
@@ -827,14 +890,20 @@ class TestWaitForCore:
             if record.name == settings_client_module.__name__
         ]
 
-    async def test_says_it_connected_when_core_answers_first_time(self, fake_core, sleeps, caplog):
+    async def test_says_it_connected_when_core_answers_first_time(
+        self, fake_core, sleeps, caplog
+    ):
         caplog.set_level("INFO", logger=settings_client_module.__name__)
 
         await wait_for_core("space service startup")
 
-        assert self.core_lines(caplog) == [("INFO", f"space service startup: connected to core at {CORE_URL}/")]
+        assert self.core_lines(caplog) == [
+            ("INFO", f"space service startup: connected to core at {CORE_URL}/")
+        ]
 
-    async def test_says_how_long_it_waited_once_core_answers(self, fake_core, sleeps, monkeypatch, caplog):
+    async def test_says_how_long_it_waited_once_core_answers(
+        self, fake_core, sleeps, monkeypatch, caplog
+    ):
         replies = iter(["unreachable", "unreachable", 200])
 
         def answer(request):
@@ -846,7 +915,11 @@ class TestWaitForCore:
         clock = iter([100.0, 116.34])  # started, then answered
         monkeypatch.setattr(fake_core, "answer", answer)
         # Only the settings client's clock: asyncio needs the real one.
-        monkeypatch.setattr(settings_client_module, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+        monkeypatch.setattr(
+            settings_client_module,
+            "time",
+            SimpleNamespace(monotonic=lambda: next(clock)),
+        )
         caplog.set_level("INFO", logger=settings_client_module.__name__)
 
         await wait_for_core("land service startup")
@@ -857,7 +930,10 @@ class TestWaitForCore:
                 "land service startup: waiting for core to answer "
                 "(core settings API unreachable: connection refused)",
             ),
-            ("INFO", f"land service startup: connected to core at {CORE_URL}/ after 16.3 s"),
+            (
+                "INFO",
+                f"land service startup: connected to core at {CORE_URL}/ after 16.3 s",
+            ),
         ]
 
     async def test_logs_nothing_in_the_monolith(self, monkeypatch, sleeps, caplog):

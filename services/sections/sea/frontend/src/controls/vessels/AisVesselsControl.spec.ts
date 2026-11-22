@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { nextTick } from 'vue'
 import { axe } from 'jest-axe'
 
@@ -388,29 +387,6 @@ describe('AisVesselsControl', () => {
     expect(
       (source.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection).features,
     ).toHaveLength(1)
-  })
-
-  it('dead-reckons by the replay clock while replaying', async () => {
-    const { map } = addControl()
-    const source = map._sources.get('sea-vessels')!
-    const playback = usePlaybackStore()
-    // Replaying a moment 30 s after the fix: the vessel has moved only 30 s on,
-    // not the (much longer) time since then by the wall clock.
-    const fixAt = Date.now() - 2 * 60 * 60 * 1000
-    playback.enterReplay('sea', fixAt + 30_000)
-    store.vessels = [vessel({ sog: 20, cog: 90, lastPositionMs: fixAt })]
-    await nextTick()
-    vi.advanceTimersByTime(SEA_INTERPOLATE_INTERVAL_MS)
-    const [lon] = (
-      (source.setData.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection)
-        .features[0] as GeoJSON.Feature<GeoJSON.Point>
-    ).geometry.coordinates
-    const expected = deadReckon(
-      vessel({ sog: 20, cog: 90, lastPositionMs: fixAt }),
-      fixAt + 30_000,
-    )[0]
-    expect(lon).toBeCloseTo(expected, 6)
-    playback.exitReplay('sea')
   })
 
   it('dead-reckons moving vessels on the tick, only when the source is idle', async () => {

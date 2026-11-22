@@ -80,7 +80,6 @@ Profile `section`.
 | GET | `/api/space/radio/file` | `browser` | `default` | Space: positions, day/night, TLE lists, the radio file. |
 | POST | `/api/space/radio/file` | `browser` | `data_file_upload` | Space: the satellite-radio data file. |
 | DELETE | `/api/space/tle` | `browser` | `json_write` | Space: recategorising and clearing TLEs. |
-| GET | `/api/space/history/status` | `browser` | `default` | Space: positions, day/night, TLE lists, the radio file. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/space/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 
@@ -95,9 +94,6 @@ Profile `section`.
 | GET | `/api/land/repeaters` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | GET | `/api/land/repeaters/file` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | POST | `/api/land/repeaters/file` | `browser` | `data_file_upload` | Land: the repeater data file. |
-| GET | `/api/land/history/status` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
-| GET | `/api/land/history/coverage` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
-| GET | `/api/land/history/samples` | `browser` | `default` | Land: APRS stations (polled every 5 s), repeaters. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/land/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 
@@ -113,9 +109,6 @@ Profile `section`.
 | GET | `/api/air/tracking` | `browser` | `default` | Air: aircraft (polled every 10 s), the online feed's quota, tracked aircraft. |
 | POST | `/api/air/tracking` | `browser` | `json_write` | Air: tracked aircraft. |
 | DELETE | `/api/air/tracking/{hex}` | `browser` | `json_write` | Air: tracked aircraft. |
-| GET | `/api/air/history/status` | `browser` | `default` | Air: replay history (status, timeline coverage, samples), read from air.db only. |
-| GET | `/api/air/history/coverage` | `browser` | `default` | Air: replay history (status, timeline coverage, samples), read from air.db only. |
-| GET | `/api/air/history/samples` | `browser` | `default` | Air: replay history (status, timeline coverage, samples), read from air.db only. |
 | GET | `/api/sdr/adsb/source` | `browser` | `default` | Air: the configured ADS-B source. |
 | PUT | `/api/sdr/adsb/source` | `browser` | `json_write` | Air: choosing the ADS-B source and leasing it. |
 | DELETE | `/api/sdr/adsb/source` | `browser` | `json_write` | Air: choosing the ADS-B source and leasing it. |
@@ -138,9 +131,6 @@ Profile `section`.
 | GET | `/api/sea/ais-key` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
 | PUT | `/api/sea/ais-key` | `browser` | `secret_write` | Sea: setting or clearing the AISStream key. |
 | DELETE | `/api/sea/ais-key` | `browser` | `secret_write` | Sea: setting or clearing the AISStream key. |
-| GET | `/api/sea/history/status` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
-| GET | `/api/sea/history/coverage` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
-| GET | `/api/sea/history/samples` | `browser` | `default` | Sea: vessels (polled every 10 s), tracks, feed status, whether a key is set. |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/sea/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 

@@ -50,14 +50,25 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 
 class TestCreateLandTables:
+    async def test_drops_the_removed_movement_history_table(self, land_engine):
+        """Movement history & replay was removed: an install that recorded keeps no history on disk."""
+        async with land_engine.begin() as connection:
+            await connection.execute(
+                sa_text("CREATE TABLE land_position_history (id INTEGER PRIMARY KEY, entity_id TEXT, t_ms INTEGER)")
+            )
+            await connection.execute(sa_text("INSERT INTO land_position_history (entity_id, t_ms) VALUES ('x', 1)"))
+
+        await land_database.create_land_tables()
+
+        tables = set(await table_columns(land_engine))
+        assert "land_position_history" not in tables
+        assert tables  # the section's own tables are still created
+        assert land_database.REMOVED_HISTORY_TABLES == ("land_position_history",)
+
     async def test_creates_only_the_land_tables(self, land_engine):
         await land_database.create_land_tables()
 
-        assert set(await table_columns(land_engine)) == {
-            "aprs_stations",
-            "repeater_cache",
-            "land_position_history",
-        }
+        assert set(await table_columns(land_engine)) == {"aprs_stations", "repeater_cache"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, land_engine):
         await land_database.create_land_tables()
@@ -107,6 +118,20 @@ class TestCreateSectionTables:
         )
 
         assert "probe_column" in (await table_columns(land_engine))["repeater_cache"]
+
+    async def test_drops_tables_a_removed_feature_left_behind(self, land_engine):
+        async with land_engine.begin() as connection:
+            await connection.execute(sa_text("CREATE TABLE stale_feature (id INTEGER PRIMARY KEY)"))
+
+        await database.create_section_tables(("repeater_cache",), removed_tables=("stale_feature",))
+
+        assert set(await table_columns(land_engine)) == {"repeater_cache"}
+
+    async def test_dropping_a_table_that_never_existed_is_a_no_op(self, land_engine):
+        await database.create_section_tables(("repeater_cache",), removed_tables=("never_created",))
+        await database.create_section_tables(("repeater_cache",), removed_tables=("never_created",))
+
+        assert set(await table_columns(land_engine)) == {"repeater_cache"}
 
 
 class TestAprsRetentionOverHttp:

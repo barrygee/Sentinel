@@ -133,20 +133,6 @@
         >
           <slot name="passes" />
         </div>
-        <div
-          :id="SIDEBAR_PANE_IDS.replay"
-          class="msb-pane msb-pane-replay"
-          :class="{ 'msb-pane-active': activeTab === 'replay' }"
-        >
-          <SectionReplayPanel
-            v-if="replaySection"
-            :key="replaySection"
-            :section-id="replaySection"
-            :section-label="sectionDisplayName(replaySection)"
-            :has-coverage="replaySection !== 'space'"
-            :visible="open && activeTab === 'replay'"
-          />
-        </div>
       </template>
       <div
         :id="SIDEBAR_PANE_IDS.radio"
@@ -162,13 +148,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, type Component } from 'vue'
 import NotificationsPanel from './NotificationsPanel.vue'
-import ReplayIcon from '@sentinel/ui/icons/ReplayIcon.vue'
-import SectionReplayPanel from '@sentinel/shell-api/playback/SectionReplayPanel.vue'
-import {
-  isPlaybackSection,
-  type PlaybackSectionId,
-} from '@sentinel/shell-api/playback/playbackSections'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import TrackingPanel from './TrackingPanel.vue'
 import FilterFunnelIcon from '@sentinel/ui/icons/FilterFunnelIcon.vue'
 import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
@@ -182,8 +161,6 @@ import {
 } from '@sentinel/shell-api/shell/sidebarRegistry'
 
 const notifStore = useNotificationsStore()
-// Read by the tab-restore helpers below, which run while setup is still going.
-const playback = usePlaybackStore()
 const hasUnread = computed(() => notifStore.unreadCount > 0)
 
 // Tabs only one section shows: 'radio' (the SDR route applies it) plus every
@@ -195,7 +172,7 @@ const SECTION_ONLY_TABS: Record<string, string> = {
 
 withDefaults(defineProps<{ hideTabs?: boolean }>(), { hideTabs: false })
 
-type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio' | 'replay'
+type SidebarTab = 'search' | 'alerts' | 'tracking' | 'passes' | 'radio'
 
 const SS_KEY = 'sentinel_sidebar_open'
 // Per-domain tab memory in localStorage (survives refresh): each section
@@ -204,14 +181,7 @@ const SS_KEY = 'sentinel_sidebar_open'
 // route). A stored tab that no longer exists (e.g. the removed air REPLAY tab's
 // 'playback') fails the VALID_TABS check and restores to 'search'.
 const SS_TAB_MAP_KEY = 'sentinel_sidebar_tab_by_domain'
-const VALID_TABS: readonly SidebarTab[] = [
-  'search',
-  'alerts',
-  'tracking',
-  'passes',
-  'radio',
-  'replay',
-]
+const VALID_TABS: readonly SidebarTab[] = ['search', 'alerts', 'tracking', 'passes', 'radio']
 
 function _domainFromPath(): string {
   return window.location.pathname.split('/').filter(Boolean)[0] ?? ''
@@ -247,31 +217,12 @@ interface RailTab {
   icon?: Component
 }
 
-// REPLAY: shown on a section that records movement history (Settings ›
-// <section> › History & Replay); its pane holds that section's replay controls.
-const replaySection = computed<PlaybackSectionId | null>(() => {
-  const domain = activeDomain.value
-  return isPlaybackSection(domain) && playback.sections[domain].historyEnabled ? domain : null
-})
-
 const tabs = computed<RailTab[]>(() => [
   { id: 'search', label: 'FILTER' },
   { id: 'alerts', label: 'ALERTS' },
   { id: 'tracking', label: 'TRACKING' },
   ...getSidebarSectionTabs(),
-  ...(replaySection.value ? [{ id: 'replay' as const, label: 'REPLAY', icon: ReplayIcon }] : []),
 ])
-
-/** `air` → `Air`, for the replay panel's accessible names. */
-function sectionDisplayName(sectionId: string): string {
-  return sectionId.charAt(0).toUpperCase() + sectionId.slice(1)
-}
-
-// Recording switched off (or a section without it opened) while REPLAY was the
-// open tab: fall back to FILTER rather than show an empty pane.
-watch(replaySection, (section) => {
-  if (!section && activeTab.value === 'replay') setTab('search')
-})
 
 // FILTER category sub-tabs shown in the rail beneath the FILTER tab — whatever
 // the active section registered (shell/sidebarRegistry.ts); none for a section
@@ -398,12 +349,6 @@ function _restoreOpen(): boolean {
 function _restoreTab(domain: string): SidebarTab {
   const saved = _readTabMap()[domain]
   if (!saved || !(VALID_TABS as readonly string[]).includes(saved)) return 'search'
-  // REPLAY only exists while that section records history.
-  if (
-    saved === 'replay' &&
-    !(isPlaybackSection(domain) && playback.sections[domain].historyEnabled)
-  )
-    return 'search'
   const required = SECTION_ONLY_TABS[saved]
   if (required && required !== domain) return 'search' // defensive
   return saved as SidebarTab

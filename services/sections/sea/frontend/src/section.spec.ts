@@ -44,17 +44,6 @@ describe('components/sea/section', () => {
     expect(registerSidebarFilterSubTabs).toHaveBeenCalledExactlyOnceWith('sea', seaSidebarFilter)
   })
 
-  it('hydrates its replay settings from the boot payload', async () => {
-    await registerOnce()
-    const { runSettingsHydrators } = await import('@sentinel/shell-api/shell/settingsHydration')
-    const { usePlaybackStore } = await import('@sentinel/shell-api/stores/playback')
-    runSettingsHydrators({ sea: { historyEnabled: true, historyRetentionDays: 2 } })
-    expect(usePlaybackStore().sections.sea).toMatchObject({
-      historyEnabled: true,
-      retentionDays: 2,
-    })
-  })
-
   it('registers its Settings section and items', async () => {
     await registerOnce()
     const { getSettingItems, getSettingsSections } =
@@ -62,9 +51,5 @@ describe('components/sea/section', () => {
 
     expect(getSettingsSections().map((section) => section.key)).toContain('sea')
     expect(getSettingItems().some((item) => item.section === 'sea')).toBe(true)
-    // History & Replay, in the REPLAY group.
-    const history = getSettingItems().find((item) => item.id === 'sea-history')
-    expect(history?.section).toBe('sea')
-    expect(history?.groupLabel).toBe('REPLAY')
   })
 })

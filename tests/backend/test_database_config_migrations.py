@@ -64,6 +64,15 @@ class TestIsRemovedSetting:
     def test_does_not_match_a_live_setting(self):
         assert db.is_removed_setting("app", "connectivityMode") is False
 
+    @pytest.mark.parametrize("namespace", ["air", "sea", "land", "space"])
+    @pytest.mark.parametrize("key", ["historyEnabled", "historyRetentionDays"])
+    def test_movement_history_settings_are_removed(self, namespace, key):
+        assert db.is_removed_setting(namespace, key) is True
+
+    def test_a_near_miss_of_a_history_key_is_live(self):
+        assert db.is_removed_setting("air", "history") is False
+        assert db.is_removed_setting("sdr", "historyEnabled") is False
+
     def test_does_not_match_a_prefix_in_another_namespace(self):
         assert db.is_removed_setting("sea", "feedCredential:42") is False
 
