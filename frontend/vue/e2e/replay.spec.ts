@@ -189,7 +189,7 @@ test.describe('History & replay', () => {
       .toBe(true)
   })
 
-  test('Settings › AIR offers History & Replay with its status', async ({ page }) => {
+  test('Settings › AIR offers History & Replay with what is recorded', async ({ page }) => {
     await recordAirHistory(page, true)
     await page.goto('/settings/air')
     await waitForShellHydration(page)
@@ -198,8 +198,11 @@ test.describe('History & replay', () => {
     await expect(
       page.getByRole('textbox', { name: 'Air history: days to keep, 1 to 7' }),
     ).toBeVisible()
-    await expect(
-      page.getByText(/Recording · 3\.0 days kept · 12 MB of history \(50 MB database\)/),
-    ).toBeVisible()
+    // What is recorded: status, the time frames so far, and the file size.
+    const summary = page.locator('.history-summary')
+    await expect(summary.getByText('Recording', { exact: true })).toBeVisible()
+    await expect(summary.locator('.history-period-range').first()).toHaveText(/ – .* UTC$/)
+    await expect(summary.locator('.history-period-source').first()).toHaveText('ONLINE')
+    await expect(summary.getByText('12 MB history · 50 MB database')).toBeVisible()
   })
 })
