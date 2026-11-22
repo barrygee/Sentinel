@@ -4,7 +4,6 @@
     <AirMap ref="airMapRef" />
     <AirSideMenu :map-ref="airMapProxy" />
     <NoUrlOverlay domain="air" />
-    <SectionPlaybackBar section-id="air" section-label="Air" />
     <AdsbSourceNotice
       :error="adsbSourceClaim.error.value"
       :is-claiming="adsbSourceClaim.isClaiming.value"
@@ -24,7 +23,6 @@
 </template>
 
 <script setup lang="ts">
-import SectionPlaybackBar from '@sentinel/shell-api/playback/SectionPlaybackBar.vue'
 import { ref, shallowRef, markRaw } from 'vue'
 import AirMap from './AirMap.vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'

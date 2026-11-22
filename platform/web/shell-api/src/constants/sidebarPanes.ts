@@ -19,6 +19,7 @@ export const SIDEBAR_PANE_IDS = {
   tracking: 'msb-pane-tracking',
   passes: 'msb-pane-passes',
   radio: 'msb-pane-radio',
+  replay: 'msb-pane-replay',
 } as const
 
 /** A valid sidebar pane identifier — the keys of {@link SIDEBAR_PANE_IDS}. */

@@ -8,18 +8,23 @@
         >{{ readout }}</span
       >
     </div>
-    <input
-      class="base-slider-row-input"
-      type="range"
-      :aria-label="accessibleName"
-      :aria-valuetext="readout"
-      :min="min"
-      :max="max"
-      :step="step"
-      :value="value"
-      :disabled="disabled"
-      @input="emit('input', $event)"
-    />
+    <div class="base-slider-row-track">
+      <!-- Optional underlay drawn behind the track (e.g. the replay timeline's
+           recorded-data bands); decorative, so the caller marks it aria-hidden. -->
+      <slot name="track" />
+      <input
+        class="base-slider-row-input"
+        type="range"
+        :aria-label="accessibleName"
+        :aria-valuetext="valueText ?? readout"
+        :min="min"
+        :max="max"
+        :step="step"
+        :value="value"
+        :disabled="disabled"
+        @input="emit('input', $event)"
+      />
+    </div>
   </div>
 </template>
 
@@ -46,7 +51,11 @@
  * the SDR panel passes `sdr-radio-section`). The classes below are styled
  * by the unscoped block at the end of this file; callers restyle them from
  * a descendant selector (`.my-context :deep(.base-slider-row-label)`):
- * `base-slider-row-header`, `-label`, `-value` (+ `--dimmed`), `-input`.
+ * `base-slider-row-header`, `-label`, `-value` (+ `--dimmed`), `-track`, `-input`.
+ *
+ * The optional `track` slot draws an underlay behind the range (absolutely
+ * positioned by the caller inside `.base-slider-row-track`) — the replay
+ * timeline shades where recorded data exists there.
  */
 withDefaults(
   defineProps<{
@@ -54,6 +63,12 @@ withDefaults(
     label: string
     /** Pre-formatted readout text shown right of the label. */
     readout: string
+    /**
+     * What a screen reader announces as the value, when the short visual
+     * readout isn't enough on its own (the replay timeline shows "ONLINE" but
+     * announces the full date and time). Defaults to `readout`.
+     */
+    valueText?: string
     /** Renders the readout in its dimmed style (e.g. the control is unusable or read-only). */
     readoutDimmed?: boolean
     /**
@@ -73,7 +88,7 @@ withDefaults(
     /** Disables the range input. */
     disabled?: boolean
   }>(),
-  { readoutDimmed: false, disabled: false },
+  { readoutDimmed: false, disabled: false, valueText: undefined },
 )
 
 const emit = defineEmits<{
@@ -126,7 +141,12 @@ const emit = defineEmits<{
   opacity: 0.25;
 }
 
+.base-slider-row-track {
+  position: relative;
+}
+
 .base-slider-row-input {
+  position: relative;
   -webkit-appearance: none;
   appearance: none;
   width: 100%;

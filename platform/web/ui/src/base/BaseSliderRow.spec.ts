@@ -104,4 +104,33 @@ describe('BaseSliderRow', () => {
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
   })
+
+  it('announces the readout as the value unless told otherwise', () => {
+    expect(mountRow().get('input').attributes('aria-valuetext')).toBe('80%')
+    expect(
+      mountRow({ readout: 'ONLINE', valueText: '14 November 2026, online' })
+        .get('input')
+        .attributes('aria-valuetext'),
+    ).toBe('14 November 2026, online')
+  })
+
+  it('draws a track underlay behind the range when given one', () => {
+    const wrapper = mount(BaseSliderRow, {
+      props: {
+        label: 'TIMELINE',
+        readout: 'LIVE',
+        accessibleName: 'Time',
+        min: 0,
+        max: 10,
+        step: 1,
+        value: 5,
+      },
+      slots: { track: '<div class="underlay" aria-hidden="true"></div>' },
+    })
+    const track = wrapper.get('.base-slider-row-track')
+    expect(track.find('.underlay').exists()).toBe(true)
+    // The underlay comes first, so the range (and its thumb) paints above it.
+    expect(track.element.firstElementChild?.classList.contains('underlay')).toBe(true)
+    expect(track.find('input[type="range"]').exists()).toBe(true)
+  })
 })

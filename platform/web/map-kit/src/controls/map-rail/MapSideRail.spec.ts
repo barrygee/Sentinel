@@ -3,7 +3,6 @@ import { mount, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { axe } from 'jest-axe'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import MapSideRail from './MapSideRail.vue'
 
 const LAYERS_BUTTON = '#test-layers-btn'
@@ -113,28 +112,5 @@ describe('MapSideRail', () => {
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
-  })
-
-  it('adds no REPLAY button without a replay section', () => {
-    usePlaybackStore().setHistoryEnabled('air', true)
-    expect(mountRail().find('button[aria-label="Replay"]').exists()).toBe(false)
-  })
-
-  it('ends with the REPLAY button for a recording section', () => {
-    usePlaybackStore().setHistoryEnabled('air', true)
-    const wrapper = mount(MapSideRail, {
-      props: {
-        containerId: 'test-side-menu',
-        accessibleName: 'Test map controls',
-        layersButtonId: 'test-layers-btn',
-        layersPanelId: 'test-layers-panel',
-        locationActive: false,
-        replaySection: 'air',
-      },
-    })
-    const names = wrapper
-      .findAll('nav > button, nav > * > button')
-      .map((node) => node.attributes('aria-label'))
-    expect(names.at(-1)).toBe('Replay')
   })
 })

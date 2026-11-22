@@ -2,7 +2,6 @@
   <div id="map-wrap" data-domain="land">
     <h1 class="sr-only">Land domain</h1>
     <NoUrlOverlay domain="land" />
-    <SectionPlaybackBar section-id="land" section-label="Land" />
     <MapLibreMap
       ref="mapRef"
       :style-url="styleUrl"
@@ -31,7 +30,6 @@
 </template>
 
 <script setup lang="ts">
-import SectionPlaybackBar from '@sentinel/shell-api/playback/SectionPlaybackBar.vue'
 import { useSectionReplay } from '@sentinel/shell-api/playback/useSectionReplay'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { Map } from 'maplibre-gl'

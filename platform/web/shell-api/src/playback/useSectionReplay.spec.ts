@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { effectScope, nextTick } from 'vue'
 import { useSectionReplay } from './useSectionReplay'
@@ -107,5 +107,54 @@ describe('useSectionReplay', () => {
     const scope = effectScope()
     scope.run(() => useSectionReplay('air', { enter: vi.fn(), exit: vi.fn() }))
     scope.stop()
+  })
+
+  describe('playback loop', () => {
+    let frames: Array<(timestamp: number) => void>
+    beforeEach(() => {
+      frames = []
+      vi.stubGlobal('requestAnimationFrame', (callback: (timestamp: number) => void) => {
+        frames.push(callback)
+        return frames.length
+      })
+      vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    })
+    afterEach(() => vi.unstubAllGlobals())
+
+    function runFrame(timestamp: number): void {
+      const pending = frames
+      frames = []
+      for (const callback of pending) callback(timestamp)
+    }
+
+    it('advances a playing section every frame, with the panel nowhere in sight', async () => {
+      const playback = usePlaybackStore()
+      const scope = effectScope()
+      scope.run(() => useSectionReplay('air', handlers()))
+      const start = Date.now() - 3_600_000
+      playback.enterReplay('air', start)
+      playback.setRate('air', 10)
+      playback.setPlaying('air', true)
+      await nextTick()
+      runFrame(1000) // first frame records its time
+      runFrame(1100)
+      expect(playback.sections.air.cursorMs).toBe(start + 1000)
+      playback.setPlaying('air', false)
+      await nextTick()
+      runFrame(1200)
+      expect(frames).toHaveLength(0)
+      scope.stop()
+    })
+
+    it('stops when the map unmounts', async () => {
+      const playback = usePlaybackStore()
+      const scope = effectScope()
+      scope.run(() => useSectionReplay('air', handlers()))
+      playback.enterReplay('air')
+      playback.setPlaying('air', true)
+      await nextTick()
+      scope.stop()
+      expect(cancelAnimationFrame).toHaveBeenCalled()
+    })
   })
 })
