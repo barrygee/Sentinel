@@ -11,12 +11,20 @@ from typing import Any
 import pytest
 
 from backend.platform.security.bans import install_ban_rules, is_protected
-from tests.backend.request_guard_helpers import INTERNAL_ADDRESS, LAN_BROWSER_ADDRESS, pin_guard_settings
+from tests.backend.request_guard_helpers import (
+    INTERNAL_ADDRESS,
+    LAN_BROWSER_ADDRESS,
+    pin_guard_settings,
+)
 
 
 @pytest.fixture(autouse=True)
 def _known_settings(monkeypatch: pytest.MonkeyPatch) -> None:
-    pin_guard_settings(monkeypatch, guard_internal_networks="172.28.0.0/24", guard_service_hosts="192.168.1.20")
+    pin_guard_settings(
+        monkeypatch,
+        guard_internal_networks="172.28.0.0/24",
+        guard_service_hosts="192.168.1.20",
+    )
 
 
 class TestIsProtected:
@@ -36,11 +44,16 @@ class TestIsProtected:
     def test_sentinels_own_processes(self, target: str) -> None:
         assert is_protected(target)
 
-    @pytest.mark.parametrize("target", [LAN_BROWSER_ADDRESS, "203.0.113.9", "192.168.1.0/30", "fd00::1", "not-an-ip"])
+    @pytest.mark.parametrize(
+        "target",
+        [LAN_BROWSER_ADDRESS, "203.0.113.9", "192.168.1.0/30", "fd00::1", "not-an-ip"],
+    )
     def test_everyone_else(self, target: str) -> None:
         assert not is_protected(target)
 
-    def test_follows_the_settings_when_asked(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_follows_the_settings_when_asked(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         assert not is_protected("10.5.0.7")
         pin_guard_settings(monkeypatch, guard_internal_networks="10.5.0.0/24")
 
@@ -48,7 +61,9 @@ class TestIsProtected:
 
 
 class FakeRedisHandler:
-    def __init__(self, stored: dict[str, str] | None = None, broken: bool = False) -> None:
+    def __init__(
+        self, stored: dict[str, str] | None = None, broken: bool = False
+    ) -> None:
         self.stored = stored or {}
         self.broken = broken
 
@@ -69,7 +84,9 @@ class FakeBanManager:
     def _purge_banned_ip(self, ip: str) -> None:
         self.banned_ips.pop(ip, None)
 
-    async def ban_ip(self, ip: str, duration: int, reason: str = "threshold_exceeded") -> bool:
+    async def ban_ip(
+        self, ip: str, duration: int, reason: str = "threshold_exceeded"
+    ) -> bool:
         self.bans.append((ip, duration, reason))
         self.banned_ips[ip] = 9e18
         return True
@@ -88,14 +105,22 @@ class TestBanning:
     async def test_a_client_is_banned_as_before(self) -> None:
         manager = managed()
 
-        assert await manager.ban_ip(LAN_BROWSER_ADDRESS, 3600, "behavioral_violation") is True
+        assert (
+            await manager.ban_ip(LAN_BROWSER_ADDRESS, 3600, "behavioral_violation")
+            is True
+        )
         assert manager.bans == [(LAN_BROWSER_ADDRESS, 3600, "behavioral_violation")]
 
-    async def test_sentinels_own_process_is_never_banned(self, caplog: pytest.LogCaptureFixture) -> None:
+    async def test_sentinels_own_process_is_never_banned(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
         manager = managed()
 
         with caplog.at_level(logging.WARNING, logger="sentinel.guard"):
-            assert await manager.ban_ip(INTERNAL_ADDRESS, 3600, "behavioral_violation") is False
+            assert (
+                await manager.ban_ip(INTERNAL_ADDRESS, 3600, "behavioral_violation")
+                is False
+            )
 
         assert manager.bans == []
         assert not await manager.is_ip_banned(INTERNAL_ADDRESS)
@@ -120,7 +145,9 @@ class TestBanning:
 
 class TestSharedBans:
     async def test_a_ban_redis_still_holds_stands(self) -> None:
-        manager = managed(FakeRedisHandler({f"banned_ips:{LAN_BROWSER_ADDRESS}": "9e18"}))
+        manager = managed(
+            FakeRedisHandler({f"banned_ips:{LAN_BROWSER_ADDRESS}": "9e18"})
+        )
         manager.banned_ips[LAN_BROWSER_ADDRESS] = 9e18
 
         assert await manager.is_ip_banned(LAN_BROWSER_ADDRESS)

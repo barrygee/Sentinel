@@ -17,8 +17,6 @@
 </template>
 
 <script setup lang="ts">
-import { useSectionReplay } from '@sentinel/shell-api/playback/useSectionReplay'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 // IMPORTANT: Map instance is stored in a plain variable — never in ref/reactive.
 // All IControl subclasses receive Pinia store refs instead of window.* globals.
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
@@ -228,18 +226,7 @@ function addControls(m: MapLibreGlMap): void {
     userMarker: sectionMap.locationMarker,
   })
   sdrManagerSitesControl.onAdd(m)
-  // Opened mid-replay (AIR was left while replaying): start on the recording.
-  if (playback.isReplaying('air')) adsbControl.enterReplay()
 }
-
-// Replay (Settings › AIR › History & Replay): the control swaps its live feed
-// for the recording; everything else on this map carries on as it is.
-const playback = usePlaybackStore()
-useSectionReplay('air', {
-  enter: () => adsbControl?.enterReplay(),
-  exit: () => adsbControl?.exitReplay(),
-  jumped: () => adsbControl?.refreshReplay(),
-})
 
 // The sidebar's ALL / CIVIL / MILITARY tabs write the store; the control
 // (non-reactive) follows here, and the search list is told to re-filter.

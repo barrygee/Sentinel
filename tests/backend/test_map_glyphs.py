@@ -23,7 +23,9 @@ def font_stacks_used_by_map_layers() -> set[str]:
     stacks: set[str] = set()
     for source_dir in MAP_SOURCE_DIRS:
         for source_file in source_dir.rglob("*.ts"):
-            if "node_modules" in source_file.parts or source_file.name.endswith(".spec.ts"):
+            if "node_modules" in source_file.parts or source_file.name.endswith(
+                ".spec.ts"
+            ):
                 continue
             for match in TEXT_FONT.finditer(source_file.read_text(encoding="utf-8")):
                 stacks.update(QUOTED.findall(match.group(1)))
@@ -39,5 +41,7 @@ def test_finds_the_font_stacks_map_layers_use():
 def test_every_map_font_stack_ships_its_ascii_glyphs(stack):
     glyphs = FONTS_DIR / stack / "0-255.pbf"
 
-    assert glyphs.is_file(), f"{stack!r} is used by a map layer but {glyphs} is not bundled"
+    assert glyphs.is_file(), (
+        f"{stack!r} is used by a map layer but {glyphs} is not bundled"
+    )
     assert glyphs.stat().st_size > 0

@@ -21,7 +21,16 @@ from backend.platform.service_access import (
     may_use_secret,
 )
 
-SECTION_SERVICES = ["radio", "space", "land", "air", "sea", "sdr", "sdr-manager-local", "sdr-manager-remote"]
+SECTION_SERVICES = [
+    "radio",
+    "space",
+    "land",
+    "air",
+    "sea",
+    "sdr",
+    "sdr-manager-local",
+    "sdr-manager-remote",
+]
 
 
 class TestTheTable:
@@ -128,11 +137,15 @@ class TestMayListServices:
     def test_sdr_manager_remote_lists_sdr_manager_local(self):
         assert may_list_services("sdr-manager-remote", "sdr-manager-local")
 
-    @pytest.mark.parametrize("kind", ["section", "radio", "decoder", "docs", "sdr-manager-remote", ""])
+    @pytest.mark.parametrize(
+        "kind", ["section", "radio", "decoder", "docs", "sdr-manager-remote", ""]
+    )
     def test_sdr_manager_remote_lists_no_other_kind(self, kind):
         assert not may_list_services("sdr-manager-remote", kind)
 
-    @pytest.mark.parametrize("caller", [c for c in CALLER_ACCESS if c not in ("sdr-manager-remote", "core")])
+    @pytest.mark.parametrize(
+        "caller", [c for c in CALLER_ACCESS if c not in ("sdr-manager-remote", "core")]
+    )
     def test_no_other_caller_lists_sdr_manager_local(self, caller):
         assert not may_list_services(caller, "sdr-manager-local")
 
@@ -147,7 +160,9 @@ class TestMayManageLocalSdrs:
     def test_sdr_manager_remote_may(self):
         assert may_manage_local_sdrs("sdr-manager-remote")
 
-    @pytest.mark.parametrize("caller", [c for c in CALLER_ACCESS if c != "sdr-manager-remote"])
+    @pytest.mark.parametrize(
+        "caller", [c for c in CALLER_ACCESS if c != "sdr-manager-remote"]
+    )
     def test_no_one_else_may_not_even_core(self, caller):
         assert not may_manage_local_sdrs(caller)
 

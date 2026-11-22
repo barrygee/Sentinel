@@ -8,7 +8,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_sea.database import create_sea_tables
-from sentinel_sea.services import sea_ais_receiver, sea_history
+from sentinel_sea.services import sea_ais_receiver
 from sentinel_sea.services.ais_stream import reader as ais_reader
 
 logger = logging.getLogger(__name__)
@@ -36,10 +36,6 @@ async def _start() -> None:
     # Warms the vessel store from the last snapshot and starts the AISStream
     # watchdog (it only opens the socket once the domain is enabled and keyed).
     await ais_reader.start()
-    # Replay history runs from here, not from the AISStream reader: the reader's
-    # tick returns early off grid, and history must record in both modes.
-    await sea_history.recorder.start()
-    await sea_history.retention.start()
     # Off grid with a designated AIS radio, start decoding now rather than when
     # the Sea page is first opened. Runs after the radio hub has started.
     if not await sea_ais_receiver.reconcile_now():
@@ -54,8 +50,6 @@ async def _stop() -> None:
             await _receiver_retry_task
         _receiver_retry_task = None
     await ais_reader.stop()
-    await sea_history.retention.stop()
-    await sea_history.recorder.stop()
 
 
 # Core never creates Sea's tables; Sea does, in whatever database its process uses.

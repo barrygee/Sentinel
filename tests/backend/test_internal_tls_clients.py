@@ -41,7 +41,12 @@ def _recording_client(opened: list[dict]):
 @pytest.fixture
 def opened(monkeypatch) -> list[dict]:
     clients: list[dict] = []
-    for module in (settings_client, registration, service_registry, sdr_iq_capture_transfer):
+    for module in (
+        settings_client,
+        registration,
+        service_registry,
+        sdr_iq_capture_transfer,
+    ):
         monkeypatch.setattr(module, "internal_verify", lambda: TRUST)
         monkeypatch.setattr(module.httpx, "AsyncClient", _recording_client(clients))
     return clients

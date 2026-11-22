@@ -15,6 +15,7 @@ from backend import database
 from backend.config import settings
 from backend.platform import settings_client
 from sqlalchemy import inspect
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 from tests.backend.service_credentials_test_helpers import bearer, present_credential
@@ -54,15 +55,26 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 
 class TestCreateSeaTables:
+    async def test_drops_the_removed_movement_history_table(self, sea_engine):
+        """Movement history & replay was removed: an install that recorded keeps no history on disk."""
+        async with sea_engine.begin() as connection:
+            await connection.execute(
+                sa_text("CREATE TABLE sea_position_history (id INTEGER PRIMARY KEY, entity_id TEXT, t_ms INTEGER)")
+            )
+            await connection.execute(sa_text("INSERT INTO sea_position_history (entity_id, t_ms) VALUES ('x', 1)"))
+
+        await sea_database.create_sea_tables()
+
+        tables = set(await table_columns(sea_engine))
+        assert "sea_position_history" not in tables
+        assert tables  # the section's own tables are still created
+        assert sea_database.REMOVED_HISTORY_TABLES == ("sea_position_history",)
+
     async def test_creates_only_the_sea_tables(self, sea_engine):
         await sea_database.create_sea_tables()
 
         # No user_settings: the AISStream key is a setting, kept in core.
-        assert set(await table_columns(sea_engine)) == {
-            "sea_vessel_cache",
-            "sea_vessel_static",
-            "sea_position_history",
-        }
+        assert set(await table_columns(sea_engine)) == {"sea_vessel_cache", "sea_vessel_static"}
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, sea_engine):
         await sea_database.create_sea_tables()
@@ -85,9 +97,7 @@ class TestCreateSeaTables:
         await sea_database.create_sea_tables()
         await sea_database.create_sea_tables()
 
-        assert set(await table_columns(sea_engine)) == set(
-            sea_database.SEA_TABLES + sea_database.SEA_SERVICE_ONLY_TABLES
-        )
+        assert set(await table_columns(sea_engine)) == set(sea_database.SEA_TABLES)
 
 
 class FakeCore:

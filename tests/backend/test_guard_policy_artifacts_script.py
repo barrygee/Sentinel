@@ -17,7 +17,11 @@ from types import ModuleType, SimpleNamespace
 import pytest
 from fastapi import FastAPI
 
-from tests.backend.request_guard_helpers import minimal_policy, pin_guard_settings, write_policy
+from tests.backend.request_guard_helpers import (
+    minimal_policy,
+    pin_guard_settings,
+    write_policy,
+)
 
 
 @pytest.fixture(scope="module")
@@ -47,8 +51,14 @@ def fake_service_app(*extra_posts: str) -> SimpleNamespace:
 def one_service(monkeypatch: pytest.MonkeyPatch, artifacts: ModuleType) -> list[str]:
     """`artifacts` describing one fake service; append a path to give it an unclassified POST."""
     extra_posts: list[str] = []
-    monkeypatch.setattr(artifacts, "SERVICES", (("Test (`test`)", "fake.service", "core"),))
-    monkeypatch.setattr(artifacts.importlib, "import_module", lambda name: fake_service_app(*extra_posts))
+    monkeypatch.setattr(
+        artifacts, "SERVICES", (("Test (`test`)", "fake.service", "core"),)
+    )
+    monkeypatch.setattr(
+        artifacts.importlib,
+        "import_module",
+        lambda name: fake_service_app(*extra_posts),
+    )
     return extra_posts
 
 
@@ -62,11 +72,16 @@ class TestRenderSchema:
         assert "$schema" in schema["properties"]
 
     def test_the_committed_schema_is_current(self, artifacts: ModuleType) -> None:
-        assert artifacts.SCHEMA_PATH.read_text(encoding="utf-8") == artifacts.render_schema()
+        assert (
+            artifacts.SCHEMA_PATH.read_text(encoding="utf-8")
+            == artifacts.render_schema()
+        )
 
 
 class TestRenderMatrix:
-    def test_a_row_per_route_with_who_may_call_it(self, artifacts: ModuleType, one_service: list[str]) -> None:
+    def test_a_row_per_route_with_who_may_call_it(
+        self, artifacts: ModuleType, one_service: list[str]
+    ) -> None:
         matrix, unclassified = artifacts.render_matrix(minimal_policy())
 
         assert unclassified == []
@@ -74,7 +89,9 @@ class TestRenderMatrix:
         assert "Profile `core`." in matrix
         assert "| GET | `/api/things/{thing_id}` | `browser` | `default` |  |" in matrix
 
-    def test_an_unclassified_route_is_marked_and_reported(self, artifacts: ModuleType, one_service: list[str]) -> None:
+    def test_an_unclassified_route_is_marked_and_reported(
+        self, artifacts: ModuleType, one_service: list[str]
+    ) -> None:
         one_service.append("/api/brand-new")
 
         matrix, unclassified = artifacts.render_matrix(minimal_policy())
@@ -91,7 +108,9 @@ class TestRenderMatrix:
 
 
 @pytest.fixture
-def output_paths(monkeypatch: pytest.MonkeyPatch, artifacts: ModuleType, tmp_path: Path) -> tuple[Path, Path]:
+def output_paths(
+    monkeypatch: pytest.MonkeyPatch, artifacts: ModuleType, tmp_path: Path
+) -> tuple[Path, Path]:
     """The script's output files moved into a temporary repo root."""
     schema_path = tmp_path / "backend" / "security" / "guard-policy.schema.json"
     matrix_path = tmp_path / "docs" / "api-access-matrix.md"
@@ -124,7 +143,10 @@ class TestMain:
         ]
 
     def test_check_passes_when_current(
-        self, artifacts: ModuleType, one_service: list[str], output_paths: tuple[Path, Path]
+        self,
+        artifacts: ModuleType,
+        one_service: list[str],
+        output_paths: tuple[Path, Path],
     ) -> None:
         artifacts.main([])
 
@@ -148,7 +170,10 @@ class TestMain:
         assert "docs/api-access-matrix.md is stale" in capsys.readouterr().err
 
     def test_check_fails_on_a_missing_file(
-        self, artifacts: ModuleType, one_service: list[str], output_paths: tuple[Path, Path]
+        self,
+        artifacts: ModuleType,
+        one_service: list[str],
+        output_paths: tuple[Path, Path],
     ) -> None:
         assert artifacts.main(["--check"]) == 1
 
@@ -163,18 +188,25 @@ class TestMain:
 
         assert artifacts.main([]) == 1
 
-        assert "no rule in the guard policy: Test (`test`): POST /api/brand-new" in capsys.readouterr().err
+        assert (
+            "no rule in the guard policy: Test (`test`): POST /api/brand-new"
+            in capsys.readouterr().err
+        )
 
 
 class TestModuleEntryPoint:
-    def test_python_dash_m_runs_main(self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    def test_python_dash_m_runs_main(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
         # `--check` against the real services is CI's own step (a fresh
         # process); here only that the module runs main() and exits with it.
         saved_environment = dict(os.environ)
         monkeypatch.setattr(sys, "argv", ["guard_policy_artifacts", "--help"])
         try:
             with pytest.raises(SystemExit) as exited:
-                runpy.run_module("backend.scripts.guard_policy_artifacts", run_name="__main__")
+                runpy.run_module(
+                    "backend.scripts.guard_policy_artifacts", run_name="__main__"
+                )
         finally:
             os.environ.clear()
             os.environ.update(saved_environment)

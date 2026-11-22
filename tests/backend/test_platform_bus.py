@@ -186,7 +186,9 @@ class TestRemoteAttachment:
         event_bus = EventBus()
         event_bus.subscribe("decode.aprs.*", lambda payload: None)
         event_bus.reply("hub.decode.ais.status", lambda payload: None)
-        assert [(item.pattern, item.is_responder) for item in event_bus._subscriptions] == [
+        assert [
+            (item.pattern, item.is_responder) for item in event_bus._subscriptions
+        ] == [
             ("decode.aprs.*", False),
             ("hub.decode.ais.status", True),
         ]
@@ -210,7 +212,10 @@ class TestRemoteAttachment:
         unsubscribe = event_bus.reply("hub.decode.x.start", lambda payload: None)
         unsubscribe()
         unsubscribe()  # already gone: must not unwatch twice
-        assert remote.calls == [("watch", "hub.decode.x.start", True), ("unwatch", "hub.decode.x.start")]
+        assert remote.calls == [
+            ("watch", "hub.decode.x.start", True),
+            ("unwatch", "hub.decode.x.start"),
+        ]
 
     def test_unsubscribe_without_a_remote_only_removes_locally(self):
         event_bus = EventBus()
@@ -283,9 +288,13 @@ class TestRemoteDelivery:
     async def test_deliver_remote_runs_only_the_given_subscription(self):
         event_bus = EventBus()
         calls: list[str] = []
-        event_bus.subscribe("settings.changed.*", lambda payload: calls.append("narrow"))
+        event_bus.subscribe(
+            "settings.changed.*", lambda payload: calls.append("narrow")
+        )
         event_bus.subscribe("settings.>", lambda payload: calls.append("wide"))
-        await event_bus.deliver_remote(event_bus._subscriptions[1], "settings.changed.land", {})
+        await event_bus.deliver_remote(
+            event_bus._subscriptions[1], "settings.changed.land", {}
+        )
         assert calls == ["wide"]
 
     async def test_deliver_remote_awaits_async_handlers(self):
@@ -297,7 +306,9 @@ class TestRemoteDelivery:
             calls.append(payload)
 
         event_bus.subscribe("decode.ais.*", handler)
-        await event_bus.deliver_remote(event_bus._subscriptions[0], "decode.ais.1", {"radio_id": 1})
+        await event_bus.deliver_remote(
+            event_bus._subscriptions[0], "decode.ais.1", {"radio_id": 1}
+        )
         assert calls == [{"radio_id": 1}]
 
     async def test_deliver_remote_logs_a_failing_handler(self, caplog):
@@ -308,8 +319,13 @@ class TestRemoteDelivery:
 
         event_bus.subscribe("decode.ais.*", broken)
         with caplog.at_level(logging.ERROR, logger="backend.platform.bus"):
-            await event_bus.deliver_remote(event_bus._subscriptions[0], "decode.ais.1", {})
-        assert "event bus handler for 'decode.ais.*' failed on remote subject 'decode.ais.1'" in caplog.text
+            await event_bus.deliver_remote(
+                event_bus._subscriptions[0], "decode.ais.1", {}
+            )
+        assert (
+            "event bus handler for 'decode.ais.*' failed on remote subject 'decode.ais.1'"
+            in caplog.text
+        )
 
 
 class TestRemoteRequest:
@@ -325,15 +341,23 @@ class TestRemoteRequest:
         event_bus = EventBus()
         remote = RecordingRemote(reply={"running": True})
         event_bus.attach_remote(remote)
-        reply = await event_bus.request("hub.decode.ais.status", {"radio_id": 2}, timeout=None)
+        reply = await event_bus.request(
+            "hub.decode.ais.status", {"radio_id": 2}, timeout=None
+        )
         assert reply == {"running": True}
-        assert remote.calls == [("request", "hub.decode.ais.status", {"radio_id": 2}, None)]
+        assert remote.calls == [
+            ("request", "hub.decode.ais.status", {"radio_id": 2}, None)
+        ]
 
     async def test_answer_remote_uses_the_first_local_responder(self):
         event_bus = EventBus()
-        event_bus.reply("hub.decode.ais.status", lambda payload: {"first": payload["radio_id"]})
+        event_bus.reply(
+            "hub.decode.ais.status", lambda payload: {"first": payload["radio_id"]}
+        )
         event_bus.reply("hub.decode.*.status", lambda payload: {"second": True})
-        assert await event_bus.answer_remote("hub.decode.ais.status", {"radio_id": 4}) == {"first": 4}
+        assert await event_bus.answer_remote(
+            "hub.decode.ais.status", {"radio_id": 4}
+        ) == {"first": 4}
 
     async def test_answer_remote_without_a_responder_raises_lookup_error(self):
         with pytest.raises(LookupError, match="hub.decode.ais.status"):

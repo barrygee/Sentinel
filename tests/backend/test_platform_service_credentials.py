@@ -83,9 +83,7 @@ class TestAcceptedCallers:
         accept_callers(monkeypatch, tmp_path)
         assert identify_caller("made-up") is None
 
-    def test_an_empty_token_is_no_one(
-        self, monkeypatch, tmp_path
-    ):
+    def test_an_empty_token_is_no_one(self, monkeypatch, tmp_path):
         accept_callers(monkeypatch, tmp_path)
         assert identify_caller("") is None
 

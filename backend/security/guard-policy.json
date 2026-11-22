@@ -534,16 +534,6 @@
             "access": ["browser"]
         },
         {
-            "note": "Air: replay history (status, timeline coverage, samples), read from air.db only.",
-            "paths": [
-                "/api/air/history/status",
-                "/api/air/history/coverage",
-                "/api/air/history/samples"
-            ],
-            "methods": ["GET"],
-            "access": ["browser"]
-        },
-        {
             "note": "Air: the ADS-B decoder polls its config through the gateway, without a credential.",
             "paths": ["/api/sdr/adsb/config"],
             "methods": ["GET"],

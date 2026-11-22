@@ -53,7 +53,9 @@ def first_match(path: str, routes: list[dict]) -> int:
     """Index of the first Caddy route whose path matcher takes `path` — the gateway's choice."""
     for index, route in enumerate(routes):
         for pattern in route["match"][0]["path"]:
-            if (pattern.endswith("*") and path.startswith(pattern[:-1])) or path == pattern:
+            if (
+                pattern.endswith("*") and path.startswith(pattern[:-1])
+            ) or path == pattern:
                 return index
     raise AssertionError(f"no route matches {path}")
 
@@ -64,7 +66,9 @@ class TestRoutingTable:
 
         assert {route.prefix for route in table} == set(RESERVED_ROUTE_PREFIXES)
         assert all(route.service_id == CORE_SERVICE_ID for route in table)
-        assert all(route.internal_url == CORE_URL and route.available for route in table)
+        assert all(
+            route.internal_url == CORE_URL and route.available for route in table
+        )
 
     def test_orders_longest_prefix_first(self):
         table = routing_table(
@@ -83,35 +87,50 @@ class TestRoutingTable:
     def test_core_keeps_a_tie_with_a_service_of_the_same_length(self):
         # "/api/settings" and "/api/weather1" are both 13 characters.
         assert len("/api/settings") == len("/api/weather1")
-        table = routing_table([make_registration("weather", routes=["/api/weather1"])], CORE_URL)
+        table = routing_table(
+            [make_registration("weather", routes=["/api/weather1"])], CORE_URL
+        )
 
         prefixes = [route.prefix for route in table]
         assert prefixes.index("/api/settings") < prefixes.index("/api/weather1")
 
     def test_adds_the_remote_prefix_only_for_a_service_with_a_ui(self):
         table = routing_table(
-            [make_registration("sea", ui=True), make_registration("radio", routes=["/api/sdr/radios"])],
+            [
+                make_registration("sea", ui=True),
+                make_registration("radio", routes=["/api/sdr/radios"]),
+            ],
             CORE_URL,
         )
 
-        remote_routes = [route for route in table if route.prefix.startswith("/remotes/")]
-        assert remote_routes == [GatewayRoute("/remotes/sea/", "sea", "http://sea:8000", True)]
+        remote_routes = [
+            route for route in table if route.prefix.startswith("/remotes/")
+        ]
+        assert remote_routes == [
+            GatewayRoute("/remotes/sea/", "sea", "http://sea:8000", True)
+        ]
 
     def test_carries_each_service_s_url_and_availability(self):
         table = routing_table([make_registration("weather", available=False)], CORE_URL)
 
         (weather,) = [route for route in table if route.service_id == "weather"]
-        assert weather == GatewayRoute("/api/weather/", "weather", "http://weather:8000", False)
+        assert weather == GatewayRoute(
+            "/api/weather/", "weather", "http://weather:8000", False
+        )
 
 
 class TestCaddyRoutes:
     def test_a_directory_prefix_matches_everything_below_it(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://sea:8000", True)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sea/", "sea", "http://sea:8000", True)]
+        )
 
         assert route["match"] == [{"path": ["/api/sea/*"]}]
 
     def test_a_bare_prefix_matches_the_exact_path_and_below_it(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio", CORE_URL, True)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sdr/radios", "radio", CORE_URL, True)]
+        )
 
         assert route["match"] == [{"path": ["/api/sdr/radios", "/api/sdr/radios/*"]}]
 
@@ -131,10 +150,14 @@ class TestCaddyRoutes:
     def test_proxies_plain_http_to_the_host_and_port(self, internal_url, dial):
         (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", internal_url, True)])
 
-        assert route["handle"] == [{"handler": "reverse_proxy", "upstreams": [{"dial": dial}]}]
+        assert route["handle"] == [
+            {"handler": "reverse_proxy", "upstreams": [{"dial": dial}]}
+        ]
 
     def test_proxies_https_over_tls_on_443_by_default(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "https://sea.example", True)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sea/", "sea", "https://sea.example", True)]
+        )
 
         assert route["handle"] == [
             {
@@ -144,12 +167,18 @@ class TestCaddyRoutes:
             }
         ]
 
-    def test_trusts_the_deployment_ca_for_https_upstreams_when_configured(self, monkeypatch):
+    def test_trusts_the_deployment_ca_for_https_upstreams_when_configured(
+        self, monkeypatch
+    ):
         # A hub on a radio host presents a certificate the deployment CA issued (P7.5).
         monkeypatch.setattr(
-            settings, "gateway_upstream_certificate_authority_file", "/run/service-credentials/certificate-authority.pem"
+            settings,
+            "gateway_upstream_certificate_authority_file",
+            "/run/service-credentials/certificate-authority.pem",
         )
-        (route,) = caddy_routes([GatewayRoute("/api/sdr/radios", "radio", "https://radio.lan:8443", True)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sdr/radios", "radio", "https://radio.lan:8443", True)]
+        )
 
         assert route["handle"] == [
             {
@@ -158,27 +187,42 @@ class TestCaddyRoutes:
                 "transport": {
                     "protocol": "http",
                     "tls": {
-                        "ca": {"provider": "file", "pem_files": ["/run/service-credentials/certificate-authority.pem"]}
+                        "ca": {
+                            "provider": "file",
+                            "pem_files": [
+                                "/run/service-credentials/certificate-authority.pem"
+                            ],
+                        }
                     },
                 },
             }
         ]
 
     def test_plain_http_upstreams_ignore_the_ca(self, monkeypatch):
-        monkeypatch.setattr(settings, "gateway_upstream_certificate_authority_file", "/ca.pem")
-        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://sea:8000", True)])
+        monkeypatch.setattr(
+            settings, "gateway_upstream_certificate_authority_file", "/ca.pem"
+        )
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sea/", "sea", "http://sea:8000", True)]
+        )
 
-        assert route["handle"] == [{"handler": "reverse_proxy", "upstreams": [{"dial": "sea:8000"}]}]
+        assert route["handle"] == [
+            {"handler": "reverse_proxy", "upstreams": [{"dial": "sea:8000"}]}
+        ]
 
     def test_puts_a_service_s_base_path_back_in_front_of_the_request(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://host:8000/sea", True)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sea/", "sea", "http://host:8000/sea", True)]
+        )
 
         rewrite, proxy = route["handle"]
         assert rewrite == {"handler": "rewrite", "uri": "/sea{http.request.uri}"}
         assert proxy["upstreams"] == [{"dial": "host:8000"}]
 
     def test_an_unavailable_service_gets_a_json_503_without_a_dial(self):
-        (route,) = caddy_routes([GatewayRoute("/api/sea/", "sea", "http://sea:8000", False)])
+        (route,) = caddy_routes(
+            [GatewayRoute("/api/sea/", "sea", "http://sea:8000", False)]
+        )
 
         (handler,) = route["handle"]
         assert handler["handler"] == "static_response"
@@ -193,7 +237,12 @@ class TestTheMonolithsRoutes:
     @pytest.fixture
     def table(self) -> list[GatewayRoute]:
         registrations = [
-            RegisteredService(manifest=manifest, instance_id="core", in_process=True, registered_at_ms=0)
+            RegisteredService(
+                manifest=manifest,
+                instance_id="core",
+                in_process=True,
+                registered_at_ms=0,
+            )
             for manifest in MANIFESTS
         ]
         return routing_table(registrations, CORE_URL)
@@ -231,5 +280,11 @@ class TestTheMonolithsRoutes:
         assert table[first_match(path, caddy_routes(table))].service_id == service_id
 
     def test_nothing_is_routed_under_internal(self, table):
-        patterns = [pattern for route in caddy_routes(table) for pattern in route["match"][0]["path"]]
-        assert patterns and not any(pattern.startswith("/internal") for pattern in patterns)
+        patterns = [
+            pattern
+            for route in caddy_routes(table)
+            for pattern in route["match"][0]["path"]
+        ]
+        assert patterns and not any(
+            pattern.startswith("/internal") for pattern in patterns
+        )

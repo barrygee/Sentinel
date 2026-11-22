@@ -31,7 +31,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_cache, adsb_source, air_history
+from sentinel_air.services import adsb_cache, adsb_source
 
 logger = logging.getLogger(__name__)
 
@@ -195,22 +195,10 @@ async def watch_interval_s(db: AsyncSession, mode: str) -> float:
     default = settings.adsb_watch_offgrid_interval_s if mode == "offgrid" else settings.adsb_watch_online_interval_s
     value = await read_setting(db, "air", WATCH_INTERVAL_SETTINGS.get(mode, WATCH_INTERVAL_SETTINGS["online"]))
     if not isinstance(value, int | float):
-        return _with_history_floor(default, mode)
+        return default
     if not MIN_WATCH_INTERVAL_S <= value <= MAX_WATCH_INTERVAL_S:
-        return _with_history_floor(default, mode)
-    return _with_history_floor(float(value), mode)
-
-
-def _with_history_floor(interval_s: float, mode: str) -> float:
-    """Off grid with replay history recording, fetch at least every 10 s with no browser open.
-
-    Off grid costs no quota, and without this an unattended off-grid box would
-    record a point only every 20 s by default. Online is left alone: the
-    daily quota is shared with the map.
-    """
-    if mode == "offgrid" and air_history.recorder.enabled:
-        return min(interval_s, air_history.OFFGRID_RECORDING_WATCH_INTERVAL_S)
-    return interval_s
+        return default
+    return float(value)
 
 
 async def watch_area(db: AsyncSession, mode: str | None = None) -> tuple[float, float] | None:
@@ -271,7 +259,6 @@ async def watch_once(db: AsyncSession) -> bool:
             # and otherwise wait for the next tick.
             continue
         await tracker.observe(snapshot, db)
-        air_history.record_snapshot(snapshot, "online" if adsb_service.is_online_feed(base_url) else "offgrid", now_ms)
         fresh_for_ms = (
             int(online_interval_seconds * 1000) if adsb_service.is_online_feed(base_url) else settings.adsb_ttl_ms
         )

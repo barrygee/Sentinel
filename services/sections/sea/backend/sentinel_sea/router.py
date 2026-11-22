@@ -27,15 +27,12 @@ from backend.cache import now_ms
 from backend.config import settings as app_settings
 from backend.database import get_db
 from backend.platform.bus import bus
-from backend.platform.history.router import build_history_router
 from backend.platform.settings_client import delete_secret, read_secret, write_secret
 from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from sentinel_sea.models import SeaPositionHistory
 
 # Imported for its side effect (B2): registers the decode.ais.* bus subscriber
 # that upserts off-grid AIS events into ais_store, at module-import time so it
@@ -44,7 +41,6 @@ from sentinel_sea.models import SeaPositionHistory
 from sentinel_sea.services import (
     ais_decode,  # noqa: F401
     ais_store,
-    sea_history,
 )
 from sentinel_sea.services.ais_stream import key_fingerprint, reader
 
@@ -248,9 +244,3 @@ async def delete_ais_key(db: AsyncSession = Depends(get_db)):
     """Forget the saved key; the ``.env`` key (if any) applies again."""
     await delete_secret(db, "sea", "aisstreamApiKey")
     return JSONResponse({"status": "ok"})
-
-
-# Replay history: GET /api/sea/history/{status,coverage,samples}, read from sea.db only.
-router.include_router(
-    build_history_router("", sea_history.NAMESPACE, SeaPositionHistory, sea_history.REPLAY_LOOKBACK_MS, tags=["sea"])
-)

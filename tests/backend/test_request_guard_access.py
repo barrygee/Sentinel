@@ -67,7 +67,9 @@ class TestCompilePathPattern:
 
     def test_a_template_parameter_matches_as_one_segment(self) -> None:
         # The startup check matches route *templates* against the rules.
-        assert compile_path_pattern("/api/things/{thing_id}").fullmatch("/api/things/{thing_id}")
+        assert compile_path_pattern("/api/things/{thing_id}").fullmatch(
+            "/api/things/{thing_id}"
+        )
 
 
 class TestRuleFor:
@@ -78,7 +80,9 @@ class TestRuleFor:
         assert rule.rule.group == "settings_write"
 
     def test_methods_are_case_insensitive(self, rules: AccessRules) -> None:
-        assert rules.rule_for("put", "/api/things/7") is rules.rule_for("PUT", "/api/things/7")
+        assert rules.rule_for("put", "/api/things/7") is rules.rule_for(
+            "PUT", "/api/things/7"
+        )
 
     def test_head_counts_as_get(self, rules: AccessRules) -> None:
         rule = rules.rule_for("HEAD", "/health")
@@ -86,31 +90,46 @@ class TestRuleFor:
         assert rule is not None
         assert rule.rule.paths == ["/health"]
 
-    def test_a_rule_without_methods_covers_every_method(self, rules: AccessRules) -> None:
+    def test_a_rule_without_methods_covers_every_method(
+        self, rules: AccessRules
+    ) -> None:
         for method in ("GET", "POST", "DELETE", "WEBSOCKET"):
             rule = rules.rule_for(method, "/internal/registry/register")
             assert rule is not None and rule.rule.access == ["service"]
 
-    def test_a_method_the_rules_dont_name_falls_through(self, rules: AccessRules) -> None:
+    def test_a_method_the_rules_dont_name_falls_through(
+        self, rules: AccessRules
+    ) -> None:
         # DELETE /api/things/7: no things rule names it, so only the fallback (GET) could — and doesn't.
         assert rules.rule_for("DELETE", "/api/things/7") is None
 
     def test_nothing_matches_is_none(self) -> None:
         data = minimal_policy_data()
-        data["route_rules"] = [rule for rule in data["route_rules"] if not rule.get("fallback")]
+        data["route_rules"] = [
+            rule for rule in data["route_rules"] if not rule.get("fallback")
+        ]
 
-        assert AccessRules(minimal_policy(route_rules=data["route_rules"]), "core").rule_for("GET", "/nope") is None
+        assert (
+            AccessRules(
+                minimal_policy(route_rules=data["route_rules"]), "core"
+            ).rule_for("GET", "/nope")
+            is None
+        )
 
     def test_a_profile_only_rule_applies_only_in_that_profile(self) -> None:
         core = AccessRules(minimal_policy(), "core").rule_for("GET", "/api/other-only")
-        other = AccessRules(minimal_policy(), "other").rule_for("GET", "/api/other-only")
+        other = AccessRules(minimal_policy(), "other").rule_for(
+            "GET", "/api/other-only"
+        )
 
         assert core is not None and core.rule.fallback  # only the catch-all
         assert other is not None and other.rule.access == ["browser"]
 
 
 class TestExplicitRuleFor:
-    def test_a_fallback_doesnt_classify_routes_it_merely_matches(self, rules: AccessRules) -> None:
+    def test_a_fallback_doesnt_classify_routes_it_merely_matches(
+        self, rules: AccessRules
+    ) -> None:
         # A new endpoint can't hide behind the SPA catch-all.
         assert rules.rule_for("GET", "/api/new-endpoint") is not None
         assert rules.explicit_rule_for("GET", "/api/new-endpoint") is None
@@ -120,7 +139,9 @@ class TestExplicitRuleFor:
 
         assert rule is not None and rule.rule.fallback
 
-    def test_an_ordinary_rule_classifies_its_templates(self, rules: AccessRules) -> None:
+    def test_an_ordinary_rule_classifies_its_templates(
+        self, rules: AccessRules
+    ) -> None:
         rule = rules.explicit_rule_for("get", "/api/things/{thing_id}")
 
         assert rule is not None and rule.rule.access == ["browser"]
@@ -128,25 +149,46 @@ class TestExplicitRuleFor:
 
 class TestCallerClasses:
     def test_a_lan_browser_on_its_own_page(self, rules: AccessRules) -> None:
-        assert rules.caller_classes(LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "same-origin"}), "GET") == {
+        assert rules.caller_classes(
+            LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "same-origin"}), "GET"
+        ) == {
             "page",
             "browser",
         }
 
-    def test_a_lan_read_without_browser_headers_counts_as_the_browser(self, rules: AccessRules) -> None:
+    def test_a_lan_read_without_browser_headers_counts_as_the_browser(
+        self, rules: AccessRules
+    ) -> None:
         # Browsers on plain HTTP send no Fetch Metadata, and no Origin on a read.
-        assert rules.caller_classes(LAN_BROWSER_ADDRESS, headers(), "GET") == {"page", "browser"}
+        assert rules.caller_classes(LAN_BROWSER_ADDRESS, headers(), "GET") == {
+            "page",
+            "browser",
+        }
 
-    def test_a_lan_change_without_browser_headers_is_only_a_page_visitor(self, rules: AccessRules) -> None:
+    def test_a_lan_change_without_browser_headers_is_only_a_page_visitor(
+        self, rules: AccessRules
+    ) -> None:
         assert rules.caller_classes(LAN_BROWSER_ADDRESS, headers(), "POST") == {"page"}
 
     def test_an_internet_address_is_nobody(self, rules: AccessRules) -> None:
-        assert rules.caller_classes(INTERNET_ADDRESS, headers(**{"sec-fetch-site": "same-origin"}), "GET") == set()
+        assert (
+            rules.caller_classes(
+                INTERNET_ADDRESS, headers(**{"sec-fetch-site": "same-origin"}), "GET"
+            )
+            == set()
+        )
 
-    def test_a_sentinel_process_with_and_without_its_credential(self, rules: AccessRules) -> None:
+    def test_a_sentinel_process_with_and_without_its_credential(
+        self, rules: AccessRules
+    ) -> None:
         # 172.28.0.140 is also a private (client) address, so it is a page visitor too.
-        assert rules.caller_classes(INTERNAL_ADDRESS, headers(), "POST") == {"page", "internal"}
-        assert rules.caller_classes(INTERNAL_ADDRESS, headers(authorization="Bearer x"), "POST") == {
+        assert rules.caller_classes(INTERNAL_ADDRESS, headers(), "POST") == {
+            "page",
+            "internal",
+        }
+        assert rules.caller_classes(
+            INTERNAL_ADDRESS, headers(authorization="Bearer x"), "POST"
+        ) == {
             "page",
             "internal",
             "service",
@@ -154,11 +196,15 @@ class TestCallerClasses:
 
     def test_the_operator(self, rules: AccessRules) -> None:
         assert "operator" in rules.caller_classes(OPERATOR_ADDRESS, headers(), "GET")
-        assert "operator" not in rules.caller_classes(LAN_BROWSER_ADDRESS, headers(), "GET")
+        assert "operator" not in rules.caller_classes(
+            LAN_BROWSER_ADDRESS, headers(), "GET"
+        )
 
 
 class TestAllows:
-    def test_admits_a_caller_in_one_of_the_rules_classes(self, rules: AccessRules) -> None:
+    def test_admits_a_caller_in_one_of_the_rules_classes(
+        self, rules: AccessRules
+    ) -> None:
         rule = rules.rule_for("GET", "/health")
 
         assert rule is not None
@@ -169,24 +215,43 @@ class TestAllows:
         rule = rules.rule_for("GET", "/health")
 
         assert rule is not None
-        assert not rules.allows(rule, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "same-origin"}), "GET")
+        assert not rules.allows(
+            rule,
+            LAN_BROWSER_ADDRESS,
+            headers(**{"sec-fetch-site": "same-origin"}),
+            "GET",
+        )
 
-    def test_a_service_route_needs_the_credential_header(self, rules: AccessRules) -> None:
+    def test_a_service_route_needs_the_credential_header(
+        self, rules: AccessRules
+    ) -> None:
         rule = rules.rule_for("POST", "/internal/registry/register")
 
         assert rule is not None
         assert not rules.allows(rule, INTERNAL_ADDRESS, headers(), "GET")
-        assert not rules.allows(rule, INTERNAL_ADDRESS, headers(authorization=""), "GET")
-        assert rules.allows(rule, INTERNAL_ADDRESS, headers(authorization="Bearer token"), "GET")
+        assert not rules.allows(
+            rule, INTERNAL_ADDRESS, headers(authorization=""), "GET"
+        )
+        assert rules.allows(
+            rule, INTERNAL_ADDRESS, headers(authorization="Bearer token"), "GET"
+        )
 
-    def test_the_credential_header_doesnt_help_from_outside(self, rules: AccessRules) -> None:
+    def test_the_credential_header_doesnt_help_from_outside(
+        self, rules: AccessRules
+    ) -> None:
         rule = rules.rule_for("POST", "/internal/registry/register")
 
         assert rule is not None
-        assert not rules.allows(rule, LAN_BROWSER_ADDRESS, headers(authorization="Bearer token"), "GET")
-        assert not rules.allows(rule, INTERNET_ADDRESS, headers(authorization="Bearer token"), "GET")
+        assert not rules.allows(
+            rule, LAN_BROWSER_ADDRESS, headers(authorization="Bearer token"), "GET"
+        )
+        assert not rules.allows(
+            rule, INTERNET_ADDRESS, headers(authorization="Bearer token"), "GET"
+        )
 
-    def test_a_class_the_profile_doesnt_define_admits_nobody(self, rules: AccessRules) -> None:
+    def test_a_class_the_profile_doesnt_define_admits_nobody(
+        self, rules: AccessRules
+    ) -> None:
         rule = rules.rule_for("GET", "/health")
         assert rule is not None
         del rules.classes["internal"]
@@ -207,41 +272,63 @@ class TestExcludedNetworks:
     CONTAINER_ADDRESS = "172.28.0.140"
 
     @pytest.fixture
-    def rules_excluding_containers(self, monkeypatch: pytest.MonkeyPatch) -> AccessRules:
+    def rules_excluding_containers(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> AccessRules:
         pin_guard_settings(monkeypatch, guard_container_networks="172.28.0.128/25")
         policy_data = minimal_policy_data()
         for class_name in ("page", "browser"):
-            policy_data["access_classes"][class_name]["excluded_networks"] = ["$container_networks"]
+            policy_data["access_classes"][class_name]["excluded_networks"] = [
+                "$container_networks"
+            ]
         return AccessRules(GuardPolicy.model_validate(policy_data), "core")
 
-    def test_a_container_address_is_neither_page_nor_browser(self, rules_excluding_containers: AccessRules) -> None:
-        classes = rules_excluding_containers.caller_classes(self.CONTAINER_ADDRESS, headers(), "GET")
+    def test_a_container_address_is_neither_page_nor_browser(
+        self, rules_excluding_containers: AccessRules
+    ) -> None:
+        classes = rules_excluding_containers.caller_classes(
+            self.CONTAINER_ADDRESS, headers(), "GET"
+        )
         assert classes == {"internal"}
 
-    def test_a_container_keeps_its_service_class(self, rules_excluding_containers: AccessRules) -> None:
+    def test_a_container_keeps_its_service_class(
+        self, rules_excluding_containers: AccessRules
+    ) -> None:
         classes = rules_excluding_containers.caller_classes(
             self.CONTAINER_ADDRESS, headers(authorization="Bearer x"), "POST"
         )
         assert classes == {"internal", "service"}
 
-    def test_a_lan_browser_is_unaffected(self, rules_excluding_containers: AccessRules) -> None:
-        classes = rules_excluding_containers.caller_classes(LAN_BROWSER_ADDRESS, headers(), "GET")
+    def test_a_lan_browser_is_unaffected(
+        self, rules_excluding_containers: AccessRules
+    ) -> None:
+        classes = rules_excluding_containers.caller_classes(
+            LAN_BROWSER_ADDRESS, headers(), "GET"
+        )
         assert classes == {"page", "browser"}
 
     @pytest.mark.parametrize(
         ("address", "excluded"),
         [("172.28.0.127", False), ("172.28.0.128", True), ("172.28.0.255", True)],
     )
-    def test_the_range_edges(self, rules_excluding_containers: AccessRules, address: str, excluded: bool) -> None:
+    def test_the_range_edges(
+        self, rules_excluding_containers: AccessRules, address: str, excluded: bool
+    ) -> None:
         page = rules_excluding_containers.classes["page"]
         assert qualifies(page, address, headers(), "GET") is not excluded
 
-    def test_an_unset_range_excludes_nobody(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_an_unset_range_excludes_nobody(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         pin_guard_settings(monkeypatch, guard_container_networks="")
         policy_data = minimal_policy_data()
-        policy_data["access_classes"]["page"]["excluded_networks"] = ["$container_networks"]
+        policy_data["access_classes"]["page"]["excluded_networks"] = [
+            "$container_networks"
+        ]
         rules = AccessRules(GuardPolicy.model_validate(policy_data), "core")
-        assert qualifies(rules.classes["page"], self.CONTAINER_ADDRESS, headers(), "GET")
+        assert qualifies(
+            rules.classes["page"], self.CONTAINER_ADDRESS, headers(), "GET"
+        )
 
     def test_a_bad_exclusion_fails_when_compiled(self) -> None:
         policy_data = minimal_policy_data()
@@ -261,24 +348,46 @@ class TestRefuseBrowserPages:
             "networks": ["$client_networks"],
             "refuse_browser_pages": True,
         }
-        return AccessRules(GuardPolicy.model_validate(policy_data), "core").classes["peer"]
+        return AccessRules(GuardPolicy.model_validate(policy_data), "core").classes[
+            "peer"
+        ]
 
-    def test_a_machine_client_sending_neither_header_is_admitted(self, peer: CompiledAccessClass) -> None:
+    def test_a_machine_client_sending_neither_header_is_admitted(
+        self, peer: CompiledAccessClass
+    ) -> None:
         assert qualifies(peer, LAN_BROWSER_ADDRESS, headers(), "POST")
 
-    def test_the_users_own_navigation_is_admitted(self, peer: CompiledAccessClass) -> None:
-        assert qualifies(peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "none"}), "GET")
+    def test_the_users_own_navigation_is_admitted(
+        self, peer: CompiledAccessClass
+    ) -> None:
+        assert qualifies(
+            peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": "none"}), "GET"
+        )
 
-    @pytest.mark.parametrize("fetch_site", ["same-origin", "same-site", "cross-site", "made-up"])
-    def test_any_page_sent_fetch_metadata_is_refused(self, peer: CompiledAccessClass, fetch_site: str) -> None:
-        assert not qualifies(peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": fetch_site}), "GET")
+    @pytest.mark.parametrize(
+        "fetch_site", ["same-origin", "same-site", "cross-site", "made-up"]
+    )
+    def test_any_page_sent_fetch_metadata_is_refused(
+        self, peer: CompiledAccessClass, fetch_site: str
+    ) -> None:
+        assert not qualifies(
+            peer, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": fetch_site}), "GET"
+        )
 
     @pytest.mark.parametrize("method", ["GET", "POST", "WEBSOCKET"])
-    def test_an_origin_is_refused_whatever_the_method(self, peer: CompiledAccessClass, method: str) -> None:
-        assert not qualifies(peer, LAN_BROWSER_ADDRESS, headers(origin="http://evil.example"), method)
+    def test_an_origin_is_refused_whatever_the_method(
+        self, peer: CompiledAccessClass, method: str
+    ) -> None:
+        assert not qualifies(
+            peer, LAN_BROWSER_ADDRESS, headers(origin="http://evil.example"), method
+        )
 
-    def test_an_origin_beats_a_navigation_fetch_site(self, peer: CompiledAccessClass) -> None:
-        request_headers = headers(origin="http://evil.example", **{"sec-fetch-site": "none"})
+    def test_an_origin_beats_a_navigation_fetch_site(
+        self, peer: CompiledAccessClass
+    ) -> None:
+        request_headers = headers(
+            origin="http://evil.example", **{"sec-fetch-site": "none"}
+        )
         assert not qualifies(peer, LAN_BROWSER_ADDRESS, request_headers, "POST")
 
     def test_an_empty_origin_counts_as_absent(self, peer: CompiledAccessClass) -> None:
@@ -288,7 +397,12 @@ class TestRefuseBrowserPages:
         assert not qualifies(peer, INTERNET_ADDRESS, headers(), "POST")
 
     def test_a_class_without_the_flag_ignores_origin(self, rules: AccessRules) -> None:
-        assert qualifies(rules.classes["page"], LAN_BROWSER_ADDRESS, headers(origin="http://evil.example"), "POST")
+        assert qualifies(
+            rules.classes["page"],
+            LAN_BROWSER_ADDRESS,
+            headers(origin="http://evil.example"),
+            "POST",
+        )
 
 
 class TestBrowserRequests:
@@ -297,14 +411,30 @@ class TestBrowserRequests:
         return rules.classes["browser"]
 
     @pytest.mark.parametrize("fetch_site", ["same-origin", "none"])
-    def test_its_own_page_or_the_address_bar(self, browser: CompiledAccessClass, fetch_site: str) -> None:
-        assert qualifies(browser, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": fetch_site}), "GET")
+    def test_its_own_page_or_the_address_bar(
+        self, browser: CompiledAccessClass, fetch_site: str
+    ) -> None:
+        assert qualifies(
+            browser,
+            LAN_BROWSER_ADDRESS,
+            headers(**{"sec-fetch-site": fetch_site}),
+            "GET",
+        )
 
     @pytest.mark.parametrize("fetch_site", ["cross-site", "same-site", "made-up"])
-    def test_another_site_driving_the_browser_is_refused(self, browser: CompiledAccessClass, fetch_site: str) -> None:
-        assert not qualifies(browser, LAN_BROWSER_ADDRESS, headers(**{"sec-fetch-site": fetch_site}), "GET")
+    def test_another_site_driving_the_browser_is_refused(
+        self, browser: CompiledAccessClass, fetch_site: str
+    ) -> None:
+        assert not qualifies(
+            browser,
+            LAN_BROWSER_ADDRESS,
+            headers(**{"sec-fetch-site": fetch_site}),
+            "GET",
+        )
 
-    def test_fetch_metadata_decides_over_a_matching_origin(self, browser: CompiledAccessClass) -> None:
+    def test_fetch_metadata_decides_over_a_matching_origin(
+        self, browser: CompiledAccessClass
+    ) -> None:
         request_headers = headers(
             **{"sec-fetch-site": "cross-site"},
             origin="http://sentinel.lan",
@@ -313,8 +443,12 @@ class TestBrowserRequests:
 
         assert not qualifies(browser, LAN_BROWSER_ADDRESS, request_headers, "GET")
 
-    def test_without_fetch_metadata_an_origin_naming_this_host_is_accepted(self, browser: CompiledAccessClass) -> None:
-        request_headers = headers(origin="http://Sentinel.lan:8080", host="sentinel.lan:8080")
+    def test_without_fetch_metadata_an_origin_naming_this_host_is_accepted(
+        self, browser: CompiledAccessClass
+    ) -> None:
+        request_headers = headers(
+            origin="http://Sentinel.lan:8080", host="sentinel.lan:8080"
+        )
 
         assert qualifies(browser, LAN_BROWSER_ADDRESS, request_headers, "GET")
 
@@ -330,7 +464,9 @@ class TestBrowserRequests:
     def test_without_fetch_metadata_any_other_origin_is_refused(
         self, browser: CompiledAccessClass, origin: str, host: str
     ) -> None:
-        assert not qualifies(browser, LAN_BROWSER_ADDRESS, headers(origin=origin, host=host), "GET")
+        assert not qualifies(
+            browser, LAN_BROWSER_ADDRESS, headers(origin=origin, host=host), "GET"
+        )
 
     @pytest.mark.parametrize("method", ["GET", "HEAD", "get"])
     def test_without_fetch_metadata_or_origin_a_read_is_accepted(
@@ -339,7 +475,9 @@ class TestBrowserRequests:
         # What every browser sends for the SPA's own reads over plain HTTP.
         assert qualifies(browser, LAN_BROWSER_ADDRESS, headers(), method)
 
-    @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "WEBSOCKET"])
+    @pytest.mark.parametrize(
+        "method", ["POST", "PUT", "PATCH", "DELETE", "OPTIONS", "WEBSOCKET"]
+    )
     def test_without_fetch_metadata_or_origin_a_change_is_refused(
         self, browser: CompiledAccessClass, method: str
     ) -> None:
@@ -350,22 +488,36 @@ class TestBrowserRequests:
     def test_without_fetch_metadata_a_change_with_this_hosts_origin_is_accepted(
         self, browser: CompiledAccessClass
     ) -> None:
-        request_headers = headers(origin="http://192.168.5.67:8080", host="192.168.5.67:8080")
+        request_headers = headers(
+            origin="http://192.168.5.67:8080", host="192.168.5.67:8080"
+        )
 
         assert qualifies(browser, LAN_BROWSER_ADDRESS, request_headers, "PUT")
 
-    def test_without_fetch_metadata_a_read_with_another_origin_is_refused(self, browser: CompiledAccessClass) -> None:
+    def test_without_fetch_metadata_a_read_with_another_origin_is_refused(
+        self, browser: CompiledAccessClass
+    ) -> None:
         request_headers = headers(origin="http://evil.example", host="sentinel.lan")
 
         assert not qualifies(browser, LAN_BROWSER_ADDRESS, request_headers, "GET")
 
-    def test_allow_missing_fetch_metadata_admits_every_method(self, rules: AccessRules) -> None:
+    def test_allow_missing_fetch_metadata_admits_every_method(
+        self, rules: AccessRules
+    ) -> None:
         data = minimal_policy_data()
         data["access_classes"]["browser"]["allow_missing_fetch_metadata"] = True
-        allowing = AccessRules(minimal_policy(access_classes=data["access_classes"]), "core").classes["browser"]
+        allowing = AccessRules(
+            minimal_policy(access_classes=data["access_classes"]), "core"
+        ).classes["browser"]
 
-        assert not qualifies(rules.classes["browser"], LAN_BROWSER_ADDRESS, headers(), "POST")
+        assert not qualifies(
+            rules.classes["browser"], LAN_BROWSER_ADDRESS, headers(), "POST"
+        )
         assert qualifies(allowing, LAN_BROWSER_ADDRESS, headers(), "POST")
 
-    def test_a_good_browser_from_outside_the_client_networks_is_refused(self, browser: CompiledAccessClass) -> None:
-        assert not qualifies(browser, INTERNET_ADDRESS, headers(**SAME_ORIGIN_FETCH), "GET")
+    def test_a_good_browser_from_outside_the_client_networks_is_refused(
+        self, browser: CompiledAccessClass
+    ) -> None:
+        assert not qualifies(
+            browser, INTERNET_ADDRESS, headers(**SAME_ORIGIN_FETCH), "GET"
+        )

@@ -37,7 +37,6 @@
             "pages": [
                 { "path": "use/alerts", "title": "Alerts" },
                 { "path": "use/maps", "title": "Maps" },
-                { "path": "use/replay", "title": "History and replay" },
                 { "path": "use/settings", "title": "Settings and the config file" },
                 { "path": "use/off-grid", "title": "Off grid" }
             ]

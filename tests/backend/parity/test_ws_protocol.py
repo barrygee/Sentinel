@@ -99,9 +99,7 @@ def _patch_resolve(monkeypatch, broadcaster, radio):
 def _patch_control(monkeypatch):
     radio = {"id": 1, "name": "Test", "host": "h1", "port": 1234}
     _patch_resolve(monkeypatch, _ControlBroadcaster(), radio)
-    monkeypatch.setattr(
-        sdr_svc, "get_connection", lambda host, port: _FakeConn()
-    )
+    monkeypatch.setattr(sdr_svc, "get_connection", lambda host, port: _FakeConn())
     # Neutralise the finally-block teardown so it doesn't interfere with assertions.
     from unittest.mock import AsyncMock
 

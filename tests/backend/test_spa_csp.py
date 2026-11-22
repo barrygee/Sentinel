@@ -11,11 +11,19 @@ from backend.core.spa_csp import content_security_policy, policy_for_index
 
 
 def expected_hash(source: str) -> str:
-    return "'sha256-" + base64.b64encode(hashlib.sha256(source.encode()).digest()).decode() + "'"
+    return (
+        "'sha256-"
+        + base64.b64encode(hashlib.sha256(source.encode()).digest()).decode()
+        + "'"
+    )
 
 
 def directive(policy: str, name: str) -> str:
-    (match,) = [part.strip() for part in policy.split(";") if part.strip().startswith(name + " ")]
+    (match,) = [
+        part.strip()
+        for part in policy.split(";")
+        if part.strip().startswith(name + " ")
+    ]
     return match
 
 
@@ -38,7 +46,9 @@ class TestContentSecurityPolicy:
     def test_matches_script_tags_in_any_case(self):
         html = "<SCRIPT>run()</SCRIPT >"
 
-        assert expected_hash("run()") in directive(content_security_policy(html), "script-src")
+        assert expected_hash("run()") in directive(
+            content_security_policy(html), "script-src"
+        )
 
     def test_never_allows_unsafe_inline(self):
         policy = content_security_policy("<script>a()</script>")
@@ -48,7 +58,9 @@ class TestContentSecurityPolicy:
     def test_sets_the_script_directives_and_nothing_else(self):
         policy = content_security_policy("")
 
-        assert directive(policy, "script-src") == "script-src 'self' blob: 'unsafe-eval'"
+        assert (
+            directive(policy, "script-src") == "script-src 'self' blob: 'unsafe-eval'"
+        )
         assert directive(policy, "worker-src") == "worker-src 'self' blob:"
         assert directive(policy, "object-src") == "object-src 'none'"
         assert directive(policy, "base-uri") == "base-uri 'self'"
@@ -98,7 +110,9 @@ class TestPolicyForIndex:
 
 class TestServedShell:
     @pytest.mark.parametrize("path", ["/", "/sea/", "/sdr/some/deep/link"])
-    def test_every_spa_route_carries_the_policy_for_the_committed_index(self, client, path):
+    def test_every_spa_route_carries_the_policy_for_the_committed_index(
+        self, client, path
+    ):
         from backend.core.app_sections import SPA_DIR
 
         response = client.get(path)

@@ -45,7 +45,9 @@ def recording_guard() -> MagicMock:
     guard = MagicMock(spec=SecurityDecorator)
     for name in dir(SecurityDecorator):
         if not name.startswith("_"):
-            getattr(guard, name).side_effect = lambda *arguments, _name=name, **options: (_name, arguments, options)
+            getattr(guard, name).side_effect = (
+                lambda *arguments, _name=name, **options: (_name, arguments, options)
+            )
     return guard
 
 
@@ -54,11 +56,15 @@ def passthrough_guard() -> MagicMock:
     guard = MagicMock(spec=SecurityDecorator)
     for name in dir(SecurityDecorator):
         if not name.startswith("_"):
-            getattr(guard, name).side_effect = lambda *arguments, **options: lambda endpoint: endpoint
+            getattr(guard, name).side_effect = lambda *arguments, **options: (
+                lambda endpoint: endpoint
+            )
     return guard
 
 
-def decorators_for(group: RouteGroup, **options: Any) -> list[tuple[str, tuple[Any, ...], dict[str, Any]]]:
+def decorators_for(
+    group: RouteGroup, **options: Any
+) -> list[tuple[str, tuple[Any, ...], dict[str, Any]]]:
     keyword_options = {"geo_enabled": False, "cloud_enabled": False, **options}
     return group_decorators(group, recording_guard(), **keyword_options)  # type: ignore[return-value]
 
@@ -114,21 +120,36 @@ class TestGroupDecorators:
                 group(
                     rate_limit={"requests": 5, "window_seconds": 10},
                     blocked_ips=["10.0.0.1"],
-                    time_window={"start": "08:00", "end": "18:00", "timezone": "Europe/London"},
+                    time_window={
+                        "start": "08:00",
+                        "end": "18:00",
+                        "timezone": "Europe/London",
+                    },
                 )
             )
         )
 
         assert calls["rate_limit"] == ((5, 10), {})
-        assert calls["require_ip"] == ((), {"whitelist": None, "blacklist": ["10.0.0.1"]})
+        assert calls["require_ip"] == (
+            (),
+            {"whitelist": None, "blacklist": ["10.0.0.1"]},
+        )
         assert calls["time_window"] == (("08:00", "18:00", "Europe/London"), {})
 
     def test_detection_on_off(self) -> None:
-        assert decorators_for(group(detection={"enabled": False})) == [("suspicious_detection", (False,), {})]
+        assert decorators_for(group(detection={"enabled": False})) == [
+            ("suspicious_detection", (False,), {})
+        ]
 
     def test_detection_exclusions(self) -> None:
         [(name, _, options)] = decorators_for(
-            group(detection={"scan_body": False, "excluded_headers": ["x-a"], "excluded_params": ["q"]})
+            group(
+                detection={
+                    "scan_body": False,
+                    "excluded_headers": ["x-a"],
+                    "excluded_params": ["q"],
+                }
+            )
         )
 
         assert name == "detection_exclusion"
@@ -151,13 +172,16 @@ class TestExcludedCategories:
 
     def test_are_taken_out_of_the_profiles_categories(self) -> None:
         [(_, _, options)] = decorators_for(
-            group(detection={"excluded_categories": ["ssrf"]}), profile_categories=["sqli", "xss", "ssrf"]
+            group(detection={"excluded_categories": ["ssrf"]}),
+            profile_categories=["sqli", "xss", "ssrf"],
         )
 
         assert options["categories"] == {"sqli", "xss"}
 
     def test_are_taken_out_of_every_category_when_the_profile_names_none(self) -> None:
-        [(_, _, options)] = decorators_for(group(detection={"excluded_categories": ["ssrf", "xml"]}))
+        [(_, _, options)] = decorators_for(
+            group(detection={"excluded_categories": ["ssrf", "xml"]})
+        )
 
         assert options["categories"] == set(ALL_DETECTION_CATEGORIES) - {"ssrf", "xml"}
         assert "sqli" in options["categories"]
@@ -165,7 +189,9 @@ class TestExcludedCategories:
     def test_the_route_really_scans_every_other_category(self) -> None:
         # With fastapi-guard's real decorator: what the route ends up scanning.
         profile = minimal_policy().profile_settings("core")
-        route_guard = SecurityDecorator(build_security_config(profile, service_name="core"))
+        route_guard = SecurityDecorator(
+            build_security_config(profile, service_name="core")
+        )
 
         async def save_setting() -> None:
             return None
@@ -178,7 +204,9 @@ class TestExcludedCategories:
             profile_categories=["sqli", "xss", "ssrf"],
         ):
             decorator(save_setting)
-        route_config = route_guard.get_route_config(f"{save_setting.__module__}.{save_setting.__qualname__}")
+        route_config = route_guard.get_route_config(
+            f"{save_setting.__module__}.{save_setting.__qualname__}"
+        )
 
         assert route_config is not None
         assert route_config.enabled_detection_categories == {"sqli", "xss"}
@@ -188,10 +216,16 @@ class TestAuthentication:
     def test_bearer(self) -> None:
         [(name, arguments, options)] = decorators_for(group(authentication="bearer"))
 
-        assert (name, arguments, options) == ("require_auth", ("bearer",), {"verifier": sentinel_credential_verifier})
+        assert (name, arguments, options) == (
+            "require_auth",
+            ("bearer",),
+            {"verifier": sentinel_credential_verifier},
+        )
 
     def test_decoder_secret(self) -> None:
-        [(name, arguments, options)] = decorators_for(group(authentication="decoder_secret"))
+        [(name, arguments, options)] = decorators_for(
+            group(authentication="decoder_secret")
+        )
 
         assert (name, arguments, options) == (
             "api_key_auth",
@@ -201,9 +235,13 @@ class TestAuthentication:
 
 
 class TestReferrer:
-    def test_only_while_referrer_domains_are_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_only_while_referrer_domains_are_set(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         assert decorators_for(group(require_referrer=True)) == []
-        pin_guard_settings(monkeypatch, guard_allowed_referrer_domains="sentinel.lan, 192.168.1.20")
+        pin_guard_settings(
+            monkeypatch, guard_allowed_referrer_domains="sentinel.lan, 192.168.1.20"
+        )
 
         assert decorators_for(group(require_referrer=True)) == [
             ("require_referrer", (["sentinel.lan", "192.168.1.20"],), {})
@@ -215,7 +253,12 @@ class TestMonitors:
         calls = decorators_for(
             group(
                 monitors=[
-                    {"kind": "usage", "threshold": 50, "window_seconds": 60, "action": "ban"},
+                    {
+                        "kind": "usage",
+                        "threshold": 50,
+                        "window_seconds": 60,
+                        "action": "ban",
+                    },
                     {"kind": "frequency", "threshold": 2.5, "window_seconds": 10},
                     {"kind": "return_pattern", "threshold": 5, "pattern": "status:404"},
                 ]
@@ -230,16 +273,34 @@ class TestMonitors:
 
     def test_behaviour_rules_become_fastapi_guard_rules(self) -> None:
         [(name, (rules,), _)] = decorators_for(
-            group(behavior_rules=[{"type": "frequency", "threshold": 9, "window_seconds": 30, "action": "ban"}])
+            group(
+                behavior_rules=[
+                    {
+                        "type": "frequency",
+                        "threshold": 9,
+                        "window_seconds": 30,
+                        "action": "ban",
+                    }
+                ]
+            )
         )
 
         assert name == "behavior_analysis"
-        assert (rules[0].rule_type, rules[0].threshold, rules[0].window, rules[0].action) == ("frequency", 9, 30, "ban")
+        assert (
+            rules[0].rule_type,
+            rules[0].threshold,
+            rules[0].window,
+            rules[0].action,
+        ) == ("frequency", 9, 30, "ban")
 
 
 class TestOnlineFeatures:
     geo_group = group(
-        geo={"blocked_countries": ["RU"], "allowed_countries": ["GB"], "rate_limits": {"US": {"requests": 10}}},
+        geo={
+            "blocked_countries": ["RU"],
+            "allowed_countries": ["GB"],
+            "rate_limits": {"US": {"requests": 10}},
+        },
         blocked_clouds=["AWS"],
     )
 
@@ -262,7 +323,9 @@ class TestOnlineFeatures:
 
 class TestCustomValidators:
     def test_an_unknown_one_is_a_policy_error(self) -> None:
-        with pytest.raises(RouteClassificationError, match="unknown custom validator 'nope'"):
+        with pytest.raises(
+            RouteClassificationError, match="unknown custom validator 'nope'"
+        ):
             decorators_for(group(custom_validators=["nope"]))
 
     def test_the_known_ones(self) -> None:
@@ -276,21 +339,30 @@ class TestCustomValidators:
         assert response is not None and response.status_code == 400
 
     async def test_no_query_string_lets_none_through(self) -> None:
-        assert await _no_query_string(MagicMock(query_params={}, url_path="/api/x")) is None
+        assert (
+            await _no_query_string(MagicMock(query_params={}, url_path="/api/x"))
+            is None
+        )
 
 
 class TestCredentialVerifier:
-    def test_names_the_caller_a_credential_belongs_to(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_names_the_caller_a_credential_belongs_to(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
         assert sentinel_credential_verifier(MagicMock(), TOKENS["space"]) == "space"
 
-    def test_refuses_an_unknown_credential(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_refuses_an_unknown_credential(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
         assert sentinel_credential_verifier(MagicMock(), "not-a-token") is None
 
-    def test_refuses_an_empty_credential(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_refuses_an_empty_credential(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         accept_callers(monkeypatch, tmp_path)
 
         assert sentinel_credential_verifier(MagicMock(), "") is None
@@ -316,7 +388,9 @@ class TestApplyRouteGroups:
             *extra,
         ]
 
-    def apply(self, entries: list[RouteEntry], route_guard: Any = None) -> dict[str, str]:
+    def apply(
+        self, entries: list[RouteEntry], route_guard: Any = None
+    ) -> dict[str, str]:
         policy = minimal_policy()
         return apply_route_groups(
             entries,
@@ -331,7 +405,10 @@ class TestApplyRouteGroups:
         # A static mount (no endpoint) has a rule but nothing to decorate.
         groups = self.apply(self.entries(RouteEntry("GET", "/internal/**", None)))
 
-        assert groups == {f"{__name__}.read_thing": "default", f"{__name__}.save_thing": "settings_write"}
+        assert groups == {
+            f"{__name__}.read_thing": "default",
+            f"{__name__}.save_thing": "settings_write",
+        }
 
     def test_decorates_each_endpoint_with_its_groups_protections(self) -> None:
         route_guard = recording_guard()
@@ -349,14 +426,18 @@ class TestApplyRouteGroups:
         )
 
         assert decorated == [save_thing]
-        assert route_guard.detection_exclusion.call_args.kwargs["categories"] == set(ALL_DETECTION_CATEGORIES) - {
-            "ssrf"
-        }
+        assert route_guard.detection_exclusion.call_args.kwargs["categories"] == set(
+            ALL_DETECTION_CATEGORIES
+        ) - {"ssrf"}
 
-    def test_uses_this_processs_profile_categories(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_uses_this_processs_profile_categories(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         pin_guard_settings(monkeypatch, guard_profile="other")
         route_guard = recording_guard()
-        route_guard.detection_exclusion.side_effect = lambda **options: lambda endpoint: endpoint
+        route_guard.detection_exclusion.side_effect = lambda **options: (
+            lambda endpoint: endpoint
+        )
         policy = minimal_policy()
 
         apply_route_groups(
@@ -368,11 +449,16 @@ class TestApplyRouteGroups:
             cloud_enabled=False,
         )
 
-        assert route_guard.detection_exclusion.call_args.kwargs["categories"] == {"sqli", "xss"}
+        assert route_guard.detection_exclusion.call_args.kwargs["categories"] == {
+            "sqli",
+            "xss",
+        }
 
     def test_an_unclassified_route_stops_startup_and_is_named(self) -> None:
         with pytest.raises(RouteClassificationError) as refusal:
-            self.apply(self.entries(RouteEntry("POST", "/api/new-endpoint", save_thing)))
+            self.apply(
+                self.entries(RouteEntry("POST", "/api/new-endpoint", save_thing))
+            )
 
         assert "POST /api/new-endpoint" in str(refusal.value)
         assert f"{__name__}.save_thing" in str(refusal.value)
@@ -390,4 +476,6 @@ class TestApplyRouteGroups:
     def test_unclassified_routes_lists_only_those_without_a_rule(self) -> None:
         new_route = RouteEntry("GET", "/api/new-endpoint", read_thing)
 
-        assert unclassified_routes(self.entries(new_route), AccessRules(minimal_policy(), "core")) == [new_route]
+        assert unclassified_routes(
+            self.entries(new_route), AccessRules(minimal_policy(), "core")
+        ) == [new_route]

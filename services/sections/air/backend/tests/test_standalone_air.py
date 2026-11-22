@@ -15,6 +15,7 @@ from backend.config import settings
 from backend.platform import settings_client
 from backend.utils import resolve_effective_mode
 from sqlalchemy import inspect
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -48,6 +49,21 @@ async def table_columns(engine) -> dict[str, set[str]]:
 
 
 class TestCreateAirTables:
+    async def test_drops_the_removed_movement_history_table(self, air_engine):
+        """Movement history & replay was removed: an install that recorded keeps no history on disk."""
+        async with air_engine.begin() as connection:
+            await connection.execute(
+                sa_text("CREATE TABLE air_position_history (id INTEGER PRIMARY KEY, entity_id TEXT, t_ms INTEGER)")
+            )
+            await connection.execute(sa_text("INSERT INTO air_position_history (entity_id, t_ms) VALUES ('x', 1)"))
+
+        await air_database.create_air_tables()
+
+        tables = set(await table_columns(air_engine))
+        assert "air_position_history" not in tables
+        assert tables  # the section's own tables are still created
+        assert air_database.REMOVED_HISTORY_TABLES == ("air_position_history",)
+
     async def test_creates_only_the_air_tables_not_cores_notifications(self, air_engine):
         await air_database.create_air_tables()
 
@@ -57,7 +73,6 @@ class TestCreateAirTables:
             "air_tracking",
             "adsb_online_call",
             "adsb_online_refusal",
-            "air_position_history",
         }
 
     async def test_matches_the_monoliths_schema_for_those_tables(self, air_engine):

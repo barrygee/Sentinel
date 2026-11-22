@@ -37,12 +37,18 @@ def deployment(tmp_path_factory) -> Path:
 
 async def _serve_tls(certificate_folder: Path):
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-    context.load_cert_chain(certificate_folder / "certificate.pem", certificate_folder / "private-key.pem")
+    context.load_cert_chain(
+        certificate_folder / "certificate.pem", certificate_folder / "private-key.pem"
+    )
 
-    async def answer(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    async def answer(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
         try:
             await reader.readuntil(b"\r\n\r\n")
-            writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+            writer.write(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+            )
             await writer.drain()
         except (asyncio.IncompleteReadError, ConnectionError, ssl.SSLError):
             pass
@@ -58,7 +64,11 @@ def test_nothing_configured_trusts_the_public_authorities_only():
 
 
 async def test_trusts_a_certificate_the_deployment_ca_issued(deployment, monkeypatch):
-    monkeypatch.setattr(settings, "internal_certificate_authority_file", str(deployment / "certificate-authority.pem"))
+    monkeypatch.setattr(
+        settings,
+        "internal_certificate_authority_file",
+        str(deployment / "certificate-authority.pem"),
+    )
     server, port = await _serve_tls(deployment)
     async with server:
         async with httpx.AsyncClient(verify=internal_verify()) as client:
@@ -74,8 +84,14 @@ async def test_without_the_deployment_ca_the_same_certificate_is_refused(deploym
                 await client.get(f"https://localhost:{port}/health")
 
 
-async def test_a_name_the_certificate_does_not_cover_is_refused(deployment, monkeypatch):
-    monkeypatch.setattr(settings, "internal_certificate_authority_file", str(deployment / "certificate-authority.pem"))
+async def test_a_name_the_certificate_does_not_cover_is_refused(
+    deployment, monkeypatch
+):
+    monkeypatch.setattr(
+        settings,
+        "internal_certificate_authority_file",
+        str(deployment / "certificate-authority.pem"),
+    )
     server, port = await _serve_tls(deployment)
     async with server:
         async with httpx.AsyncClient(verify=internal_verify()) as client:
@@ -83,27 +99,41 @@ async def test_a_name_the_certificate_does_not_cover_is_refused(deployment, monk
             # doesn't cover (127.0.0.1 now is: the web page over HTTPS).
             with pytest.raises(httpx.ConnectError):
                 await client.get(
-                    f"https://127.0.0.1:{port}/health", extensions={"sni_hostname": "not-covered.example"}
+                    f"https://127.0.0.1:{port}/health",
+                    extensions={"sni_hostname": "not-covered.example"},
                 )
 
 
 def test_the_public_authorities_stay_trusted_alongside(deployment, monkeypatch):
-    monkeypatch.setattr(settings, "internal_certificate_authority_file", str(deployment / "certificate-authority.pem"))
+    monkeypatch.setattr(
+        settings,
+        "internal_certificate_authority_file",
+        str(deployment / "certificate-authority.pem"),
+    )
     context = internal_verify()
     assert isinstance(context, ssl.SSLContext)
-    subjects = [dict(field[0] for field in authority["subject"]) for authority in context.get_ca_certs()]
+    subjects = [
+        dict(field[0] for field in authority["subject"])
+        for authority in context.get_ca_certs()
+    ]
     assert {"commonName": "Sentinel event bus CA"} in subjects
     # certifi's bundle is well over a hundred authorities; ours is one more.
     assert len(subjects) > 100
 
 
 def test_the_context_is_built_once_per_file(deployment, monkeypatch):
-    monkeypatch.setattr(settings, "internal_certificate_authority_file", str(deployment / "certificate-authority.pem"))
+    monkeypatch.setattr(
+        settings,
+        "internal_certificate_authority_file",
+        str(deployment / "certificate-authority.pem"),
+    )
     assert internal_verify() is internal_verify()
 
 
 @pytest.mark.parametrize("contents", [None, "not a certificate"])
-def test_an_unusable_ca_file_is_logged_and_falls_back(monkeypatch, tmp_path, caplog, contents):
+def test_an_unusable_ca_file_is_logged_and_falls_back(
+    monkeypatch, tmp_path, caplog, contents
+):
     path = tmp_path / "certificate-authority.pem"
     if contents is not None:
         path.write_text(contents)

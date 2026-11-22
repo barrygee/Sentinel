@@ -10,11 +10,23 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket
 from starlette.datastructures import URLPath
-from starlette.routing import BaseRoute, Match, Mount, NoMatchFound, Route, WebSocketRoute
+from starlette.routing import (
+    BaseRoute,
+    Match,
+    Mount,
+    NoMatchFound,
+    Route,
+    WebSocketRoute,
+)
 from starlette.staticfiles import StaticFiles
 from starlette.types import Receive, Scope, Send
 
-from backend.platform.security.route_inventory import WEBSOCKET_METHOD, RouteEntry, attach_static_endpoints, iter_routes
+from backend.platform.security.route_inventory import (
+    WEBSOCKET_METHOD,
+    RouteEntry,
+    attach_static_endpoints,
+    iter_routes,
+)
 
 
 async def read_thing() -> dict[str, str]:
@@ -43,7 +55,10 @@ def build_app(tmp_path: Path) -> FastAPI:
 
 class TestIterRoutes:
     def test_flattens_mounts_and_lists_each_method(self, tmp_path: Path) -> None:
-        entries = [(entry.method, entry.path) for entry in iter_routes(build_app(tmp_path).routes)]
+        entries = [
+            (entry.method, entry.path)
+            for entry in iter_routes(build_app(tmp_path).routes)
+        ]
 
         assert ("GET", "/health") in entries
         assert ("GET", "/api/things/{thing_id}") in entries
@@ -51,13 +66,21 @@ class TestIterRoutes:
         assert ("PUT", "/api/things/{thing_id}") in entries
         assert (WEBSOCKET_METHOD, "/api/live") in entries
 
-    def test_a_static_mount_is_one_entry_for_everything_under_it(self, tmp_path: Path) -> None:
-        static = [entry for entry in iter_routes(build_app(tmp_path).routes) if entry.endpoint is None]
+    def test_a_static_mount_is_one_entry_for_everything_under_it(
+        self, tmp_path: Path
+    ) -> None:
+        static = [
+            entry
+            for entry in iter_routes(build_app(tmp_path).routes)
+            if entry.endpoint is None
+        ]
 
         assert static == [RouteEntry("GET", "/remotes/space/**", None)]
 
     def test_head_rides_along_with_get(self) -> None:
-        entries = list(iter_routes([Route("/page", read_thing, methods=["GET", "HEAD"])]))
+        entries = list(
+            iter_routes([Route("/page", read_thing, methods=["GET", "HEAD"])])
+        )
 
         assert [entry.method for entry in entries] == ["GET"]
 
@@ -75,17 +98,26 @@ class TestIterRoutes:
         inner = Mount("/v1", routes=[Route("/sdrs", read_thing, methods=["GET"])])
         entries = list(iter_routes([Mount("/api", routes=[inner])]))
 
-        assert [(entry.method, entry.path) for entry in entries] == [("GET", "/api/v1/sdrs")]
+        assert [(entry.method, entry.path) for entry in entries] == [
+            ("GET", "/api/v1/sdrs")
+        ]
 
     def test_serving_order_is_kept(self, tmp_path: Path) -> None:
         paths = [entry.path for entry in iter_routes(build_app(tmp_path).routes)]
 
-        assert paths.index("/health") < paths.index("/api/things/{thing_id}") < paths.index("/remotes/space/**")
+        assert (
+            paths.index("/health")
+            < paths.index("/api/things/{thing_id}")
+            < paths.index("/remotes/space/**")
+        )
 
 
 class TestEndpointName:
     def test_names_the_function(self) -> None:
-        assert RouteEntry("GET", "/x", read_thing).endpoint_name == f"{__name__}.read_thing"
+        assert (
+            RouteEntry("GET", "/x", read_thing).endpoint_name
+            == f"{__name__}.read_thing"
+        )
 
     def test_a_static_mount_has_no_function(self) -> None:
         assert RouteEntry("GET", "/x/**", None).endpoint_name == "static files"
@@ -114,10 +146,16 @@ class TestAttachStaticEndpoints:
 
         attach_static_endpoints(app.routes)
 
-        static = {entry.path: entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")}
+        static = {
+            entry.path: entry.endpoint
+            for entry in iter_routes(app.routes)
+            if entry.path.endswith("/**")
+        }
         assert set(static) == {"/remotes/space/**", "/fonts/**"}
         assert static["/remotes/space/**"] is not static["/fonts/**"]
-        assert RouteEntry("GET", "/fonts/**", static["/fonts/**"]).endpoint_name.endswith("static_files[/fonts]")
+        assert RouteEntry(
+            "GET", "/fonts/**", static["/fonts/**"]
+        ).endpoint_name.endswith("static_files[/fonts]")
 
     def test_reaches_static_mounts_inside_mounted_apps(self, tmp_path: Path) -> None:
         inner = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -134,25 +172,44 @@ class TestAttachStaticEndpoints:
     def test_running_again_keeps_the_same_stand_in(self, tmp_path: Path) -> None:
         app = build_app(tmp_path)
         attach_static_endpoints(app.routes)
-        first = [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")]
+        first = [
+            entry.endpoint
+            for entry in iter_routes(app.routes)
+            if entry.path.endswith("/**")
+        ]
 
         attach_static_endpoints(app.routes)
 
-        assert [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")] == first
+        assert [
+            entry.endpoint
+            for entry in iter_routes(app.routes)
+            if entry.path.endswith("/**")
+        ] == first
 
     async def test_the_stand_in_does_nothing_if_called(self, tmp_path: Path) -> None:
         app = build_app(tmp_path)
         attach_static_endpoints(app.routes)
-        [stand_in] = [entry.endpoint for entry in iter_routes(app.routes) if entry.path.endswith("/**")]
+        [stand_in] = [
+            entry.endpoint
+            for entry in iter_routes(app.routes)
+            if entry.path.endswith("/**")
+        ]
 
         assert stand_in is not None
         assert await stand_in() is None
 
     def test_routes_and_endpoints_are_left_alone(self, tmp_path: Path) -> None:
         app = build_app(tmp_path)
-        before = [(entry.method, entry.path, entry.endpoint) for entry in iter_routes(app.routes) if entry.endpoint]
+        before = [
+            (entry.method, entry.path, entry.endpoint)
+            for entry in iter_routes(app.routes)
+            if entry.endpoint
+        ]
 
         attach_static_endpoints(app.routes)
 
-        after = [(entry.method, entry.path, entry.endpoint) for entry in iter_routes(app.routes)]
+        after = [
+            (entry.method, entry.path, entry.endpoint)
+            for entry in iter_routes(app.routes)
+        ]
         assert all(row in after for row in before)

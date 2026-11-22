@@ -60,7 +60,9 @@ class TestShippedPolicy:
 
         for profile_name in policy.profiles:
             categories = policy.profile_settings(profile_name).detection.categories
-            assert categories, f"{profile_name}: an empty list means every category, ssrf included"
+            assert categories, (
+                f"{profile_name}: an empty list means every category, ssrf included"
+            )
             assert "ssrf" not in categories, profile_name
 
     def test_a_browser_must_say_the_request_came_from_this_site(self) -> None:
@@ -76,7 +78,10 @@ class TestShippedPolicy:
         assert "$container_networks" in access_class.excluded_networks
 
     def test_a_web_page_cant_pass_as_a_peer(self) -> None:
-        assert read_policy(DEFAULT_POLICY_PATH).access_classes["peer"].refuse_browser_pages is True
+        assert (
+            read_policy(DEFAULT_POLICY_PATH).access_classes["peer"].refuse_browser_pages
+            is True
+        )
 
     def test_the_new_checks_are_opt_in(self) -> None:
         internal = read_policy(DEFAULT_POLICY_PATH).access_classes["internal"]
@@ -90,10 +95,20 @@ class TestShippedPolicy:
         policy = read_policy(DEFAULT_POLICY_PATH)
 
         for profile_name in policy.profiles:
-            assert policy.profile_settings(profile_name).detection.enabled is False, profile_name
+            assert policy.profile_settings(profile_name).detection.enabled is False, (
+                profile_name
+            )
         assert sorted(
-            name for name, group in policy.route_groups.items() if group.detection and group.detection.enabled
-        ) == ["body_free_action", "console_login", "expensive_jobs", "json_write", "radio_control"]
+            name
+            for name, group in policy.route_groups.items()
+            if group.detection and group.detection.enabled
+        ) == [
+            "body_free_action",
+            "console_login",
+            "expensive_jobs",
+            "json_write",
+            "radio_control",
+        ]
 
     def test_settings_writes_bodies_arent_scanned(self) -> None:
         # Scanning a large setting held core up past a service's 5 s timeout at startup.
@@ -124,14 +139,18 @@ class TestValidation:
         data = minimal_policy_data()
         del data["access_classes"]["operator"]
 
-        with pytest.raises(ValidationError, match=r"undefined access classes: \['operator'\]"):
+        with pytest.raises(
+            ValidationError, match=r"undefined access classes: \['operator'\]"
+        ):
             GuardPolicy.model_validate(data)
 
     def test_a_rule_naming_an_undefined_group_stops_loading(self) -> None:
         data = minimal_policy_data()
         data["route_rules"][0]["group"] = "nonexistent"
 
-        with pytest.raises(ValidationError, match=r"undefined route groups: \['nonexistent'\]"):
+        with pytest.raises(
+            ValidationError, match=r"undefined route groups: \['nonexistent'\]"
+        ):
             GuardPolicy.model_validate(data)
 
     def test_a_rule_naming_an_undefined_profile_stops_loading(self) -> None:
@@ -187,7 +206,9 @@ class TestValidation:
             GuardPolicy.model_validate(data)
 
     def test_the_schema_reference_is_accepted(self) -> None:
-        policy = GuardPolicy.model_validate({**minimal_policy_data(), "$schema": "guard-policy.schema.json"})
+        policy = GuardPolicy.model_validate(
+            {**minimal_policy_data(), "$schema": "guard-policy.schema.json"}
+        )
 
         assert policy.schema_ref == "guard-policy.schema.json"
 
@@ -240,22 +261,34 @@ class TestDeepMerge:
         assert override == {"detection": {"enabled": False}, "extra": {"key": "value"}}
 
     def test_an_object_replaces_a_non_object(self) -> None:
-        assert _deep_merge({"detection": None}, {"detection": {"enabled": True}}) == {"detection": {"enabled": True}}
+        assert _deep_merge({"detection": None}, {"detection": {"enabled": True}}) == {
+            "detection": {"enabled": True}
+        }
 
 
 class TestLoading:
     def test_reads_the_bundled_policy_by_default(self) -> None:
         assert policy_path() == DEFAULT_POLICY_PATH
-        assert DEFAULT_POLICY_PATH == Path(__file__).resolve().parents[2] / "backend" / "security" / "guard-policy.json"
+        assert (
+            DEFAULT_POLICY_PATH
+            == Path(__file__).resolve().parents[2]
+            / "backend"
+            / "security"
+            / "guard-policy.json"
+        )
 
-    def test_guard_policy_file_points_elsewhere(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_guard_policy_file_points_elsewhere(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         path = write_policy(tmp_path)
         pin_guard_settings(monkeypatch, guard_policy_file=str(path))
 
         assert policy_path() == path
         assert set(load_policy().profiles) == {"core", "other"}
 
-    def test_is_read_once(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_is_read_once(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         path = write_policy(tmp_path)
         pin_guard_settings(monkeypatch, guard_policy_file=str(path))
         first = load_policy()
@@ -278,16 +311,25 @@ class TestLoading:
 class TestBlockedUserAgents:
     def test_are_plain_words(self) -> None:
         settings_for = minimal_policy_data()
-        settings_for["defaults"]["blocked_user_agents"] = ["sqlmap", "Nikto", "go-http-client", "w3af 1.0"]
-
-        assert GuardPolicy.model_validate(settings_for).profile_settings("core").blocked_user_agents == [
+        settings_for["defaults"]["blocked_user_agents"] = [
             "sqlmap",
             "Nikto",
             "go-http-client",
             "w3af 1.0",
         ]
 
-    @pytest.mark.parametrize("pattern", ["(?i)sqlmap", "nikto.*", "^nmap", "a", "sql|map", ""])
+        assert GuardPolicy.model_validate(settings_for).profile_settings(
+            "core"
+        ).blocked_user_agents == [
+            "sqlmap",
+            "Nikto",
+            "go-http-client",
+            "w3af 1.0",
+        ]
+
+    @pytest.mark.parametrize(
+        "pattern", ["(?i)sqlmap", "nikto.*", "^nmap", "a", "sql|map", ""]
+    )
     def test_regex_syntax_is_refused(self, pattern: str) -> None:
         data = minimal_policy_data()
         data["defaults"]["blocked_user_agents"] = [pattern]
@@ -296,7 +338,11 @@ class TestBlockedUserAgents:
             GuardPolicy.model_validate(data)
 
     def test_the_shipped_policy_blocks_scanners_by_word(self) -> None:
-        words = read_policy(DEFAULT_POLICY_PATH).profile_settings("core").blocked_user_agents
+        words = (
+            read_policy(DEFAULT_POLICY_PATH)
+            .profile_settings("core")
+            .blocked_user_agents
+        )
 
         assert "sqlmap" in words and "nikto" in words
         assert all("(" not in word and "?" not in word for word in words)

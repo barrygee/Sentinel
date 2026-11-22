@@ -7,7 +7,6 @@ Sea's to store: it is a secret setting, kept in core.
 """
 
 from backend.database import Base
-from backend.platform.history.schema import PositionHistoryMixin
 from sqlalchemy import Column, Integer, Text
 
 
@@ -57,13 +56,3 @@ class SeaVesselStatic(Base):
     imo = Column(Text, nullable=False, default="")
     ship_type = Column(Text, nullable=False, default="")  # ITU-R M.1371 ship-and-cargo type code
     updated_at = Column(Integer, nullable=False)  # Unix ms the static data was last heard
-
-
-class SeaPositionHistory(PositionHistoryMixin, Base):
-    """Recorded vessel positions for replay (rolling window, `sea.historyEnabled`).
-
-    ``entity_id`` is the MMSI, the same whether AISStream or the off-grid AIS
-    decoder heard the report, so a track continues across a source switch.
-    """
-
-    __tablename__ = "sea_position_history"

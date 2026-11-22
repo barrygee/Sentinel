@@ -120,7 +120,9 @@ class TestCreateCoreApp:
         paths = [route.path for route in app.routes]
         assert paths[-1] == "/{full_path:path}"
         assert set(paths_of(settings_router.router)) <= set(paths)
-        section_paths = {path for router in SECTION_AND_HUB_ROUTERS for path in paths_of(router)}
+        section_paths = {
+            path for router in SECTION_AND_HUB_ROUTERS for path in paths_of(router)
+        }
         assert not section_paths & set(paths)
 
     def test_runs_the_bus_then_core(self):
@@ -137,11 +139,15 @@ class TestCreateCoreApp:
 
         assert response.status_code == 404
 
-    def test_refuses_remotes_before_the_spa_catch_all_and_keeps_it_out_of_the_api_schema(self):
+    def test_refuses_remotes_before_the_spa_catch_all_and_keeps_it_out_of_the_api_schema(
+        self,
+    ):
         app = create_core_app()
 
         paths = [route.path for route in app.routes]
-        assert paths.index("/remotes/{remote_path:path}") < paths.index("/{full_path:path}")
+        assert paths.index("/remotes/{remote_path:path}") < paths.index(
+            "/{full_path:path}"
+        )
         assert not any(path.startswith("/remotes") for path in app.openapi()["paths"])
 
     def test_serves_no_section_remotes_by_default(self):

@@ -1,7 +1,5 @@
 import { getActivePinia } from 'pinia'
 import { registerSection } from '@sentinel/shell-api/shell/sectionRegistry'
-import { registerSettingsHydrator } from '@sentinel/shell-api/shell/settingsHydration'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { assertHostPinia, type ShellContext } from '@sentinel/shell-api/shell/shellContext'
 import { registerSidebarFilterSubTabs } from '@sentinel/shell-api/shell/sidebarRegistry'
 import SeaView from './SeaView.vue'
@@ -31,9 +29,4 @@ export default function register(shell: ShellContext): void {
 
   // FILTER rail sub-tabs (F2).
   registerSidebarFilterSubTabs('sea', seaSidebarFilter)
-
-  // Replay: whether SEA records history, and how many days the timeline reaches.
-  registerSettingsHydrator('sea', (settings) =>
-    usePlaybackStore().applyHistorySettings('sea', settings.sea),
-  )
 }

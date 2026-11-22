@@ -293,7 +293,6 @@ import { absoluteSpriteTransform } from '@sentinel/map-kit/utils/mapStyle'
 import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useOfflineMapsStore } from '@sentinel/shell-api/stores/offlineMaps'
 import { useLandStore } from './stores/land'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { useRepeatersStore } from './stores/repeaters'
 import { useBasemapStore } from '@sentinel/shell-api/stores/basemap'
 
@@ -959,29 +958,5 @@ describe('LandView — APRS with no receiver', () => {
     shared.emit!('map-created', map)
 
     expect(aprsSpies.setVisible).not.toHaveBeenCalledWith(true)
-  })
-
-  describe('replay', () => {
-    it('swaps the store in and out of replay, redraws on a jump and stops on unmount', async () => {
-      const store = useLandStore()
-      const start = vi.spyOn(store, 'startReplay').mockImplementation(() => {})
-      const stop = vi.spyOn(store, 'stopReplay').mockImplementation(() => {})
-      const refresh = vi.spyOn(store, 'refreshReplay').mockImplementation(() => {})
-      const wrapper = mountView()
-      const playback = usePlaybackStore()
-      playback.enterReplay('land')
-      await nextTick()
-      expect(start).toHaveBeenCalledTimes(1)
-      playback.seek('land', Date.now() - 60_000)
-      await nextTick()
-      expect(refresh).toHaveBeenCalled()
-      playback.exitReplay('land')
-      await nextTick()
-      expect(stop).toHaveBeenCalledTimes(1)
-      playback.enterReplay('land')
-      await nextTick()
-      wrapper.unmount()
-      expect(stop).toHaveBeenCalledTimes(2)
-    })
   })
 })

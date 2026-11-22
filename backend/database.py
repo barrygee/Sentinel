@@ -66,11 +66,17 @@ async def _add_columns(conn, alter_statements) -> None:
             pass
 
 
-async def create_section_tables(table_names: tuple[str, ...], added_columns: tuple[str, ...] = ()) -> None:
+async def create_section_tables(
+    table_names: tuple[str, ...],
+    added_columns: tuple[str, ...] = (),
+    removed_tables: tuple[str, ...] = (),
+) -> None:
     """Create only a section's own tables — the schema of its service's own database (P6).
 
     `added_columns` are the ALTERs for columns added to those tables after
-    their first release, shared with create_tables().
+    their first release, shared with create_tables(). `removed_tables` are
+    tables a removed feature left in the section's database: they are dropped
+    (idempotent — a fresh install never had them).
     """
     async with engine.begin() as conn:
         from backend import models  # noqa: F401 — import triggers model registration with Base
@@ -78,6 +84,8 @@ async def create_section_tables(table_names: tuple[str, ...], added_columns: tup
         section_tables = [Base.metadata.tables[table_name] for table_name in table_names]
         await conn.run_sync(lambda sync_conn: Base.metadata.create_all(sync_conn, tables=section_tables))
         await _add_columns(conn, added_columns)
+        for removed_table in removed_tables:
+            await conn.execute(sa_text(f"DROP TABLE IF EXISTS {removed_table}"))
 
 
 async def create_tables():
@@ -238,6 +246,14 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
     # SDR recordings folder (removed 2026-11-05): recordings save straight into
     # the recordings directory.
     ("sdr", "recordingsFolder"),
+    # Movement history & replay (removed 2026-11-22): each section's recording
+    # switch and retention window. The recorded tables are dropped by each
+    # section's create_*_tables (REMOVED_HISTORY_TABLES in its database.py).
+    *(
+        (namespace, key)
+        for namespace in ("air", "sea", "land", "space")
+        for key in ("historyEnabled", "historyRetentionDays")
+    ),
 )
 
 # Key-prefix families pruned the same way, for removed features that stored one

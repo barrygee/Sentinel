@@ -2,9 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { usePersistedObject, usePersistedRef } from '@sentinel/shell-api/stores/_persist'
 import { SEA_MAX_RENDER_ROWS, SEA_POLL_INTERVAL_MS, SEA_REFETCH_GUARD_MS } from '../constants/sea'
-import type { HistoryFramePlayer } from '@sentinel/shell-api/playback/HistoryFramePlayer'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
-import { createSeaReplayPlayer, vesselFromFrame } from './seaReplayFrames'
 import {
   isSeaFilterCategory,
   type SeaFilterCategory,
@@ -273,11 +270,6 @@ export const useSeaStore = defineStore('sea', () => {
    *  list. A failed request marks the feed unreachable but keeps the last list
    *  so the map does not blank on a transient error. */
   async function fetchVessels(): Promise<void> {
-    // Replaying: "fetch" means draw the recording for the (possibly new) viewport.
-    if (replayPlayer) {
-      await drawReplayFrame()
-      return
-    }
     inFlight?.abort()
     const controller = new AbortController()
     inFlight = controller
@@ -318,11 +310,10 @@ export const useSeaStore = defineStore('sea', () => {
   }
 
   /** Begin polling the vessel snapshot (ref-counted). The first caller fetches
-   *  at once — unless a fetch landed a moment ago — and starts the interval.
-   *  In replay the consumer is counted but nothing is fetched until live again. */
+   *  at once — unless a fetch landed a moment ago — and starts the interval. */
   function startPolling(): void {
     pollers += 1
-    if (pollTimer !== null || replayPlayer) return
+    if (pollTimer !== null) return
     if (Date.now() - lastFetchedAt.value > SEA_REFETCH_GUARD_MS) void fetchVessels()
     pollTimer = setInterval(() => void fetchVessels(), SEA_POLL_INTERVAL_MS)
   }
@@ -339,10 +330,6 @@ export const useSeaStore = defineStore('sea', () => {
 
   /** Load one vessel's recent path into `selectedTrack`; empties it on failure. */
   async function fetchTrack(mmsi: string): Promise<void> {
-    if (replayPlayer) {
-      selectedTrack.value = replayTrack(replayPlayer, mmsi)
-      return
-    }
     try {
       const res = await fetch(`/api/sea/vessels/${encodeURIComponent(mmsi)}/track`, {
         cache: 'no-store',
@@ -358,80 +345,6 @@ export const useSeaStore = defineStore('sea', () => {
     } catch {
       selectedTrack.value = []
     }
-  }
-
-  // ── replay (Settings › SEA › History & Replay) ───────────────────────────
-  // While replaying, `vessels` and `selectedTrack` are filled from the
-  // recording at the replayed moment instead of the live snapshot, so
-  // everything that reads them carries on unchanged.
-  const playback = usePlaybackStore()
-  let replayPlayer: HistoryFramePlayer | null = null
-  let replayTimer: ReturnType<typeof setInterval> | undefined
-  let replayFrameInFlight = false
-
-  function replayTrack(player: HistoryFramePlayer, mmsi: string): SeaTrackSample[] {
-    return player
-      .trackUntil(mmsi, playback.sections.sea.cursorMs)
-      .map((sample) => ({ lat: sample.lat, lon: sample.lon, t: Math.floor(sample.t / 1000) }))
-  }
-
-  async function drawReplayFrame(): Promise<void> {
-    const player = replayPlayer
-    if (!player || replayFrameInFlight) return
-    replayFrameInFlight = true
-    try {
-      const frame = await player.frameAt(playback.sections.sea.cursorMs)
-      if (replayPlayer !== player) return
-      vessels.value = frame.slice(0, SEA_MAX_RENDER_ROWS).map(vesselFromFrame)
-      const sources = new Set(frame.map((entity) => entity.source))
-      feed.value = {
-        ...DEFAULT_FEED,
-        // Recorded data is complete by definition: no source warnings while replaying.
-        status: 'live',
-        mode: sources.has('offgrid') && !sources.has('online') ? 'offgrid' : 'online',
-        source: 'Recorded history',
-        vesselCount: frame.length,
-      }
-      if (selectedMmsi.value) selectedTrack.value = replayTrack(player, selectedMmsi.value)
-    } finally {
-      replayFrameInFlight = false
-    }
-  }
-
-  /** Swap the live snapshot for the recording (polling pauses; its consumers stay counted). */
-  function startReplay(): void {
-    if (replayPlayer) return
-    if (pollTimer !== null) clearInterval(pollTimer)
-    pollTimer = null
-    inFlight?.abort()
-    inFlight = null
-    replayPlayer = createSeaReplayPlayer(() => viewportBbox.value)
-    vessels.value = []
-    // A frame a second of wall time — the map's own 1 Hz redraw cadence.
-    replayTimer = setInterval(() => void drawReplayFrame(), 1000)
-    void drawReplayFrame()
-  }
-
-  /** Back to the live snapshot: the recorded picture is dropped and polling resumes if anything is watching. */
-  function stopReplay(): void {
-    if (!replayPlayer) return
-    clearInterval(replayTimer)
-    replayTimer = undefined
-    replayPlayer.reset()
-    replayPlayer = null
-    vessels.value = []
-    feed.value = { ...DEFAULT_FEED }
-    lastFetchedAt.value = 0
-    if (selectedMmsi.value) void fetchTrack(selectedMmsi.value)
-    if (pollers > 0) {
-      pollers -= 1
-      startPolling()
-    }
-  }
-
-  /** Draw the replayed moment now (after a seek, or a pan that changed the area). */
-  function refreshReplay(): void {
-    if (replayPlayer) void drawReplayFrame()
   }
 
   /**
@@ -477,8 +390,5 @@ export const useSeaStore = defineStore('sea', () => {
     stopPolling,
     fetchTrack,
     selectVessel,
-    startReplay,
-    stopReplay,
-    refreshReplay,
   }
 })

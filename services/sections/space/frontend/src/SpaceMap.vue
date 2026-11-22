@@ -12,8 +12,6 @@
 </template>
 
 <script setup lang="ts">
-import { useSectionReplay } from '@sentinel/shell-api/playback/useSectionReplay'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { ref, shallowRef, onBeforeUnmount, nextTick } from 'vue'
 import { useDocumentEvent } from '@sentinel/ui/composables/useDocumentEvent'
 import type { Map as MapLibreGlMap } from 'maplibre-gl'
@@ -79,25 +77,6 @@ function onGoToLocation(): void {
 
 useDocumentEvent('space-go-to-location', onGoToLocation)
 
-// Replay (Settings › SPACE › History & Replay): positions, ground tracks,
-// footprints and the terminator are recomputed for the replayed moment;
-// everything else on the map carries on as it is.
-const playback = usePlaybackStore()
-useSectionReplay('space', {
-  enter: () => {
-    satelliteControl?.setReplaying(true)
-    daynightControl?.setReplaying(true)
-  },
-  exit: () => {
-    satelliteControl?.setReplaying(false)
-    daynightControl?.setReplaying(false)
-  },
-  jumped: () => {
-    void satelliteControl?._fetch()
-    void daynightControl?._fetch()
-  },
-})
-
 /** Build and add this map's controls, once, on the first style load. */
 function addControls(m: MapLibreGlMap): void {
   satelliteControl = new SatelliteControl(
@@ -125,11 +104,6 @@ function addControls(m: MapLibreGlMap): void {
   m.addControl(satelliteControl, 'top-right')
   m.addControl(daynightControl, 'top-right')
   m.addControl(namesControl, 'top-right')
-  // Opened mid-replay (SPACE was left while replaying): start on the replayed moment.
-  if (playback.isReplaying('space')) {
-    satelliteControl.setReplaying(true)
-    daynightControl.setReplaying(true)
-  }
 
   // Clicking a satellite alert centres it in the viewport here (no follow).
   // Registering drains any pending target stashed when the alert was clicked

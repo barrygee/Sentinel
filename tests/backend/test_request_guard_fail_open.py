@@ -16,7 +16,10 @@ import pytest
 from guard_core.exceptions import GuardRedisError
 
 from backend.platform.security import fail_open
-from backend.platform.security.fail_open import FailOpenBehaviorStore, make_behavior_tracking_fail_open
+from backend.platform.security.fail_open import (
+    FailOpenBehaviorStore,
+    make_behavior_tracking_fail_open,
+)
 
 
 class FakeRedisHandler:
@@ -41,20 +44,32 @@ class TestFailOpenBehaviorStore:
         handler = FakeRedisHandler(hits=7)
         store = FailOpenBehaviorStore(handler)
 
-        assert await store.record_sliding_window_hit("behavior", "192.168.1.50", 100.0, 40.0, 60) == 7
+        assert (
+            await store.record_sliding_window_hit(
+                "behavior", "192.168.1.50", 100.0, 40.0, 60
+            )
+            == 7
+        )
         assert handler.calls == [("behavior", "192.168.1.50", 100.0, 40.0, 60)]
 
     async def test_counts_zero_when_redis_is_down(self) -> None:
         store = FailOpenBehaviorStore(FakeRedisHandler(hits=None))
 
-        assert await store.record_sliding_window_hit("behavior", "192.168.1.50", 100.0, 40.0, 60) == 0
+        assert (
+            await store.record_sliding_window_hit(
+                "behavior", "192.168.1.50", 100.0, 40.0, 60
+            )
+            == 0
+        )
 
     async def test_logs_the_outage_at_most_once_a_minute(
         self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
     ) -> None:
         clock = iter([1000.0, 1030.0, 1061.0])
         # Its own `time` only: the event loop reads time.monotonic too.
-        monkeypatch.setattr(fail_open, "time", SimpleNamespace(monotonic=lambda: next(clock)))
+        monkeypatch.setattr(
+            fail_open, "time", SimpleNamespace(monotonic=lambda: next(clock))
+        )
         store = FailOpenBehaviorStore(FakeRedisHandler(hits=None))
 
         with caplog.at_level(logging.WARNING, logger="sentinel.guard"):
@@ -70,7 +85,9 @@ class TestFailOpenBehaviorStore:
                 raise RuntimeError("a bug, not an outage")
 
         with pytest.raises(RuntimeError, match="a bug"):
-            await FailOpenBehaviorStore(BrokenHandler()).record_sliding_window_hit("behavior", "key", 1.0, 0.0, 60)
+            await FailOpenBehaviorStore(BrokenHandler()).record_sliding_window_hit(
+                "behavior", "key", 1.0, 0.0, 60
+            )
 
     def test_everything_else_goes_straight_through(self) -> None:
         handler = FakeRedisHandler()
@@ -99,7 +116,12 @@ class TestMakeBehaviorTrackingFailOpen:
 
         assert isinstance(wrapped_first, FailOpenBehaviorStore)
         assert isinstance(tracker.redis_handler, FailOpenBehaviorStore)
-        assert await tracker.redis_handler.record_sliding_window_hit("b", "k", 1.0, 0.0, 60) == 2
+        assert (
+            await tracker.redis_handler.record_sliding_window_hit(
+                "b", "k", 1.0, 0.0, 60
+            )
+            == 2
+        )
 
     async def test_no_redis_stays_no_redis(self) -> None:
         tracker = FakeBehaviorTracker()

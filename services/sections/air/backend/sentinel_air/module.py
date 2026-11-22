@@ -4,7 +4,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_air.database import create_air_tables
-from sentinel_air.services import air_history, online_quota
+from sentinel_air.services import online_quota
 from sentinel_air.services.adsb_squawk import watcher
 
 # `/api/air/messages` stays core's (notifications); the gateway sends that
@@ -21,17 +21,10 @@ async def _start() -> None:
     # Fetches aircraft itself only while no browser is, so emergency squawks
     # raise alerts with no Air page open (docs/plans/adsb-server-alerts.md).
     watcher.start()
-    # Replay history: the flush loop reads air.historyEnabled on its first
-    # pass; the prune runs whether recording is on or not.
-    await air_history.recorder.start()
-    await air_history.retention.start()
 
 
 async def _stop() -> None:
     await watcher.stop()
-    await air_history.retention.stop()
-    # Last: writes whatever the watcher's final snapshot buffered.
-    await air_history.recorder.stop()
 
 
 # Core never creates Air's tables; Air does, in whatever database its process uses.

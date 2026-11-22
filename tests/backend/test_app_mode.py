@@ -42,7 +42,9 @@ class TestCurrentAppMode:
     def test_sdr_manager_local_only_lands_on_its_settings_section(self, monkeypatch):
         monkeypatch.setattr(settings, "sentinel_mode", "sdr-manager-local-only")
 
-        assert current_app_mode() == AppMode(mode="sdr-manager-local-only", landingPath="/settings/sdr-manager")
+        assert current_app_mode() == AppMode(
+            mode="sdr-manager-local-only", landingPath="/settings/sdr-manager"
+        )
 
     def test_every_mode_has_a_landing_path(self):
         assert set(LANDING_PATHS) == {"full", "sdr-manager-local-only"}
@@ -53,7 +55,9 @@ class TestEndpoint:
         ("mode", "landing_path"),
         [("full", "/"), ("sdr-manager-local-only", "/settings/sdr-manager")],
     )
-    def test_answers_the_configured_mode_in_camel_case(self, monkeypatch, mode, landing_path):
+    def test_answers_the_configured_mode_in_camel_case(
+        self, monkeypatch, mode, landing_path
+    ):
         monkeypatch.setattr(settings, "sentinel_mode", mode)
 
         response = TestClient(app).get("/api/app/mode")

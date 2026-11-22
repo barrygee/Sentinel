@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_space.models import SatelliteCatalogue, TleCache
 from sentinel_space.services import daynight as dn_service
-from sentinel_space.services import sat_radio, tle_history
+from sentinel_space.services import sat_radio
 from sentinel_space.services import satellite as sat_service
 from sentinel_space.services import tle as tle_service
 
@@ -53,11 +53,6 @@ _USER_ASSIGNABLE_CATEGORIES = _VALID_CATEGORIES - {"active"}
 
 _ISS_NORAD = "25544"
 
-# `at` (replay): Unix ms in a sane range (2000–2100); anything else is a client bug.
-_REPLAY_EARLIEST_MS = 946_684_800_000
-_REPLAY_LATEST_MS = 4_102_444_800_000
-_AT_DESCRIPTION = "Replay: compute for this moment (Unix ms) instead of now, from stored TLEs only"
-
 
 async def _tle_database_is_empty(db: AsyncSession) -> bool:
     """Return True if the TLE cache table contains no rows."""
@@ -70,24 +65,14 @@ async def _get_satellite_data(
     db: AsyncSession,
     obs_lat: float | None = None,
     obs_lon: float | None = None,
-    at_ms: int | None = None,
 ) -> dict:
     """Fetch TLE, propagate position/track/footprint for any satellite.
 
     When an observer location is supplied, the live position is annotated with
     observer-relative look angles (az/el) so the sky-plot marker is exact.
-    With `at_ms` (replay) everything is computed for that moment from the TLE
-    version that applied then, read from the database only — never fetched.
 
     Raises RuntimeError if TLE is unavailable, or re-raises other exceptions.
     """
-    if at_ms is not None:
-        replay_lines = await tle_history.tle_lines_at(db, norad_id, at_ms)
-        if replay_lines is None:
-            raise RuntimeError(f"No TLE data for NORAD {norad_id}")
-        line1, line2 = replay_lines
-        at = datetime.fromtimestamp(at_ms / 1000, tz=UTC)
-        return await asyncio.to_thread(_propagate_satellite, line1, line2, obs_lat, obs_lon, at)
     primary_url, fallback_url = await resolve_domain_urls("space", db)
     tle_text = await tle_service.fetch_tle(norad_id, db, primary_url, fallback_url)
     _, line1, line2 = tle_service.parse_tle_lines(tle_text)
@@ -103,14 +88,13 @@ def _propagate_satellite(
     line2: str,
     obs_lat: float | None,
     obs_lon: float | None,
-    at: datetime | None = None,
 ) -> dict:
-    """Compute position, ground track, footprint and optional look angles from TLE lines, now or at `at`.
+    """Compute position, ground track, footprint and optional look angles from TLE lines.
 
     Synchronous and free of loop-bound state, so it is safe to run in a worker thread.
     """
-    position = sat_service.compute_position(line1, line2, at)
-    ground_track = sat_service.compute_ground_track(line1, line2, at)
+    position = sat_service.compute_position(line1, line2)
+    ground_track = sat_service.compute_ground_track(line1, line2)
     footprint = sat_service.compute_footprint(position["lat"], position["lon"], position["alt_km"])
     if obs_lat is not None and obs_lon is not None:
         position.update(
@@ -130,7 +114,6 @@ def _propagate_satellite(
 async def get_iss(
     lat: float | None = Query(None, description="Observer latitude for live look-angles"),
     lon: float | None = Query(None, description="Observer longitude for live look-angles"),
-    at: int | None = Query(None, ge=_REPLAY_EARLIEST_MS, le=_REPLAY_LATEST_MS, description=_AT_DESCRIPTION),
     db: AsyncSession = Depends(get_db),
 ):
     """Return the current ISS position, ground track (±2 orbits), and visibility footprint.
@@ -145,7 +128,7 @@ async def get_iss(
     if await _tle_database_is_empty(db):
         return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-    return JSONResponse(await _get_satellite_data(_ISS_NORAD, db, lat, lon, at))
+    return JSONResponse(await _get_satellite_data(_ISS_NORAD, db, lat, lon))
 
 
 @router.get("/satellite/{norad_id}")
@@ -153,7 +136,6 @@ async def get_satellite(
     norad_id: str,
     lat: float | None = Query(None, description="Observer latitude for live look-angles"),
     lon: float | None = Query(None, description="Observer longitude for live look-angles"),
-    at: int | None = Query(None, ge=_REPLAY_EARLIEST_MS, le=_REPLAY_LATEST_MS, description=_AT_DESCRIPTION),
     db: AsyncSession = Depends(get_db),
 ):
     """Return current position, ground track, and footprint for any satellite by NORAD ID.
@@ -166,7 +148,7 @@ async def get_satellite(
         if await _tle_database_is_empty(db):
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        return JSONResponse(await _get_satellite_data(norad_id, db, lat, lon, at))
+        return JSONResponse(await _get_satellite_data(norad_id, db, lat, lon))
 
     except RuntimeError as e:
         msg = str(e)
@@ -368,15 +350,13 @@ async def get_multi_satellite_passes(
 
 
 @router.get("/daynight")
-async def get_daynight(
-    at: int | None = Query(None, ge=_REPLAY_EARLIEST_MS, le=_REPLAY_LATEST_MS, description=_AT_DESCRIPTION),
-):
-    """Return the day/night terminator as a GeoJSON Polygon Feature, now or at `at` (replay).
+async def get_daynight():
+    """Return the current day/night terminator as a GeoJSON Polygon Feature.
 
-    Computed fresh on each request from the UTC time alone.
+    Computed fresh on each request using only the current UTC time.
     """
     try:
-        feature = dn_service.compute_terminator(datetime.fromtimestamp(at / 1000, tz=UTC) if at is not None else None)
+        feature = dn_service.compute_terminator()
         return JSONResponse(feature)
     except Exception:
         logger.exception("Terminator computation failed")
@@ -784,14 +764,3 @@ async def clear_tle_data(
         await db.commit()
 
     return JSONResponse({"cleared": True, "category": category, "count": len(norad_ids)})
-
-
-@router.get("/history/status")
-async def get_history_status(db: AsyncSession = Depends(get_db)):
-    """Replay history for Settings: whether TLE versions are being kept, how many, and the database size.
-
-    Space stores no positions — a replayed moment is recomputed from the TLE
-    that applied then — so it has no coverage or samples endpoints: every
-    moment in the retention window can be replayed.
-    """
-    return JSONResponse(await tle_history.history_status(db))

@@ -1,4 +1,3 @@
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import * as maplibregl from 'maplibre-gl'
 import { SentinelControlBase } from '@sentinel/map-kit/sentinel-control-base/SentinelControlBase'
 import type { useSpaceStore } from '../../stores/space'
@@ -9,7 +8,6 @@ export class DaynightControl extends SentinelControlBase {
   dnVisible: boolean
   private _spaceStore: SpaceStore
   private _pollInterval: ReturnType<typeof setInterval> | null = null
-  private readonly _playback = usePlaybackStore()
   private _geojson: GeoJSON.Feature | null = null
 
   constructor(spaceStore: SpaceStore) {
@@ -33,13 +31,6 @@ export class DaynightControl extends SentinelControlBase {
     else this.map.once('style.load', () => this.initLayers())
     this._pollInterval = setInterval(() => this._fetch(), 60000)
     this._fetch()
-  }
-
-  /** Follow replay: refresh every 2 s while replaying (at 300× that is ten recorded minutes), every minute live. */
-  setReplaying(replaying: boolean): void {
-    if (this._pollInterval) clearInterval(this._pollInterval)
-    this._pollInterval = setInterval(() => this._fetch(), replaying ? 2000 : 60000)
-    void this._fetch()
   }
 
   protected handleClick(): void {
@@ -84,11 +75,7 @@ export class DaynightControl extends SentinelControlBase {
 
   async _fetch(): Promise<void> {
     try {
-      // Replay: the terminator for the replayed moment.
-      const at = this._playback.isReplaying('space')
-        ? `?at=${Math.floor(this._playback.now('space'))}`
-        : ''
-      const resp = await fetch(`/api/space/daynight${at}`)
+      const resp = await fetch('/api/space/daynight')
       if (!resp.ok) return
       const data = (await resp.json()) as GeoJSON.Feature
       this._geojson = data

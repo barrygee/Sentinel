@@ -3,9 +3,7 @@ import { mount, flushPromises, enableAutoUnmount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import { axe } from 'jest-axe'
 import MapSidebar from './MapSidebar.vue'
-import SectionReplayPanel from '@sentinel/shell-api/playback/SectionReplayPanel.vue'
 import { useNotificationsStore } from '@sentinel/shell-api/stores/notifications'
-import { usePlaybackStore } from '@sentinel/shell-api/stores/playback'
 import { useAirStore } from '@sentinel/section-air/stores/air'
 import { useSpaceStore } from '@sentinel/section-space/stores/space'
 import { useSeaStore } from '@sentinel/section-sea/stores/sea'
@@ -42,7 +40,7 @@ const OPEN_KEY = 'sentinel_sidebar_open'
 function mountSidebar(props: Record<string, unknown> = {}) {
   return mount(MapSidebar, {
     props,
-    global: { stubs: { NotificationsPanel: true, TrackingPanel: true, SectionReplayPanel: true } },
+    global: { stubs: { NotificationsPanel: true, TrackingPanel: true } },
   })
 }
 
@@ -622,95 +620,5 @@ describe('MapSidebar', () => {
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
-  })
-
-  describe('REPLAY tab', () => {
-    const replayTab = (wrapper: ReturnType<typeof mountSidebar>) =>
-      wrapper.find('.msb-rail-btn[data-tab="replay"]')
-
-    it('is absent while the section does not record history', () => {
-      const wrapper = mountSidebar()
-      expect(replayTab(wrapper).exists()).toBe(false)
-      expect(wrapper.findComponent(SectionReplayPanel).exists()).toBe(false)
-    })
-
-    it('appears last for a recording section and opens its replay pane', async () => {
-      usePlaybackStore().setHistoryEnabled('air', true)
-      const wrapper = mountSidebar()
-      const tab = replayTab(wrapper)
-      expect(tab.exists()).toBe(true)
-      expect(tab.attributes('aria-label')).toBe('REPLAY')
-      expect(tab.attributes('aria-controls')).toBe('msb-pane-replay')
-      expect(wrapper.findAll('.msb-rail-btn').at(-1)!.attributes('data-tab')).toBe('replay')
-      const panel = () => wrapper.findComponent(SectionReplayPanel)
-      expect(panel().props()).toMatchObject({
-        sectionId: 'air',
-        sectionLabel: 'Air',
-        hasCoverage: true,
-        visible: false,
-      })
-      await tab.trigger('click')
-      expect((wrapper.vm as unknown as SidebarVm).activeTab).toBe('replay')
-      expect(wrapper.get('#msb-pane-replay').classes()).toContain('msb-pane-active')
-      expect(panel().props('visible')).toBe(true)
-    })
-
-    it("Space's pane has no recorded coverage to shade", () => {
-      setPath('/space/')
-      usePlaybackStore().setHistoryEnabled('space', true)
-      const panel = mountSidebar().findComponent(SectionReplayPanel)
-      expect(panel.props()).toMatchObject({ sectionId: 'space', hasCoverage: false })
-    })
-
-    it('follows the section: present only where recording is on', async () => {
-      usePlaybackStore().setHistoryEnabled('air', true)
-      const wrapper = mountSidebar()
-      document.dispatchEvent(
-        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sea', prev: 'air' } }),
-      )
-      await flushPromises()
-      expect(replayTab(wrapper).exists()).toBe(false)
-      document.dispatchEvent(
-        new CustomEvent('sentinel:domain-changed', { detail: { domain: 'sdr', prev: 'sea' } }),
-      )
-      await flushPromises()
-      expect(replayTab(wrapper).exists()).toBe(false)
-    })
-
-    it('falls back to FILTER when recording is switched off while it is open', async () => {
-      const playback = usePlaybackStore()
-      playback.setHistoryEnabled('air', true)
-      const wrapper = mountSidebar()
-      ;(wrapper.vm as unknown as SidebarVm).switchTab('replay')
-      await flushPromises()
-      playback.setHistoryEnabled('air', false)
-      await flushPromises()
-      expect((wrapper.vm as unknown as SidebarVm).activeTab).toBe('search')
-    })
-
-    it('switching recording off while another tab is open leaves that tab', async () => {
-      const playback = usePlaybackStore()
-      playback.setHistoryEnabled('air', true)
-      const wrapper = mountSidebar()
-      ;(wrapper.vm as unknown as SidebarVm).switchTab('tracking')
-      playback.setHistoryEnabled('air', false)
-      await flushPromises()
-      expect((wrapper.vm as unknown as SidebarVm).activeTab).toBe('tracking')
-    })
-
-    it('a saved REPLAY tab is restored only while the section records', () => {
-      localStorage.setItem(TAB_MAP_KEY, JSON.stringify({ air: 'replay' }))
-      expect((mountSidebar().vm as unknown as SidebarVm).activeTab).toBe('search')
-      usePlaybackStore().setHistoryEnabled('air', true)
-      expect((mountSidebar().vm as unknown as SidebarVm).activeTab).toBe('replay')
-      localStorage.removeItem(TAB_MAP_KEY)
-    })
-
-    it('a saved REPLAY tab on a section without replay restores to FILTER', () => {
-      setPath('/sdr/')
-      localStorage.setItem(TAB_MAP_KEY, JSON.stringify({ sdr: 'replay' }))
-      expect((mountSidebar().vm as unknown as SidebarVm).activeTab).toBe('search')
-      localStorage.removeItem(TAB_MAP_KEY)
-    })
   })
 })

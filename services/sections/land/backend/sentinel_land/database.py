@@ -6,10 +6,12 @@ from sentinel_land import models  # noqa: F401 — registers Land's tables with 
 
 LAND_TABLES: tuple[str, ...] = ("aprs_stations", "repeater_cache")
 
-# Added after the split: nothing in the legacy database to import, so only created.
-LAND_SERVICE_ONLY_TABLES: tuple[str, ...] = ("land_position_history",)
+
+# Movement history & replay (removed 2026-11-22) recorded into this table; it is
+# dropped on startup so the history doesn't linger on disk.
+REMOVED_HISTORY_TABLES: tuple[str, ...] = ("land_position_history",)
 
 
 async def create_land_tables() -> None:
-    """Create Land's tables. None has gained a column since its first release."""
-    await create_section_tables(LAND_TABLES + LAND_SERVICE_ONLY_TABLES)
+    """Create Land's tables. Neither has gained a column since its first release."""
+    await create_section_tables(LAND_TABLES, removed_tables=REMOVED_HISTORY_TABLES)
