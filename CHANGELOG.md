@@ -320,6 +320,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add per-section history settings and regenerate contract goldens
 - Add the replay playback kit
 - Replay movement on the Air, Sea, Land and Space maps
+- Move the replay controls into the left side panel
+- Show the time frames recorded and the file size in Settings
 
 ### Bug Fixes
 
@@ -1988,6 +1990,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #690 from barrygee/feat/count-tag-lists-sites
 - Merge pull request #691 from barrygee/feat/movement-history-replay
 - Merge pull request #692 from barrygee/fix/history-status-size
+- Merge pull request #693 from barrygee/feat/replay-side-panel
 
 ### Performance
 
@@ -2371,6 +2374,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Cover the count's hover tag
 - Read a count's number, and show its tag on hover
 - Cover the replay rail button, timeline and settings item
+- Update SDR CSS-cascade snapshots for the slider row track wrapper
 
 ### Build System
 
@@ -2538,6 +2542,8 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild bundle for the count's hover tag
 - Rebuild the bundle for movement history and replay
 - Rebuild the bundle for the history size split
+- Rebuild the bundle for the replay side panel
+- Rebuild the bundle for the history settings summary
 
 ### Continuous Integration
 
