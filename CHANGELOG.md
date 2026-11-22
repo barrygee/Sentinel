@@ -718,6 +718,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop the local receiver's aircraft replacing the online snapshot
 - Stop drawing this machine twice on maps with the operator marker
 - Leave a marker that was never given this machine's tag untouched
+- Show the history's own size beside the database size
 
 ### Chores
 
@@ -1986,6 +1987,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #689 from barrygee/feat/fan-out-crowded-sites
 - Merge pull request #690 from barrygee/feat/count-tag-lists-sites
 - Merge pull request #691 from barrygee/feat/movement-history-replay
+- Merge pull request #692 from barrygee/fix/history-status-size
 
 ### Performance
 
@@ -2535,6 +2537,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the shell for fanned-out SDR sites
 - Rebuild bundle for the count's hover tag
 - Rebuild the bundle for movement history and replay
+- Rebuild the bundle for the history size split
 
 ### Continuous Integration
 
