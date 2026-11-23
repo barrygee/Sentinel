@@ -52,6 +52,52 @@ afterEach(() => {
 })
 
 describe('useExpandedAircraftTelemetry', () => {
+  describe('before the expanded aircraft has been seen live (restored selection)', () => {
+    it('reports loading, not SIGNAL LOST, while the feed has not got it', () => {
+      const { telemetry } = setup('aa1', [])
+      telemetry.refreshExpandedPlane()
+      expect(telemetry.awaitingData.value).toBe(true)
+      expect(telemetry.signalLost.value).toBe(false)
+      expect(telemetry.liveAircraftData.value).toEqual(EMPTY_AIRCRAFT_DATA)
+    })
+
+    it('stops loading once the aircraft appears, and a later dropout is SIGNAL LOST', () => {
+      const { telemetry, aircraftFeatures } = setup('aa1', [])
+      telemetry.refreshExpandedPlane()
+      aircraftFeatures.value = [feature('aa1', 9000)]
+      telemetry.refreshExpandedPlane()
+      expect(telemetry.awaitingData.value).toBe(false)
+      expect(telemetry.signalLost.value).toBe(false)
+      expect(telemetry.liveAircraftData.value.alt).toBe('9,000 ft')
+
+      aircraftFeatures.value = []
+      telemetry.refreshExpandedPlane()
+      expect(telemetry.signalLost.value).toBe(true)
+      expect(telemetry.awaitingData.value).toBe(false)
+    })
+
+    it('closes the row after the grace window when the aircraft never appears', () => {
+      const { telemetry, hex, snapshot } = setup('aa1', [])
+      telemetry.refreshExpandedPlane()
+      vi.advanceTimersByTime(SIGNAL_LOST_GRACE_MS - 1)
+      expect(hex.value).toBe('aa1')
+      vi.advanceTimersByTime(1)
+      expect(hex.value).toBeNull()
+      expect(snapshot.value).toBeNull()
+      expect(telemetry.awaitingData.value).toBe(false)
+      expect(telemetry.signalLost.value).toBe(false)
+    })
+
+    it('treats a newly expanded aircraft as unseen even after another was seen', () => {
+      const { telemetry, hex } = setup('aa1', [feature('aa1')])
+      telemetry.refreshExpandedPlane()
+      hex.value = 'bb2'
+      telemetry.refreshExpandedPlane()
+      expect(telemetry.awaitingData.value).toBe(true)
+      expect(telemetry.signalLost.value).toBe(false)
+    })
+  })
+
   it('starts on the placeholder with no signal-lost flag', () => {
     const { telemetry } = setup()
     expect(telemetry.liveAircraftData.value).toEqual(EMPTY_AIRCRAFT_DATA)

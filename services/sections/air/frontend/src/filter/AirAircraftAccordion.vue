@@ -1,6 +1,12 @@
 <template>
+  <!-- Until the aircraft's first feed update lands there are no values to show,
+       so only a loading message renders. -->
+  <div v-if="loading" class="apt-acc-body acft-acc-body">
+    <p class="acft-acc-loading" role="status">Loading aircraft data…</p>
+  </div>
   <!-- Live telemetry re-renders each ADS-B poll. -->
   <div
+    v-else
     class="apt-acc-body acft-acc-body"
     :class="{ 'acft-acc-body--stale': signalLost, 'acft-acc-body--emergency': emergency }"
   >
@@ -34,8 +40,8 @@
 <script setup lang="ts">
 /**
  * An expanded aircraft row in the Air FILTER pane: its live position,
- * movement and identity, a SIGNAL LOST flag (values dimmed) while it is out of
- * the feed, red headings for an emergency, and the track / alerts / centre
+ * movement and identity, a loading message until its first feed update, a
+ * SIGNAL LOST flag (values dimmed) while it is out of the feed, red headings for an emergency, and the track / alerts / centre
  * buttons. The pane owns the telemetry and handles the actions.
  */
 import BaseDataGrid from '@sentinel/ui/base/BaseDataGrid.vue'
@@ -47,6 +53,9 @@ import './AirAircraftAccordion.css'
 
 defineProps<{
   liveData: AircraftLiveData
+  /** The aircraft hasn't appeared in the feed yet (e.g. a selection restored on
+   *  opening Air before the first update), so there is nothing to show. */
+  loading?: boolean
   /** The aircraft has dropped out of the feed; the values are its last known. */
   signalLost: boolean
   /** An emergency squawk or transponder emergency. */

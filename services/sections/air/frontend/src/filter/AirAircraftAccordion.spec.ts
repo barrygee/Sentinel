@@ -32,6 +32,29 @@ function mountAccordion(overrides: Record<string, unknown> = {}) {
 }
 
 describe('AirAircraftAccordion', () => {
+  describe('while loading (no feed data for the aircraft yet)', () => {
+    it('shows only an announced loading message: no telemetry, flag or actions', () => {
+      const wrapper = mountAccordion({ loading: true, signalLost: true })
+      const status = wrapper.get('.acft-acc-loading')
+      expect(status.attributes('role')).toBe('status')
+      expect(status.text()).toBe('Loading aircraft data…')
+      expect(wrapper.find('.ba-data-cell').exists()).toBe(false)
+      expect(wrapper.find('.acft-acc-signal-lost').exists()).toBe(false)
+      expect(wrapper.findComponent(AirAircraftActions).exists()).toBe(false)
+    })
+
+    it('has no axe violations', async () => {
+      const wrapper = mountAccordion({ loading: true })
+      expect(await axe(wrapper.element)).toHaveNoViolations()
+    })
+  })
+
+  it('shows the telemetry, not the loading message, when loading is not set', () => {
+    const wrapper = mountAccordion()
+    expect(wrapper.find('.acft-acc-loading').exists()).toBe(false)
+    expect(wrapper.find('.ba-data-cell').exists()).toBe(true)
+  })
+
   it('lays the telemetry out in POSITION, an untitled movement grid and IDENTIFICATION', () => {
     const wrapper = mountAccordion()
     expect(wrapper.findAll('.ba-data-grid-title').map((title) => title.text())).toEqual([
