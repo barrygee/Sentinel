@@ -18,6 +18,7 @@
       <AirAircraftAccordion
         v-if="filterCategory === 'aircraft'"
         :live-data="liveAircraftData"
+        :loading="awaitingAircraftData"
         :signal-lost="signalLost"
         :emergency="planeFor(item.key)!.emergency"
         :tracking="followedHex === item.key"
@@ -152,11 +153,12 @@ const { planes, airports, milBases } = useAirFilterResults(
   typeFilter,
   allHidden,
 )
-const { liveAircraftData, signalLost, refreshExpandedPlane } = useExpandedAircraftTelemetry(
-  expandedPlane,
-  expandedPlaneSnapshot,
-  aircraftFeatures,
-)
+const {
+  liveAircraftData,
+  signalLost,
+  awaitingData: awaitingAircraftData,
+  refreshExpandedPlane,
+} = useExpandedAircraftTelemetry(expandedPlane, expandedPlaneSnapshot, aircraftFeatures)
 const { toggleAlerts } = useAircraftAlertToggle(() => props.adsbControl)
 
 function refreshFilterState() {

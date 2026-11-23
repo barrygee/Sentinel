@@ -1142,17 +1142,18 @@ describe('AirFilter', () => {
       second.unmount()
     })
 
-    it('restores the row from its snapshot when the aircraft has left the feed', async () => {
+    it('restores the row from its snapshot as loading, not SIGNAL LOST, before the feed has it', async () => {
       const first = mountFilter(makeAdsb([planeFeature({ hex: 'aa1', flight: 'BAW1' })]))
       await openPlane(first)
       first.unmount()
 
-      // Return with the aircraft no longer broadcasting (empty feed).
+      // Return before the aircraft is in the feed (empty feed).
       const second = mountFilter(makeAdsb([]))
       await second.vm.$nextTick()
-      // The row still renders from the persisted snapshot and flags SIGNAL LOST.
-      expect(second.find('.acft-acc-body').exists()).toBe(true)
-      expect(second.find('.acft-acc-signal-lost').exists()).toBe(true)
+      // The row renders from the persisted snapshot with a loading message: it
+      // hasn't been seen live since the return, so this isn't a lost signal.
+      expect(second.find('.acft-acc-loading').exists()).toBe(true)
+      expect(second.find('.acft-acc-signal-lost').exists()).toBe(false)
       expect(second.find('.bfp-result-primary').text()).toBe('BAW1')
       second.unmount()
     })

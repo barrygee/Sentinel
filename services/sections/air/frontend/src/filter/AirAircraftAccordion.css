@@ -9,6 +9,17 @@
   --ba-cell-value-color: rgba(var(--ink-rgb), 0.4);
 }
 
+/* Same inset as the SIGNAL LOST flag, in a muted neutral tone. */
+.acft-acc-loading {
+  margin: 12px 24px 0 24px;
+  font-family: var(--font-primary);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
 .acft-acc-signal-lost {
   margin: 12px 24px 0 24px;
   padding: 6px 10px;
