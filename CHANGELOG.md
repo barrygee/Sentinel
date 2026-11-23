@@ -722,6 +722,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Stop drawing this machine twice on maps with the operator marker
 - Leave a marker that was never given this machine's tag untouched
 - Show the history's own size beside the database size
+- Show loading instead of SIGNAL LOST for a restored aircraft
 
 ### Chores
 
@@ -1995,6 +1996,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #693 from barrygee/feat/replay-side-panel
 - Merge pull request #694 from barrygee/feat/remove-movement-history-replay
 - Merge pull request #695 from barrygee/chore/remove-dead-panel-toggle-css
+- Merge pull request #696 from barrygee/fix/air-panel-loading-not-signal-lost
 
 ### Performance
 
@@ -2549,6 +2551,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the replay side panel
 - Rebuild the bundle for the history settings summary
 - Rebuild the bundle without the dead toggle-button CSS
+- Rebuild the Air bundle for the loading state
 
 ### Continuous Integration
 
