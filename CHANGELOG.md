@@ -323,6 +323,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Move the replay controls into the left side panel
 - Show the time frames recorded and the file size in Settings
 - Remove movement history and replay **(breaking change)**
+- Add the optional GLOBE section behind a Settings switch
 
 ### Bug Fixes
 
@@ -1997,6 +1998,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #694 from barrygee/feat/remove-movement-history-replay
 - Merge pull request #695 from barrygee/chore/remove-dead-panel-toggle-css
 - Merge pull request #696 from barrygee/fix/air-panel-loading-not-signal-lost
+- Merge pull request #697 from barrygee/feat/globe-section
 
 ### Performance
 
@@ -2552,6 +2554,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle for the history settings summary
 - Rebuild the bundle without the dead toggle-button CSS
 - Rebuild the Air bundle for the loading state
+- Rebuild the SPA with the GLOBE section remote
 
 ### Continuous Integration
 
