@@ -70,6 +70,9 @@
       "sdrManagerHostId": null
     }
   },
+  "globe": {
+    "enabled": false
+  },
   "land": {
     "aprsChannelHz": 144800000,
     "aprsRetentionMinutes": 5,

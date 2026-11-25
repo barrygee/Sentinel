@@ -153,7 +153,7 @@ export function sharedPackageModulesPlugin(options: { federated: boolean }): Plu
  * order; a section not named here sorts after these, alphabetically. The
  * backend's `GET /api/app/sections` uses the same order (each section's `navOrder` in backend/modules/).
  */
-export const SECTION_REGISTRATION_ORDER = ['air', 'space', 'sea', 'land', 'sdr'] as const
+export const SECTION_REGISTRATION_ORDER = ['air', 'space', 'sea', 'land', 'sdr', 'globe'] as const
 
 /** Sorts section ids into {@link SECTION_REGISTRATION_ORDER}. */
 export function inRegistrationOrder(sectionIds: string[]): string[] {

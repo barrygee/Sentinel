@@ -186,5 +186,8 @@
     "radios": [],
     "aprs_radio_id": null,
     "ais_radio_id": null
+  },
+  "globe": {
+    "enabled": false
   }
 }

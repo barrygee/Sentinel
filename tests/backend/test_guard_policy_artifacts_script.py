@@ -104,7 +104,7 @@ class TestRenderMatrix:
 
         assert "backend.main" in modules
         assert "sentinel_sdr_manager_local.service" in modules
-        assert len(modules) == 10
+        assert len(modules) == 11
 
 
 @pytest.fixture

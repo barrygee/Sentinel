@@ -29,6 +29,7 @@ Guides: [Mac](sdr-manager-mac.md), [Linux and Pi](sdr-manager-linux.md), [SDR Ma
 | `SDR_MANAGER_LOCAL_NATIVE` | `0` | `1` on a Mac, to manage its dongles with the `sdr-manager-local` command |
 | `SENTINEL_RADIO_REPLICAS` | `1` | `0` when the radio hub runs on [a second computer](radio-host.md) |
 | `SENTINEL_DOCS_REPLICAS` | `1` | `0` to run without the in-app docs |
+| `SENTINEL_GLOBE_REPLICAS` | `1` | `0` to not run the optional 3D globe service at all (the GLOBE page is also off until Settings › App Settings › 3D Globe is on) |
 
 ## Where files go
 

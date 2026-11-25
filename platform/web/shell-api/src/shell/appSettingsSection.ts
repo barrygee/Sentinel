@@ -10,12 +10,16 @@
  * - `configurationExtras` — another service's card that belongs under
  *   CONFIGURATION (this machine's SDR Manager config), straight after Export
  *   All so it joins that heading.
+ * - `optionalSections` — the switch of a section that is off until turned on
+ *   and adds it itself (the globe's 3D Globe), in its own SECTIONS group, so
+ *   it shows only while that section's service runs.
  * - `security` — core's Certificate card (SECURITY).
  * - `thisMachine` — sdr-manager-local's THIS MACHINE group.
  */
 export const APP_SETTINGS_POSITIONS = {
   ownGroups: 0,
   configurationExtras: 10,
+  optionalSections: 15,
   security: 20,
   thisMachine: 30,
 } as const
