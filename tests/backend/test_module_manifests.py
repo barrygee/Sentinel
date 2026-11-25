@@ -15,6 +15,7 @@ def test_the_monolith_hosts_every_section_and_the_radio_hub():
         "sea",
         "land",
         "sdr",
+        "globe",
         "radio",
         "docs",
         "sdr-manager-remote",
@@ -33,6 +34,7 @@ def test_sections_are_in_the_shell_registration_order():
         "sea",
         "land",
         "sdr",
+        "globe",
     ]
 
 

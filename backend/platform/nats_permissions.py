@@ -67,6 +67,9 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
     "space": SubjectPermissions(),
     # Serves the in-app documentation and uses no subject; it still connects, like every service.
     "docs": SubjectPermissions(),
+    # The optional 3D globe. It connects like every service; the snapshot
+    # requests it sends the sections are added with its combined feed.
+    "globe": SubjectPermissions(),
     # This machine's dongles (ADR 0007). It never connects: it talks to core
     # over HTTPS and to sdr-manager-remote through the SDR Manager API. Listed
     # with no subjects so its HTTP credential has an entry here too.

@@ -31,6 +31,7 @@ class TestTable:
             "radio",
             "sdr",
             "docs",
+            "globe",
             "sdr-manager-local",
             "sdr-manager-remote",
         }

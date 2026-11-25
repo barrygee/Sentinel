@@ -1,12 +1,13 @@
 import type { SectionSource } from './sectionLoader'
 
-/** The map sections, in nav order: AIR, SPACE, SEA, LAND, SDR. */
+/** The sections, in nav order: AIR, SPACE, SEA, LAND, SDR, then the optional GLOBE. */
 const MAP_SECTION_SOURCES: SectionSource[] = [
   { id: 'air', load: () => import('@sentinel/section-air/section') },
   { id: 'space', load: () => import('@sentinel/section-space/section') },
   { id: 'sea', load: () => import('@sentinel/section-sea/section') },
   { id: 'land', load: () => import('@sentinel/section-land/section') },
   { id: 'sdr', load: () => import('@sentinel/section-sdr/section') },
+  { id: 'globe', load: () => import('@sentinel/section-globe/section') },
 ]
 
 /** The SDR Manager remotes, which add settings but no map section (`kind`). */

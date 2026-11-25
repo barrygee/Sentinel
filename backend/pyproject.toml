@@ -27,6 +27,7 @@ dependencies = [
     # sdr-manager-local's (services/sdr-manager-local/backend), installed editable.
     "sentinel-air",
     "sentinel-docs",
+    "sentinel-globe",
     "sentinel-land",
     "sentinel-radio",
     "sentinel-sdr",
@@ -40,6 +41,7 @@ dependencies = [
 [tool.uv.sources]
 sentinel-air = { path = "../services/sections/air/backend", editable = true }
 sentinel-docs = { path = "../services/docs/backend", editable = true }
+sentinel-globe = { path = "../services/sections/globe/backend", editable = true }
 sentinel-land = { path = "../services/sections/land/backend", editable = true }
 sentinel-radio = { path = "../services/radio/backend", editable = true }
 sentinel-sdr = { path = "../services/sections/sdr/backend", editable = true }
@@ -115,7 +117,7 @@ ignore_missing_imports = true
 # Core plus each package that has moved out of backend/: the sections (services/sections/<id>/backend),
 # the radio hub (services/radio/backend), the docs service (services/docs/backend) and
 # sdr-manager-local and sdr-manager-remote (services/sdr-manager-{local,remote}/backend).
-root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sdr_manager_local", "sentinel_sdr_manager_remote", "sentinel_sea", "sentinel_space"]
+root_packages = ["backend", "sentinel_air", "sentinel_docs", "sentinel_globe", "sentinel_land", "sentinel_radio", "sentinel_sdr", "sentinel_sdr_manager_local", "sentinel_sdr_manager_remote", "sentinel_sea", "sentinel_space"]
 
 [[tool.importlinter.contracts]]
 name = "Core imports no section"
@@ -139,6 +141,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_docs",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -156,6 +159,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -173,6 +177,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -190,6 +195,7 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -207,6 +213,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -224,6 +231,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_land",
     "sentinel_radio",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -241,6 +249,7 @@ forbidden_modules = [
     "sentinel_sea",
     "sentinel_land",
     "sentinel_sdr",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -259,6 +268,27 @@ forbidden_modules = [
     "sentinel_land",
     "sentinel_sdr",
     "sentinel_radio",
+    "sentinel_globe",
+    "sentinel_sdr_manager_local",
+    "sentinel_sdr_manager_remote",
+]
+
+[[tool.importlinter.contracts]]
+name = "Globe service imports no other section"
+type = "forbidden"
+allow_indirect_imports = true
+# It collects the other sections' data over NATS, never by importing them.
+source_modules = [
+    "sentinel_globe",
+]
+forbidden_modules = [
+    "sentinel_air",
+    "sentinel_space",
+    "sentinel_sea",
+    "sentinel_land",
+    "sentinel_sdr",
+    "sentinel_radio",
+    "sentinel_docs",
     "sentinel_sdr_manager_local",
     "sentinel_sdr_manager_remote",
 ]
@@ -278,6 +308,7 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_docs",
+    "sentinel_globe",
     "sentinel_sdr_manager_remote",
 ]
 
@@ -296,5 +327,6 @@ forbidden_modules = [
     "sentinel_sdr",
     "sentinel_radio",
     "sentinel_docs",
+    "sentinel_globe",
     "sentinel_sdr_manager_local",
 ]

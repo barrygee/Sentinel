@@ -71,6 +71,12 @@ services:
       - ./services/docs/backend:/app/services/docs/backend:ro
     command: python -m backend.platform.dev_reload sentinel_docs.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
 
+  globe:
+    volumes:
+      - *backend-code
+      - ./services/sections/globe/backend:/app/services/sections/globe/backend:ro
+    command: python -m backend.platform.dev_reload sentinel_globe.service:app --host 0.0.0.0 --port 8000 --reload --no-proxy-headers
+
   sdr-manager-remote:
     volumes:
       - *backend-code
