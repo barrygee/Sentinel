@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { axe } from 'jest-axe'
-import MapZoomButtons from './MapZoomButtons.vue'
+import BaseZoomButtons from './BaseZoomButtons.vue'
 
-describe('MapZoomButtons', () => {
+describe('BaseZoomButtons', () => {
   it('renders a named group of Zoom in then Zoom out, with rail tooltips', () => {
-    const wrapper = mount(MapZoomButtons)
+    const wrapper = mount(BaseZoomButtons)
     expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe('Map zoom')
     const buttons = wrapper.findAll('button')
     expect(buttons.map((button) => button.attributes('aria-label'))).toEqual([
@@ -19,18 +19,18 @@ describe('MapZoomButtons', () => {
   })
 
   it('pins the dark rail palette so the buttons read on the map inside light surfaces', () => {
-    expect(mount(MapZoomButtons).classes()).toContain('theme-dark')
+    expect(mount(BaseZoomButtons).classes()).toContain('theme-dark')
   })
 
   it('passes a class from its parent through to its root', () => {
-    const wrapper = mount(MapZoomButtons, { attrs: { class: 'placed-by-parent' } })
+    const wrapper = mount(BaseZoomButtons, { attrs: { class: 'placed-by-parent' } })
     expect(wrapper.classes()).toEqual(
-      expect.arrayContaining(['map-zoom-buttons', 'placed-by-parent']),
+      expect.arrayContaining(['base-zoom-buttons', 'placed-by-parent']),
     )
   })
 
   it('emits zoom-in for + and zoom-out for −, and nothing else', async () => {
-    const wrapper = mount(MapZoomButtons)
+    const wrapper = mount(BaseZoomButtons)
     const [zoomInButton, zoomOutButton] = wrapper.findAll('button')
     await zoomInButton!.trigger('click')
     expect(wrapper.emitted('zoom-in')).toHaveLength(1)
@@ -41,7 +41,7 @@ describe('MapZoomButtons', () => {
   })
 
   it('has no accessibility violations', async () => {
-    const wrapper = mount(MapZoomButtons)
+    const wrapper = mount(BaseZoomButtons)
     expect(
       await axe(wrapper.html(), { rules: { region: { enabled: false } } }),
     ).toHaveNoViolations()
