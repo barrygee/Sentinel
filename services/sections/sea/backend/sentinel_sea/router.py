@@ -23,12 +23,9 @@ from __future__ import annotations
 
 import re
 
-from backend.cache import now_ms
 from backend.config import settings as app_settings
 from backend.database import get_db
-from backend.platform.bus import bus
 from backend.platform.settings_client import delete_secret, read_secret, write_secret
-from backend.utils import resolve_effective_mode
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -41,6 +38,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sentinel_sea.services import (
     ais_decode,  # noqa: F401
     ais_store,
+    vessel_snapshot,
 )
 from sentinel_sea.services.ais_stream import key_fingerprint, reader
 
@@ -59,97 +57,12 @@ class AisKeyIn(BaseModel):
     key: str = Field(min_length=8, max_length=128)
 
 
-def _parse_bbox(raw: str | None) -> tuple[float, float, float, float] | None:
+def _parse_bbox(raw: str | None) -> vessel_snapshot.Bbox | None:
     """Parse ``south,west,north,east`` degrees; 400 on anything malformed."""
-    if raw is None or raw.strip() == "":
-        return None
-    parts = raw.split(",")
-    if len(parts) != 4:
-        raise HTTPException(status_code=400, detail="bbox must be south,west,north,east")
     try:
-        south, west, north, east = (float(part) for part in parts)
+        return vessel_snapshot.parse_bbox(raw)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail="bbox values must be numbers") from exc
-    if not (-90 <= south <= north <= 90) or abs(west) > 180 or abs(east) > 180:
-        raise HTTPException(status_code=400, detail="bbox out of range")
-    return south, west, north, east
-
-
-async def _offgrid_decode_snapshot() -> dict[str, object]:
-    """Feed status for the off-grid source: the SDR AIS decode bridge.
-
-    Shaped exactly like :meth:`AisStreamReader.snapshot` — same keys, same
-    status vocabulary — so the map's status line and the store's ``SeaFeedInfo``
-    read one contract whichever source is live, and only ``mode`` says which one
-    produced it. The statuses are chosen for what the operator can DO about them:
-
-      * ``no-source``  — no radio picked yet: nothing can ever arrive (actionable)
-      * ``down``       — bridge running but the sidecar container isn't connected
-      * ``stale``      — decoding, but the radio has been moved off 162 MHz, so
-                         only silence is reaching Direwolf until it retunes
-      * ``live``       — on channel with the decoder attached
-
-    The retune case is deliberately not ``live``: the vessel picture is going
-    stale either way, and calling it live would hide the one fault the operator
-    can actually see and fix.
-
-    Reads the bridge's state over the bus (``hub.decode.ais.status``, B3)
-    rather than importing ``radio_hub.services.sdr_decode`` directly, so Sea never reads
-    the decode bridge in-process.
-    """
-    bridge_state = await bus.request("hub.decode.ais.status", {})
-    running = bool(bridge_state["running"])
-    on_channel = bool(bridge_state["on_channel"])
-    decoder_reachable = bool(bridge_state["decoder_reachable"])
-    if not running:
-        status, error = "no-source", "No off-grid AIS receiver selected"
-    elif not decoder_reachable:
-        status, error = "down", "The AIS decoder container is not connected"
-    elif not on_channel:
-        status, error = "stale", "The radio has been tuned away from the AIS channels"
-    else:
-        status, error = "live", None
-    newest_position_ms = ais_store.store.newest_position_ms
-    return {
-        "mode": "offgrid",
-        "source": "SDR off-grid AIS decode",
-        "status": status,
-        "error": error,
-        "lastMessageAt": newest_position_ms,
-        "silentForMs": (now_ms() - newest_position_ms) if newest_position_ms is not None else None,
-        "reconnectAttempt": 0,
-        "nextAttemptAt": None,
-        "staleAfterMs": app_settings.sea_ais_silence_report_ms,
-        "retentionMs": app_settings.sea_ais_stale_ms,
-        "newestPositionAt": newest_position_ms,
-        "vesselCount": len(ais_store.store),
-        # Off-grid-only diagnostics, for Settings › SEA and the sidecar README's
-        # troubleshooting steps. Absent from the online snapshot.
-        "decoderReachable": decoder_reachable,
-        "onChannel": on_channel,
-        "channelAHz": bridge_state["channel_a_hz"],
-        "channelBHz": bridge_state["channel_b_hz"],
-    }
-
-
-async def _ensure_active_feed(db: AsyncSession) -> dict[str, object]:
-    """Nudge whichever feed the Sea domain is configured to use, and describe it.
-
-    Online is the AISStream WebSocket (``reader.ensure`` also serves as the
-    "someone is looking" nudge that skips the background tick's wait). Off grid
-    it is the SDR decode bridge, which must NOT dial AISStream — the whole point
-    of off-grid mode is that there is no internet to reach it on, and an
-    unreachable upstream would otherwise burn the reconnect ladder and log auth
-    probes forever.
-    """
-    mode = await resolve_effective_mode("sea", db)
-    # Also checked by the reader's tick; doing it here too means the first poll
-    # after a switch never serves the previous source's vessels.
-    await ais_store.store.switch_source(mode)
-    if mode == "offgrid":
-        return await _offgrid_decode_snapshot()
-    await reader.ensure()
-    return {"mode": "online", **reader.snapshot()}
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _status_headers(feed_status: object = None) -> dict[str, str]:
@@ -172,9 +85,7 @@ async def get_vessels(
     the feed status so the map can label cached vessels as STALE while the
     upstream is silent or reconnecting, rather than silently drawing old data.
     """
-    parsed_bbox = _parse_bbox(bbox)
-    feed = await _ensure_active_feed(db)
-    vessels = ais_store.store.vessels(max_rows, parsed_bbox)
+    vessels, feed = await vessel_snapshot.vessel_snapshot(db, max_rows, _parse_bbox(bbox))
     return JSONResponse({"vessels": vessels, **feed}, headers=_status_headers(feed.get("status")))
 
 
@@ -204,7 +115,7 @@ async def get_feed_status(db: AsyncSession = Depends(get_db)):
     online, the SDR decode bridge when off grid — under a common shape, with
     ``source`` naming which one.
     """
-    feed = await _ensure_active_feed(db)
+    feed = await vessel_snapshot.active_feed(db)
     return JSONResponse(feed, headers={"Cache-Control": "no-store"})
 
 

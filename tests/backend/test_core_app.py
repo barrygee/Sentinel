@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from sentinel_air import adsb_source_router as adsb_source
 from sentinel_air import router as air
 from sentinel_docs import router as docs
+from sentinel_globe import router as globe
 from sentinel_land import router as land
 from sentinel_radio.routers import (
     decode,
@@ -107,6 +108,7 @@ class TestCoreRouters:
             registry_router.router,
             settings_secrets.router,
             docs.router,
+            globe.router,
             sdr_manager_remote_hosts.router,
             host_devices.router,
             host_wifi.router,

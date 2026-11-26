@@ -13,9 +13,8 @@ from backend.platform.settings_client import SettingsUnavailable
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
 from tests.backend.air_test_helpers import assert_nothing_to_serve
 
-from sentinel_air import router as air_router
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_source
+from sentinel_air.services import adsb_point, adsb_source
 
 # ── /api/air/messages ─────────────────────────────────────────────────────────
 
@@ -203,7 +202,7 @@ class TestAdsbUpstreamFailover:
         return "\n".join(
             record.getMessage()
             for record in caplog.records
-            if record.name == "sentinel_air.router" and record.levelno >= logging.WARNING
+            if record.name == "sentinel_air.services.adsb_point" and record.levelno >= logging.WARNING
         )
 
     def _patch_fetch(self, monkeypatch, behaviour):
@@ -229,7 +228,7 @@ class TestAdsbUpstreamFailover:
 
         calls = self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             resp = client.get(self.POINT)
 
         # Failed over rather than surfacing the error to the client.
@@ -252,7 +251,7 @@ class TestAdsbUpstreamFailover:
 
         self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             resp = client.get(self.POINT)
 
         # No cached row exists, so an all-sources failure has nothing to serve.
@@ -269,7 +268,7 @@ class TestAdsbUpstreamFailover:
 
         self._patch_fetch(monkeypatch, behaviour)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             resp = client.get(self.POINT)
 
         assert_nothing_to_serve(resp)
@@ -286,7 +285,7 @@ class TestAdsbUpstreamFailover:
         payload = {"ac": [], "total": 0}
         calls = self._patch_fetch(monkeypatch, lambda base_url: payload)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             resp = client.get(self.POINT)
 
         assert resp.status_code == 200
@@ -438,8 +437,8 @@ class TestAdsbNearbyCacheFallback:
         self._prime(client, monkeypatch, 54.0, -1.5, {"ac": []})
         self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
         # Jump the router's clock past the stale window since the row was cached.
-        real_now = air_router.now_ms()
-        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
+        real_now = adsb_point.now_ms()
+        monkeypatch.setattr(adsb_point, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
 
         resp = client.get(self._point(54.3, -1.5))
 
@@ -527,7 +526,7 @@ class TestAdsbNearbyCacheFallback:
         async def no_sources(domain, db, *, online_default, offgrid_default):
             return (None, None)
 
-        monkeypatch.setattr(air_router, "resolve_domain_urls", no_sources)
+        monkeypatch.setattr(adsb_point, "resolve_domain_urls", no_sources)
 
         assert_nothing_to_serve(client.get(self._point(54.0, -1.5)), "no-source")
 
@@ -538,14 +537,14 @@ class TestAdsbNearbyCacheFallback:
         empty (then a 503) until the next online call slot — up to a refresh interval."""
         self._configure_sources(client)
         self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [{"hex": "hours-old"}]})
-        real_now = air_router.now_ms()
-        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
+        real_now = adsb_point.now_ms()
+        monkeypatch.setattr(adsb_point, "now_ms", lambda: real_now + online_stale_window_ms() + 1_000)
         # Freshness and staleness judged on the same jumped clock.
-        monkeypatch.setattr(air_router, "is_fresh", lambda expires_at: expires_at > air_router.now_ms())
+        monkeypatch.setattr(adsb_point, "is_fresh", lambda expires_at: expires_at > adsb_point.now_ms())
         monkeypatch.setattr(
-            air_router,
+            adsb_point,
             "is_within_stale",
-            lambda fetched_at, stale_ms: air_router.now_ms() - fetched_at <= stale_ms,
+            lambda fetched_at, stale_ms: adsb_point.now_ms() - fetched_at <= stale_ms,
         )
         # Cached at the jumped clock, so fresh now.
         self._prime(client, monkeypatch, 54.3, -1.5, {"ac": [{"hex": "fresh-nearby"}]})
@@ -564,9 +563,9 @@ class TestAdsbNearbyCacheFallback:
         self._prime(client, monkeypatch, 54.0, -1.5, {"ac": [{"hex": "own"}]})
         self._prime(client, monkeypatch, 54.3, -1.5, {"ac": [{"hex": "nearby"}]})
         # Past the point's TTL (so it refetches) but inside its stale window.
-        real_now = air_router.now_ms()
-        monkeypatch.setattr(air_router, "now_ms", lambda: real_now + settings.adsb_stale_ms // 2)
-        monkeypatch.setattr(air_router, "is_fresh", lambda expires_at: False)
+        real_now = adsb_point.now_ms()
+        monkeypatch.setattr(adsb_point, "now_ms", lambda: real_now + settings.adsb_stale_ms // 2)
+        monkeypatch.setattr(adsb_point, "is_fresh", lambda expires_at: False)
         self._fail_every_fetch(monkeypatch, UpstreamThrottledError())
 
         resp = client.get(self._point(54.0, -1.5))
@@ -989,7 +988,7 @@ class TestSnapshotAge:
 
         current = [1_800_000_000_000]
         monkeypatch.setattr(cache, "now_ms", lambda: current[0])
-        monkeypatch.setattr(air_router, "now_ms", lambda: current[0])
+        monkeypatch.setattr(adsb_point, "now_ms", lambda: current[0])
         return current
 
     def _configure_sources(self, client):
@@ -1278,10 +1277,10 @@ class TestAdsbPollWhileSettingsAreUnreadable:
     def test_logs_one_warning_naming_the_failure(self, client, monkeypatch, caplog):
         self._core_times_out(monkeypatch)
 
-        with caplog.at_level(logging.WARNING, logger=air_router.__name__):
+        with caplog.at_level(logging.WARNING, logger=adsb_point.__name__):
             client.get(self._point())
 
-        warnings = [record.getMessage() for record in caplog.records if record.name == air_router.__name__]
+        warnings = [record.getMessage() for record in caplog.records if record.name == adsb_point.__name__]
         assert len(warnings) == 1
         assert "served without settings" in warnings[0]
 

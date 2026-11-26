@@ -8,7 +8,10 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_sea.database import create_sea_tables
-from sentinel_sea.services import sea_ais_receiver
+from sentinel_sea.services import (
+    globe_snapshot,  # noqa: F401  (registers the sea.globe.snapshot responder, ADR 0009)
+    sea_ais_receiver,
+)
 from sentinel_sea.services.ais_stream import reader as ais_reader
 
 logger = logging.getLogger(__name__)

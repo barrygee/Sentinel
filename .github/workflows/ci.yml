@@ -344,9 +344,9 @@ jobs:
   # per deployment of the sections (section-containers plan P6: "e2e green with
   # the section present *and* absent"). The app never hosts a section under
   # compose (P8c), so "absent" just means its container isn't started:
-  #   sections-service  every section, the radio hub and the docs service, as
-  #                     `docker compose up` runs them. The other two legs run
-  #                     without the (optional) docs service.
+  #   sections-service  every section, the radio hub, the docs service and the
+  #                     globe, as `docker compose up` runs them. The other two
+  #                     legs run without the (optional) docs and globe services.
   #   sections-absent   only the SDR section's container, so the shell has a
   #                     section to show: Space, Land, Air, Sea and the hub are gone.
   #   sdr-absent        everything but the SDR section: the shell boots without
@@ -361,8 +361,8 @@ jobs:
         include:
           # The full app with no sdr-manager-local: what `docker compose up` runs.
           - deployment: sections-service
-            services: app gateway nats space land air sea radio sdr docs sdr-manager-remote
-            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,sdr-manager-remote:service,sdr-manager-local:absent
+            services: app gateway nats space land air sea radio sdr docs globe sdr-manager-remote
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,globe:service,sdr-manager-remote:service,sdr-manager-local:absent
           - deployment: sections-absent
             services: app gateway nats sdr
             sections: space:absent,land:absent,air:absent,sea:absent,radio:absent,sdr:service,sdr-manager-remote:absent,sdr-manager-local:absent
@@ -373,8 +373,8 @@ jobs:
           - deployment: full-local-mock
             compose_files: docker-compose.yml:compose.sdr-manager-local-mock.yaml
             profiles: sdr-manager-local
-            services: app gateway nats space land air sea radio sdr sdr-manager-remote sdr-manager-local
-            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,sdr-manager-remote:service,sdr-manager-local:service
+            services: app gateway nats space land air sea radio sdr globe sdr-manager-remote sdr-manager-local
+            sections: space:service,land:service,air:service,sea:service,radio:service,sdr:service,globe:service,sdr-manager-remote:service,sdr-manager-local:service
           # SDR Manager-only mode (ADR 0007): core, the gateway and this
           # machine's SDRs, simulated — no sections, no hub, no NATS.
           - deployment: local-only-mock
@@ -490,6 +490,8 @@ jobs:
           declare -A probe_path=(
             [space]=/api/space/daynight [land]=/api/land/aprs/stations [air]=/api/air/tracking
             [sea]=/api/sea/ais-key [sdr]=/api/sdr/groups [radio]=/api/sdr/radios
+            # APRS only: no upstream call, and Land answers it over NATS.
+            [globe]='/api/globe/objects?layers=aprs'
             [sdr-manager-remote]=/api/sdr-manager/remote/hosts
             [sdr-manager-local]=/api/sdr-manager/local/auth/state
           )

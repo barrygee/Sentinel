@@ -8,7 +8,10 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_land.database import create_land_tables
-from sentinel_land.services import aprs_store
+from sentinel_land.services import (
+    aprs_store,
+    globe_snapshot,  # noqa: F401  (registers the land.globe.snapshot responder, ADR 0009)
+)
 
 logger = logging.getLogger(__name__)
 

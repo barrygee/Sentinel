@@ -1036,6 +1036,14 @@
     ]
   },
   {
+    "path": "/api/globe/objects",
+    "type": "Route",
+    "name": "get_globe_objects",
+    "methods": [
+      "GET"
+    ]
+  },
+  {
     "path": "/api/sdr-manager/remote/hosts",
     "type": "Route",
     "name": "list_hosts",

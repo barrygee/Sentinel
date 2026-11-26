@@ -312,7 +312,7 @@ class TestRouterLogsRateLimiting:
         return "\n".join(
             record.getMessage()
             for record in caplog.records
-            if record.name == "sentinel_air.router" and record.levelno >= logging.WARNING
+            if record.name == "sentinel_air.services.adsb_point" and record.levelno >= logging.WARNING
         )
 
     def test_a_429_warns_and_names_the_host(self, client, monkeypatch, caplog):
@@ -325,7 +325,7 @@ class TestRouterLogsRateLimiting:
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             client.get(self.POINT)
 
         warnings = self._air_warnings(caplog)
@@ -340,7 +340,7 @@ class TestRouterLogsRateLimiting:
 
         monkeypatch.setattr(adsb_service, "fetch_aircraft", fake_fetch)
 
-        with caplog.at_level(logging.WARNING, logger="sentinel_air.router"):
+        with caplog.at_level(logging.WARNING, logger="sentinel_air.services.adsb_point"):
             client.get(self.POINT)
 
         assert "rate limited" not in self._air_warnings(caplog)

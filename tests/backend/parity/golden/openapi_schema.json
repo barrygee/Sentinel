@@ -24,6 +24,150 @@
         "title": "AdsbSourceIn",
         "type": "object"
       },
+      "AircraftItem": {
+        "description": "One aircraft from Air's snapshot around home.",
+        "properties": {
+          "altitudeFt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitudeft"
+          },
+          "callsign": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Callsign"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "emergency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergency"
+          },
+          "groundSpeedKt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groundspeedkt"
+          },
+          "hex": {
+            "title": "Hex",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "military": {
+            "default": false,
+            "title": "Military",
+            "type": "boolean"
+          },
+          "onGround": {
+            "default": false,
+            "title": "Onground",
+            "type": "boolean"
+          },
+          "registration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Registration"
+          },
+          "seenPosSeconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seenposseconds"
+          },
+          "squawk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Squawk"
+          },
+          "trackDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackdeg"
+          },
+          "typeCode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typecode"
+          }
+        },
+        "required": [
+          "hex",
+          "lat",
+          "lon"
+        ],
+        "title": "AircraftItem",
+        "type": "object"
+      },
       "AisKeyIn": {
         "description": "Body for PUT /api/sea/ais-key.",
         "properties": {
@@ -61,6 +205,96 @@
           "landingPath"
         ],
         "title": "AppMode",
+        "type": "object"
+      },
+      "AprsStationItem": {
+        "description": "One APRS station's latest fix from Land's store.",
+        "properties": {
+          "altitudeM": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitudem"
+          },
+          "callsign": {
+            "title": "Callsign",
+            "type": "string"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "courseDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coursedeg"
+          },
+          "lastHeardMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastheardms"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "speedKmh": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedkmh"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "required": [
+          "callsign",
+          "lat",
+          "lon"
+        ],
+        "title": "AprsStationItem",
         "type": "object"
       },
       "AreaRequest": {
@@ -751,6 +985,36 @@
         "title": "FrequencyPatchIn",
         "type": "object"
       },
+      "GlobeObjectsResponse": {
+        "description": "`GET /api/globe/objects`: one entry per requested layer, never an error for one layer's failure.",
+        "properties": {
+          "generatedAtMs": {
+            "title": "Generatedatms",
+            "type": "integer"
+          },
+          "layers": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/LayerResult"
+            },
+            "propertyNames": {
+              "enum": [
+                "air",
+                "space",
+                "sea",
+                "aprs"
+              ]
+            },
+            "title": "Layers",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generatedAtMs",
+          "layers"
+        ],
+        "title": "GlobeObjectsResponse",
+        "type": "object"
+      },
       "GroupIn": {
         "properties": {
           "color": {
@@ -1017,6 +1281,69 @@
           }
         },
         "title": "HostSourceOut",
+        "type": "object"
+      },
+      "LayerResult": {
+        "description": "One layer of the feed: its items, or why there are none.\n\n`status` is `unavailable` when the owning section is down, slow, refused\nthe request or has nothing to serve; `reason` then names why in a fixed\nvocabulary (never an internal message): `section-unavailable`, `timeout`,\n`error`, `no-location`, `no-tle-data`, or Air's own `daily-limit`,\n`no-source`, `upstream` and `settings`. `meta` carries the layer's own facts\n(cache state, feed status, unknown satellites, ...).",
+        "properties": {
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AircraftItem"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/VesselItem"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/AprsStationItem"
+                },
+                "type": "array"
+              },
+              {
+                "items": {
+                  "$ref": "#/components/schemas/SatelliteItem"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Items"
+          },
+          "meta": {
+            "additionalProperties": true,
+            "title": "Meta",
+            "type": "object"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "unavailable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "LayerResult",
         "type": "object"
       },
       "ManifestDecodeControlIn": {
@@ -2096,6 +2423,109 @@
         "title": "RemoteSdrHostPatch",
         "type": "object"
       },
+      "SatelliteItem": {
+        "description": "One chosen satellite: position, ground track and footprint, as Space's map draws them.",
+        "properties": {
+          "footprint": {
+            "additionalProperties": true,
+            "title": "Footprint",
+            "type": "object"
+          },
+          "groundTrack": {
+            "additionalProperties": true,
+            "title": "Groundtrack",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "noradId": {
+            "title": "Noradid",
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/SatellitePosition"
+          }
+        },
+        "required": [
+          "noradId",
+          "name",
+          "position",
+          "groundTrack",
+          "footprint"
+        ],
+        "title": "SatelliteItem",
+        "type": "object"
+      },
+      "SatellitePosition": {
+        "description": "A satellite's sub-point now, with look angles when an observer was given.",
+        "properties": {
+          "altKm": {
+            "title": "Altkm",
+            "type": "number"
+          },
+          "azimuthDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Azimuthdeg"
+          },
+          "elevationDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevationdeg"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "trackDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trackdeg"
+          },
+          "velocityKms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocitykms"
+          }
+        },
+        "required": [
+          "lat",
+          "lon",
+          "altKm"
+        ],
+        "title": "SatellitePosition",
+        "type": "object"
+      },
       "SearchRangeIn": {
         "properties": {
           "band_name": {
@@ -2319,6 +2749,107 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VesselItem": {
+        "description": "One vessel's latest position from Sea's store.",
+        "properties": {
+          "courseDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coursedeg"
+          },
+          "family": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Family"
+          },
+          "headingDeg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headingdeg"
+          },
+          "lastPositionMs": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastpositionms"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          },
+          "mmsi": {
+            "title": "Mmsi",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "speedKt": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speedkt"
+          },
+          "typeLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Typelabel"
+          }
+        },
+        "required": [
+          "mmsi",
+          "lat",
+          "lon"
+        ],
+        "title": "VesselItem",
+        "type": "object"
+      },
       "WifiActivationIn": {
         "description": "Body shared by `POST .../wifi/enable` and `.../wifi/disable`.",
         "properties": {
@@ -2438,7 +2969,7 @@
     },
     "/api/air/adsb/point/{lat}/{lon}/{radius}": {
       "get": {
-        "description": "Proxy the upstream /v2/point endpoint with a SQLite write-through cache.\n\nEvery response says how old its snapshot is in `X-Snapshot-Age-Ms` (0 when\nfetched by this request), so the map can age aircraft by when they were\nactually observed rather than when the response arrived.\n\nCache strategy:\n  - HIT:    fresh row exists (within adsb_ttl_ms; the online refresh\n            interval for an online snapshot) → return immediately\n  - MISS:   no row or expired → fetch upstream, upsert row, return fresh data\n  - RATED:  upstream returned 429 → serve the cache row if within adsb_stale_ms\n  - THROTTLED: our own limiter declined the call (see adsb_min_request_interval_ms)\n            → serve the cache row if within adsb_stale_ms\n  - STALE:  upstream failed (non-429) but row within adsb_stale_ms → serve old data\n  (Online, the stale window is adsb_stale_ms plus the online refresh interval.)\n  - NEARBY: no row for this exact point and no fresh fetch → serve the nearest\n            recent row (the point tracks the map centre, so pans miss the cache)\n  - FALLBACK: the primary failed or was throttled, the fallback (the\n            operator's own receiver) answered, and nothing cached could\n            stand in — served, not cached\n  - NO-SETTINGS: core's settings couldn't be read, so no source is known\n            → serve the nearest row within adsb_stale_ms\n  - 204:    nothing to serve (X-Cache: UNAVAILABLE, X-Unavailable-Reason says why)",
+        "description": "Proxy the upstream /v2/point endpoint with a SQLite write-through cache.\n\nEvery response says how old its snapshot is in `X-Snapshot-Age-Ms` (0 when\nfetched by this request), so the map can age aircraft by when they were\nactually observed rather than when the response arrived. `X-Cache` names\nthe cache state (see `adsb_point.aircraft_near_point`, which the globe's\n`air.globe.snapshot` shares); nothing to serve is a 204 with\n`X-Cache: UNAVAILABLE` and `X-Unavailable-Reason`.",
         "operationId": "get_aircraft_near_point_api_air_adsb_point__lat___lon___radius__get",
         "parameters": [
           {
@@ -2892,6 +3423,137 @@
         "summary": "Get Library",
         "tags": [
           "documentation"
+        ]
+      }
+    },
+    "/api/globe/objects": {
+      "get": {
+        "description": "Every requested layer's live objects, each with its own status.\n\n`air` needs `lat`/`lon` (home: the same centre as Air's alerts, so it shares\nAir's cached snapshot); `sea` uses `bbox` (the view; everywhere when\nomitted, capped); `space` uses `satellites` (and `lat`/`lon` for look\nangles); `aprs` takes nothing.",
+        "operationId": "get_globe_objects_api_globe_objects_get",
+        "parameters": [
+          {
+            "description": "air,space,sea,aprs",
+            "in": "query",
+            "name": "layers",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "air,space,sea,aprs",
+              "title": "Layers"
+            }
+          },
+          {
+            "description": "south,west,north,east",
+            "in": "query",
+            "name": "bbox",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "south,west,north,east",
+              "title": "Bbox"
+            }
+          },
+          {
+            "description": "Home latitude (aircraft centre)",
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90,
+                  "minimum": -90,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Home latitude (aircraft centre)",
+              "title": "Lat"
+            }
+          },
+          {
+            "description": "Home longitude (aircraft centre)",
+            "in": "query",
+            "name": "lon",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": -180,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Home longitude (aircraft centre)",
+              "title": "Lon"
+            }
+          },
+          {
+            "description": "NORAD ids",
+            "in": "query",
+            "name": "satellites",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "NORAD ids",
+              "title": "Satellites"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobeObjectsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Globe Objects",
+        "tags": [
+          "globe"
         ]
       }
     },
