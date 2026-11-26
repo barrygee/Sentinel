@@ -325,6 +325,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove movement history and replay **(breaking change)**
 - Add the optional GLOBE section behind a Settings switch
 - Serve a combined feed from the sections' NATS snapshots
+- Draw the 3D globe, ported from the sentinel-site header globe
 
 ### Bug Fixes
 
@@ -2001,6 +2002,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #696 from barrygee/fix/air-panel-loading-not-signal-lost
 - Merge pull request #697 from barrygee/feat/globe-section
 - Merge pull request #698 from barrygee/feat/globe-snapshots
+- Merge pull request #699 from barrygee/feat/globe-renderer
 
 ### Performance
 
@@ -2557,6 +2559,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the bundle without the dead toggle-button CSS
 - Rebuild the Air bundle for the loading state
 - Rebuild the SPA with the GLOBE section remote
+- Rebuild the SPA with the GLOBE renderer
 
 ### Continuous Integration
 
