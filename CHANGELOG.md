@@ -326,6 +326,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Add the optional GLOBE section behind a Settings switch
 - Serve a combined feed from the sections' NATS snapshots
 - Draw the 3D globe, ported from the sentinel-site header globe
+- Draw live aircraft, vessels and APRS stations on the globe
 
 ### Bug Fixes
 
@@ -2003,6 +2004,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #697 from barrygee/feat/globe-section
 - Merge pull request #698 from barrygee/feat/globe-snapshots
 - Merge pull request #699 from barrygee/feat/globe-renderer
+- Merge pull request #700 from barrygee/feat/globe-layers
 
 ### Performance
 
@@ -2560,6 +2562,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the Air bundle for the loading state
 - Rebuild the SPA with the GLOBE section remote
 - Rebuild the SPA with the GLOBE renderer
+- Rebuild the SPA with the GLOBE live layers
 
 ### Continuous Integration
 
