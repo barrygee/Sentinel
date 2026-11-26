@@ -105,6 +105,26 @@ flowchart TB
 - `backend/scripts/refresh_repeaters.py` regenerates the built-in copy.
 - A cleanup loop deletes old stations at start and every 24 h.
 
+## Globe
+
+The globe has no data of its own. The browser polls `GET /api/globe/objects` every few seconds. The globe service asks each owning section for a snapshot over NATS and returns one combined answer ([ADR 0009](../adr/0009-globe-section-snapshots.md)).
+
+*Figure: One browser poll, one NATS request per layer per interval, each answered by the section's own map logic.*
+
+```mermaid
+flowchart TB
+    browser["GLOBE page"] -- "GET /api/globe/objects" --> globe["globe service<br/>per-layer cache"]
+    globe -- "air.globe.snapshot" --> air["Air: aircraft_near_point<br/>(cache, quota, limiter)"]
+    globe -- "sea.globe.snapshot" --> sea["Sea: vessel_snapshot<br/>(active feed, store)"]
+    globe -- "land.globe.snapshot" --> land["Land: APRS stations"]
+    globe -- "space.globe.snapshot" --> space["Space: satellite_snapshot<br/>(TLE, SGP4)"]
+```
+
+- **Each section answers from the function behind its own map route,** so online versus off grid, the cache and the quota are the same for both.
+- **Aircraft are centred on home, at radius 250,** like Air's alerts, so the globe reuses Air's cached snapshot.
+- **One section down marks only its layer** `unavailable`. Its reason comes from a fixed list, such as `section-unavailable` or `timeout`.
+- **Caches:** air and sea are cached for 10 s, APRS and space for 5 s, with shared in-flight requests. However many tabs are open, each layer costs one request per interval.
+
 ## SDR
 
 Always your own radios. Live data goes through the radio hub ([Radios and decoding](radios.md)); saved frequencies, groups, ranges and recordings through the SDR service to `sdr.db`.

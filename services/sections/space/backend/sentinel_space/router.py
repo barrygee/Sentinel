@@ -34,7 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sentinel_space.models import SatelliteCatalogue, TleCache
 from sentinel_space.services import daynight as dn_service
-from sentinel_space.services import sat_radio
+from sentinel_space.services import sat_radio, satellite_snapshot
 from sentinel_space.services import satellite as sat_service
 from sentinel_space.services import tle as tle_service
 
@@ -54,61 +54,6 @@ _USER_ASSIGNABLE_CATEGORIES = _VALID_CATEGORIES - {"active"}
 _ISS_NORAD = "25544"
 
 
-async def _tle_database_is_empty(db: AsyncSession) -> bool:
-    """Return True if the TLE cache table contains no rows."""
-    result = await db.execute(select(func.count()).select_from(TleCache))
-    return result.scalar() == 0
-
-
-async def _get_satellite_data(
-    norad_id: str,
-    db: AsyncSession,
-    obs_lat: float | None = None,
-    obs_lon: float | None = None,
-) -> dict:
-    """Fetch TLE, propagate position/track/footprint for any satellite.
-
-    When an observer location is supplied, the live position is annotated with
-    observer-relative look angles (az/el) so the sky-plot marker is exact.
-
-    Raises RuntimeError if TLE is unavailable, or re-raises other exceptions.
-    """
-    primary_url, fallback_url = await resolve_domain_urls("space", db)
-    tle_text = await tle_service.fetch_tle(norad_id, db, primary_url, fallback_url)
-    _, line1, line2 = tle_service.parse_tle_lines(tle_text)
-
-    # SGP4 propagation is CPU-bound (the ground track alone is ~1,440
-    # propagations), so it runs in a worker thread to keep the event loop free
-    # for other requests. Only plain strings and floats cross the thread boundary.
-    return await asyncio.to_thread(_propagate_satellite, line1, line2, obs_lat, obs_lon)
-
-
-def _propagate_satellite(
-    line1: str,
-    line2: str,
-    obs_lat: float | None,
-    obs_lon: float | None,
-) -> dict:
-    """Compute position, ground track, footprint and optional look angles from TLE lines.
-
-    Synchronous and free of loop-bound state, so it is safe to run in a worker thread.
-    """
-    position = sat_service.compute_position(line1, line2)
-    ground_track = sat_service.compute_ground_track(line1, line2)
-    footprint = sat_service.compute_footprint(position["lat"], position["lon"], position["alt_km"])
-    if obs_lat is not None and obs_lon is not None:
-        position.update(
-            sat_service.compute_look_angles(
-                position["lat"],
-                position["lon"],
-                position["alt_km"],
-                obs_lat,
-                obs_lon,
-            )
-        )
-    return {"position": position, "ground_track": ground_track, "footprint": footprint}
-
-
 @router.get("/iss")
 @handle_service_errors
 async def get_iss(
@@ -125,10 +70,10 @@ async def get_iss(
     """
     # If the TLE database is empty (e.g. user cleared all data), do not auto-fetch —
     # return a distinct error so the UI can prompt the user to add TLE data.
-    if await _tle_database_is_empty(db):
+    if await satellite_snapshot.tle_database_is_empty(db):
         return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-    return JSONResponse(await _get_satellite_data(_ISS_NORAD, db, lat, lon))
+    return JSONResponse((await satellite_snapshot.satellite_snapshot(_ISS_NORAD, db, lat, lon)).track)
 
 
 @router.get("/satellite/{norad_id}")
@@ -145,10 +90,10 @@ async def get_satellite(
     includes observer-relative az/el.
     """
     try:
-        if await _tle_database_is_empty(db):
+        if await satellite_snapshot.tle_database_is_empty(db):
             return JSONResponse({"error": "No TLE data in database", "no_tle_data": True}, status_code=503)
 
-        return JSONResponse(await _get_satellite_data(norad_id, db, lat, lon))
+        return JSONResponse((await satellite_snapshot.satellite_snapshot(norad_id, db, lat, lon)).track)
 
     except RuntimeError as e:
         msg = str(e)

@@ -95,6 +95,7 @@
                 {
                     "title": "Design decisions",
                     "pages": [
+                        { "path": "adr/0009-globe-section-snapshots", "title": "0009 Globe snapshots" },
                         { "path": "adr/0008-request-guard", "title": "0008 Request guard" },
                         { "path": "adr/0007-sdr-manager", "title": "0007 SDR Manager" },
                         {

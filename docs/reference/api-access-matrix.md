@@ -175,6 +175,7 @@ Profile `section`.
 | Method | Path | Who may call | Group | What it is |
 | --- | --- | --- | --- | --- |
 | GET | `/internal/security/status` | `service` | `internal` | Guard status: GET it with a service credential (or use the CLI). |
+| GET | `/api/globe/objects` | `browser` | `default` | Globe: the combined feed of aircraft, satellites, vessels and APRS stations (polled every 5 s; ADR 0009). |
 | GET | `/health` | `internal`, `operator` | `health` | Health probes: Docker's HEALTHCHECK (loopback), core's registry probes (internal), the operator. |
 | GET | `/remotes/globe/**` | `page` | `spa_shell` | Section UI remotes (Module Federation), served by each section; core answers 404. |
 

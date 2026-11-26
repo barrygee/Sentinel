@@ -155,6 +155,7 @@ class TestDomainUrlsReachFetchTle:
             return self.NOAA_20_TLE
 
         monkeypatch.setattr(space_router, "resolve_domain_urls", fake_resolve)
+        monkeypatch.setattr(space_router.satellite_snapshot, "resolve_domain_urls", fake_resolve)
         monkeypatch.setattr(space_router.tle_service, "fetch_tle", fake_fetch_tle)
         return captured
 
@@ -163,7 +164,7 @@ class TestDomainUrlsReachFetchTle:
 
         captured = self._capture_fetch_tle_urls(monkeypatch)
         # Bypass the empty-database guard so the request reaches fetch_tle.
-        monkeypatch.setattr(space_router, "_tle_database_is_empty", lambda db: _false())
+        monkeypatch.setattr(space_router.satellite_snapshot, "tle_database_is_empty", lambda db: _false())
 
         resp = client.get("/api/space/satellite/43013")
 
@@ -400,7 +401,7 @@ class TestUnexpectedErrorsStayInTheLog:
     def test_satellite_lookup(self, client, monkeypatch, caplog):
         from sentinel_space import router as space_router
 
-        monkeypatch.setattr(space_router, "_tle_database_is_empty", self._async_explode)
+        monkeypatch.setattr(space_router.satellite_snapshot, "tle_database_is_empty", self._async_explode)
 
         with caplog.at_level("ERROR"):
             response = client.get("/api/space/satellite/25544")
@@ -475,8 +476,9 @@ class TestSgp4RunsOffTheEventLoop:
             return database_empty
 
         monkeypatch.setattr(space_router, "resolve_domain_urls", fake_resolve)
+        monkeypatch.setattr(space_router.satellite_snapshot, "resolve_domain_urls", fake_resolve)
         monkeypatch.setattr(space_router.tle_service, "fetch_tle", fake_fetch_tle)
-        monkeypatch.setattr(space_router, "_tle_database_is_empty", database_is_empty)
+        monkeypatch.setattr(space_router.satellite_snapshot, "tle_database_is_empty", database_is_empty)
 
     def _record_threads(self, monkeypatch, *names: str) -> dict[str, list[bool]]:
         """Wrap these satellite-service functions (still calling the real ones) and

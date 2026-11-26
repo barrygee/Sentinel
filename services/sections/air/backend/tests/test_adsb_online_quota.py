@@ -28,9 +28,8 @@ import pytest
 from backend.services.upstream_rate_limit import MinimumIntervalRateLimiter, UpstreamThrottledError
 from tests.backend.air_test_helpers import assert_nothing_to_serve
 
-from sentinel_air import router as air_router
 from sentinel_air.services import adsb as adsb_service
-from sentinel_air.services import adsb_squawk
+from sentinel_air.services import adsb_point, adsb_squawk
 from sentinel_air.services.adsb import _cooldown_seconds, _quota_reset_header
 
 # Pinned rather than read from `settings`, so a `.env` on the machine running
@@ -316,7 +315,7 @@ class TestRouterOnlineFreshness:
 
         current = [1_800_000_000_000]
         monkeypatch.setattr(cache, "now_ms", lambda: current[0])
-        monkeypatch.setattr(air_router, "now_ms", lambda: current[0])
+        monkeypatch.setattr(adsb_point, "now_ms", lambda: current[0])
         return current
 
     @pytest.fixture

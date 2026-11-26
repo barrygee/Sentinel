@@ -49,11 +49,11 @@ class TestGlobeServiceApp:
 
         assert {"/remotes/globe", "/health"} <= paths
 
-    def test_serves_no_api_yet_and_nothing_of_another_section(self, globe_service):
-        """Its combined feed comes later; until then it owns /api/globe/ but answers nothing under /api/."""
+    def test_serves_only_its_combined_feed_and_nothing_of_another_section(self, globe_service):
+        """Under /api/ it answers only its own combined feed."""
         paths = [getattr(route, "path", "") for route in globe_service.app.routes]
 
-        assert not any(path.startswith("/api/") for path in paths)
+        assert [path for path in paths if path.startswith("/api/")] == ["/api/globe/objects"]
         assert not any(path.startswith("/remotes/") and path != "/remotes/globe" for path in paths)
 
     def test_registers_as_the_globe_section_at_its_own_address(self, globe_service):
@@ -144,11 +144,13 @@ class TestGlobeAccess:
         assert registration_refusal("globe", "section", ["/api/land/"]) is not None
         assert registration_refusal("globe", "docs", ["/api/globe/"]) is not None
 
-    def test_joins_the_bus_with_no_subjects_yet(self):
+    def test_joins_the_bus_only_to_request_the_sections_snapshots(self):
         from backend.platform.nats_permissions import SERVICE_PERMISSIONS, server_permissions
 
+        snapshot_subjects = ["air.globe.snapshot", "sea.globe.snapshot", "land.globe.snapshot", "space.globe.snapshot"]
         assert SERVICE_PERMISSIONS["globe"].publish == ()
         assert SERVICE_PERMISSIONS["globe"].subscribe == ()
-        assert SERVICE_PERMISSIONS["globe"].requests == ()
-        assert server_permissions("globe")["publish"] == {"deny": [">"]}
+        assert SERVICE_PERMISSIONS["globe"].answers_requests is False
+        assert list(SERVICE_PERMISSIONS["globe"].requests) == snapshot_subjects
+        assert server_permissions("globe")["publish"] == {"allow": snapshot_subjects}
         assert server_permissions("globe")["subscribe"] == {"allow": ["_INBOX.globe.>"]}

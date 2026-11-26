@@ -690,6 +690,13 @@
         },
 
         {
+            "note": "Globe: the combined feed of aircraft, satellites, vessels and APRS stations (polled every 5 s; ADR 0009).",
+            "paths": ["/api/globe/objects"],
+            "methods": ["GET"],
+            "access": ["browser"]
+        },
+
+        {
             "note": "Docs: the library and its images.",
             "paths": ["/api/documentation/library", "/api/documentation/images/{image_path:path}"],
             "methods": ["GET"],
