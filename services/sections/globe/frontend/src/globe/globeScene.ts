@@ -3,7 +3,8 @@
  * composed from the layer modules beside it. A port of the sentinel-site
  * header globe, so the two look the same: the dark basemap from Natural Earth
  * vectors, the UK detail patch, polar caps, a sharp patch for the area in view,
- * day/night shading, atmosphere, stars and country names.
+ * day/night shading, atmosphere, stars and country names, with the live
+ * objects (aircraft, vessels, APRS stations) and their labels on top.
  *
  * Framework-free: `useGlobeScene` owns its lifecycle from Vue.
  */
@@ -19,20 +20,25 @@ import {
   WebGLRenderer,
   type Object3D,
 } from 'three'
+import type { Bbox } from '../feeds/globeFeedTypes'
 import { createAtmosphere } from './atmosphere'
 import { CameraController, fitDistance, ZOOM_STEP } from './cameraController'
 import { CountryLabelLayer, type ScreenBox } from './countryLabels'
 import { createDayNightMaterial, createSunDirectionUniform } from './dayNightMaterial'
 import { baseMapWidth, createLayerTexture, paintWorldCanvas, SPACE_COLOUR } from './earthTexture'
 import { GLOBE_RADIUS, latLonToVector, subsolarPoint, type LatLon } from './geo'
+import type { GlobeObject, GlobeObjectKind } from './globeObject'
+import { GlobeObjects, PICK_RADIUS_PX } from './globeObjects'
 import { GlobeProjector } from './globeProjector'
 import { HomeMarker } from './homeMarker'
 import { handleGlobeKey } from './keyboardControls'
 import { loadGlobalSet } from './naturalEarth'
+import { attachPointerControls } from './pointerControls'
 import { createPolarCaps } from './polarCaps'
 import { SharpDetailPatch, type ViewportSample } from './sharpDetailPatch'
 import { createStarField } from './starField'
 import { createUkDetailPatch } from './ukDetailPatch'
+import { boundsDiffer, viewBounds } from './viewBounds'
 
 /** Vertical field of view in degrees (the site globe's). */
 const FIELD_OF_VIEW = 30
@@ -40,6 +46,12 @@ const FIELD_OF_VIEW = 30
 const NARROW_WIDTH = 900
 /** A frame never advances the camera by more than this (after a hidden tab, say). */
 const MAX_FRAME_SECONDS = 1
+/** How often a settled view is checked for having moved far enough to report new bounds. */
+const BOUNDS_CHECK_INTERVAL_MS = 500
+/** A finger is less precise than a mouse: taps reach marks this far away. */
+const TOUCH_PICK_RADIUS_PX = 20
+/** How close the camera comes when flying to an object. */
+const OBJECT_VIEW_DISTANCE = 180
 
 /** What the globe needs from its host. */
 export interface GlobeSceneOptions {
@@ -49,6 +61,10 @@ export interface GlobeSceneOptions {
   /** The operator's location: the start view and the home marker (null = none known). */
   home: LatLon | null
   reducedMotion: boolean
+  /** The viewer clicked or tapped an object (its key), or empty globe/space (null). */
+  onSelect?: (key: string | null) => void
+  /** The view settled on a new area (south, west, north, east), to fetch vessels for. */
+  onViewBoundsChange?: (bounds: Bbox) => void
 }
 
 /** The start view when no location is known: the North Atlantic, Europe in sight. */
@@ -101,6 +117,10 @@ export class GlobeScene {
   private readonly baseMesh: Mesh
   private readonly countryLabels: CountryLabelLayer
   private readonly homeMarker: HomeMarker
+  private readonly objects: GlobeObjects
+  private readonly detachPointer: () => void
+  private lastBounds: Bbox | null = null
+  private lastBoundsCheckMs = -Infinity
   private sharpPatch: SharpDetailPatch | null = null
   private home: LatLon | null
   private frameRequest = 0
@@ -151,6 +171,26 @@ export class GlobeScene {
     this.scene.add(this.baseMesh)
     this.scene.add(createUkDetailPatch(renderer, this.sunDirection))
     this.scene.add(createAtmosphere())
+
+    this.objects = new GlobeObjects(this.scene, options.overlay, renderer.getPixelRatio())
+    this.detachPointer = attachPointerControls(options.canvas, this.controller, this.projector, {
+      onTap: (x, y, isTouch) => {
+        const key = this.objects.pick(
+          this.projector,
+          x,
+          y,
+          isTouch ? TOUCH_PICK_RADIUS_PX : PICK_RADIUS_PX,
+        )
+        this.select(key)
+        options.onSelect?.(key)
+      },
+      onHover: (point) => {
+        const key = point ? this.objects.pick(this.projector, point.x, point.y) : null
+        if (this.objects.hover(key)) {
+          options.canvas.classList.toggle('globe-canvas--over-object', key !== null)
+        }
+      },
+    })
 
     this.homeMarker = new HomeMarker(options.overlay)
     this.homeMarker.setLocation(options.home)
@@ -206,6 +246,29 @@ export class GlobeScene {
     })
   }
 
+  /** Replaces the objects of one kind. */
+  setObjects(kind: GlobeObjectKind, objects: GlobeObject[]): void {
+    this.objects.setObjects(kind, objects)
+  }
+
+  /** Shows or hides one kind of object. */
+  setLayerVisible(kind: GlobeObjectKind, visible: boolean): void {
+    this.objects.setVisible(kind, visible)
+  }
+
+  /** Highlights one object and always labels it (null = none). */
+  select(key: string | null): void {
+    this.objects.select(key)
+  }
+
+  /** Glides the camera over an object, coming in close; false when it isn't on the globe. */
+  flyToObject(key: string): boolean {
+    const object = this.objects.find(key)
+    if (!object) return false
+    this.controller.flyTo(object, Math.min(this.controller.goal.distance, OBJECT_VIEW_DISTANCE))
+    return true
+  }
+
   /** One zoom-button step in. */
   zoomIn(): void {
     this.controller.zoomBy(ZOOM_STEP)
@@ -257,9 +320,40 @@ export class GlobeScene {
     const reserved: ScreenBox[] = []
     const homeBox = this.homeMarker.update(this.projector)
     if (homeBox) reserved.push(homeBox)
+    // Object labels before country names: a vessel's name matters more than the sea's.
+    this.objects.update(this.projector, reserved, nowMs)
     this.countryLabels.update(this.projector, this.controller.view.distance, reserved)
 
+    if (nowMs - this.lastBoundsCheckMs >= BOUNDS_CHECK_INTERVAL_MS) {
+      this.lastBoundsCheckMs = nowMs
+      this.reportBoundsIfMoved()
+    }
+
     this.frameRequest = requestAnimationFrame(this.frame)
+  }
+
+  /** Tells the host the view's bounds once it has settled somewhere new. */
+  private reportBoundsIfMoved(): void {
+    if (!this.options.onViewBoundsChange || !this.sized || !this.controller.isSettled()) return
+    const samples = this.sampleViewport().map((sample) => sample.position)
+    const bounds = viewBounds(samples, this.poleInView())
+    if (!bounds || !boundsDiffer(bounds, this.lastBounds)) return
+    this.lastBounds = bounds
+    this.options.onViewBoundsChange(bounds)
+  }
+
+  /** The pole on screen and on the near side, if either is. */
+  private poleInView(): 'north' | 'south' | null {
+    for (const [pole, lat] of [
+      ['north', 90],
+      ['south', -90],
+    ] as const) {
+      const position = latLonToVector(lat, 0)
+      if (!this.projector.isFacing(position)) continue
+      const { x, y } = this.projector.toScreen(position)
+      if (x >= 0 && x <= this.projector.width && y >= 0 && y <= this.projector.height) return pole
+    }
+    return null
   }
 
   /** Screen pixels per degree of arc at the centre of the view. */
@@ -299,6 +393,8 @@ export class GlobeScene {
     this.disposed = true
     this.pause()
     this.options.canvas.removeEventListener('webglcontextlost', this.onContextLost)
+    this.detachPointer()
+    this.objects.dispose()
     this.sharpPatch?.dispose()
     disposeObjectTree(this.scene)
     this.countryLabels.dispose()

@@ -1,5 +1,7 @@
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from 'vue'
+import type { Bbox } from '../feeds/globeFeedTypes'
 import type { LatLon } from '../globe/geo'
+import type { GlobeObject, GlobeObjectKind } from '../globe/globeObject'
 import { GlobeScene } from '../globe/globeScene'
 
 /** Where the globe is in its start-up: drawing its map, showing, or impossible here (no WebGL). */
@@ -12,7 +14,25 @@ export interface GlobeSceneHandle {
   zoomOut: () => void
   /** Keyboard control; returns true when the key was used (prevent its default). */
   handleKey: (key: string) => boolean
+  /** Glides the camera over an object; false when it isn't on the globe. */
+  flyToObject: (key: string) => boolean
 }
+
+/** The live objects to draw, and what the globe tells its host. */
+export interface GlobeSceneContent {
+  /** Every kind's objects. */
+  objects: Ref<Record<GlobeObjectKind, GlobeObject[]>>
+  /** Which kinds are shown. */
+  visibleKinds: Ref<Record<GlobeObjectKind, boolean>>
+  /** The selected object's key (null = none). */
+  selectedKey: Ref<string | null>
+  /** The viewer clicked an object (its key) or empty space (null). */
+  onSelect: (key: string | null) => void
+  /** The view settled on a new area. */
+  onViewBoundsChange: (bounds: Bbox) => void
+}
+
+const KINDS: readonly GlobeObjectKind[] = ['air', 'sea', 'aprs']
 
 /**
  * Runs the 3D globe on a canvas for the lifetime of the calling component:
@@ -23,11 +43,13 @@ export interface GlobeSceneHandle {
  * @param canvas the canvas to draw on.
  * @param overlay an element laid over the canvas, for the HTML labels.
  * @param home the operator's location (null while unknown).
+ * @param content the live objects and the selection, kept in step with the globe.
  */
 export function useGlobeScene(
   canvas: Ref<HTMLCanvasElement | null>,
   overlay: Ref<HTMLElement | null>,
   home: Ref<LatLon | null>,
+  content: GlobeSceneContent,
 ): GlobeSceneHandle {
   const status = ref<GlobeStatus>('loading')
   const scene = shallowRef<GlobeScene | null>(null)
@@ -45,12 +67,17 @@ export function useGlobeScene(
       overlay: overlay.value,
       home: home.value,
       reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      onSelect: content.onSelect,
+      onViewBoundsChange: content.onViewBoundsChange,
     })
     if (!created) {
       status.value = 'unavailable'
       return
     }
     scene.value = created
+    applyObjects(created)
+    applyVisibility(created)
+    created.select(content.selectedKey.value)
     const element = canvas.value
     created.resize(element.clientWidth, element.clientHeight)
     resizeObserver = new ResizeObserver(() =>
@@ -71,7 +98,18 @@ export function useGlobeScene(
     )
   })
 
+  function applyObjects(target: GlobeScene): void {
+    for (const kind of KINDS) target.setObjects(kind, content.objects.value[kind])
+  }
+
+  function applyVisibility(target: GlobeScene): void {
+    for (const kind of KINDS) target.setLayerVisible(kind, content.visibleKinds.value[kind])
+  }
+
   watch(home, (location) => scene.value?.setHome(location))
+  watch(content.objects, () => scene.value && applyObjects(scene.value))
+  watch(content.visibleKinds, () => scene.value && applyVisibility(scene.value))
+  watch(content.selectedKey, (key) => scene.value?.select(key))
 
   onBeforeUnmount(() => {
     resizeObserver?.disconnect()
@@ -85,5 +123,6 @@ export function useGlobeScene(
     zoomIn: () => scene.value?.zoomIn(),
     zoomOut: () => scene.value?.zoomOut(),
     handleKey: (key) => scene.value?.handleKey(key) ?? false,
+    flyToObject: (key) => scene.value?.flyToObject(key) ?? false,
   }
 }
