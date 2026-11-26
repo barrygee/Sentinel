@@ -324,6 +324,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Show the time frames recorded and the file size in Settings
 - Remove movement history and replay **(breaking change)**
 - Add the optional GLOBE section behind a Settings switch
+- Serve a combined feed from the sections' NATS snapshots
 
 ### Bug Fixes
 
@@ -1999,6 +2000,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #695 from barrygee/chore/remove-dead-panel-toggle-css
 - Merge pull request #696 from barrygee/fix/air-panel-loading-not-signal-lost
 - Merge pull request #697 from barrygee/feat/globe-section
+- Merge pull request #698 from barrygee/feat/globe-snapshots
 
 ### Performance
 
