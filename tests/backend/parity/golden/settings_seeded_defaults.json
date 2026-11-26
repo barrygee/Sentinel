@@ -71,7 +71,13 @@
     }
   },
   "globe": {
-    "enabled": false
+    "enabled": false,
+    "layers": {
+      "air": true,
+      "aprs": true,
+      "sea": true,
+      "space": true
+    }
   },
   "land": {
     "aprsChannelHz": 144800000,

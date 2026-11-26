@@ -1,25 +1,39 @@
 <script setup lang="ts">
 /**
- * Says why the globe isn't showing, as the app's warning strip, centred over
- * the globe's space. For now the one reason is a browser or device without
- * WebGL; the live layers add theirs (ADS-B limit, no APRS decoder) later.
+ * Says why something isn't showing, as the app's warning strip. `centre`
+ * (the default) fills the globe's space and centres the strip, for the globe
+ * itself being impossible (no WebGL); `inline` is a plain strip, for a layer
+ * that is empty (ADS-B limit reached, a section down, no APRS decoder), placed
+ * by its container.
  */
 import BaseWarningNotice from '@sentinel/ui/base/BaseWarningNotice.vue'
 
-defineProps<{
-  /** The explanation to show. */
-  message: string
+withDefaults(
+  defineProps<{
+    /** The explanation to show. */
+    message: string
+    /** Centred over the globe, or an inline strip. */
+    placement?: 'centre' | 'inline'
+    /** Show a × that emits `dismiss`. */
+    dismissible?: boolean
+  }>(),
+  { placement: 'centre', dismissible: false },
+)
+
+const emit = defineEmits<{
+  /** The viewer closed the notice. */
+  dismiss: []
 }>()
 </script>
 
 <template>
-  <div class="globe-unavailable-notice">
-    <BaseWarningNotice :message="message" />
+  <div class="globe-unavailable-notice" :class="`globe-unavailable-notice--${placement}`">
+    <BaseWarningNotice :message="message" :dismissible="dismissible" @dismiss="emit('dismiss')" />
   </div>
 </template>
 
 <style scoped>
-.globe-unavailable-notice {
+.globe-unavailable-notice--centre {
   position: absolute;
   inset: 0;
   display: grid;

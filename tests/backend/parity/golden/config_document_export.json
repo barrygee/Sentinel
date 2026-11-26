@@ -188,6 +188,12 @@
     "ais_radio_id": null
   },
   "globe": {
-    "enabled": false
+    "enabled": false,
+    "layers": {
+      "air": true,
+      "space": true,
+      "sea": true,
+      "aprs": true
+    }
   }
 }

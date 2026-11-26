@@ -1,6 +1,7 @@
 /**
  * Mouse, pen and touch input on the globe canvas: drag to turn, wheel to zoom
- * toward the cursor, pinch to zoom, and hover (which slows the auto-spin).
+ * toward the cursor, pinch to zoom, hover (which slows the auto-spin and
+ * finds the object under the pointer) and tap (which picks one).
  */
 import type { CameraController } from './cameraController'
 import type { LatLon } from './geo'
@@ -8,6 +9,14 @@ import type { GlobeProjector } from './globeProjector'
 
 /** Pixels a pointer may move and still count as a click, not a drag. */
 const DRAG_THRESHOLD_PX = 4
+
+/** What the caller hears about besides camera moves. */
+export interface PointerCallbacks {
+  /** A click or tap that didn't drag, at canvas CSS pixel (x, y). */
+  onTap?: (x: number, y: number, isTouch: boolean) => void
+  /** The pointer moved over the canvas without dragging (null = it left). */
+  onHover?: (point: { x: number; y: number } | null) => void
+}
 
 interface DragStart {
   x: number
@@ -25,6 +34,7 @@ export function attachPointerControls(
   canvas: HTMLCanvasElement,
   controller: CameraController,
   projector: GlobeProjector,
+  callbacks: PointerCallbacks = {},
 ): () => void {
   let drag: DragStart | null = null
   let movedPx = 0
@@ -90,9 +100,16 @@ export function attachPointerControls(
     }
     const point = canvasPoint(event)
     controller.hovering = projector.latLonAt(point.x, point.y) !== null
+    // Touch has no hover: a finger resting there is the start of a drag or tap.
+    if (event.pointerType !== 'touch') callbacks.onHover?.(point)
   }
 
   const onPointerUp = (event: PointerEvent): void => {
+    // A press that never moved past the threshold (and wasn't a pinch) is a tap.
+    if (drag && movedPx <= DRAG_THRESHOLD_PX && event.type === 'pointerup') {
+      const point = canvasPoint(event)
+      callbacks.onTap?.(point.x, point.y, drag.isTouch)
+    }
     touches.delete(event.pointerId)
     if (touches.size < 2) pinchDistance = 0
     endDrag()
@@ -100,6 +117,7 @@ export function attachPointerControls(
 
   const onPointerLeave = (): void => {
     if (!drag) controller.hovering = false
+    callbacks.onHover?.(null)
   }
 
   const onWheel = (event: WheelEvent): void => {

@@ -1,31 +1,52 @@
 <script setup lang="ts">
 /**
- * The globe itself: the WebGL canvas and the HTML label layer laid over it.
+ * The globe itself: the WebGL canvas and the HTML label layer laid over it,
+ * drawing the live objects it is given.
  *
  * The canvas is one keyboard stop (arrows turn the globe, + and − zoom, Home
  * returns to the start view), described for screen readers by the hidden
  * instructions. The labels are decoration, hidden from assistive tech.
  *
- * Exposes `zoomIn`/`zoomOut` for the zoom buttons beside it, and reports its
- * start-up state with `status-change`.
+ * Exposes `zoomIn`/`zoomOut` for the zoom buttons beside it and `flyToObject`
+ * for the details panel, and reports its start-up state with `status-change`,
+ * a click on an object (or empty space) with `select`, and a newly settled
+ * view with `view-bounds-change`.
  */
 import { ref, toRef, watch } from 'vue'
 import { useGlobeScene, type GlobeStatus } from '../composables/useGlobeScene'
+import type { Bbox } from '../feeds/globeFeedTypes'
 import type { LatLon } from '../globe/geo'
+import type { GlobeObject, GlobeObjectKind } from '../globe/globeObject'
 
 const props = defineProps<{
   /** The operator's location: the start view and home marker (null while unknown). */
   home: LatLon | null
+  /** Each kind's live objects. */
+  objects: Record<GlobeObjectKind, GlobeObject[]>
+  /** Which kinds are shown. */
+  visibleKinds: Record<GlobeObjectKind, boolean>
+  /** The selected object's key (null = none). */
+  selectedKey: string | null
 }>()
 
 const emit = defineEmits<{
   /** The globe finished loading (`ready`) or can't run here (`unavailable`). */
   'status-change': [status: GlobeStatus]
+  /** The viewer clicked an object (its key) or empty space (null). */
+  select: [key: string | null]
+  /** The view settled on a new area. */
+  'view-bounds-change': [bounds: Bbox]
 }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
 const overlay = ref<HTMLElement | null>(null)
-const globe = useGlobeScene(canvas, overlay, toRef(props, 'home'))
+const globe = useGlobeScene(canvas, overlay, toRef(props, 'home'), {
+  objects: toRef(props, 'objects'),
+  visibleKinds: toRef(props, 'visibleKinds'),
+  selectedKey: toRef(props, 'selectedKey'),
+  onSelect: (key) => emit('select', key),
+  onViewBoundsChange: (bounds) => emit('view-bounds-change', bounds),
+})
 
 watch(globe.status, (status) => emit('status-change', status))
 
@@ -34,7 +55,7 @@ function onKeydown(event: KeyboardEvent): void {
   if (globe.handleKey(event.key)) event.preventDefault()
 }
 
-defineExpose({ zoomIn: globe.zoomIn, zoomOut: globe.zoomOut })
+defineExpose({ zoomIn: globe.zoomIn, zoomOut: globe.zoomOut, flyToObject: globe.flyToObject })
 </script>
 
 <template>
@@ -86,6 +107,10 @@ defineExpose({ zoomIn: globe.zoomIn, zoomOut: globe.zoomOut })
   outline-offset: -2px !important;
 }
 
+.globe-canvas.globe-canvas--over-object {
+  cursor: pointer;
+}
+
 .globe-canvas.globe-canvas--dragging {
   cursor: grabbing;
 }
@@ -107,8 +132,10 @@ defineExpose({ zoomIn: globe.zoomIn, zoomOut: globe.zoomOut })
   will-change: transform;
 }
 
+/* !important: the label rules below set their own display (the pills are
+   flex rows) with the same specificity, and hiding must win over all of them. */
 .globe-overlay :deep(.globe-overlay--hidden) {
-  display: none;
+  display: none !important;
 }
 
 /* Country names as the dark basemap sets them (dimmed with the map). */
@@ -133,7 +160,53 @@ defineExpose({ zoomIn: globe.zoomIn, zoomOut: globe.zoomOut })
   display: block;
 }
 
+/* An object's label, in the flat maps' pill style (mapLabelParts.ts): the
+   name in condensed uppercase on black, then a coloured badge. The mark it
+   names is drawn on the canvas just beside it. */
+.globe-overlay :deep(.globe-pill) {
+  display: flex;
+  align-items: stretch;
+  height: 22px;
+  background: #000;
+  color: #fff;
+  font:
+    400 13px/1 'Barlow Condensed',
+    'Barlow',
+    sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  transition: opacity 0.3s ease;
+}
+
+.globe-overlay :deep(.globe-pill-name) {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.globe-overlay :deep(.globe-pill-badge) {
+  display: flex;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.globe-overlay :deep(.globe-pill--selected) {
+  outline: 1px solid #c8ff00;
+  z-index: 2;
+}
+
+.globe-overlay :deep(.globe-pill--dimmed) {
+  opacity: 0.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .globe-overlay :deep(.globe-pill) {
+    transition: none;
+  }
+
   .globe-stage {
     transition: none;
   }
