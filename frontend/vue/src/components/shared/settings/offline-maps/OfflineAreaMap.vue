@@ -8,7 +8,7 @@
     aria-label="Map for choosing an offline download area. Draw or resize the area here, or enter its North, South, East and West bounds in the fields below."
   >
     <div ref="containerRef" class="offline-area-map"></div>
-    <MapZoomButtons class="offline-area-map-zoom" @zoom-in="zoomIn" @zoom-out="zoomOut" />
+    <BaseZoomButtons class="offline-area-map-zoom" @zoom-in="zoomIn" @zoom-out="zoomOut" />
   </div>
 </template>
 
@@ -23,7 +23,7 @@
  * internet, the offline one (downloaded areas + bundled tiles) when there
  * isn't, so the preview still shows a map with no connection. Scroll-wheel zoom is off (as in
  * `SdrManagerSiteMap`) so the map doesn't swallow the settings panel's own
- * scroll; zoom is available via the +/- buttons (`MapZoomButtons`, styled
+ * scroll; zoom is available via the +/- buttons (`BaseZoomButtons`, styled
  * like the domain maps' side rail), double-click, pinch and the keyboard.
  *
  * Renders three overlays, all rebuilt on `style.load` (a theme swap replaces
@@ -54,7 +54,7 @@ import { useAppStore } from '@sentinel/shell-api/stores/app'
 import { useThemeStore } from '@sentinel/shell-api/stores/theme'
 import { RectangleDrawHandler, type LngLatBounds } from './rectangleDrawHandler'
 import { RectangleResizeHandler } from './rectangleResizeHandler'
-import MapZoomButtons from '@sentinel/map-kit/controls/map-zoom/MapZoomButtons.vue'
+import BaseZoomButtons from '@sentinel/ui/base/BaseZoomButtons.vue'
 
 /** A downloaded area to outline, with the name it was given. */
 export interface OfflineRegionOutline extends LngLatBounds {

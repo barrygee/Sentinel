@@ -56,7 +56,7 @@ export type BaseButtonColor = 'default' | 'strong' | 'muted'
  * `'default'`), and that class does nothing but set the hooks.
  * - `size`: `'default'` | `'compact'` (28px tall, 10px type — the SDR groups /
  *   panel buttons, the docs code-block copy button; rail: 30px tall, as
- *   MapZoomButtons) | `'fitted'` (height from content, `8px 16px` padding,
+ *   BaseZoomButtons) | `'fitted'` (height from content, `8px 16px` padding,
  *   10px type — the Settings panel's bar buttons, `SdrHostDeviceAddButton`).
  *   Both sized looks keep a target of at least 24x24 CSS px (WCAG 2.5.8).
  *   Affects every variant; `'fitted'` is not defined for `rail` and leaves it
