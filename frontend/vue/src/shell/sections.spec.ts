@@ -32,7 +32,6 @@ describe('shell/sections', () => {
       'sea',
       'land',
       'sdr',
-      'globe',
       'sdr-manager-local',
       'sdr-manager-remote',
     ])
@@ -45,14 +44,7 @@ describe('shell/sections', () => {
 
     // The SDR Manager remotes add settings, never a map section.
     const sections = getRegisteredSections()
-    expect(sections.map((section) => section.id)).toEqual([
-      'air',
-      'space',
-      'sea',
-      'land',
-      'sdr',
-      'globe',
-    ])
+    expect(sections.map((section) => section.id)).toEqual(['air', 'space', 'sea', 'land', 'sdr'])
     expect((await getPersistentRadioPaneLoader()!()).default).toBe(SdrTabPanel)
   })
 
@@ -67,7 +59,6 @@ describe('shell/sections', () => {
       'sea',
       'land',
       'sdr',
-      'globe',
       'sdr-manager-local',
       'sdr-manager-remote',
     ])
@@ -84,7 +75,7 @@ describe('shell/sections', () => {
       vi.unstubAllEnvs()
     })
 
-    const MAP_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr', 'globe']
+    const MAP_SECTIONS = ['air', 'space', 'sea', 'land', 'sdr']
 
     function answer(response: unknown, ok = true): void {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => response }))

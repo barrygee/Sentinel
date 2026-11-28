@@ -48,34 +48,25 @@ SERVICE_PERMISSIONS: dict[str, SubjectPermissions] = {
         answers_requests=True,
         requests=("sdr-manager.remote.hosts.snapshot",),
     ),
-    # Squawk alerts to core; SDR host reservations and receiver locations from
-    # sdr-manager-remote; answers the globe's aircraft snapshot (ADR 0009).
+    # Squawk alerts to core; SDR host reservations and receiver locations from sdr-manager-remote.
     "air": SubjectPermissions(
         publish=("notifications.raise", "air.squawk.changed"),
-        subscribe=("air.squawk.changed", "air.globe.snapshot"),
-        answers_requests=True,
+        subscribe=("air.squawk.changed",),
         requests=("sdr-manager.remote.>",),
     ),
-    # Off-grid vessels from the hub's AIS decoder, which it starts and stops;
-    # answers the globe's vessel snapshot (ADR 0009).
+    # Off-grid vessels from the hub's AIS decoder, which it starts and stops.
     "sea": SubjectPermissions(
-        subscribe=("decode.ais.*", "settings.changed.sea", "settings.changed.app", "sea.globe.snapshot"),
-        answers_requests=True,
+        subscribe=("decode.ais.*", "settings.changed.sea", "settings.changed.app"),
         requests=("hub.decode.ais.>",),
     ),
-    # APRS packets heard by the hub; answers the globe's station snapshot (ADR 0009).
-    "land": SubjectPermissions(subscribe=("decode.aprs.*", "land.globe.snapshot"), answers_requests=True),
+    # APRS packets heard by the hub.
+    "land": SubjectPermissions(subscribe=("decode.aprs.*",)),
     # IQ captures, recorded and staged by the hub.
     "sdr": SubjectPermissions(requests=("hub.iq-capture.>",)),
-    # Answers the globe's satellite snapshot (ADR 0009).
-    "space": SubjectPermissions(subscribe=("space.globe.snapshot",), answers_requests=True),
+    # Uses no subject today; it still connects, like every service.
+    "space": SubjectPermissions(),
     # Serves the in-app documentation and uses no subject; it still connects, like every service.
     "docs": SubjectPermissions(),
-    # The optional 3D globe: asks each owning section for its snapshot and
-    # serves the browser one combined feed (ADR 0009). It answers nothing.
-    "globe": SubjectPermissions(
-        requests=("air.globe.snapshot", "sea.globe.snapshot", "land.globe.snapshot", "space.globe.snapshot"),
-    ),
     # This machine's dongles (ADR 0007). It never connects: it talks to core
     # over HTTPS and to sdr-manager-remote through the SDR Manager API. Listed
     # with no subjects so its HTTP credential has an entry here too.

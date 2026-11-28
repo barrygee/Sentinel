@@ -45,7 +45,6 @@ SERVICES: tuple[tuple[str, str, str], ...] = (
     ("Air (`air`)", "sentinel_air.service", "section"),
     ("Sea (`sea`)", "sentinel_sea.service", "section"),
     ("SDR (`sdr`)", "sentinel_sdr.service", "section"),
-    ("Globe (`globe`)", "sentinel_globe.service", "section"),
     ("Radio hub (`radio`)", "sentinel_radio.service", "radio_hub"),
     ("Docs (`docs`)", "sentinel_docs.service", "docs"),
     ("SDR Manager, other machines (`sdr-manager-remote`)", "sentinel_sdr_manager_remote.service", "sdr_manager_remote"),

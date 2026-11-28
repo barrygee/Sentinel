@@ -97,9 +97,6 @@ SERVICE_ACCESS: dict[str, CallerAccess] = {
         route_prefixes=frozenset({"/api/sdr/"}),
         fetches_iq_captures=True,
     ),
-    # The optional 3D globe: it only registers (its feed comes from the
-    # sections over NATS, not internal HTTP).
-    "globe": CallerAccess(registers_as="globe", registers_kind="section", route_prefixes=frozenset({"/api/globe/"})),
     # The in-app documentation: it only registers.
     "docs": CallerAccess(registers_as="docs", registers_kind="docs", route_prefixes=frozenset({"/api/documentation/"})),
     # This machine's dongles: it only registers, and checks the bearer

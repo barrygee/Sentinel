@@ -1,6 +1,6 @@
 <template>
   <div class="base-zoom-buttons theme-dark" role="group" :aria-label="groupLabel">
-    <!-- `theme-dark` pins the rail's dark palette: these sit on a map or globe,
+    <!-- `theme-dark` pins the rail's dark palette: these sit on a map,
          even inside a light surface such as the Settings panel. (Comment kept
          inside the root so the component stays single-root for class fallthrough.) -->
     <BaseIconButton
@@ -32,8 +32,8 @@
  *
  * For views that have no rail of their own: the small embedded maps (e.g.
  * Settings › Offline Maps, in place of MapLibre's stock white
- * `NavigationControl`) and the GLOBE section's WebGL globe. It lives in
- * `@sentinel/ui`, not map-kit, so a remote that draws no MapLibre map can use it.
+ * `NavigationControl`). It lives in `@sentinel/ui`, not map-kit, so a remote
+ * that draws no MapLibre map can use it.
  *
  * Emits only; the owner does the zooming.
  */
@@ -41,7 +41,7 @@ import BaseIconButton from '@sentinel/ui/base/BaseIconButton.vue'
 
 withDefaults(
   defineProps<{
-    /** Accessible name of the button group, e.g. "Globe zoom". */
+    /** Accessible name of the button group, e.g. "Map zoom". */
     groupLabel?: string
   }>(),
   { groupLabel: 'Map zoom' },

@@ -31,7 +31,6 @@ class TestTable:
             "radio",
             "sdr",
             "docs",
-            "globe",
             "sdr-manager-local",
             "sdr-manager-remote",
         }
@@ -44,14 +43,13 @@ class TestTable:
         ]
         assert unrestricted == [CORE_USER]
 
-    def test_only_core_the_radio_hub_sdr_manager_remote_and_the_globe_sources_answer_requests(self):
+    def test_only_core_the_radio_hub_and_sdr_manager_remote_answer_requests(self):
         responders = {
             user
             for user, rules in SERVICE_PERMISSIONS.items()
             if rules.answers_requests
         }
-        # Air, Sea, Land and Space answer only their `<section>.globe.snapshot` (ADR 0009).
-        assert responders == {CORE_USER, "radio", "sdr-manager-remote", "air", "sea", "land", "space"}
+        assert responders == {CORE_USER, "radio", "sdr-manager-remote"}
 
     @pytest.mark.parametrize(
         ("user", "subject"),

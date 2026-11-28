@@ -4,9 +4,6 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_space.database import backfill_satellite_radio_store, create_space_tables
-from sentinel_space.services import (
-    globe_snapshot,  # noqa: F401  (registers the space.globe.snapshot responder, ADR 0009)
-)
 
 
 async def prepare() -> None:

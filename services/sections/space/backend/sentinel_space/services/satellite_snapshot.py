@@ -1,7 +1,6 @@
-"""Space's satellite read: the one both its consumers share.
+"""Space's satellite read: the one both its routes share.
 
-The map's `GET /api/space/satellite/{norad_id}` (and `/api/space/iss`) and the
-globe's `space.globe.snapshot` bus request both answer from
+`GET /api/space/satellite/{norad_id}` and `/api/space/iss` answer from
 `satellite_snapshot`, so the TLE comes through the same cache, upstream and
 fallback rules (`tle_service.fetch_tle`) and is propagated the same way.
 """

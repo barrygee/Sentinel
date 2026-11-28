@@ -93,7 +93,6 @@ COPY services/sdr-manager-remote/backend/pyproject.toml ./services/sdr-manager-r
 # only its metadata is here, for the lock check, and it is never installed.
 COPY services/sdr-manager-local/backend/pyproject.toml ./services/sdr-manager-local/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
-COPY services/sections/globe/backend/pyproject.toml ./services/sections/globe/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
 COPY services/sections/sea/backend/pyproject.toml ./services/sections/sea/backend/
@@ -120,7 +119,6 @@ COPY --chown=sentinel:sentinel services/radio/backend/ ./services/radio/backend/
 COPY --chown=sentinel:sentinel services/docs/backend/ ./services/docs/backend/
 COPY --chown=sentinel:sentinel services/sdr-manager-remote/backend/ ./services/sdr-manager-remote/backend/
 COPY --chown=sentinel:sentinel services/sections/air/backend/ ./services/sections/air/backend/
-COPY --chown=sentinel:sentinel services/sections/globe/backend/ ./services/sections/globe/backend/
 COPY --chown=sentinel:sentinel services/sections/land/backend/ ./services/sections/land/backend/
 COPY --chown=sentinel:sentinel services/sections/sdr/backend/ ./services/sections/sdr/backend/
 COPY --chown=sentinel:sentinel services/sections/sea/backend/ ./services/sections/sea/backend/

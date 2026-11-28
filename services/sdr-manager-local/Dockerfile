@@ -92,7 +92,6 @@ COPY services/sdr-manager-remote/backend/pyproject.toml ./services/sdr-manager-r
 COPY services/radio/backend/pyproject.toml ./services/radio/backend/
 COPY services/docs/backend/pyproject.toml ./services/docs/backend/
 COPY services/sections/air/backend/pyproject.toml ./services/sections/air/backend/
-COPY services/sections/globe/backend/pyproject.toml ./services/sections/globe/backend/
 COPY services/sections/land/backend/pyproject.toml ./services/sections/land/backend/
 COPY services/sections/sdr/backend/pyproject.toml ./services/sections/sdr/backend/
 COPY services/sections/sea/backend/pyproject.toml ./services/sections/sea/backend/

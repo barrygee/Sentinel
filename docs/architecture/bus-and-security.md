@@ -39,7 +39,6 @@ Rules:
 | `sdr-manager.claims.{granted,released}` | sdr-manager-remote | A dongle was claimed (a request: the radio hub acknowledges before the claim's retune) or given back; the hub leaves a claimed dongle alone |
 | `hub.iq-capture.{locate,list,discard}` | sdr | IQ capture hand-over |
 | `air.squawk.changed` | air | A squawk changed |
-| `{air,sea,land,space}.globe.snapshot` | globe | A request: the owning section answers with its compact snapshot for the globe's combined feed ([ADR 0009](../adr/0009-globe-section-snapshots.md)) |
 
 **Adding a subject:** add it to the user's row in `backend/platform/nats_permissions.py`, `docker compose up -d`, then `docker compose restart nats`. Otherwise the broker refuses it (`permissions violation`).
 

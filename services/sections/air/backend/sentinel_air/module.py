@@ -4,10 +4,7 @@ from backend.modules.manifest import section_manifest
 from backend.platform.lifecycle import ModuleLifecycle
 
 from sentinel_air.database import create_air_tables
-from sentinel_air.services import (
-    globe_snapshot,  # noqa: F401  (registers the air.globe.snapshot responder, ADR 0009)
-    online_quota,
-)
+from sentinel_air.services import online_quota
 from sentinel_air.services.adsb_squawk import watcher
 
 # `/api/air/messages` stays core's (notifications); the gateway sends that
