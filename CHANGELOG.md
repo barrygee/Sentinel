@@ -798,6 +798,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Remove the unused sip-toggle and spp-filter-toggle CSS
 - Drop the Noto Sans Bold glyphs, no longer used
 - Remove dead notification and tracking toggle-button CSS
+- Remove the GLOBE section, now a 3D view inside Space
 
 ### Reverts
 
@@ -2005,6 +2006,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Merge pull request #698 from barrygee/feat/globe-snapshots
 - Merge pull request #699 from barrygee/feat/globe-renderer
 - Merge pull request #700 from barrygee/feat/globe-layers
+- Merge pull request #701 from barrygee/chore/remove-globe-section
 
 ### Performance
 
@@ -2563,6 +2565,7 @@ in the branch, and follows [Keep a Changelog](https://keepachangelog.com).
 - Rebuild the SPA with the GLOBE section remote
 - Rebuild the SPA with the GLOBE renderer
 - Rebuild the SPA with the GLOBE live layers
+- Rebuild the SPA without the GLOBE section
 
 ### Continuous Integration
 
