@@ -96,8 +96,7 @@ async def get_aircraft_near_point(
     Every response says how old its snapshot is in `X-Snapshot-Age-Ms` (0 when
     fetched by this request), so the map can age aircraft by when they were
     actually observed rather than when the response arrived. `X-Cache` names
-    the cache state (see `adsb_point.aircraft_near_point`, which the globe's
-    `air.globe.snapshot` shares); nothing to serve is a 204 with
+    the cache state (see `adsb_point.aircraft_near_point`); nothing to serve is a 204 with
     `X-Cache: UNAVAILABLE` and `X-Unavailable-Reason`.
     """
     return _snapshot_response(await adsb_point.aircraft_near_point(db, lat, lon, radius))

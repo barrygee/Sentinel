@@ -1,4 +1,0 @@
-{
-  "extends": "@sentinel/web-config/tsconfig.base.json",
-  "include": ["src/**/*.ts", "src/**/*.vue", "*.config.ts"]
-}

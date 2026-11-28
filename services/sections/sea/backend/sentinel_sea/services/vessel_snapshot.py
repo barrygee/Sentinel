@@ -1,9 +1,8 @@
-"""Sea's vessel snapshot: the one read both its consumers share.
+"""Sea's vessel snapshot: the read behind the map's vessel feed.
 
-The map's `GET /api/sea/vessels` (and `/api/sea/status`) and the globe's
-`sea.globe.snapshot` bus request both go through `active_feed` and
+`GET /api/sea/vessels` (and `/api/sea/status`) go through `active_feed` and
 `vessel_snapshot`, so whichever feed the domain is set to is nudged the same
-way (and AISStream is never dialled off grid), and the rows come from the same
+way (and AISStream is never dialled off grid), and the rows come from one
 store query, newest position first.
 """
 

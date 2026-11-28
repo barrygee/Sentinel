@@ -1,15 +1,12 @@
-"""Air's ADS-B snapshot for a point: the one decision both its consumers share.
+"""Air's ADS-B snapshot for a point: the decision behind the map's aircraft feed.
 
-The map's `GET /api/air/adsb/point/{lat}/{lon}/{radius}` and the globe's
-`air.globe.snapshot` bus request both answer from `aircraft_near_point`, so the
-connectivity mode, the off-grid receiver centre, the cache states, the online
-feed's daily quota and the per-host rate limiter apply identically to both: a
-globe asking for the same centre as the map is served the same cached row and
-never spends an extra online call.
+`GET /api/air/adsb/point/{lat}/{lon}/{radius}` answers from
+`aircraft_near_point`, which applies the connectivity mode, the off-grid
+receiver centre, the cache states, the online feed's daily quota and the
+per-host rate limiter.
 
 The function returns an `AdsbPointSnapshot` rather than an HTTP response; the
-router turns it into headers (`X-Cache`, `X-Snapshot-Age-Ms`, ...) and the bus
-responder into a compact reply.
+router turns it into headers (`X-Cache`, `X-Snapshot-Age-Ms`, ...).
 """
 
 from __future__ import annotations
@@ -148,7 +145,7 @@ async def aircraft_near_point(db: AsyncSession, lat: float, lon: float, radius: 
                 → serve the nearest row within adsb_stale_ms
       - UNAVAILABLE: nothing to serve (`unavailable_reason` says why)
     """
-    # Any poll, cache hit or not, means a map (or the globe) is open: the
+    # Any poll, cache hit or not, means a map is open: the
     # squawk watcher stays idle rather than compete with it for the upstream's
     # rate budget.
     squawk_tracker.browser_polled()

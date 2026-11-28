@@ -11,7 +11,6 @@ from __future__ import annotations
 import pytest
 from sentinel_air.module import manifest as air_manifest
 from sentinel_docs.module import manifest as docs_manifest
-from sentinel_globe.module import manifest as globe_manifest
 from sentinel_land.module import manifest as land_manifest
 from sentinel_radio.module import manifest as radio_manifest
 from sentinel_sdr.module import manifest as sdr_manifest
@@ -28,7 +27,6 @@ MANIFESTS = {
     for manifest in (
         air_manifest,
         docs_manifest,
-        globe_manifest,
         land_manifest,
         radio_manifest,
         sdr_manifest,

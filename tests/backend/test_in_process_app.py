@@ -41,7 +41,6 @@ def test_registers_every_hosted_service_as_core_in_manifest_order(fresh_registry
         "sea",
         "land",
         "sdr",
-        "globe",
         "docs",
         "radio",
         "sdr-manager-remote",
@@ -92,4 +91,4 @@ def test_runs_core_first_then_every_section_and_the_hub():
 
 def test_hosts_one_manifest_per_service():
     ids = [manifest.id for manifest in IN_PROCESS_MANIFESTS]
-    assert len(ids) == len(set(ids)) == 9
+    assert len(ids) == len(set(ids)) == 8

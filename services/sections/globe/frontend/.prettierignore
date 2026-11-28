@@ -1,6 +1,0 @@
-# Generated output.
-coverage
-node_modules
-
-# Natural Earth data copied verbatim from sentinel-site (minified on purpose).
-src/globe/data

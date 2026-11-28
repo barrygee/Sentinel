@@ -50,8 +50,7 @@ A live, two-way copy of every setting.
 | `app.connectivityMode`, `<section>.sourceOverride` | `"online"` or `"offgrid"` |
 | `app.location` | `latitude` and `longitude`, both set or both empty |
 | `app.mapTheme` | `"dark"` or `"light"` |
-| `<section>.enabled` | `true` or `false` (`globe.enabled` is also **Settings › App Settings › 3D Globe**) |
-| `globe.layers` | `air`, `space`, `sea` and `aprs`, each `true` or `false` (the GLOBE page's layer buttons) |
+| `<section>.enabled` | `true` or `false` |
 | `sea.aisBoundingBoxes` | Boxes of `[[south, west], [north, east]]` |
 | `sea.aisSdrRadioId`, `sdr.aprs_radio_id`, `air.offgridSdrSource` | A radio `id` from `sdr.radios`, or `null` |
 | `sdr.radios` | The radio list; sending it replaces the whole list |

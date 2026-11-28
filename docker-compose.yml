@@ -503,27 +503,6 @@ services:
       SERVICE_INTERNAL_URL: http://docs:8000
     command: uvicorn sentinel_docs.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
 
-  # The optional 3D globe (GLOBE) as its own section service. Same image, run
-  # with the globe entry point (sentinel_globe.service, in
-  # services/sections/globe/backend). It registers with the app, which hands it
-  # /api/globe/ and /remotes/globe/ in the gateway. No database and no settings
-  # of its own (globe.* settings stay in the app); it connects to NATS like
-  # every section. The GLOBE page stays hidden until Settings › App Settings ›
-  # 3D Globe is on; to not run the container at all, set
-  # SENTINEL_GLOBE_REPLICAS=0 in .env (or `--scale globe=0` for one run).
-  globe:
-    <<: *section-service
-    container_name: sentinel-globe
-    deploy:
-      replicas: ${SENTINEL_GLOBE_REPLICAS:-1}
-    volumes:
-      - *spa-dist
-      - {type: volume, source: service_credentials, target: /run/service-credentials, read_only: true, volume: {subpath: credentials/globe}}
-    environment:
-      <<: *section-env
-      SERVICE_INTERNAL_URL: http://globe:8000
-    command: uvicorn sentinel_globe.service:app --host 0.0.0.0 --port 8000 --no-proxy-headers
-
   # SDR Manager for SDR hosts on OTHER machines (ADR 0007): the hosts this
   # Sentinel manages, polled for their live status, and the leases Air takes
   # on their dongles. Always on in the full app. Registers with the app and

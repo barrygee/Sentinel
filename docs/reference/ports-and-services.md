@@ -16,7 +16,6 @@ Every container, its job, ports and data. Containers are named `sentinel-<servic
 | `radio` | Radio hub: radios, spectrum, audio, decoding, IQ capture | `radio_data` |
 | `sdr-manager-remote` | SDR Manager: SDR hosts on other computers | `sdr_manager_remote_data` |
 | `docs` | The in-app docs (optional) | — |
-| `globe` | The 3D globe (optional; also off in Settings until switched on) | — |
 
 ## Decoders (profiles)
 

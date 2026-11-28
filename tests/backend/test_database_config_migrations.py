@@ -76,6 +76,37 @@ class TestIsRemovedSetting:
     def test_does_not_match_a_prefix_in_another_namespace(self):
         assert db.is_removed_setting("sea", "feedCredential:42") is False
 
+    @pytest.mark.parametrize("key", ["enabled", "layers", "satellites"])
+    def test_the_removed_globe_sections_settings_are_removed(self, key):
+        assert db.is_removed_setting("globe", key) is True
+
+    def test_the_same_key_in_a_live_section_is_still_live(self):
+        # Only the GLOBE namespace went: every section keeps its own `enabled`.
+        assert db.is_removed_setting("space", "enabled") is False
+        assert db.is_removed_setting("air", "layers") is False
+
+
+class TestPruneRemovedSettings:
+    async def test_deletes_the_globe_sections_rows_and_keeps_live_ones(self, session_factory):
+        await _add(
+            session_factory,
+            [
+                ("globe", "enabled", "true"),
+                ("globe", "layers", '{"air": true, "space": false}'),
+                ("globe", "satellites", '["25544"]'),
+                ("space", "enabled", "true"),
+            ],
+        )
+        await db.prune_removed_settings()
+        stored = await _stored(session_factory)
+        assert not [row for row in stored if row[0] == "globe"]
+        assert stored[("space", "enabled")] == ("true", 1)
+
+    async def test_with_nothing_to_prune_changes_nothing(self, session_factory):
+        await _add(session_factory, [("space", "enabled", "true")])
+        await db.prune_removed_settings()
+        assert await _stored(session_factory) == {("space", "enabled"): ("true", 1)}
+
 
 class TestResolveRetiredAutoModes:
     async def test_an_app_auto_becomes_online_and_so_do_auto_sections(

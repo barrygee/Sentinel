@@ -279,6 +279,25 @@ class TestApplyConfig:
         assert await _row(session_factory, "space", "historyEnabled") is None
         assert await _value(session_factory, "air", "enabled") is True
 
+    async def test_does_not_resurrect_the_globe_sections_settings(self, session_factory):
+        # An export or live config file from before the GLOBE section was removed.
+        async with session_factory() as session:
+            await apply_config(
+                session,
+                {
+                    "globe": {
+                        "enabled": True,
+                        "layers": {"air": True, "space": True, "sea": True, "aprs": True},
+                        "satellites": ["25544"],
+                    },
+                    "space": {"enabled": True},
+                },
+            )
+        assert await _row(session_factory, "globe", "enabled") is None
+        assert await _row(session_factory, "globe", "layers") is None
+        assert await _row(session_factory, "globe", "satellites") is None
+        assert await _value(session_factory, "space", "enabled") is True
+
     async def test_leaves_an_unchanged_value_untouched(self, session_factory):
         await _add(session_factory, [("app", "notificationSound", True)])
         async with session_factory() as session:

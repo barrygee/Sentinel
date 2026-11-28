@@ -33,7 +33,6 @@
     "@sentinel/sdr-manager-local": "*",
     "@sentinel/sdr-manager-remote": "*",
     "@sentinel/section-air": "*",
-    "@sentinel/section-globe": "*",
     "@sentinel/section-land": "*",
     "@sentinel/section-sdr": "*",
     "@sentinel/section-sea": "*",

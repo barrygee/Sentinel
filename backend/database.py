@@ -254,6 +254,12 @@ _REMOVED_SETTING_KEYS: tuple[tuple[str, str], ...] = (
         for namespace in ("air", "sea", "land", "space")
         for key in ("historyEnabled", "historyRetentionDays")
     ),
+    # GLOBE section (removed 2026-11-28): its on/off switch (Settings › App
+    # Settings › 3D Globe), layer buttons and chosen satellites. The 3D globe
+    # is now Space's 2D/3D view, which keeps its own state in the browser.
+    ("globe", "enabled"),
+    ("globe", "layers"),
+    ("globe", "satellites"),
 )
 
 # Key-prefix families pruned the same way, for removed features that stored one

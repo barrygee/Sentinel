@@ -186,14 +186,5 @@
     "radios": [],
     "aprs_radio_id": null,
     "ais_radio_id": null
-  },
-  "globe": {
-    "enabled": false,
-    "layers": {
-      "air": true,
-      "space": true,
-      "sea": true,
-      "aprs": true
-    }
   }
 }
